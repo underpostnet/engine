@@ -21,24 +21,29 @@ vi.mock('../../../src/server/storage/cache.js', () => ({ CacheService: { invalid
 
 const { objectLayerIdentity } = await import('../../../src/api/object-layer/object-layer.identity.js');
 const { composeItemDefinition } = await import('../../../src/projects/cyberia/object-layer-catalog.js');
+const { readSourceLock, verifyLockedSource } = await import('../../../src/server/release/source-lock.js');
 const {
   CONTENT_FAMILIES,
   CONTENT_SCHEMA_VERSION,
+  RELEASE_ARTIFACT_COLLECTION,
   auditContent,
   contentArtifact,
-  contentSources,
-  contentLock,
+  contentLockEntry,
   contentRoot,
+  contentSources,
   deploymentRoot,
   hasContentArtifact,
   holdsContent,
   importContent,
+  loadContentArtifact,
   materializeObjectLayers,
   openContentArtifact,
   planMaterialization,
   planObjectLayer,
   readBackupContent,
-  verifyContentLock,
+  serveContentArtifact,
+  servedContentArtifact,
+  storeContentArtifact,
 } = await import('../../../src/projects/cyberia/content-artifact.js');
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -132,8 +137,6 @@ const store = (seed = []) => {
   for (const payload of seed) bindings.set(payload.data.item.id, put(payload).cid);
   const ObjectLayer = {
     store: async (payload) => put(payload),
-    distinct: async (field, { 'data.item.id': { $in: itemIds } }) =>
-      [...new Set([...docs.values()].map((doc) => doc.data.item.id))].filter((itemId) => itemIds.includes(itemId)),
     findByCid: async (cid) => {
       const doc = docs.get(cid);
       return doc ? { ...doc, toObject: () => JSON.parse(JSON.stringify(doc)) } : null;
@@ -200,6 +203,112 @@ describe('artifact verification', () => {
   });
 });
 
+/** A release database as the driver offers it: one collection, enough to store and read an artifact. */
+const releaseDb = (databaseName = 'cyberia-content-r1') => {
+  let documents = [];
+  return {
+    databaseName,
+    documents: () => documents,
+    edit: (id, data) => (documents.find(({ _id }) => _id === id).data = data),
+    collection: (name) => {
+      expect(name).toBe(RELEASE_ARTIFACT_COLLECTION);
+      return {
+        deleteMany: async () => (documents = []),
+        insertMany: async (docs) => documents.push(...structuredClone(docs)),
+        find: () => ({ toArray: async () => structuredClone(documents) }),
+      };
+    },
+  };
+};
+const CONTEXT = { definitions: {}, labels: {}, sources: {}, references: {}, referencedBy: {}, entities: {} };
+const RELEASE_FILES = { ...FILES, 'context.json': CONTEXT };
+
+describe('the content artifact a release database holds', () => {
+  afterEach(() => serveContentArtifact());
+
+  it('holds every file but the instance backups, and reads as the artifact on disk', async () => {
+    const opened = openContentArtifact(writeArtifact(RELEASE_FILES));
+    const db = releaseDb();
+    expect(await storeContentArtifact(db, opened)).toBe(Object.keys(RELEASE_FILES).length);
+    expect(db.documents().map(({ _id }) => _id)).not.toContain('instances/X/cyberia-instance.json');
+    const stored = await loadContentArtifact(db, opened.manifest.contentDigest);
+    expect(stored.manifest).toEqual(opened.manifest);
+    expect(stored.files).toEqual(
+      Object.keys(RELEASE_FILES)
+        .filter((file) => !file.startsWith('instances/'))
+        .sort(),
+    );
+    expect(stored.json('foundation/object-layers.json')).toEqual(opened.json('foundation/object-layers.json'));
+    expect(() => stored.instanceDir('X')).toThrow('A release database holds no instance backup');
+  });
+
+  it('replaces what the database held', async () => {
+    const db = releaseDb();
+    await storeContentArtifact(db, openContentArtifact(writeArtifact(RELEASE_FILES)));
+    const next = openContentArtifact(
+      writeArtifact({ ...RELEASE_FILES, 'foundation/baseline.json': [{ entityType: 'floor' }] }),
+    );
+    await storeContentArtifact(db, next);
+    expect((await loadContentArtifact(db, next.manifest.contentDigest)).json('foundation/baseline.json')).toEqual([
+      { entityType: 'floor' },
+    ]);
+  });
+
+  it('fails on no artifact, on another artifact than the release records, and on an altered or missing file', async () => {
+    const opened = openContentArtifact(writeArtifact(RELEASE_FILES));
+    const { contentDigest } = opened.manifest;
+    await expect(loadContentArtifact(releaseDb(), contentDigest)).rejects.toThrow(
+      'No content artifact in cyberia-content-r1',
+    );
+    const db = releaseDb();
+    await storeContentArtifact(db, opened);
+    await expect(loadContentArtifact(db, `sha256:${'0'.repeat(64)}`)).rejects.toThrow(
+      `cyberia-content-r1 holds content ${contentDigest}; the release records sha256:${'0'.repeat(64)}`,
+    );
+    await expect(loadContentArtifact(db, '')).rejects.toThrow('the release records no content');
+    db.edit('context.json', '{}');
+    await expect(loadContentArtifact(db, contentDigest)).rejects.toThrow('Content digest mismatch: context.json');
+    const partial = releaseDb();
+    await storeContentArtifact(partial, opened);
+    partial.documents().splice(
+      partial.documents().findIndex(({ _id }) => _id === 'foundation/skills.json'),
+      1,
+    );
+    await expect(loadContentArtifact(partial, contentDigest)).rejects.toThrow(
+      'Invalid content artifact: foundation/skills.json is missing',
+    );
+  });
+
+  it('is what the process reads while its release serves, until the workspace serves again', async () => {
+    const opened = openContentArtifact(writeArtifact(RELEASE_FILES));
+    const db = releaseDb();
+    await storeContentArtifact(db, opened);
+    expect(await serveContentArtifact({ releaseId: 'r1', db, digest: opened.manifest.contentDigest })).toEqual({
+      releaseId: 'r1',
+      error: '',
+    });
+    expect(contentArtifact().manifest.contentDigest).toBe(opened.manifest.contentDigest);
+    expect(contentArtifact().context).toEqual(CONTEXT);
+    expect(Object.isFrozen(contentArtifact().foundation.objectLayers[0].payload.data.item)).toBe(true);
+    expect(await serveContentArtifact()).toEqual({ releaseId: '', error: '' });
+    expect(servedContentArtifact()).toEqual({ releaseId: '', error: '' });
+  });
+
+  it('fails every read of a release whose copy does not load, and loads it again on the next call', async () => {
+    const opened = openContentArtifact(writeArtifact(RELEASE_FILES));
+    const db = releaseDb();
+    const digest = opened.manifest.contentDigest;
+    expect(await serveContentArtifact({ releaseId: 'r1', db, digest })).toEqual({
+      releaseId: 'r1',
+      error: 'Content release r1: No content artifact in cyberia-content-r1',
+    });
+    expect(() => contentArtifact()).toThrow('Content release r1: No content artifact in cyberia-content-r1');
+    await storeContentArtifact(db, opened);
+    expect(await serveContentArtifact({ releaseId: 'r1', db, digest })).toEqual({ releaseId: 'r1', error: '' });
+    expect(contentArtifact().context).toEqual(CONTEXT);
+  });
+});
+
 describe('content roots', () => {
   afterEach(() => vi.unstubAllEnvs());
 
@@ -223,22 +332,28 @@ describe('content roots', () => {
   });
 });
 
-describe('content lock', () => {
+describe('the source lock entry of the content artifact', () => {
   const { manifest } = openContentArtifact(writeArtifact(FILES));
+  const entry = contentLockEntry(manifest);
 
-  it('matches a lock of the same identity and names every field another lock changes', () => {
-    const lock = contentLock(manifest);
-    expect(lock).toEqual({
+  it('pins the repository, the source revision and the identity of the artifact', () => {
+    expect(entry).toEqual({
       repository: manifest.repository,
-      version: manifest.contentVersion,
-      sourceRevision: manifest.sourceRevision,
-      digest: manifest.contentDigest,
+      revision: manifest.sourceRevision,
+      artifact: { version: manifest.contentVersion, digest: manifest.contentDigest },
     });
-    expect(() => verifyContentLock(lock, manifest)).not.toThrow();
-    expect(() => verifyContentLock({ ...lock, version: '0.0.1', digest: 'sha256:0' }, manifest)).toThrow(
-      `version ${lock.version} (lock: 0.0.1), digest ${lock.digest} (lock: sha256:0)`,
+    expect(
+      readSourceLock({ lockVersion: 1, sources: { 'cyberia-content': entry } }).sources['cyberia-content'],
+    ).toEqual(entry);
+  });
+
+  it('matches the lock that pins it, and names every field another artifact changes', () => {
+    const lock = readSourceLock({ lockVersion: 1, sources: { 'cyberia-content': entry } });
+    expect(() => verifyLockedSource(lock, 'cyberia-content', entry)).not.toThrow();
+    const other = { ...entry, artifact: { version: '0.0.1', digest: `sha256:${'0'.repeat(64)}` } };
+    expect(() => verifyLockedSource(lock, 'cyberia-content', other)).toThrow(
+      `artifact version 0.0.1 (lock: ${manifest.contentVersion}), artifact digest ${other.artifact.digest} (lock: ${manifest.contentDigest})`,
     );
-    expect(() => verifyContentLock(null, manifest)).toThrow('repository');
   });
 });
 
@@ -282,13 +397,13 @@ describe('materialization plan', () => {
 });
 
 describe('materialization', () => {
-  it('creates absent labels, skips every stored item id, and is idempotent', async () => {
+  it('creates absent labels, keeps differing ones, and is idempotent', async () => {
     const { models, docs, bindings } = store([drawn('anon')]);
     const items = itemsOf('coin', 'anon');
     const plan = await planMaterialization({ items, models });
     expect(plan.map(({ itemId, status }) => [itemId, status])).toEqual([
       ['coin', 'absent'],
-      ['anon', 'exists'],
+      ['anon', 'differs'],
     ]);
 
     const written = await materializeObjectLayers({ plan, items, models });
@@ -296,19 +411,34 @@ describe('materialization', () => {
     expect(bindings.get('anon')).toBe(plan[1].boundCid);
 
     const again = await planMaterialization({ items, models });
-    expect(again.map(({ status }) => status)).toEqual(['exists', 'exists']);
+    expect(again.map(({ status }) => status)).toEqual(['in-sync', 'differs']);
     expect(await materializeObjectLayers({ plan: again, items, models })).toEqual([]);
     expect(docs.size).toBe(2);
   });
 
-  it('never duplicates a stored item id that no catalog binding names', async () => {
+  it('publishes differing content as a new definition on a rebind: both definitions of the label survive', async () => {
+    const { models, docs, bindings } = store([drawn('anon')]);
+    const items = itemsOf('anon');
+    const plan = await planMaterialization({ items, models });
+    const [entry] = await materializeObjectLayers({ plan, items, models, rebind: true });
+
+    expect(entry.cid).not.toBe(plan[0].boundCid);
+    expect(bindings.get('anon')).toBe(entry.cid);
+    // The earlier definition is never rewritten: it stays stored under its own identity.
+    expect(docs.get(plan[0].boundCid).data.item.description).toBe('');
+    expect(docs.get(entry.cid).data.render).toEqual(RENDER);
+    expect((await planMaterialization({ items, models }))[0].status).toBe('in-sync');
+  });
+
+  it('plans by identity, never by item id: a stored definition no binding names leaves the label absent', async () => {
     const { models, docs, bindings } = store([drawn('anon')]);
     bindings.delete('anon');
     const items = itemsOf('anon');
     const plan = await planMaterialization({ items, models });
-    expect(plan.map(({ status }) => status)).toEqual(['exists']);
-    expect(await materializeObjectLayers({ plan, items, models })).toEqual([]);
-    expect(docs.size).toBe(1);
+    expect(plan.map(({ status }) => status)).toEqual(['absent']);
+    const [entry] = await materializeObjectLayers({ plan, items, models });
+    expect(bindings.get('anon')).toBe(entry.cid);
+    expect([...docs.values()].filter((doc) => doc.data.item.id === 'anon')).toHaveLength(2);
   });
 });
 

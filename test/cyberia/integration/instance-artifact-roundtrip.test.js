@@ -7,7 +7,7 @@ import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyber
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 const cli = new URL('../../../bin/cyberia.js', import.meta.url).pathname;
-const CODE = 'TEST';
+const CODE = 'test';
 const APIS = [
   'object-layer',
   'cyberia-item-catalog',

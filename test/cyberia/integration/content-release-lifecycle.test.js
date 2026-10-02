@@ -1,10 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'node:http';
+import { createHash } from 'node:crypto';
+import os from 'node:os';
+import nodePath from 'node:path';
+import fs from 'fs-extra';
+import express from 'express';
+import { Types } from 'mongoose';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
-import { runInContentView } from '../../../src/db/content-view.js';
 import { publishDefinition } from '../../../src/api/object-layer/object-layer.publication.js';
 import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
+import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
+import { CyberiaMapRouter } from '../../../src/api/cyberia-map/cyberia-map.router.js';
+import { fetchMapData, getInstanceModels } from '../../../src/projects/cyberia/instance-data.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
@@ -21,12 +29,23 @@ import {
   CONTENT_PARTITION,
   activateContentRelease,
   materializeWorkspace,
+  advanceContentRelease,
+  beginContentRelease,
+  failContentRelease,
   promoteContentRelease,
   pruneContentReleases,
   retireContentRelease,
   rollbackContentRelease,
   validateContentRelease,
 } from '../../../src/projects/cyberia/content-release.js';
+import {
+  CONTENT_FAMILIES,
+  CONTENT_SCHEMA_VERSION,
+  contentArtifact,
+  openContentArtifact,
+  servedContentArtifact,
+  storeContentArtifact,
+} from '../../../src/projects/cyberia/content-artifact.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 // A real replica set: transactions, unique indexes and cross-database `$out` behave as in
@@ -45,11 +64,12 @@ const CONTENT_APIS = [
   'cyberia-instance',
   'cyberia-instance-conf',
 ];
-const RUNTIME_APIS = ['cyberia-content-release', 'cyberia-quest-progress', 'cyberia-server-registry', 'file'];
+const RUNTIME_APIS = ['cyberia-content-release', 'cyberia-quest-progress', 'cyberia-server-registry', 'file', 'user'];
 const WORKSPACE = 'cyberia-content';
 const releaseDb = (id) => `${WORKSPACE}-${id}`;
 
 const authority = { host: 'objectlayer.test', path: '/', consumes: {} };
+/** The `cyberia` CLI: it authors the workspace and builds releases. */
 const cyberia = {
   host: 'cyberia.test',
   path: '/',
@@ -59,6 +79,8 @@ const cyberia = {
     'atlas-sprite-sheet': 'object-layer',
   },
 };
+/** The engine runtime: another process on the same databases, serving the active release. */
+const runtime = { ...cyberia, path: '/runtime' };
 
 let mongod;
 let authorityServer;
@@ -95,20 +117,21 @@ const startAuthority = () =>
 const loadHosts = async () => {
   const base = { provider: 'mongoose', host: dbHost, replicaSet: 'testset' };
   await DataBaseProviderService.load({ apis: ['object-layer'], ...authority, db: { ...base, name: 'objectlayer' } });
-  await DataBaseProviderService.load({
-    apis: [...RUNTIME_APIS, ...CONTENT_APIS],
-    ...cyberia,
-    db: {
-      ...base,
-      name: 'cyberia-runtime',
-      partitions: { [CONTENT_PARTITION]: { name: WORKSPACE, apis: CONTENT_APIS } },
-    },
-  });
+  for (const context of [cyberia, runtime])
+    await DataBaseProviderService.load({
+      apis: [...RUNTIME_APIS, ...CONTENT_APIS],
+      ...context,
+      db: {
+        ...base,
+        name: 'cyberia-runtime',
+        partitions: { [CONTENT_PARTITION]: { name: WORKSPACE, apis: CONTENT_APIS } },
+      },
+    });
 };
 
-/** Closes both hosts and forgets them, as a process exit does. */
+/** Closes every host and forgets it, as a process exit does. */
 const closeHosts = async () => {
-  for (const context of [authority, cyberia]) {
+  for (const context of [authority, cyberia, runtime]) {
     await DataBaseProviderService.getProvider(context).close();
     delete DataBaseProviderService.instance[`${context.host}${context.path}`];
   }
@@ -193,23 +216,73 @@ const authorWorkspace = async ({ mapCode = 'forest-1' } = {}) => {
   return { hatchet, sword };
 };
 
-/** Builds a release from the workspace and records its validation in the ledger. */
+const sha256 = (data) => `sha256:${createHash('sha256').update(data).digest('hex')}`;
+
+/** A content artifact on disk, as cyberia-content builds one, whose context names the release it is for. */
+const writeArtifact = (releaseId) => {
+  const root = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'cyberia-release-artifact-'));
+  const files = {
+    ...Object.fromEntries(Object.values(CONTENT_FAMILIES).map((family) => [`foundation/${family}.json`, []])),
+    'foundation/baseline.json': [],
+    'context.json': {
+      definitions: { 'map.forest-1': { id: 'map.forest-1', name: releaseId } },
+      labels: {},
+      sources: { 'map.forest-1': 'foundation' },
+      references: {},
+      referencedBy: {},
+      entities: {},
+    },
+    'instances/FOREST/cyberia-instance.json': { code: 'FOREST' },
+  };
+  const digests = {};
+  for (const [file, value] of Object.entries(files)) {
+    const data = Buffer.from(JSON.stringify(value));
+    fs.outputFileSync(nodePath.join(root, 'dist', file), data);
+    digests[file] = sha256(data);
+  }
+  const lines = Object.keys(digests)
+    .sort()
+    .map((file) => `${file} ${digests[file]}\n`)
+    .join('');
+  fs.outputJsonSync(nodePath.join(root, 'dist', 'manifest.json'), {
+    repository: 'underpostnet/cyberia-content',
+    contentVersion: '1.0.0',
+    sourceRevision: 'a'.repeat(40),
+    schemaVersion: CONTENT_SCHEMA_VERSION,
+    contentDigest: sha256(lines),
+    build: {},
+    instances: ['FOREST'],
+    sagas: [],
+    files: digests,
+  });
+  return openContentArtifact(root);
+};
+
+/** The name the served content artifact gives the forest map: the release whose artifact the runtime reads. */
+const servedArtifactName = () => contentArtifact().context.definitions['map.forest-1'].name;
+
+/** A release of the workspace, through the release lifecycle: building, candidate, validated or failed. */
 const buildRelease = async (releaseId) => {
   const database = releaseDb(releaseId);
+  const ledger = model('CyberiaContentRelease');
+  const artifact = writeArtifact(releaseId);
+  const { contentVersion: version, contentDigest: digest } = artifact.manifest;
+  await beginContentRelease(ledger, {
+    releaseId,
+    holder: 'test',
+    fields: { database, source: { from: 'workspace' }, content: { version, digest } },
+  });
+  await storeContentArtifact(connection().getClient().db(database), artifact);
   await materializeWorkspace({ connection: connection(), workspace: WORKSPACE, database, apis: CONTENT_APIS });
+  await advanceContentRelease(ledger, releaseId, 'candidate');
   const validation = await validateContentRelease(
     { ...(await releaseModels(database)), File: model('File') },
-    { options: cyberia },
+    { options: cyberia, artifact: { db: connection().getClient().db(database), digest } },
   );
   const { manifest, dependencies, ...report } = validation;
-  await model('CyberiaContentRelease').updateOne(
-    { releaseId },
-    {
-      $set: { database, status: validation.ok ? 'validated' : 'invalid', validation: report, manifest, dependencies },
-      $setOnInsert: { releaseId },
-    },
-    { upsert: true },
-  );
+  await ledger.updateOne({ releaseId }, { $set: { validation: report, manifest, dependencies } });
+  if (validation.ok) await advanceContentRelease(ledger, releaseId, 'validated');
+  else await failContentRelease(ledger, releaseId, 'validate', 'Content validation failed');
   return validation;
 };
 
@@ -221,8 +294,6 @@ const snapshot = async (database) => {
     rows[name] = JSON.stringify(await bound.find({}).sort({ _id: 1 }).lean());
   return rows;
 };
-
-const served = (fn) => runInContentView('served', fn);
 
 describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica set', () => {
   beforeAll(async () => {
@@ -425,9 +496,9 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(validation.manifest).toMatchObject({ instances: ['FOREST'], maps: 1 });
       expect(validation.dependencies.length).toBeGreaterThanOrEqual(2);
 
-      // Nothing promoted: the served view reads the workspace until a release is active.
-      await activateContentRelease(cyberia);
-      expect(DataBaseProviderService.servedDatabase(cyberia, CONTENT_PARTITION)).toBe(WORKSPACE);
+      // Nothing promoted: the runtime serves the workspace until a release is active.
+      await activateContentRelease(runtime);
+      expect(DataBaseProviderService.servedDatabase(runtime, CONTENT_PARTITION)).toBe(WORKSPACE);
       r1Snapshot = await snapshot(releaseDb('r1'));
     });
 
@@ -443,10 +514,17 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(again.active.promotedAt).toEqual(active.promotedAt);
       expect(again.retired).toBeNull();
 
-      const result = await activateContentRelease(cyberia);
-      expect(result).toMatchObject({ releaseId: 'r1', database: releaseDb('r1'), changed: true });
-      expect(await served(() => model('CyberiaMap').db.name)).toBe(releaseDb('r1'));
+      const result = await activateContentRelease(runtime);
+      expect(result).toMatchObject({
+        releaseId: 'r1',
+        database: releaseDb('r1'),
+        changed: true,
+        artifact: { releaseId: 'r1', error: '' },
+      });
+      expect(model('CyberiaMap', runtime).db.name).toBe(releaseDb('r1'));
       expect(model('CyberiaMap').db.name).toBe(WORKSPACE);
+      expect(servedArtifactName()).toBe('r1');
+      expect((await activateContentRelease(runtime)).changed).toBe(false);
     });
 
     it('never lets a candidate build touch the active release', async () => {
@@ -456,13 +534,14 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(validation.manifest.maps).toBe(2);
 
       expect(await snapshot(releaseDb('r1'))).toEqual(r1Snapshot);
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(1);
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
     });
 
     it('switches the served release atomically on promotion', async () => {
       await promoteContentRelease(model('CyberiaContentRelease'), 'r2');
-      await activateContentRelease(cyberia);
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(2);
+      await activateContentRelease(runtime);
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(2);
+      expect(servedArtifactName()).toBe('r2');
       expect(await model('CyberiaContentRelease').countDocuments({ status: 'active' })).toBe(1);
     });
 
@@ -473,22 +552,24 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(retired.releaseId).toBe('r2');
       expect((await rollbackContentRelease(ledger)).active.releaseId).toBe('r2');
       expect((await rollbackContentRelease(ledger)).active.releaseId).toBe('r1');
-      await activateContentRelease(cyberia);
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(1);
+      await activateContentRelease(runtime);
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
+      expect(servedArtifactName()).toBe('r1');
     });
 
     it('retires the active release so the workspace serves again, and rolls forward to it', async () => {
       const ledger = model('CyberiaContentRelease');
       const retired = await retireContentRelease(ledger);
       expect(retired.releaseId).toBe('r1');
-      await activateContentRelease(cyberia);
-      expect(DataBaseProviderService.servedDatabase(cyberia, CONTENT_PARTITION)).toBe(WORKSPACE);
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(2);
+      await activateContentRelease(runtime);
+      expect(DataBaseProviderService.servedDatabase(runtime, CONTENT_PARTITION)).toBe(WORKSPACE);
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(2);
+      expect(servedContentArtifact()).toEqual({ releaseId: '', error: '' });
       await expect(retireContentRelease(ledger)).rejects.toThrow(/No release is active/);
 
       expect((await rollbackContentRelease(ledger)).active.releaseId).toBe('r1');
-      await activateContentRelease(cyberia);
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(1);
+      await activateContentRelease(runtime);
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
     });
 
     it('refuses a release that names a definition the authority does not hold', async () => {
@@ -503,6 +584,12 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       await expect(promoteContentRelease(model('CyberiaContentRelease'), 'r3')).rejects.toThrow(
         /only a validated release/,
       );
+      expect(await model('CyberiaContentRelease').findOne({ releaseId: 'r3' }).lean()).toMatchObject({
+        status: 'failed',
+        failure: { stage: 'validate' },
+      });
+      await activateContentRelease(runtime);
+      expect(DataBaseProviderService.servedDatabase(runtime, CONTENT_PARTITION)).toBe(releaseDb('r1'));
       await model('CyberiaItemCatalog').deleteOne({ itemId: 'ghost' });
     });
 
@@ -512,6 +599,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
         connection: connection(),
         keep: 0,
       });
+      expect(await model('CyberiaContentRelease').exists({ releaseId: 'r3' })).toBeNull();
       expect(removed).toEqual(['r3']);
       const databases = (await connection().db.admin().listDatabases()).databases.map((db) => db.name);
       expect(databases).toEqual(expect.arrayContaining([releaseDb('r1'), releaseDb('r2'), WORKSPACE]));
@@ -521,9 +609,10 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
     it('serves the active release again after a restart', async () => {
       await closeHosts();
       await loadHosts();
-      await activateContentRelease(cyberia);
-      expect(DataBaseProviderService.servedDatabase(cyberia, CONTENT_PARTITION)).toBe(releaseDb('r1'));
-      expect(await served(() => model('CyberiaMap').countDocuments())).toBe(1);
+      await activateContentRelease(runtime);
+      expect(DataBaseProviderService.servedDatabase(runtime, CONTENT_PARTITION)).toBe(releaseDb('r1'));
+      expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
+      expect(servedArtifactName()).toBe('r1');
     });
 
     it('keeps one active release when two promotions race', async () => {
@@ -541,6 +630,86 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       ).rejects.toThrow(/duplicate key/);
     });
 
+    it('builds one release at a time, retries a failed one from the same source, and refuses another', async () => {
+      const ledger = model('CyberiaContentRelease');
+      const source = { from: 'source', channel: 'private', repository: 'acme/content', sourceRevision: 'a'.repeat(40) };
+      const begin = (releaseId, fields = {}, params = {}) =>
+        beginContentRelease(ledger, {
+          releaseId,
+          holder: 'job',
+          fields: { database: releaseDb(releaseId), source, ...fields },
+          ...params,
+        });
+
+      expect((await begin('s1')).release).toMatchObject({ status: 'building', lease: { executing: true } });
+      await expect(begin('s2')).rejects.toThrow(/Release s1 is executing; one release builds at a time/);
+      await failContentRelease(ledger, 's1', 'contract', new Error('npm test failed'));
+      expect(await ledger.findOne({ releaseId: 's1' }).lean()).toMatchObject({
+        status: 'failed',
+        failure: { stage: 'contract', message: 'npm test failed' },
+      });
+
+      const reset = [];
+      const retried = await begin(
+        's1',
+        { source: { ...source, channel: 'public' } },
+        { reset: async (database) => reset.push(database) },
+      );
+      expect(retried.release).toMatchObject({
+        status: 'building',
+        source: { channel: 'public' },
+        failure: { stage: '' },
+      });
+      // A retry starts from an empty candidate database: nothing the failed attempt wrote survives.
+      expect(reset).toEqual([releaseDb('s1')]);
+      await failContentRelease(ledger, 's1', 'contract', 'again');
+      await expect(begin('s1', { source: { ...source, sourceRevision: 'b'.repeat(40) } })).rejects.toThrow(
+        /another source/,
+      );
+
+      // An execution that stopped holds the lease no longer than its lifetime.
+      await begin('s3');
+      const taken = await begin('s4', {}, { leaseMs: 0 });
+      expect(taken.release.status).toBe('building');
+      expect(await ledger.findOne({ releaseId: 's3' }).lean()).toMatchObject({
+        status: 'failed',
+        failure: { stage: 'lease' },
+      });
+      await failContentRelease(ledger, 's4', 'contract', 'done');
+    });
+
+    it('lets a production runtime take a new release only from an exact source, and roll back to any it served', async () => {
+      const ledger = model('CyberiaContentRelease');
+      const served = await ledger.active();
+      expect(served.source?.from).not.toBe('source');
+      const validated = async (releaseId, source) => {
+        await beginContentRelease(ledger, {
+          releaseId,
+          holder: 'job',
+          fields: { database: releaseDb(releaseId), source },
+        });
+        await advanceContentRelease(ledger, releaseId, 'candidate');
+        await advanceContentRelease(ledger, releaseId, 'validated');
+      };
+      await validated('p0', { from: 'backups' });
+      await expect(promoteContentRelease(ledger, 'p0', { production: true })).rejects.toThrow(
+        /no exact source revision/,
+      );
+      await validated('p1', {
+        from: 'source',
+        channel: 'private',
+        repository: 'acme/content',
+        sourceRevision: 'c'.repeat(40),
+      });
+      const { active } = await promoteContentRelease(ledger, 'p1', { production: true });
+      expect(active).toMatchObject({ releaseId: 'p1', status: 'active', source: { channel: 'private' } });
+      expect(await rollbackContentRelease(ledger, { production: true, from: 'p0' })).toBeNull();
+      expect((await ledger.active()).releaseId).toBe('p1');
+      expect((await rollbackContentRelease(ledger, { production: true, from: 'p1' })).active.releaseId).toBe(
+        served.releaseId,
+      );
+    });
+
     it('never rewrites player state', async () => {
       const progress = await model('CyberiaQuestProgress').find({}).sort({ playerId: 1 }).lean();
       expect(progress.map((row) => [row.playerId, row.status])).toEqual([
@@ -548,6 +717,94 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
         ['p2', 'completed'],
       ]);
       expect(progress[0].stepProgress[0].objectiveProgress[0].current).toBe(1);
+    });
+  });
+
+  describe('one data source for every role', () => {
+    const roles = [undefined, 'user', 'moderator', 'admin'];
+    const tokens = {};
+    let server;
+    let origin;
+
+    beforeAll(async () => {
+      process.env.JWT_SECRET = 'content-release-test-secret';
+      for (const role of roles.filter(Boolean))
+        tokens[role] = jwtSign({ _id: `${new Types.ObjectId()}`, role }, runtime, 5, 10);
+      const app = express();
+      app.use(express.json());
+      app.use(
+        '/api/v1/cyberia-map',
+        CyberiaMapRouter.router({ ...runtime, authMiddleware: authMiddlewareFactory(runtime) }),
+      );
+      server = await new Promise((resolve) => {
+        const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
+      });
+      origin = `http://127.0.0.1:${server.address().port}/api/v1/cyberia-map`;
+      await activateContentRelease(runtime);
+      // A map only the workspace holds.
+      await model('CyberiaMap').create({ code: 'draft-1' });
+    });
+
+    afterAll(async () => {
+      await new Promise((resolve) => server?.close(resolve));
+      delete process.env.JWT_SECRET;
+    });
+
+    /** A request as a guest, or with the token of a role. */
+    const call = async (role, path = '', { method = 'GET', body } = {}) => {
+      const response = await fetch(`${origin}${path}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...(role && { authorization: `Bearer ${tokens[role]}` }) },
+        body: body && JSON.stringify(body),
+      });
+      return { status: response.status, data: (await response.json()).data };
+    };
+    const listed = async (role) => (await call(role)).data.data.map((map) => map.code).sort();
+    /** The map codes of the active release database, read past the provider. */
+    const served = async () => {
+      const { CyberiaMap } = await releaseModels((await model('CyberiaContentRelease').active()).database);
+      return (await CyberiaMap.find({}, { code: 1 }).lean()).map((map) => map.code).sort();
+    };
+
+    it('answers a guest, a user, a moderator and an admin from the active release', async () => {
+      const codes = await served();
+      expect(codes).not.toContain('draft-1');
+      for (const role of roles) expect(await listed(role)).toEqual(codes);
+    });
+
+    it('refuses a change from a guest and a user, and lets a moderator and an admin change the active release', async () => {
+      const map = { code: 'live-1', name: 'Live' };
+      expect((await call(undefined, '', { method: 'POST', body: map })).status).toBe(401);
+      expect((await call('user', '', { method: 'POST', body: map })).status).toBe(403);
+      expect((await call('moderator', '', { method: 'POST', body: map })).status).toBe(200);
+      const forest = await model('CyberiaMap', runtime).findOne({ code: 'forest-1' }).lean();
+      const body = { name: 'Live forest', revision: forest.revision };
+      expect((await call('moderator', `/${forest._id}`, { method: 'PUT', body })).status).toBe(403);
+      expect((await call('admin', `/${forest._id}`, { method: 'PUT', body })).status).toBe(200);
+
+      const codes = await served();
+      expect(codes).toContain('live-1');
+      for (const role of roles) {
+        expect(await listed(role)).toEqual(codes);
+        expect((await call(role, '/forest-1')).data.name).toBe('Live forest');
+      }
+      expect(await model('CyberiaMap').exists({ code: 'live-1' })).toBeNull();
+    });
+
+    it('rebuilds a game server world from the live data', async () => {
+      const models = getInstanceModels(runtime);
+      expect(models.CyberiaMap.db.name).toBe((await model('CyberiaContentRelease').active()).database);
+      expect((await fetchMapData(models, { mapCode: 'live-1' })).map.code).toBe('live-1');
+    });
+
+    it('replaces the live data with the baseline of the next release', async () => {
+      expect((await buildRelease('r6')).ok).toBe(true);
+      await promoteContentRelease(model('CyberiaContentRelease'), 'r6');
+      await activateContentRelease(runtime);
+      expect(await listed()).toEqual(expect.arrayContaining(['draft-1', 'forest-1']));
+      expect(await listed()).not.toContain('live-1');
+      const baseline = await model('CyberiaMap').findOne({ code: 'forest-1' }).lean();
+      expect((await call(undefined, '/forest-1')).data.name).toBe(baseline.name);
     });
   });
 });

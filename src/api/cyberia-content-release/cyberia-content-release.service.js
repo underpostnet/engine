@@ -8,6 +8,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaContentReleaseDto } from './cyberia-content-release.model.js';
+import { servedContentArtifact } from '../../projects/cyberia/content-artifact.js';
 
 class CyberiaContentReleaseService {
   /**
@@ -24,8 +25,16 @@ class CyberiaContentReleaseService {
     if (req.path.startsWith('/active')) {
       const active = await CyberiaContentRelease.active();
       const servedDatabase = DataBaseProviderService.servedDatabase(options, 'content');
-      // The runtime serves the promoted release once its partition serves that database.
-      return { release: active, servedDatabase, serving: !!active && servedDatabase === active.database };
+      const artifact = servedContentArtifact();
+      // The runtime serves the promoted release once its partition serves that database and the
+      // process reads the content artifact the release holds.
+      return {
+        release: active,
+        servedDatabase,
+        artifact,
+        serving:
+          !!active && servedDatabase === active.database && artifact.releaseId === active.releaseId && !artifact.error,
+      };
     }
     if (req.params.id) {
       const release = await CyberiaContentRelease.findOne({ releaseId: req.params.id }).select(select);

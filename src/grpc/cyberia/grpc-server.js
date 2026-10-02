@@ -127,6 +127,7 @@ class GrpcServer {
     const release = await activateContentRelease({ host, path: dbPath });
     if (release) {
       logger.info(`Content release ${release.releaseId || '(none promoted)'} served from ${release.database}`);
+      if (release.artifact.error) logger.warn(release.artifact.error);
       GrpcServer._releaseWatch = watchContentRelease({ host, path: dbPath });
     }
     const server = new grpc.Server({

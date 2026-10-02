@@ -47,9 +47,8 @@ let mongod;
 const models = () => DataBaseProviderService.getProvider(host, 'mongoose').models;
 const importFoundation = (rebind = false) =>
   importContent({ families: foundation, models: models(), context: host, rebind });
-// Settled: every stored item id skipped, every document in sync.
-const settled = ({ plan }) =>
-  plan.objectLayers.every(({ status }) => status === 'exists') &&
+const allInSync = ({ plan }) =>
+  plan.objectLayers.every(({ status }) => status === 'in-sync') &&
   Object.values(plan.documents).every((entries) => entries.every(({ status }) => status === 'in-sync'));
 
 // The artifact is a built cyberia-content checkout of the workspace; this suite imports it.
@@ -116,10 +115,10 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     expect(await models().CyberiaDialogue.countDocuments({ code: 'quest-talk-raider-toll' })).toBe(2);
   });
 
-  it('is idempotent: a second import skips every stored item id, finds every document in sync, and writes nothing', async () => {
+  it('is idempotent: a second import finds every definition and document in sync, and writes nothing', async () => {
     const before = await models().ObjectLayer.countDocuments();
     const result = await importFoundation();
-    expect(settled(result)).toBe(true);
+    expect(allInSync(result)).toBe(true);
     expect(result.objectLayers).toBe(0);
     expect(Object.values(result.written).every((count) => count === 0)).toBe(true);
     expect(await models().ObjectLayer.countDocuments()).toBe(before);
@@ -151,7 +150,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     const second = await importSaga({ saga, models: models(), context: host });
     expect(first.objectLayers).toBe(saga.families.objectLayers.length);
     expect(second.objectLayers).toBe(0);
-    expect(settled(second)).toBe(true);
+    expect(allInSync(second)).toBe(true);
 
     for (const quest of saga.families.quests) {
       const stored = await models().CyberiaQuest.findOne({ code: quest.code }).lean();

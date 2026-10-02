@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
-import os from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { Types } from 'mongoose';
+import { load } from 'js-yaml';
 
 const models = {};
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
@@ -16,9 +16,10 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({ IpfsClient: {} }));
 vi.mock('../../../src/projects/cyberia/hot-reload-trigger.js', () => ({ triggerHotReload: vi.fn() }));
 
 const {
-  assertReleaseId,
+  beginContentRelease,
   contentPartitionOf,
   contentReleaseRowFactory,
+  importArtifactContent,
   publishContentRelease,
   pruneContentReleases,
   releaseDatabaseName,
@@ -28,6 +29,7 @@ const {
   validateContentRelease,
 } = await import('../../../src/projects/cyberia/content-release.js');
 const { triggerHotReload } = await import('../../../src/projects/cyberia/hot-reload-trigger.js');
+const { assertReleaseId } = await import('../../../src/server/release/source-release.js');
 const { CyberiaContentReleaseSchema } =
   await import('../../../src/api/cyberia-content-release/cyberia-content-release.model.js');
 const { objectLayerIdentity, renderContractOf } =
@@ -37,6 +39,7 @@ const { profileRef } = await import('../../../src/client/components/objectlayer-
 const { CyberiaObjectLayerProfile } =
   await import('../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
+const { selectReleaseContent } = await import('../../../src/projects/cyberia/release-content.js');
 
 // ── In-memory collections ────────────────────────────────────────────────────────────────
 
@@ -61,6 +64,7 @@ const matches = (doc, filter = {}) =>
     ) {
       if ('$regex' in condition) return new RegExp(condition.$regex).test(String(value ?? ''));
       if ('$in' in condition) return condition.$in.map(String).includes(String(value));
+      if ('$nin' in condition) return !condition.$nin.map(String).includes(String(value));
       if ('$ne' in condition) return (value ?? null) !== condition.$ne;
     }
     return String(value) === String(condition);
@@ -232,6 +236,7 @@ describe('candidate validation', () => {
     expect(failing(validation)).toEqual({});
     expect(validation.ok).toBe(true);
     expect(validation.checks.map((entry) => entry.name)).toEqual([
+      'artifact',
       'catalog',
       'canonical',
       'pinned-references',
@@ -376,6 +381,27 @@ describe('candidate validation', () => {
     expect(errors.instances).toEqual(['instance FOREST: conf missing', 'instance FOREST: map "forest-2" missing']);
   });
 
+  it('fails a release that holds no content artifact, or another one, and skips the workspace', async () => {
+    const { models, hatchet, sword } = content();
+    const resolveCanonical = canonicalFrom([hatchet, sword]);
+    const workspace = await validateContentRelease(models, { resolveCanonical });
+    expect(workspace.checks[0]).toEqual({
+      name: 'artifact',
+      ok: true,
+      count: 0,
+      findings: ['skipped: the workspace holds no content artifact'],
+    });
+    const stored = [];
+    const db = {
+      databaseName: 'cyberia-content-r1',
+      collection: () => ({ find: () => ({ toArray: async () => stored }) }),
+    };
+    const digest = `sha256:${'a'.repeat(64)}`;
+    const empty = await validateContentRelease(models, { resolveCanonical, artifact: { db, digest } });
+    expect(failing(empty)).toEqual({ artifact: ['No content artifact in cyberia-content-r1'] });
+    expect(empty.ok).toBe(false);
+  });
+
   it('says why the canonical check did not run', async () => {
     const { models } = content();
     const owner = await validateContentRelease(models);
@@ -420,14 +446,17 @@ describe('publication to the Object Layer authority', () => {
 });
 
 describe('pruning', () => {
-  it('drops retired databases beyond the kept ones, never the active release or the rollback target', async () => {
+  it('drops old releases beyond the kept ones, never a protected or executing one', async () => {
     const at = (minute) => new Date(Date.UTC(2026, 8, 20, 10, minute));
     const ledger = releases([
       { releaseId: 'r5', database: 'c-r5', status: 'active', promotedAt: at(5) },
       { releaseId: 'r4', database: 'c-r4', status: 'retired', promotedAt: at(4), retiredAt: at(5) },
       { releaseId: 'r3', database: 'c-r3', status: 'retired', promotedAt: at(3), retiredAt: at(4) },
       { releaseId: 'r2', database: 'c-r2', status: 'retired', promotedAt: at(2), retiredAt: at(3) },
-      { releaseId: 'bad', database: 'c-bad', status: 'invalid', createdAt: at(1) },
+      { releaseId: 'bad', database: 'c-bad', status: 'failed', createdAt: at(1) },
+      { releaseId: 'next', database: 'c-next', status: 'validated', createdAt: at(6) },
+      { releaseId: 'b1', database: 'c-b1', status: 'building', createdAt: at(7) },
+      { releaseId: 'run', database: 'c-run', status: 'candidate', lease: { executing: true, heartbeatAt: new Date() } },
     ]);
     const dropped = [];
     const connection = { useDb: (name) => ({ dropDatabase: async () => dropped.push(name) }) };
@@ -435,7 +464,7 @@ describe('pruning', () => {
     const removed = await pruneContentReleases({ CyberiaContentRelease: ledger, connection, keep: 1 });
     expect(removed.sort()).toEqual(['bad', 'r2']);
     expect(dropped.sort()).toEqual(['c-bad', 'c-r2']);
-    expect(ledger.docs.map((doc) => doc.releaseId).sort()).toEqual(['r3', 'r4', 'r5']);
+    expect(ledger.docs.map((doc) => doc.releaseId).sort()).toEqual(['b1', 'next', 'r3', 'r4', 'r5', 'run']);
   });
 });
 
@@ -506,9 +535,19 @@ describe('content partition binding', () => {
 describe('served content', () => {
   it('names the active release database, else the workspace', async () => {
     models.CyberiaContentRelease = { active: async () => null };
-    expect(await servedContent({}, 'cyberia-content')).toEqual({ releaseId: '', database: 'cyberia-content' });
-    models.CyberiaContentRelease = { active: async () => ({ releaseId: 'r1', database: 'cyberia-content-r1' }) };
-    expect(await servedContent({}, 'cyberia-content')).toEqual({ releaseId: 'r1', database: 'cyberia-content-r1' });
+    expect(await servedContent({}, 'cyberia-content')).toEqual({
+      releaseId: '',
+      database: 'cyberia-content',
+      digest: '',
+    });
+    models.CyberiaContentRelease = {
+      active: async () => ({ releaseId: 'r1', database: 'cyberia-content-r1', content: { digest: 'sha256:r1' } }),
+    };
+    expect(await servedContent({}, 'cyberia-content')).toEqual({
+      releaseId: 'r1',
+      database: 'cyberia-content-r1',
+      digest: 'sha256:r1',
+    });
     delete models.CyberiaContentRelease;
   });
 
@@ -532,9 +571,93 @@ describe('served content', () => {
   });
 });
 
+describe('candidate database', () => {
+  const source = { from: 'backups' };
+  const begin = async (docs, releaseId) => {
+    const reset = [];
+    const begun = await beginContentRelease(releases(docs), {
+      releaseId,
+      holder: 'job',
+      fields: { database: `cyberia-content-${releaseId}`, source },
+      reset: async (database) => reset.push(database),
+    });
+    return { begun, reset };
+  };
+
+  it('empties the database of every build that runs: a first build and a retry of a failed one', async () => {
+    expect((await begin([], 'v1')).reset).toEqual(['cyberia-content-v1']);
+    const failed = { releaseId: 'v1', status: 'failed', source, database: 'cyberia-content-v1' };
+    expect((await begin([failed], 'v1')).reset).toEqual(['cyberia-content-v1']);
+  });
+
+  it('never empties a release it keeps', async () => {
+    const { begun, reset } = await begin([{ releaseId: 'v1', status: 'validated', source }], 'v1');
+    expect(begun.skipped).toBe(true);
+    expect(reset).toEqual([]);
+  });
+});
+
+describe('artifact import order', () => {
+  const recorder = (fail = '') => {
+    const ran = [];
+    const run = async (args) => {
+      ran.push(args);
+      if (fail && args.startsWith(fail)) throw new Error(`${args} failed`);
+    };
+    return { ran, run };
+  };
+
+  it('imports the foundation, then the sagas, which replace what they hold, then each instance', async () => {
+    const { ran, run } = recorder();
+    await importArtifactContent({ run, instances: ['a', 'b'], sagas: ['s'] });
+    expect(ran).toEqual([
+      'content import',
+      'content import --saga s --rebind',
+      'instance a --import',
+      'instance b --import',
+    ]);
+  });
+
+  it('runs the same import for the same artifact and content set, and leaves undeclared instances out', async () => {
+    const manifest = {
+      sagas: ['amethyst-strata-expansion'],
+      instances: ['amethyst-strata-expansion', 'fallback', 'test'],
+    };
+    const imported = async () => {
+      const { ran, run } = recorder();
+      await importArtifactContent({ run, ...selectReleaseContent({ manifest }), releaseId: 'v1' });
+      return ran;
+    };
+    const first = await imported();
+    expect(await imported()).toEqual(first);
+    expect(first).toEqual([
+      'content import --release v1',
+      'content import --saga amethyst-strata-expansion --rebind --release v1',
+      'instance amethyst-strata-expansion --import --release v1',
+      'instance test --import --release v1',
+    ]);
+  });
+
+  it('imports into the release database it names', async () => {
+    const { ran, run } = recorder();
+    await importArtifactContent({ run, instances: ['a'], releaseId: 'v1-abc' });
+    expect(ran).toEqual(['content import --release v1-abc', 'instance a --import --release v1-abc']);
+    await expect(importArtifactContent({ run, instances: ['a'], releaseId: 'V1 ABC' })).rejects.toThrow();
+  });
+
+  it('imports no instance once the foundation import fails', async () => {
+    const { ran, run } = recorder('content import');
+    await expect(importArtifactContent({ run, instances: ['a'], sagas: ['s'] })).rejects.toThrow(
+      'content import failed',
+    );
+    expect(ran).toEqual(['content import']);
+  });
+});
+
 describe('deploy pipeline', () => {
   const script = fs.readFileSync(new URL('../../../deploy/dd-cyberia/sync-deploy.sh', import.meta.url), 'utf8');
   const cli = fs.readFileSync(new URL('../../../bin/cyberia.js', import.meta.url), 'utf8');
+  const lib = fs.readFileSync(new URL('../../../deploy/lib/content-release.sh', import.meta.url), 'utf8');
 
   it('never drops a database on a normal deploy', () => {
     expect(script).not.toMatch(/drop-db|ol --drop|--drop\b|dropDatabase/);
@@ -545,15 +668,16 @@ describe('deploy pipeline', () => {
     expect(script).toMatch(/\*:latest\)\s+if \[ "\$\{ALLOW_LATEST_IMAGE:-0\}" != "1" \]/);
   });
 
-  it('runs the stages in order, and builds and promotes content only after readiness', () => {
+  it('runs the stages in order: the content candidate before the rollout, the promotion after readiness', () => {
     const order = [
       'stage_sources',
       'stage_build',
       'stage_configuration',
+      'stage_content_candidate',
       'stage_rollout',
       'stage_readiness',
-      'stage_content_candidate',
       'stage_promotion',
+      'stage_mirror',
     ];
     const main = script.slice(script.indexOf('main() {'));
     const positions = order.map((stage) => main.indexOf(`    ${stage}\n`));
@@ -561,78 +685,127 @@ describe('deploy pipeline', () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  it('starts the pod on the served release, and builds the candidate against the new version', () => {
+  it('starts the pod on the served release, and builds the candidate in a Release Job', () => {
     const podCmd = script.slice(script.indexOf('pod_cmd="$(pod_bootstrap_cmd'), script.indexOf('underpost start'));
     expect(podCmd).not.toContain('content-release');
     const candidate = script.slice(
       script.indexOf('stage_content_candidate() {'),
       script.indexOf('stage_promotion() {'),
     );
-    expect(candidate).toMatch(/content_release_exec build "\$CONTENT_RELEASE_ID" --bootstrap/);
+    const prepared = candidate.indexOf('content-release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL');
+    const secret = candidate.indexOf('apply_release_secret');
+    const built = candidate.indexOf('content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE"');
+    expect(prepared).toBeGreaterThan(-1);
+    expect(prepared).toBeLessThan(secret);
+    expect(secret).toBeLessThan(built);
+    expect(candidate).toContain('build "$CONTENT_RELEASE_ID" --from source');
+    // Only the prepare names the channel: both channels build through the one Release Job.
+    expect(candidate.slice(secret)).not.toContain('CYBERIA_SOURCE_CHANNEL');
+    expect(script).not.toMatch(/content import|import-content/);
+    expect(script).not.toContain('kubectl exec');
+    expect(lib).not.toContain('kubectl exec');
   });
 
-  it('gives a release command in the live pod its private conf only while the command runs', () => {
-    // A stub sudo returns the in-pod command; stub `underpost` and `node` stand in for the pod.
-    const lib = new URL('../../../deploy/lib/', import.meta.url).pathname;
-    const inner = execFileSync(
-      'bash',
-      [
-        '-c',
-        `sudo() { shift 2; if [ "$2" = get ]; then echo dd-x-production-blue; else printf '%s\\n' "$@"; fi; }; ` +
-          `DEPLOY_ID=dd-x DEPLOY_ENV=production; source ${lib}host.sh; source ${lib}content-release.sh; ` +
-          'content_release_exec status',
-      ],
-      { encoding: 'utf8' },
-    )
-      .trim()
-      .split('\n')
-      .at(-1);
-    const pod = fs.mkdtempSync(`${os.tmpdir()}/content-release-pod-`);
-    try {
-      fs.mkdirSync(`${pod}/bin`);
-      fs.mkdirSync(`${pod}/engine`);
-      fs.writeFileSync(
-        `${pod}/bin/underpost`,
-        '#!/bin/bash\nmkdir -p "./${2##*/}/conf" && touch "./${2##*/}/conf/x"\n',
-        { mode: 0o755 },
-      );
-      fs.writeFileSync(`${pod}/bin/node`, '#!/bin/bash\n[ -f ./engine-private/conf/x ] && echo "conf $*"\nexit 3\n', {
-        mode: 0o755,
-      });
-      const run = spawnSync('bash', ['-c', inner.replace('cd /home/dd/engine', `cd ${pod}/engine`)], {
-        encoding: 'utf8',
-        env: { ...process.env, PATH: `${pod}/bin:${process.env.PATH}` },
-      });
-      expect(run.stdout.trim()).toBe('conf bin/cyberia content-release status');
-      expect(run.status).toBe(3);
-      expect(fs.readdirSync(`${pod}/engine`)).toEqual([]);
-    } finally {
-      fs.rmSync(pod, { recursive: true, force: true });
-    }
+  it('promotes a release from either channel, then mirrors a private one', () => {
+    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Stage H'));
+    expect(promotion).not.toMatch(/CYBERIA_SOURCE_CHANNEL|private|public/);
+    expect(promotion).toContain(
+      'content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID"',
+    );
+    const mirror = script.slice(script.indexOf('stage_mirror() {'), script.indexOf('main() {'));
+    expect(mirror).toContain('[ "$CYBERIA_SOURCE_CHANNEL" = private ] || return 0');
+    expect(mirror).toContain('data-release | source-sync)');
+    expect(mirror).toContain('deploy_step "Mirror $name" mirror_revision "$repository" "$(checkout_revision "$name")"');
+    const main = script.slice(script.indexOf('main() {'));
+    expect(main.indexOf('stage_promotion')).toBeLessThan(main.indexOf('stage_mirror'));
   });
 
-  it('reads a release status from the rows `content-release status` prints', () => {
-    const rows = [
-      { status: 'active', releaseId: 'v1', database: 'db-v1', instances: ['A'], source: { commit: 'abc' } },
-      { status: 'retired', releaseId: 'v0', database: 'db-v0', instances: ['A'] },
-    ].map(contentReleaseRowFactory);
-    // The command also logs a summary line, which the parser skips.
-    const output = ['[cyberia.js] 2026-09-24 info Active release: v1 (db-v1)', ...rows].join('\n');
-    const lib = new URL('../../../deploy/lib/content-release.sh', import.meta.url).pathname;
-    const check = (id) =>
+  it('prunes after the commit: the databases in a Release Job, then the release store on the host', () => {
+    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Stage H'));
+    const committed = promotion.indexOf('RELEASE_STATE=committed');
+    const databases = promotion.indexOf('content_release_job "content-release-prune" "$DEPLOY_IMAGE" prune');
+    const store = promotion.indexOf('node bin source-release prune $CONTENT_RELEASE_ID');
+    expect(committed).toBeGreaterThan(-1);
+    expect(committed).toBeLessThan(databases);
+    expect(databases).toBeLessThan(store);
+  });
+
+  it('restores what served before when the deploy fails after its switch, and never after its commit', () => {
+    const revert = script.slice(script.indexOf('revert_release() {'), script.indexOf('main() {'));
+    const run = (state, previousRelease, status = 1) =>
       spawnSync(
         'bash',
         [
           '-c',
-          `source ${lib}; content_release_exec() { printf '%s\n' "$OUTPUT"; }; ` +
-            `content_release_expect_status ${id} validated active`,
+          `deploy_step() { echo "step: $1"; shift; "$@"; }
+          content_release_job() { echo "job: $*"; }
+          live_colour() { echo green; }
+          sudo() { echo "host: \${@: -1}"; }
+          DEPLOY_ID=dd-cyberia DEPLOY_ENV=production DEPLOY_IMAGE=engine:1 ENGINE_ROOT=/engine ROUTING_FLAGS=--gateway-api
+          CONTENT_RELEASE_ID=v2 PREVIOUS_COLOUR=blue PREVIOUS_RELEASE=${previousRelease} RELEASE_STATE=${state}
+          ${revert}
+          trap revert_release EXIT
+          exit ${status}`,
         ],
-        { encoding: 'utf8', env: { ...process.env, OUTPUT: output } },
-      ).status;
+        { encoding: 'utf8' },
+      );
+    const promoting = run('promoting', 'v1');
+    expect(promoting.status).toBe(1);
+    expect(promoting.stdout).toContain('job: content-release-rollback engine:1 rollback --from v2');
+    expect(promoting.stdout).toContain('node bin run promote dd-cyberia,production --traffic blue --gateway-api');
+    expect(promoting.stdout.indexOf('rollback --from v2')).toBeLessThan(promoting.stdout.indexOf('run promote'));
+    const switched = run('switched', '');
+    expect(switched.stdout).not.toContain('rollback');
+    expect(switched.stdout).toContain('--traffic blue');
+    expect(run('promoting', 'v2').stdout).not.toContain('rollback');
+    for (const quiet of [run('committed', 'v1'), run('', ''), run('promoting', 'v1', 0)]) expect(quiet.stdout).toBe('');
+  });
+
+  it('runs a content release in a Release Job with the data-release Secret alone', () => {
+    // A stub sudo hands the host command to the real CLI with --dry-run.
+    const libDir = new URL('../../../deploy/lib/', import.meta.url).pathname;
+    const manifest = execFileSync(
+      'bash',
+      [
+        '-c',
+        `sudo() { shift 2; /bin/bash -lc "$3 --dry-run"; }; ` +
+          `source ${libDir}github-actions-logging.sh; source ${libDir}host.sh; source ${libDir}content-release.sh; ` +
+          'DEPLOY_ID=dd-cyberia DEPLOY_ENV=production TARGET_NODE=node-1 ENGINE_ROOT=' +
+          new URL('../../../', import.meta.url).pathname +
+          '; content_release_job v1-abc engine:1 build v1-abc --from source --instances a,b',
+      ],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    const [container] = load(manifest).spec.template.spec.containers;
+    expect(container.envFrom).toEqual([{ secretRef: { name: 'dd-cyberia-production-data-release' } }]);
+    expect(container.env.map(({ name }) => name)).toEqual([
+      'NODE_ENV',
+      'OBJECT_LAYER_API_ORIGIN',
+      'UNDERPOST_RELEASE_STORE',
+    ]);
+    // The Job runs the engine this host deploys, staged in the release store, not the image's CLI.
+    expect(container.command[2]).toBe(
+      'cp -r --no-preserve=mode "$UNDERPOST_RELEASE_STORE/.engine/." /home/dd/engine/ && ' +
+        'cd /home/dd/engine && npm install --no-audit --no-fund && ' +
+        'rm -f .env && node bin/cyberia content-release build v1-abc --from source --instances a,b',
+    );
+    expect(container.volumeMounts[0].readOnly).toBe(true);
+    expect(manifest).not.toMatch(/underpost-config|GITHUB_TOKEN|underpost clone/);
+  });
+
+  it('prints ledger rows that start with the status and the release id', () => {
+    const row = contentReleaseRowFactory({
+      status: 'validated',
+      releaseId: 'v1',
+      database: 'db-v1',
+      instances: ['a', 'b'],
+      source: { from: 'source', channel: 'private', sourceRevision: 'f'.repeat(40) },
+      provenance: { engineCommit: 'abc1234' },
+    });
+    expect(row.split(/\s+/).slice(0, 2)).toEqual(['validated', 'v1']);
+    expect(row).toContain(`source=private@${'f'.repeat(12)}`);
+    expect(row).toContain('engine=abc1234');
     expect(cli).toContain('console.log(contentReleaseRowFactory(entry))');
-    expect(check('v1')).toBe(0);
-    expect(check('v0')).toBe(1);
-    expect(check('v9')).toBe(1);
   });
 
   it('asks for the deploy id before any destructive command runs', () => {
@@ -641,9 +814,114 @@ describe('deploy pipeline', () => {
     expect(cli).toMatch(/\.option\('--include-runtime'/);
   });
 
-  it('imports each release instance from its own backup directory', () => {
-    const build = cli.slice(cli.indexOf(".command('build <release-id>')"), cli.indexOf('runValidation(release, id'));
-    expect(build).toMatch(/for \(const code of instances\)\s+shellExec\([^;]*instance \$\{code\} --import --release/);
-    expect(build).not.toContain("instances.join(',')");
+  it('imports each release from the artifact it built, into its own database', () => {
+    const runner = cli.slice(cli.indexOf('const artifactImportRunner = '), cli.indexOf('const resolvedSources = '));
+    expect(runner).toContain('CYBERIA_CONTENT_ROOT: root');
+    const build = cli.slice(
+      cli.indexOf(".command('build <release-id>')"),
+      cli.indexOf(".command('validate [release-id]')"),
+    );
+    expect(build.match(/importArtifactContent\(\{\s+run: artifactImportRunner\([\s\S]*?releaseId: id,/g)).toHaveLength(
+      2,
+    );
+    expect(build).toContain('artifactImportRunner(`${buildDir}/source`, options)');
+  });
+
+  it('bootstraps a development workspace through the same ordered import, without a release', () => {
+    const workflow = cli.slice(cli.indexOf(".command('import-content')"), cli.indexOf(".command('stage-cli')"));
+    expect(workflow).toContain('...selectReleaseContent({ manifest }),');
+    expect(workflow).not.toContain('manifest.instances');
+    expect(workflow).not.toContain('releaseId');
+    expect(workflow).not.toContain('content-release');
+  });
+
+  it('releases the declared content set, and only what its artifact holds', () => {
+    const build = cli.slice(
+      cli.indexOf(".command('build <release-id>')"),
+      cli.indexOf(".command('validate [release-id]')"),
+    );
+    expect(build).toContain('const instances = releaseInstanceCodes(codeList(options.instances));');
+    expect(build.match(/\.\.\.selectReleaseContent\(\{ manifest(: built)?, instances \}\)/g)).toHaveLength(2);
+    expect(script).not.toMatch(/CONTENT_INSTANCES="\$\{CONTENT_INSTANCES:-[^}]/);
+  });
+
+  it('builds the content with its own commands and no Secret in their environment', () => {
+    const contract = cli.slice(cli.indexOf('const runContentContract = '), cli.indexOf('const buildRelease = '));
+    expect(contract).toContain("shellExecAsync('npm ci && npm test && npm pack'");
+    expect(contract).toContain("env: { PATH: process.env.PATH, HOME: process.env.HOME, CI: 'true' }");
+  });
+
+  it('syncs every product repository from the one source channel, at the revision the lock pins', () => {
+    const sources = script.slice(script.indexOf('stage_sources() {'), script.indexOf('# ── Stage B'));
+    expect(sources.indexOf('prepare_host')).toBeLessThan(sources.indexOf('sync_release_sources'));
+    expect(sources).toContain('sync_release_sources "$CYBERIA_SOURCE_CHANNEL"');
+    expect(script).toContain('content_revision="$(checkout_revision cyberia-content)"');
+    expect(script).toContain('CYBERIA_SOURCE_CHANNEL="${CYBERIA_SOURCE_CHANNEL:-private}"');
+    expect(script).toContain('ENGINE_SRC_REPO="$(engine_source_repo "$DEPLOY_ID" "$CYBERIA_SOURCE_CHANNEL")"');
+    expect(script).not.toMatch(/underpostnet\/cyberia-/);
+    // The CLI answers through stubs: two repositories, the deployment holding the lock that pins the content.
+    const run = execFileSync(
+      'bash',
+      [
+        '-c',
+        `set -euo pipefail
+        sudo() {
+          case "$*" in
+            *--locked*) printf 'cyberia-content underpostnet/cyberia-content data-release %040d\\n' 7 ;;
+            *) printf '[log] start\\ncyberia-content underpostnet/cyberia-content data-release\\ncyberia-deployment underpostnet/cyberia-deployment source-sync\\n' ;;
+          esac
+        }
+        source_repository() { printf '%s-private' "$1"; }
+        sync_checkout() { echo "sync $*"; }
+        pin_checkout() { echo "pin $*"; }
+        ENGINE_ROOT=/engine
+        source "${new URL('../../../deploy/lib/release-sources.sh', import.meta.url).pathname}"
+        sync_release_sources private
+        printf 'repository %s\\n' "\${RELEASE_REPOSITORIES[@]}"`,
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(run.trim().split('\n')).toEqual([
+      'sync underpostnet/cyberia-content-private /engine cyberia-content',
+      'sync underpostnet/cyberia-deployment-private /engine cyberia-deployment',
+      `pin cyberia-content ${'0'.repeat(39)}7`,
+      'repository cyberia-content underpostnet/cyberia-content data-release',
+      'repository cyberia-deployment underpostnet/cyberia-deployment source-sync',
+    ]);
+  });
+
+  it('stops the deploy with the error of the CLI when the deployment holds no lock', () => {
+    const run = spawnSync(
+      'bash',
+      [
+        '-c',
+        `set -euo pipefail
+        sudo() { echo 'error No underpost.lock.json: run cyberia release lock --commit'; return 1; }
+        ENGINE_ROOT=/engine
+        source "${new URL('../../../deploy/lib/release-sources.sh', import.meta.url).pathname}"
+        locked="$(release_repositories --locked)"
+        echo unreachable`,
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(run.status).not.toBe(0);
+    expect(run.stdout).not.toContain('unreachable');
+    expect(run.stderr).toContain('No underpost.lock.json: run cyberia release lock --commit');
+  });
+
+  it('releases each game instance from the revision the lock pins', () => {
+    for (const project of ['cyberia-server', 'cyberia-client']) {
+      const deploy = fs.readFileSync(new URL(`../../../deploy/${project}/deploy.sh`, import.meta.url), 'utf8');
+      const synced = deploy.indexOf('sync_release_sources "$CYBERIA_SOURCE_CHANNEL"');
+      expect(synced).toBeGreaterThan(deploy.indexOf('prepare_host'));
+      expect(deploy.indexOf('revision="$(checkout_revision "${RELEASE_REPOSITORY##*/}")"')).toBeGreaterThan(synced);
+      expect(deploy).not.toContain('sync_checkout');
+    }
+  });
+
+  it('builds only the game checkouts on the host, and only `release lock` writes the lock', () => {
+    expect(script).not.toMatch(/cyberia-content\.js|npm ci|merge-base|release lock/);
+    expect(script).toContain('node bin/cyberia release build cyberia-server cyberia-client');
+    expect(cli.match(/writeSourceLockFile\(/g)).toHaveLength(1);
   });
 });
