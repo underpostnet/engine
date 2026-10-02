@@ -63,6 +63,7 @@ const { ObjectLayerRenderFramesSchema } =
 /** A collection that remembers what was created and hands the last write back as the live document. */
 const collection = () => {
   const created = [];
+  const deleted = [];
   let live = null;
   const query = (value) => {
     const q = Promise.resolve(value);
@@ -72,7 +73,8 @@ const collection = () => {
   };
   return {
     created,
-    deleteOne: async () => ({ deletedCount: 0 }),
+    deleted,
+    deleteOne: async (filter) => (deleted.push(filter), { deletedCount: 0 }),
     create: async (doc) => (created.push(doc), doc),
     // The label is bound to the live document; the catalog answers with its cid.
     findOne: () => query(live ? { objectLayerCid: live.cid } : null),
@@ -313,6 +315,17 @@ describe('restoring one object layer from an instance backup', () => {
     expect(models.ObjectLayer.live.data.render).toEqual(render);
     expect(derived).not.toHaveBeenCalled();
     expect(summary).toMatchObject({ rebuilt: true, replaced: 'cid-ember', cid: models.ObjectLayer.live.cid });
+  });
+
+  it('binds the label to the restored definition and removes no other definition of the label', async () => {
+    // Another instance pins its own definition of the same label; it must stay resolvable.
+    await models.ObjectLayer.upsertByIdentity({ data: { item: { id: 'hatchet', type: 'weapon' }, render: {} } });
+    const other = models.ObjectLayer.live.cid;
+    const summary = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
+    expect(summary.cid).not.toBe(other);
+    expect(models.ObjectLayer.live.cid).toBe(summary.cid);
+    expect(models.ObjectLayer.deleted).toEqual([]);
+    expect(summary.replaced).toBe('cid-data');
   });
 
   it('writes the asset tree only when asked', async () => {

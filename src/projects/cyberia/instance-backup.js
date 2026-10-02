@@ -200,10 +200,11 @@ const backedRender = async ({ objectLayer, atlas, files }) => {
 };
 
 /**
- * Restores one object layer from an instance backup, making the backup the authority for that
- * item id: its render frames, atlas, atlas render Files and render payloads on IPFS, replacing
- * whatever the database holds under that id. Idempotent: every write is an upsert on the
- * backup's File `_id`s, the restored definition's cid and content-addressed CIDs.
+ * Restores one object layer from an instance backup: the definition it holds, with its render
+ * frames, atlas, atlas render Files and render payloads on IPFS, and binds the label to it. Every
+ * other definition of the label stays: an item id is a label, and content that pins another
+ * definition keeps it. Idempotent: every write is an upsert on the backup's File `_id`s, the
+ * restored definition's cid and content-addressed CIDs.
  *
  * A backup atlas that is not the render the definition names is not restored: the render is
  * rebuilt from the backup's render frames, and the definition that names it replaces the

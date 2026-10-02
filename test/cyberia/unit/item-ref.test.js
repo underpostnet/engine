@@ -120,6 +120,23 @@ describe('pinContentReferences', () => {
     expect(moved.saved).toHaveLength(0);
   });
 
+  // Two worlds restore their own definition of one label: each keeps the one it pins.
+  it('keeps instance A on CID A when instance B restores CID B for the same label', async () => {
+    const backupOfB = 'bafkrei-backup-of-instance-b';
+    const questOfA = quest({ code: 'a-quest' });
+    const questOfB = quest({
+      code: 'b-quest',
+      steps: [{ id: 's1', objectives: [{ type: 'collect', itemId: 'hatchet', objectLayerCid: backupOfB }] }],
+    });
+    const CyberiaQuest = stubCollection([questOfA, questOfB]);
+    // B's restore bound the label to CID B and replaced its backup cid with it.
+    const models = { CyberiaQuest, CyberiaItemCatalog: catalog({ hatchet: CID_B, coin: CID_B }) };
+    await pinContentReferences({ models, replacements: new Map([[backupOfB, CID_B]]) });
+    const saved = new Map(CyberiaQuest.saved.map((doc) => [doc.code, doc]));
+    expect(saved.get('a-quest').steps[0].objectives[0].objectLayerCid).toBe(CID_A);
+    expect(saved.get('b-quest').steps[0].objectives[0].objectLayerCid).toBe(CID_B);
+  });
+
   // The invariant the catalog exists for: rebinding a label never moves pinned content.
   it('leaves a quest on the definition it pinned after the label is rebound', async () => {
     const pinnedQuest = quest({ rewards: [{ itemId: 'coin', objectLayerCid: CID_A }] });
