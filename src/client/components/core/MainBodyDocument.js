@@ -6,7 +6,7 @@ import { escapeHtml, htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 /**
- * The landing of a domain: its overview document, rendered in place. The document is addressed
+ * The landing of a domain: one of its documents, rendered in place. The document is addressed
  * by its identity, and the build publishes it at that path.
  */
 class MainBodyDocument {
@@ -17,12 +17,11 @@ class MainBodyDocument {
 
   /**
    * @param {Object} options
-   * @param {string} options.domain - Domain whose overview is the landing, e.g. `object-layer`.
+   * @param {string} options.path - Identity of the landing document, e.g. `object-layer/explanation/white-paper`.
    */
-  static async instance({ domain }) {
+  static async instance({ path }) {
     const id = 'main-body-document';
-    const document = `${domain}/overview/index`;
-    const url = MainBodyDocument.url(document);
+    const url = MainBodyDocument.url(path);
 
     setTimeout(async () => {
       try {
@@ -36,7 +35,7 @@ class MainBodyDocument {
         htmls(
           `.${id}-render`,
           html`<div class="in section-mp">
-            <h3><i class="fas fa-exclamation-circle"></i> ${escapeHtml(document)} unavailable</h3>
+            <h3><i class="fas fa-exclamation-circle"></i> ${escapeHtml(path)} unavailable</h3>
             <p>${escapeHtml(url)}: ${escapeHtml(error.message)}</p>
           </div>`,
         );

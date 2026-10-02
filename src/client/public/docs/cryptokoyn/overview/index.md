@@ -71,6 +71,6 @@ holds that model. The two never mix: a coin balance is progress, a CKY balance i
 
 ## Documentation map
 
-| Category    | What it holds                                                  |
-| ----------- | -------------------------------------------------------------- |
-| Explanation | The CKY token, wallet integration and the decisions still open |
+| Category    | What it holds                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Explanation | The governance constitution, the CKY token, wallet integration and the decisions still open |

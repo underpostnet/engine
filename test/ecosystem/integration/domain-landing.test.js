@@ -1,13 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
-import { docsDocumentsFactory } from '../../../src/server/build/docs.js';
+import { DOCS_VIEWS, docsDocumentsFactory } from '../../../src/server/build/docs.js';
 import { buildDocsReferences } from '../../../src/client-builder/client-build-docs.js';
 
-// A domain's landing is its overview document. The client declares the domain, the build
-// publishes its overview, and the shell names the domain: this pins the three to each other.
+// A domain's landing is its white paper. The client declares the domain, the build publishes the
+// paper, and the shell names it: this pins the three to each other.
 const CONF_CLIENT = './engine-private/conf/dd-cyberia/conf.client.json';
 const present = fs.existsSync(CONF_CLIENT);
 const conf = () => fs.readJsonSync(CONF_CLIENT);
+/** Every client of every private deploy conf, by id. */
+const clients = () =>
+  Object.assign(
+    {},
+    ...fs
+      .readdirSync('./engine-private/conf')
+      .map((deployId) => `./engine-private/conf/${deployId}/conf.client.json`)
+      .filter((file) => fs.existsSync(file))
+      .map((file) => fs.readJsonSync(file)),
+  );
 
 /** client → the shell that renders its landing. */
 const LANDINGS = {
@@ -16,18 +26,18 @@ const LANDINGS = {
   objectlayer: 'src/client/components/objectlayer/AppShellObjectlayer.js',
 };
 
-const domainOf = (shell) =>
-  fs.readFileSync(shell, 'utf8').match(/MainBodyDocument\.instance\(\{ domain: '([^']+)' \}\)/)?.[1];
+const landingOf = (shell) =>
+  fs.readFileSync(shell, 'utf8').match(/MainBodyDocument\.instance\(\{ path: '([^']+)' \}\)/)?.[1];
 
 describe.skipIf(!present)('a domain landing', () => {
-  it('names a domain whose overview its client publishes', () => {
+  it('names the white paper of a domain its client publishes', () => {
     for (const [client, shell] of Object.entries(LANDINGS)) {
-      const domain = domainOf(shell);
-      expect(domain, client).toBeTruthy();
+      const landing = landingOf(shell);
+      expect(landing, client).toMatch(/^[a-z-]+\/explanation\/white-paper$/);
       const published = docsDocumentsFactory(conf()[client].docs).map(
         (document) => `${document.domain}/${document.category}/${document.slug}`,
       );
-      expect(published, client).toContain(`${domain}/overview/index`);
+      expect(published, client).toContain(landing);
     }
   });
 
@@ -35,6 +45,20 @@ describe.skipIf(!present)('a domain landing', () => {
     // A subset would leave a cross-domain link pointing at a document the host never serves.
     for (const [client, entry] of Object.entries(conf()))
       if (entry?.docs?.references) expect(entry.docs.references, client).toEqual(['./src/client/public/docs']);
+  });
+
+  it('gives every documentation view a client that publishes the tree and routes /docs', () => {
+    for (const client of Object.keys(DOCS_VIEWS)) {
+      const entry = clients()[client];
+      expect(entry, client).toBeTruthy();
+      expect(entry.docs?.references, client).toEqual(['./src/client/public/docs']);
+      expect(
+        entry.views.some((view) => view.path === '/docs'),
+        client,
+      ).toBe(true);
+      for (const component of ['Docs', 'Documentation', 'Markdown'])
+        expect(entry.components.core, `${client} ${component}`).toContain(component);
+    }
   });
 
   it('ships the landing, the documentation view, the renderer and the parser together', () => {
@@ -65,9 +89,14 @@ describe.skipIf(!present)('a domain landing', () => {
   it('publishes the declared documents, their navigation, and nothing a conf no longer names', async () => {
     const destination = `${fs.mkdtempSync('/tmp/engine-landing-')}/docs/`;
     try {
-      const { docs } = conf().objectlayer;
+      const { docs } = conf().underpost;
       fs.outputFileSync(`${destination}object-layer/explanation/stale.md`, '# stale');
-      const { navigation } = await buildDocsReferences({ docs, docsDestination: destination, proxyPath: '/' });
+      const { navigation } = await buildDocsReferences({
+        docs,
+        docsDestination: destination,
+        proxyPath: '/',
+        client: 'underpost',
+      });
 
       const documents = docsDocumentsFactory(docs);
       for (const document of documents) expect(fs.existsSync(`${destination}${document.url.slice(5)}`)).toBe(true);
@@ -75,6 +104,7 @@ describe.skipIf(!present)('a domain landing', () => {
 
       const manifest = fs.readJsonSync(`${destination}manifest.json`);
       expect(manifest).toEqual(navigation);
+      expect(manifest.view).toEqual(['ecosystem', 'underpost']);
       expect(manifest.domains.map((domain) => domain.id)).toEqual([
         'ecosystem',
         'object-layer',

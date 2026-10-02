@@ -181,7 +181,7 @@ class AppShellCryptokoyn {
       mode: 'slide-menu',
       barMode,
       RouterInstance,
-      htmlMainBody: async () => await MainBodyDocument.instance({ domain: 'cryptokoyn' }),
+      htmlMainBody: async () => await MainBodyDocument.instance({ path: 'cryptokoyn/explanation/white-paper' }),
       searchCustomImgClass: 'cryptokoyn-menu-icon',
     });
 

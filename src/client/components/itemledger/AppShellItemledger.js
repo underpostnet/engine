@@ -192,7 +192,7 @@ class AppShellItemledger {
       mode: 'slide-menu',
       barMode,
       RouterInstance,
-      htmlMainBody: async () => await MainBodyDocument.instance({ domain: 'item-ledger' }),
+      htmlMainBody: async () => await MainBodyDocument.instance({ path: 'item-ledger/explanation/white-paper' }),
       searchCustomImgClass: 'itemledger-menu-icon',
     });
 

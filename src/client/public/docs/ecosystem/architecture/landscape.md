@@ -63,7 +63,7 @@ domain under `/api/v1/`, with a timeout, a bounded retry and a read cache.
 | Cyberia binds item labels to definitions          | Current | [Cyberia domain boundaries](../../cyberia/explanation/domain-boundaries.md)               |
 | ItemLedger registers a definition on chain        | Future  | [Registration and ownership](../../item-ledger/explanation/registration-and-ownership.md) |
 | ItemLedger projects ownership and provenance      | Future  | [Registration and ownership](../../item-ledger/explanation/registration-and-ownership.md) |
-| CryptoKoyn serves CKY balances and finance        | Future  | [CryptoKoyn overview](../../cryptokoyn/overview/index.md)                                 |
+| CryptoKoyn serves CKY balances and finance        | Future  | [CryptoKoyn White Paper](../../cryptokoyn/explanation/white-paper.md)                     |
 | Wallet sign-in across every domain                | Current | [Wallet integration](../../cryptokoyn/explanation/wallet-integration.md)                  |
 | Nexodev operates the platform with the shared CLI | Current | [Underpost CLI reference](../../nexodev/reference/underpost-cli.md)                       |
 

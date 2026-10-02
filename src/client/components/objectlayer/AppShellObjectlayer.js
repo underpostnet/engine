@@ -194,7 +194,7 @@ class AppShellObjectlayer {
       mode: 'slide-menu',
       barMode,
       RouterInstance,
-      htmlMainBody: async () => await MainBodyDocument.instance({ domain: 'object-layer' }),
+      htmlMainBody: async () => await MainBodyDocument.instance({ path: 'object-layer/explanation/white-paper' }),
       searchCustomImgClass: 'objectlayer-menu-icon',
     });
 
