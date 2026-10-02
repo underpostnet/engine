@@ -24,7 +24,8 @@ import {
 
 const logger = loggerFactory(import.meta);
 
-const hintsCache = (options) => CacheService.namespace(options, 'cyberia-client-hints');
+/** Resolved hints by instance code; every instance conf write invalidates them. */
+export const hintsCache = (options) => CacheService.namespace(options, 'cyberia-client-hints');
 
 /**
  * Resolve the merged client-hints document for an instance code.

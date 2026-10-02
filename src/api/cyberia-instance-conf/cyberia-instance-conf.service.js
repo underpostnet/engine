@@ -1,6 +1,8 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { CacheService } from '../../server/storage/cache.js';
+import { hintsCache } from '../cyberia-client-hints/cyberia-client-hints.service.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   fillInstanceConfDefaults,
@@ -81,7 +83,9 @@ class CyberiaInstanceConfService {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
-    return await new CyberiaInstanceConf(req.body).save();
+    const conf = await new CyberiaInstanceConf(req.body).save();
+    await CacheService.invalidate(hintsCache(options));
+    return conf;
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
@@ -105,14 +109,19 @@ class CyberiaInstanceConfService {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
-    return await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
+    const conf = await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
+    await CacheService.invalidate(hintsCache(options));
+    return conf;
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
-    if (req.params.id) return await CyberiaInstanceConf.findByIdAndDelete(req.params.id);
-    else return await CyberiaInstanceConf.deleteMany();
+    const removed = req.params.id
+      ? await CyberiaInstanceConf.findByIdAndDelete(req.params.id)
+      : await CyberiaInstanceConf.deleteMany();
+    await CacheService.invalidate(hintsCache(options));
+    return removed;
   };
 }
 
