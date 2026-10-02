@@ -296,10 +296,27 @@ export class AtlasSpriteSheetStore {
   }
 
   /**
+   * Whether this host's atlases share their render Files with other content stores: a content
+   * release shares them with every other release.
+   *
+   * @static
+   * @param {Object} options - Router options ({ host, path }) for model lookup.
+   * @returns {boolean}
+   * @memberof CyberiaAtlasSpriteSheetStore
+   */
+  static sharedStore(options) {
+    return rendersShared(
+      DataBaseProviderService.getModel('AtlasSpriteSheet', options),
+      DataBaseProviderService.getModel('File', options),
+    );
+  }
+
+  /**
    * Removes the atlases of definitions and every File render they own that no other atlas holds.
    *
    * The one place a caller deletes an atlas: an atlas owns its document and every render File it
-   * points at. Rerunnable — a second call finds nothing and reports zeros.
+   * points at. A shared store leaves the Files to `cyberia content-release prune`. Rerunnable — a
+   * second call finds nothing and reports zeros.
    *
    * @static
    * @param {Object} params
@@ -324,7 +341,9 @@ export class AtlasSpriteSheetStore {
     // Documents first: the survivors this reads decide which renders are still
     // reachable, so the ones being dropped must already be gone.
     const { deletedCount } = await AtlasSpriteSheet.deleteMany({ _id: { $in: docs.map((doc) => doc._id) } });
-    const files = await deleteOwnedFiles({ File, Owner: AtlasSpriteSheet, fields: ATLAS_FILE_FIELDS, ids: fileIds });
+    const files = rendersShared(AtlasSpriteSheet, File)
+      ? 0
+      : await deleteOwnedFiles({ File, Owner: AtlasSpriteSheet, fields: ATLAS_FILE_FIELDS, ids: fileIds });
     await CacheService.invalidate(objectLayerCache(options));
 
     return { atlases: deletedCount ?? 0, files };

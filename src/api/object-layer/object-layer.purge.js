@@ -6,7 +6,8 @@
  * removes the whole record of it on this host: the definition, its render frames, its atlas and
  * every render File the atlas owns, the IPFS pin records, the pinned content and its MFS paths,
  * and whatever the host's Studio extension keeps for it. It never touches another host: each one
- * purges what it stores.
+ * purges what it stores. A content release shares its render Files and the IPFS node with every
+ * other release, so a purge there removes its own records only.
  *
  * A definition registered in ItemLedger is never purged: a token type names content that must
  * stay resolvable.
@@ -147,9 +148,11 @@ export async function purgeObjectLayers({ options, filter = {}, pruneOrphans = f
     ...(await without('data.render.metadataCid', metadataCids)),
   ];
   if (cids.length > 0) report.pinRecords = (await model('Ipfs').deleteMany({ cid: { $in: cids } })).deletedCount ?? 0;
-  for (const cid of cids) if (await IpfsClient.unpinCid(cid)) report.unpinned++;
-  for (const itemId of await without('data.item.id', itemIds))
-    if (await IpfsClient.removeMfsPath(itemMfsPath(itemId))) report.mfsPaths++;
+  if (!AtlasSpriteSheetStore.sharedStore(options)) {
+    for (const cid of cids) if (await IpfsClient.unpinCid(cid)) report.unpinned++;
+    for (const itemId of await without('data.item.id', itemIds))
+      if (await IpfsClient.removeMfsPath(itemMfsPath(itemId))) report.mfsPaths++;
+  }
 
   await CacheService.invalidate(objectLayerCache(options));
   logger.info(`Purged ${report.objectLayers} object layer(s)`, report);

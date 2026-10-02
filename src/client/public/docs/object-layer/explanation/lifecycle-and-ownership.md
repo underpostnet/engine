@@ -45,8 +45,14 @@ and the labels a remaining definition still names. The render frames and the atl
 definition are its own, so they go with it; a render File another atlas still holds stays.
 
 `src/api/object-layer/object-layer.purge.js` is the one implementation: the admin route, the
-Object Layer management view's purge action, `cyberia ol --drop` and `cyberia instance --drop`
-all call it. It is rerunnable, and it reports what it removed.
+Object Layer management view's purge action, `cyberia ol --drop` and `cyberia instance --drop` all
+call it. It is rerunnable, and it reports what it removed. A purge selects definitions by an
+explicit filter: a label shared with another definition is never a reason to remove one.
+
+A Cyberia content release shares the File store and the IPFS node with every other release. A
+purge there removes the release's own documents and pin records only: the render Files, the pins
+and the MFS paths stay for the other releases, and `cyberia content-release prune` removes the
+renders no kept release holds.
 
 A definition ItemLedger registers is never purged: a token type names content that must stay
 resolvable. The purge reports it as kept and the route refuses. This registration-safety check is

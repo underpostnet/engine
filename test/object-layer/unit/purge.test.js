@@ -4,17 +4,23 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const models = {};
 const ipfs = { unpinned: [], mfsRemoved: [], fail: false };
 const registered = new Set();
+const ledger = { answers: true };
 const atlasPurge = vi.fn(async ({ objectLayerCids }) => ({
   atlases: objectLayerCids.length,
   files: objectLayerCids.length * 3,
 }));
 const prunedOrphans = vi.fn(async () => 2);
+const store = { shared: false };
 
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({
-  AtlasSpriteSheetStore: { purge: (args) => atlasPurge(args), pruneOrphanRenders: () => prunedOrphans() },
+  AtlasSpriteSheetStore: {
+    purge: (args) => atlasPurge(args),
+    pruneOrphanRenders: () => prunedOrphans(),
+    sharedStore: () => store.shared,
+  },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
   IpfsClient: {
@@ -30,7 +36,10 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
   },
 }));
 vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
-  resolveRegisteredCids: async (cids) => new Set(cids.filter((cid) => registered.has(cid))),
+  resolveRegisteredCids: async (cids) => {
+    if (!ledger.answers) throw new Error('Registration safety: ItemLedger did not answer');
+    return new Set(cids.filter((cid) => registered.has(cid)));
+  },
 }));
 vi.mock('../../../src/server/storage/cache.js', () => ({
   CACHE_POLICY: { registry: { ttlMs: 1 } },
@@ -59,6 +68,8 @@ beforeEach(() => {
   ipfs.unpinned = [];
   ipfs.mfsRemoved = [];
   ipfs.fail = false;
+  store.shared = false;
+  ledger.answers = true;
   registered.clear();
   invalidations.length = 0;
   atlasPurge.mockClear();
@@ -149,6 +160,14 @@ describe('a purge', () => {
     expect(ipfs.mfsRemoved).toEqual(['/object-layer/hatchet']);
   });
 
+  it('removes nothing while ItemLedger does not answer: the registration check fails closed', async () => {
+    ledger.answers = false;
+    await expect(purgeObjectLayers({ options })).rejects.toThrow('Registration safety');
+    expect(deleted.ObjectLayer).toEqual([]);
+    expect(atlasPurge).not.toHaveBeenCalled();
+    expect(ipfs.unpinned).toEqual([]);
+  });
+
   it('reports zeros when nothing matches, and still prunes orphan renders when asked', async () => {
     registered.add('bafkreihatchet');
     registered.add('bafkreisword');
@@ -157,6 +176,14 @@ describe('a purge', () => {
     expect(report.kept).toHaveLength(2);
     expect(atlasPurge).not.toHaveBeenCalled();
     expect(ipfs.unpinned).toEqual([]);
+  });
+
+  it('removes only its own records in a content release: the node pins and MFS paths stay for the others', async () => {
+    store.shared = true;
+    const report = await purgeObjectLayers({ options });
+    expect(report).toMatchObject({ objectLayers: 2, renderFrames: 2, pinRecords: 6, unpinned: 0, mfsPaths: 0 });
+    expect(ipfs.unpinned).toEqual([]);
+    expect(ipfs.mfsRemoved).toEqual([]);
   });
 
   it('counts only the pins the node answered for', async () => {

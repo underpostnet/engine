@@ -328,6 +328,16 @@ describe('purging an atlas', () => {
     expect((await AtlasSpriteSheetStore.purge({ objectLayerCids: ['cid-hatchet'] })).files).toBe(0);
     expect(models.File.docs.map((doc) => doc._id)).toContain('hatchet-upscale-1');
   });
+
+  it('leaves the renders of a content release to the release prune: other releases share them', async () => {
+    expect(AtlasSpriteSheetStore.sharedStore({})).toBe(false);
+    models.AtlasSpriteSheet.db = { name: 'content-v1-abc' };
+    models.File.db = { name: 'cyberia' };
+    expect(AtlasSpriteSheetStore.sharedStore({})).toBe(true);
+
+    expect(await AtlasSpriteSheetStore.purge({ objectLayerCids: ['cid-hatchet'] })).toEqual({ atlases: 1, files: 0 });
+    expect(models.File.docs).toHaveLength(6);
+  });
 });
 
 describe('pruning renders no atlas points at', () => {
