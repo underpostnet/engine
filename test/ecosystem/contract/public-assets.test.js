@@ -31,7 +31,7 @@ describe.skipIf(!carriesApplications)('application asset ownership', () => {
     }
     expect(fs.existsSync(new URL(`${base}/.git`, root))).toBe(false);
     const head = read(`src/client/ssr/head/Pwa${client[0].toUpperCase()}${client.slice(1)}.js`);
-    const linked = [...head.matchAll(/href="\/([^"]+)"/g)].map(([, file]) => `${base}/${file}`);
+    const linked = [...head.matchAll(/href="\$\{ssrPath\}([^"]+)"/g)].map(([, file]) => `${base}/${file}`);
     expect(linked.length).toBeGreaterThan(0);
     expect(linked.filter((file) => !tracked.includes(file))).toEqual([]);
   });

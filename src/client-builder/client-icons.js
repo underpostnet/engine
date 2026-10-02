@@ -99,10 +99,39 @@ const buildIcons = async ({
 
     const ssrPath = `./src/client/ssr/head/Pwa${getCapVariableName(publicClientId)}.js`;
     if (!fs.existsSync(ssrPath))
-      fs.writeFileSync(ssrPath, 'SSRComponent = () => html`' + response.html.join(`\n`) + '`;', 'utf8');
+      fs.writeFileSync(
+        ssrPath,
+        'SSRComponent = ({ ssrPath }) => html`' +
+          response.html.join(`\n`).replace(/\b(href|content)="\/(?=[A-Za-z0-9])/g, '$1="${ssrPath}') +
+          '`;',
+        'utf8',
+      );
   } catch (error) {
     logger.error(error.message); // Error description e.g. "An unknown error has occurred"
   }
 };
 
-export { buildIcons };
+/** The icon manifests the icon build writes, with root-absolute paths. */
+const ICON_MANIFESTS = ['manifest.webmanifest', 'browserconfig.xml', 'yandex-browser-manifest.json'];
+
+/**
+ * Roots the paths of the copied icon manifests at the base path of a sub-path build.
+ * @memberof clientIcons
+ * @param {Object} params
+ * @param {string} params.rootClientPath - The directory the build serves at the base path.
+ * @param {string} params.basePath - `/` or a sub-path such as `/test`.
+ * @returns {void}
+ */
+const rebaseIconManifests = ({ rootClientPath, basePath }) => {
+  if (basePath === '/') return;
+  for (const name of ICON_MANIFESTS) {
+    const file = `${rootClientPath}/${name}`;
+    if (!fs.existsSync(file)) continue;
+    const rebased = fs
+      .readFileSync(file, 'utf8')
+      .replace(/("(?:src|logo|scope|start_url)":\s*"|\bsrc=")\//g, `$1${basePath}/`);
+    fs.writeFileSync(file, rebased, 'utf8');
+  }
+};
+
+export { buildIcons, rebaseIconManifests };

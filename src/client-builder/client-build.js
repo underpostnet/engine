@@ -24,7 +24,7 @@ import * as dir from 'path';
 import { shellExec } from '../server/runtime/process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
-import { buildIcons } from './client-icons.js';
+import { buildIcons, rebaseIconManifests } from './client-icons.js';
 import { statusPageBuildSegment } from '../server/network/underpost-gateway.js';
 import { repositoryIdentityFactory } from '../server/storage/repository.js';
 import Underpost from '../index.js';
@@ -645,6 +645,8 @@ const buildClient = async (
         filter: (sourcePath) => !sourcePath.split(dir.sep).includes('.git'),
       });
     }
+    rebaseIconManifests({ rootClientPath, basePath: path });
+
     if (dists)
       for (const dist of dists) {
         if ('folder' in dist) {
