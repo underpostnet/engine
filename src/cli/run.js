@@ -2921,11 +2921,12 @@ EOF`);
 
     /**
      * @method promote
-     * @description Switches traffic between blue/green deployments for a specified deployment ID(s) (uses `dd.routes` for 'dd', or a specific ID).
+     * @description Routes a deployment to one of its blue/green colours, deployed and Ready: the one `--traffic`
+     * names, else the one not live (uses `dd.routes` for 'dd', or a specific ID). No build and no restart.
      * When `--tls` is set, rebuilds the proxy manifest with `--cert` so the HTTPProxy includes
      * TLS config, deletes stale Certificate resources, then reapplies the proxy and secret.yaml
      * (cert-manager Certificate resources) for each affected deployment.
-     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string: `deployId,env,replicas`).
+     * @param {string} path - `deployId[,env[,replicas]]`: env defaults to production, replicas to `--replicas`, else 1.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -2933,7 +2934,8 @@ EOF`);
       options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
       let [inputDeployId, inputEnv, inputReplicas] = path.split(',');
       if (!inputEnv) inputEnv = 'production';
-      if (!inputReplicas) inputReplicas = 1;
+      if (!inputReplicas) inputReplicas = options.replicas || 1;
+      const targetOf = (currentTraffic) => options.traffic || (currentTraffic === 'blue' ? 'green' : 'blue');
       // TODO: normalize: --tls maps to --cert for deploy.js isValidTLSContext compatibility
       if (options.tls) options.cert = true;
 
@@ -2962,7 +2964,7 @@ EOF`);
             namespace: options.namespace,
             env: inputEnv,
           });
-          const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+          const targetTraffic = targetOf(currentTraffic);
           Underpost.deploy.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace, options);
           applyCerts(deployId, targetTraffic);
         }
@@ -2971,7 +2973,7 @@ EOF`);
           namespace: options.namespace,
           env: inputEnv,
         });
-        const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+        const targetTraffic = targetOf(currentTraffic);
         Underpost.deploy.switchTraffic(
           inputDeployId,
           inputEnv,

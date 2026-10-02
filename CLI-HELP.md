@@ -1127,7 +1127,7 @@ Runs specified scripts using various runners.
 | `--kubeadm` | Sets the kubeadm cluster context for the runner execution. |
 | `--k3s` | Sets the k3s cluster context for the runner execution. |
 | `--kind` | Sets the kind cluster context for the runner execution. |
-| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue). `stop` accepts a comma list, e.g. blue,green. |
+| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote` routes to. `stop` accepts a comma list, e.g. blue,green. |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--deploy-id <deploy-id>` | Sets deploy id context for the runner execution. |
 | `--user <user>` | Sets user context for the runner execution. |

@@ -1039,7 +1039,7 @@ program
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
   .option(
     '--traffic <traffic>',
-    'Blue/green traffic colour to bake into generated manifests (default: blue). `stop` accepts a comma list, e.g. blue,green.',
+    'Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote` routes to. `stop` accepts a comma list, e.g. blue,green.',
   )
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
