@@ -24,9 +24,8 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () =>
 const objectLayerDomain = fs.existsSync('./src/api/object-layer');
 const objectLayerModule = async (path) => (objectLayerDomain ? await import(path) : {});
 
-const { resolveLedgerBindings, resolveObjectLayer, resolveTokenSupply, publishObjectLayer } = await objectLayerModule(
-  '../../../src/server/domain/object-layer-resolver.js',
-);
+const { resolveLedgerBindings, resolveObjectLayer, resolveRegisteredCids, resolveTokenSupply, publishObjectLayer } =
+  await objectLayerModule('../../../src/server/domain/object-layer-resolver.js');
 const { clearDomainCache, domainOrigin } = await import('../../../src/server/domain/domain-client.js');
 const { loadApiExtension } = await import('../../../src/server/domain/consumed-api.js');
 const { developmentOrigins, hostPortsFactory, localHostAddress } =
@@ -131,6 +130,22 @@ describe.skipIf(!objectLayerDomain)('ItemLedger resolution', () => {
   it('answers unregistered, not an error, when the ledger is not configured', async () => {
     expect(await resolveLedgerBindings(cid, consumer)).toEqual([]);
     expect(await resolveTokenSupply({ chainId: 1, contractAddress: '0x0', tokenId: '1' }, consumer)).toBeNull();
+  });
+
+  it('protects a registered definition when the ledger answers', async () => {
+    process.env.ITEM_LEDGER_API_ORIGIN = 'https://itemledger.com';
+    expect([...(await resolveRegisteredCids([cid], consumer))]).toEqual([cid]);
+  });
+
+  it('fails a registration check closed, naming the policy, when the ledger does not answer', async () => {
+    process.env.ITEM_LEDGER_API_ORIGIN = 'https://itemledger.com';
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+    await expect(resolveRegisteredCids([cid], consumer)).rejects.toMatchObject({
+      status: 503,
+      message: expect.stringMatching(/^Registration safety: ItemLedger did not answer .*fetch failed/),
+    });
   });
 });
 

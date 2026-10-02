@@ -8,7 +8,7 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
-  resolveLedgerBindings: async () => [],
+  resolveRegisteredCids: async () => new Set(),
   publishObjectLayer: async () => null,
 }));
 // The atlas store needs the Cyberia catalog packages; no suite here reaches it.

@@ -53,6 +53,18 @@ describe('cross-domain reads', () => {
     expect(calls).toHaveLength(3);
   });
 
+  it('names a domain that does not answer unavailable, never an empty answer', async () => {
+    const unreachable = async () => {
+      throw new TypeError('fetch failed');
+    };
+    answers.push(unreachable, unreachable, unreachable);
+    await expect(domainRead({ domain: 'item-ledger', path: 'item-ledger', cacheTtlMs: 0 })).rejects.toMatchObject({
+      status: 503,
+      retryable: true,
+      message: expect.stringMatching(/^The item-ledger domain is unavailable: GET .* failed: fetch failed$/),
+    });
+  });
+
   it('raises a refusal at once', async () => {
     answers.push(respond(403, {}));
     await expect(domainRead({ domain: 'item-ledger', path: 'item-ledger', cacheTtlMs: 0 })).rejects.toBeInstanceOf(DomainError);

@@ -49,7 +49,11 @@ Object Layer management view's purge action, `cyberia ol --drop` and `cyberia in
 all call it. It is rerunnable, and it reports what it removed.
 
 A definition ItemLedger registers is never purged: a token type names content that must stay
-resolvable. The purge reports it as kept and the route refuses.
+resolvable. The purge reports it as kept and the route refuses. This registration-safety check is
+the one place a removal depends on ItemLedger. When ItemLedger does not answer, the purge and the
+delete route remove nothing and fail with status 503 and an error that names the policy. Reads,
+imports and the runtime never need ItemLedger: without it, a definition shows as unregistered or
+its ledger state as unavailable.
 
 Each host purges what it stores, and no purge reaches another host: a consumer that cached the
 definition unbinds it on its next reconciliation (`cyberia catalog reconcile`).

@@ -58,6 +58,14 @@ export const domainOrigin = (domain) =>
     cyberia: process.env.CYBERIA_API_ORIGIN,
   })[domain] || localDomainUrl(domain);
 
+/** A domain that did not answer: the caller reads it as unavailable, never as an empty answer. */
+const unavailable = (domain, path, reason, retryable) =>
+  new DomainError(`The ${domain} domain is unavailable: ${reason}`, { domain, path, status: 503, retryable });
+
+/** A domain this deploy has no origin for: unavailable here. */
+const unconfigured = (domain, path) =>
+  new DomainError(`No API origin configured for domain "${domain}"`, { domain, path, status: 503, retryable: false });
+
 /** Status codes worth another attempt: the request never reached a decision. */
 const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -104,7 +112,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAULTS.cacheTtlMs }) {
   const base = domainOrigin(domain);
-  if (!base) throw new DomainError(`No API origin configured for domain "${domain}"`, { domain, path, status: 0, retryable: false });
+  if (!base) throw unconfigured(domain, path);
 
   const url = new URL(`${base.replace(/\/$/, '')}/${API_BASE_PATH}/${path}`);
   for (const [key, value] of Object.entries(query)) if (value !== undefined) url.searchParams.set(key, value);
@@ -141,7 +149,14 @@ export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAUL
       }
     } catch (error) {
       if (error instanceof DomainError && !error.retryable) throw error;
-      lastError = error.name === 'AbortError' ? new DomainError(`GET ${key} timed out after ${DEFAULTS.timeoutMs}ms`, { domain, path, status: 0, retryable: true }) : error;
+      lastError = unavailable(
+        domain,
+        path,
+        error.name === 'AbortError'
+          ? `GET ${key} timed out after ${DEFAULTS.timeoutMs}ms`
+          : `GET ${key} failed: ${error.message}`,
+        true,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -165,9 +180,9 @@ export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAUL
  */
 export async function domainWrite({ domain, path, body, method = 'POST' }) {
   const base = domainOrigin(domain);
-  if (!base) throw new DomainError(`No API origin configured for domain "${domain}"`, { domain, path, status: 0, retryable: false });
+  if (!base) throw unconfigured(domain, path);
   const serviceKey = process.env.DOMAIN_API_SERVICE_KEY || '';
-  if (!serviceKey) throw new DomainError('DOMAIN_API_SERVICE_KEY is required for a cross-domain write', { domain, path, status: 0, retryable: false });
+  if (!serviceKey) throw new DomainError('DOMAIN_API_SERVICE_KEY is required for a cross-domain write', { domain, path, status: 500, retryable: false });
 
   const url = `${base.replace(/\/$/, '')}/${API_BASE_PATH}/${path}`;
   const controller = new AbortController();
@@ -184,6 +199,15 @@ export async function domainWrite({ domain, path, body, method = 'POST' }) {
       },
       body: JSON.stringify(body),
       signal: controller.signal,
+    }).catch((error) => {
+      throw unavailable(
+        domain,
+        path,
+        error.name === 'AbortError'
+          ? `${method} ${url} timed out after ${DEFAULTS.timeoutMs}ms`
+          : `${method} ${url} failed: ${error.message}`,
+        false,
+      );
     });
     if (!response.ok) {
       throw new DomainError(`${method} ${url} answered ${response.status}`, { domain, path, status: response.status, retryable: false });

@@ -19,7 +19,7 @@ import { ObjectLayerDto, isObjectLayerCid } from './object-layer.model.js';
 import { objectLayerIdentity } from './object-layer.identity.js';
 import { isObjectLayerAuthority, objectLayerCache, publishDefinition } from './object-layer.publication.js';
 import { purgeObjectLayers } from './object-layer.purge.js';
-import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
+import { resolveRegisteredCids } from '../../server/domain/object-layer-resolver.js';
 import { isProfileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CacheService } from '../../server/storage/cache.js';
@@ -261,9 +261,8 @@ class ObjectLayerService {
     assertOwnerOrAdmin(req.auth.user, objectLayer.createdBy);
     if (objectLayer.origin === 'canonical')
       throw new Error(`ObjectLayer ${objectLayer.cid} is published and immutable; archive it instead`);
-    // A registered definition is a token type's content: it stays. The ledger is asked where it
-    // lives; an unreachable ledger fails the delete.
-    if ((await resolveLedgerBindings(objectLayer.cid, options)).length > 0)
+    // A registered definition is a token type's content: it stays.
+    if ((await resolveRegisteredCids([objectLayer.cid], options)).size > 0)
       throw new Error(`ObjectLayer ${objectLayer.cid} is registered in ItemLedger and cannot be deleted`);
 
     await options.extension?.beforeDelete?.(objectLayer, options);

@@ -920,8 +920,10 @@ class ObjectLayerViewer {
   static async loadLedger(cid) {
     if (!cid) return { bindings: [], unavailable: '' };
     try {
-      const { status, data: ledger } = await ItemLedgerService.getByCid({ cid });
-      const bindings = status === 'success' && Array.isArray(ledger?.data) ? ledger.data : [];
+      const { status, data: ledger, message } = await ItemLedgerService.getByCid({ cid });
+      // An error answer is a ledger that cannot tell, never an unregistered definition.
+      if (status !== 'success') return { bindings: [], unavailable: message || 'the ledger did not answer' };
+      const bindings = Array.isArray(ledger?.data) ? ledger.data : [];
       await Promise.all(
         bindings.map(async (binding) => {
           const [supply, { data: holders }, { data: transfers }] = await Promise.all([

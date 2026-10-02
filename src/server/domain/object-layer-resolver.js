@@ -81,21 +81,33 @@ export async function resolveLedgerBindings(cid, options) {
 }
 
 /**
- * Which of several CIDs ItemLedger registers. Read from the local projection on the ItemLedger
- * host, from its API anywhere else.
+ * Which of several CIDs ItemLedger registers: the registration-safety check of every operation
+ * that removes a definition. A registered CID is protected. Read from the local projection on the
+ * ItemLedger host, from its API anywhere else.
  * @param {string[]} cids - Canonical Object Layer CIDs.
  * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
  * @returns {Promise<Set<string>>}
+ * @throws {Error} With status 503 when ItemLedger does not answer: the operation fails closed.
  * @memberof ObjectLayerResolver
  */
 export async function resolveRegisteredCids(cids, options) {
   if (cids.length === 0) return new Set();
   const ItemLedger = localSource('ItemLedger', 'item-ledger', 'item-ledger', options);
   if (ItemLedger) return new Set(await ItemLedger.distinct('objectLayerCid', { objectLayerCid: { $in: cids } }));
-  const registered = await Promise.all(
-    cids.map(async (cid) => ((await resolveLedgerBindings(cid, options)).length ? cid : null)),
-  );
-  return new Set(registered.filter(Boolean));
+  try {
+    const registered = await Promise.all(
+      cids.map(async (cid) => ((await resolveLedgerBindings(cid, options)).length ? cid : null)),
+    );
+    return new Set(registered.filter(Boolean));
+  } catch (error) {
+    throw Object.assign(
+      new Error(
+        `Registration safety: ItemLedger did not answer (${error.message}). ` +
+          'No definition is removed while its registration is unknown; retry when ItemLedger answers',
+      ),
+      { status: 503 },
+    );
+  }
 }
 
 /**
