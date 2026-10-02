@@ -10,6 +10,7 @@ import {
   awaitDeployMonitor,
   buildCliDoc,
   buildReplicaId,
+  clientPublicTreesFactory,
   clusterContextFactory,
   clusterTypeFactory,
   devProxyHostFactory,
@@ -30,6 +31,7 @@ import {
   isDevProxyContext,
   isTlsDevProxy,
   pruneTemplateWorkTree,
+  publicClientIdFactory,
   readConfJson,
   resolveConfSecrets,
   resolveHostKeyContext,
@@ -653,6 +655,20 @@ describe('port readiness wait', () => {
     expect(await waitForPort({ port: 1, open: true, timeoutMs: 30, intervalMs: 10, connectTimeoutMs: 10 })).to.equal(
       false,
     );
+  });
+});
+
+describe('client public trees', () => {
+  it('names the tree each client builds from, and the one it completes it from, once each', () => {
+    const confClient = {
+      underpost: { publicCopyNonExistingFiles: 'cyberia' },
+      'cyberia-portal': { publicRef: 'cyberia' },
+      objectlayer: { publicCopyNonExistingFiles: 'cyberia' },
+    };
+    expect(publicClientIdFactory('cyberia-portal', confClient['cyberia-portal'])).to.equal('cyberia');
+    expect(publicClientIdFactory('underpost', confClient.underpost)).to.equal('underpost');
+    expect(clientPublicTreesFactory(confClient)).to.deep.equal(['underpost', 'cyberia', 'objectlayer']);
+    expect(clientPublicTreesFactory()).to.deep.equal([]);
   });
 });
 

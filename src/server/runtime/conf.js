@@ -1909,6 +1909,33 @@ const selectConfInstances = (instances, id) =>
 const resolveEnvScoped = (value, env) => (value && (value.development || value.production) ? value[env] : value);
 
 /**
+ * @method publicClientIdFactory
+ * @description The public tree a client builds from: `src/client/public/<id>`, by its `publicRef`,
+ * else its own id.
+ * @param {string} client - The client id of `conf.client.json`.
+ * @param {object} [clientConf] - Its conf.
+ * @returns {string}
+ * @memberof ServerConfBuilder
+ */
+const publicClientIdFactory = (client, clientConf = {}) => clientConf.publicRef || client;
+
+/**
+ * @method clientPublicTreesFactory
+ * @description Every public tree the client builds of a deploy read: the one each client builds from
+ * and the one it completes it from (`publicCopyNonExistingFiles`), once each.
+ * @param {object} [confClient] - A parsed `conf.client.json`.
+ * @returns {string[]} Public tree ids, under `src/client/public/`.
+ * @memberof ServerConfBuilder
+ */
+const clientPublicTreesFactory = (confClient = {}) => [
+  ...new Set(
+    Object.entries(confClient).flatMap(([client, clientConf]) =>
+      [publicClientIdFactory(client, clientConf), clientConf.publicCopyNonExistingFiles].filter(Boolean),
+    ),
+  ),
+];
+
+/**
  * @method instancePortFactory
  * @description The port an instance is reached on for an environment.
  * Development prefers the instance's debug port when it declares one, so a
@@ -3445,6 +3472,8 @@ export {
   loadProjectInstanceEnvBuilder,
   loadInstanceTopology,
   readConfInstances,
+  clientPublicTreesFactory,
+  publicClientIdFactory,
   selectConfInstances,
   loadReplicas,
   cloneConf,

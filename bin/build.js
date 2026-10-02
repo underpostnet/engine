@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import {
+  clientPublicTreesFactory,
   getPathsSSR,
   syncPrivateConf,
   syncDeployIdSources,
@@ -16,8 +17,8 @@ import {
 import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
 import {
-  buildProductPackageJson,
   STAGED_CLI_PACKAGE,
+  buildProductPackageJson,
   installDeployDependencies,
   productPackageOptionsFactory,
 } from '../src/server/build/package.js';
@@ -105,18 +106,19 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
         fs.copyFileSync(originPath, `${basePath}/src/client/${capName}.index.js`);
       }
     }
-    {
-      const originPath = `./src/client/public/${client}`;
-      if (fs.existsSync(originPath)) {
-        logger.info(`Build`, originPath);
-        fs.copySync(originPath, `${basePath}/src/client/public/${client}`);
-      }
-    }
     // The documents and the TypeDoc readme the client docs build reads.
     const { docs } = DefaultConf.client[client];
     for (const originPath of [...docsReferencesFactory(docs), docs?.typedoc?.readme].filter(Boolean)) {
       if (!fs.existsSync(originPath)) continue;
       fs.copySync(originPath, `${basePath}/${originPath}`);
+    }
+  }
+
+  for (const publicId of clientPublicTreesFactory(DefaultConf.client)) {
+    const originPath = `./src/client/public/${publicId}`;
+    if (fs.existsSync(originPath)) {
+      logger.info(`Build`, originPath);
+      fs.copySync(originPath, `${basePath}/src/client/public/${publicId}`);
     }
   }
 
