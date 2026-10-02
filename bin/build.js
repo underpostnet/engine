@@ -303,11 +303,14 @@ program
   .option(
     '--coverage',
     `Run the test suites the deploy ids' coverage reports name before assembly, so the artifact carries current ${COVERAGE_BUNDLE_DIRECTORY} reports.`,
-    false,
+  )
+  .option(
+    '--no-coverage',
+    'Run no test suite: bundle the reports the run directories already hold, and none where they hold none.',
   )
   .option(
     '--update-private',
-    'After assembling each deploy id, publish it to its private test source repo (underpostnet/engine-test-<id>) for isolated test deploys.',
+    'After assembling each deploy id, publish it to its private test source repo (underpostnet/engine-test-<id>), which the sync deploys run. Implies --coverage unless --no-coverage: the published source carries the reports of its own run.',
     false,
   )
   .option(
@@ -352,9 +355,9 @@ program
     }
 
     // Tests run here, in the build stage, and once per declared suite: the artifact carries
-    // each report so no container ever has to produce its own. Refreshing is opt-in because
-    // a template assembly is not otherwise a test run.
-    if (options.coverage) await runDeployCoverage(deployList);
+    // each report so no container ever has to produce its own. A source a deploy runs carries
+    // the reports of its own run unless --no-coverage; a plain template assembly runs no tests.
+    if (options.coverage ?? options.updatePrivate) await runDeployCoverage(deployList);
 
     for (const deployId of deployList) {
       // Reconstruct the base template from 0 before each deploy id so neither a previous
