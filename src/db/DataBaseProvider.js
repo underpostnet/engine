@@ -3,7 +3,13 @@ import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import { resolveHostKeyContext } from '../server/runtime/conf.js';
 import Underpost from '../index.js';
-import { latchRuntimeError } from '../server/runtime/runtime-status.js';
+import {
+  CONNECTION_FAILURE_TOLERANCE,
+  latchRuntimeError,
+  recordConnectionFailure,
+  recordConnectionSuccess,
+  runtimeStatusWritable,
+} from '../server/runtime/runtime-status.js';
 import { currentContentView } from './content-view.js';
 
 /**
@@ -49,6 +55,30 @@ const withPingTimeout = async (probe) => {
  *
  * @type {object.<string, {isAlive: Function, rebuild: Function, close: Function}>}
  */
+/**
+ * Connects, and in a live runtime tries again with a growing pause until the connection has failed
+ * {@link CONNECTION_FAILURE_TOLERANCE} times in a row: a database still starting while the runtime
+ * boots does not fail it.
+ * @param {string} key - The connection, as `<provider>:<host><path>`.
+ * @param {() => Promise<*>} connect
+ * @returns {Promise<*>} The connection.
+ */
+const connectWithTolerance = async (key, connect) => {
+  const tolerance = runtimeStatusWritable() ? CONNECTION_FAILURE_TOLERANCE : 1;
+  for (;;) {
+    try {
+      const connection = await connect();
+      recordConnectionSuccess(key);
+      return connection;
+    } catch (error) {
+      const failures = recordConnectionFailure(key);
+      if (failures >= tolerance) throw error;
+      logger.warn('Database connection failed; trying again', { key, failures, tolerance, error: error.message });
+      await new Promise((resolve) => setTimeout(resolve, failures * 1000));
+    }
+  }
+};
+
 const PROVIDER_HEALTH = {
   mongoose: {
     isAlive: async (connection) => {
@@ -437,7 +467,7 @@ class DataBaseProviderService {
       switch (db.provider) {
         case 'mongoose':
           {
-            const conn = await MongooseDB.connect(db);
+            const conn = await connectWithTolerance(`${db.provider}:${key}`, () => MongooseDB.connect(db));
             const partitions = DataBaseProviderService.partitionsOf(db);
             this.#instance[key][db.provider] = {
               dbSignature,

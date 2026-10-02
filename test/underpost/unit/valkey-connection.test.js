@@ -21,7 +21,11 @@ vi.mock('iovalkey', () => ({
   },
 }));
 vi.mock('../../../src/index.js', () => ({ default: {} }));
-vi.mock('../../../src/server/runtime/runtime-status.js', () => ({ latchRuntimeError: () => {} }));
+const failures = vi.hoisted(() => ({ recorded: [], cleared: [] }));
+vi.mock('../../../src/server/runtime/runtime-status.js', () => ({
+  recordConnectionFailure: (key) => failures.recorded.push(key),
+  recordConnectionSuccess: (key) => failures.cleared.push(key),
+}));
 
 const { ValkeyAPI, closeValkeyConnection, createValkeyConnection } = await import('../../../src/db/valkey/Valkey.js');
 
@@ -40,5 +44,17 @@ describe('valkey connection lifecycle', () => {
 
     closeValkeyConnection(instance);
     expect(client.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('counts each error of a connection and clears the count once it is ready again', async () => {
+    const instance = { host: 'underpost.net', path: '/' };
+    await createValkeyConnection(instance, { host: 'valkey-service', port: 6379 });
+    const client = clients.at(-1);
+    client.listeners.error(new Error('connect ETIMEDOUT'));
+    client.listeners.error(new Error('getaddrinfo ENOTFOUND valkey-service'));
+    client.listeners.ready();
+    expect(failures.recorded).toEqual(['valkey:underpost.net/', 'valkey:underpost.net/']);
+    expect(failures.cleared).toEqual(['valkey:underpost.net/']);
+    closeValkeyConnection(instance);
   });
 });

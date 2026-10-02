@@ -15,7 +15,7 @@
 import Valkey from 'iovalkey';
 import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
-import { latchRuntimeError } from '../../server/runtime/runtime-status.js';
+import { recordConnectionFailure, recordConnectionSuccess } from '../../server/runtime/runtime-status.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -67,12 +67,12 @@ const createValkeyConnection = async (instance = {}, connectionOptions = {}) => 
 
   client.on('ready', () => {
     ValkeyStatus[key] = 'connected';
+    recordConnectionSuccess(`valkey:${key}`);
     logger.info('Valkey connected', { instance });
   });
   client.on('error', (err) => {
     ValkeyStatus[key] = 'error';
-    logger.error('Valkey error', { err: err?.message, instance });
-    latchRuntimeError();
+    logger.error('Valkey error', { err: err?.message, instance, failures: recordConnectionFailure(`valkey:${key}`) });
   });
   client.on('reconnecting', () => {
     ValkeyStatus[key] = 'reconnecting';

@@ -294,14 +294,14 @@ describe('container state store', () => {
   });
 
   it('latches a failure through one helper rather than a literal in each module', () => {
-    for (const module of [
-      '../../../../src/server/runtime/process.js',
-      '../../../../src/db/DataBaseProvider.js',
-      '../../../../src/db/valkey/Valkey.js',
-      '../../../../src/db/mariadb/MariaDB.js',
+    for (const [module, helper] of [
+      ['../../../../src/server/runtime/process.js', 'latchRuntimeError()'],
+      ['../../../../src/db/DataBaseProvider.js', 'latchRuntimeError()'],
+      ['../../../../src/db/valkey/Valkey.js', 'recordConnectionFailure('],
+      ['../../../../src/db/mariadb/MariaDB.js', 'latchRuntimeError()'],
     ]) {
       const source = fs.readFileSync(new URL(module, import.meta.url), 'utf8');
-      expect(source, module).to.include('latchRuntimeError()');
+      expect(source, module).to.include(helper);
       expect(source, module).to.not.include("set('container-status'");
     }
   });

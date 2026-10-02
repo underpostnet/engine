@@ -286,6 +286,37 @@ const latchRuntimeError = () => {
   if (runtimeStatusWritable()) Underpost.state.set(CONTAINER_STATUS_KEY, RUNTIME_STATUS.ERROR);
 };
 
+/** Consecutive failures a connection may have before it latches the container as failed. */
+const CONNECTION_FAILURE_TOLERANCE = 5;
+
+/** Consecutive failures of each connection, by key. */
+const connectionFailures = new Map();
+
+/**
+ * Counts a failure of a connection, and latches the container as failed once the connection has
+ * failed {@link CONNECTION_FAILURE_TOLERANCE} times in a row: a service still starting while the
+ * runtime boots does not fail the rollout.
+ * @memberof RuntimeStatus
+ * @param {string} key - The connection, as `<provider>:<host><path>`.
+ * @returns {number} Its consecutive failures.
+ */
+const recordConnectionFailure = (key) => {
+  const failures = (connectionFailures.get(key) ?? 0) + 1;
+  connectionFailures.set(key, failures);
+  if (failures >= CONNECTION_FAILURE_TOLERANCE) latchRuntimeError();
+  return failures;
+};
+
+/**
+ * Clears the failures of a connection that answers again.
+ * @memberof RuntimeStatus
+ * @param {string} key - The connection, as `<provider>:<host><path>`.
+ * @returns {void}
+ */
+const recordConnectionSuccess = (key) => {
+  connectionFailures.delete(key);
+};
+
 /**
  * Marks the start pipeline's own completion. Written once, read only by the readinessProbe.
  * @memberof RuntimeStatus
@@ -381,6 +412,9 @@ export {
   clearAwaitDeploy,
   isTestRuntime,
   latchRuntimeError,
+  CONNECTION_FAILURE_TOLERANCE,
+  recordConnectionFailure,
+  recordConnectionSuccess,
   runtimeStatusWritable,
   setStartContainerStatus,
   runtimeStatusPayload,
