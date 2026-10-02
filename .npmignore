@@ -17,11 +17,17 @@
 /prometheus_data
 /grafana_data
 /quorum-kubernetes
-# External runtime repos cloned into the workspace by `run-workflow setup-workspace`. They are
-# separate packages with their own build, and letting them leak in makes the packed CLI differ
-# between a developer workspace and a clean CI checkout.
+# Product checkouts nested in the workspace. They are separate repositories, and letting them
+# leak in makes the packed CLI differ between a developer workspace and a clean CI checkout.
+# The deployment holds private configuration.
 /cyberia-server
 /cyberia-client
+/cyberia-content
+/cyberia-audio
+/cyberia-deployment
+# Local tool state.
+.claude
+gitleaks-report.json
 # Staged CLI package for the runtime image builds; never part of the package itself.
 # Two build contexts stage it: the repo root (CI, context '.') and the engine-cyberia
 # image directory (local `run-workflow docker-image engine-cyberia`, context that dir).
