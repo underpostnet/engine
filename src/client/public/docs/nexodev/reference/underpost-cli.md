@@ -1234,8 +1234,8 @@ General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev 
 | `--reset` | Comprehensive teardown (equivalent to cluster --reset): removes all stack containers, the network, named volumes (destroys data), orphans, and generated artifacts. |
 | `--force` | Force reinstall (--install), remove volumes (--down), or also drop the env-file (--reset). |
 | `--deploy-id <deploy-id>` | Deployment to run as the app container (default: dd-default). 'dd-default' self-bootstraps a fresh engine; any other id runs the standard 'underpost start' command (mirrors src/cli/deploy.js). |
-| `--docker-compose-id <docker-compose-id>` | Selects a canonical custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/ (docker-compose.yml + compose.env + nginx.conf, used as-is; nginx/env generation is skipped). e.g. --deploy-id dd-cyberia --docker-compose-id cyberia for the Cyberia MMO ecosystem. |
-| `--env <env>` | Deployment environment for non-default deploy ids (default: development). |
+| `--docker-compose-id <docker-compose-id>` | Selects a custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/. Its compose.env is operator-owned; docker-compose.yml and nginx.conf are rendered from the stack the project declares in src/projects/<project>/compose-stack.js, else used as-is. e.g. --deploy-id dd-cyberia --docker-compose-id cyberia for the Cyberia MMO ecosystem. |
+| `--env <env>` | Deployment environment of a non-default deploy id or a custom stack (default: development). |
 | `--generate` | Render dynamic supporting files (nginx router config, env-file, app-command override). |
 | `--up` | Start the full stack detached (regenerates config first). |
 | `--down` | Stop and remove containers (and orphans). |

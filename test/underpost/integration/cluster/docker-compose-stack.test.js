@@ -2,8 +2,16 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import { load as yamlLoad } from 'js-yaml';
 import UnderpostDockerCompose from '../../../../src/cli/docker-compose.js';
+import { loadProjectExport } from '../../../../src/server/runtime/conf.js';
 import { shellHarness } from '../../../support/shell-harness.js';
+
+// A project stack is loaded by deploy id; each test declares the one it needs.
+vi.mock(import('../../../../src/server/runtime/conf.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  loadProjectExport: vi.fn(async () => null),
+}));
 
 // Everything below writes generated artifacts under the engine tree and drives
 // the docker CLI. Both are replaced: an in-memory file table for the artifacts,
@@ -49,9 +57,9 @@ describe('docker compose stack', () => {
   });
 
   describe('generated artifacts', () => {
-    it('renders the nginx routes, mongo entrypoint, monitoring config and env example', () => {
+    it('renders the nginx routes, mongo entrypoint, monitoring config and env example', async () => {
       const { written } = composeFixture();
-      UnderpostDockerCompose.generate({});
+      await UnderpostDockerCompose.generate({});
       const paths = [...written.keys()].map(relative);
       expect(paths).to.include('docker/nginx/default.conf');
       expect(paths).to.include('docker/mongodb/entrypoint.sh');
@@ -61,21 +69,31 @@ describe('docker compose stack', () => {
       expect(paths).to.include('docker/compose.app.yml');
     });
 
-    it('seeds the working env-file from the example only when it is absent', () => {
+    it('routes every proxy host and answers the health probe on each server', async () => {
       const { written } = composeFixture();
-      UnderpostDockerCompose.generate({});
+      await UnderpostDockerCompose.generate({});
+      const conf = written.get([...written.keys()].find((path) => relative(path) === 'docker/nginx/default.conf'));
+      expect(conf).to.include('server_name default.net;');
+      expect(conf).to.include('proxy_pass http://app:4002;');
+      expect(conf).to.include('listen 80 default_server;');
+      expect(conf.match(/location = \/healthz/g)).to.have.length(3);
+    });
+
+    it('seeds the working env-file from the example only when it is absent', async () => {
+      const { written } = composeFixture();
+      await UnderpostDockerCompose.generate({});
       const envPath = [...written.keys()].find((path) => relative(path) === 'docker/compose.env');
       expect(written.get(envPath)).to.equal(written.get(`${envPath}.example`));
 
       vi.restoreAllMocks();
       const existing = composeFixture({ [envPath]: 'DB_PASSWORD=real\n' });
-      UnderpostDockerCompose.generate({});
+      await UnderpostDockerCompose.generate({});
       expect(existing.written.has(envPath)).to.equal(false);
     });
 
-    it('bakes the deploy id and environment into the app command override', () => {
+    it('bakes the deploy id and environment into the app command override', async () => {
       const { written } = composeFixture();
-      UnderpostDockerCompose.generate({ deployId: 'dd-core', env: 'production' });
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', env: 'production' });
       const override = written.get([...written.keys()].find((path) => relative(path) === 'docker/compose.app.yml'));
       expect(override).to.include('dd-core');
       expect(override).to.include('production');
@@ -88,9 +106,9 @@ describe('docker compose stack', () => {
       );
     });
 
-    it('honours every generated path override', () => {
+    it('honours every generated path override', async () => {
       const { written } = composeFixture();
-      UnderpostDockerCompose.generate({
+      await UnderpostDockerCompose.generate({
         nginxConf: 'custom/nginx.conf',
         envFile: 'custom/env',
         appOverride: 'custom/app.yml',
@@ -108,23 +126,71 @@ describe('docker compose stack', () => {
       expect(UnderpostDockerCompose.mongoEntrypointContent()).to.include('BOOTSTRAP_USER_CREATED');
     });
 
-    // A named workflow is fully owned by its canonical directory: the generic
-    // CLI never writes application-specific content into it.
-    it('uses a custom workflow canonical files as-is', () => {
+    // Without a project stack, a named workflow is owned by its canonical directory.
+    it('uses a custom workflow canonical files as-is', async () => {
       const base = 'engine-private/conf/dd-core/docker-compose/custom';
       const { written } = composeFixture({
         [UnderpostDockerCompose.resolve(`${base}/docker-compose.yml`)]: 'services: {}\n',
         [UnderpostDockerCompose.resolve(`${base}/compose.env`)]: 'FIXTURE=true\n',
       });
-      UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' });
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' });
       expect(written.size).to.equal(0);
     });
 
-    it('names the canonical files a custom workflow is missing', () => {
+    it('names the canonical files a custom workflow is missing', async () => {
       composeFixture();
-      expect(() => UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' })).to.throw(
-        'missing',
+      let error;
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' }).catch(
+        (e) => (error = e),
       );
+      expect(error?.message).to.include('docker-compose.yml').and.include('compose.env');
+    });
+  });
+
+  describe('project stacks', () => {
+    const base = 'engine-private/conf/dd-core/docker-compose/custom';
+    const at = (file) => UnderpostDockerCompose.resolve(`${base}/${file}`);
+    let context;
+    const stack = (args) => {
+      context = args;
+      args.nginx.addServer({ names: ['app.test'], locations: [{ match: '/', proxy: 'app:4001' }] });
+      return { name: 'dd-core', services: { mongodb: { image: 'mongo' }, app: { image: 'app' } } };
+    };
+
+    beforeEach(() => {
+      context = undefined;
+      vi.mocked(loadProjectExport).mockResolvedValue({ custom: stack });
+    });
+
+    it('renders the compose document, the gateway and the init script of each platform service', async () => {
+      const { written } = composeFixture({ [at('compose.env')]: 'PORT=4000\n' });
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' });
+      expect(vi.mocked(loadProjectExport)).toHaveBeenCalledWith('dd-core', 'compose-stack.js', 'composeStacks');
+      const compose = written.get(at('docker-compose.yml'));
+      expect(compose.split('\n')[0]).to.match(/^# Generated by .*--docker-compose-id custom.* do not hand-edit\.$/);
+      expect(yamlLoad(compose).services.app.image).to.equal('app');
+      expect(written.get(at('nginx.conf'))).to.include('server_name app.test;');
+      expect(written.get(at('mongodb/entrypoint.sh'))).to.equal(UnderpostDockerCompose.mongoEntrypointContent());
+      expect(written.has(at('ipfs/configure-ipfs.sh'))).to.equal(false);
+      // The operator-owned env-file is read, never written.
+      expect(written.has(at('compose.env'))).to.equal(false);
+      expect(context.composeEnv).to.deep.equal({ PORT: '4000' });
+    });
+
+    it('hands the stack the deployment environment', async () => {
+      composeFixture({ [at('compose.env')]: '' });
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom', env: 'production' });
+      expect(context.env).to.equal('production');
+      expect(context.deployId).to.equal('dd-core');
+    });
+
+    it('needs only the env-file, which the stack never generates', async () => {
+      composeFixture();
+      let error;
+      await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' }).catch(
+        (e) => (error = e),
+      );
+      expect(error?.message).to.include('compose.env').and.not.include('docker-compose.yml');
     });
   });
 

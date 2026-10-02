@@ -1199,11 +1199,12 @@ program
   )
   .option(
     '--docker-compose-id <docker-compose-id>',
-    'Selects a canonical custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/ ' +
-      '(docker-compose.yml + compose.env + nginx.conf, used as-is; nginx/env generation is skipped). ' +
+    'Selects a custom-workflow stack at engine-private/conf/<deploy-id>/docker-compose/<docker-compose-id>/. ' +
+      'Its compose.env is operator-owned; docker-compose.yml and nginx.conf are rendered from the stack the project ' +
+      'declares in src/projects/<project>/compose-stack.js, else used as-is. ' +
       'e.g. --deploy-id dd-cyberia --docker-compose-id cyberia for the Cyberia MMO ecosystem.',
   )
-  .option('--env <env>', 'Deployment environment for non-default deploy ids (default: development).')
+  .option('--env <env>', 'Deployment environment of a non-default deploy id or a custom stack (default: development).')
   .option('--generate', 'Render dynamic supporting files (nginx router config, env-file, app-command override).')
   .option('--up', 'Start the full stack detached (regenerates config first).')
   .option('--down', 'Stop and remove containers (and orphans).')

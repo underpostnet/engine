@@ -1807,24 +1807,34 @@ const dispatchBuildInstanceEnv = ({
 };
 
 /**
- * Loads a deploy project's optional instance env builder by convention.
- * `dd-cyberia` resolves to `src/projects/cyberia/instance-data.js`, whose
- * public integration export is `buildInstanceEnv`. Missing modules mean the
- * canonical env is copied unchanged; malformed exports fail explicitly.
+ * Loads one integration export of a deploy project by convention: `dd-cyberia` and `instance-data.js`
+ * resolve to `src/projects/cyberia/instance-data.js`.
+ * @param {string} deployId - Deployment id in `dd-<project>` form.
+ * @param {string} file - The module file inside the project.
+ * @param {string} name - The export.
+ * @returns {Promise<*>} The export, or null when the project, the module or the export is absent.
+ * @memberof ServerConfBuilder
+ */
+const loadProjectExport = async (deployId, file, name) => {
+  const match = /^dd-([a-z0-9][a-z0-9-]*)$/.exec(`${deployId || ''}`);
+  if (!match) return null;
+  const moduleUrl = new URL(`../../projects/${match[1]}/${file}`, import.meta.url);
+  if (!fs.existsSync(moduleUrl)) return null;
+  return (await import(moduleUrl.href))[name] ?? null;
+};
+
+/**
+ * Loads a deploy project's optional instance env builder, the `buildInstanceEnv` export of its
+ * `instance-data.js`. Without one the canonical env is copied unchanged.
  * @param {string} deployId - Deployment id in `dd-<project>` form.
  * @returns {Promise<Function|null>} Project env builder, when provided.
  * @memberof ServerConfBuilder
  */
 const loadProjectInstanceEnvBuilder = async (deployId) => {
-  const match = /^dd-([a-z0-9][a-z0-9-]*)$/.exec(`${deployId || ''}`);
-  if (!match) return null;
-  const moduleUrl = new URL(`../../projects/${match[1]}/instance-data.js`, import.meta.url);
-  if (!fs.existsSync(moduleUrl)) return null;
-  const projectModule = await import(moduleUrl.href);
-  if (projectModule.buildInstanceEnv === undefined) return null;
-  if (typeof projectModule.buildInstanceEnv !== 'function')
-    throw new TypeError(`${moduleUrl.pathname}: buildInstanceEnv must be a function`);
-  return projectModule.buildInstanceEnv;
+  const builder = await loadProjectExport(deployId, 'instance-data.js', 'buildInstanceEnv');
+  if (builder !== null && typeof builder !== 'function')
+    throw new TypeError(`${deployId} instance-data.js: buildInstanceEnv must be a function`);
+  return builder;
 };
 
 /**
@@ -3497,6 +3507,7 @@ export {
   loadConfInstances,
   normalizeInstanceTopology,
   dispatchBuildInstanceEnv,
+  loadProjectExport,
   loadProjectInstanceEnvBuilder,
   loadInstanceTopology,
   readConfInstances,

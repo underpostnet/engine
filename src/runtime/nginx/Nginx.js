@@ -1,8 +1,6 @@
 /**
- * Exported singleton instance of the NginxService class.
- * Manages dynamic generation of nginx reverse-proxy router configuration used
- * by the Docker Compose development stack. Mirrors the conventions of
- * {@link module:src/runtime/lampp/Lampp.js LamppService}.
+ * Nginx reverse-proxy configuration primitives: maps, servers and their locations, rendered into
+ * one `conf.d` document. The Docker Compose stacks write their gateway with them.
  * @module src/runtime/nginx/Nginx.js
  * @namespace NginxService
  */
@@ -13,238 +11,163 @@ import { loggerFactory } from '../../server/ops/logger.js';
 
 const logger = loggerFactory(import.meta);
 
+/** Docker's embedded DNS server, reachable from every container of a user-defined network. */
+const DOCKER_RESOLVER = '127.0.0.11';
+
+/** The headers every proxied location forwards, websocket upgrade included. */
+const PROXY_HEADERS = [
+  'proxy_set_header Host $host;',
+  'proxy_set_header X-Real-IP $remote_addr;',
+  'proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+  'proxy_set_header X-Forwarded-Proto $scheme;',
+  'proxy_set_header Upgrade $http_upgrade;',
+  'proxy_set_header Connection $connection_upgrade;',
+  'proxy_read_timeout 3600s;',
+];
+
+const HEALTH_DIRECTIVES = ['access_log off;', 'return 200 "ok\\n";', 'add_header Content-Type text/plain;'];
+
+const renderBlock = (head, lines, indent = '') =>
+  `${indent}${head} {\n${lines.map((line) => `${indent}    ${line}`).join('\n')}\n${indent}}`;
+
 /**
  * @class NginxService
- * @description Builds nginx `server` blocks (the router) for fronting upstream
- * application services and writes the rendered configuration to disk. The
- * router is accumulated in memory via {@link NginxService#createApp} and
- * flushed with {@link NginxService#writeConf}, keeping config generation
- * decoupled from the filesystem location it is written to.
+ * @description Accumulates `map` and `server` blocks, then renders them as one config document.
  * @memberof NginxService
  */
 class NginxService {
-  /**
-   * @type {string}
-   * @description Accumulated nginx `server { ... }` blocks (the router definition).
-   * @memberof NginxService
-   */
-  router = '';
-
-  /**
-   * @type {Set<string>}
-   * @description Upstream blocks keyed by upstream name to avoid duplicates.
-   * @memberof NginxService
-   */
-  upstreams;
-
-  /**
-   * @type {boolean}
-   * @description Whether a default_server catch-all block has been emitted.
-   * @memberof NginxService
-   */
-  hasDefaultServer;
-
   constructor() {
     this.reset();
   }
 
   /**
-   * Resets the in-memory router, upstreams, and default-server flag.
-   * @method reset
-   * @returns {void}
+   * Clears every block and the resolver.
+   * @returns {NginxService}
    * @memberof NginxService
    */
   reset() {
-    this.router = '';
-    this.upstreams = new Map();
-    this.hasDefaultServer = false;
+    this.resolver = '';
+    this.maps = [];
+    this.servers = [];
+    return this;
   }
 
   /**
-   * Appends a raw render fragment to the router string.
-   * @method appendRouter
-   * @param {string} render - The configuration fragment to append.
-   * @returns {string} The complete, updated router configuration string.
+   * Resolves proxy targets per request, so an upstream that is down never fails startup or reload.
+   * @param {string} [address] - The DNS server; Docker's embedded one by default.
+   * @returns {NginxService}
    * @memberof NginxService
    */
-  appendRouter(render) {
-    if (!this.router) return (this.router = render);
-    return (this.router += render);
+  useResolver(address = DOCKER_RESOLVER) {
+    this.resolver = address;
+    return this;
   }
 
   /**
-   * Clears the in-memory router configuration.
-   * @method removeRouter
-   * @returns {void}
+   * Adds a `map` block.
+   * @param {object} map
+   * @param {string} map.source - The variable mapped, e.g. `$host`.
+   * @param {string} map.variable - The variable set, e.g. `$engine_upstream`.
+   * @param {Object<string,string>} map.entries - Source value to result; `default` is the fallback.
+   * @returns {NginxService}
    * @memberof NginxService
    */
-  removeRouter() {
-    this.reset();
+  addMap({ source, variable, entries }) {
+    this.maps.push({ source, variable, entries });
+    return this;
   }
 
   /**
-   * Registers a named upstream pointing at a container service:port.
-   * Idempotent: repeated names with the same target are collapsed.
-   * @method addUpstream
-   * @param {string} name - The upstream identifier.
-   * @param {string} service - The Docker service name (resolved via service discovery).
-   * @param {number} port - The upstream container port.
-   * @returns {string} The upstream name.
+   * Adds a `server` block.
+   * @param {object} server
+   * @param {Array<number|string>} [server.listen] - Each `listen` value, e.g. `80` or `'8081 default_server'`.
+   * @param {string[]} [server.names] - The `server_name` values.
+   * @param {boolean} [server.health] - Answer `GET /healthz` with 200.
+   * @param {Array<{match:string, proxy?:string, redirect?:string}>} [server.locations] - `match` is the
+   *   location argument (`/api/`, `= /ws`, `^~ /test/`). `proxy` is a `host:port` or a `$variable`;
+   *   `redirect` is a 301 destination.
+   * @returns {NginxService}
    * @memberof NginxService
    */
-  addUpstream(name, service, port) {
-    this.upstreams.set(name, `upstream ${name} { server ${service}:${port}; }`);
-    return name;
+  addServer({ listen = [80], names = ['_'], health = false, locations = [] }) {
+    this.servers.push({ listen, names, health, locations });
+    return this;
   }
 
   /**
-   * Renders the standard proxy directive block shared by all locations,
-   * including websocket upgrade headers and forwarded headers.
-   * @method proxyLocation
-   * @param {string} location - The location path (e.g. '/', '/peer').
-   * @param {string} upstream - The upstream name to proxy to.
-   * @returns {string} The rendered `location { ... }` block.
+   * Renders the `proxy_pass` of a target. A host target goes through a variable when a resolver is
+   * set, so nginx resolves it per request.
+   * @param {string} target - `host:port` or `$variable`.
+   * @returns {string[]} Directive lines.
    * @memberof NginxService
    */
-  proxyLocation(location, upstream) {
-    return `
-    location ${location} {
-        proxy_pass http://${upstream};
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_read_timeout 3600s;
-    }
-`;
+  proxyDirectives(target) {
+    if (target.startsWith('$') || !this.resolver) return [`proxy_pass http://${target};`];
+    const variable = `$up_${target.replace(/[^A-Za-z0-9]/g, '_')}`;
+    return [`set ${variable} ${target};`, `proxy_pass http://${variable};`];
   }
 
   /**
-   * Renders the `/healthz` location used by the proxy container healthcheck.
-   * @method healthLocation
-   * @returns {string} The rendered health-check location block.
+   * Renders one location block.
+   * @param {{match:string, proxy?:string, redirect?:string}} location
+   * @returns {string}
    * @memberof NginxService
    */
-  healthLocation() {
-    return `
-    location = /healthz {
-        access_log off;
-        return 200 "ok\\n";
-        add_header Content-Type text/plain;
-    }
-`;
+  renderLocation({ match, proxy, redirect }) {
+    const directives = redirect ? [`return 301 ${redirect};`] : [...this.proxyDirectives(proxy), ...PROXY_HEADERS];
+    return renderBlock(`location ${match}`, directives, '    ');
   }
 
   /**
-   * Creates an nginx virtual-host (`server`) entry for a host and appends it to
-   * the router. Each route maps a URL prefix to an upstream service:port with
-   * websocket support, mirroring the Contour HTTPProxy route model.
-   *
-   * @method createApp
-   * @param {object} options - Virtual host options.
-   * @param {string} options.host - The `server_name` (e.g. 'default.net').
-   * @param {number} [options.listen=80] - The listen port.
-   * @param {Array<{location: string, service: string, port: number}>} options.routes
-   *   - Route table. Longer prefixes should precede '/' for correct matching.
-   * @param {boolean} [options.resetRouter] - Clear the router before appending.
-   * @returns {string} The complete, updated router configuration string.
+   * Renders the whole document.
+   * @param {object} [options]
+   * @param {string} [options.origin] - What generates the document, named in its header.
+   * @returns {string}
    * @memberof NginxService
    */
-  createApp({ host, listen = 80, routes = [], resetRouter = false }) {
-    if (resetRouter) this.removeRouter();
-
-    const safeHost = host.replace(/[^a-zA-Z0-9]/g, '_');
-    const locationBlocks = routes
-      .map(({ location, service, port }) => {
-        const upstreamName = this.addUpstream(`up_${safeHost}_${port}`, service, port);
-        return this.proxyLocation(location, upstreamName);
-      })
-      .join('');
-
-    this.appendRouter(`
-server {
-    listen ${listen};
-    server_name ${host};
-${this.healthLocation()}${locationBlocks}}
-`);
-
-    return this.router;
+  render({ origin = 'src/runtime/nginx/Nginx.js' } = {}) {
+    const maps = [
+      { source: '$http_upgrade', variable: '$connection_upgrade', entries: { default: 'upgrade', "''": 'close' } },
+      ...this.maps,
+    ].map(({ source, variable, entries }) => {
+      const width = Math.max(...Object.keys(entries).map((key) => key.length));
+      return renderBlock(
+        `map ${source} ${variable}`,
+        Object.entries(entries).map(([key, value]) => `${key.padEnd(width)} ${value};`),
+      );
+    });
+    const servers = this.servers.map(({ listen, names, health, locations }) => {
+      const blocks = [
+        ...(health ? [renderBlock('location = /healthz', HEALTH_DIRECTIVES, '    ')] : []),
+        ...locations.map((location) => this.renderLocation(location)),
+      ];
+      const head = [...listen.map((value) => `    listen ${value};`), `    server_name ${names.join(' ')};`];
+      return `server {\n${head.join('\n')}\n\n${blocks.join('\n\n')}\n}`;
+    });
+    return `${[
+      `# Generated by ${origin} — do not hand-edit.`,
+      ...maps,
+      ...(this.resolver ? [`resolver ${this.resolver} ipv6=off valid=10s;`] : []),
+      'proxy_http_version 1.1;',
+      ...servers,
+    ].join('\n\n')}\n`;
   }
 
   /**
-   * Emits a `default_server` catch-all that forwards to the given upstream and
-   * answers the health probe for unmatched Host headers. Safe to call once.
-   *
-   * @method createDefaultServer
-   * @param {object} options - Default server options.
-   * @param {string} options.service - The Docker service name to fall back to.
-   * @param {number} options.port - The upstream container port.
-   * @param {number} [options.listen=80] - The listen port.
-   * @returns {string} The complete, updated router configuration string.
+   * Writes the rendered document, creating its directory.
+   * @param {string} confPath - Destination path.
+   * @param {object} [options] - See {@link NginxService#render}.
+   * @returns {string} The absolute path written.
    * @memberof NginxService
    */
-  createDefaultServer({ service, port, listen = 80 }) {
-    if (this.hasDefaultServer) return this.router;
-    this.hasDefaultServer = true;
-    const upstreamName = this.addUpstream('up_default', service, port);
-    this.appendRouter(`
-server {
-    listen ${listen} default_server;
-    server_name _;
-${this.healthLocation()}${this.proxyLocation('/', upstreamName)}}
-`);
-    return this.router;
-  }
-
-  /**
-   * Renders the full nginx config document: the websocket connection map, all
-   * upstream blocks, the global `proxy_http_version`, and the accumulated router.
-   * @method render
-   * @returns {string} The complete nginx configuration file content.
-   * @memberof NginxService
-   */
-  render() {
-    const upstreamBlocks = Array.from(this.upstreams.values()).join('\n');
-    return `# Generated by src/runtime/nginx/Nginx.js — do not hand-edit.
-# Reverse proxy derived from manifests/deployment/*/proxy.yaml (Contour HTTPProxy).
-# Upstreams resolve container services via the Docker internal network.
-
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-
-${upstreamBlocks}
-
-proxy_http_version 1.1;
-${this.router}`;
-  }
-
-  /**
-   * Writes the rendered configuration to the given path, creating parent
-   * directories as needed. Idempotent and safe to rerun.
-   * @method writeConf
-   * @param {string} confPath - Absolute or relative destination path.
-   * @returns {string} The path written.
-   * @memberof NginxService
-   */
-  writeConf(confPath) {
+  writeConf(confPath, options) {
     const target = path.resolve(confPath);
     fs.mkdirpSync(path.dirname(target));
-    fs.writeFileSync(target, this.render(), 'utf8');
-    logger.info(`nginx config written`, { path: target, upstreams: this.upstreams.size });
+    fs.writeFileSync(target, this.render(options), 'utf8');
+    logger.info('nginx config written', { path: target, servers: this.servers.length });
     return target;
   }
 }
 
-/**
- * @description Exported singleton instance of the NginxService class.
- * @type {NginxService}
- * @memberof NginxService
- */
-const Nginx = new NginxService();
-
-export { Nginx, NginxService };
-export default Nginx;
+export { NginxService };
+export default NginxService;
