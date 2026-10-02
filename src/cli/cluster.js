@@ -45,6 +45,12 @@ const CERT_MANAGER_VERSION = 'v1.17.0';
 
 const logger = loggerFactory(import.meta);
 
+/** The node image of the installed kind release (v0.29.0), pinned by digest. */
+const KIND_NODE_IMAGE = 'kindest/node:v1.33.1@sha256:050072256b9a903bd914c0b2866828150cb229cea0efe5892e2b644d5dd3b34f';
+
+/** The Docker repository of the Kind node images. */
+const KIND_NODE_REPOSITORY = KIND_NODE_IMAGE.split(':')[0];
+
 const GATEWAY_API_RELEASE = 'v1.5.1';
 const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 const CONTOUR_NAMESPACE = 'projectcontour';
@@ -352,7 +358,15 @@ class UnderpostCluster {
           for (let index = 0; index < devReplicaCount; index++) {
             shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
           }
-          const kindCreateCmd = `cd ${underpostRoot}/manifests && kind create cluster --config kind-config-dev.yaml`;
+          const nodeImage = shellArgumentFactory(KIND_NODE_IMAGE);
+          if (shellExec(`sudo docker image inspect ${nodeImage}`, { silent: true, silentOnError: true }).code !== 0) {
+            // Without a terminal, docker prints a layer only when it completes.
+            logger.info('Pulling the Kind node image. On a slow link this takes minutes.', {
+              image: KIND_NODE_IMAGE,
+            });
+            shellExec(`sudo docker pull ${nodeImage}`);
+          }
+          const kindCreateCmd = `cd ${underpostRoot}/manifests && kind create cluster --config kind-config-dev.yaml --image ${nodeImage}`;
           try {
             shellExec(kindCreateCmd);
           } catch (error) {
@@ -1757,6 +1771,7 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
      * images and overlay layers under /var/lib/{docker,containers}.
      * @param {object} [options]
      * @param {boolean} [options.all=true] - Remove all unused images, not just dangling ones.
+     * @param {string[]} [options.keepImages=[]] - Docker repositories whose images survive an `all` prune.
      * @param {boolean} [options.crictl=false] - Also prune the CRI runtime via crictl.
      * @param {string} [options.criSocket] - Optional CRI endpoint override; otherwise the live runtime is resolved.
      * @private
@@ -1764,12 +1779,19 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
     _pruneContainerCaches(options = {}) {
       const all = options.all !== false;
       const a = all ? '-a ' : '';
-      logger.info(`  -> Pruning container-runtime caches (all=${all})...`);
+      const keep = all ? (options.keepImages ?? []) : [];
+      logger.info(`  -> Pruning container-runtime caches (all=${all})...`, { keepImages: keep });
+      // Docker prunes cannot exclude a repository, so a kept one turns the image pass into a listing.
+      const keptImages = ['<none>', ...keep.map((repository) => `${repository}:`)]
+        .map((pattern) => `-e ${shellArgumentFactory(pattern)}`)
+        .join(' ');
+      const dockerImages = keep.length
+        ? `sudo docker system prune --volumes -f; sudo docker images --format '{{.Repository}}:{{.Tag}}' | grep -vF ${keptImages} | xargs -r sudo docker rmi >/dev/null 2>&1 || true;`
+        : `sudo docker system prune ${a}--volumes -f;`;
       // Docker (also matches the podman-docker shim when docker is symlinked to podman).
-      shellExec(
-        `if command -v docker >/dev/null 2>&1; then sudo docker system prune ${a}--volumes -f; sudo docker builder prune ${a}-f; fi`,
-        { silentOnError: true },
-      );
+      shellExec(`if command -v docker >/dev/null 2>&1; then ${dockerImages} sudo docker builder prune ${a}-f; fi`, {
+        silentOnError: true,
+      });
       // Podman native — on this host images/overlays live under /var/lib/containers/storage.
       shellExec(`if command -v podman >/dev/null 2>&1; then sudo podman system prune ${a}--volumes -f; fi`, {
         silentOnError: true,
@@ -1857,8 +1879,11 @@ fi`);
       shellExec(`rm -rf "$HOME/.kube"`);
       Underpost.cluster.recoverKindDockerNetworks();
 
-      logger.info('Phase 5/6: Pruning container-runtime caches (kindest/node images, build cache, volumes)...');
-      Underpost.cluster._pruneContainerCaches({ all: true });
+      // The node image stays: the next cluster boots from it instead of pulling it again.
+      logger.info(
+        'Phase 5/6: Pruning container-runtime caches (unused images but the Kind node, build cache, volumes)...',
+      );
+      Underpost.cluster._pruneContainerCaches({ all: true, keepImages: [KIND_NODE_REPOSITORY] });
 
       logger.info('Phase 6/6: Re-applying host configuration (Docker, containerd, sysctl).');
       Underpost.cluster.config();

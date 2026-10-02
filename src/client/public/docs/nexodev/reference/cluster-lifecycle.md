@@ -1119,7 +1119,7 @@ Rocky bare-metal images persist `SELINUX=enforcing`, restore SSH and sudoers con
 | `run expose <partial-name>`      | Run       | Expose matching Services, falling back to Pods      |
 | `--etc-hosts`                    | Deploy    | Modify /etc/hosts for local DNS                     |
 | `--build`                        | Build     | Trigger build                                       |
-| `--reset`                        | Cluster   | Reset cluster state                                 |
+| `--reset`                        | Cluster   | Reset cluster state; Kind keeps its node image      |
 
 ## Prerequisites
 
