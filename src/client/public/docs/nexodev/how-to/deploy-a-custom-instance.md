@@ -323,13 +323,13 @@ CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
 ```
 
 The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
-builder by deploy id. Cyberia registers `buildCyberiaMmoInstanceEnv` from
-`src/projects/cyberia/instance-data.js`. The generic root variant has an empty
-code and slug; Cyberia maps it to `DEFAULT_INSTANCE_CODE` from
-`SharedDefaultsCyberia.js` while keeping path `/`. Non-root variants derive their
-literal code and base path. Origins, API keys, and other operator values remain
-unchanged, and separate canonical files continue to provide environment-specific
-values.
+builder by deploy id: the `buildInstanceEnv` export of `src/projects/<project>/instance-data.js`.
+Cyberia takes each code from its release content, `src/projects/cyberia/release-content.js`:
+the code of the world the variant path serves, and `CYBERIA_DEFAULT_INSTANCE` from the `/` world.
+`cyberia release build` writes the same paths into the `variants` of `mmo-server` and `mmo-client`.
+Origins, API keys, and other operator values remain unchanged, and separate canonical files
+continue to provide environment-specific values. Every build writes both env files of each
+instance.
 
 Do not add an `env` object to `multiInstance`. It is rejected so configuration
 and secrets cannot drift into topology JSON. Add application-specific derived

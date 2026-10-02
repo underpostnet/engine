@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Default instance code for the Cyberia engine
+ * Default instance code for the Cyberia engine: the world a release serves at `/`.
  */
 export const DEFAULT_INSTANCE_CODE = 'amethyst-strata-expansion';
 

@@ -30,41 +30,14 @@ import {
   resolveProgressionRules,
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
-import {
-  DEFAULT_INSTANCE_CODE,
-  validateStats,
-  validateEntityLevel,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { validateStats, validateEntityLevel } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { contentArtifact } from './content-artifact.js';
+import { buildCyberiaMmoInstanceEnv } from './release-content.js';
 
 const logger = loggerFactory(import.meta);
 
 /**
- * Builds the runtime env for one Cyberia MMO variant. The generic instance
- * loader deliberately has no knowledge of these application-specific keys;
- * Cyberia derives them from the normalized variant path/code here.
- * @param {object} context - Instance env build context.
- * @param {object} context.instance - Expanded instance descriptor.
- * @param {Object<string,string>} context.env - Parsed canonical env values.
- * @returns {Object<string,string>} Materialized Cyberia env values.
- */
-function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
-  const built = { ...env };
-  const instanceCode = instance.path === '/' ? DEFAULT_INSTANCE_CODE : instance.instanceCode;
-  if (instance.runtime === 'cyberia-server') {
-    built.INSTANCE_CODE = instanceCode;
-    built.CYBERIA_BASE_PATH = instance.path;
-  } else if (instance.runtime === 'cyberia-client') {
-    built.CYBERIA_INSTANCE_CODE = instanceCode;
-    built.CYBERIA_DEFAULT_INSTANCE = DEFAULT_INSTANCE_CODE;
-    built.CYBERIA_BASE_PATH = instance.path;
-  }
-  return built;
-}
-
-/**
- * Resolves the mongoose model bag for a DB context, in the content view of the running code:
- * the served release for the runtime, the workspace for authoring.
+ * Resolves the mongoose model bag for a DB context: the content it serves.
  * @param {{host?: string, path?: string}|string} context - RouterOptions-style
  *   context or a resolved `${host}${path}` key (the gRPC dbKey form).
  */
@@ -660,7 +633,6 @@ async function fetchInstanceObjectLayerItemIds(models, instanceCode) {
 
 export {
   buildCyberiaMmoInstanceEnv as buildInstanceEnv,
-  buildCyberiaMmoInstanceEnv,
   fetchInstanceObjectLayerItemIds,
   getInstanceModels,
   itemTypesOf,

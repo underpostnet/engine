@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildCyberiaMmoInstanceEnv,
   toObjectLayerMsgs,
   getInstanceModels,
   parseRgba,
@@ -25,7 +24,6 @@ import {
   itemTypesOf,
 } from '../../../src/projects/cyberia/instance-data.js';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { DEFAULT_INSTANCE_CODE } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
 
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
@@ -63,29 +61,7 @@ const catalog = (definitions = [], onFind = () => {}) => {
   };
 };
 
-describe('instance env', () => {
-  it('derives the server and client variables from the variant runtime', () => {
-    const server = buildCyberiaMmoInstanceEnv({
-      instance: { runtime: 'cyberia-server', path: '/forest', instanceCode: 'FOREST' },
-      env: { PORT: '4001' },
-    });
-    expect(server).toEqual({ PORT: '4001', INSTANCE_CODE: 'FOREST', CYBERIA_BASE_PATH: '/forest' });
-
-    const client = buildCyberiaMmoInstanceEnv({ instance: { runtime: 'cyberia-client', path: '/' } });
-    expect(client).toEqual({
-      CYBERIA_INSTANCE_CODE: DEFAULT_INSTANCE_CODE,
-      CYBERIA_DEFAULT_INSTANCE: DEFAULT_INSTANCE_CODE,
-      CYBERIA_BASE_PATH: '/',
-    });
-  });
-
-  it('leaves a runtime it does not know alone', () => {
-    expect(buildCyberiaMmoInstanceEnv({ instance: { runtime: 'nodejs', path: '/x' }, env: { A: '1' } })).toEqual({
-      A: '1',
-    });
-    expect(buildCyberiaMmoInstanceEnv({})).toEqual({});
-  });
-
+describe('instance models', () => {
   it('names the context when no database provider was loaded for it', () => {
     expect(() => getInstanceModels({ host: 'nowhere.test', path: '/' })).toThrow('nowhere.test');
   });
