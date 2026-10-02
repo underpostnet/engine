@@ -519,6 +519,11 @@ program
   .option('--dev', 'Use development mode.')
   .option('--pull-dockerhub <dockerhub-image>', 'Sets a custom Docker Hub image for base image pulls.')
   .option(
+    '--release',
+    'Container release: print the digest of the image for --revision, pulled from CI (sha-<revision>) or, with --path, built here.',
+  )
+  .option('--revision <sha>', 'With --release: the exact source revision.')
+  .option(
     '--import-tar <tar-path>',
     'Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one.',
   )
@@ -529,6 +534,7 @@ program
     if (options.pullBase) Underpost.image.pullBaseImages(options);
     if (options.build) Underpost.image.build(options);
     if (options.importTar) Underpost.image.importTar(options);
+    if (options.release) Underpost.image.release(options);
     if (options.pullDockerhub)
       Underpost.image.pullDockerHubImage({ ...options, dockerhubImage: options.pullDockerhub });
   });
@@ -994,6 +1000,11 @@ program
   .option('--volume-mount-path <volume-mount-path>', 'Optional: Specifies the volume mount path for test execution.')
   .option('--volume-type <volume-type>', 'Optional: Specifies the volume type for test execution.')
   .option('--image-name <image-name>', 'Optional: Specifies the image name for test execution.')
+  .option(
+    '--source-revision <sha>',
+    'For instance: run the image released for this exact source revision, by digest (CI image sha-<sha>).',
+  )
+  .option('--build-path <dir>', 'For instance with --source-revision: build that image from this checkout on the host.')
   .option('--image <image>', 'Container image the deployment pulls and runs (sync).')
   .option('--runtime-image <name>', 'src/runtime/<name> image family the cluster runner brings up (default "express").')
   .option(

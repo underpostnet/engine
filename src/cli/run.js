@@ -124,6 +124,8 @@ const logger = loggerFactory(import.meta);
  * @property {string} restartPolicy - The restart policy for the container.
  * @property {string} runtimeClassName - The runtime class name for the container.
  * @property {string} imagePullPolicy - The image pull policy for the container.
+ * @property {string} sourceRevision - The exact source revision an instance image is released from.
+ * @property {string} buildPath - The checkout the instance image is built from on this host (private channel).
  * @property {string} apiVersion - The API version for the container.
  * @property {string} claimName - The claim name for the volume.
  * @property {string} kindType - The kind of resource to create.
@@ -223,6 +225,8 @@ const DEFAULT_OPTION = {
   restartPolicy: '',
   runtimeClassName: '',
   imagePullPolicy: '',
+  sourceRevision: '',
+  buildPath: '',
   apiVersion: '',
   claimName: '',
   kindType: '',
@@ -1998,7 +2002,9 @@ EOF
      * @description Deploys the custom instances a deploy declares in `conf.instances.json`.
      *
      * Every input is a flag: `--deploy-id`, `--instance-id`, `--replicas`, `--node-name`.
-     * `--instance-id` naming a template id selects its whole variant family.
+     * `--instance-id` naming a template id selects its whole variant family. With
+     * `--source-revision`, each instance runs the image released for that exact revision, by
+     * digest: pulled from CI, or built from `--build-path` on this host.
      * @param {string} path - Unused; every input is a flag.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -2038,6 +2044,21 @@ EOF
             namespace: options.namespace,
           }),
       });
+
+      const releasedImages = new Map();
+      const releasedImage = (image) => {
+        if (!releasedImages.has(image))
+          releasedImages.set(
+            image,
+            Underpost.image.release({
+              imageName: image,
+              revision: options.sourceRevision,
+              path: options.buildPath,
+              k3s: options.k3s,
+            }),
+          );
+        return releasedImages.get(image);
+      };
 
       let prePromoted = false;
       const fallbackChecks = instanceFallbackChecksFactory(confInstances);
@@ -2104,6 +2125,7 @@ EOF
         // `underpost/underpost-engine:${Underpost.version}`
         // `localhost/rockylinux9-underpost:${Underpost.version}`
         if (options.imageName) _image = options.imageName;
+        else if (options.sourceRevision) _image = releasedImage(_image);
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
         if (_image && !_image.startsWith('localhost'))
