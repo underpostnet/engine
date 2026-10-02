@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Underpost Build Manifest</title>
+    <meta
+      name="description"
+      content="Specification of the Web Linking extension relation type https://underpost.net/rel/build-manifest."
+    />
+    <link rel="canonical" href="https://underpost.net/rel/build-manifest" />
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        max-width: 48rem;
+        margin: auto;
+        padding: 1rem;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      pre {
+        overflow: auto;
+        padding: 0.75rem;
+        border: 1px solid #8884;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Underpost Build Manifest</h1>
+
+      <h2 id="relation-type">Relation Type</h2>
+      <p><code>https://underpost.net/rel/build-manifest</code></p>
+
+      <h2 id="status">Status</h2>
+      <p>Active</p>
+
+      <h2 id="purpose">Purpose</h2>
+      <p>
+        This extension relation type identifies the Underpost Build Manifest associated with a web application document.
+      </p>
+      <p>
+        The relation connects the current HTML document with the machine-readable build manifest used to describe the
+        build identity and common bootstrap configuration of the application.
+      </p>
+
+      <h2 id="discovery">Discovery</h2>
+      <p>The relation is expressed in HTML using:</p>
+      <pre><code>&lt;link
+  rel="https://underpost.net/rel/build-manifest"
+  href="/underpost.manifest"
+  type="application/json"&gt;</code></pre>
+      <p>The <code>href</code> identifies the Build Manifest resource.</p>
+      <p>
+        The relation type itself is a Web Linking extension relation type (RFC 8288). The relation URI is also the
+        location of this specification.
+      </p>
+
+      <h2 id="resource">Resource</h2>
+      <p>The target resource is an Underpost Build Manifest.</p>
+      <p>Default path:</p>
+      <pre><code>/underpost.manifest</code></pre>
+      <p>
+        When an application is mounted under a non-root base path, the manifest resource is relative to that application
+        base path.
+      </p>
+      <p>Examples:</p>
+      <pre><code>/underpost.manifest
+/test/underpost.manifest</code></pre>
+
+      <h2 id="media-type">Media Type</h2>
+      <p>The Build Manifest is represented as:</p>
+      <pre><code>application/json</code></pre>
+
+      <h2 id="semantic-definition">Semantic Definition</h2>
+      <p>
+        The Underpost Build Manifest describes the build-level identity and common bootstrap parameters required by the
+        generated application.
+      </p>
+      <ul>
+        <li>It is not a Web App Manifest.</li>
+        <li>It is not request-specific state.</li>
+        <li>It is not user session state.</li>
+        <li>It is not authorization data.</li>
+        <li>It is not a replacement for page-level SSR metadata.</li>
+      </ul>
+      <p>
+        The manifest describes the application build and the common runtime bootstrap information associated with that
+        build.
+      </p>
+
+      <h2 id="canonical-representation">Canonical Representation</h2>
+      <p>
+        The application generates one canonical Build Manifest object. The same semantic object may be represented in
+        two forms:
+      </p>
+      <ol>
+        <li>External resource: <code>/underpost.manifest</code></li>
+        <li>
+          Inline SSR bootstrap payload:
+          <pre><code>&lt;script type="application/json" id="underpost-build-manifest"&gt;
+  ...
+&lt;/script&gt;</code></pre>
+        </li>
+      </ol>
+      <p>The external and inline representations MUST describe the same build manifest.</p>
+
+      <h2 id="build-identity">Build Identity</h2>
+      <p>The manifest SHOULD contain a stable build identity. Example:</p>
+      <pre id="example-manifest"><code>{
+  "schema": 1,
+  "application": "underpost",
+  "version": "v3.4.5",
+  "build": { "id": "example-build-id", "mode": "production" },
+  "runtime": {
+    "basePath": "/",
+    "apiBasePath": "api/v1"
+  }
+}</code></pre>
+
+      <h2 id="schema">Schema</h2>
+      <p>The top-level <code>schema</code> field identifies the Build Manifest schema version.</p>
+      <p>
+        The schema version changes when the structure or semantics of the manifest change in a way that requires
+        consumers to interpret the representation differently.
+      </p>
+
+      <h2 id="build-metadata">Build Metadata</h2>
+      <p>Build metadata MAY include public information such as:</p>
+      <ul>
+        <li>application name;</li>
+        <li>application version;</li>
+        <li>build identity;</li>
+        <li>source/repository information intended for public release metadata;</li>
+        <li>documentation or coverage references intended for public consumption;</li>
+        <li>other non-sensitive build information.</li>
+      </ul>
+
+      <h2 id="runtime-bootstrap">Runtime Bootstrap</h2>
+      <p>The runtime section MAY contain common bootstrap parameters generated for the built application. Examples:</p>
+      <ul>
+        <li>API base path;</li>
+        <li>API proxy path;</li>
+        <li>API host mappings;</li>
+        <li>other non-sensitive values required by the application bootstrap.</li>
+      </ul>
+
+      <h2 id="security">Security</h2>
+      <p>The Build Manifest is publicly accessible application metadata. It MUST NOT contain:</p>
+      <ul>
+        <li>passwords;</li>
+        <li>authentication tokens;</li>
+        <li>private keys;</li>
+        <li>Git credentials;</li>
+        <li>infrastructure credentials;</li>
+        <li>SOPS/Age secrets;</li>
+        <li>private environment values;</li>
+        <li>other confidential information.</li>
+      </ul>
+
+      <h2 id="client-bootstrap">Client Bootstrap</h2>
+      <p>The generated client SHOULD use the inline SSR Build Manifest for initial bootstrap when it is present.</p>
+      <p>
+        The external <code>/underpost.manifest</code> resource MAY be used for discovery, inspection, tooling, or
+        fallback retrieval.
+      </p>
+      <p>
+        The initial application bootstrap SHOULD NOT require an additional network request when the same manifest is
+        already present in the SSR document.
+      </p>
+
+      <h2 id="relationship-to-ssr">Relationship to SSR</h2>
+      <p>
+        The Build Manifest is build-level metadata. Page-specific SSR data remains part of the generated HTML document
+        and is not required to be exposed through the Build Manifest.
+      </p>
+      <p>Examples of information that do not belong in the Build Manifest include:</p>
+      <ul>
+        <li>page title;</li>
+        <li>page description;</li>
+        <li>Open Graph metadata;</li>
+        <li>current user/session data;</li>
+        <li>page-specific application data.</li>
+      </ul>
+
+      <h2 id="relationship-to-the-web-app-manifest">Relationship to the Web App Manifest</h2>
+      <p>This relation MUST NOT be confused with the registered HTML link relation <code>manifest</code>.</p>
+      <p>
+        The Underpost Build Manifest uses <code>https://underpost.net/rel/build-manifest</code> and
+        <code>/underpost.manifest</code> because it represents Underpost build metadata rather than a Web App Manifest.
+      </p>
+
+      <h2 id="versioning">Versioning</h2>
+      <p>The Build Manifest schema is versioned independently from the relation URI.</p>
+      <p>
+        The relation URI identifies the semantic relationship. The <code>schema</code> field identifies the
+        machine-readable manifest structure.
+      </p>
+      <p>Backward-incompatible changes to the manifest representation require a schema version change.</p>
+
+      <h2 id="availability">Availability</h2>
+      <p>
+        The relation specification SHOULD remain publicly accessible at
+        <code>https://underpost.net/rel/build-manifest</code>.
+      </p>
+      <p>The Build Manifest itself is discovered through the HTML link target.</p>
+      <p>The relation specification does not need to be fetched by clients during normal application startup.</p>
+
+      <h2 id="example">Example</h2>
+      <p>HTML:</p>
+      <pre><code>&lt;link
+  rel="https://underpost.net/rel/build-manifest"
+  href="/underpost.manifest"
+  type="application/json"&gt;</code></pre>
+      <p>Manifest:</p>
+      <pre><code>{
+  "schema": 1,
+  "application": "underpost",
+  "version": "v3.4.5",
+  "build": { "id": "example-build-id", "mode": "production" },
+  "runtime": {
+    "basePath": "/",
+    "apiBasePath": "api/v1"
+  }
+}</code></pre>
+    </main>
+  </body>
+</html>

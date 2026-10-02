@@ -223,6 +223,14 @@ program
   .option('--body-components <paths>', 'Comma-separated SSR body component paths.')
 
   .option('--build-path <build-path>', 'Sets a custom build path for static documents or assets.')
+  .option(
+    '--site-root <dir>',
+    'Sets the directory the site serves at the build path, where the build writes the underpost.manifest the page links (default: the output directory).',
+  )
+  .option(
+    '--application <name>',
+    'Sets the application the build manifest names (default: the page component name). Pages of one site share it.',
+  )
   .option('--env <env>', 'Sets the environment for the static build (e.g., "development", "production").')
   .option('--minify', 'Minify HTML output (default: true for production).')
   .option('--no-minify', 'Disable HTML minification.')

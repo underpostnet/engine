@@ -7,15 +7,14 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
-// ─── Runtime config injected by client-build.js ───────────────────────────────
-// OFFLINE_URL and MAINTENANCE_URL are absolute (proxy-prefixed) index.html paths
-// resolved at build time from the SSR config's `fallbacks` map.
-const payload = self.renderPayload || {};
-const CACHE_PREFIX = payload.CACHE_PREFIX || 'engine-core';
-const PRE_CACHED_RESOURCES = Array.isArray(payload.PRE_CACHED_RESOURCES) ? payload.PRE_CACHED_RESOURCES : [];
-const OFFLINE_URL = payload.OFFLINE_URL || '/offline/index.html';
-const MAINTENANCE_URL = payload.MAINTENANCE_URL || '/maintenance/index.html';
-const PROXY_ROOT = payload.PROXY_PATH && payload.PROXY_PATH !== '/' ? payload.PROXY_PATH.replace(/\/$/, '') : '';
+// ─── The build manifest, written by client-build.js before this bundle ─────────
+// OFFLINE_URL and MAINTENANCE_URL are absolute (base-path-prefixed) index.html paths.
+const { runtime, serviceWorker } = self.buildManifest;
+const CACHE_PREFIX = serviceWorker.cachePrefix;
+const PRE_CACHED_RESOURCES = serviceWorker.precache;
+const OFFLINE_URL = serviceWorker.offline;
+const MAINTENANCE_URL = serviceWorker.maintenance;
+const PROXY_ROOT = runtime.basePath === '/' ? '' : runtime.basePath;
 const isDocumentationPath = (pathname) =>
   [`${PROXY_ROOT}/docs`, `${PROXY_ROOT}/api-docs`].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),

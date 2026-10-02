@@ -7,10 +7,17 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { transformClientJs, JSONweb } from './client-formatted.js';
+import { transformClientJs } from './client-formatted.js';
+import {
+  buildManifestFactory,
+  buildManifestHead,
+  buildManifestPrelude,
+  serviceWorkerManifest,
+  writeBuildManifest,
+} from './build-manifest.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName, orderArrayFromAttrInt, uniqueArray } from '../client/components/core/CommonJs.js';
-import { readConfJson } from '../server/runtime/conf.js';
+import { publicClientIdFactory, readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
 import { extractZipTo, findZipEntry, isZipBuffer, loadZip, zipFromLocalFiles } from '../server/storage/zip.js';
 import * as dir from 'path';
@@ -25,7 +32,6 @@ import { buildDocs } from './client-build-docs.js';
 import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
 import { hostPortsFactory, localHostAddress } from '../server/network/router.js';
-import { API_BASE_PATH } from '../server/domain/api-contract.js';
 
 // Static Site Generation (SSG)
 
@@ -695,7 +701,7 @@ const buildClient = async (
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata, publicRef, publicCopyNonExistingFiles, docs, apiHosts } =
+      const { components, dists, views, services, metadata, publicCopyNonExistingFiles, docs, apiHosts } =
         confClient[client];
       let backgroundImage;
       if (metadata) {
@@ -704,7 +710,7 @@ const buildClient = async (
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = ports[`${host}${path}`];
-      const publicClientId = publicRef ? publicRef : client;
+      const publicClientId = publicClientIdFactory(client, confClient[client]);
       const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       const minifyBuild = process.env.NODE_ENV === 'production';
@@ -716,26 +722,6 @@ const buildClient = async (
           isDevelopment ? localHostAddress(confServer, owner) || owner : owner,
         ]),
       );
-
-      // Every document this instance emits carries the same payload; the SSR
-      // views and the client index must never disagree about which repository
-      // published them.
-      const renderPayload = {
-        apiBaseProxyPath,
-        apiBaseHost,
-        ...(Object.keys(endpointHosts).length ? { apiHosts: endpointHosts } : undefined),
-        apiBasePath: API_BASE_PATH,
-        version: Underpost.version,
-        // The deploy's package repository, `engine-ghpkg-<conf-id>`, cuts its releases.
-        repository: repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory(deployId) }),
-        // The reports the docs menu offers, each published at /docs/coverage/<id>.
-        coverage: coverageReportsFactory(docs).map(({ id, label }) => ({ id, label })),
-        // The name page titles end with (`<view> | <site>`), the same one the server ends an
-        // entry's rendered title with; the shell's own <title> no longer says it, as a served
-        // entry's title is the entry's.
-        ...(metadata?.siteName || metadata?.title ? { siteName: metadata.siteName || metadata.title } : undefined),
-        ...(isDevelopment ? { dev: true } : undefined),
-      };
 
       const acmeChallengeFullPath = directory
         ? `${directory}${acmeChallengePath}`
@@ -841,6 +827,34 @@ const buildClient = async (
       const buildId = `${client}.index`;
       const siteMapLinks = [];
       const ssrPath = path === '/' ? path : `${path}/`;
+      // The SSR views of the client: its status pages, and the offline and maintenance fallbacks.
+      const ssrClientConf = (client && confSSR[getCapVariableName(client)]) || {};
+      const ssrViews = Array.isArray(ssrClientConf.views) ? ssrClientConf.views : [];
+      // Every document of this instance, its manifest file and its service worker carry this one manifest.
+      let buildManifest;
+      let manifestHead;
+      if (client) {
+        buildManifest = buildManifestFactory({
+          application: client,
+          development: isDevelopment,
+          basePath: path,
+          apiBaseProxyPath,
+          apiBaseHost,
+          apiHosts: endpointHosts,
+          // The name page titles end with (`<view> | <site>`), the same one the server ends an
+          // entry's rendered title with.
+          siteName: metadata?.siteName || metadata?.title,
+          documentation: {
+            // The deploy's package repository, `engine-ghpkg-<conf-id>`, cuts its releases.
+            repository: repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory(deployId) }),
+            // The reports the docs menu offers, each published at /docs/coverage/<id>.
+            coverage: coverageReportsFactory(docs),
+          },
+          ...(views ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
+        });
+        manifestHead = buildManifestHead({ manifest: buildManifest });
+        writeBuildManifest(rootClientPath, buildManifest);
+      }
       const Render = await ssrFactory();
 
       const swSrcPath = `./src/client/sw/core.sw.js`;
@@ -849,8 +863,8 @@ const buildClient = async (
         !ssrOnly &&
         views &&
         !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
-      // Transformed SW JS is held in memory; it gets prepended with renderPayload
-      // and written once below, after PRE_CACHED_RESOURCES are known.
+      // Transformed SW JS is held in memory; it gets prepended with the manifest prelude
+      // and written once below, after the SSR views are built.
       let swTransformedJs = '';
       if (swShouldRebuild) {
         swTransformedJs = await transformClientJs(swSrcPath, {
@@ -1006,10 +1020,7 @@ const buildClient = async (
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
-              renderPayload,
-              renderApi: {
-                JSONweb,
-              },
+              buildManifestHead: manifestHead,
             });
 
             fs.writeFileSync(
@@ -1077,25 +1088,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           apiExtensions,
           packageData,
           docs,
+          client,
         });
       }
 
       if (client) {
         const proxyPrefix = path === '/' ? '' : path;
-        const buildIndexUrl = (routePath) => `${proxyPrefix}${routePath === '/' ? '' : routePath}/index.html`;
-
-        // SSR views: a single declarative array. The role of each view (regular
-        // page vs. offline/maintenance fallback) is expressed by per-entry flags;
-        // fallback-flagged views are also precached so the SW can serve them
-        // when the network is unreachable.
-        const ssrClientConf = confSSR[getCapVariableName(client)] || {};
-        const ssrViews = Array.isArray(ssrClientConf.views) ? ssrClientConf.views : [];
         const statusPageRoutes = statusPageRoutesFactory({ views: ssrViews, proxyPath: path });
         if (statusPageRoutes.length > 0) logger.info('ssr status page routes', statusPageRoutes);
-        const PRE_CACHED_RESOURCES = [];
-        let offlineFallbackUrl = null;
-        let maintenanceFallbackUrl = null;
-
         for (const view of ssrViews) {
           const SsrComponent = await ssrFactory(`./src/client/ssr/views/${view.client}.js`);
 
@@ -1104,8 +1104,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
             ssrPath,
             ssrHeadComponents: '<base target="_top">',
             ssrBodyComponents: SsrComponent(),
-            renderPayload,
-            renderApi: { JSONweb },
+            buildManifestHead: manifestHead,
           });
 
           // A status view is built under `status-pages/<status>/`, not on its own
@@ -1118,16 +1117,6 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           const buildPath = statusCode
             ? `${clientRoot}/${dir.dirname(statusPageBuildSegment(statusCode))}/`
             : `${clientRoot}${view.path === '/' ? view.path : `${view.path}/`}`;
-
-          const indexUrl = buildIndexUrl(view.path);
-          if (view.offlineDefault) {
-            offlineFallbackUrl = indexUrl;
-            PRE_CACHED_RESOURCES.push(indexUrl);
-          }
-          if (view.maintenanceDefault) {
-            maintenanceFallbackUrl = indexUrl;
-            PRE_CACHED_RESOURCES.push(indexUrl);
-          }
 
           if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
           const buildHtmlPath = `${buildPath}index.html`;
@@ -1148,25 +1137,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           );
         }
 
-        if (swShouldRebuild) {
-          const cacheScope = path === '/' ? 'root' : path.replaceAll('/', '_');
-          const swRenderPayload = {
-            PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
-            PROXY_PATH: path,
-            CACHE_PREFIX: `engine-core-${cacheScope}`,
-            OFFLINE_URL: offlineFallbackUrl || buildIndexUrl('/offline'),
-            MAINTENANCE_URL: maintenanceFallbackUrl || buildIndexUrl('/maintenance'),
-          };
-
-          // Single write: prepend the payload prelude to the transformed SW JS.
+        if (swShouldRebuild)
           fs.writeFileSync(
             swPublicPath,
-            `self.renderPayload = ${JSONweb(swRenderPayload)};
+            `${buildManifestPrelude(buildManifest)}
 self.__WB_DISABLE_DEV_LOGS = true;
 ${swTransformedJs}`,
             'utf8',
           );
-        }
       }
       if (!ssrOnly && !enableLiveRebuild && options.buildZip) {
         logger.warn('build zip', rootClientPath);

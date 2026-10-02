@@ -1,4 +1,5 @@
 import { Css, darkTheme, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
+import { buildManifest } from './BuildManifest.js';
 import { Modal, SUBMENU_SELECTION_QUERY_KEY, renderViewTitle } from './Modal.js';
 import { coverallsUrl, githubPagesUrl, packageRepository, releaseUrl } from './Repository.js';
 import { Responsive } from './Responsive.js';
@@ -196,7 +197,7 @@ class Docs {
   }
   // One entry per coverage report the build declared, each framed from /docs/coverage/<id>.
   static coverageReports = () =>
-    (window.renderPayload.coverage ?? []).map(({ id, label }) => ({
+    buildManifest().documentation.coverage.map(({ id, label }) => ({
       type: `coverage-${id}`,
       icon: html`<img height="20" width="20" class="doc-icon-coverage" />`,
       text: label,
@@ -255,7 +256,7 @@ class Docs {
         icon: html`<i class="fa-brands fa-osi"></i>`,
         text: 'Source Docs',
         url: function () {
-          return `${getProxyPath()}docs/engine/${window.renderPayload.version.replace('v', '')}`;
+          return `${getProxyPath()}docs/engine/${buildManifest().version.replace('v', '')}`;
         },
       },
       {

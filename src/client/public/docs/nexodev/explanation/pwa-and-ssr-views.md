@@ -13,6 +13,8 @@ The PWA pipeline has two inputs:
 
 Everything else is generated from those inputs during the client build. Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
 
+Every generated `index.html` inlines the [Underpost Build Manifest](../reference/build-manifest.md) of its build and links the `underpost.manifest` written beside it.
+
 ---
 
 ## SSR config shape
@@ -109,15 +111,15 @@ If a document is missing from the tree, the request falls through to a shared de
 
 ## Service worker lifecycle
 
-The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and prepends a `self.renderPayload` prelude with values resolved from the `views` array:
+The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and writes the [build manifest](../reference/build-manifest.md#service-worker) of the instance before the bundle, as `self.buildManifest`. The worker reads its `serviceWorker` section, resolved from the `views` array:
 
-| Payload field          | Source                                                                              |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| `PRE_CACHED_RESOURCES` | `index.html` URLs for every view with `offlineDefault` or `maintenanceDefault` set. |
-| `PROXY_PATH`           | The instance's mount path (`/`, `/foo`, …).                                         |
-| `CACHE_PREFIX`         | `engine-core-<scope>` where scope is `root` or the path with `/` → `_`.             |
-| `OFFLINE_URL`          | Fully-resolved `index.html` URL of the view flagged `offlineDefault`.               |
-| `MAINTENANCE_URL`      | Fully-resolved `index.html` URL of the view flagged `maintenanceDefault`.           |
+| Manifest field              | Source                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| `serviceWorker.precache`    | `index.html` URLs for every view with `offlineDefault` or `maintenanceDefault` set. |
+| `serviceWorker.cachePrefix` | `engine-core-<scope>` where scope is `root` or the path with `/` → `_`.             |
+| `serviceWorker.offline`     | Fully-resolved `index.html` URL of the view flagged `offlineDefault`.               |
+| `serviceWorker.maintenance` | Fully-resolved `index.html` URL of the view flagged `maintenanceDefault`.           |
+| `runtime.basePath`          | The instance's mount path (`/`, `/foo`, …).                                         |
 
 ### Runtime strategies
 
@@ -132,8 +134,8 @@ The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client
 
 When a navigation request fails:
 
-- `navigator.onLine === false` → serve `OFFLINE_URL`
-- otherwise (server 5xx, DNS, TLS, timeout) → serve `MAINTENANCE_URL`
+- `navigator.onLine === false` → serve `serviceWorker.offline`
+- otherwise (server 5xx, DNS, TLS, timeout) → serve `serviceWorker.maintenance`
 
 Falls through to the other if the primary is missing from cache, then `Response.error()`.
 

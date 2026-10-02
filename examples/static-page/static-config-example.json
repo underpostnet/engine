@@ -1,6 +1,6 @@
 {
   "page": "./examples/static-page/ssr-components/CustomPage.js",
-  "outputPath": "./public/default.net/example.html",
+  "outputPath": "./dist/example/index.html",
   "env": "production",
   "minify": true,
   "lang": "en",
@@ -48,10 +48,5 @@
       "description": "A simple working example",
       "url": "https://example.com"
     }
-  ],
-
-  "customPayload": {
-    "example": true,
-    "message": "This is a simple working example"
-  }
+  ]
 }

@@ -21,6 +21,7 @@ import { Css } from './Css.js';
 import { Responsive } from './Responsive.js';
 import { SocketIo } from './SocketIo.js';
 import { Keyboard } from './Keyboard.js';
+import { developmentBuild, loadBuildManifest } from './BuildManifest.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -30,27 +31,15 @@ const SW_URL = () => `${getProxyPath()}sw.js`;
  * @memberof PwaWorker
  */
 class PwaWorker {
-  /** The site name page titles end with: `renderPayload.siteName`, else the shell's <title>. @type {string} */
+  /** The site name page titles end with: the manifest's `runtime.siteName`, else the shell's <title>. @type {string} */
   title = '';
 
   /** Router instance reference, set during bootstrap. @type {object | null} */
   RouterInstance = null;
 
-  constructor() {
-    this.title = `${window.renderPayload?.siteName ?? s('title').textContent}`;
-    if (!window.renderPayload?.dev) {
-      console.log = () => null;
-      console.error = () => null;
-      console.info = () => null;
-      console.warn = () => null;
-    }
-  }
-
-  /** @returns {boolean} True when running on localhost or with renderPayload.dev. */
+  /** @returns {boolean} True when running on localhost or from a development build. */
   devMode() {
-    return Boolean(
-      window.renderPayload?.dev || location.origin.match('localhost') || location.origin.match('127.0.0.1'),
-    );
+    return Boolean(developmentBuild() || location.origin.match('localhost') || location.origin.match('127.0.0.1'));
   }
 
   /**
@@ -85,6 +74,14 @@ class PwaWorker {
    * @returns {Promise<void>}
    */
   async instance({ router, template, themes, translate, render, socketPath, appStore, session }) {
+    const { runtime } = await loadBuildManifest();
+    if (!developmentBuild()) {
+      console.log = () => null;
+      console.error = () => null;
+      console.info = () => null;
+      console.warn = () => null;
+    }
+    this.title = `${runtime.siteName ?? s('title').textContent}`;
     window.ononline = () => logger.warn('ononline');
     window.onoffline = () => logger.warn('onoffline');
 

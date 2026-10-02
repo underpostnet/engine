@@ -35,17 +35,17 @@ const resolveBrowserImportPath = (basePrefix, relativePath) => {
 };
 
 /**
- * Converts a JavaScript object into a string that can be embedded in client-side code
- * and parsed back into an object (e.g., 'JSON.parse(`{...}`)').
- * Escapes backticks and template expression markers for safe template literal embedding.
+ * Serializes data as JSON that an HTML `<script>` element can hold: `<`, `>`, `&`, U+2028 and U+2029
+ * are escaped, so the data cannot end the element. The result is also a JavaScript expression.
  * @param {*} data - The data to be stringified.
- * @returns {string} A string representing the code to parse the JSON data.
+ * @returns {string} JSON.
  * @memberof clientFormatted
  */
-const JSONweb = (data) => {
-  const json = JSON.stringify(data).replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
-  return 'JSON.parse(`' + json + '`)';
-};
+const JSONweb = (data) =>
+  JSON.stringify(data).replace(
+    /[<>&\u2028\u2029]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 
 /**
  * Creates an esbuild plugin that rewrites import paths for browser consumption.

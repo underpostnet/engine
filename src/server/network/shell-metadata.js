@@ -10,6 +10,7 @@
  */
 
 import { API_BASE_PATH } from '../domain/api-contract.js';
+import { JSONweb } from '../../client-builder/client-formatted.js';
 
 /** Search snippets and social cards truncate around this length. */
 const DESCRIPTION_MAX_LENGTH = 160;
@@ -71,13 +72,6 @@ const escapeHtml = (value) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
-// Inside a script element only `</` (and the JS line terminators JSON leaves raw) can break out.
-const jsonForScript = (value) =>
-  JSON.stringify(value)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
 
 /**
  * Cuts a text to a length at a word boundary, closing with an ellipsis.
@@ -141,7 +135,7 @@ const renderShellHead = (metadata) =>
     metaTag('property', 'og:image', metadata.image?.url),
     metaTag('property', 'article:published_time', metadata.datePublished),
     metaTag('property', 'article:modified_time', metadata.dateModified),
-    metadata.jsonLd ? `<script type="application/ld+json">${jsonForScript(metadata.jsonLd)}</script>` : '',
+    metadata.jsonLd ? `<script type="application/ld+json">${JSONweb(metadata.jsonLd)}</script>` : '',
   ]
     .filter(Boolean)
     .join('\n');

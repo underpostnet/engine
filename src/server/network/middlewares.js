@@ -10,6 +10,7 @@ import nodePath from 'path';
 import { loggerFactory } from '../ops/logger.js';
 import { moderatorGuard, adminGuard } from '../security/auth.js';
 import { PublicRoutes, parsePublicRoute } from '../../client/components/core/CommonJs.js';
+import { BUILD_MANIFEST_FILE } from '../../client/components/core/BuildManifest.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -152,6 +153,26 @@ const keepRawBody = (req, res, body) => {
 };
 
 /**
+ * `express.static` header hook: an asset is readable cross-origin. The build manifest is JSON, which
+ * its file extension does not say, and its stable URL revalidates on every use.
+ * @method staticFileHeaders
+ * @param {import('express').Response} res
+ * @param {string} filePath - The served file.
+ * @returns {void}
+ * @memberof Middlewares
+ */
+const staticFileHeaders = (res, filePath) => {
+  if (filePath.includes('/assets/')) {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+  if (nodePath.basename(filePath) === BUILD_MANIFEST_FILE) {
+    res.set('Content-Type', 'application/json; charset=utf-8');
+    res.set('Cache-Control', 'no-cache');
+  }
+};
+
+/**
  * Binary response with cross-origin and content headers. With an `etag`, a client that already
  * holds that entity gets `304` and no body.
  * @method sendBlob
@@ -285,6 +306,7 @@ export {
   sendSuccess,
   sendError,
   keepRawBody,
+  staticFileHeaders,
   sendBlob,
   controllerHandler,
   serviceHandler,

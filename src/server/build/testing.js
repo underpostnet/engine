@@ -171,7 +171,9 @@ const TEST_PROJECTS = [
     sources: [
       'underpost.config.js',
       'src/cli/release.js',
+      'src/client-builder/build-manifest.js',
       'src/client-builder/client-build-docs.js',
+      'src/client/components/core/BuildManifest.js',
       'src/projects/underpost/*.js',
       'src/server/build/docs.js',
       'src/server/ops/logger.js',

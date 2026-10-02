@@ -2,19 +2,21 @@
  * Repository identity on the client.
  *
  * The owner is resolved at build time by `src/server/storage/repository.js` and travels
- * in `renderPayload.repository`. Composing every GitHub, Pages and Coveralls URL
+ * in the build manifest's `documentation.repository`. Composing every GitHub, Pages and Coveralls URL
  * from it is what keeps a fork's links pointing at the fork instead of upstream.
  *
  * @module src/client/components/core/Repository.js
  * @namespace PwaRepository
  */
 
+import { buildManifest } from './BuildManifest.js';
+
 /**
  * Identity injected by the build.
  * @returns {{owner: string, organization: string, name: string, template: string, packageSuffix: string, deployPackage?: string}}
  * @memberof PwaRepository
  */
-const repositoryIdentity = () => window.renderPayload.repository;
+const repositoryIdentity = () => buildManifest().documentation.repository;
 
 /**
  * Repository holding the prebuilt package and its published demo.
@@ -57,7 +59,7 @@ const organizationUrl = (...segments) =>
  * @returns {string}
  * @memberof PwaRepository
  */
-const releaseTag = () => `${window.renderPayload.version}`.replace(/^v?/, 'v');
+const releaseTag = () => `${buildManifest().version}`.replace(/^v?/, 'v');
 
 /**
  * The release page of this build's version on a repository: `<owner>/<repository>/releases/tag/v<version>`.

@@ -503,7 +503,7 @@ const renderDashboard = (m) => {
       <footer class="dash-foot">
         <span>POLL ${POLL_INTERVAL_MS} ms</span>
         <span>RFC 9457 problem+json on error</span>
-        <span>v${(window.renderPayload && window.renderPayload.version) || '0.0.0'}</span>
+        <span>${BUILD_VERSION}</span>
       </footer>
     </main>
   `;
@@ -1026,6 +1026,7 @@ SSRComponent = () =>
       const POLL_INTERVAL_MS = ${POLL_INTERVAL_MS};
       const s = ${s};
       const sa = ${sa};
+      const BUILD_VERSION = JSON.parse(s('#underpost-build-manifest').textContent).version;
       const append = ${append};
       const setHTML = ${setHTML};
       const basePath = ${basePath};

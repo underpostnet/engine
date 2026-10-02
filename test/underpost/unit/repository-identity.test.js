@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { REPOSITORY_DEFAULTS, repositoryIdentityFactory } from '../../../src/server/storage/repository.js';
 import { deployPackageReleaseUrl, organizationUrl } from '../../../src/client/components/core/Repository.js';
+import { BUILD_MANIFEST_ELEMENT_ID } from '../../../src/client/components/core/BuildManifest.js';
+import { buildManifestFactory } from '../../../src/client-builder/build-manifest.js';
 import Underpost from '../../../src/index.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  delete globalThis.window;
+  vi.unstubAllGlobals();
 });
 
 describe('repository identity', () => {
@@ -21,13 +23,19 @@ describe('repository identity', () => {
   });
 
   it('links the release of the deploy package under the organization, whoever owns the source', () => {
-    globalThis.window = {
-      renderPayload: {
-        version: '3.4.0',
+    const manifest = buildManifestFactory({
+      application: 'portal',
+      documentation: {
         repository: { ...REPOSITORY_DEFAULTS, owner: 'someone-else', deployPackage: 'engine-ghpkg-cyberia' },
+        coverage: [],
       },
-    };
-    expect(deployPackageReleaseUrl()).toBe('https://github.com/underpost/engine-ghpkg-cyberia/releases/tag/v3.4.0');
+    });
+    vi.stubGlobal('document', {
+      getElementById: (id) => (id === BUILD_MANIFEST_ELEMENT_ID ? { textContent: JSON.stringify(manifest) } : null),
+    });
+    expect(deployPackageReleaseUrl()).toBe(
+      `https://github.com/underpost/engine-ghpkg-cyberia/releases/tag/${Underpost.version}`,
+    );
     expect(organizationUrl()).toBe('https://github.com/underpost/');
   });
 });

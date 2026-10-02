@@ -28,6 +28,7 @@ import { DocumentRouter } from '../../../src/api/document/document.router.js';
 import { FileRouter } from '../../../src/api/file/file.router.js';
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { TEXT_SOURCE_MAX_BYTES, entryShellRendererFactory } from '../../../src/server/network/entry-metadata.js';
+import { buildManifestFactory, buildManifestHead } from '../../../src/client-builder/build-manifest.js';
 import { jwtSign } from '../../../src/server/security/auth.js';
 
 const context = { host: 'entry-metadata.test', path: '/' };
@@ -204,9 +205,7 @@ describe('entry metadata over HTTP', () => {
   <head>
     <title>${site.title}</title>
     <meta charset="UTF-8" />
-    <script>
-      window.renderPayload = JSON.parse(\`{"apiBasePath":"api","siteName":"Underpost"}\`);
-    </script>
+    ${buildManifestHead({ manifest: buildManifestFactory({ application: 'underpost', siteName: 'Underpost' }) })}
     <link rel="canonical" href="https://underpost.net${view}/" />
     <meta name="author" content="https://github.com/underpostnet" />
     <meta name="description" content="${site.description}" />
@@ -298,7 +297,7 @@ describe('entry metadata over HTTP', () => {
     // The shell's own site-level elements are replaced, not duplicated, and the page still boots.
     expect(html).to.not.contain('https://underpost.net/entry/');
     expect(html).to.not.contain('content="website"');
-    expect(html).to.contain('window.renderPayload');
+    expect(html).to.contain('<script id="underpost-build-manifest" type="application/json">');
     expect(html).to.contain('<meta charset="UTF-8" />');
     expect(metaContent(html, 'name', 'twitter:card')).to.equal('summary_large_image');
   });

@@ -9,8 +9,10 @@ import express from 'express';
 import { ssrFactory } from '../client-builder/ssr.js';
 import { shellExec } from '../server/runtime/process.js';
 import Underpost from '../index.js';
+import { buildManifestFactory, buildManifestHead, writeBuildManifest } from '../client-builder/build-manifest.js';
 import { JSONweb } from '../client-builder/client-formatted.js';
 import { loggerFactory, loggerMiddleware } from '../server/ops/logger.js';
+import { staticFileHeaders } from '../server/network/middlewares.js';
 const logger = loggerFactory(import.meta);
 /**
  * @typedef {Object} MetadataOptions
@@ -63,6 +65,8 @@ const logger = loggerFactory(import.meta);
  * @property {string} [title='Home'] - Page title (deprecated: use metadata.title)
  * @property {string} [outputPath='.'] - Output file path
  * @property {string} [buildPath='/'] - Build path
+ * @property {string} [siteRoot] - Directory the site serves at the build path, where the build writes the manifest the page links; the output directory by default
+ * @property {string} [application] - Application the build manifest names; the page component name by default
  * @property {string} [env='production'] - Environment (development/production)
  * @property {boolean} [dev=false] - Development mode flag
  * @property {boolean} [minify=true] - Minify HTML output
@@ -74,7 +78,6 @@ const logger = loggerFactory(import.meta);
  * @property {string[]} [headComponents=[]] - Array of SSR head component paths
  * @property {string[]} [bodyComponents=[]] - Array of SSR body component paths
  * @property {IconOptions} [icons={}] - Icon configuration
- * @property {Object} [customPayload={}] - Custom data to inject into renderPayload
  * @property {Object} [templateHelpers={}] - Custom helper functions for templates
  * @property {string} [configFile=''] - Path to JSON config file
  * @property {string} [lang='en'] - HTML lang attribute
@@ -86,6 +89,8 @@ class DefaultStaticGenerationOptions {
   static title = '';
   static outputPath = '';
   static buildPath = '/';
+  static siteRoot = '';
+  static application = '';
   static env = 'production';
   static dev = false;
   static minify = true;
@@ -95,7 +100,6 @@ class DefaultStaticGenerationOptions {
   static headComponents = [];
   static bodyComponents = [];
   static icons = {};
-  static customPayload = {};
   static templateHelpers = {};
   static configFile = '';
   static lang = 'en';
@@ -242,9 +246,7 @@ class TemplateHelpers {
     if (!microdata || !Array.isArray(microdata) || microdata.length === 0) {
       return '';
     }
-    return microdata
-      .map((data) => `<script type="application/ld+json">\n${JSON.stringify(data, null, 2)}\n</script>`)
-      .join('\n');
+    return microdata.map((data) => `<script type="application/ld+json">${JSONweb(data)}</script>`).join('\n');
   }
 }
 /**
@@ -344,6 +346,8 @@ class UnderpostStatic {
      * @param {string} [options.title] - Page title (deprecated: use metadata.title)
      * @param {string} [options.outputPath] - Output file path
      * @param {string} [options.buildPath='/'] - Build path
+     * @param {string} [options.siteRoot] - Directory the site serves at the build path, where the build writes the manifest the page links; the output directory by default.
+     * @param {string} [options.application] - Application the build manifest names; the page component name by default. Pages of one site share it.
      * @param {string} [options.env='production'] - Environment (development/production)
      * @param {boolean} [options.minify=true] - Minify HTML output
      * @param {MetadataOptions} [options.metadata={}] - Comprehensive metadata options
@@ -355,7 +359,6 @@ class UnderpostStatic {
      * @param {string[]} [options.headComponents=[]] - Array of SSR head component paths
      * @param {string[]} [options.bodyComponents=[]] - Array of SSR body component paths
      * @param {IconOptions} [options.icons={}] - Icon configuration
-     * @param {Object} [options.customPayload={}] - Custom data to inject into renderPayload
      * @param {string} [options.configFile=''] - Path to JSON config file
      * @param {string} [options.lang='en'] - HTML lang attribute
      * @param {string} [options.dir='ltr'] - HTML dir attribute
@@ -418,6 +421,7 @@ class UnderpostStatic {
       // Set defaults
       if (!options.outputPath) options.outputPath = '.';
       if (!options.buildPath) options.buildPath = '/';
+      if (!options.siteRoot) options.siteRoot = path.dirname(options.outputPath);
       if (!options.env) options.env = 'production';
       if (options.minify === undefined) options.minify = options.env === 'production';
       if (!options.metadata) options.metadata = {};
@@ -503,22 +507,20 @@ class UnderpostStatic {
             ssrBodyComponents +=
               '\n' + options.scripts.body.map((script) => TemplateHelpers.createScriptTag(script)).join('\n');
           }
-          // Build render payload
-          const renderPayload = {
-            version: Underpost.version,
-            ...(options.env === 'development' ? { dev: true } : undefined),
-            ...options.customPayload,
-          };
+          const manifest = buildManifestFactory({
+            application: options.application || path.basename(options.page, '.js'),
+            development: options.env === 'development',
+            basePath: options.buildPath,
+            siteName: options.metadata.siteName,
+          });
+          logger.info(`Build manifest written: ${writeBuildManifest(options.siteRoot, manifest)}`);
           // Generate HTML
           const htmlSrc = Render({
             title: options.metadata.title,
             ssrPath: options.buildPath === '/' ? '/' : `${options.buildPath}/`,
             ssrHeadComponents,
             ssrBodyComponents,
-            renderPayload,
-            renderApi: {
-              JSONweb,
-            },
+            buildManifestHead: buildManifestHead({ manifest }),
           });
           // Write output file
           const outputDir = path.dirname(options.outputPath);
@@ -546,7 +548,7 @@ class UnderpostStatic {
         }
         const app = express();
         app.use(loggerMiddleware(import.meta, 'debug', () => false));
-        app.use('/', express.static(servePath));
+        app.use('/', express.static(servePath, { setHeaders: staticFileHeaders }));
         app.listen(port, () => {
           logger.info(`Static file server running at http://localhost:${port}`);
           logger.info(`Serving files from: ${servePath}`);
@@ -621,10 +623,6 @@ class UnderpostStatic {
             url: 'https://example.com',
           },
         ],
-        customPayload: {
-          apiEndpoint: 'https://api.example.com',
-          customFeature: true,
-        },
       };
       ConfigLoader.save(outputPath, template);
       logger.info(`Config template generated: ${outputPath}`);

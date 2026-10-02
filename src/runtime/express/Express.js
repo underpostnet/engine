@@ -27,7 +27,7 @@ import { shellExec } from '../../server/runtime/process.js';
 import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
 import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
-import { keepRawBody, publicRouteFallbackFactory } from '../../server/network/middlewares.js';
+import { keepRawBody, publicRouteFallbackFactory, staticFileHeaders } from '../../server/network/middlewares.js';
 import { entryShellRendererFactory } from '../../server/network/entry-metadata.js';
 import { objectLayerShellRendererFactory } from '../../server/network/object-layer-metadata.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
@@ -154,17 +154,7 @@ class ExpressService {
     });
 
     // Static file serving
-    app.use(
-      '/',
-      express.static(directory ? directory : `.${rootHostPath}`, {
-        setHeaders: (res, filePath) => {
-          if (filePath.includes('/assets/')) {
-            res.set('Access-Control-Allow-Origin', '*');
-            res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-          }
-        },
-      }),
-    );
+    app.use('/', express.static(directory ? directory : `.${rootHostPath}`, { setHeaders: staticFileHeaders }));
     // The PWA shell for the dynamic public routes is the same built document a static view is,
     // served under the same headers: the security middleware below applies a nonce CSP that the
     // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,

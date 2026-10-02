@@ -6,6 +6,8 @@ vi.mock('../../../src/client/components/core/Logger.js', () => ({
   loggerFactory: () => ({ info() {}, warn() {}, error() {} }),
 }));
 vi.mock('../../../src/client/components/core/Router.js', () => ({ getProxyPath: () => '/' }));
+const manifest = {};
+vi.mock('../../../src/client/components/core/BuildManifest.js', () => ({ buildManifest: () => manifest }));
 vi.mock('../../../src/client/services/user/guest.service.js', () => ({
   GuestService: { getAuthorizationHeader: () => '' },
 }));
@@ -38,9 +40,7 @@ describe('a service answer in the browser', () => {
 describe('the endpoint host a build injects', () => {
   beforeEach(() => {
     vi.stubGlobal('location', { host: 'localhost:4014', protocol: 'http:' });
-    vi.stubGlobal('window', {
-      renderPayload: { apiBasePath: 'api/v1', apiHosts: { 'object-layer': 'localhost:4017' } },
-    });
+    Object.assign(manifest, { runtime: { apiBasePath: 'api/v1', apiHosts: { 'object-layer': 'localhost:4017' } } });
   });
   afterEach(() => vi.unstubAllGlobals());
 

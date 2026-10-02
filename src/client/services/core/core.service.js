@@ -7,48 +7,47 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getProxyPath } from '../../components/core/Router.js';
+import { buildManifest } from '../../components/core/BuildManifest.js';
 import { GuestService } from '../user/guest.service.js';
 const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'core';
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 /**
- * Returns the normalized proxy path from renderPayload (always trailing `/`).
+ * Returns the normalized proxy path from the build manifest (always trailing `/`).
  * Falls back to `null` when no apiBaseProxyPath is set.
  * @memberof CoreServiceClient
  * @return {string|null}
  */
-const getApiBaseProxyPath = () =>
-  window.renderPayload?.apiBaseProxyPath
-    ? window.renderPayload.apiBaseProxyPath === '/'
-      ? window.renderPayload.apiBaseProxyPath
-      : `${window.renderPayload.apiBaseProxyPath}/`
-    : null;
+const getApiBaseProxyPath = () => {
+  const { apiBaseProxyPath } = buildManifest().runtime;
+  return apiBaseProxyPath ? (apiBaseProxyPath === '/' ? apiBaseProxyPath : `${apiBaseProxyPath}/`) : null;
+};
 /**
  * Gets the base host for API requests.
- * Uses the apiBaseHost from renderPayload if available, otherwise falls back to location.host.
+ * Uses the apiBaseHost from the build manifest if available, otherwise falls back to location.host.
  * @memberof CoreServiceClient
  * @return {string} The base host string.
  */
-const getBaseHost = () => (window.renderPayload?.apiBaseHost ? window.renderPayload.apiBaseHost : location.host);
+const getBaseHost = () => buildManifest().runtime.apiBaseHost || location.host;
 /**
- * The host that serves one endpoint: the owning domain when `renderPayload.apiHosts` names one
+ * The host that serves one endpoint: the owning domain when the build manifest's `runtime.apiHosts` names one
  * for it, else this client's API host.
  * @memberof CoreServiceClient
  * @param {string} [endpoint] - API endpoint name.
  * @return {string} The host string.
  */
-const getEndpointHost = (endpoint) => window.renderPayload?.apiHosts?.[endpoint] || getBaseHost();
+const getEndpointHost = (endpoint) => buildManifest().runtime.apiHosts?.[endpoint] || getBaseHost();
 /**
  * Gets the base path for API requests: the proxy path, then the versioned API contract the
- * server names in `renderPayload.apiBasePath` (`api/v1`). The client holds no version of its own.
+ * server names in the build manifest's `runtime.apiBasePath` (`api/v1`). The client holds no version of its own.
  * @memberof CoreServiceClient
  * @param {Object} [options] - Options for constructing the base path.
  * @param {string} [options.proxyPath] - Custom proxy path to use.
  * @return {string} The constructed API base path.
  */
 const getApiBasePath = (options) =>
-  `${options?.proxyPath ? `/${options.proxyPath}/` : getApiBaseProxyPath() || getProxyPath()}${window.renderPayload.apiBasePath}/`;
+  `${options?.proxyPath ? `/${options.proxyPath}/` : getApiBaseProxyPath() || getProxyPath()}${buildManifest().runtime.apiBasePath}/`;
 /**
  * Constructs the full API base URL for making requests.
  * Combines protocol, host, base path, endpoint, and optional ID.

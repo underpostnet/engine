@@ -7,7 +7,7 @@ Generate static HTML pages using the `underpost static` CLI.
 ```sh
 # From the project root directory:
 underpost static --page ./examples/static-page/ssr-components/CustomPage.js \
-                 --output-path ./public/default.net/example.html
+                 --output-path ./dist/example/index.html
 ```
 
 ## Using a Config File
@@ -50,27 +50,45 @@ underpost static --run-sv 8080
 
 When `--output-path` is provided, the server serves the directory containing the output file (e.g. `./dist/`). Otherwise it serves the current working directory.
 
+## Build Manifest
+
+Every page links its Underpost Build Manifest, then inlines it. The build writes
+`underpost.manifest` at the site root, the directory the site serves at `buildPath`:
+
+- `siteRoot` (`--site-root`) names the site root. It is the output directory by default, the
+  directory `--run-sv` serves. A page in a sub-directory, such as `404/index.html`, names the site
+  root of its site.
+- `application` (`--application`) names the application the manifest describes. It is the page
+  component name by default. The pages of one site name one application, so they share one
+  manifest.
+
+A page written into the tree of another application writes over that application's manifest. Build
+such a page into a site of its own.
+
+See [Underpost Build Manifest](../reference/build-manifest.md#static-output).
+
 ## Config File Reference
 
 See `static-config-example.json` for a complete working example.
 
-| Field            | Type      | Description                                                                                                |
-| ---------------- | --------- | ---------------------------------------------------------------------------------------------------------- |
-| `page`           | `string`  | Path to the SSR component to render                                                                        |
-| `outputPath`     | `string`  | Output HTML file path                                                                                      |
-| `buildPath`      | `string`  | Base path for static documents or assets (default: `"/"`)                                                  |
-| `env`            | `string`  | `"production"` or `"development"`                                                                          |
-| `minify`         | `boolean` | Minify HTML output                                                                                         |
-| `lang`           | `string`  | HTML `lang` attribute                                                                                      |
-| `dir`            | `string`  | HTML `dir` attribute (`ltr`/`rtl`)                                                                         |
-| `metadata`       | `object`  | SEO metadata (title, description, keywords, author, themeColor, canonicalURL, thumbnail, locale, siteName) |
-| `scripts`        | `object`  | `{ head: [...], body: [...] }` — inline or external scripts                                                |
-| `styles`         | `array`   | Inline (`content`) or external (`href`) stylesheets                                                        |
-| `icons`          | `object`  | `favicon`, `appleTouchIcon`, `manifest` paths                                                              |
-| `headComponents` | `array`   | SSR component paths injected into `<head>`                                                                 |
-| `bodyComponents` | `array`   | SSR component paths injected into `<body>`                                                                 |
-| `microdata`      | `array`   | JSON-LD structured data objects                                                                            |
-| `customPayload`  | `object`  | Arbitrary data injected into the render payload                                                            |
+| Field            | Type      | Description                                                                                                 |
+| ---------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
+| `page`           | `string`  | Path to the SSR component to render                                                                         |
+| `outputPath`     | `string`  | Output HTML file path                                                                                       |
+| `buildPath`      | `string`  | Base path for static documents or assets (default: `"/"`)                                                   |
+| `siteRoot`       | `string`  | Directory the site serves at `buildPath`, where `underpost.manifest` is written (default: output directory) |
+| `application`    | `string`  | Application the build manifest names (default: the page component name)                                     |
+| `env`            | `string`  | `"production"` or `"development"`                                                                           |
+| `minify`         | `boolean` | Minify HTML output                                                                                          |
+| `lang`           | `string`  | HTML `lang` attribute                                                                                       |
+| `dir`            | `string`  | HTML `dir` attribute (`ltr`/`rtl`)                                                                          |
+| `metadata`       | `object`  | SEO metadata (title, description, keywords, author, themeColor, canonicalURL, thumbnail, locale, siteName)  |
+| `scripts`        | `object`  | `{ head: [...], body: [...] }` — inline or external scripts                                                 |
+| `styles`         | `array`   | Inline (`content`) or external (`href`) stylesheets                                                         |
+| `icons`          | `object`  | `favicon`, `appleTouchIcon`, `manifest` paths                                                               |
+| `headComponents` | `array`   | SSR component paths injected into `<head>`                                                                  |
+| `bodyComponents` | `array`   | SSR component paths injected into `<body>`                                                                  |
+| `microdata`      | `array`   | JSON-LD structured data objects                                                                             |
 
 ## CLI Flags
 
@@ -82,6 +100,8 @@ Flags override config file values when both are provided.
 underpost static --page <path>                  # SSR component path
                  --output-path <path>           # Output file
                  --build-path <path>            # Base path for assets (default: "/")
+                 --site-root <dir>              # Directory the site serves at --build-path
+                 --application <name>           # Application the build manifest names
                  --config-file <path>           # JSON config file
                  --generate-config [path]       # Generate a template config file
                  --env <env>                    # production | development

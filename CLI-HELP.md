@@ -298,6 +298,8 @@ Manages static build of page, bundles, and documentation with comprehensive cust
 | `--head-components <paths>` | Comma-separated SSR head component paths. |
 | `--body-components <paths>` | Comma-separated SSR body component paths. |
 | `--build-path <build-path>` | Sets a custom build path for static documents or assets. |
+| `--site-root <dir>` | Sets the directory the site serves at the build path, where the build writes the underpost.manifest the page links (default: the output directory). |
+| `--application <name>` | Sets the application the build manifest names (default: the page component name). Pages of one site share it. |
 | `--env <env>` | Sets the environment for the static build (e.g., "development", "production"). |
 | `--minify` | Minify HTML output (default: true for production). |
 | `--no-minify` | Disable HTML minification. |
