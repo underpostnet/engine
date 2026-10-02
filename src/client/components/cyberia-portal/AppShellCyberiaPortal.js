@@ -51,6 +51,7 @@ class AppShellCyberiaPortal {
       appStore: AppStoreCyberiaPortal,
       RouterInstance,
       profile: CyberiaObjectLayerProfile,
+      studio: CyberiaObjectLayerStudio,
       columns: CyberiaObjectLayerStudio.columns,
       renderTitle: (text) => StudioCyberia.renderTitle('object-layer-engine-viewer', text),
     });

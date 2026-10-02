@@ -36,6 +36,11 @@ class Tabs {
       cursor: pointer;
       opacity: 0.7;
     }
+    .editor-tab-list > button > img {
+      width: 1.25em;
+      height: 1.25em;
+      image-rendering: pixelated;
+    }
     .editor-tab-list > button[aria-selected='true'] {
       border-bottom-color: var(--studio-positive, #2196f3);
       font-weight: bold;
@@ -58,6 +63,14 @@ class Tabs {
     }
   `;
 
+  /**
+   * @param {Object} params
+   * @param {string} params.id
+   * @param {string} params.label - What the tab list is for.
+   * @param {Array<{id: string, label: string, icon?: string, image?: string, content: string}>} params.tabs -
+   *   `icon` is a Font Awesome class; `image` is the URL of an icon image.
+   * @param {string} [params.selected] - The tab open first.
+   */
   static render({ id, label, tabs, selected = tabs[0]?.id }) {
     const active = tabs.some((tab) => tab.id === selected) ? selected : tabs[0]?.id;
     return html`<style>
@@ -77,7 +90,9 @@ class Tabs {
                   aria-selected="${tab.id === active}"
                   tabindex="${tab.id === active ? 0 : -1}"
                 >
-                  ${tab.icon ? html`<i class="${escapeHtml(tab.icon)}" aria-hidden="true"></i>` : ''}${escapeHtml(tab.label)}
+                  ${tab.icon ? html`<i class="${escapeHtml(tab.icon)}" aria-hidden="true"></i>` : ''}${
+                    tab.image ? html`<img src="${escapeHtml(tab.image)}" alt="" />` : ''
+                  }${escapeHtml(tab.label)}
                 </button>`,
             )
             .join('')}

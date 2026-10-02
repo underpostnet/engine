@@ -150,15 +150,19 @@ const CssCommonCyberia = async () => {
         font-family: var(--cy-font-retro-sensitive);
       }
 
-      /* Studio editors show ids, labels and definitions, which are case sensitive: they read in the
-         sensitive face at the x-height of the display face. Titles keep the display face. */
+      /* Studio editors and the foundation context panel show ids, labels and definitions, which are
+         case sensitive: they read in the sensitive face at the x-height of the display face. Titles
+         keep the display face. */
       .studio-editor,
       .studio-editor .section-mp,
       .studio-editor button,
-      .studio-editor p {
+      .studio-editor p,
+      .ol-context,
+      .ol-context p {
         font-family: var(--cy-font-retro-sensitive);
       }
-      .studio-editor {
+      .studio-editor,
+      .ol-context {
         font-size-adjust: 0.5;
       }
       .studio-editor .sub-title-modal,
@@ -250,6 +254,7 @@ class CssCyberiaDark {
           --studio-positive: #9e9;
           --studio-tag: #335;
           --studio-tag-ink: #adf;
+          --studio-card: #2a2a2a;
         }
       </style>`
     );
@@ -272,6 +277,7 @@ class CssCyberiaLight {
           --studio-positive: #383;
           --studio-tag: #cde;
           --studio-tag-ink: #246;
+          --studio-card: #fff;
         }
       </style>`
     );

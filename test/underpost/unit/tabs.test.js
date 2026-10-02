@@ -108,4 +108,17 @@ describe('shared editor tabs', () => {
     expect(markup).toContain('Map &amp; metadata');
     expect(markup).toContain('<input value="draft">');
   });
+
+  it('renders a Font Awesome icon or an icon image before a tab label', () => {
+    const markup = Tabs.render({
+      id: 'tools',
+      label: 'Item tools',
+      tabs: [
+        { id: 'paint', label: 'Paint', icon: 'fa-solid fa-paintbrush', content: '' },
+        { id: 'context', label: 'Context', image: '/assets/ui-icons/lore.png?a="b"', content: '' },
+      ],
+    });
+    expect(markup).toContain('<i class="fa-solid fa-paintbrush" aria-hidden="true"></i>Paint');
+    expect(markup).toContain('<img src="/assets/ui-icons/lore.png?a=&quot;b&quot;" alt="" />Context');
+  });
 });

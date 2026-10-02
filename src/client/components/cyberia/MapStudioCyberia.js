@@ -1,7 +1,7 @@
 /**
- * The foundation panel of the Cyberia map editor: the context of the map, and the tracker of its
- * composition. The tracker lists each composed entity with its item ids and their item types, and
- * marks it met once the map holds one of its type and item ids.
+ * The foundation panel of the Cyberia map editor: the context panel of the map, and the tracker of
+ * its composition. The tracker lists each composed entity with its item ids and their item types,
+ * and marks it met once the map holds one of its type and item ids.
  *
  * The map editor owns the entities. The panel reads them, and a click on an entry loads its entity
  * type and item ids into the editor's entity form.
@@ -9,8 +9,9 @@
  * @module src/client/components/cyberia/MapStudioCyberia.js
  */
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
+import { contextIcon, contextPanelStyle, mountContextPanel } from '../objectlayer-studio/ContextPanel.js';
+import { mapContextPanel } from './FoundationContextCyberia.js';
 import { trackComposition } from './MapPlacementCyberia.js';
-import { sagaBadge } from './SagaCyberia.js';
 
 const element = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -30,7 +31,6 @@ class MapStudioCyberia {
       <style>
         .map-studio {
           text-align: left;
-          margin: 8px 0;
         }
         .map-studio-title {
           font-size: 1.1rem;
@@ -60,14 +60,13 @@ class MapStudioCyberia {
         .map-studio-entry[data-met] .map-studio-state {
           color: var(--studio-positive);
         }
-        .map-studio-swatch {
-          width: 16px;
-          height: 16px;
-          border: 1px solid #777;
-          display: inline-block;
+        .map-studio-tracker:not(:empty) {
+          margin-top: 12px;
         }
+        ${contextPanelStyle}
       </style>
-      <div class="in section-mp-border map-studio">
+      <div class="in studio-group map-studio">
+        <div class="in studio-group-title">${contextIcon()} Foundation context</div>
         <div class="in map-studio-context"></div>
         <div class="in map-studio-tracker"></div>
       </div>
@@ -123,48 +122,12 @@ class MapStudioCyberia {
   }
 
   static renderContext() {
-    const root = query('.map-studio-context');
-    if (!root) return;
-    root.replaceChildren();
-    const context = MapStudioCyberia.context;
-    const sagas = element('div', 'map-studio-row');
-    sagas.append(...(context?.sagas ?? []).map(sagaBadge));
-    if (!context?.definition) {
-      root.append(sagas, element('div', 'map-studio-muted', 'No foundation map has this code: nothing to track.'));
-      return;
-    }
-    const entityTypes = [...new Set(context.composition.map(({ entity }) => entity.entityType))];
-    root.append(
-      element('div', 'map-studio-title', context.name),
-      sagas,
-      element('div', 'map-studio-muted', context.role),
-      element('p', '', context.description),
-      element('div', 'map-studio-muted', `Entity types: ${entityTypes.join(', ')}`),
+    const { context } = MapStudioCyberia;
+    mountContextPanel(
+      query('.map-studio-context'),
+      context && mapContextPanel(context),
+      'Load a map to see its foundation context.',
     );
-    for (const biome of context.world.biomes)
-      root.append(element('div', 'map-studio-muted', `Biome: ${biome.name} · ${biome.ambience ?? ''}`));
-    for (const region of context.world.regions)
-      root.append(element('div', 'map-studio-muted', `Region: ${region.name} · ${region.layer} layer`));
-    for (const palette of context.palettes) {
-      const row = element('div', 'map-studio-row');
-      row.append(element('span', 'map-studio-muted', `${palette.name} palette`));
-      for (const [role, colors] of Object.entries(palette.roles))
-        for (const hex of colors) {
-          const swatch = element('span', 'map-studio-swatch');
-          swatch.style.background = hex;
-          swatch.title = `${role} ${hex}`;
-          row.append(swatch);
-        }
-      root.append(row);
-    }
-    for (const portal of context.portals)
-      root.append(
-        element(
-          'div',
-          'map-studio-muted',
-          `Portal ${portal.direction === 'out' ? '→' : '←'} ${portal.direction === 'out' ? portal.targetMapCode : portal.sourceMapCode} (${portal.portalMode}, ${portal.instanceCode})`,
-        ),
-      );
   }
 }
 

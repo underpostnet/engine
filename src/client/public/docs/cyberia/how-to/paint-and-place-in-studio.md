@@ -13,9 +13,14 @@ canvas with its coordinates, or the entity defaults table. The tools and the sec
 the right of the stage when the screen has room, and under it when it does not. The eye button
 hides and shows the stage. Ids, labels and definitions show in a case-sensitive face.
 
+One foundation context panel shows in three places: **Context** in the Object Layer editor,
+**Paint** in the map editor, and above the **Metadata JSON** card of the Object Layer viewer
+(`/object-layer/<cid>`). The viewer shows it only for an item the foundation defines. A click on
+a palette color copies it as `#RRGGBBAA`, the form the hex field of the Object Layer editor takes.
+
 An item or a map that belongs to a saga carries a badge for each saga, in a color the saga code
-fixes: in the foundation context of both editors, and in the **Sagas** column of the Object Layer
-tables and the map table. A map belongs to the saga that defines it and to every stored saga that
+fixes: in the foundation context panel, and in the **Sagas** column of the Object Layer tables
+and the map table. A map belongs to the saga that defines it and to every stored saga that
 lists it. An item belongs to the saga that defines it, to the saga of every map whose entities
 carry it, to the sagas of the maps of every instance whose entity-type defaults wire it (live,
 dead, drop and inventory items), and to every saga of an item whose skill summons it. An item you place on a saga map
@@ -63,8 +68,8 @@ The drawing tools of the Object Layer editor stay above its tabs.
    foundation defines opens with its context before anyone paints it.
 2. Read the **Foundation context** panel in **Context**: the definition with its item type and the entity types
    that carry it, the visual guide (silhouette, detail, distinctive features, palette direction,
-   required variants), the biome, the region, the maps that place it, related content, and every
-   reference. **Raw JSON** holds the definition.
+   required variants), the palettes, the biome, the region, the maps that place it, related
+   content, and every reference. **Raw JSON** holds the definition.
 3. Pick a palette in **Palettes**, in **Paint**. The biome palette and the foundation palette come from the
    context; the custom palette and recent colors stay in this browser.
    - Click a swatch to paint with it. Shift+click locks a color. Alt+click marks it.
@@ -100,8 +105,10 @@ The drawing tools of the Object Layer editor stay above its tabs.
 ## Place a map
 
 1. Open the map editor on a map: `?mapCode=<code>`. A map from `cyberia-content` arrives without
-   entities. A foundation map opens with its context: the biome, the region, the palette, the
-   portals that reach it, and the **composition** tracker.
+   entities. **Paint** shows the context panel of the map: its definition and entity types, the
+   biome, the region, the palettes and the portals that reach it. A map the foundation does not
+   define shows its description, its sagas and its portals. The **composition** tracker follows
+   the panel.
 2. The tracker lists each composed entity: its entity type, its item ids with the item type of
    each, and how many the map holds. An entry is met (✓) once the map holds one entity of that type
    and those item ids.

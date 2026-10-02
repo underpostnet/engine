@@ -21,6 +21,7 @@ import { Modal, renderViewTitle } from '../core/Modal.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Translate } from '../core/Translate.js';
 import { isObjectLayerCid } from './ObjectLayerProtocol.js';
+import { contextIcon, contextPanelStyle, mountContextPanel } from './ContextPanel.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
 const logger = loggerFactory(import.meta);
 
@@ -39,9 +40,10 @@ const shortKey = (key) => (key.length > 18 ? `${key.slice(0, 10)}…${key.slice(
 class ObjectLayerEngineViewer {
   /**
    * What the host binds once, at boot: its store and router, the content profile that names and
-   * illustrates the stats, whether anything mutates, what its table adds, its view titles, and the
-   * list a view leads back to.
-   * @type {{appStore: object, RouterInstance: object, profile: object|null, readOnly: boolean,
+   * illustrates the stats, the studio that knows the context of a definition, whether anything
+   * mutates, what its table adds, its view titles, and the list a view leads back to.
+   * @type {{appStore: object, RouterInstance: object, profile: object|null,
+   *   studio: {context: (key: string) => Promise<object|null>}|null, readOnly: boolean,
    *   lifecycle: boolean, columns: () => object[], renderTitle: (text: string) => string,
    *   openList: () => void}}
    */
@@ -49,6 +51,7 @@ class ObjectLayerEngineViewer {
     appStore: null,
     RouterInstance: null,
     profile: null,
+    studio: null,
     readOnly: false,
     lifecycle: false,
     columns: () => [],
@@ -96,11 +99,12 @@ class ObjectLayerEngineViewer {
  */
 class ObjectLayerViewer {
   /** @param {typeof ObjectLayerEngineViewer.host & { cid: string }} options */
-  constructor({ cid, appStore, RouterInstance, profile, readOnly, renderTitle, openList }) {
+  constructor({ cid, appStore, RouterInstance, profile, studio, readOnly, renderTitle, openList }) {
     this.cid = cid;
     this.appStore = appStore;
     this.RouterInstance = RouterInstance;
     this.profile = profile;
+    this.studio = studio;
     this.readOnly = readOnly;
     this.renderTitle = renderTitle;
     this.openList = openList;
@@ -122,6 +126,8 @@ class ObjectLayerViewer {
       // ItemLedger bindings of the definition; null while the ledger loads.
       ledgerBindings: null,
       ledgerUnavailable: '',
+      // The studio's context panel of the definition; null while it loads or where it knows none.
+      context: null,
       isGeneratingAtlas: false,
       metadataJsonEditor: null,
     };
@@ -454,6 +460,12 @@ class ObjectLayerViewer {
         padding: 10px 16px;
         font-size: 14px;
       }
+
+      .viewer-context {
+        margin-bottom: 20px;
+      }
+
+      ${contextPanelStyle}
 
       .webp-display-area {
         background: ${darkTheme ? '#2a2a2a' : '#f5f5f5'};
@@ -869,8 +881,10 @@ class ObjectLayerViewer {
       const answer = await ObjectLayerService.getMetadata({ id: this.cid });
       const metadata = answer.status === 'success' ? answer.data : null;
       if (!metadata) throw new Error(answer.message || 'the Object Layer service answered no metadata');
-      // The ledger lives on another host: its section fills in when it answers.
+      // The ledger lives on another host and the context comes from the studio: each section fills
+      // in when it answers.
       const ledger = ObjectLayerViewer.loadLedger(metadata.cid);
+      const context = this.loadContext(metadata.cid);
       // The render the definition names and its frame counts, from the Object Layer domain: the
       // same on every host.
       const rendered = !!metadata.data?.render?.cid;
@@ -890,6 +904,7 @@ class ObjectLayerViewer {
         objectLayer: metadata,
         ledgerBindings: null,
         ledgerUnavailable: '',
+        context: null,
         render,
         renderUnavailable: layout && !render ? layout.message || 'the render did not load' : '',
         frameCounts: frameData.frameCounts,
@@ -905,12 +920,33 @@ class ObjectLayerViewer {
         if (this.el('.object-layer-viewer-ledger'))
           htmls(`.${this.id} .object-layer-viewer-ledger`, this.ledgerHtml());
       });
+      context.then((panel) => {
+        this.data.context = panel;
+        this.mountContext();
+      });
       // A definition that names no render yet is valid; it has nothing to animate.
       if (!skipWebp && rendered) await this.generateWebp();
     } catch (error) {
       logger.error('Error loading object layer:', error);
       this.renderUnavailable(error.message);
     }
+  }
+  /** The studio's context panel of a definition; null without a studio, or when it does not answer. */
+  async loadContext(cid) {
+    if (!this.studio) return null;
+    try {
+      return await this.studio.context(cid);
+    } catch (error) {
+      logger.warn('The foundation context did not load:', error);
+      return null;
+    }
+  }
+  /** Shows the context panel above the metadata, or hides its section where there is none. */
+  mountContext() {
+    const section = this.el('.viewer-context');
+    if (!section) return;
+    mountContextPanel(this.el('.viewer-context-panel'), this.data.context);
+    section.classList.toggle('hide', !this.data.context);
   }
   /**
    * The ItemLedger bindings of a definition, each with its supply, holders and provenance. None
@@ -1388,6 +1424,10 @@ class ObjectLayerViewer {
                     </div>
                   </div>
                 </div>
+                <section class="control-group viewer-context hide">
+                  <h4>${contextIcon()} Foundation context</h4>
+                  <div class="viewer-context-panel"></div>
+                </section>
                 <footer class="control-group viewer-metadata-footer">
                   <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
                   <div class="metadata-json-editor-container"></div>
@@ -1396,6 +1436,7 @@ class ObjectLayerViewer {
         </div>
       `,
     );
+    this.mountContext();
     // Attach event listeners
     this.attachEventListeners();
     // If we already have a webp loaded, display it without re-generating

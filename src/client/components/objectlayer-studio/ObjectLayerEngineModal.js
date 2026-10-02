@@ -25,7 +25,7 @@ import {
 import { fromWire, rgbaFrame, sourceFromRgbaFrames, toWire } from './RenderSource.js';
 import { renderTemplate, templateSuits } from './PixelTemplate.js';
 import { transformImportedFrames } from './FrameMutation.js';
-import { contextPanelStyle, mountContextPanel } from './ObjectLayerContextPanel.js';
+import { contextIcon, contextIconSrc, contextPanelStyle, mountContextPanel } from './ContextPanel.js';
 import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
@@ -1529,7 +1529,7 @@ class ObjectLayerEngineModal {
       const showContext = async (key) => {
         if (!ObjectLayerEngineModal.studio || !key) return;
         const panel = await ObjectLayerEngineModal.studio.context(key);
-        mountContextPanel(s('.ol-context-panel'), panel);
+        mountContextPanel(s('.ol-context-panel'), panel, 'No foundation definition carries this item label yet.');
         ObjectLayerEngineModal.palettePanel.setPalettes(panel?.palettes ?? []);
       };
       await showContext(cid || loadedData?.metadata?.data?.item?.id);
@@ -2304,11 +2304,9 @@ class ObjectLayerEngineModal {
                       {
                         id: 'context',
                         label: 'Context',
-                        icon: 'fa-solid fa-book-atlas',
+                        image: contextIconSrc(),
                         content: html`<div class="in section-mp section-mp-border">
-                          <div class="in sub-title-modal">
-                            <i class="fa-solid fa-book-atlas"></i> Foundation context
-                          </div>
+                          <div class="in sub-title-modal">${contextIcon()} Foundation context</div>
                           <div class="in ol-context-panel"></div>
                         </div>`,
                       },
