@@ -18,8 +18,7 @@ import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { createPeerServer } from '../../server/network/peer.js';
 import { createValkeyConnection } from '../../db/valkey/Valkey.js';
-import { applySecurity, authMiddlewareFactory, contentViewOf } from '../../server/security/auth.js';
-import { runInContentView } from '../../db/content-view.js';
+import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
 import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
 
@@ -236,10 +235,6 @@ class ExpressService {
         const { GrpcServer } = await import(`../../grpc/${grpc.module}/grpc-server.js`);
         await GrpcServer.start({ host, path, port: grpc.port || 50051 });
       }
-
-      // A host with versioned content answers each request from the view its caller reads.
-      if (db?.partitions && Object.keys(db.partitions).length > 0)
-        app.use((req, res, next) => runInContentView(contentViewOf(req, { host, path }), next));
 
       // API router loading
       if (apis && apis.length > 0) {

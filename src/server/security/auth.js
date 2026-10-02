@@ -199,25 +199,6 @@ const isServiceKey = (token) => {
 };
 
 /**
- * The content a request reads on a host with versioned content: a moderator or an admin works
- * on the workspace; everyone else (players, the game runtime, other domains) reads the served
- * release. An invalid token reads the served release; the routes still refuse it.
- * @param {import('express').Request} req The Express request object.
- * @param {{host:string,path:string}} options - Host context.
- * @returns {'workspace'|'served'}
- * @memberof Auth
- */
-const contentViewOf = (req, options) => {
-  const token = getBearerToken(req);
-  if (!token || isServiceKey(token)) return 'served';
-  try {
-    return commonModeratorGuard(jwtVerify(token, options).role) ? 'workspace' : 'served';
-  } catch {
-    return 'served';
-  }
-};
-
-/**
  * The principal a service-key request acts as: a moderator of this host, named by the domain
  * that sent the write. Never a user record, never a session.
  * @param {import('express').Request} req The Express request object.
@@ -778,7 +759,6 @@ export {
   getBearerToken,
   isServiceKey,
   servicePrincipal,
-  contentViewOf,
   createSessionAndUserToken,
   createUserAndSession,
   refreshSessionAndToken,

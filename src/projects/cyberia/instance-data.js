@@ -15,7 +15,6 @@
 
 import crypto from 'crypto';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { currentContentView } from '../../db/content-view.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
@@ -70,7 +69,7 @@ function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
  *   context or a resolved `${host}${path}` key (the gRPC dbKey form).
  */
 function getInstanceModels(context) {
-  return DataBaseProviderService.viewModels(context, currentContentView());
+  return DataBaseProviderService.servedModels(context);
 }
 
 // The wire still carries inventory rows; the model no longer stores them. `defaultObjectLayers`

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted. [ADR 0005](0005-one-content-data-source.md) supersedes its authoring consequence.
 
 ## Context
 

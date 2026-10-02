@@ -10,7 +10,7 @@ import {
   recordConnectionSuccess,
   runtimeStatusWritable,
 } from '../server/runtime/runtime-status.js';
-import { currentContentView } from './content-view.js';
+import { recordServedDatabases } from './served-databases.js';
 
 /**
  * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
@@ -155,7 +155,7 @@ class DataBaseProviderService {
    * @throws {Error} When the model is not loaded for the context.
    */
   static getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
-    const models = this.viewModels(context, currentContentView(), provider);
+    const models = this.servedModels(context, provider);
     const normalizedModelName = getCapVariableName(modelName);
 
     // First try direct key (supports callers passing exact model names).
@@ -229,21 +229,19 @@ class DataBaseProviderService {
   }
 
   /**
-   * The models a content view reads. `served` binds every partition's APIs to the database that
-   * partition serves; any other view, and a partition that serves its own database, reads the
-   * partition's own database. Models outside partitions are the same in every view.
+   * The models a context reads: every partition's APIs bound to the database that partition
+   * serves. Models outside partitions, and a partition that serves its own database, read their own.
    * @param {{host?: string, path?: string}|string} context - Context object or key.
-   * @param {string} view - `workspace` or `served`.
    * @param {string} [provider='mongoose'] - Provider name.
    * @returns {object} Model name → model.
    */
-  static viewModels(context, view, provider = 'mongoose') {
+  static servedModels(context, provider = 'mongoose') {
     const bucket = this.getProvider(context, provider);
-    return (view === 'served' && bucket.servedModels) || bucket.models || {};
+    return bucket.servedModels || bucket.models || {};
   }
 
   /**
-   * The database a partition serves for a context: the one `served` reads.
+   * The database a partition serves for a context: the one every reader of the context reads.
    * @param {{host?: string, path?: string}|string} context - Context object or key.
    * @param {string} partition - Partition name.
    * @param {string} [provider='mongoose'] - Provider name.
@@ -274,8 +272,7 @@ class DataBaseProviderService {
 
   /**
    * Makes a partition serve another database. The new model bag is built first and swapped in
-   * one assignment, so a reader sees the previous database or the new one, never a mix. The
-   * partition's own database stays what `workspace` reads.
+   * one assignment, so a reader sees the previous database or the new one, never a mix.
    *
    * @param {{host?: string, path?: string}|string} context - Context object or key.
    * @param {string} partition - Partition name.
@@ -295,6 +292,16 @@ class DataBaseProviderService {
     const servedModels = await DataBaseProviderService.#buildServedModels(bucket, served);
     bucket.servedModels = servedModels;
     bucket.served = served;
+    recordServedDatabases(
+      resolveHostKeyContext(context),
+      servedModels
+        ? Object.entries(served)
+            .filter(([name, servedDatabase]) => servedDatabase !== bucket.partitions[name]?.name)
+            .map(([name, servedDatabase]) => `${name}=${servedDatabase}`)
+            .sort()
+            .join(',')
+        : '',
+    );
     logger.info('Partition serves another database', {
       key: resolveHostKeyContext(context),
       partition,
@@ -469,6 +476,7 @@ class DataBaseProviderService {
           {
             const conn = await connectWithTolerance(`${db.provider}:${key}`, () => MongooseDB.connect(db));
             const partitions = DataBaseProviderService.partitionsOf(db);
+            recordServedDatabases(key, '');
             this.#instance[key][db.provider] = {
               dbSignature,
               // Kept so the connection can be rebuilt later without the caller being present.

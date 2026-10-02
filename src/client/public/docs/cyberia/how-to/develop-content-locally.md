@@ -27,8 +27,8 @@ modify ───────┘                         promote → active local
                                         rollback, or retire → the workspace serves again
 ```
 
-The workspace is mutable. A release is immutable after its build. Promotion is the only step that
-changes what the runtime serves, and it is always an explicit command.
+Every reader reads what the runtime serves: players, moderators, the Studio and the game servers.
+Promotion is the only step that changes it, and it is always an explicit command.
 
 ## What runs
 

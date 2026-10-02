@@ -37,7 +37,7 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
 }));
 
 const { CacheService, CACHE_POLICY } = await import('../../../src/server/storage/cache.js');
-const { runInContentView } = await import('../../../src/db/content-view.js');
+const { recordServedDatabases } = await import('../../../src/db/served-databases.js');
 
 const options = { host: 'objectlayer.org', path: '/' };
 const loader = (value) => vi.fn(async () => value);
@@ -79,7 +79,7 @@ describe('a cache-aside read', () => {
     expect(await read()).toEqual({ data: [1, 2] });
     expect(await read()).toEqual({ data: [1, 2] });
     expect(load).toHaveBeenCalledTimes(1);
-    expect([...store.keys()].some((key) => key.includes(':v0:workspace.public:list:a'))).toBe(true);
+    expect([...store.keys()].some((key) => key.includes(':v0:base.public:list:a'))).toBe(true);
   });
 
   it('shares one load between concurrent misses', async () => {
@@ -89,12 +89,28 @@ describe('a cache-aside read', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it('separates the content views and the scopes of a request', async () => {
+  it('separates the scopes of a request', async () => {
     const read = (scope) => CacheService.getOrLoad(namespace, { identifier: 'list', scope, load: loader(scope) });
-    expect(await runInContentView('served', () => read('public'))).toBe('public');
-    expect(await runInContentView('workspace', () => read('public'))).toBe('public');
+    expect(await read('public')).toBe('public');
     expect(await read('user:1')).toBe('user:1');
-    expect([...store.keys()].filter((key) => key.includes(':list:')).length).toBe(3);
+    expect([...store.keys()].filter((key) => key.includes(':list:')).length).toBe(2);
+  });
+
+  it('keeps the served data of each bound database apart, so a rollback reads its own values again', async () => {
+    const served = (value) => CacheService.getOrLoad(namespace, { identifier: 'release', load: loader(value) });
+    try {
+      expect(await served('base data')).toBe('base data');
+      recordServedDatabases('objectlayer.org/', 'content=release-a');
+      expect(await served('release a')).toBe('release a');
+      recordServedDatabases('objectlayer.org/', 'content=release-b');
+      expect(await served('release b')).toBe('release b');
+      recordServedDatabases('objectlayer.org/', 'content=release-a');
+      expect(await served('not loaded')).toBe('release a');
+      recordServedDatabases('objectlayer.org/', '');
+      expect(await served('not loaded')).toBe('base data');
+    } finally {
+      recordServedDatabases('objectlayer.org/', '');
+    }
   });
 
   it('does not keep an empty answer', async () => {
@@ -143,7 +159,7 @@ describe('invalidation', () => {
     await CacheService.getOrLoad(namespace, { identifier: 'list', load: loader(1) });
     await CacheService.getOrLoad(elsewhere, { identifier: 'list', load: loader(2) });
     expect(await CacheService.clear(options)).toBe(1);
-    expect([...store.keys()]).toEqual([`${elsewhere.prefix}:v0:workspace.public:list:`]);
+    expect([...store.keys()]).toEqual([`${elsewhere.prefix}:v0:base.public:list:`]);
   });
 });
 

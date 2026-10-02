@@ -7,9 +7,10 @@
  * and the answer is authoritative, only uncached.
  *
  * Key: `cache:{environment}:{domain}:{resource}:{scope}:{identifier}:{variant}`, where the
- * scope carries the content view of the request and any user scope the caller adds. The
- * namespace (`environment:domain:resource`) holds a version; an invalidation bumps it, so keys
- * of the old version are never read again and expire by their TTL. No mutation scans keys.
+ * scope carries the content data of the context (the databases it serves) and any user scope
+ * the caller adds. The namespace (`environment:domain:resource`) holds a version; an
+ * invalidation bumps it, so keys of the old version are never read again and expire by their
+ * TTL. No mutation scans keys.
  *
  * @module src/server/storage/cache.js
  * @namespace CacheService
@@ -17,7 +18,7 @@
 import crypto from 'crypto';
 import * as promClient from 'prom-client';
 import { ValkeyAPI } from '../../db/valkey/Valkey.js';
-import { currentContentView } from '../../db/content-view.js';
+import { contentDataKey } from '../../db/served-databases.js';
 import { loggerFactory } from '../ops/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -114,15 +115,15 @@ class CacheService {
    * @param {CacheNamespace} namespace
    * @param {Object} params
    * @param {string} params.identifier - What is cached: `list`, a cid, a code.
-   * @param {string} [params.scope='public'] - User or role scope; the content view is always added.
+   * @param {string} [params.scope='public'] - User or role scope; the content data is always added.
    * @param {string} [params.variant=''] - Query variant, from {@link CacheService.variant}.
    * @param {() => Promise<*>} params.load - The authoritative read.
    * @param {boolean} [params.binary=false] - The value is a Buffer.
    * @returns {Promise<*>} The loaded or cached value.
    */
   static async getOrLoad(namespace, { identifier, scope = 'public', variant = '', load, binary = false }) {
-    const view = `${currentContentView()}.${segment(scope)}`;
-    const local = `${namespace.prefix}:${view}:${segment(identifier)}:${segment(variant)}`;
+    const data = `${contentDataKey(`${namespace.instance.host}${namespace.instance.path}`)}.${segment(scope)}`;
+    const local = `${namespace.prefix}:${data}:${segment(identifier)}:${segment(variant)}`;
     if (!ValkeyAPI.isConnected(namespace.instance)) {
       operations.inc({ namespace: namespace.label, result: 'bypass' });
       return await coalesce(local, load);

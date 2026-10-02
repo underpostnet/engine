@@ -22,7 +22,7 @@ that split and runs as Stage C of every deploy.
 | For Cyberia     | Object Layer                                               | ItemLedger                                         |
 | --------------- | ---------------------------------------------------------- | -------------------------------------------------- |
 | Source of truth | `objectlayer.org`                                          | `itemledger.com`                                   |
-| Local copy      | Drafts and cache in the workspace; cache in releases       | None                                               |
+| Local copy      | Drafts and cache in the content database Cyberia serves    | None                                               |
 | Reads           | `resolveObjectLayer` → `OBJECT_LAYER_API_ORIGIN`           | `resolveLedgerBindings` → `ITEM_LEDGER_API_ORIGIN` |
 | Writes          | `POST /api/v1/object-layer/canonical` with the service key | None in Open Alpha                                 |
 | Unreachable     | Release build fails; the live release keeps serving        | Definitions serve as unregistered                  |
@@ -47,8 +47,8 @@ draft ──▶ profile check ──▶ canonical bytes ──▶ contentHash �
 
 | Origin      | Where                          | Meaning                                                           |
 | ----------- | ------------------------------ | ----------------------------------------------------------------- |
-| `draft`     | Cyberia workspace              | Authored, not published. Never bound, never copied into a release |
-| `cache`     | Cyberia workspace and releases | A copy of what the authority holds, checked against its CID       |
+| `draft`     | A Cyberia content database     | Authored, not published. Never bound, never copied into a release |
+| `cache`     | Every Cyberia content database | A copy of what the authority holds, checked against its CID       |
 | `canonical` | `objectlayer.org`              | Published and immutable. The API never deletes it                 |
 
 - The Studio writes through `publishDefinition`. It stores a draft, sends it to

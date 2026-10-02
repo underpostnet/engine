@@ -334,7 +334,7 @@ const TEST_PROJECTS = [
     sources: [
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
-      'src/db/content-view.js',
+      'src/db/served-databases.js',
       'src/projects/cyberia/content-artifact.js',
       'src/projects/cyberia/content-release.js',
       'test/support/mongod.js',
@@ -343,7 +343,8 @@ const TEST_PROJECTS = [
     vitest: { hookTimeout: 60000, testTimeout: 30000 },
     description:
       'Cyberia against real boundaries: content releases on a MongoDB replica set — build, validate, ' +
-      'promote, roll back, prune, restart, concurrent promotion and runtime isolation — the content ' +
+      'promote, roll back, prune, restart, concurrent promotion, runtime isolation and one data source ' +
+      'for every role — the content ' +
       'artifact materialization and saga import, the product CLI, the audio seed and the map preview ' +
       'refresh. The database suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites ' +
       'a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its ' +

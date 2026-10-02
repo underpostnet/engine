@@ -14,7 +14,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { activateContentRelease, watchContentRelease } from '../../projects/cyberia/content-release.js';
-import { runInContentView } from '../../db/content-view.js';
 import {
   buildFallbackConfig,
   fetchFullInstance,
@@ -135,15 +134,7 @@ class GrpcServer {
       'grpc.max_receive_message_length': 16 * 1024 * 1024,
     });
 
-    // The game servers read the content players are served: the active release, never the
-    // workspace being authored.
-    const handlers = Object.fromEntries(
-      Object.entries(buildHandlers(dbKey)).map(([name, handler]) => [
-        name,
-        (...args) => runInContentView('served', () => handler(...args)),
-      ]),
-    );
-    server.addService(proto.CyberiaDataService.service, handlers);
+    server.addService(proto.CyberiaDataService.service, buildHandlers(dbKey));
 
     // gRPC stays on the cluster-internal network, so credentials are insecure.
     const creds = grpc.ServerCredentials.createInsecure();

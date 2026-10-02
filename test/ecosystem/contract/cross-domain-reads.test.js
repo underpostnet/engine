@@ -30,7 +30,7 @@ const { clearDomainCache, domainOrigin } = await import('../../../src/server/dom
 const { loadApiExtension } = await import('../../../src/server/domain/consumed-api.js');
 const { developmentOrigins, hostPortsFactory, localHostAddress } =
   await import('../../../src/server/network/router.js');
-const { contentViewOf, isServiceKey, jwtSign, servicePrincipal } = await import('../../../src/server/security/auth.js');
+const { isServiceKey, servicePrincipal } = await import('../../../src/server/security/auth.js');
 const { cacheCanonical, isObjectLayerAuthority, publishDefinition } = await objectLayerModule(
   '../../../src/api/object-layer/object-layer.publication.js',
 );
@@ -313,33 +313,6 @@ describe.skipIf(!objectLayerDomain)('one canonical writer', () => {
     await expect(cacheCanonical({ ObjectLayer: store(), cid: other, definition })).rejects.toThrow(
       `The authority answered ${other} with content that hashes to ${cid}`,
     );
-  });
-});
-
-describe('authoring view', () => {
-  const host = { host: 'www.cyberiaonline.com', path: '/' };
-  const bearer = (token) => ({ headers: { authorization: `Bearer ${token}` } });
-  const token = (role, options = host) => jwtSign({ _id: 'u1', role }, options, 5, 10);
-
-  beforeEach(() => {
-    process.env.JWT_SECRET = 'test-jwt-secret';
-    process.env.DOMAIN_API_SERVICE_KEY = 'service-key';
-  });
-  afterEach(() => {
-    delete process.env.JWT_SECRET;
-  });
-
-  it('shows the workspace to a moderator of the host only', () => {
-    expect(contentViewOf(bearer(token('moderator')), host)).toBe('workspace');
-    expect(contentViewOf(bearer(token('admin')), host)).toBe('workspace');
-    expect(contentViewOf(bearer(token('user')), host)).toBe('served');
-    expect(contentViewOf(bearer(token('moderator', { host: 'objectlayer.org', path: '/' })), host)).toBe('served');
-  });
-
-  it('serves the promoted release to everyone else', () => {
-    expect(contentViewOf({ headers: {} }, host)).toBe('served');
-    expect(contentViewOf(bearer('service-key'), host)).toBe('served');
-    expect(contentViewOf(bearer('not-a-token'), host)).toBe('served');
   });
 });
 

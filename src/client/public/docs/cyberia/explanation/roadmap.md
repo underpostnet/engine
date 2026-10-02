@@ -156,8 +156,8 @@ The three sets never share a key. No player key ever reaches a server process.
 | `cyberiaonline.com` | World content (per release), runtime state | `objectlayer.org`, `itemledger.com` over HTTP |
 
 No domain opens another domain's MongoDB. Cross-domain reads go through `/api/v1/` with a timeout, a
-bounded retry and a read cache. Cyberia authors content in a workspace database and serves it from
-versioned release databases, both apart from player state; [Content releases](content-releases.md) holds the model, the deploy stages and the
+bounded retry and a read cache. Cyberia serves content from versioned release databases, apart
+from player state; [Content releases](content-releases.md) holds the model, the deploy stages and the
 game server drain.
 
 ---
@@ -318,7 +318,7 @@ Hyperledger Besu (IBFT2 / QBFT, chainId 777771, gasPrice 0)
 | Coin balance (Fountain and Sink)  | Cyberia      | MongoDB (`PlayerState`)          | Game server  |
 | Equipment activation              | Cyberia      | Session, checkpointed to MongoDB | Game server  |
 | Item ownership                    | ItemLedger   | ERC-1155 balances                | Chain        |
-| CKY balance                       | ItemLedger   | ERC-1155 token 0                 | Chain        |
+| CKY balance                       | CryptoKoyn   | ERC-1155 token 0                 | Chain        |
 | Definition identity               | Object Layer | Canonical bytes                  | Content hash |
 
 Progress never moves on chain, and ownership never moves into the game database as a source of
