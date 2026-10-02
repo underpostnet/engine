@@ -4,7 +4,7 @@
  *
  * Every environment publishes from a different fork, so an owner baked into a
  * component renders a link to someone else's repository. The owner is resolved
- * once here, travels to the client in `renderPayload.repository`, and is the
+ * once here, travels to the client in the build manifest's `repository`, and is the
  * only thing any GitHub, Pages or Coveralls URL is composed from.
  *
  * @module src/server/storage/repository.js
