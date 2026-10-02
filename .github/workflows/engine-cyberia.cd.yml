@@ -10,6 +10,14 @@ on:
           - deploy
           - sync-and-deploy
           - init
+      source-channel:
+        description: 'Source channel: public, or private for the private mirrors. A private release is mirrored to public once it serves'
+        required: false
+        default: private
+        type: choice
+        options:
+          - private
+          - public
 permissions:
   contents: write
   packages: write
@@ -46,6 +54,10 @@ jobs:
     if: github.event.inputs.job == 'sync-and-deploy'
     name: Remote SSH sync and deploy
     runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: dd-cyberia-production
+      cancel-in-progress: false
     steps:
       - name: Run remote deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -67,6 +79,7 @@ jobs:
             set -e
             set -o pipefail
             export RUN_QUIET_CI=github
+            export CYBERIA_SOURCE_CHANNEL=${{ github.event.inputs.source-channel || 'private' }}
             bash /home/dd/engine/deploy/dd-cyberia/sync-deploy.sh
   init:
     if: github.event.inputs.job == 'init'

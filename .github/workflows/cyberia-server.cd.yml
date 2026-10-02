@@ -8,6 +8,14 @@ on:
         type: choice
         options:
           - deploy
+      source-channel:
+        description: 'Source channel: public, or private for the private mirrors. A private release is mirrored to public once it serves'
+        required: false
+        default: private
+        type: choice
+        options:
+          - private
+          - public
 permissions:
   contents: write
   packages: write
@@ -21,6 +29,10 @@ jobs:
       && github.event.inputs.job == 'deploy'
     name: Remote SSH deployment
     runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: dd-cyberia-cyberia-server
+      cancel-in-progress: false
     steps:
       - name: Run remote deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -38,4 +50,5 @@ jobs:
             # state domain's telemetry export emits ::notice::/::error:: annotations this job
             # surfaces. GITHUB_ACTIONS itself is a runner-local variable and does not travel.
             export RUN_QUIET_CI=github
+            export CYBERIA_SOURCE_CHANNEL=${{ github.event.inputs.source-channel || 'private' }}
             bash /home/dd/engine/deploy/cyberia-server/deploy.sh

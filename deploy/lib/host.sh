@@ -72,6 +72,28 @@ deploy_id_from_repo() {
     [ -n "$name" ] && [ "$name" != "engine" ] && printf 'dd-%s' "$name"
 }
 
+# The engine source repository of a deploy id on a source channel: `engine-<id>` on public, its
+# private mirror `engine-test-<id>` on private. Pure shell for the same reason as
+# `deploy_id_from_repo`: the repository it names is the one that makes the CLI runnable.
+#
+# Usage: engine_source_repo <deploy-id> <public|private> [owner]
+engine_source_repo() {
+    local name="${1#dd-}"
+    case "$2" in
+        public) printf '%s/engine-%s' "${3:-underpostnet}" "$name" ;;
+        private) printf '%s/engine-test-%s' "${3:-underpostnet}" "$name" ;;
+        *) echo "unknown source channel '$2': use public or private" >&2; return 1 ;;
+    esac
+}
+
+# The repository a source channel fetches a product repository from, from the CLI resolver.
+# Needs the engine installed, so it runs after prepare_host.
+#
+# Usage: source_repository <owner/repo> <public|private> [engine-root]
+source_repository() {
+    sudo -n -- /bin/bash -lc "cd ${3:-$ENGINE_ROOT} && node bin source-release repository $1 --channel $2" | tail -n 1
+}
+
 # Installs the node's dependencies from the deploy's own package manifest and links the checkout's
 # CLI globally. Every later bare `underpost` command must execute this checkout, never a package
 # left behind by an older image or host preparation.
@@ -132,25 +154,47 @@ prepare_host() {
         sudo -n -- /bin/bash -lc "cd $engine_root && node bin host load"
 }
 
-# Brings a sibling checkout under the engine root to the tip of its repository, whatever state
-# it is in: a clone when `<engine-root>/<repo-name>` is not a git repository yet, and otherwise
-# `cmt --switch-repo`, which repoints `origin` and force-pulls the remote's default branch over
-# the working tree. Replaced rather than reconciled for the same reason `run pull` replaces the
-# engine itself: the checkout is a projection of its remote, never a place work is authored, so
-# one that has drifted onto commits of its own is brought back, not refused.
+# Brings a sibling checkout under the engine root to the tip of its repository, whatever state it is
+# in: a clone when `<engine-root>/<dir>` is not a git repository yet, and otherwise
+# `cmt --switch-repo`, which repoints `origin` and force-pulls the remote's default branch over the
+# working tree. Replaced rather than reconciled for the same reason `run pull` replaces the engine
+# itself: the checkout is a projection of its remote, never a place work is authored.
 #
-# The check runs inside the same sudo shell as the clone or switch so both read the tree root
-# owns. `clone` lands the checkout at `./<repo-name>`, which is where `bin/cyberia` expects it.
+# `dir` defaults to the repository name, so a private mirror lands where `bin/cyberia` reads its
+# public repository. The check runs inside the same sudo shell as the clone or switch.
 #
-# Usage: sync_checkout <owner/repo> [engine-root]
+# Usage: sync_checkout <owner/repo> [engine-root] [dir]
 sync_checkout() {
     local repo="$1"
     local engine_root="${2:-$ENGINE_ROOT}"
     local name="${repo##*/}"
+    local dir="${3:-$name}"
 
-    deploy_step "Sync $name checkout ($repo)" \
+    deploy_step "Sync $dir checkout ($repo)" \
         sudo -n -- /bin/bash -lc \
-        "cd $engine_root && if [ -d ./$name/.git ]; then node bin cmt ./$name --switch-repo $repo; else node bin clone $repo; fi"
+        "cd $engine_root && if [ -d ./$dir/.git ]; then node bin cmt ./$dir --switch-repo $repo; else node bin clone $repo && { [ $name = $dir ] || mv ./$name ./$dir; }; fi"
+}
+
+# Stands a synced checkout under the engine root at an exact revision of the history it fetched.
+#
+# Usage: pin_checkout <dir> <revision> [engine-root]
+pin_checkout() {
+    deploy_step "Pin $1 at $2" \
+        sudo -n -- git -C "${3:-$ENGINE_ROOT}/$1" checkout -q --detach "$2"
+}
+
+# The exact revision a checkout under the engine root stands at.
+#
+# Usage: checkout_revision <dir> [engine-root]
+checkout_revision() {
+    sudo -n -- /bin/bash -lc "git -C ${2:-$ENGINE_ROOT}/$1 rev-parse HEAD" | tr -d '\n'
+}
+
+# Publishes the exact revision of a private release to the public repository, fast-forward only.
+#
+# Usage: mirror_revision <owner/repo> <revision> [engine-root]
+mirror_revision() {
+    sudo -n -- /bin/bash -lc "cd ${3:-$ENGINE_ROOT} && node bin source-release mirror $1 --revision $2"
 }
 
 # Whether a tracked path carries uncommitted changes, as `1` or empty.
