@@ -17,6 +17,7 @@ import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
 import {
   buildProductPackageJson,
+  STAGED_CLI_PACKAGE,
   installDeployDependencies,
   productPackageOptionsFactory,
 } from '../src/server/build/package.js';
@@ -135,13 +136,14 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
   const sourcePackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const basePackageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
 
-  // A packaged path may be a nested project with its own installed tree; the
-  // product resolves dependencies from its own lockfile, never from a copy.
+  // A product resolves dependencies from its own lockfile, and the staged CLI package is a local
+  // image-build input: the template carries neither.
+  const assembled = (src) => {
+    const entries = src.split('/');
+    return !entries.includes('node_modules') && entries.at(-1) !== STAGED_CLI_PACKAGE;
+  };
   const copyTemplatePaths = () => {
-    for (const path of catalog.templatePaths)
-      fs.copySync(`.${path}`, `${basePath}${path}`, {
-        filter: (src) => !src.split('/').includes('node_modules'),
-      });
+    for (const path of catalog.templatePaths) fs.copySync(`.${path}`, `${basePath}${path}`, { filter: assembled });
   };
 
   // The manifest a product publishes is its catalog's declaration, resolved the same way for
@@ -224,7 +226,7 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
     for (const [src, dest] of catalog.copies) {
       if (fs.existsSync(src)) {
         logger.info(`Build copy`, `${src} -> ${dest}`);
-        fs.copySync(src, `${basePath}/${dest.replace(/^\.\//, '')}`);
+        fs.copySync(src, `${basePath}/${dest.replace(/^\.\//, '')}`, { filter: assembled });
       }
     }
   }
