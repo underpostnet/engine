@@ -223,6 +223,7 @@ const TEST_PROJECTS = [
       'src/projects/cyberia/domain-ownership.js',
       'src/projects/cyberia/instance-backup.js',
       'src/projects/cyberia/instance-data.js',
+      'src/projects/cyberia/local-stack.js',
       'src/projects/cyberia/map-preview-generator.js',
       'src/projects/cyberia/object-layer-catalog.js',
       'src/projects/cyberia/release-content.js',

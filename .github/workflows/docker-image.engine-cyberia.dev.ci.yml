@@ -64,4 +64,3 @@ jobs:
 
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
-            github_username=${{ github.actor }}

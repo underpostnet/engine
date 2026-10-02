@@ -2,10 +2,15 @@
 #
 # engine-cyberia — DEVELOPMENT image (underpost/engine-cyberia-dev).
 #
+# CYBERIA_SOURCE selects where the engine, the deployment and the content come from:
+#   clone  the *_REPOSITORY repositories; the content at the revision the deployment lock pins.
+#   local  the source/ directory of the build context, staged by `cyberia run-workflow dev-env`.
+ARG CYBERIA_SOURCE=clone
+
 # ---------------------------------------------------------------------------
-# Stage 1 — builder: clone the private deploy, build it, then scrub secrets.
+# Stage 1 — builder: take the sources, build the deploy, then scrub secrets.
 # ---------------------------------------------------------------------------
-FROM rockylinux/rockylinux:9 AS builder
+FROM rockylinux/rockylinux:9 AS base
 ARG UNDERPOST_VERSION=3.4.5
 # Pin Node to an exact patch: dnf's nodejs:24 module lags (24.14.1) while
 # underpost's dependencies require >=24.15.0, so install the official binary.
@@ -44,56 +49,72 @@ RUN set -eux; \
 
 WORKDIR /home/dd
 
-RUN --mount=type=secret,id=github_username \
-    # --mount=type=secret,id=github_token \
+# Only the stage CYBERIA_SOURCE names is built. The sources enter by COPY, not by a bind mount:
+# SELinux denies a build container the host labels of the context.
+FROM base AS source-local
+COPY source/ /home/dd/source/
+
+FROM base AS source-clone
+
+FROM source-${CYBERIA_SOURCE} AS builder
+ARG CYBERIA_SOURCE
+ARG ENGINE_REPOSITORY=underpostnet/engine-cyberia
+ARG DEPLOYMENT_REPOSITORY=underpostnet/cyberia-deployment
+ARG CONTENT_REPOSITORY=underpostnet/cyberia-content
+
+RUN --mount=type=secret,id=github_token \
     set -eu; \
-    export GITHUB_USERNAME="$(cat /run/secrets/github_username)"; \
-    # export GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
-    export ENGINE_CYBERIA_REPO="engine-cyberia"; \
-    cd /home/dd; \
-    underpost clone "$GITHUB_USERNAME/$ENGINE_CYBERIA_REPO"; \
+    # A private repository needs the token; a public one reads without it.
+    GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || true)"; \
+    export GITHUB_TOKEN; \
     mkdir -p /home/dd/engine; \
-    cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/; \
-    rm -rf ./"$ENGINE_CYBERIA_REPO"; \
     cd /home/dd; \
-    underpost clone "$GITHUB_USERNAME/cyberia-deployment"; \
+    case "$CYBERIA_SOURCE" in \
+      clone) \
+        ENGINE_CYBERIA_REPO="${ENGINE_REPOSITORY##*/}"; \
+        underpost clone "$ENGINE_REPOSITORY"; \
+        cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/; \
+        rm -rf ./"$ENGINE_CYBERIA_REPO"; \
+        underpost clone "$DEPLOYMENT_REPOSITORY"; \
+        DEPLOYMENT_DIR="/home/dd/${DEPLOYMENT_REPOSITORY##*/}" ;; \
+      local) \
+        cp -a /home/dd/source/engine/. /home/dd/engine/; \
+        DEPLOYMENT_DIR=/home/dd/source/cyberia-deployment ;; \
+    esac; \
     rm -rf /home/dd/engine/engine-private; \
-    mkdir -p /home/dd/engine/engine-private/conf/dd-cyberia; \
-    cp -a ./cyberia-deployment/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
+    mkdir -p /home/dd/engine/engine-private/conf/dd-cyberia /home/dd/engine/cyberia-content; \
+    cp -a "$DEPLOYMENT_DIR"/conf/dd-cyberia/. /home/dd/engine/engine-private/conf/dd-cyberia/.; \
     cp -a /home/dd/engine/engine-private/conf/dd-cyberia/package.json /home/dd/engine/package.json; \
-    # The content artifact the deployment locks: cyberia-content at the locked source revision,
-    # packed by cyberia-content itself. The packed copy holds data only: nothing writes into it.
-    underpost clone "$GITHUB_USERNAME/cyberia-content"; \
-    git -C ./cyberia-content checkout --detach \
-      "$(node -p "require('/home/dd/cyberia-deployment/content-lock.json').sourceRevision")"; \
-    ( cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
-    mkdir -p /home/dd/engine/cyberia-content; \
-    tar -xzf ./cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
-    rm -rf ./cyberia-content; \
     cd /home/dd/engine; \
-    # --- install deps + env, then replay build-safe itc provisioning ----------
     npm install; \
-    # The content artifact must be the one the deployment locks: same version, source revision
-    # and digest. A mismatch fails the build.
-    node bin/cyberia content status --lock /home/dd/cyberia-deployment/content-lock.json; \
+    if [ "$CYBERIA_SOURCE" = clone ]; then \
+      # The content artifact the deployment lock pins: cyberia-content at its locked revision, packed
+      # by cyberia-content itself, then checked against the lock. The packed copy holds data only.
+      CONTENT_REVISION="$(CYBERIA_DEPLOYMENT_ROOT="$DEPLOYMENT_DIR" node bin/cyberia release list --locked \
+        | awk '$1 == "cyberia-content" { print $4 }')"; \
+      CONTENT_DIR="/home/dd/${CONTENT_REPOSITORY##*/}"; \
+      ( cd /home/dd && underpost clone "$CONTENT_REPOSITORY" \
+        && git -C "$CONTENT_DIR" checkout --detach "$CONTENT_REVISION" \
+        && cd "$CONTENT_DIR" && npm ci && node bin/cyberia-content.js pack ); \
+      tar -xzf "$CONTENT_DIR"/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
+      CYBERIA_DEPLOYMENT_ROOT="$DEPLOYMENT_DIR" node bin/cyberia release verify; \
+      rm -rf "$CONTENT_DIR" "$DEPLOYMENT_DIR"; \
+    else \
+      # The working content artifact, unpinned: a local stack tests what the workspace holds.
+      cp -a /home/dd/source/cyberia-content/. /home/dd/engine/cyberia-content/; \
+    fi; \
     node bin app load --env development --args deploy-id=dd-cyberia; \
     ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     # --- build the client bundle (assets are now in place) --------------------
-    cd /home/dd/engine; \
     node bin client dd-cyberia; \
     # --- CREDENTIAL SCRUB (defense in depth, while secrets are still in scope) -
-    # 1) Redact every real secret value from any file it may have reached.
-    for _secret in "$GITHUB_USERNAME"; do \
-    # for _secret in "$GITHUB_USERNAME" "$GITHUB_TOKEN"; do \
-      [ -n "$_secret" ] || continue; \
-      grep -rlF --exclude-dir=node_modules --exclude-dir=.git "$_secret" /home/dd/engine 2>/dev/null \
-        | xargs -r sed -i "s#${_secret}#__REDACTED__#g" || true; \
-    done; \
-    # unset GITHUB_TOKEN GITHUB_USERNAME; \
-    unset GITHUB_USERNAME; \
-
-    # 2) Every .git dir — clone URLs embed the token in .git/config, and the
-    #    private history itself must not ship.
+    # 1) Redact the token from any file it may have reached.
+    if [ -n "$GITHUB_TOKEN" ]; then \
+      grep -rlF --exclude-dir=node_modules --exclude-dir=.git "$GITHUB_TOKEN" /home/dd/engine 2>/dev/null \
+        | xargs -r sed -i "s#${GITHUB_TOKEN}#__REDACTED__#g" || true; \
+    fi; \
+    unset GITHUB_TOKEN; \
+    # 2) Every .git dir: the private history must not ship.
     find /home/dd/engine -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true; \
     # 3) User-level credential stores possibly written during the build.
     rm -rf /root/.gitconfig /root/.git-credentials /root/.config/git \
@@ -104,8 +125,7 @@ RUN --mount=type=secret,id=github_username \
     #    build/CLI tooling (used only to build the coverage docs above); the
     #    runtime server never imports it, so its dev node_modules is pure bloat.
     npm cache clean --force 2>/dev/null || true; \
-    rm -rf /home/dd/cyberia-deployment \
-           /home/dd/engine/hardhat/node_modules \
+    rm -rf /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
 # ---------------------------------------------------------------------------
