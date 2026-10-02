@@ -3326,26 +3326,38 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   if (!fs.existsSync(templatePath))
     throw new Error(`updatePrivateEngineTestRepo: assemble the template first (node bin/build ${deployId})`);
 
-  // Adopt the test repo's existing history when present (so the push is a delta);
-  // otherwise publish a fresh history on first push.
+  // The history of the last publish fetches only what the test repo gained since; a first
+  // publish clones it, and a repo that does not exist yet starts a fresh history.
   const parentPath = dir.dirname(templatePath);
-  shellExec(`cd ${parentPath} && sudo rm -rf ./${repoName}.git && underpost clone --bare ${username}/${repoName}`, {
-    silent: true,
-    disableLog: true,
-    silentOnError: true,
-  });
+  const publishPath = `${parentPath}/${repoName}`;
+  const gitDir = `${parentPath}/${repoName}.git`;
+  shellExec(`sudo rm -rf ${gitDir}`);
+  if (fs.existsSync(`${publishPath}/.git`)) {
+    logger.info('Fetch the published history', { repoName });
+    shellExec(`mv ${publishPath}/.git ${gitDir}`);
+    const auth = Underpost.repo.gitAuthFactory(`${username}/${repoName}`);
+    shellExec(
+      `git --git-dir=${gitDir} fetch "${auth.url}" HEAD && git --git-dir=${gitDir} update-ref HEAD FETCH_HEAD`,
+      {
+        env: auth.env,
+      },
+    );
+  } else {
+    logger.info('Clone the published history', { repoName });
+    shellExec(`cd ${parentPath} && underpost clone --bare ${username}/${repoName}`, { silentOnError: true });
+  }
 
   // Publishing from a work tree of its own leaves the template checkout its own git
   // history, and copying that tree from 0 keeps a stale file out of the published one.
-  const publishPath = `${parentPath}/${repoName}`;
   shellExec(`sudo rm -rf ${publishPath}`);
+  logger.info('Copy the assembled template', { from: templatePath, to: publishPath });
   fs.copySync(templatePath, publishPath, {
     filter: (src) => {
       const entries = dir.relative(templatePath, src).split(dir.sep);
       return !entries.includes('.git') && !entries.includes('node_modules');
     },
   });
-  if (fs.existsSync(`${parentPath}/${repoName}.git`)) shellExec(`mv ${parentPath}/${repoName}.git ${publishPath}/.git`);
+  if (fs.existsSync(gitDir)) shellExec(`mv ${gitDir} ${publishPath}/.git`);
 
   // `git init` converts the moved bare repo into a normal work-tree repo (bare
   // clones have no work tree, so `git add` would fail), and bootstraps a fresh

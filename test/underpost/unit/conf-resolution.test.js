@@ -930,7 +930,7 @@ describe('private template publishing', () => {
 
   it('publishes the assembled template from a work tree of its own', async () => {
     stubShell('1');
-    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => filePath !== '/home/dd/engine-test-core/.git');
     const copied = [];
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest, options) => copied.push({ src, dest, options }));
     await withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => updatePrivateEngineTestRepo('dd-core'));
@@ -945,6 +945,26 @@ describe('private template publishing', () => {
     expect(copied[0].options.filter('/home/dd/pwa-microservices-template/node_modules/x')).to.equal(false);
     expect(copied[0].options.filter('/home/dd/pwa-microservices-template/src/index.js')).to.equal(true);
     expect(commands.some((command) => command.includes("git commit -m 'Update engine-test-core'"))).to.equal(true);
+  });
+
+  it('fetches only what the test repo gained since the last publish', async () => {
+    stubShell('1');
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'copySync').mockImplementation(() => undefined);
+    await withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => updatePrivateEngineTestRepo('dd-core'));
+
+    expect(commands.some((command) => command.includes('clone --bare'))).to.equal(false);
+    expect(
+      commands.some(
+        (command) =>
+          command.includes(
+            '/home/dd/engine-test-core.git fetch "https://github.com/fixture-org/engine-test-core" HEAD',
+          ) && command.includes('update-ref HEAD FETCH_HEAD'),
+      ),
+    ).to.equal(true);
+    const kept = commands.indexOf('mv /home/dd/engine-test-core/.git /home/dd/engine-test-core.git');
+    expect(kept).to.be.greaterThan(-1);
+    expect(kept).to.be.lessThan(commands.indexOf('sudo rm -rf /home/dd/engine-test-core'));
   });
 
   it('reports nothing to publish when the test repo is up to date', async () => {
