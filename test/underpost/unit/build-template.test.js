@@ -125,6 +125,15 @@ describeBaseTemplate('template path selection', () => {
     expect(validateTemplatePath('.//src/api/not-a-declared-api/not-a-declared-api.service.js')).to.equal(false);
   });
 
+  it('carries every component the default client lists', () => {
+    const components = DefaultConf.client?.default?.components ?? {};
+    for (const [module, names] of Object.entries(components))
+      for (const name of names)
+        expect(validateTemplatePath(`.//src/client/components/${module}/${name}.js`), `${module}/${name}`).to.equal(
+          true,
+        );
+  });
+
   it('carries the default conf manifest and drops every deploy id manifest beside it', () => {
     expect(validateTemplatePath(`.//${confManifestPath().replace('./', '')}`)).to.equal(true);
     for (const deployId of ['dd-core', 'dd-cyberia'])
@@ -160,5 +169,32 @@ describe('conf manifest path', () => {
 
   it('names the manifest the engine actually carries', () => {
     expect(fs.existsSync(confManifestPath())).to.equal(true);
+  });
+});
+
+const COMPONENTS = './src/client/components';
+
+describe('components of the default client', () => {
+  it('lists every component that a listed component imports', () => {
+    const { components } = DefaultConf.client.default;
+    const listed = new Set(
+      Object.entries(components).flatMap(([module, names]) => names.map((name) => `${module}/${name}`)),
+    );
+    const missing = new Set();
+    const visited = new Set();
+    const visit = (id) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      const file = `${COMPONENTS}/${id}.js`;
+      if (!fs.existsSync(file)) return;
+      for (const [, specifier] of fs.readFileSync(file, 'utf8').matchAll(/from\s+'(\.[^']+)'/g)) {
+        const target = path.normalize(path.join(path.dirname(id), specifier)).replace(/\.js$/, '');
+        if (target.startsWith('..') || !fs.existsSync(`${COMPONENTS}/${target}.js`)) continue;
+        if (!listed.has(target)) missing.add(`${target} (imported by ${id})`);
+        visit(target);
+      }
+    };
+    for (const id of listed) visit(id);
+    expect([...missing]).to.deep.equal([]);
   });
 });

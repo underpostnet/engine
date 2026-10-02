@@ -66,7 +66,10 @@ const DefaultConf = /**/ {
           'ClientEvents',
           'EventBus',
           'Markdown',
+          'BuildManifest',
+          'Repository',
         ],
+        chart: ['connectedScatterplotChart'],
         default: [
           'AppShellDefault',
           'RouterDefault',

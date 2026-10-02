@@ -1133,7 +1133,7 @@ const validateTemplatePath = (absolutePath = '') => {
   }
   if (
     absolutePath.match('src/client/components/') &&
-    !clients.find((p) => absolutePath.match(`src/client/components/${p}/`))
+    !Object.keys(confClient.components).find((p) => absolutePath.match(`src/client/components/${p}/`))
   ) {
     return false;
   }
