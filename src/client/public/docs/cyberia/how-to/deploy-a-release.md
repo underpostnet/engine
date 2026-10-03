@@ -87,8 +87,8 @@ data-release Secret alone. Kubernetes removes the Job a day after it ends.
 
 `deploy/cyberia-server/deploy.sh` and `deploy/cyberia-client/deploy.sh` release their instance as a
 container release, on the same `CYBERIA_SOURCE_CHANNEL`, from the revision the deployment lock pins.
-The public channel runs the image CI built for that revision (`sha-<revision>`); the private channel
-builds it on the node from the checkout at that revision. Either way the instance runs the image by digest, and a private release
+The public channel runs the `latest` image CI pushed; the private channel builds it on the node from
+the checkout at that revision. Either way the instance runs the image by digest, and a private release
 then mirrors its revision to the public repository.
 
 ## Game server topology

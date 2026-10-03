@@ -102,12 +102,10 @@ describe('container release', () => {
     return { run, commands };
   };
 
-  it('pulls the image CI built for the exact revision and names it by digest', () => {
+  it('pulls the latest image CI pushed and names it by digest', () => {
     const { run, commands } = release({ runtime: 'crio', digests: ['docker.io/underpost/cyberia-server@sha256:abc'] });
     expect(run()).toBe('docker.io/underpost/cyberia-server@sha256:abc');
-    expect(commands.find((command) => command.includes(' pull '))).toContain(
-      `'underpost/cyberia-server:sha-${REVISION}'`,
-    );
+    expect(commands.find((command) => command.includes(' pull '))).toContain(`'underpost/cyberia-server:latest'`);
     expect(commands.some((command) => command.includes('podman build'))).toBe(false);
   });
 

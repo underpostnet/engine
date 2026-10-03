@@ -126,7 +126,7 @@ service key, and nothing else: no GitHub credential and no host configuration.
 ## Container releases
 
 `underpost image --release --image-name <repository> --revision <sha>` names the image of an exact
-revision by digest. On the public channel it pulls the image CI pushed as `sha-<sha>`; with
+revision by digest. On the public channel it pulls the image CI pushed as `latest`; with
 `--path <checkout>` it builds the image on the host. On a kubeadm node the image lands where the
 runtime reads it: CRI-O shares root Podman's storage, containerd imports it with its digests.
 `underpost run instance --source-revision <sha> [--build-path <checkout>]` deploys an instance on

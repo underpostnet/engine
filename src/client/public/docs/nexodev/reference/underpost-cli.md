@@ -624,7 +624,7 @@ Manages Docker images, including building, saving, and loading into Kubernetes c
 | `--reset` | Performs a build without using the cache. |
 | `--dev` | Use development mode. |
 | `--pull-dockerhub <dockerhub-image>` | Sets a custom Docker Hub image for base image pulls. |
-| `--release` | Container release: print the digest of the image for --revision, pulled from CI (sha-<revision>) or, with --path, built here. |
+| `--release` | Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here. |
 | `--revision <sha>` | With --release: the exact source revision. |
 | `--import-tar <tar-path>` | Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one. |
 | `-h, --help` | display help for command |
@@ -1099,7 +1099,7 @@ Runs specified scripts using various runners.
 | `--volume-mount-path <volume-mount-path>` | Optional: Specifies the volume mount path for test execution. |
 | `--volume-type <volume-type>` | Optional: Specifies the volume type for test execution. |
 | `--image-name <image-name>` | Optional: Specifies the image name for test execution. |
-| `--source-revision <sha>` | For instance: run the image released for this exact source revision, by digest (CI image sha-<sha>). |
+| `--source-revision <sha>` | For instance: run the image released for this exact source revision, by digest (CI image latest, or a build from --build-path). |
 | `--build-path <dir>` | For instance with --source-revision: build that image from this checkout on the host. |
 | `--image <image>` | Container image the deployment pulls and runs (sync). |
 | `--runtime-image <name>` | src/runtime/<name> image family the cluster runner brings up (default "express"). |

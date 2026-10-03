@@ -229,8 +229,8 @@ class UnderpostImage {
     /**
      * @method release
      * @description The image a container release deploys, by digest. The public channel pulls the
-     * image CI built for the exact revision (`<repository>:sha-<revision>`); the private channel
-     * builds the checkout at that revision on this host. Either way the node runtime then holds it,
+     * `latest` image CI pushed (`<repository>:latest`); the private channel builds the checkout at
+     * the exact revision on this host. Either way the node runtime then holds it,
      * and the digest it reports names it.
      * @param {object} options
      * @param {string} options.imageName - The registry repository, e.g. `underpost/cyberia-server`.
@@ -245,7 +245,7 @@ class UnderpostImage {
       const repository = `${imageName || ''}`.replace(/[:@].*$/, '');
       if (!repository) throw new Error('image --release needs --image-name <repository>');
       const name = repository.split('/').pop();
-      const reference = path ? `localhost/${name}:${exact}` : `${repository}:sha-${exact}`;
+      const reference = path ? `localhost/${name}:${exact}` : `${repository}:latest`;
       if (path) UnderpostImage.API.build({ path, imageName: `${name}:${exact}`, kubeadm: !k3s, k3s });
       else shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(reference)}`, { k3s }));
       const status = JSON.parse(
