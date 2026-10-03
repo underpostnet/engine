@@ -94,10 +94,10 @@ class Panel {
             data: obj,
             fileRender: async (options = { file: '', style: {}, class: '' }) => {
               await Content.RenderFile({ container: `.${idPanel}-cell-col-a-${id}`, ...options });
-              s(`.${idPanel}-img-spinner-${id}`).classList.add('hide');
+              s(`.${idPanel}-img-spinner-${id}`)?.classList.add('hide');
             },
             htmlRender: async ({ render }) => {
-              htmls(`.${idPanel}-cell-col-a-${id}`, render);
+              if (s(`.${idPanel}-cell-col-a-${id}`)) htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
         if (entryPath && options.share && options.share.copyLink) {

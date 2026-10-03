@@ -265,6 +265,8 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
     }
 
     if (options.raw) return render;
+    // The view that asked for this file may be gone once the file has loaded.
+    if (!s(container)) return;
     append(container, render);
 
     // Scrape and handle markdown links after DOM insertion
