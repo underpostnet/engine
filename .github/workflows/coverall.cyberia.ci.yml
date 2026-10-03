@@ -24,13 +24,14 @@ jobs:
     container:
       image: quay.io/rockylinux/rockylinux:9
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v7
-
+      # Install git first. Checkout without git downloads an archive that has no .git.
       - name: Install required packages
         run: |
           dnf install -y sudo tar gzip bzip2 git bash
           dnf install -y curl --allowerasing
+
+      - name: Clone repository
+        uses: actions/checkout@v7
 
       # The checkout belongs to another user than the container root. Git refuses it without this.
       - name: Trust the checkout in git
