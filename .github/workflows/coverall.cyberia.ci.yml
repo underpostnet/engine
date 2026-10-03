@@ -32,6 +32,10 @@ jobs:
           dnf install -y sudo tar gzip bzip2 git bash
           dnf install -y curl --allowerasing
 
+      # The checkout belongs to another user than the container root. Git refuses it without this.
+      - name: Trust the checkout in git
+        run: git config --global --add safe.directory '*'
+
       - name: Install Node.js
         run: |
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
