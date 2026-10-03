@@ -212,7 +212,7 @@ class Docs {
     return [
       {
         type: 'guide',
-        icon: html`<i class="fa-solid fa-book"></i>`,
+        icon: html`<i class="fa-solid fa-file-circle-question"></i>`,
         text: 'Documentation',
         url: function () {
           return `${getProxyPath()}docs`;
