@@ -37,6 +37,9 @@ CONTENT_INSTANCES="${CONTENT_INSTANCES:-}"
 CONTENT_RELEASE_ID="${CONTENT_RELEASE_ID:-}"
 # Releases kept beyond the protected ones: building, validated, active and the rollback target.
 CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
+# Set SKIP_CONTENT_RELEASE=1 to deploy the runtimes only: no content candidate, no promotion.
+# The new pod serves the release that is already active.
+SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"
 
 # The routing a traffic switch applies: the sync and a switch back render the same routes.
 ROUTING_FLAGS="--replicas 1 --timeout-response 10000ms --gateway-api"
@@ -130,6 +133,12 @@ stage_configuration() {
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 }
 
+# Whether the content release stages are off. Prints the reason to the log.
+content_release_skipped() {
+    [ "$SKIP_CONTENT_RELEASE" = "1" ] || return 1
+    echo "$RUN_QUIET_NODE_TAG SKIP_CONTENT_RELEASE=1: $1 skipped"
+}
+
 # ── Stage D — Content candidate ──────────────────────────────────────────────────────────
 #
 # The host fetches the locked content revision into a read-only release workspace, and projects
@@ -138,6 +147,7 @@ stage_configuration() {
 # the Object Layer authority. Players keep the active release. A rerun resumes the same release,
 # and a validated one is left as it is.
 stage_content_candidate() {
+    ! content_release_skipped "content candidate" || return 0
     deploy_step "Prepare content release $CONTENT_RELEASE_ID" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/cyberia content-release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL"
@@ -192,6 +202,10 @@ stage_readiness() {
 
 # ── Stage G — Promotion ───────────────────────────────────────────────────────────────────
 stage_promotion() {
+    if content_release_skipped "content promotion"; then
+        RELEASE_STATE=committed
+        return 0
+    fi
     PREVIOUS_RELEASE="$(served_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH")"
     RELEASE_STATE=promoting
     deploy_step "Promote content release $CONTENT_RELEASE_ID" \

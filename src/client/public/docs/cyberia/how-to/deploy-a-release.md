@@ -37,6 +37,8 @@ Nothing before Stage E changes what players see: a candidate that fails stops th
 
 Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
+Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. Stages D and G do not run. The new pod serves the release that is already active.
+
 ## Failure and revert
 
 A failure from Stage E until the game server is ready in Stage G restores what served before the

@@ -685,6 +685,36 @@ describe('deploy pipeline', () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
+  it('skips the content candidate and the promotion when SKIP_CONTENT_RELEASE is 1', () => {
+    expect(script).toContain('SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"');
+    const helper = script.slice(script.indexOf('content_release_skipped() {'), script.indexOf('# ── Stage D'));
+    const run = (skip) =>
+      spawnSync(
+        'bash',
+        [
+          '-c',
+          `set -euo pipefail
+          RUN_QUIET_NODE_TAG=[tag] SKIP_CONTENT_RELEASE=${skip}
+          deploy_step() { echo "step: $1"; }
+          ${helper}
+          stage_content_candidate() { ! content_release_skipped "content candidate" || return 0; deploy_step candidate; }
+          stage_promotion() { if content_release_skipped "content promotion"; then RELEASE_STATE=committed; return 0; fi; deploy_step promotion; }
+          stage_content_candidate
+          stage_promotion
+          echo "state: \${RELEASE_STATE:-}"`,
+        ],
+        { encoding: 'utf8' },
+      );
+    expect(run(1).stdout).not.toContain('step:');
+    expect(run(1).stdout).toContain('content promotion skipped');
+    expect(run(1).stdout).toContain('state: committed');
+    expect(run(0).stdout).toContain('state: \n');
+    expect(run(0).stdout).toContain('step: candidate');
+    expect(run(0).stdout).toContain('step: promotion');
+    for (const stage of ['stage_content_candidate() {', 'stage_promotion() {'])
+      expect(script.slice(script.indexOf(stage), script.indexOf(stage) + 200)).toContain('content_release_skipped');
+  });
+
   it('starts the pod on the served release, and builds the candidate in a Release Job', () => {
     const podCmd = script.slice(script.indexOf('pod_cmd="$(pod_bootstrap_cmd'), script.indexOf('underpost start'));
     expect(podCmd).not.toContain('content-release');
