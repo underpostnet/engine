@@ -25,8 +25,6 @@ const TEMPLATE_RESTORE_PATHS = [
   './src/api/user/guest.service.js',
   './src/ws/IoInterface.js',
   './src/ws/IoServer.js',
-  // The server runtime imports the Object Layer protocol; the filter drops its component.
-  './src/client/components/objectlayer-studio/ObjectLayerProtocol.js',
   './manifests/deployment/dd-default-development',
 ];
 

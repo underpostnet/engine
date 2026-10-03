@@ -27,8 +27,7 @@ import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '.
 import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
 import { keepRawBody, publicRouteFallbackFactory, staticFileHeaders } from '../../server/network/middlewares.js';
-import { entryShellRendererFactory } from '../../server/network/entry-metadata.js';
-import { objectLayerShellRendererFactory } from '../../server/network/object-layer-metadata.js';
+import { publicRouteRenderersFactory } from '../../server/network/public-route-renderers.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
 
@@ -61,6 +60,7 @@ class ExpressService {
    * @param {object} [config.db] - Database configuration.
    * @param {string} [config.redirect] - URL or flag to indicate an HTTP redirect should be configured.
    * @param {Object<string,string>} [config.consumes] - APIs another domain owns, api → domain: served here from a local cache of the owner's content.
+   * @param {string[]} [config.publicRoutes] - `PublicRoutes` names whose shell this host renders with the resource's own metadata.
    * @param {Object<string,string>} [config.apiExtensions] - api → project whose `<api>.extension.js` adds this host's own routes to that API.
    * @param {boolean} [config.peer] - Whether to enable the peer server.
    * @param {object} [config.valkey] - Valkey connection configuration.
@@ -81,6 +81,7 @@ class ExpressService {
     apis,
     consumes,
     apiExtensions,
+    publicRoutes,
     origins,
     directory,
     useLocalSsl,
@@ -157,19 +158,22 @@ class ExpressService {
     // The PWA shell for the dynamic public routes is the same built document a static view is,
     // served under the same headers: the security middleware below applies a nonce CSP that the
     // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,
-    // asset or document is ever answered with it. An instance that resolves documents itself
-    // renders an entry's metadata into its shell; an Object Layer is resolved at its authority by
-    // any instance that presents it.
-    const resolvesDocuments = !apiBaseHost && !!db && Array.isArray(apis) && apis.includes('document');
-    const shellConfig = { host, path, metadata };
+    // asset or document is ever answered with it. The host declares in `publicRoutes` the routes
+    // whose shell carries the resource's own metadata.
     app.use(
       publicRouteFallbackFactory({
         root: directory ? directory : `.${rootHostPath}`,
         path,
-        renderers: {
-          ...(resolvesDocuments ? { entry: entryShellRendererFactory(shellConfig) } : {}),
-          objectLayer: objectLayerShellRendererFactory({ ...shellConfig, apis, consumes: consumed }),
-        },
+        renderers: await publicRouteRenderersFactory({
+          host,
+          path,
+          metadata,
+          publicRoutes,
+          apis,
+          consumes: consumed,
+          db,
+          apiBaseHost,
+        }),
       }),
     );
 

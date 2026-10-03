@@ -23,7 +23,7 @@ const logger = loggerFactory(import.meta);
  * reaches the filesystem.
  *
  * A route with a renderer serves its shell with the resource's own metadata in its head
- * (`entryShellRendererFactory`, `objectLayerShellRendererFactory`): the initial HTML then already
+ * (the host declares it in `publicRoutes`, see `public-route-renderers.js`): the initial HTML then already
  * describes the resource to crawlers and preview services. What that head says can depend on who
  * asks (a private entry is described to its owner only), so the response varies on the
  * authorization header.

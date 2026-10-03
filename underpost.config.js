@@ -187,6 +187,7 @@ const DefaultConf = /**/ {
         client: 'default',
         runtime: 'nodejs',
         apis: ['default', 'core', 'user', 'test', 'file', 'document', 'instance'],
+        publicRoutes: ['entry'],
         origins: [],
         ws: 'core',
         peer: true,
