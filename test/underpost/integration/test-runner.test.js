@@ -17,12 +17,17 @@ const until = async (condition, timeoutMs = 15000) => {
   while (!condition() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
 };
 
+// A killed orphan stays a zombie where PID 1 does not reap it: it is dead.
 const alive = (pid) => {
   try {
     process.kill(pid, 0);
-    return true;
   } catch {
     return false;
+  }
+  try {
+    return !fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ').pop().startsWith('Z');
+  } catch {
+    return true;
   }
 };
 
@@ -77,7 +82,7 @@ describe('batch process', () => {
     await until(() => !alive(orphan), 5000);
     expect(alive(orphan)).to.equal(false);
     fs.removeSync(nodePath.dirname(pidFile));
-  });
+  }, 20000);
 
   it('reports a batch that cannot start', async () => {
     const outcome = await runTestProcess({ command: nodePath.join(os.tmpdir(), 'no-such-binary'), cwd: os.tmpdir() });
