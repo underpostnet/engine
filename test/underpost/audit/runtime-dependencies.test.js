@@ -7,6 +7,7 @@ import {
   importPackageNameFactory,
   runtimeImportGraphFactory,
 } from '../../../src/server/build/package.js';
+import { unslicedTree } from '../../support/tree.js';
 
 // The audit bundles the whole engine, so its time is the host's as much as the graph's.
 // On a host with CPU to spare the bundle takes a few seconds: past the budget there, the graph
@@ -124,7 +125,8 @@ describe('runtime dependency audit', () => {
     }
   });
 
-  it(
+  // A sliced tree ships server modules whose client imports it dropped.
+  it.skipIf(!unslicedTree)(
     'keeps every package this engine imports at runtime in dependencies',
     async () => {
       // A production install omits devDependencies, so a runtime import from there breaks the

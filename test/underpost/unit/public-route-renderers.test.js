@@ -39,14 +39,18 @@ describe('public route declaration', () => {
   });
 });
 
+// A sliced tree ships the renderer module without the client protocol it reads.
+const objectLayerShipped = fs.existsSync('./src/client/components/objectlayer-studio/ObjectLayerProtocol.js');
+
 describe('public route renderers', () => {
   it('loads nothing for a host that declares no route', async () => {
     expect(await publicRouteRenderersFactory({ ...owner })).toEqual({});
   });
 
   it('builds one renderer for each declared route', async () => {
-    const renderers = await publicRouteRenderersFactory({ ...owner, publicRoutes: ['entry', 'objectLayer'] });
-    expect(Object.keys(renderers)).toEqual(['entry', 'objectLayer']);
+    const publicRoutes = objectLayerShipped ? ['entry', 'objectLayer'] : ['entry'];
+    const renderers = await publicRouteRenderersFactory({ ...owner, publicRoutes });
+    expect(Object.keys(renderers)).toEqual(publicRoutes);
     for (const render of Object.values(renderers)) expect(render).toBeTypeOf('function');
   });
 
