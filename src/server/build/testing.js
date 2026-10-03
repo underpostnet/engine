@@ -44,10 +44,16 @@ const UNDERPOST_TESTING = {
   footprintEnvKey: 'UNDERPOST_TEST_FOOTPRINT',
   // Read by vitest.config.js: the blob file a batch writes its results and coverage to.
   batchReportEnvKey: 'UNDERPOST_TEST_REPORT',
+  // Read by vitest.config.js: the JSON file a batch writes its test results to.
+  batchResultsEnvKey: 'UNDERPOST_TEST_RESULTS',
   runs: {
     directory: '.vitest/test-runs',
     // Holds only blobs, because the merge reads every file in it.
     reportDirectory: 'blobs',
+    // One JSON file of test results per batch: the failure report reads them.
+    resultsDirectory: 'results',
+    // The output of each batch process and of the merge.
+    logDirectory: 'logs',
     // Runs on disk, the new run included. A run holds raw coverage, so keep few.
     kept: 5,
     // Time a batch gets to stop after SIGTERM, before SIGKILL.
@@ -639,6 +645,7 @@ const COVERAGE_GATE_ENV_KEYS = ['COVERAGE_ENFORCE', 'COVERAGE_MIN'];
  * @param {object} [params.env] - Environment to start from.
  * @param {string} [params.footprint] - Footprint name.
  * @param {string} [params.report] - Blob path. Set only for a batch.
+ * @param {string} [params.results] - JSON results path. Set only for a batch.
  * @param {string} [params.allureResultsDirectory] - Allure results directory, or empty for none.
  * @param {boolean} [params.diagnose] - Log the coverage timings.
  * @returns {object} Environment for the child process.
@@ -648,13 +655,15 @@ const vitestEnvFactory = ({
   env = {},
   footprint = '',
   report = '',
+  results = '',
   allureResultsDirectory = '',
   diagnose = false,
 } = {}) => {
-  const { footprintEnvKey, batchReportEnvKey, allureResultsEnvKey } = UNDERPOST_TESTING;
+  const { footprintEnvKey, batchReportEnvKey, batchResultsEnvKey, allureResultsEnvKey } = UNDERPOST_TESTING;
   const dropped = new Set([
     footprintEnvKey,
     batchReportEnvKey,
+    batchResultsEnvKey,
     allureResultsEnvKey,
     ...(report ? COVERAGE_GATE_ENV_KEYS : []),
   ]);
@@ -662,6 +671,7 @@ const vitestEnvFactory = ({
     NODE_ENV: 'test',
     [footprintEnvKey]: footprint,
     [batchReportEnvKey]: report,
+    [batchResultsEnvKey]: results,
     [allureResultsEnvKey]: allureResultsDirectory,
     DEBUG: diagnose ? [env.DEBUG, 'vitest:coverage'].filter(Boolean).join(',') : env.DEBUG,
   };
@@ -702,13 +712,18 @@ const testExecutionPlanFactory = ({ selector = '', contexts = [], footprint = ''
       delegated: Boolean(members[0].delegate),
     }))
     .sort((a, b) => a.groupOrder - b.groupOrder)
-    .map(({ delegated: isDelegated, ...rest }, index) => ({
-      index: index + 1,
-      ...rest,
-      ...(isDelegated
-        ? { delegated: true }
-        : { report: `${UNDERPOST_TESTING.runs.reportDirectory}/batch-${String(index + 1).padStart(3, '0')}.blob` }),
-    }));
+    .map(({ delegated: isDelegated, ...rest }, index) => {
+      const name = `batch-${String(index + 1).padStart(3, '0')}`;
+      const { reportDirectory, resultsDirectory, logDirectory } = UNDERPOST_TESTING.runs;
+      return {
+        index: index + 1,
+        ...rest,
+        ...(isDelegated
+          ? { delegated: true }
+          : { report: `${reportDirectory}/${name}.blob`, results: `${resultsDirectory}/${name}.json` }),
+        log: `${logDirectory}/${name}.log`,
+      };
+    });
   return {
     footprint: name,
     projects,
@@ -805,6 +820,131 @@ const testRunReportFactory = ({ batches = [], merge } = {}) => {
         .trimEnd(),
     )
     .join('\n');
+};
+
+/** ANSI escape sequences, which a log file keeps and a report does not. */
+const ANSI_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+
+const stripAnsi = (text = '') => `${text}`.replace(ANSI_PATTERN, '');
+
+/**
+ * @method testFailuresFactory
+ * @description Reads the failed tests out of the JSON results of one batch.
+ *
+ * A suite that failed to load has no test results; it is one failure of its own.
+ * @param {object} [results] - Vitest JSON report.
+ * @param {string} [root] - Engine tree. File paths are made relative to it.
+ * @returns {Array<{file: string, test: string, message: string}>} One entry per failed test or suite.
+ * @memberof UnderpostTesting
+ */
+const testFailuresFactory = (results = {}, root = '') => {
+  const prefix = root ? `${root.replace(/\/+$/, '')}/` : '';
+  // Frames inside dependencies and Node name the runner, not the failure.
+  const relative = (text) =>
+    stripAnsi(text)
+      .replaceAll(prefix, '')
+      .split('\n')
+      .filter((line) => !/^\s*at .*(node_modules\/|node:|<anonymous>)/.test(line))
+      .join('\n');
+  return (results.testResults ?? []).flatMap(({ name = '', status, message = '', assertionResults = [] }) => {
+    const file = relative(name);
+    const tests = assertionResults
+      .filter(({ status: result }) => result === 'failed')
+      .map(({ fullName = '', title = '', failureMessages = [] }) => ({
+        file,
+        test: fullName || title,
+        message: relative(failureMessages.join('\n')),
+      }));
+    if (tests.length > 0 || status !== 'failed') return tests;
+    return [{ file, test: '(the suite failed before a test ran)', message: relative(message) }];
+  });
+};
+
+/**
+ * @method testLogTail
+ * @description The last lines of a batch log, without colour codes.
+ * @param {string} [text] - Log content.
+ * @param {number} [lines] - Lines to keep.
+ * @returns {string} The lines, empty when the log is empty.
+ * @memberof UnderpostTesting
+ */
+const testLogTail = (text = '', lines = 30) => stripAnsi(text).trimEnd().split('\n').slice(-lines).join('\n');
+
+/** The first lines of a message, with a count of those left out. */
+const clipLines = (text, limit) => {
+  const lines = `${text}`.trim().split('\n');
+  return lines.length > limit ? [...lines.slice(0, limit), `... ${lines.length - limit} more lines`] : lines;
+};
+
+/**
+ * @method testRunFailureReportFactory
+ * @description Renders what went wrong in a run: each failed test with its error, and for every
+ * batch that ended without a report, the end of its log.
+ * @param {object} manifest - Run manifest.
+ * @param {Object<string, {failures?: object[], tail?: string, thresholdLines?: string[]}>} [evidence] - Evidence by
+ *   batch index, and `merge`.
+ * @returns {string} Report, empty when the run has nothing to explain.
+ * @memberof UnderpostTesting
+ */
+const testRunFailureReportFactory = ({ batches = [], merge } = {}, evidence = {}) => {
+  const passed = ({ status }) => status === 'passed' || status === 'skipped' || status === 'pending';
+  const failedTests = batches.flatMap((batch) =>
+    (evidence[batch.index]?.failures ?? []).map((failure) => ({ ...failure, project: batch.projects.join(',') })),
+  );
+  const sections = [];
+  if (failedTests.length > 0) {
+    const files = new Set(failedTests.map(({ file }) => file));
+    sections.push(`Failed tests: ${failedTests.length} in ${files.size} file(s)`);
+    failedTests.forEach(({ project, file, test, message }, position) =>
+      sections.push(
+        [
+          `${position + 1}) [${project}] ${file}`,
+          `   ${test}`,
+          ...clipLines(message, 14).map((line) => `   | ${line}`),
+        ].join('\n'),
+      ),
+    );
+  }
+  for (const batch of batches) {
+    if (passed(batch) || (batch.status === 'failed' && (evidence[batch.index]?.failures ?? []).length > 0)) continue;
+    const { tail = '' } = evidence[batch.index] ?? {};
+    sections.push(
+      [
+        `Batch ${batch.index} (${batch.projects.join(',')}) ${batch.status}: ${tail ? 'end of' : 'no output in'} ${batch.log ?? 'its log'}`,
+        ...(tail ? tail.split('\n').map((line) => `   | ${line}`) : []),
+      ].join('\n'),
+    );
+  }
+  if (merge && !passed(merge)) {
+    const { tail = '', thresholdLines = [] } = evidence.merge ?? {};
+    const lines = failedTests.length > 0 ? thresholdLines : tail ? tail.split('\n') : [];
+    sections.push(
+      [
+        `Merge ${merge.status}: ${failedTests.length > 0 ? 'it replays the failed tests above' : 'end of its log'}${merge.log ? `, ${merge.log}` : ''}`,
+        ...lines.map((line) => `   | ${line}`),
+      ].join('\n'),
+    );
+  }
+  return sections.join('\n\n');
+};
+
+/**
+ * @method githubAnnotationsFactory
+ * @description Renders failed tests as GitHub Actions workflow commands, so the run page lists them.
+ * @param {Array<{file: string, test: string, message: string}>} failures - Failed tests.
+ * @param {number} [limit] - Annotations to keep. GitHub shows ten per step.
+ * @returns {string[]} Workflow command lines.
+ * @memberof UnderpostTesting
+ */
+const githubAnnotationsFactory = (failures = [], limit = 10) => {
+  const data = (text) => `${text}`.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+  const property = (text) => data(text).replaceAll(':', '%3A').replaceAll(',', '%2C');
+  return failures
+    .slice(0, limit)
+    .map(
+      ({ file, test, message }) =>
+        `::error file=${property(file)},title=${property(test)}::${data(clipLines(message, 8).join('\n'))}`,
+    );
 };
 
 /** A run id: the UTC start time to the millisecond, then the runner's process id. */
@@ -1229,6 +1369,10 @@ export {
   testProjectsFactory,
   testRunIdFactory,
   testRunReportFactory,
+  testRunFailureReportFactory,
+  testFailuresFactory,
+  testLogTail,
+  githubAnnotationsFactory,
   testRunStatus,
   vitestArgsFactory,
   vitestEnvFactory,

@@ -7,12 +7,16 @@ import {
   UNDERPOST_TESTING,
   coverageIncludeFactory,
   coverageThresholdFactory,
+  githubAnnotationsFactory,
   impactSelector,
   staleTestRuns,
   testBatchStatus,
   testExecutionPlanFactory,
+  testFailuresFactory,
   testFootprintFactory,
+  testLogTail,
   testProjectsFactory,
+  testRunFailureReportFactory,
   testRunIdFactory,
   testRunReportFactory,
   testRunStatus,
@@ -118,6 +122,8 @@ describe('execution plan', () => {
         groupOrder: 7,
         projects: ['underpost:integration:ingress'],
         report: `${UNDERPOST_TESTING.runs.reportDirectory}/batch-001.blob`,
+        results: `${UNDERPOST_TESTING.runs.resultsDirectory}/batch-001.json`,
+        log: `${UNDERPOST_TESTING.runs.logDirectory}/batch-001.log`,
       },
     ]);
     expect(coverageInclude).to.deep.equal(coverageIncludeFactory(['--project', ...projects]));
@@ -347,6 +353,105 @@ describe('run report', () => {
     const lines = testRunReportFactory(diagnosed).split('\n');
     expect(lines[0]).to.match(/peak rss\s+cpu$/);
     expect(lines[1]).to.match(/512MB\s+2\.5s$/);
+  });
+});
+
+describe('failure report', () => {
+  const root = '/__w/engine';
+  const results = {
+    testResults: [
+      {
+        name: `${root}/test/a.test.js`,
+        status: 'failed',
+        message: '',
+        assertionResults: [
+          { fullName: 'a reads one', status: 'passed', failureMessages: [] },
+          {
+            fullName: 'a reads two',
+            status: 'failed',
+            failureMessages: [
+              `\u001b[31mAssertionError: expected 1 to be 2\u001b[39m\n at ${root}/src/a.js:3:1\n at file://${root}/node_modules/vitest/run.js:1:1`,
+            ],
+          },
+        ],
+      },
+      {
+        name: `${root}/test/b.test.js`,
+        status: 'failed',
+        message: `Error: Cannot find module '${root}/x.js'`,
+        assertionResults: [],
+      },
+      { name: `${root}/test/c.test.js`, status: 'passed', message: '', assertionResults: [] },
+    ],
+  };
+
+  it('lists each failed test and each suite that did not load, with paths relative to the tree', () => {
+    expect(testFailuresFactory(results, root)).to.deep.equal([
+      { file: 'test/a.test.js', test: 'a reads two', message: 'AssertionError: expected 1 to be 2\n at src/a.js:3:1' },
+      {
+        file: 'test/b.test.js',
+        test: '(the suite failed before a test ran)',
+        message: "Error: Cannot find module 'x.js'",
+      },
+    ]);
+    expect(testFailuresFactory({}, root)).to.deep.equal([]);
+  });
+
+  const manifest = {
+    batches: [
+      { index: 1, projects: ['underpost:audit'], status: 'passed', log: 'logs/batch-001.log' },
+      { index: 2, projects: ['underpost:unit'], status: 'failed', log: 'logs/batch-002.log' },
+      { index: 3, projects: ['cyberia:unit'], status: 'killed', log: 'logs/batch-003.log' },
+    ],
+    merge: { status: 'failed', log: 'logs/merge.log' },
+  };
+
+  it('names the failed tests, the batch that wrote no results and the gate that failed', () => {
+    const report = testRunFailureReportFactory(manifest, {
+      2: { failures: testFailuresFactory(results, root), tail: 'noise' },
+      3: { failures: [], tail: 'Killed\nlast line' },
+      merge: {
+        tail: 'noise',
+        thresholdLines: ['ERROR: Coverage for lines (79%) does not meet global threshold (80%)'],
+      },
+    });
+    expect(report).to.include('Failed tests: 2 in 2 file(s)');
+    expect(report).to.include('1) [underpost:unit] test/a.test.js\n   a reads two\n   | AssertionError');
+    expect(report).to.include('2) [underpost:unit] test/b.test.js');
+    expect(report).to.include('Batch 3 (cyberia:unit) killed: end of logs/batch-003.log\n   | Killed\n   | last line');
+    expect(report).to.include('Merge failed: it replays the failed tests above, logs/merge.log');
+    expect(report).to.include('| ERROR: Coverage for lines (79%) does not meet global threshold (80%)');
+    expect(report).to.not.include('noise');
+    expect(report).to.not.include('Batch 1');
+  });
+
+  it('shows the end of the merge log when no test failed', () => {
+    const report = testRunFailureReportFactory(
+      { batches: [], merge: { status: 'error', log: 'logs/merge.log' } },
+      { merge: { tail: 'boom' } },
+    );
+    expect(report).to.equal('Merge error: end of its log, logs/merge.log\n   | boom');
+    expect(testRunFailureReportFactory({ batches: [{ index: 1, projects: ['x'], status: 'passed' }] })).to.equal('');
+  });
+
+  it('clips a long message and keeps the end of a log', () => {
+    const message = Array.from({ length: 40 }, (_, line) => `line ${line}`).join('\n');
+    const report = testRunFailureReportFactory(
+      { batches: [{ index: 1, projects: ['x'], status: 'failed' }] },
+      { 1: { failures: [{ file: 'f.js', test: 't', message }] } },
+    );
+    expect(report).to.include('| line 13').and.not.include('| line 14');
+    expect(report).to.include('| ... 26 more lines');
+    expect(testLogTail(`${message}\n`, 2)).to.equal('line 38\nline 39');
+    expect(testLogTail('\u001b[31mred\u001b[39m')).to.equal('red');
+  });
+
+  it('renders GitHub annotations with the escapes the workflow command needs', () => {
+    expect(githubAnnotationsFactory([{ file: 'a,b.js', test: 'x: y', message: '100%\nnext' }])).to.deep.equal([
+      '::error file=a%2Cb.js,title=x%3A y::100%25%0Anext',
+    ]);
+    const many = Array.from({ length: 12 }, () => ({ file: 'f', test: 't', message: 'm' }));
+    expect(githubAnnotationsFactory(many)).to.have.length(10);
   });
 });
 

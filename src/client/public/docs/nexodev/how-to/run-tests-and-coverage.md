@@ -222,6 +222,9 @@ Each run writes to `.vitest/test-runs/<run-id>/`:
   manifest.json          selector, footprint, batches, the status of each batch and of the merge
   blobs/batch-001.blob   results and raw coverage of batch 1
   blobs/batch-002.blob
+  results/batch-001.json test results of batch 1, as JSON
+  logs/batch-001.log     everything batch 1 wrote to the console
+  logs/merge.log         the output of the merge
 ```
 
 The runner keeps the five newest runs. It deletes older runs before a new run
@@ -249,6 +252,17 @@ every blob. The run passes only when every batch and the merge passed.
 At the end, the runner prints one row per batch: the batch, its projects, status,
 exit code, signal and duration. A killed batch writes no blob, so the merge of
 the other batches can pass. The run still fails.
+
+When the run fails, the runner then prints what went wrong:
+
+- Each failed test, with its project, file and error. A suite that fails to load
+  is one failure.
+- For a batch that wrote no results (killed, timeout, error), the end of its log.
+- For the merge, the failed coverage threshold, or the end of its log.
+
+Read `logs/` and `results/` in the run directory for the complete output. On
+GitHub Actions, the runner also writes one annotation for each of the first ten
+failed tests, and the report to the job summary.
 
 Ctrl+C stops the running batch and the run. A second Ctrl+C sends SIGKILL. When
 a batch ends, the runner kills every process the batch left behind.

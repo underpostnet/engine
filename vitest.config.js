@@ -12,6 +12,7 @@ import { loadProductContexts } from './src/server/build/catalog.js';
 
 const allureResultsDirectory = process.env[UNDERPOST_TESTING.allureResultsEnvKey];
 const batchReport = process.env[UNDERPOST_TESTING.batchReportEnvKey];
+const batchResults = process.env[UNDERPOST_TESTING.batchResultsEnvKey];
 const footprint = testFootprintFactory(process.env[UNDERPOST_TESTING.footprintEnvKey]);
 const coverageThreshold = coverageThresholdFactory(process.env);
 const productContexts = await loadProductContexts();
@@ -40,6 +41,8 @@ export default defineConfig({
       ...(allureResultsDirectory ? [['allure-vitest/reporter', { resultsDir: allureResultsDirectory }]] : []),
       // A batch of `node bin test`: the runner merges every blob of the run at the end.
       ...(batchReport ? [['blob', { outputFile: batchReport }]] : []),
+      // The failure report of the runner reads these results.
+      ...(batchResults ? [['json', { outputFile: batchResults }]] : []),
     ],
     coverage: {
       provider: 'v8',

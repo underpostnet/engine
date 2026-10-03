@@ -26,12 +26,16 @@ import {
   allureManifestsFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  githubAnnotationsFactory,
   impactSelector,
   resolveTestProjects,
   staleTestRuns,
   testBatchStatus,
   testExecutionPlanFactory,
+  testFailuresFactory,
   testJobManifestFactory,
+  testLogTail,
+  testRunFailureReportFactory,
   testRunIdFactory,
   testRunReportFactory,
   testRunStatus,
@@ -44,6 +48,12 @@ const logger = loggerFactory(import.meta);
 
 /** Signals that stop a run. The runner forwards them to the running batch. */
 const INTERRUPT_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+
+/** Time a batch gets to hand over the output that is left in its pipes after it exits. */
+const LOG_FLUSH_MS = 1000;
+
+/** Lines of the merge log that explain a failed gate. */
+const GATE_LINE = /does not meet|threshold/i;
 
 /** Linux reports CPU time in USER_HZ ticks, fixed at 100 per second. */
 const CLOCK_TICKS_PER_SECOND = 100;
@@ -120,10 +130,28 @@ const runTestProcess = ({
   graceMs = UNDERPOST_TESTING.runs.terminationGraceMs,
   diagnose = false,
   control = {},
+  logPath = '',
 }) =>
   new Promise((resolve) => {
     const started = performance.now();
-    const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'inherit', 'inherit'], detached: true });
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      stdio: ['ignore', logPath ? 'pipe' : 'inherit', logPath ? 'pipe' : 'inherit'],
+      detached: true,
+    });
+    // The output reaches the console as it is written and stays in the log file for the report.
+    const log = logPath ? fs.createWriteStream(logPath) : null;
+    const closed = log ? new Promise((done) => child.once('close', done)) : null;
+    if (log)
+      for (const [stream, sink] of [
+        [child.stdout, process.stdout],
+        [child.stderr, process.stderr],
+      ])
+        stream.on('data', (chunk) => {
+          sink.write(chunk);
+          log.write(chunk);
+        });
     control.child = child;
     let timedOut = false;
     let diagnostics = null;
@@ -165,13 +193,18 @@ const runTestProcess = ({
         logger.warn('Killing the processes the batch left behind', { pid: child.pid });
         signalGroup('SIGKILL');
       }
-      resolve({
+      const outcome = {
         exitCode,
         signal,
         timedOut,
         durationMs: Math.round(performance.now() - started),
         ...(diagnose ? { diagnostics } : {}),
-      });
+      };
+      if (!log) return resolve(outcome);
+      // The pipes can hold output after the exit, and a process left behind can keep them open.
+      Promise.race([closed, new Promise((wait) => setTimeout(wait, LOG_FLUSH_MS))]).then(() =>
+        log.end(() => resolve(outcome)),
+      );
     };
     child.once('error', (error) => {
       logger.error('Batch process failed to start', { command, message: error.message });
@@ -179,6 +212,44 @@ const runTestProcess = ({
     });
     child.once('exit', finish);
   });
+
+/**
+ * What a failed run leaves to read: the failed tests of each batch, the end of the log of a
+ * batch that wrote no results, and the lines of the merge log that explain a failed gate.
+ * @param {object} params
+ * @param {object} params.manifest - Run manifest.
+ * @param {string} params.runDirectory - Directory of the run.
+ * @param {string} params.root - Engine tree.
+ * @returns {Object<string, {failures?: object[], tail?: string, thresholdLines?: string[]}>} Evidence by batch index, and `merge`.
+ */
+const runEvidenceFactory = ({ manifest, runDirectory, root }) => {
+  const read = (file, fallback) => {
+    try {
+      return file ? fs.readFileSync(nodePath.join(runDirectory, file), 'utf8') : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const evidence = {};
+  for (const { index, results, log } of manifest.batches) {
+    let failures = [];
+    try {
+      failures = testFailuresFactory(JSON.parse(read(results, '{}')), root);
+    } catch {}
+    evidence[index] = { failures, tail: testLogTail(read(log, '')) };
+  }
+  if (manifest.merge) {
+    const log = read(manifest.merge.log, '');
+    evidence.merge = {
+      tail: testLogTail(log),
+      thresholdLines: testLogTail(log, Infinity)
+        .split('\n')
+        .filter((line) => GATE_LINE.test(line))
+        .slice(0, 10),
+    };
+  }
+  return evidence;
+};
 
 /**
  * The paths a change touches: against a git ref, or the working tree when none is named.
@@ -304,7 +375,10 @@ class UnderpostTest {
       const runDirectory = nodePath.join(runsDirectory, runId);
       const reportsDirectory = nodePath.join(runDirectory, reportDirectory);
       fs.mkdirSync(reportsDirectory, { recursive: true });
+      for (const directoryName of [UNDERPOST_TESTING.runs.resultsDirectory, UNDERPOST_TESTING.runs.logDirectory])
+        fs.mkdirSync(nodePath.join(runDirectory, directoryName), { recursive: true });
       const manifestPath = nodePath.join(runDirectory, 'manifest.json');
+      const mergeLog = `${UNDERPOST_TESTING.runs.logDirectory}/merge.log`;
       const manifest = {
         runId,
         selector: suite || 'all',
@@ -313,7 +387,7 @@ class UnderpostTest {
         grep,
         excluded: plan.excluded.map(({ name }) => name),
         batches: plan.batches.map((batch) => ({ ...batch, status: 'pending' })),
-        ...(vitestBatches.length > 0 ? { merge: { status: 'pending' } } : {}),
+        ...(vitestBatches.length > 0 ? { merge: { status: 'pending', log: mergeLog } } : {}),
         status: 'running',
       };
       const save = () => fs.writeJsonSync(manifestPath, manifest, { spaces: 2 });
@@ -337,6 +411,8 @@ class UnderpostTest {
         } catch {}
       };
       const timeoutMs = Number(batchTimeout) * 60 * 1000 || 0;
+      // A pipe is not a terminal: keep the colour a person at one reads.
+      const colorEnv = process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: '1' } : {};
       const vitest = vitestBatches.length > 0 ? vitestEntry(root) : '';
       const record = ({ exitCode, signal, timedOut, durationMs, diagnostics }, reported) => ({
         status: testBatchStatus({ exitCode, signal, timedOut, reported, interrupted: Boolean(control.interrupted) }),
@@ -368,6 +444,7 @@ class UnderpostTest {
             timeoutMs,
             diagnose,
             control,
+            logPath: nodePath.join(runDirectory, batch.log),
           });
           return record(outcome, true);
         }
@@ -386,16 +463,21 @@ class UnderpostTest {
             }),
           ],
           cwd: root,
-          env: vitestEnvFactory({
-            env: process.env,
-            footprint: plan.footprint,
-            report,
-            allureResultsDirectory,
-            diagnose,
-          }),
+          env: {
+            ...vitestEnvFactory({
+              env: process.env,
+              footprint: plan.footprint,
+              report,
+              results: nodePath.join(runDirectory, batch.results),
+              allureResultsDirectory,
+              diagnose,
+            }),
+            ...colorEnv,
+          },
           timeoutMs,
           diagnose,
           control,
+          logPath: nodePath.join(runDirectory, batch.log),
         });
         // The blob holds the batch coverage; the raw files of a stopped batch can be large.
         fs.removeSync(coverageDirectory);
@@ -436,12 +518,13 @@ class UnderpostTest {
                 ...vitestArgsFactory({ projects: plan.projects, coverage, mergeReports: reportsDirectory }),
               ],
               cwd: root,
-              env: vitestEnvFactory({ env: process.env, footprint: plan.footprint, diagnose }),
+              env: { ...vitestEnvFactory({ env: process.env, footprint: plan.footprint, diagnose }), ...colorEnv },
               timeoutMs,
               diagnose,
               control,
+              logPath: nodePath.join(runDirectory, mergeLog),
             });
-            manifest.merge = record(outcome, true);
+            manifest.merge = { ...record(outcome, true), log: mergeLog };
           }
         }
       } finally {
@@ -452,11 +535,25 @@ class UnderpostTest {
 
       console.log(testRunReportFactory(manifest));
       if (manifest.status !== 'passed') {
+        const evidence = runEvidenceFactory({ manifest, runDirectory, root });
+        const failedTests = manifest.batches.flatMap(({ index }) => evidence[index]?.failures ?? []);
+        const detail = testRunFailureReportFactory(manifest, evidence);
+        if (detail) console.log(`\n${detail}\n`);
+        console.log(`Run directory: ${nodePath.relative(root, runDirectory)} (manifest.json, logs/, results/)`);
+        if (process.env.GITHUB_ACTIONS) {
+          for (const annotation of githubAnnotationsFactory(failedTests)) console.log(annotation);
+          if (process.env.GITHUB_STEP_SUMMARY)
+            fs.appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `## Test run ${runId}: ${manifest.status}\n\n\`\`\`text\n${testRunReportFactory(manifest)}\n\n${detail}\n\`\`\`\n`,
+            );
+        }
         const failures = [
           ...manifest.batches
             .filter(({ status }) => status !== 'passed' && status !== 'skipped')
             .map(({ index, projects, status }) => `batch ${index} (${projects.join(',')}) ${status}`),
           ...(manifest.merge && manifest.merge.status !== 'passed' ? [`merge ${manifest.merge.status}`] : []),
+          ...(failedTests.length > 0 ? [`${failedTests.length} failed test(s)`] : []),
         ];
         throw new Error(`[test] run ${runId} ${manifest.status}: ${failures.join('; ')}`);
       }

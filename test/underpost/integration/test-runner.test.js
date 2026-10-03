@@ -84,6 +84,14 @@ describe('batch process', () => {
     fs.removeSync(nodePath.dirname(pidFile));
   }, 20000);
 
+  it('keeps the output of a batch in its log, and shows it as well', async () => {
+    const logPath = nodePath.join(fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-batch-')), 'batch.log');
+    const outcome = await node("console.log('to out'); console.error('to err')", { logPath });
+    expect(outcome.exitCode).to.equal(0);
+    expect(fs.readFileSync(logPath, 'utf8').split('\n').sort()).to.deep.equal(['', 'to err', 'to out']);
+    fs.removeSync(nodePath.dirname(logPath));
+  });
+
   it('reports a batch that cannot start', async () => {
     const outcome = await runTestProcess({ command: nodePath.join(os.tmpdir(), 'no-such-binary'), cwd: os.tmpdir() });
     expect(outcome).to.include({ exitCode: null, signal: null });
@@ -183,6 +191,15 @@ it('reads two and three', () => {
     expect(merge.status).to.equal('failed');
     expect(status).to.equal('failed');
     expect(fs.readFileSync(lcovPath(), 'utf8')).to.include('SF:src/projects/underpost/fixture.js');
+    // The report names the failed test and its error, and the run keeps the log and the results.
+    expect(output).to.include('Failed tests: 1 in 1 file(s)');
+    expect(output).to.include('1) [underpost:audit] test/underpost/audit/audit.test.js\n   reads one');
+    expect(output).to.include('expected 1 to be +0');
+    expect(output).to.include('Merge failed: it replays the failed tests above');
+    expect(output).to.include('1 failed test(s)');
+    expect(batches[0]).to.include({ results: 'results/batch-001.json', log: 'logs/batch-001.log' });
+    expect(fs.readFileSync(nodePath.join(runDirectory(pid), batches[0].log), 'utf8')).to.include('reads one');
+    expect(fs.readJsonSync(nodePath.join(runDirectory(pid), batches[0].results)).numFailedTests).to.equal(1);
   });
 
   it('applies the coverage threshold once, to the merged coverage', async () => {
@@ -213,6 +230,7 @@ it('reads two and three', () => {
     const { batches, merge, status } = manifestOf(pid);
     expect(batches[0]).to.include({ status: 'killed', signal: 'SIGKILL', exitCode: null });
     expect(batches[1].status).to.equal('passed');
+    expect(output).to.include('Batch 1 (underpost:audit) killed');
     // The report of the other batch merges green; the run still fails.
     expect(merge.status).to.equal('passed');
     expect(status).to.equal('failed');
