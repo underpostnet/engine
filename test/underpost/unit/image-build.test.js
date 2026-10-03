@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import fs from 'fs-extra';
+import os from 'os';
+import nodePath from 'path';
 import shell from 'shelljs';
 import UnderpostImage from '../../../src/cli/image.js';
 
@@ -28,6 +31,53 @@ describe('image build', () => {
     expect(commands.find((command) => command.includes('podman build'))).to.include(
       `-t 'engine-builder:v1' --target 'builder' --pull=never`,
     );
+  });
+});
+
+describe('image build base images', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Builds a context holding `dockerfile`; podman holds the images in `held`. */
+  const build = (dockerfile, held = []) => {
+    const path = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'image-base-'));
+    fs.writeFileSync(nodePath.join(path, 'Dockerfile'), dockerfile);
+    const commands = [];
+    vi.spyOn(shell, 'exec').mockImplementation((command) => {
+      commands.push(command);
+      const missing = command.includes('image exists') && !held.some((image) => command.includes(`'${image}'`));
+      return { code: missing ? 1 : 0, stdout: '', stderr: '', toString: () => '' };
+    });
+    try {
+      UnderpostImage.API.build({ path, imageName: 'engine:v1' });
+    } finally {
+      fs.removeSync(path);
+    }
+    return commands.filter((command) => command.includes(' pull ')).map((command) => command.split(' pull ')[1]);
+  };
+
+  it('pulls the qualified base of every stage that is not held, before the build', () => {
+    const pulls = build(
+      [
+        'ARG BUILD_MODE=RELEASE',
+        'FROM golang:1.25 AS builder',
+        'FROM --platform=linux/amd64 emscripten/emsdk:5.0.6 AS tools',
+        'FROM quay.io/org/base:1 AS runtime',
+        'FROM builder AS final',
+        'FROM scratch',
+        'FROM source-${SOURCE} AS other',
+      ].join('\n'),
+    );
+    expect(pulls).toEqual([
+      `'docker.io/library/golang:1.25'`,
+      `'docker.io/emscripten/emsdk:5.0.6'`,
+      `'quay.io/org/base:1'`,
+    ]);
+  });
+
+  it('skips a base that podman holds', () => {
+    expect(build('FROM golang:1.25\nFROM rockylinux/rockylinux:9', ['docker.io/library/golang:1.25'])).toEqual([
+      `'docker.io/rockylinux/rockylinux:9'`,
+    ]);
   });
 });
 
