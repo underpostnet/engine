@@ -243,6 +243,29 @@ describe('the pod bootstrap can write what it installs', () => {
   });
 });
 
+describe('the pod bootstrap places the cloned source at the engine directory', () => {
+  const bootstrap = (repo) =>
+    execFileSync('bash', ['-c', `source "${hostLib}"; pod_bootstrap_cmd dd-core production ${repo}`], {
+      encoding: 'utf8',
+    })
+      .split(',')
+      .map((step) => step.trim());
+
+  it('moves a product repository clone onto the engine directory', () => {
+    const steps = bootstrap('owner/engine-test-core');
+
+    expect(steps).to.include('cp -a /home/dd/engine-test-core/. /home/dd/engine/');
+    expect(steps).to.include('rm -rf /home/dd/engine-test-core');
+  });
+
+  it('does not copy the monorepo clone onto itself', () => {
+    const steps = bootstrap('owner/engine');
+
+    expect(steps.filter((step) => step.startsWith('cp -a') || step.startsWith('rm -rf'))).to.deep.equal([]);
+    expect(steps.indexOf('underpost clone owner/engine')).to.be.lessThan(steps.indexOf('cd /home/dd/engine'));
+  });
+});
+
 describe('has_changes reads a checkout the caller names', () => {
   const query = (call) =>
     execFileSync('bash', ['-c', `source "${hostLib}"; sudo() { printf '%s\\n' "$*"; }; ${call}`], {

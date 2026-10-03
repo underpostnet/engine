@@ -243,13 +243,18 @@ pod_bootstrap_cmd() {
     local env="${2:-production}"
     local repo="${3:-underpostnet/engine-${deploy_id#dd-}}"
     local name="${repo##*/}"
+    local relocate=''
+
+    # The monorepo clones into the engine directory already.
+    if [ "$name" != engine ]; then
+        relocate="mkdir -p /home/dd/engine, \
+cp -a /home/dd/${name}/. /home/dd/engine/, \
+rm -rf /home/dd/${name}, "
+    fi
 
     printf '%s' "cd /home/dd, \
 underpost clone ${repo}, \
-mkdir -p /home/dd/engine, \
-cp -a /home/dd/${name}/. /home/dd/engine/, \
-rm -rf /home/dd/${name}, \
-cd /home/dd/engine, \
+${relocate}cd /home/dd/engine, \
 sudo mkdir -p \$(npm prefix -g)/lib/node_modules \$(npm prefix -g)/bin, \
 sudo chown -R \$(id -u):\$(id -g) \$(npm prefix -g)/lib/node_modules \$(npm prefix -g)/bin, \
 npm install, \
