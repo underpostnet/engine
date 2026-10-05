@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
-    "chai": "^6.2.2",
+    "chai": "^6.3.0",
     "hardhat": "~3.18.0"
   },
   "dependencies": {
