@@ -131,11 +131,11 @@
   },
   "devDependencies": {
     "@socketsecurity/cli": "1.1.179",
-    "@vitest/coverage-v8": "5.0.1",
-    "allure-vitest": "3.12.2",
+    "@vitest/coverage-v8": "5.0.3",
+    "allure-vitest": "3.13.0",
     "bumpp": "^12.3.0",
-    "chai": "^6.2.2",
-    "vitest": "5.0.1"
+    "chai": "^6.3.0",
+    "vitest": "5.0.3"
   },
   "publishConfig": {
     "provenance": true,
