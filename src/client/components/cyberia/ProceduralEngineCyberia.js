@@ -6,6 +6,8 @@
  * which runs without this page. The moderator then reviews each candidate, finishes it in the Object
  * Layer Studio, approves it and promotes it. Every mode, palette and template this view offers comes
  * from the server configuration; every generation, validation and diversity decision is the server's.
+ * Every role sees the same view. Only a moderator reads the runs and changes them; another role who
+ * tries a change gets a permission notification.
  *
  * @module src/client/components/cyberia/ProceduralEngineCyberia.js
  */
@@ -121,10 +123,11 @@ const show = (selector, on) => {
   if (s(selector)) s(selector).style.display = on ? '' : 'none';
 };
 const notify = (text, status = 'error') => NotificationManager.Push({ html: text, status });
+const denied = () => notify(`Permission denied. ${ACCESS_MESSAGE}`);
 /** Tells why a request failed: a conflict, a refusal for lack of the moderator role, or the server message. */
 const refusal = (response) => {
   if (response.code === 409) return notify(`Conflict detected. ${response.message}`, 'warning');
-  if (response.code === 401 || response.code === 403) return notify(`Permission denied. ${ACCESS_MESSAGE}`);
+  if (response.code === 401 || response.code === 403) return denied();
   return notify(response.message);
 };
 
@@ -186,7 +189,7 @@ class ProceduralEngineCyberia {
     if (!entry) return false;
     setPath(`${getProxyPath()}${ROUTE}`);
     setQueryParams({ cid: null, review: null, id: null, job: jobId ?? null }, { replace: true });
-    if (s('.procedural-engine') && ProceduralEngineCyberia.canMutate) ProceduralEngineCyberia.select(jobId ?? '');
+    if (s('.procedural-engine') && ProceduralEngineCyberia.config) ProceduralEngineCyberia.select(jobId ?? '');
     entry.click();
     return true;
   }
@@ -199,7 +202,6 @@ class ProceduralEngineCyberia {
       seen: null,
       job: null,
     });
-    const { canMutate } = ProceduralEngineCyberia;
     const configured = await CyberiaProceduralProfileService.getConfig();
     const config = configured.status === 'success' ? configured.data : null;
     Object.assign(ProceduralEngineCyberia, { config, itemType: config?.generators[0]?.itemType ?? '' });
@@ -208,28 +210,6 @@ class ProceduralEngineCyberia {
       html`<div class="in studio-group">
         <div class="in studio-group-title"><i class="${icon}"></i> ${title}</div>
         ${inner}
-      </div>`;
-    if (!canMutate)
-      return html`<div class="in section-mp studio-editor procedural-engine">
-        ${group(
-          'Procedural generation',
-          'fa-solid fa-lock',
-          html`<div class="in procedural-access">${ACCESS_MESSAGE}</div>`,
-        )}
-        ${
-          config
-            ? group(
-                'Palette catalog',
-                'fa-solid fa-palette',
-                html`${config.palettes.palettes
-                  .map(
-                    (palette) =>
-                      `<div class="procedural-palette-row">${swatches(Object.values(palette.roles))}<span>${palette.name}</span><span class="procedural-muted">${palette.family}</span></div>`,
-                  )
-                  .join('')}`,
-              )
-            : ''
-        }
       </div>`;
     if (!config)
       return html`<div class="in section-mp studio-editor procedural-engine">
@@ -360,12 +340,6 @@ class ProceduralEngineCyberia {
           line-height: 1.4;
           white-space: normal;
         }
-        .procedural-engine .procedural-palette-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin: 2px 0;
-        }
         .procedural-engine .procedural-pager {
           display: flex;
           gap: 8px;
@@ -406,7 +380,7 @@ class ProceduralEngineCyberia {
               selectable: true,
               rowId: ({ itemId }) => itemId,
               columnDefs: ProceduralEngineCyberia.sourceColumns(),
-              fetch: (query) => ProceduralEngineCyberia.fetchPage(CyberiaProceduralJobService.getSources(query)),
+              fetch: (query) => ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.getSources(query)),
               onSelectionChanged: () => ProceduralEngineCyberia.selectionChanged(),
             })}
             <div class="in procedural-selection-info procedural-muted" style="margin: 6px 0;"></div>
@@ -458,7 +432,7 @@ class ProceduralEngineCyberia {
             height: '320px',
             rowId: ({ _id }) => _id,
             columnDefs: ProceduralEngineCyberia.jobColumns(),
-            fetch: (query) => ProceduralEngineCyberia.fetchPage(CyberiaProceduralJobService.get(query)),
+            fetch: (query) => ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.get(query)),
             onRowClicked: ({ _id }) => ProceduralEngineCyberia.select(_id),
           })}`,
       )}
@@ -491,9 +465,13 @@ class ProceduralEngineCyberia {
     return html`<div class="in" style="margin-bottom: 8px;">${rendered}</div>`;
   }
 
-  /** The grid answer of a read as `{ data, total }`, or null when the read failed, after the moderator is told. */
+  /**
+   * The grid answer of a moderator read as `{ data, total }`, or null when the read failed, after the
+   * user is told. Another role reads nothing and sees an empty grid.
+   */
   static async fetchPage(read) {
-    const response = await read;
+    if (!ProceduralEngineCyberia.canMutate) return { data: [], total: 0 };
+    const response = await read();
     if (response.status !== 'success') {
       refusal(response);
       return null;
@@ -505,7 +483,9 @@ class ProceduralEngineCyberia {
   static async fetchCandidates(query) {
     const { jobId } = ProceduralEngineCyberia;
     if (!jobId) return { data: [], total: 0 };
-    const page = await ProceduralEngineCyberia.fetchPage(CyberiaProceduralJobService.getItems({ jobId, ...query }));
+    const page = await ProceduralEngineCyberia.fetchPage(() =>
+      CyberiaProceduralJobService.getItems({ jobId, ...query }),
+    );
     if (page) ProceduralEngineCyberia.observe(page.data);
     return page;
   }
@@ -882,6 +862,7 @@ class ProceduralEngineCyberia {
   }
 
   static async create() {
+    if (!ProceduralEngineCyberia.canMutate) return denied();
     const request = ProceduralEngineCyberia.request();
     if (!request) return;
     const response = await CyberiaProceduralJobService.post({ body: request });
@@ -926,7 +907,7 @@ class ProceduralEngineCyberia {
   /** Reads the runs, and the selected run with its candidates, from the server; polls while work is active. */
   static async refresh() {
     clearTimeout(ProceduralEngineCyberia.timer);
-    if (!s('.procedural-engine') || !ProceduralEngineCyberia.canMutate) return;
+    if (!s('.procedural-engine')) return;
     const { jobId } = ProceduralEngineCyberia;
     const [jobs, job] = await Promise.all([
       ProceduralGrid.load(JOBS_GRID),
@@ -1047,6 +1028,7 @@ class ProceduralEngineCyberia {
 
   /** Cancels the workflow of a run after the moderator confirms: nothing generated is deleted. */
   static async cancel(jobId = ProceduralEngineCyberia.jobId) {
+    if (!ProceduralEngineCyberia.canMutate) return denied();
     if (!jobId) return notify('Select a run to cancel.', 'warning');
     const answer = await Modal.RenderConfirm({
       id: 'procedural-cancel-confirm',
@@ -1066,6 +1048,7 @@ class ProceduralEngineCyberia {
    * first; the question says so.
    */
   static async remove(job = ProceduralEngineCyberia.job) {
+    if (!ProceduralEngineCyberia.canMutate) return denied();
     if (!job) return notify('Select a run to delete.', 'warning');
     const active = ProceduralEngineCyberia.canCancel(job);
     const answer = await Modal.RenderConfirm({
@@ -1092,6 +1075,7 @@ class ProceduralEngineCyberia {
 
   /** Promotes the approved candidates of the selected run. */
   static async promote() {
+    if (!ProceduralEngineCyberia.canMutate) return denied();
     if (!ProceduralEngineCyberia.jobId) return notify('Select a run first.', 'warning');
     const response = await CyberiaProceduralJobService.promote({ jobId: ProceduralEngineCyberia.jobId });
     if (response.status !== 'success') return refusal(response);
@@ -1104,6 +1088,7 @@ class ProceduralEngineCyberia {
 
   /** A decision on a candidate. Edit opens the Object Layer Studio on its current revision. */
   static async decide(item, action) {
+    if (!ProceduralEngineCyberia.canMutate) return denied();
     const target = item.targetItemId;
     const response =
       action === 'promote'

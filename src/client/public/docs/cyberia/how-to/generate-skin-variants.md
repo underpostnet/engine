@@ -8,8 +8,9 @@ Studio and promote the approved ones. The model is in
 
 - The host mounts the Procedural Engine APIs. See
   [the reference](../reference/procedural-engine.md#deploy-configuration).
-- Your role is moderator or admin. Another role sees one message, _Moderator access required to
-  manage procedural generation._, and the read-only palette catalog.
+- Your role is moderator or admin. Another role sees the same view with empty grids. A change it
+  tries, such as **Generate**, shows _Permission denied. Moderator access required to manage
+  procedural generation._
 
 ## Choose a mode
 
