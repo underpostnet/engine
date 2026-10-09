@@ -53,4 +53,8 @@ else
     kubectl get pods -A | grep -E "envoy|ingress|gateway" || true
 fi
 
+echo -e "\n${COLOR_CYAN}=== 9. Event Dispatcher (remediation and mail) ===${COLOR_NC}"
+systemctl is-active underpost-event.service || true
+journalctl -u underpost-event.service -n 30 --no-pager || true
+
 echo -e "\n${COLOR_GREEN}Done checking cluster monitoring state.${COLOR_NC}"
