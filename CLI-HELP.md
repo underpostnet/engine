@@ -363,6 +363,8 @@ Displays the current public machine IP addresses.
 | `--block-ingress-port <ports>` | Blocks new inbound traffic on comma-separated TCP ports, leaving the management path reachable. |
 | `--unblock-ingress-port <ports>` | Withdraws the port rules --block-ingress-port installed. |
 | `--mac` | Prints the MAC address of the main network interface. |
+| `--static-ipv4` | Pins the default interface's current IPv4 address, gateway and DNS as a static NetworkManager profile. A timer restores the previous profile after 5 minutes unless the new binding is verified. |
+| `--dry-run` | With --static-ipv4, prints the commands without applying them. |
 | `-h, --help` | display help for command |
 
 ---
@@ -829,7 +831,9 @@ Manages health server monitoring, the cluster observability stack, and host dash
 | `--grafana-host <host>` | Publishes Grafana at https://<host>/grafana through the edge Gateway that already serves that hostname. |
 | `--node-port` | Publishes Grafana on the node's LAN address (port 32300). |
 | `--expose-grafana` | Republishes Grafana with --grafana-host / --node-port without redeploying the stack. |
-| `--webhook-token` | Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the cron deploy env. |
+| `--webhook-token` | Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the host configuration. |
+| `--prune-series` | Deletes Prometheus series of targets the current configuration no longer renders (retired domains and probes). Runs after --sync-prom when both are given. |
+| `--dry-run` | With --prune-series, lists the retired series without deleting them. |
 | `--node-name <k8s-node-name>` | Pins every monitoring workload to this node; moving Grafana deletes and recreates its node-local data. |
 | `--kubeadm` | Treats the cluster as kubeadm when resolving node and host addresses. |
 | `--kind` | Treats the cluster as Kind (Docker nodes) when resolving node and host addresses. |
@@ -962,8 +966,8 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
 | `--check` | Waits for an active interface and a fresh handshake with its required peer. |
 | `--check-timeout <seconds>` | Maximum wait for --check (default: 30). |
-| `--expected-role <role>` | Refuses restart/check unless this host has the expected node role. |
-| `--expected-id <peer-id>` | Refuses restart/check unless this node represents the expected peer id. |
+| `--expected-role <role>` | Refuses setup/restart/check unless this host has the expected node role. |
+| `--expected-id <peer-id>` | Refuses setup/restart/check unless this node represents the expected peer id. |
 | `--wireguard-reset` | Removes generated host state, keeping keys, topology and node identity. |
 | `--wireguard-reinstall` | Full purge, package reinstall and re-key; updates the selected topology key. |
 | `--dry-run` | Prints the files and commands the run would apply, without touching the host. |
@@ -1022,8 +1026,8 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--wireguard-stop` | Tears down the interface and removes its transient packet rules. |
 | `--check` | Waits for an active interface and a fresh handshake with its required peer. |
 | `--check-timeout <seconds>` | Maximum wait for --check (default: 30). |
-| `--expected-role <role>` | Refuses restart/check unless this host has the expected node role. |
-| `--expected-id <peer-id>` | Refuses restart/check unless this node represents the expected peer id. |
+| `--expected-role <role>` | Refuses setup/restart/check unless this host has the expected node role. |
+| `--expected-id <peer-id>` | Refuses setup/restart/check unless this node represents the expected peer id. |
 | `--wireguard-reset` | Removes generated host state, keeping keys, topology and node identity. |
 | `--wireguard-reinstall` | Full purge, package reinstall and re-key; updates the selected topology key. |
 | `--dry-run` | Prints the files and commands the run would apply, without touching the host. |
