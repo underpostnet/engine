@@ -15,6 +15,11 @@ spec:
       labels:
         app: blackbox-exporter
     spec:
+      # The icmp prober tries an unprivileged ping socket first; this range permits it.
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ping_group_range
+            value: '0 2147483647'
       containers:
         - name: blackbox-exporter
           image: prom/blackbox-exporter:latest
@@ -28,9 +33,8 @@ spec:
             capabilities:
               drop:
                 - ALL
-              # The icmp prober opens a raw socket. Without NET_RAW the module
-              # loads and every probe fails at send time, which reads as the
-              # target being down rather than as a misconfigured exporter.
+              # Raw-socket fallback when the ping socket is refused. Without either,
+              # every icmp probe fails and reads as the target being down.
               add:
                 - NET_RAW
           volumeMounts:

@@ -295,6 +295,12 @@ describe('blackboxConfFactory', () => {
     const conf = blackboxConfFactory();
     for (const module of ['http_2xx', 'tcp_connect', 'icmp']) expect(conf).to.include(`${module}:`);
   });
+
+  it('lets the icmp prober open its unprivileged socket, with the raw socket as fallback', () => {
+    const deployment = fs.readFileSync('./manifests/blackbox-exporter/deployment.yaml', 'utf8');
+    expect(deployment).to.include("- name: net.ipv4.ping_group_range\n            value: '0 2147483647'");
+    expect(deployment).to.include('- NET_RAW');
+  });
 });
 
 describe('monitoringConfigFactory', () => {
