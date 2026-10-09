@@ -344,13 +344,14 @@ describe('edge host provisioning', () => {
 
     it('installs the hub interface config, forwarding and firewall rules', () => {
       const { written } = edgeFixture({ files: HUB_IDENTITY_FILES });
-      stubKeyPair();
+      harness.route({ match: 'sudo test -s', code: 0 });
+      harness.route({ match: 'sudo cat', code: 0, stdout: 'hubRotatedKeyFixture=\n' });
       const next = UnderpostWireguard.API.setup({});
       expect(next.role).to.equal('hub');
       expect(harness.ran('install -m 0600 -o root -g root')).to.equal(true);
       expect(harness.ran('echo net.ipv4.ip_forward=1')).to.equal(true);
       expect(harness.ran('sysctl -q --system')).to.equal(true);
-      expect(written.has(EDGE_TOPOLOGY_PATH)).to.equal(true);
+      expect(written.get(EDGE_TOPOLOGY_PATH)).to.include('hubRotatedKeyFixture=');
     });
 
     it('writes a client config that dials the hub endpoint on a spoke', () => {
@@ -371,6 +372,14 @@ describe('edge host provisioning', () => {
       edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
       expect(() => UnderpostWireguard.API.setup({ port: 51821 })).to.throw('configure the hub only');
       expect(() => UnderpostWireguard.API.setup({ sshForwardPort: 2222 })).to.throw('configure the hub only');
+    });
+
+    it('leaves an equivalent topology file as it is', () => {
+      const { written } = edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
+      harness.route({ match: 'sudo test -s', code: 0 });
+      harness.route({ match: 'sudo cat', code: 0, stdout: 'peerAPublicKeyFixture=\n' });
+      UnderpostWireguard.API.setup({});
+      expect(written.has(EDGE_TOPOLOGY_PATH)).to.equal(false);
     });
 
     it('refuses to rebuild a host that is not the expected identity', () => {

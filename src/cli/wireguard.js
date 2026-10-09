@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import { isIP } from 'node:net';
 import os from 'node:os';
 import nodePath from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { getConfFilePath, loadConfInstances, loadConfServerJson, syncPrivateConf } from '../server/runtime/conf.js';
 import { loadDeployCatalog } from '../server/build/catalog.js';
 import { loadCronDeployEnv, parseList } from '../server/ops/cron.js';
@@ -366,7 +367,12 @@ const writeTopology = (topology) => {
   const target = EDGE_TOPOLOGY_PATH;
   const next = `${JSON.stringify(topologyFactory(topology), null, 2)}\n`;
   const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
-  if (current === next) return false;
+  // Equal content keeps the file as it is; only formatting and key order are ignored.
+  let unchanged = current === next;
+  try {
+    unchanged ||= isDeepStrictEqual(JSON.parse(current), JSON.parse(next));
+  } catch (_) {}
+  if (unchanged) return false;
   fs.mkdirpSync(nodePath.dirname(target));
   fs.writeFileSync(target, next, 'utf8');
   return true;
