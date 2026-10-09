@@ -42,6 +42,7 @@ underpost monitor [deploy-id] [env] [options]
 - `--node-port` — publish Grafana on the node's LAN address (port 32300).
 - `--expose-grafana` — republish Grafana with the two flags above without redeploying the stack.
 - `--webhook-token` — print the shared event webhook token, to persist as `UNDERPOST_EVENT_TOKEN` in the host configuration (`engine-private/deploy/scopes/host.env.<env>`).
+- `--prune-series` — delete the Prometheus series of targets the configuration no longer renders; `--dry-run` lists them. See [Pruning retired targets](run-observability-and-events.md#5-pruning-retired-targets).
 
 ## Host and cluster tooling options
 

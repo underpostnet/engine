@@ -24,6 +24,8 @@ spec:
             - '--storage.tsdb.path=/prometheus'
             - '--web.console.libraries=/usr/share/prometheus/console_libraries'
             - '--web.console.templates=/usr/share/prometheus/consoles'
+            # `monitor --prune-series` deletes the series of retired targets through it.
+            - '--web.enable-admin-api'
           ports:
             - containerPort: 9090
               name: web

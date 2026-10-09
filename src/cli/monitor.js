@@ -39,6 +39,7 @@ import {
   monitoringConfigFactory,
   prometheusConfFactory,
   scrapeDeployListFactory,
+  staleSeriesMatchersFactory,
   webhookSecretFactory,
 } from '../server/ops/monitoring.js';
 import axios from 'axios';
@@ -102,6 +103,8 @@ class UnderpostMonitor {
      * @param {string} [options.grafanaHost=''] - Hostname to publish Grafana under, at `/grafana`.
      * @param {boolean} [options.nodePort=false] - Publish Grafana on the node's LAN address.
      * @param {boolean} [options.webhookToken=false] - Print the shared event webhook token and exit.
+     * @param {boolean} [options.pruneSeries=false] - Delete the series of targets the configuration no longer renders.
+     * @param {boolean} [options.dryRun=false] - With `pruneSeries`, list the retired series without deleting them.
      * @param {string} [options.events=''] - Comma-separated event ids to provision; empty selects every registered event.
      * @param {string} [options.webhookUrl=''] - URL Alertmanager delivers events to.
      * @param {string} [options.extraTargets=''] - Comma-separated additional `host:port` scrape targets.
@@ -138,6 +141,8 @@ class UnderpostMonitor {
         grafanaHost: '',
         nodePort: false,
         webhookToken: false,
+        pruneSeries: false,
+        dryRun: false,
         events: '',
         webhookUrl: '',
         extraTargets: '',
@@ -158,7 +163,12 @@ class UnderpostMonitor {
       if (options.exposeGrafana) return Underpost.monitor.exposeGrafana(options);
       if (options.metricsServer) return await Underpost.monitor.deployMetricsServer(options);
       if (options.observability) return await Underpost.monitor.deployObservability({ ...options, deployId });
-      if (options.syncProm) return await Underpost.monitor.syncObservability({ ...options, deployId });
+      if (options.syncProm) {
+        const context = await Underpost.monitor.syncObservability({ ...options, deployId });
+        if (options.pruneSeries) await Underpost.monitor.pruneStaleSeries(options);
+        return context;
+      }
+      if (options.pruneSeries) return await Underpost.monitor.pruneStaleSeries(options);
       if (deployId === 'dd' && deployRoutesExists()) {
         for (const _deployId of readDeployRoutes())
           Underpost.monitor.callback(
@@ -863,6 +873,92 @@ EOF
         grafanaAdminSecret: UNDERPOST_MONITORING.grafana.adminSecretName,
       });
       return context;
+    },
+
+    /**
+     * @method pruneStaleSeries
+     * @description Deletes the series of every target that the current configuration no longer renders.
+     *
+     * Prometheus keeps a retired target until retention ends, so Grafana keeps showing a removed
+     * domain or probe. The active targets decide what stays. Pruning is refused unless they carry
+     * exactly the probes the private configuration renders, so a stale reload deletes nothing.
+     * The delete runs through the admin API that the Prometheus manifest enables.
+     * @param {object} [options]
+     * @param {string} [options.namespace='default'] - Namespace holding the stack.
+     * @param {boolean} [options.dryRun=false] - List the retired series without deleting them.
+     * @param {number} [options.timeoutMs=60000] - Wait for Prometheus to run the rendered probes.
+     * @returns {Promise<{matchers: string[], series: Array<object>}>} Selectors and the series they matched.
+     * @memberof UnderpostMonitor
+     */
+    async pruneStaleSeries(options = {}) {
+      const namespace = options.namespace || 'default';
+      const { prometheus } = UNDERPOST_MONITORING;
+      const state = Underpost.event.deployedEventState({ namespace });
+      if (!state.readable)
+        throw new Error(`[observability] the deployed event set is unreadable; nothing is pruned (${state.reason})`);
+      if (state.ids.length === 0)
+        throw new Error('[observability] no event is deployed (suspended for maintenance?); nothing is pruned');
+      const rendered = new Set(
+        Underpost.event
+          .definitions(state.ids.filter((id) => Underpost.event.EVENTS[id]))
+          .flatMap((event) => event.probes.flatMap((probe) => probe.targets)),
+      );
+
+      const localPort = await Underpost.monitor.findFreePort();
+      const portForward = shellExec(
+        `exec kubectl port-forward service/${prometheus.name} ${localPort}:${prometheus.port} -n ${namespace} ` +
+          `</dev/null >/dev/null 2>&1`,
+        { async: true, silent: true, disableLog: true, silentOnError: true },
+      );
+      const api = `http://127.0.0.1:${localPort}/api/v1`;
+      try {
+        // A reload reaches the target list within seconds; the wait also covers the port-forward start.
+        const deadline = Date.now() + (options.timeoutMs ?? 60000);
+        let active;
+        let current = false;
+        do {
+          try {
+            const { data } = await axios.get(`${api}/targets`, { params: { state: 'active' }, timeout: 5000 });
+            active = data.data.activeTargets.map(({ labels }) => labels);
+            const probed = new Set(active.filter((labels) => labels.underpost_event).map((labels) => labels.instance));
+            current = probed.size === rendered.size && [...rendered].every((target) => probed.has(target));
+          } catch (_) {}
+          if (!current && Date.now() < deadline) await timer(2000);
+        } while (!current && Date.now() < deadline);
+        if (!active) throw new Error('[observability] Prometheus did not answer through kubectl port-forward');
+        if (!current)
+          throw new Error(
+            '[observability] Prometheus does not probe what the private configuration renders; ' +
+              'run node bin monitor --sync-prom, and withdraw OUT_OF_SYNC events with event <id> --undeploy',
+          );
+
+        const matchers = staleSeriesMatchersFactory(active);
+        const query = new URLSearchParams(matchers.map((matcher) => ['match[]', matcher])).toString();
+        const { data } = await axios.get(`${api}/series?${query}`, { timeout: 30000 });
+        const series = data.data;
+        logger.info(options.dryRun ? '[dry-run] Retired series' : 'Retired series', {
+          series: series.length,
+          targets: [...new Set(series.map((labels) => `${labels.job} ${labels.instance || ''}`.trim()))].sort(),
+        });
+        if (options.dryRun || series.length === 0) return { matchers, series };
+
+        try {
+          await axios.post(`${api}/admin/tsdb/delete_series?${query}`, null, { timeout: 120000 });
+          await axios.post(`${api}/admin/tsdb/clean_tombstones`, null, { timeout: 300000 });
+        } catch (error) {
+          if (error.response?.status === 503)
+            throw new Error(
+              '[observability] the Prometheus admin API is disabled; enable it with node bin monitor --observability',
+            );
+          throw error;
+        }
+        logger.info('Retired series pruned', { series: series.length });
+        return { matchers, series };
+      } finally {
+        try {
+          portForward?.kill?.('SIGTERM');
+        } catch (_) {}
+      }
     },
 
     /**

@@ -326,6 +326,22 @@ node bin event wireguard-spoke-down --deploy   # or just one of them
 
 The dispatcher reads the selected host identity, tracked node collection, topology and SSH registry at dispatch time. After changing topology or node membership, run `monitor --sync-prom`. Re-run `event --service` when its unit, its listening port or the webhook token changes.
 
+### 5. Pruning retired targets
+
+A reload stops scraping a removed domain, deploy or peer, but Prometheus keeps its series until retention ends. Grafana then still lists the retired subject in its pickers and timelines. Prune the series after the re-render:
+
+```bash
+node bin monitor --prune-series --dry-run      # list the retired series; delete nothing
+node bin monitor --sync-prom --prune-series    # re-render from dd.routes and conf.server.json, then delete
+```
+
+The active Prometheus targets decide what stays. A job that is no longer rendered loses all its series. A job that remains loses only the instances it no longer scrapes. The command refuses to delete anything while:
+
+- Prometheus does not probe exactly the targets the private configuration renders (run `--sync-prom` first, and withdraw `OUT_OF_SYNC` events with `event <id> --undeploy`),
+- no event is deployed, for example during a maintenance suspension.
+
+The delete uses the Prometheus admin API. The Prometheus manifest enables it with `--web.enable-admin-api`. A cluster that runs an older pod answers `503`; converge the stack with `monitor --observability` once. That rollout restarts Prometheus, and its `emptyDir` TSDB starts empty.
+
 ---
 
 ## What Prometheus scrapes
@@ -1009,6 +1025,8 @@ Cockpit and Prometheus both default to port 9090. They do not collide — Promet
 | `--node-port`                    | Publish Grafana on the node's LAN address (32300)                           |
 | `--expose-grafana`               | Republish Grafana without redeploying the stack                             |
 | `--webhook-token`                | Print the shared event webhook token                                        |
+| `--prune-series`                 | Delete the series of targets the configuration no longer renders            |
+| `--dry-run`                      | With `--prune-series`, list the retired series and delete nothing           |
 | `--kubeadm` / `--kind` / `--k3s` | Cluster runtime, for node and host address resolution                       |
 | `--metrics-server`               | Install the Kubernetes metrics-server                                       |
 | `--cockpit` / `--cockpit-stop`   | Install/enable or stop the Cockpit KVM dashboard on this host               |

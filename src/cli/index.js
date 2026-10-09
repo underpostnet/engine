@@ -730,6 +730,12 @@ program
     'Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the host configuration.',
   )
   .option(
+    '--prune-series',
+    'Deletes Prometheus series of targets the current configuration no longer renders (retired domains and probes). ' +
+      'Runs after --sync-prom when both are given.',
+  )
+  .option('--dry-run', 'With --prune-series, lists the retired series without deleting them.')
+  .option(
     '--node-name <k8s-node-name>',
     'Pins every monitoring workload to this node; moving Grafana deletes and recreates its node-local data.',
   )

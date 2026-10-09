@@ -245,6 +245,42 @@ const deployedEventIdsFactory = (...documents) =>
     .filter((id) => id && id !== '.+')
     .sort();
 
+/** Renders values as one anchored alternation inside a PromQL string literal. */
+const promqlAlternationFactory = (values = []) =>
+  [...new Set(values)]
+    .sort()
+    .map((value) => promRegexEscape(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"'))
+    .join('|');
+
+/**
+ * @method staleSeriesMatchersFactory
+ * @description Series selectors for every target that the running configuration no longer scrapes.
+ *
+ * A retired job is matched whole. A job that remains is matched on its retired instances only.
+ * No active target means no selector, so an empty answer never deletes everything.
+ * @param {Array<{job?: string, instance?: string}>} [activeTargets] - Labels of the active targets.
+ * @returns {string[]} `match[]` selectors for the admin delete API.
+ * @memberof UnderpostMonitoring
+ */
+const staleSeriesMatchersFactory = (activeTargets = []) => {
+  const instancesByJob = new Map();
+  for (const { job, instance } of activeTargets) {
+    if (!job || !instance) continue;
+    if (!instancesByJob.has(job)) instancesByJob.set(job, []);
+    instancesByJob.get(job).push(instance);
+  }
+  if (instancesByJob.size === 0) return [];
+  return [
+    `{job=~".+",job!~"${promqlAlternationFactory([...instancesByJob.keys()])}"}`,
+    ...[...instancesByJob.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(
+        ([job, instances]) =>
+          `{job="${job.replace(/"/g, '\\"')}",instance=~".+",instance!~"${promqlAlternationFactory(instances)}"}`,
+      ),
+  ];
+};
+
 /**
  * @method prometheusConfFactory
  * @description Renders `prometheus.yml`.
@@ -1738,5 +1774,6 @@ export {
   prometheusConfFactory,
   scrapeDeployListFactory,
   serviceDnsFactory,
+  staleSeriesMatchersFactory,
   webhookSecretFactory,
 };
