@@ -1,7 +1,7 @@
 /**
  * The saga marks of the Cyberia Studio: one color per saga code, the badge that names a saga, the
- * context panel badges, and the table column of the sagas each row belongs to (see
- * `src/projects/cyberia/saga-associations.js`).
+ * card and context panel badges, and the table column of the sagas each row belongs to (see
+ * `src/projects/cyberia/saga/saga-associations.js`).
  *
  * @module src/client/components/cyberia/SagaCyberia.js
  */
@@ -26,6 +26,12 @@ export const sagaBadge = (code) => {
   badge.style.background = sagaColor(code);
   return badge;
 };
+
+/** The badges of the sagas a card belongs to, as markup; empty when no saga holds it. */
+export const sagaBadgeList = (codes = []) =>
+  codes.length === 0
+    ? ''
+    : html`<div class="saga-badge-list">${codes.map((code) => sagaBadge(code).outerHTML).join('')}</div>`;
 
 /** The context panel badges of the sagas a target belongs to. */
 export const sagaBadges = (codes) =>

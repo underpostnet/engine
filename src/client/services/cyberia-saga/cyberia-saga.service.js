@@ -5,11 +5,26 @@ const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'cyberia-saga';
 class CyberiaSagaService {
-  /** The saga that defines each item label and map code: `{ items, maps }`. */
+  /** The sagas of each code: `{ items, maps, quests, actions, dialogues }`. */
   static getSources = () =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: 'sources', endpoint }), {
         method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  /** Previews the synchronization of a saga, or applies it with `apply`. */
+  static sync = ({ code, apply = false }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `sync/${encodeURIComponent(code)}`, endpoint }), {
+        method: apply ? 'POST' : 'GET',
         headers: headersFactory(),
         credentials: 'include',
       })

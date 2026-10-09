@@ -1,13 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// A context index in which one saga defines a map and an item; the rest is the foundation's.
+// A context index in which one saga defines a map, an item, a quest and an action; the rest is the
+// foundation's.
 const INDEX = vi.hoisted(() => ({
-  definitions: { 'map.glade': {}, 'map.cave': {}, 'floor.grass': {}, 'prop.lamp': {} },
+  definitions: {
+    'map.glade': {},
+    'map.cave': {},
+    'floor.grass': {},
+    'prop.lamp': {},
+    'quest.ember': {},
+    'action.lantern': {},
+    'quest.raider-toll': {},
+  },
   sources: {
     'map.glade': 'foundation',
     'map.cave': 'ash-signal',
     'floor.grass': 'foundation',
     'prop.lamp': 'ash-signal',
+    'quest.ember': 'ash-signal',
+    'action.lantern': 'ash-signal',
+    'quest.raider-toll': 'foundation',
   },
   labels: { grass: 'floor.grass', lamp: 'prop.lamp' },
 }));
@@ -18,8 +30,12 @@ const stored = vi.hoisted(() => ({
   instances: [],
   confs: [],
   entityDefaults: [],
+  quests: [],
+  actions: [],
 }));
-vi.mock('../../../src/projects/cyberia/content-artifact.js', () => ({ contentArtifact: () => ({ context: INDEX }) }));
+vi.mock('../../../src/projects/cyberia/content/content-artifact.js', () => ({
+  contentArtifact: () => ({ context: INDEX }),
+}));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) => ({
@@ -32,6 +48,8 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
             CyberiaInstance: stored.instances,
             CyberiaInstanceConf: stored.confs,
             CyberiaEntityTypeDefault: stored.entityDefaults,
+            CyberiaQuest: stored.quests,
+            CyberiaAction: stored.actions,
           })[name],
       }),
     }),
@@ -39,7 +57,7 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
 }));
 
 const { keysOfSagas, loadSagaAssociations, sagaAssociations, withSagaFilter } =
-  await import('../../../src/projects/cyberia/saga-associations.js');
+  await import('../../../src/projects/cyberia/saga/saga-associations.js');
 
 const map = (code, ...itemIds) => ({ code, entities: itemIds.map((id) => ({ objectLayerItemIds: [id] })) });
 
@@ -105,6 +123,41 @@ describe('saga associations', () => {
     expect(associations.items.bullet).toEqual(['bloom']);
     expect(associations.items.spark).toEqual(['bloom']);
     expect(associations.items).not.toHaveProperty('orb');
+  });
+
+  it('gives a quest, an action and a dialogue the sagas that define or link them, and the sagas of their map', () => {
+    const associations = sagaAssociations({
+      maps: [map('ruin', 'merchant')],
+      sagas: [
+        {
+          code: 'bloom',
+          mapCodes: ['ruin'],
+          questCodes: [{ providerSkinItemId: 'merchant', questCode: 'raider-toll' }],
+          actionCodes: [{ providerSkinItemId: 'merchant', actionCode: 'stall' }],
+        },
+      ],
+      quests: [
+        { code: 'raider-toll' },
+        { code: 'hunt', sourceMapCode: 'ruin' },
+        { code: 'lost', sourceMapCode: 'glade' },
+      ],
+      actions: [
+        {
+          code: 'stall',
+          dialogCode: 'hello',
+          questDialogueCodes: [{ questCode: 'raider-toll', dialogCode: 'quest-talk-raider-toll' }],
+        },
+        { code: 'gate', sourceMapCode: 'cave', dialogCode: '' },
+      ],
+    });
+    expect(associations.quests).toEqual({ ember: ['ash-signal'], 'raider-toll': ['bloom'], hunt: ['bloom'] });
+    expect(associations.actions).toEqual({ lantern: ['ash-signal'], stall: ['bloom'], gate: ['ash-signal'] });
+    expect(associations.dialogues).toEqual({
+      hello: ['bloom'],
+      'quest-talk-raider-toll': ['bloom'],
+      'default-merchant': ['bloom'],
+      'default-lamp': ['ash-signal'],
+    });
   });
   it('selects the keys of the sagas comma-separated terms name, by part of the code, ignoring case', () => {
     const bucket = { cave: ['ash-signal', 'bloom'], ruin: ['bloom'], glade: [] };
