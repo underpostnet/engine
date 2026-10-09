@@ -948,6 +948,25 @@ describe('alertmanager webhook receiver', () => {
     expect((await post('{ not json')).status).to.equal(400);
   });
 
+  it('confirms at sync time that the dispatcher accepts the projected token', async () => {
+    const webhookUrl = `${address}${UNDERPOST_MONITORING.eventWebhook.path}`;
+    expect(await UnderpostMonitor.API.verifyEventWebhook({ webhookUrl, token: TOKEN })).to.deep.equal({
+      status: 202,
+      accepted: true,
+    });
+    await expect(UnderpostMonitor.API.verifyEventWebhook({ webhookUrl, token: 'rotated' })).rejects.toThrow(
+      'refuses the token Alertmanager presents',
+    );
+  });
+
+  it('reports an unreachable dispatcher without failing the sync', async () => {
+    const webhookUrl = `${address}${UNDERPOST_MONITORING.eventWebhook.path}`;
+    await new Promise((resolve) => server.close(resolve));
+    expect(await UnderpostMonitor.API.verifyEventWebhook({ webhookUrl, token: TOKEN })).to.include({
+      accepted: false,
+    });
+  });
+
   // Remediation can take minutes and Alertmanager retries any delivery it does
   // not see accepted, so the answer comes before the dispatch.
   it('accepts the delivery before dispatching, and names what it accepted', async () => {

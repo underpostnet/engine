@@ -852,6 +852,8 @@ EOF
         await Underpost.monitor.reconcileGrafanaAdmin({ namespace, ...grafanaAdmin });
       } else if (options.deferGrafanaAdmin) grafanaAdminSyncState.set(context, grafanaAdmin);
 
+      if (events.length > 0) await Underpost.monitor.verifyEventWebhook({ webhookUrl, token });
+
       logger.info('Observability configuration synced', {
         namespace,
         deployIds: context.deployIds,
@@ -861,6 +863,45 @@ EOF
         grafanaAdminSecret: UNDERPOST_MONITORING.grafana.adminSecretName,
       });
       return context;
+    },
+
+    /**
+     * @method verifyEventWebhook
+     * @description Sends an empty Alertmanager payload to the dispatcher with the projected token.
+     *
+     * A refused token means every Alertmanager delivery is refused too: nothing is remediated or mailed.
+     * An unreachable dispatcher is reported but does not fail the sync, because maintenance stops it.
+     * @param {object} params
+     * @param {string} params.webhookUrl - URL Alertmanager delivers to.
+     * @param {string} params.token - Token projected into the Alertmanager Secret.
+     * @returns {Promise<{status: (number|string), accepted: boolean}>} What the dispatcher answered.
+     * @throws {Error} When the dispatcher refuses the token.
+     * @memberof UnderpostMonitor
+     */
+    async verifyEventWebhook({ webhookUrl, token }) {
+      let status;
+      try {
+        ({ status } = await axios.post(
+          webhookUrl,
+          { status: 'firing', alerts: [] },
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 5000, validateStatus: () => true },
+        ));
+      } catch (error) {
+        logger.warn('Event dispatcher is unreachable; no alert is remediated until it answers', {
+          webhookUrl,
+          error: error.code || error.message,
+          fix: 'node bin event --service',
+        });
+        return { status: error.code || 'unreachable', accepted: false };
+      }
+      if (status === 401)
+        throw new Error(
+          `[observability] the event dispatcher at ${webhookUrl} refuses the token Alertmanager presents, ` +
+            'so no alert is remediated or mailed; restart it with the shared token: node bin event --service',
+        );
+      if (status === 202) logger.info('Event dispatcher accepts the Alertmanager token', { webhookUrl });
+      else logger.warn('Event dispatcher answered unexpectedly', { webhookUrl, status });
+      return { status, accepted: status === 202 };
     },
 
     /**
