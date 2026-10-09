@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import http from 'node:http';
 import os from 'node:os';
+import Underpost from '../../../../src/index.js';
 import UnderpostEvent from '../../../../src/cli/event.js';
 import UnderpostMonitor from '../../../../src/cli/monitor.js';
 import UnderpostSSH from '../../../../src/cli/ssh.js';
@@ -1097,6 +1098,7 @@ describe('dispatcher service reconciliation', () => {
   beforeEach(() => {
     harness = shellHarness();
     vi.spyOn(UnderpostEvent.API, 'serviceJournal').mockReturnValue('journal line\n');
+    vi.spyOn(Underpost.host, 'read').mockReturnValue({ UNDERPOST_EVENT_TOKEN: 'fixture-webhook-token' });
   });
 
   afterEach(() => {
@@ -1132,6 +1134,14 @@ describe('dispatcher service reconciliation', () => {
     vi.spyOn(UnderpostEvent.API, 'serviceInstalledPort').mockReturnValue(0);
     eventFixture({ hostname: 'hub-node' });
     expect(() => UnderpostEvent.API.service({})).to.throw("requires 'event-service'");
+  });
+
+  it('refuses to install a receiver whose token is not in the shared host configuration', () => {
+    vi.spyOn(UnderpostEvent.API, 'serviceInstalledPort').mockReturnValue(0);
+    vi.spyOn(UnderpostEvent.API, 'assertDispatchReady').mockReturnValue([]);
+    vi.spyOn(Underpost.host, 'read').mockReturnValue({});
+    eventFixture({ hostname: 'control-node' });
+    expect(() => UnderpostEvent.API.service({})).to.throw('UNDERPOST_EVENT_TOKEN is not in');
   });
 
   it('refuses to install a unit no Node binary can start', () => {

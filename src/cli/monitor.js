@@ -12,7 +12,7 @@ import {
   readDeployRoutes,
   resolveDeployList,
 } from '../server/network/router.js';
-import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
+import { cronDeployIdResolve, loadCronDeployEnv, processDeployEnvResolve } from '../server/ops/cron.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { timer, generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import {
@@ -440,12 +440,10 @@ class UnderpostMonitor {
      * The webhook triggers root-equivalent remediation on the edge from an
      * unauthenticated POST, so the stack is never provisioned without one.
      *
-     * Two machines have to agree on it: the cluster provisions the Alertmanager
-     * Secret, and the hub runs the receiver that validates what Alertmanager
-     * sends. So the deploy environment wins over the machine-local host store
-     * store — `engine-private` is shared, and a token written there reaches both
-     * sides on the next pull. A token minted here is machine-local by
-     * definition, which is why minting says so.
+     * The Alertmanager Secret and the control-plane receiver must agree on it.
+     * The host configuration in `engine-private` is the shared source, and
+     * `loadCronDeployEnv` puts it in `process.env`. A token minted here is
+     * machine-local, so minting says where to persist it.
      * @returns {string} Shared bearer token.
      * @memberof UnderpostMonitor
      */
@@ -457,7 +455,7 @@ class UnderpostMonitor {
       const token = generateRandomPasswordSelection(48);
       Underpost.host.store.set('UNDERPOST_EVENT_TOKEN', token);
       logger.warn('Minted a machine-local event webhook token', {
-        hint: 'persist it as UNDERPOST_EVENT_TOKEN in the cron deploy env so the hub receiver shares it',
+        hint: `persist it as UNDERPOST_EVENT_TOKEN in ${Underpost.host.sourceLabel(processDeployEnvResolve())}`,
         read: 'node bin monitor --webhook-token',
       });
       return token;

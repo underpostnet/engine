@@ -218,18 +218,26 @@ The local spoke is tested by probing the hub tunnel address. Other registered pe
 
 ### 0. The shared token, once
 
-Alertmanager and the control-plane receiver both read `UNDERPOST_EVENT_TOKEN`. Keep it in the cron deploy environment so service restarts and monitoring convergence resolve the same value.
+Alertmanager and the control-plane receiver both read `UNDERPOST_EVENT_TOKEN`. Keep it in the host configuration, `engine-private/deploy/scopes/host.env.production`. Every CLI run and the receiver unit load that file through `loadCronDeployEnv()`, so both sides read one value. The `CLUSTER_MAILER_*` keys the notifications use live in the same file.
 
 ```bash
-# On either machine: mint or read the token
+# Mint or read the token
 node bin monitor --webhook-token
 
-# Persist it in the cron deploy env, then commit engine-private so both sides get it
-echo "UNDERPOST_EVENT_TOKEN=<token>" >> engine-private/conf/dd-cron/.env.production
-cd engine-private && git add . && git commit -m "event: shared webhook token" && git push
+# Persist it in the host configuration, then commit engine-private
+echo "UNDERPOST_EVENT_TOKEN=<token>" >> engine-private/deploy/scopes/host.env.production
+cd engine-private && git add deploy/scopes/host.env.production && git commit -m "event: shared webhook token" && cd ..
+
+# Restart the receiver on the new token, then project it and verify delivery
+node bin event --service
+node bin monitor --sync-prom
 ```
 
-If monitoring and the service start from different environments without this shared value, Alertmanager receives `401` and nothing is remediated.
+`event --service` refuses to install when the token is not in the host configuration. The unit pins `NODE_ENV`, so it loads the same file as the command that installed it. The unit also carries a short digest of the token. A rotated token changes the unit, so `--service` restarts it.
+
+`monitor --sync-prom` sends an empty Alertmanager payload to the receiver with the projected token. A `401` fails the sync, because every Alertmanager delivery fails the same way and nothing is remediated or mailed. An unreachable receiver is only a warning, because planned maintenance stops it.
+
+The host store under the global npm root (`$(npm root -g)/underpost/.env`) is not a shared source. A systemd unit and an interactive shell can resolve different npm roots, and each then mints its own token.
 
 ### 1. Remove the old receiver from the VPS
 
@@ -314,7 +322,7 @@ node bin monitor --sync-prom              # on the cluster: re-render every even
 node bin event wireguard-spoke-down --deploy   # or just one of them
 ```
 
-The dispatcher reads the selected host identity, tracked node collection, topology and SSH registry at dispatch time. After changing topology or node membership, run `monitor --sync-prom`; re-run `event --service` only when its unit or listening port changes.
+The dispatcher reads the selected host identity, tracked node collection, topology and SSH registry at dispatch time. After changing topology or node membership, run `monitor --sync-prom`. Re-run `event --service` when its unit, its listening port or the webhook token changes.
 
 ---
 
@@ -469,7 +477,7 @@ The receiver answers `202` before dispatching. Remediation can take minutes, whi
 
 Alertmanager never sends resolution notices to it. The dispatcher acts, and a resolution notice would ask it to act again on a condition that has already cleared.
 
-**Authentication.** The webhook triggers root-equivalent remediation on the edge, so it is never provisioned without a bearer token. The token is minted on first provisioning into the host configuration store (`UNDERPOST_EVENT_TOKEN`) — the same store `sshRemoteRunner` reads its SSH credentials from — and projected into the cluster as the `alertmanager-webhook` Secret, which Alertmanager reads with `credentials_file`. It is a Secret rather than a field in the ConfigMap so it never appears in a `kubectl get -o yaml` dump.
+**Authentication.** The webhook triggers root-equivalent remediation on the edge, so it is never provisioned without a bearer token. The token is `UNDERPOST_EVENT_TOKEN` in the host configuration (see [the shared token](#0-the-shared-token-once)) and is projected into the cluster as the `alertmanager-webhook` Secret, which Alertmanager reads with `credentials_file`. It is a Secret rather than a field in the ConfigMap so it never appears in a `kubectl get -o yaml` dump.
 
 **Notification.** After each dispatch the outcome goes to every route the event declares in [`conf.event.json`](#notifications). A failing handler is reported through those routes rather than thrown — an unhandled rejection in the receiver would silence every later alert.
 

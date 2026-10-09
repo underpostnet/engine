@@ -33,6 +33,14 @@ describe('event remediation', () => {
     expect(unit).to.not.include('PartOf=');
   });
 
+  it('pins the deploy environment and changes with the webhook token', () => {
+    const unit = (tokenFingerprint) =>
+      UnderpostEvent.API.serviceUnitFactory({ execPath: '/usr/bin/node', env: 'production', tokenFingerprint });
+    expect(unit('aaaaaaaaaaaa')).to.include('Environment=NODE_ENV=production');
+    expect(unit('aaaaaaaaaaaa')).to.include('# Webhook token sha256: aaaaaaaaaaaa');
+    expect(unit('aaaaaaaaaaaa')).to.not.equal(unit('bbbbbbbbbbbb'));
+  });
+
   it('applies cooldown independently to each failed spoke', () => {
     const alert = (spoke) => ({ labels: { underpost_spoke: spoke } });
     expect(eventCooldownKeyFactory('wireguard-spoke-down', [alert('homelab-a')])).to.equal(

@@ -727,7 +727,7 @@ program
   .option('--expose-grafana', 'Republishes Grafana with --grafana-host / --node-port without redeploying the stack.')
   .option(
     '--webhook-token',
-    'Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the cron deploy env.',
+    'Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the host configuration.',
   )
   .option(
     '--node-name <k8s-node-name>',
