@@ -43,7 +43,7 @@ export default {
     'maxrects-packer': '^2.7.3',
     pngjs: '^7.0.0',
     jimp: '^1.6.0',
-    sharp: '^0.35.4',
+    sharp: '^0.35.5',
   },
   packageScripts: {
     'docker:generate': dockerScript('generate'),
