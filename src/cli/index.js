@@ -280,6 +280,12 @@ program
   )
   .option('--unblock-ingress-port <ports>', 'Withdraws the port rules --block-ingress-port installed.')
   .option('--mac', 'Prints the MAC address of the main network interface.')
+  .option(
+    '--static-ipv4',
+    "Pins the default interface's current IPv4 address, gateway and DNS as a static NetworkManager profile. " +
+      'A timer restores the previous profile after 5 minutes unless the new binding is verified.',
+  )
+  .option('--dry-run', 'With --static-ipv4, prints the commands without applying them.')
   .description('Displays the current public machine IP addresses.')
   .action(Underpost.dns.ipDispatcher);
 

@@ -1,6 +1,6 @@
 /**
  * Provides a comprehensive set of DNS and IP management utilities,
- * primarily focused on dynamic DNS (DDNS) updates and network checks.
+ * primarily focused on dynamic DNS (DDNS) updates, network checks and the host's IPv4 binding.
  * @module src/server/network/dns.js
  * @namespace UnderpostDns
  */
@@ -9,11 +9,39 @@ import validator from 'validator';
 import { loggerFactory } from '../ops/logger.js';
 import dns from 'node:dns';
 import os from 'node:os';
-import { shellExec, pbcopy } from '../runtime/process.js';
+import { shellArgumentFactory, shellExec, pbcopy, sleepSync } from '../runtime/process.js';
+import { systemctlCommandFactory, systemdRunCommandFactory } from '../ops/systemd.js';
 import Underpost from '../../index.js';
 import { readConfJson } from '../runtime/conf.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * @constant STATIC_IPV4
+ * @description Bounds for pinning the default interface's IPv4 binding. The revert timer restores
+ * the previous profile unless the new one is verified first.
+ * @memberof UnderpostDns
+ */
+const STATIC_IPV4 = Object.freeze({ revertSeconds: 300, verifyTimeoutMs: 10000, unitPrefix: 'underpost-ipv4-revert' });
+
+/** Reads `nmcli -t` output into the values of each field; indexed fields (`IP4.DNS[2]`) collect into one list. */
+const nmcliFieldsFactory = (output = '') => {
+  const fields = {};
+  for (const line of `${output || ''}`.split('\n')) {
+    const separator = line.indexOf(':');
+    if (separator < 1) continue;
+    const name = line.slice(0, separator).replace(/\[\d+\]$/, '');
+    const value = line
+      .slice(separator + 1)
+      .replace(/\\(.)/g, '$1')
+      .trim();
+    fields[name] = [...(fields[name] || []), ...(value ? [value] : [])];
+  }
+  return fields;
+};
+
+/** Splits a NetworkManager list property (`a,b`) into its entries. */
+const nmcliListFactory = (values = []) => values.flatMap((value) => value.split(/\s*,\s*/)).filter(Boolean);
 
 /**
  * Main class for handling DNS and IP related operations.
@@ -113,6 +141,171 @@ class Dns {
       return null;
     }
     return networkInfo[0].mac;
+  }
+
+  /**
+   * Reads the NetworkManager IPv4 state of one interface: the live binding and the profile behind it.
+   * @static
+   * @memberof UnderpostDns
+   * @param {string} [device] - Interface name; defaults to the default route interface.
+   * @returns {{device: string, connection: string, live: object, profile: object}} Binding state.
+   */
+  static readIpv4Binding(device = Dns.getDefaultNetworkInterface()) {
+    const read = (command) =>
+      nmcliFieldsFactory(shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }));
+    const live = device
+      ? read(
+          `nmcli -t -f GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS device show ${shellArgumentFactory(device)}`,
+        )
+      : {};
+    const connection = live['GENERAL.CONNECTION']?.[0] || '';
+    const profile = connection
+      ? read(
+          `nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns connection show ${shellArgumentFactory(connection)}`,
+        )
+      : {};
+    return {
+      device,
+      connection,
+      live: {
+        addresses: live['IP4.ADDRESS'] || [],
+        gateway: live['IP4.GATEWAY']?.[0] || '',
+        dns: live['IP4.DNS'] || [],
+      },
+      profile: {
+        method: profile['ipv4.method']?.[0] || '',
+        addresses: nmcliListFactory(profile['ipv4.addresses']),
+        gateway: profile['ipv4.gateway']?.[0] || '',
+        dns: nmcliListFactory(profile['ipv4.dns']),
+      },
+    };
+  }
+
+  /**
+   * Plans the pinning of an interface's live IPv4 binding as a static NetworkManager profile.
+   *
+   * The revert restores the profile exactly as it was, so it covers DHCP and a previous static
+   * profile alike. `reapply` changes the running interface without a link drop.
+   * @static
+   * @memberof UnderpostDns
+   * @param {{device: string, connection: string, live: object, profile: object}} binding - From {@link Dns.readIpv4Binding}.
+   * @returns {object} `{supported: false, reason}`, or the target, the previous state and the commands.
+   */
+  static staticIpv4PlanFactory({ device, connection, live = {}, profile = {} } = {}) {
+    if (!device || !connection)
+      return { supported: false, reason: `${device || 'the default interface'} is not managed by NetworkManager` };
+    const target = {
+      method: 'manual',
+      addresses: live.addresses || [],
+      gateway: live.gateway || '',
+      dns: live.dns || [],
+    };
+    if (target.addresses.length === 0 || !target.gateway)
+      return { supported: false, reason: `${device} has no IPv4 address and default gateway to pin` };
+    const previous = {
+      method: profile.method || 'auto',
+      addresses: profile.addresses || [],
+      gateway: profile.gateway || '',
+      dns: profile.dns || [],
+    };
+    const unit = `${STATIC_IPV4.unitPrefix}-${device}`;
+    const scriptFactory = (state) =>
+      `nmcli connection modify ${shellArgumentFactory(connection)} ipv4.method ${state.method} ` +
+      `ipv4.addresses ${shellArgumentFactory(state.addresses.join(','))} ipv4.gateway ${shellArgumentFactory(state.gateway)} ` +
+      `ipv4.dns ${shellArgumentFactory(state.dns.join(','))} && ` +
+      `{ nmcli device reapply ${shellArgumentFactory(device)} || nmcli connection up ${shellArgumentFactory(connection)}; }`;
+    return {
+      supported: true,
+      changed: JSON.stringify(previous) !== JSON.stringify(target),
+      device,
+      connection,
+      target,
+      previous,
+      unit,
+      commands: {
+        pending: systemctlCommandFactory({ action: 'is-active --quiet', name: `${unit}.timer`, sudo: false }),
+        arm: systemdRunCommandFactory({
+          command: `sh -c ${shellArgumentFactory(scriptFactory(previous))}`,
+          unit,
+          onActive: `${STATIC_IPV4.revertSeconds}s`,
+        }),
+        apply: `sudo sh -c ${shellArgumentFactory(scriptFactory(target))}`,
+        revert: `sudo sh -c ${shellArgumentFactory(scriptFactory(previous))}`,
+        disarm: systemctlCommandFactory({ action: 'stop', name: `${unit}.timer` }),
+      },
+    };
+  }
+
+  /**
+   * Pins the default interface's live IPv4 binding as a static NetworkManager profile.
+   *
+   * A timer reverts the change unless the pinned binding is verified: the profile and the live
+   * address must match the target, and name resolution must keep working when it worked before.
+   * A failed verification reverts at once.
+   * @static
+   * @async
+   * @memberof UnderpostDns
+   * @param {object} [options]
+   * @param {boolean} [options.dryRun=false] - Print the commands without applying them.
+   * @param {number} [options.timeoutMs] - Maximum wait for the pinned binding to verify.
+   * @returns {Promise<object>} The plan that was applied, or why none applies.
+   * @throws {Error} When a revert is pending, or when the pinned binding failed and was reverted.
+   */
+  static async ensureStaticIpv4({ dryRun = false, timeoutMs = STATIC_IPV4.verifyTimeoutMs } = {}) {
+    const plan = Dns.staticIpv4PlanFactory(Dns.readIpv4Binding());
+    if (!plan.supported) {
+      logger.warn('IPv4 binding not pinned', { reason: plan.reason });
+      return plan;
+    }
+    const binding = {
+      device: plan.device,
+      connection: plan.connection,
+      addresses: plan.target.addresses,
+      gateway: plan.target.gateway,
+      dns: plan.target.dns,
+    };
+    if (!plan.changed) {
+      logger.info('IPv4 binding is already static', binding);
+      return plan;
+    }
+    const reservation = `reserve ${plan.target.addresses.join(', ')} for ${Dns.getMainInterfaceMac()} on the DHCP server; a static address stops renewing its lease`;
+    const { pending, arm, apply, revert, disarm } = plan.commands;
+    if (dryRun) {
+      for (const command of [arm, apply, disarm]) logger.info(`[dry-run] ${command}`);
+      logger.warn(reservation);
+      return plan;
+    }
+    if (shellExec(pending, { silent: true, silentOnError: true, disableLog: true }).code === 0)
+      throw new Error(`[ip] a revert of ${plan.device} is pending (${plan.unit}.timer); let it run or stop it first`);
+
+    const resolvedBefore = await Dns.isInternetConnection();
+    shellExec(arm, { silent: true });
+    let failure = '';
+    try {
+      shellExec(apply, { silent: true });
+      const deadline = Date.now() + timeoutMs;
+      do {
+        const pinned = Dns.staticIpv4PlanFactory(Dns.readIpv4Binding(plan.device));
+        failure =
+          pinned.supported && !pinned.changed && JSON.stringify(pinned.target) === JSON.stringify(plan.target)
+            ? ''
+            : 'the interface does not hold the pinned binding';
+        if (!failure && resolvedBefore && !(await Dns.isInternetConnection()))
+          failure = 'name resolution stopped working';
+        if (failure && Date.now() < deadline) sleepSync(1000);
+      } while (failure && Date.now() < deadline);
+    } catch (error) {
+      failure = `${error.message}`;
+    }
+    if (failure) {
+      shellExec(revert, { silent: true, silentOnError: true });
+      shellExec(disarm, { silent: true, silentOnError: true });
+      throw new Error(`[ip] ${plan.device} was reverted to its previous IPv4 profile: ${failure}`);
+    }
+    shellExec(disarm, { silent: true });
+    logger.info('IPv4 binding pinned', binding);
+    logger.warn(reservation);
+    return plan;
   }
 
   /**
@@ -642,6 +835,8 @@ class Dns {
    * @property {boolean} [options.unblockAllIngress=false] - Unblock all inbound traffic.
    * @property {string} [options.blockIngressPort=''] - Comma-separated TCP ports to block inbound.
    * @property {string} [options.unblockIngressPort=''] - Comma-separated TCP ports to unblock inbound.
+   * @property {boolean} [options.staticIpv4=false] - Pin the default interface's IPv4 binding as a static profile.
+   * @property {boolean} [options.dryRun=false] - With `staticIpv4`, print the commands without applying them.
    * @property {boolean} [options.dhcp=false] - Get local DHCP IP instead of public IP.
    * @property {boolean} [options.copy=false] - Copy the public IP to clipboard.
    * @return {Promise<string|void>} The public IP if no ban/unban action is taken.
@@ -665,6 +860,8 @@ class Dns {
       unblockAllIngress: false,
       blockIngressPort: '',
       unblockIngressPort: '',
+      staticIpv4: false,
+      dryRun: false,
       copy: false,
       dhcp: false,
     },
@@ -734,6 +931,8 @@ class Dns {
       return Dns.unblockAllIngress();
     }
 
+    if (options.staticIpv4) return await Dns.ensureStaticIpv4({ dryRun: options.dryRun === true });
+
     if (options.mac) {
       const mac = Dns.getMainInterfaceMac();
       console.log(mac);
@@ -777,4 +976,4 @@ class UnderpostDns {
 
 export default UnderpostDns;
 
-export { Dns, isInternetConnection, getLocalIPv4Address, UnderpostDns };
+export { Dns, STATIC_IPV4, isInternetConnection, getLocalIPv4Address, UnderpostDns };
