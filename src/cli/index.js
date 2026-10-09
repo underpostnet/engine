@@ -1531,16 +1531,11 @@ program
   .command('source-release')
   .argument(
     '<operation>',
-    'repository: the repository of a source channel; mirror: publish a private revision; job: run a Release Job; ' +
+    'repository: the repository of a source channel; job: run a Release Job; ' +
       'prune: remove the release workspaces of the store.',
   )
-  .argument(
-    '<subject>',
-    'The public repository (repository, mirror), the release id (job), or the release to keep (prune).',
-  )
+  .argument('<subject>', 'The public repository (repository), the release id (job), or the release to keep (prune).')
   .option('--channel <channel>', 'For repository: the source channel, public or private.', 'public')
-  .option('--revision <sha>', 'For mirror: the exact source revision to publish.')
-  .option('--branch <branch>', 'For mirror: the public branch (default: the private repository default branch).')
   .option('--deploy-id <deploy-id>', 'For job: the deployment the release belongs to.')
   .option('--image <image>', 'For job: the container image the Job runs.')
   .option('--cmd <command>', 'For job: the shell command line the Job runs.')
@@ -1556,7 +1551,7 @@ program
   .option('--timeout <seconds>', 'For job: the deadline of the Job, in seconds.', '3600')
   .option('--image-pull-policy <policy>', 'For job: Always, IfNotPresent or Never.', 'IfNotPresent')
   .option('--dry-run', 'For job: print the Job manifest and run nothing.')
-  .description('Source channels, the private-to-public mirror, the Release Job and the release store.')
+  .description('Source channels, the Release Job and the release store.')
   .action(Underpost.sourceRelease.callback);
 
 export { program };

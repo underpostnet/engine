@@ -12,7 +12,7 @@ INSTANCE_ID=mmo-server
 RELEASE_REPOSITORY=underpostnet/cyberia-server
 TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the
-# private mirrors. A private release is the same release; its exact revision is then mirrored.
+# private mirrors.
 CYBERIA_SOURCE_CHANNEL="${CYBERIA_SOURCE_CHANNEL:-private}"
 ENGINE_SRC_REPO="$(engine_source_repo "$DEPLOY_ID" "$CYBERIA_SOURCE_CHANNEL")"
 ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
@@ -61,10 +61,6 @@ main() {
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
           --deploy-id $DEPLOY_ID \
     --instance-id $INSTANCE_ID"
-
-    if [ "$CYBERIA_SOURCE_CHANNEL" = private ]; then
-        deploy_step "Mirror ${RELEASE_REPOSITORY##*/}" mirror_revision "$RELEASE_REPOSITORY" "$revision"
-    fi
 }
 
 main "$@"

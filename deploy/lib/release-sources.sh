@@ -15,18 +15,15 @@ release_repositories() {
 }
 
 # Syncs every product repository from a source channel at its branch tip, the deployment with its
-# lock included, then pins each locked one at its revision. Sets RELEASE_REPOSITORIES to the
-# `<name> <repository> <profile>` lines.
+# lock included, then pins each locked one at its revision.
 #
 # Usage: sync_release_sources <public|private>
 sync_release_sources() {
-    local repositories locked entry name repository profile revision
+    local repositories locked name repository profile revision
     repositories="$(release_repositories)"
-    mapfile -t RELEASE_REPOSITORIES <<<"$repositories"
-    for entry in "${RELEASE_REPOSITORIES[@]}"; do
-        read -r name repository profile <<<"$entry"
+    while read -r name repository profile; do
         sync_checkout "$(source_repository "$repository" "$1")" "$ENGINE_ROOT" "$name"
-    done
+    done <<<"$repositories"
     locked="$(release_repositories --locked)"
     while read -r name repository profile revision; do
         pin_checkout "$name" "$revision"

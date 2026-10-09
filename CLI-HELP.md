@@ -52,7 +52,7 @@
 | [`package`](#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
 | [`socketsecurity`](#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
 | [`release`](#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
-| [`source-release`](#underpost-source-release) | Source channels, the private-to-public mirror, the Release Job and the release store. |
+| [`source-release`](#underpost-source-release) | Source channels, the Release Job and the release store. |
 
 ## Command reference
 
@@ -1458,7 +1458,7 @@ Release orchestrator for building new versions and deploying releases of the Und
 
 ## underpost source-release
 
-Source channels, the private-to-public mirror, the Release Job and the release store.
+Source channels, the Release Job and the release store.
 
 **Usage:** `underpost source-release [options] <operation> <subject>`
 
@@ -1466,16 +1466,14 @@ Source channels, the private-to-public mirror, the Release Job and the release s
 
 | Argument | Description |
 | --- | --- |
-| `operation` | repository: the repository of a source channel; mirror: publish a private revision; job: run a Release Job; prune: remove the release workspaces of the store. |
-| `subject` | The public repository (repository, mirror), the release id (job), or the release to keep (prune). |
+| `operation` | repository: the repository of a source channel; job: run a Release Job; prune: remove the release workspaces of the store. |
+| `subject` | The public repository (repository), the release id (job), or the release to keep (prune). |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
 | `--channel <channel>` | For repository: the source channel, public or private. (default: "public") |
-| `--revision <sha>` | For mirror: the exact source revision to publish. |
-| `--branch <branch>` | For mirror: the public branch (default: the private repository default branch). |
 | `--deploy-id <deploy-id>` | For job: the deployment the release belongs to. |
 | `--image <image>` | For job: the container image the Job runs. |
 | `--cmd <command>` | For job: the shell command line the Job runs. |

@@ -37,9 +37,8 @@ candidate database that is validated before it serves. The Job runs the deployed
 Secret projected from the `data-release` configuration scope, and builds the content with the
 repository's own commands.
 
-A release from the private channel is a production release. Once it serves, the host mirrors its
-exact revisions to the public repositories, fast-forward only. A failed mirror is reported; the
-release stays as it is.
+A release from the private channel is a production release. A deploy only reads from its channel:
+it never pushes to a repository.
 
 ## Consequences
 

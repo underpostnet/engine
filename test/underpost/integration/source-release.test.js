@@ -9,7 +9,6 @@ import {
   pruneReleaseStore,
   stageReleaseEngine,
 } from '../../../src/server/release/release-workspace.js';
-import { mirrorRevision } from '../../../src/server/release/source-mirror.js';
 
 // The source repositories are local bare repositories reached over `file://`.
 const git = (cwd, ...args) =>
@@ -19,18 +18,18 @@ const git = (cwd, ...args) =>
     stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
 
-describe('the release store, the checkout origin and the source mirror', () => {
+describe('the release store and the checkout origin', () => {
   let base;
   let root;
   let work;
   const remote = (name) => ({ url: `file://${path.join(base, 'remotes', `${name}.git`)}`, env: process.env });
 
-  /** Commits a file to the work tree, pushes it to a repository, and returns the commit. */
-  const commit = (text, to = 'widget-private') => {
+  /** Commits a file to the work tree, pushes it to the private repository, and returns the commit. */
+  const commit = (text) => {
     fs.writeFileSync(path.join(work, 'README.md'), `${text}\n`);
     git(work, 'add', '.');
     git(work, 'commit', '-q', '-m', text);
-    git(work, 'push', '-q', remote(to).url, 'HEAD:refs/heads/main');
+    git(work, 'push', '-q', remote('widget-private').url, 'HEAD:refs/heads/main');
     return git(work, 'rev-parse', 'HEAD');
   };
 
@@ -46,8 +45,7 @@ describe('the release store, the checkout origin and the source mirror', () => {
     base = fs.mkdtempSync(path.join(os.tmpdir(), 'source-release-it-'));
     root = path.join(base, 'store');
     work = path.join(base, 'work');
-    for (const name of ['widget-private', 'widget'])
-      git(base, 'init', '-q', '--bare', '-b', 'main', path.join(base, 'remotes', `${name}.git`));
+    git(base, 'init', '-q', '--bare', '-b', 'main', path.join(base, 'remotes', 'widget-private.git'));
     git(base, 'init', '-q', '-b', 'main', work);
     // A sealed workspace is read only: the write bits come back before removal.
     return () => {
@@ -190,36 +188,6 @@ describe('the release store, the checkout origin and the source mirror', () => {
       git(work, 'remote', 'add', 'origin', 'https://github.com/acme/widget');
       setOrigin('acme/widget');
       expect(origin()).toBe('https://github.com/acme/widget');
-    });
-  });
-
-  describe('the source mirror', () => {
-    const mirror = (revision) =>
-      mirrorRevision({ revision, from: remote('widget-private'), to: remote('widget'), branch: 'main' });
-
-    it('publishes the exact revision, fast-forward, and leaves a public repository that holds it alone', () => {
-      const first = commit('first');
-      expect(mirror(first)).toEqual({ revision: first, branch: 'main', moved: true });
-      expect(git(base, 'ls-remote', remote('widget').url, 'refs/heads/main').split(/\s+/)[0]).toBe(first);
-      const second = commit('second');
-      expect(mirror(second).moved).toBe(true);
-      expect(mirror(first)).toEqual({ revision: first, branch: 'main', moved: false });
-      expect(git(base, 'ls-remote', remote('widget').url, 'refs/heads/main').split(/\s+/)[0]).toBe(second);
-    });
-
-    it('never rewrites public history that has diverged, and says so', () => {
-      commit('public only', 'widget');
-      git(work, 'reset', '-q', '--hard', 'HEAD');
-      const other = fs.mkdtempSync(path.join(base, 'other-'));
-      git(other, 'init', '-q', '-b', 'main');
-      fs.writeFileSync(path.join(other, 'OTHER'), 'x');
-      git(other, 'add', '.');
-      git(other, 'commit', '-q', '-m', 'private only');
-      git(other, 'push', '-q', remote('widget-private').url, 'HEAD:refs/heads/main');
-      const diverged = git(other, 'rev-parse', 'HEAD');
-      const before = git(base, 'ls-remote', remote('widget').url, 'refs/heads/main');
-      expect(() => mirror(diverged)).toThrow(/Mirror of .* not published: .*has diverged/);
-      expect(git(base, 'ls-remote', remote('widget').url, 'refs/heads/main')).toBe(before);
     });
   });
 });

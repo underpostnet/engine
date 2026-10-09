@@ -689,7 +689,6 @@ describe('deploy pipeline', () => {
       'stage_rollout',
       'stage_readiness',
       'stage_promotion',
-      'stage_mirror',
     ];
     const main = script.slice(script.indexOf('main() {'));
     const positions = order.map((stage) => main.indexOf(`    ${stage}\n`));
@@ -748,22 +747,17 @@ describe('deploy pipeline', () => {
     expect(lib).not.toContain('kubectl exec');
   });
 
-  it('promotes a release from either channel, then mirrors a private one', () => {
-    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Stage H'));
+  it('promotes a release from either channel and never pushes to a repository', () => {
+    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Revert'));
     expect(promotion).not.toMatch(/CYBERIA_SOURCE_CHANNEL|private|public/);
     expect(promotion).toContain(
       'content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID"',
     );
-    const mirror = script.slice(script.indexOf('stage_mirror() {'), script.indexOf('main() {'));
-    expect(mirror).toContain('[ "$CYBERIA_SOURCE_CHANNEL" = private ] || return 0');
-    expect(mirror).toContain('data-release | source-sync)');
-    expect(mirror).toContain('deploy_step "Mirror $name" mirror_revision "$repository" "$(checkout_revision "$name")"');
-    const main = script.slice(script.indexOf('main() {'));
-    expect(main.indexOf('stage_promotion')).toBeLessThan(main.indexOf('stage_mirror'));
+    for (const deploy of [script, lib]) expect(deploy).not.toMatch(/git push|source-release mirror/);
   });
 
   it('prunes after the commit: the databases in a Release Job, then the release store on the host', () => {
-    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Stage H'));
+    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Revert'));
     const committed = promotion.indexOf('RELEASE_STATE=committed');
     const databases = promotion.indexOf('content_release_job "content-release-prune" "$DEPLOY_IMAGE" prune');
     const store = promotion.indexOf('node bin source-release prune $CONTENT_RELEASE_ID');
@@ -918,8 +912,7 @@ describe('deploy pipeline', () => {
         pin_checkout() { echo "pin $*"; }
         ENGINE_ROOT=/engine
         source "${new URL('../../../deploy/lib/release-sources.sh', import.meta.url).pathname}"
-        sync_release_sources private
-        printf 'repository %s\\n' "\${RELEASE_REPOSITORIES[@]}"`,
+        sync_release_sources private`,
       ],
       { encoding: 'utf8' },
     );
@@ -927,8 +920,6 @@ describe('deploy pipeline', () => {
       'sync underpostnet/cyberia-content-private /engine cyberia-content',
       'sync underpostnet/cyberia-deployment-private /engine cyberia-deployment',
       `pin cyberia-content ${'0'.repeat(39)}7`,
-      'repository cyberia-content underpostnet/cyberia-content data-release',
-      'repository cyberia-deployment underpostnet/cyberia-deployment source-sync',
     ]);
   });
 

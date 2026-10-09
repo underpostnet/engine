@@ -33,7 +33,6 @@ Nothing before Stage E changes what players see: a candidate that fails stops th
 | E     | Application rollout    | Idempotent migrations in the new pod; blue/green: the new colour takes traffic once Ready and serves the release already active          |
 | F     | Readiness              | Engine API, Object Layer authority                                                                                                       |
 | G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store       |
-| H     | Mirror                 | Private channel only: the revision of each data-release and source-sync checkout, fast-forward to the public repositories                |
 
 Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
@@ -51,8 +50,8 @@ deploy, in this order:
    deployed and Ready.
 
 A rollback brings back a release this deployment served before, even one that was not built from an
-exact source revision. A failure after the commit point, in prune or in the mirror, fails the deploy
-and leaves the new release serving. The cache follows the served data: each bound release database
+exact source revision. A failure after the commit point, in prune, fails the deploy and leaves the
+new release serving. The cache follows the served data: each bound release database
 has its own cache keys, so a rollback reads the values of the release it restores.
 
 ## Source channels
@@ -65,9 +64,9 @@ same on both channels.
 | `private` (default)      | `engine-test-cyberia` | `<name>-private`     |
 | `public`                 | `engine-cyberia`      | `<name>`             |
 
-A release from the private channel serves production like any other. Once it serves, Stage H
-publishes its exact revisions to the public repositories: the public branch only moves forward,
-and nothing is rebuilt. A failed mirror fails the deploy and leaves the release serving.
+A release from the private channel serves production like any other. The deploy only reads from
+the channel: it never pushes to a repository. To publish to the public repositories, run
+[`cyberia release publish`](../reference/cyberia-cli.md#cyberia-release--product-repositories) by hand.
 
 A deploy ships the revisions `underpost.lock.json` of the deployment checkout pins, as it is:
 nothing in the deploy writes the lock. To ship a change, run `cyberia release lock --commit` and
@@ -88,8 +87,7 @@ data-release Secret alone. Kubernetes removes the Job a day after it ends.
 `deploy/cyberia-server/deploy.sh` and `deploy/cyberia-client/deploy.sh` release their instance as a
 container release, on the same `CYBERIA_SOURCE_CHANNEL`, from the revision the deployment lock pins.
 The public channel runs the `latest` image CI pushed; the private channel builds it on the node from
-the checkout at that revision. Either way the instance runs the image by digest, and a private release
-then mirrors its revision to the public repository.
+the checkout at that revision. Either way the instance runs the image by digest.
 
 ## Game server topology
 

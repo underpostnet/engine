@@ -268,8 +268,7 @@ label it names or stores:
    `cyberia-content` checkout as source content.
 2. In `cyberia-content`: validate, commit, increment the version, build.
 3. `cyberia release lock --commit` pins the new revision in the deployment lock, and
-   `cyberia release publish` pushes the checkouts, the deployment last. A deploy from the private
-   channel mirrors the pinned revision to the public repository once the release serves.
+   `cyberia release publish` pushes the checkouts, the deployment last.
 
 ## Studio authoring
 

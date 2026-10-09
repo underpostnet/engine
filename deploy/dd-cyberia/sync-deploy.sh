@@ -11,8 +11,7 @@ DEPLOY_ID=dd-cyberia
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 TARGET_NODE="${TARGET_NODE:-$HOST_NODE}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the private
-# mirrors. A private release is the same production release; its exact revisions are then mirrored
-# to the public repositories.
+# mirrors. A private release is the same production release.
 CYBERIA_SOURCE_CHANNEL="${CYBERIA_SOURCE_CHANNEL:-private}"
 # The source the pod bootstraps from, and the private configuration each side reads: the host
 # takes the monorepo conf, the pod takes this deploy's own conf repository.
@@ -221,24 +220,6 @@ stage_promotion() {
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin source-release prune $CONTENT_RELEASE_ID"
 }
 
-# ── Stage H — Mirror ──────────────────────────────────────────────────────────────────────
-#
-# After a release from the private channel, its exact revisions reach the public repositories: the
-# revision each data-release and source-sync checkout stands at. A failed mirror fails the deploy
-# without touching the release that already serves.
-stage_mirror() {
-    [ "$CYBERIA_SOURCE_CHANNEL" = private ] || return 0
-    local entry name repository profile
-    for entry in "${RELEASE_REPOSITORIES[@]}"; do
-        read -r name repository profile <<<"$entry"
-        case "$profile" in
-            data-release | source-sync)
-                deploy_step "Mirror $name" mirror_revision "$repository" "$(checkout_revision "$name")"
-                ;;
-        esac
-    done
-}
-
 # ── Revert ────────────────────────────────────────────────────────────────────────────────
 #
 # A deploy that fails after its traffic switch and before its release commits restores what served
@@ -274,7 +255,6 @@ main() {
     stage_rollout
     stage_readiness
     stage_promotion
-    stage_mirror
 }
 
 main "$@"

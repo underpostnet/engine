@@ -1,6 +1,6 @@
 /**
- * `underpost source-release`: the source channel resolver, the private-to-public mirror, the
- * Release Job and the release store, for the deploy scripts on a host.
+ * `underpost source-release`: the source channel resolver, the Release Job and the release store, for
+ * the deploy scripts on a host.
  *
  * @module src/cli/source-release.js
  * @namespace UnderpostSourceRelease
@@ -8,7 +8,6 @@
 import Underpost from '../index.js';
 import { appSecretName } from './app.js';
 import { assertReleaseId, assertSourceChannel } from '../server/release/source-release.js';
-import { mirrorRevision } from '../server/release/source-mirror.js';
 import { releaseJobManifestFactory, releaseJobName, runReleaseJob } from '../server/release/release-job.js';
 import { RELEASE_STORE_ROOT, pruneReleaseStore, stageReleaseEngine } from '../server/release/release-workspace.js';
 import { ensureContainerStorage } from '../server/security/container-storage.js';
@@ -49,25 +48,6 @@ class UnderpostSourceRelease {
       const slug = Underpost.repo.sourceRepoFactory(repository, assertSourceChannel(options.channel || 'public'));
       console.log(slug);
       return slug;
-    },
-
-    /**
-     * Publishes the exact revision of a private release to the public repository.
-     * @param {string} repository - The public repository.
-     * @param {{revision: string, branch?: string}} options
-     * @returns {{revision:string, branch:string, moved:boolean}}
-     * @memberof UnderpostSourceRelease
-     */
-    mirror(repository, options = {}) {
-      const privateRepository = Underpost.repo.sourceRepoFactory(repository, 'private');
-      const result = mirrorRevision({
-        revision: options.revision,
-        from: Underpost.repo.gitAuthFactory(privateRepository),
-        to: Underpost.repo.gitAuthFactory(Underpost.repo.sourceRepoFactory(repository, 'public')),
-        branch: options.branch || Underpost.repo.getDefaultBranch(privateRepository),
-      });
-      console.log(`${repository} ${result.branch} holds ${result.revision}${result.moved ? '' : ' already'}`);
-      return result;
     },
 
     /**
@@ -129,20 +109,19 @@ class UnderpostSourceRelease {
 
     /**
      * Commander action: `source-release <operation> <subject>`.
-     * @param {string} operation - `repository`, `mirror`, `job` or `prune`.
+     * @param {string} operation - `repository`, `job` or `prune`.
      * @param {string} subject - The public repository, or the release id.
      * @param {Object} options
      * @memberof UnderpostSourceRelease
      */
     async callback(operation, subject, options = {}) {
       if (operation === 'repository') return UnderpostSourceRelease.API.repository(subject, options);
-      if (operation === 'mirror') return UnderpostSourceRelease.API.mirror(subject, options);
       if (operation === 'prune') return UnderpostSourceRelease.API.prune(subject, options);
       if (operation === 'job') {
         if (!(await UnderpostSourceRelease.API.job(subject, options))) process.exit(1);
         return;
       }
-      throw new Error(`Unknown source-release operation "${operation}": use repository, mirror, job or prune`);
+      throw new Error(`Unknown source-release operation "${operation}": use repository, job or prune`);
     },
   };
 }

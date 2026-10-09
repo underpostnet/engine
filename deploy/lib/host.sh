@@ -190,13 +190,6 @@ checkout_revision() {
     sudo -n -- /bin/bash -lc "git -C ${2:-$ENGINE_ROOT}/$1 rev-parse HEAD" | tr -d '\n'
 }
 
-# Publishes the exact revision of a private release to the public repository, fast-forward only.
-#
-# Usage: mirror_revision <owner/repo> <revision> [engine-root]
-mirror_revision() {
-    sudo -n -- /bin/bash -lc "cd ${3:-$ENGINE_ROOT} && node bin source-release mirror $1 --revision $2"
-}
-
 # Whether a tracked path carries uncommitted changes, as `1` or empty.
 #
 # An asset repository is committed only when it actually changed, so this stays outside

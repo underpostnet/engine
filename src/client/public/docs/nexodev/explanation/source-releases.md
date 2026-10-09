@@ -131,16 +131,3 @@ revision by digest. On the public channel it pulls the image CI pushed as `lates
 runtime reads it: CRI-O shares root Podman's storage, containerd imports it with its digests.
 `underpost run instance --source-revision <sha> [--build-path <checkout>]` deploys an instance on
 that digest.
-
-## The source mirror
-
-After a release from the private channel serves, its exact revision is published to the public
-repository:
-
-```bash
-underpost source-release mirror underpostnet/cyberia-content --revision <sha>
-```
-
-The public branch moves forward to the revision, or stays when it already holds it. Public history
-is never rewritten and no commit is made, so nothing is rebuilt. A failed mirror is reported and
-leaves the release as it is.
