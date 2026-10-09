@@ -158,6 +158,14 @@ const plainText = (value = '') =>
     .replace(/\u001b\[[0-9;]*m/g, '')
     .trim();
 
+/** Rebuilds, restarts and verifies one WireGuard node, refused on any other identity. */
+const wireguardRepairCommandFactory = ({ role, peerId = '' }) =>
+  [
+    'node bin wireguard --wireguard-setup --wireguard-restart --check --check-timeout 30',
+    `--expected-role ${shellArgumentFactory(role)}`,
+    ...(peerId ? [`--expected-id ${shellArgumentFactory(peerId)}`] : []),
+  ].join(' ');
+
 /** Gives each event subject an independent webhook cooldown. */
 const eventCooldownKeyFactory = (eventId, alerts = []) => {
   const subjects = [
@@ -793,7 +801,7 @@ class UnderpostEvent {
           targets.push({ role: 'hub', address: '', via: 'unresolved', commands: [], ok: false, output: error.message });
           continue;
         }
-        const commands = ['node bin wireguard --wireguard-restart --check --check-timeout 30 --expected-role hub'];
+        const commands = [wireguardRepairCommandFactory({ role: 'hub' })];
         const result = await Underpost.event.runCommand(commands[0], {
           ...options,
           user: target.user,
@@ -874,9 +882,7 @@ class UnderpostEvent {
           });
           continue;
         }
-        const commands = [
-          `node bin wireguard --wireguard-restart --check --check-timeout 30 --expected-role ${shellArgumentFactory(target.nodeRole)} --expected-id ${shellArgumentFactory(target.spokeId)}`,
-        ];
+        const commands = [wireguardRepairCommandFactory({ role: target.nodeRole, peerId: target.spokeId })];
         const result = await Underpost.event.runCommand(commands[0], {
           ...options,
           user: target.user,
@@ -1020,10 +1026,7 @@ class UnderpostEvent {
         }
         // Ingress first: a blocked edge would make the tunnel rebuild look
         // successful while nothing could still reach it.
-        const commands = [
-          'node bin ip --unblock-all-ingress',
-          'node bin wireguard --wireguard-setup --wireguard-restart',
-        ];
+        const commands = ['node bin ip --unblock-all-ingress', wireguardRepairCommandFactory({ role: 'hub' })];
         const outputs = [];
         let ok = true;
         for (const command of commands) {
@@ -2276,6 +2279,7 @@ export {
   eventFirewallCommandsFactory,
   eventServicePortFactory,
   probeDetail,
+  wireguardRepairCommandFactory,
 };
 
 export default UnderpostEvent;

@@ -354,6 +354,20 @@ describe('event remediation handlers', () => {
       expect(run.mock.calls[0][0]).to.include('worker-b');
     });
 
+    it('rebuilds the control plane tunnel on this machine with no SSH hop', async () => {
+      eventFixture({ hostname: 'control-node' });
+      vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+        eth0: [{ family: 'IPv4', address: '198.51.100.2', internal: false }],
+      });
+      const run = stubRunCommand();
+      const result = await UnderpostEvent.API.repairSpokes({}, [{ labels: { underpost_spoke: 'control-a' } }]);
+      expect(run.mock.calls[0][0]).to.equal(
+        "node bin wireguard --wireguard-setup --wireguard-restart --check --check-timeout 30 --expected-role 'control' --expected-id 'control-a'",
+      );
+      expect(run.mock.calls[0][1]).to.include({ user: '', host: '' });
+      expect(result.targets[0]).to.include({ via: 'local', ok: true });
+    });
+
     // Spokes are independent hosts; a partial recovery beats none.
     it('does not let one unresolvable spoke stop the others', async () => {
       eventFixture();
@@ -478,7 +492,7 @@ describe('event remediation handlers', () => {
       const result = await UnderpostEvent.API.repairPublicIngress({ dryRun: true });
       expect(run.mock.calls.map(([command]) => command)).to.deep.equal([
         'node bin ip --unblock-all-ingress',
-        'node bin wireguard --wireguard-setup --wireguard-restart',
+        "node bin wireguard --wireguard-setup --wireguard-restart --check --check-timeout 30 --expected-role 'hub'",
       ]);
       expect(result.ok).to.equal(false);
     });

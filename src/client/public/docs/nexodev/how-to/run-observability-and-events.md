@@ -113,12 +113,12 @@ Remediation joins node membership to topology, then joins the resulting manageme
    │  EVENTS = {                  │        │           ACT              │
    │   wireguard-server-down: {   │        │                            │
    │     probes, alert, handler   │        │  hub → external SSH        │
-   │   },                         │        │    wireguard --restart     │
+   │   },                         │        │    setup + restart + check │
    │   wireguard-spoke-down: {    │        │    → health check          │
    │     probes, alert, handler   │        │                            │
    │   },                         │        │  local spoke → local       │
    │  }                           │        │  worker → LAN SSH          │
-   └──────────────┬───────────────┘        │    wireguard --restart     │
+   └──────────────┬───────────────┘        │    setup + restart + check │
                   │                        │    → health check          │
                   │ spoke id                │                           │
                   ▼                        └─────────────┬──────────────┘
@@ -338,16 +338,16 @@ Envoy is **discovered**, not named: Envoy Gateway provisions its own Deployment 
 
 An event is one object in the registry at `src/cli/event.js` holding its probes, its alerting rule and its handler.
 
-| Event                           | Role    | Probe                                                             | Fires after | Remediation                                                      |
-| ------------------------------- | ------- | ----------------------------------------------------------------- | ----------- | ---------------------------------------------------------------- |
-| `wireguard-spoke-down`          | spoke   | hub tunnel for local spoke; tunnel address for workers            | 2m          | restart + verified handshake locally or through LAN SSH          |
-| `wireguard-server-down`         | hub     | hub tunnel, delayed behind local-spoke remediation                | 5m          | restart + health check through the hub's external registered SSH |
-| `public-ingress-down`           | ingress | every published host, from the same conf the traffic report reads | 10m         | unblock ingress + rebuild the tunnel on the hub, then re-probe   |
-| `node-cpu-limit-exceeded`       | node    | none — reads scraped host metrics                                 | 5m          | captures the top CPU consumers on the node the alert names       |
-| `node-memory-limit-exceeded`    | node    | none — reads scraped host metrics                                 | 3m          | captures the top memory consumers                                |
-| `hub-bandwidth-limit-exceeded`  | hub     | none — reads the quota the Vultr cron publishes                   | 15m         | reports the traffic breakdown                                    |
-| `node-disk-limit-exceeded`      | node    | none — reads scraped host metrics                                 | 5m          | reports what is filling the root filesystem                      |
-| `node-network-traffic-exceeded` | node    | none — reads scraped host metrics                                 | 2m          | reports the sockets carrying the burst                           |
+| Event                           | Role    | Probe                                                             | Fires after | Remediation                                                                |
+| ------------------------------- | ------- | ----------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| `wireguard-spoke-down`          | spoke   | hub tunnel for local spoke; tunnel address for workers            | 2m          | rebuild + restart + verified handshake, locally or through LAN SSH         |
+| `wireguard-server-down`         | hub     | hub tunnel, delayed behind local-spoke remediation                | 5m          | rebuild + restart + health check through the hub's external registered SSH |
+| `public-ingress-down`           | ingress | every published host, from the same conf the traffic report reads | 10m         | unblock ingress + rebuild the tunnel on the hub, then re-probe             |
+| `node-cpu-limit-exceeded`       | node    | none — reads scraped host metrics                                 | 5m          | captures the top CPU consumers on the node the alert names                 |
+| `node-memory-limit-exceeded`    | node    | none — reads scraped host metrics                                 | 3m          | captures the top memory consumers                                          |
+| `hub-bandwidth-limit-exceeded`  | hub     | none — reads the quota the Vultr cron publishes                   | 15m         | reports the traffic breakdown                                              |
+| `node-disk-limit-exceeded`      | node    | none — reads scraped host metrics                                 | 5m          | reports what is filling the root filesystem                                |
+| `node-network-traffic-exceeded` | node    | none — reads scraped host metrics                                 | 2m          | reports the sockets carrying the burst                                     |
 
 The two-minute spoke rule runs first. If restarting the selected control node restores the tunnel, the five-minute hub rule never fires. If it remains down, hub repair uses the static topology key and does not depend on the failed tunnel.
 
@@ -370,6 +370,15 @@ peer whose managementHost is this machine → local process
 any other peer → node role → managementHost → SSH user + key
 registered hub static IP → SSH user + key
 ```
+
+Every WireGuard repair runs one command, on the node it repairs:
+
+```bash
+node bin wireguard --wireguard-setup --wireguard-restart --check --check-timeout 30 \
+  --expected-role <control|worker|hub> [--expected-id <peer-id>]
+```
+
+`--wireguard-setup` rebuilds `wg0.conf`, IP forwarding and the firewall rules from topology before the restart. It keeps the key pair and leaves an equal topology file as it is. The identity flags refuse setup, restart and check on any other host. On the control plane the command runs as a local process in the engine checkout, with no SSH hop.
 
 Local execution is settled against this host's own interface addresses, never against the node document's name: a default hostname like `localhost.localdomain` names more than one machine, and a repair run on the wrong one is worse than no repair. An unmatched address resolves to SSH, so the check can only fail towards a remote hop.
 
