@@ -9,10 +9,11 @@
  * Foreground connects in 8 directions, background in 4. Pure functions, no DOM: every function
  * returns new frames and leaves its input as it was.
  *
- * @module src/client/components/objectlayer-studio/FrameMutation.js
+ * @module src/projects/cyberia/procedural/core/frame-mutation.js
  */
-import { seededRandom } from './PixelRegion.js';
-import { hexToRgba } from './RenderSource.js';
+import { seededRandom } from '../../../../client/components/objectlayer-studio/PixelRegion.js';
+import { deriveSeed } from './seed.js';
+import { hexToRgba } from '../../../../client/components/objectlayer-studio/RenderSource.js';
 
 /** The palette roles a lightness ramp runs through, darkest role first. */
 const RAMP_ROLES = Object.freeze(['outline', 'shadow', 'base', 'highlight']);
@@ -262,22 +263,31 @@ export function buildMutationCandidates({ width, height, mask, exterior, boundar
 
 /**
  * Whether a shape keeps the structure of its source: the canvas, the occupied count, the
- * components, the holes, the bounding box within one cell, and the centroid within one cell.
+ * components, the holes, the bounding box and the centroid. By default a mutation may move the box
+ * and the centroid by one cell and no cell is lost; a generator that adds cells says how far.
  * @param {Object} baseline - {@link shapeOf} the source.
  * @param {Object} shape - {@link shapeOf} the candidate.
+ * @param {Object} [tolerance]
+ * @param {boolean} [tolerance.sameCount=true] - Whether the occupied count stays.
+ * @param {number} [tolerance.boxGrowth=1] - The cells each side of the box may move.
+ * @param {number} [tolerance.centroidDrift=1] - The cells the centroid may move.
  * @returns {boolean}
  */
-export const validateShape = (baseline, shape) =>
+export const validateShape = (
+  baseline,
+  shape,
+  { sameCount = true, boxGrowth = 1, centroidDrift = MAX_CENTROID_DRIFT } = {},
+) =>
   shape.width === baseline.width &&
   shape.height === baseline.height &&
-  shape.count === baseline.count &&
+  (!sameCount || shape.count === baseline.count) &&
   shape.components === baseline.components &&
   shape.holes === baseline.holes &&
-  shape.box[0] >= baseline.box[0] - 1 &&
-  shape.box[1] >= baseline.box[1] - 1 &&
-  shape.box[2] <= baseline.box[2] + 1 &&
-  shape.box[3] <= baseline.box[3] + 1 &&
-  Math.hypot(shape.centroid[0] - baseline.centroid[0], shape.centroid[1] - baseline.centroid[1]) <= MAX_CENTROID_DRIFT;
+  shape.box[0] >= baseline.box[0] - boxGrowth &&
+  shape.box[1] >= baseline.box[1] - boxGrowth &&
+  shape.box[2] <= baseline.box[2] + boxGrowth &&
+  shape.box[3] <= baseline.box[3] + boxGrowth &&
+  Math.hypot(shape.centroid[0] - baseline.centroid[0], shape.centroid[1] - baseline.centroid[1]) <= centroidDrift;
 
 /**
  * The moves a factor buys for a silhouette: a share of its boundary, never above {@link MAX_MUTATIONS}.
@@ -297,12 +307,12 @@ const weightedPick = (moves, random) => {
 /**
  * A frame whose contour takes up to {@link mutationBudget} moves, each drawn from the seed and
  * kept only when {@link validateShape} accepts it. A moved cell keeps its color and alpha. No
- * accepted move leaves the frame as it was.
+ * accepted move leaves the frame as it was. A frozen cell is never emptied and never filled.
  * @param {number[][][]} frame
- * @param {{factor?: number, seed?: number}} [options]
+ * @param {{factor?: number, seed?: number, frozen?: Array<[number,number]>}} [options]
  * @returns {{frame: number[][][], accepted: number, rejected: number}}
  */
-export function mutateFrameShape(frame, { factor = 0, seed = 0 } = {}) {
+export function mutateFrameShape(frame, { factor = 0, seed = 0, frozen = [] } = {}) {
   const height = frame.length;
   const width = frame[0]?.length ?? 0;
   const result = { frame: frame.map((row) => row.map((cell) => cell.slice())), accepted: 0, rejected: 0 };
@@ -316,6 +326,11 @@ export function mutateFrameShape(frame, { factor = 0, seed = 0 } = {}) {
   const band = source.exterior.map((outside, cell) =>
     outside && around(cell, width, height, OFFSETS_8).some((next) => source.mask[next]) ? 1 : 0,
   );
+  for (const [x, y] of frozen)
+    if (x >= 0 && y >= 0 && x < width && y < height) {
+      core[y * width + x] = 1;
+      band[y * width + x] = 0;
+    }
   const limits = { band, core };
   const mask = source.mask.slice();
   const random = seededRandom(seed);
@@ -359,13 +374,6 @@ export function transformImportedFrame(frame, mapping, { mutationFactor = 0, see
     : { frame: remapped, accepted: 0, rejected: 0 };
 }
 
-/** The seed of one frame of an import: FNV-1a of the operation seed, both items, the direction and the index. */
-export const frameSeed = (...parts) => {
-  let hash = 0x811c9dc5;
-  for (const char of parts.join('|')) hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193);
-  return hash >>> 0;
-};
-
 /**
  * Every frame of an import in the target palette, each mutated with a seed of its own when `mutate`
  * is on and the factor is above 0. Directions, frame order, frame count and frame size stay.
@@ -391,7 +399,7 @@ export function transformImportedFrames(
     result.framesByCode[code] = frames.map((frame, index) => {
       const next = transformImportedFrame(frame, mapping, {
         mutationFactor: factor,
-        seed: frameSeed(seed, source, target, code, index),
+        seed: deriveSeed(seed, source, target, code, index),
       });
       result.frames++;
       result.accepted += next.accepted;

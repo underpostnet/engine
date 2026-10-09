@@ -8,6 +8,7 @@
  *
  * @module src/client/components/objectlayer-studio/RenderSource.js
  */
+import { OBJECT_LAYER_DIRECTION_CODES, getKeyframeDirectionsByCode } from './ObjectLayerProtocol.js';
 
 /** The one pixel format: one byte per pixel, an index into the palette. */
 export const RENDER_SOURCE_FORMAT = 'indexed8';
@@ -104,6 +105,39 @@ export function rgbaFrame(source, pixels) {
     Array.from({ length: source.width }, (_, x) => colors[pixels[y * source.width + x]].slice()),
   );
 }
+
+/**
+ * The rgba frames of each direction code in a source: those of its first keyframe with any.
+ * @param {Object|null} source
+ * @returns {Object<string,number[][][][]>} Direction code → frames; empty when the source has none.
+ */
+export const framesByDirection = (source) =>
+  Object.fromEntries(
+    OBJECT_LAYER_DIRECTION_CODES.map((code) => {
+      const frames =
+        getKeyframeDirectionsByCode(code)
+          .map((keyframe) => source?.frames?.[keyframe] ?? [])
+          .find((list) => list.length > 0) ?? [];
+      return [code, frames.map((pixels) => rgbaFrame(source, pixels))];
+    }),
+  );
+
+/**
+ * A source from rgba frames by direction code: each code feeds every keyframe it names.
+ * @param {Object} params
+ * @param {Object<string,number[][][][]>} params.framesByCode
+ * @param {number} params.frameDurationMs
+ * @returns {Object}
+ */
+export const sourceFromDirectionFrames = ({ framesByCode, frameDurationMs }) =>
+  sourceFromRgbaFrames({
+    frames: Object.fromEntries(
+      Object.entries(framesByCode).flatMap(([code, frames]) =>
+        getKeyframeDirectionsByCode(code).map((keyframe) => [keyframe, frames]),
+      ),
+    ),
+    frameDurationMs,
+  });
 
 const toBase64 = (bytes) => {
   let text = '';

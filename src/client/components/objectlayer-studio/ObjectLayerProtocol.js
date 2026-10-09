@@ -10,6 +10,20 @@ export const OBJECT_LAYER_CID_PATTERN = /^bafkrei[a-z2-7]{52}$/;
 export const isObjectLayerCid = (cid) => typeof cid === 'string' && OBJECT_LAYER_CID_PATTERN.test(cid);
 
 /**
+ * What one stored copy of a definition is.
+ * - `canonical`: stored by the Object Layer authority. The only published copy.
+ * - `cache`: a consumer's copy of a canonical definition, identical to the authority's.
+ * - `draft`: authoring work of a consumer, not published. Never bound, never served.
+ */
+export const OBJECT_LAYER_ORIGINS = Object.freeze(['draft', 'cache', 'canonical']);
+
+/** The status a table shows for a stored copy: `archived` while it is archived, else its origin. */
+export const OBJECT_LAYER_STATUSES = Object.freeze([...OBJECT_LAYER_ORIGINS, 'archived']);
+
+/** The status of a stored copy: one of {@link OBJECT_LAYER_STATUSES}. */
+export const objectLayerStatus = ({ origin, archivedAt }) => (archivedAt ? 'archived' : origin);
+
+/**
  * Animation directions. Each entry binds:
  *   code      — numeric asset folder name on disk (`./assets/<type>/<id>/<code>/<frame>.png`)
  *   label     — editor label
