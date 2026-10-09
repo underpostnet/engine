@@ -94,6 +94,22 @@ class ObjectLayerService {
           return reject(error);
         }),
     );
+  /** The frames of another definition in a palette, with an optional seeded contour mutation. */
+  static importFrames = (options = { body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'import-frames', endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory(options.body),
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static getMetadata = (options = { id: '' }) => {
     const url = new URL(getApiBaseUrl({ id: `metadata/${options.id}`, endpoint }));
     return new Promise((resolve, reject) =>

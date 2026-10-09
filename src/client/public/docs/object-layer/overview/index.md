@@ -59,9 +59,9 @@ ItemLedger talks to Cyberia. The separation is semantic, not isolation.
 
 ## Main components
 
-| Component                 | What it is                                              |
-| ------------------------- | ------------------------------------------------------- |
-| `ObjectLayer`             | One immutable definition, keyed by its content identity |
-| `ObjectLayerRenderFrames` | The editor source of a definition, by its cid           |
-| `AtlasSpriteSheet`        | The local materialization of a definition's render      |
-| `Ipfs`                    | The pin registry of canonical bytes and render content  |
+| Component                 | What it is                                                    |
+| ------------------------- | ------------------------------------------------------------- |
+| `ObjectLayer`             | One immutable definition, keyed by its content identity       |
+| `ObjectLayerRenderFrames` | The editor source of a definition, by its cid                 |
+| `AtlasSpriteSheet`        | The local materialization of a definition's render            |
+| `Ipfs`                    | One record per CID a host pinned: canonical bytes and renders |

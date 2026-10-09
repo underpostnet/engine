@@ -18,6 +18,9 @@ immutable document per definition:
 - `archivedAt` is the lifecycle. An archived definition stays stored under its cid and is
   offered to no one; it is never destroyed. The Object Layer authority owns the lifecycle of
   published content; a consumer archives only its drafts.
+- The status of a stored copy is `archived` while `archivedAt` is set, and its origin (`draft`,
+  `cache` or `canonical`) otherwise. A table shows it, and `GET /object-layer` filters it with a set
+  filter on `status`: `{ "status": { "filterType": "set", "values": ["draft", "archived"] } }`.
 - `upsertByIdentity(payload)` resolves identical content to the stored document and offers it
   again if it was archived; new content creates one. `findByCid(cid)` resolves a definition.
   `GET /object-layer/search-item-ids` searches labels.
@@ -37,22 +40,25 @@ may act on one resource.
 
 A purge is the operator's removal: it takes the definition and everything stored under it on one
 host — the document, its render frames, its atlas and every render File the atlas owns, the IPFS
-pin records, the pinned content and its MFS paths, and what the host's Studio keeps for it (the
-labels bound to the definition, and on request its frames in the asset tree). Nothing restores it.
+pin records, the pinned content and its directory `/object-layer/cid/<cid>/`, and what the host's
+Studio keeps for it (the labels bound to the definition, and on request its frames in the asset
+tree). Nothing restores it. [IPFS storage](ipfs-storage.md) describes the layout.
 
 Definitions share content: two of one label can name one render. A purge keeps the render pins
 and the labels a remaining definition still names. The render frames and the atlas of a
 definition are its own, so they go with it; a render File another atlas still holds stays.
 
-`src/api/object-layer/object-layer.purge.js` is the one implementation: the admin route, the
+`src/api/object-layer/object-layer.purge.js` is the one implementation: the purge route, the
 Object Layer management view's purge action, `cyberia ol --drop` and `cyberia instance --drop` all
-call it. It is rerunnable, and it reports what it removed. A purge selects definitions by an
+call it. The route takes the owner of the definition or an admin. At the authority the owner of a
+published definition is the domain that published it, so a consumer can purge what it published,
+for example the leftovers of a deleted procedural job. It is rerunnable, and it reports what it removed. A purge selects definitions by an
 explicit filter: a label shared with another definition is never a reason to remove one.
 
 A Cyberia content release shares the File store and the IPFS node with every other release. A
 purge there removes the release's own documents and pin records only: the render Files, the pins
 and the MFS paths stay for the other releases, and `cyberia content-release prune` removes the
-renders no kept release holds.
+renders and the IPFS content no kept release holds.
 
 A definition ItemLedger registers is never purged: a token type names content that must stay
 resolvable. The purge reports it as kept and the route refuses. This registration-safety check is

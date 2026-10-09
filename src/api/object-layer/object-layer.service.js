@@ -191,7 +191,10 @@ class ObjectLayerService {
       identifier: 'list',
       variant: CacheService.variant(params),
       load: async () => {
-        const { query, sort, skip, limit, page } = DataQuery.parse(params);
+        // `status` is a column of the table, not a stored field: it filters on the origin and the archive.
+        const { status, ...filterModel } = DataQuery.filterModelOf(params.filterModel) ?? {};
+        const { query: fields, sort, skip, limit, page } = DataQuery.parse({ ...params, filterModel });
+        const query = status ? { $and: [fields, ObjectLayer.statusQuery(status.values ?? [])] } : fields;
         const [documents, total] = await Promise.all([
           ObjectLayer.find(query).sort(sort).limit(limit).skip(skip).select(ObjectLayerDto.select.get()),
           ObjectLayer.countDocuments(query),
@@ -205,7 +208,8 @@ class ObjectLayerService {
   /**
    * DELETE `/purge/:id`: removes every record this host stores of one definition — the
    * definition, its render frames, its atlas and render files, its IPFS pin records, the pinned
-   * content and its MFS paths, and what the Studio keeps for it. Not reversible.
+   * content and its MFS paths, and what the Studio keeps for it. Not reversible. The owner of the
+   * definition, the user or the domain that published it, or an admin.
    *
    * The body carries the cid the caller means (`{ cid }`): the purge runs only when it is the
    * cid the key resolves to, so a stale row can never destroy another definition.
@@ -219,6 +223,7 @@ class ObjectLayerService {
     const objectLayer = await findObjectLayerByKey({ ObjectLayer, key: req.params.id, options });
     if (!objectLayer) throw Object.assign(new Error(`No object layer for key: ${req.params.id}`), { status: 404 });
     if (req.body?.cid !== objectLayer.cid) throw new Error(`A purge names the cid it removes: ${objectLayer.cid}`);
+    assertOwnerOrAdmin(req.auth.user, objectLayer.createdBy);
     const report = await purgeObjectLayers({ options, filter: { _id: objectLayer._id } });
     if (report.kept.length > 0)
       throw new Error(`ObjectLayer ${objectLayer.cid} is registered in ItemLedger and cannot be purged`);

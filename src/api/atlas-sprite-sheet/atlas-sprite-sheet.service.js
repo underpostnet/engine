@@ -4,7 +4,8 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
 import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
-import { AtlasSpriteSheetStore, atlasMfsPaths } from './atlas-sprite-sheet.store.js';
+import { AtlasSpriteSheetStore } from './atlas-sprite-sheet.store.js';
+import { objectLayerMfsPaths } from '../object-layer/object-layer.ipfs.js';
 import { AtlasSpriteSheetGenerator, IDLE_PREVIEW_SIZE } from './atlas-sprite-sheet.generator.js';
 import {
   MAX_CANONICAL_BYTES,
@@ -42,10 +43,10 @@ const failure = (status, message) => Object.assign(new Error(message), { status 
  */
 export const purgeAtlasDoc = async ({ atlasDoc, options, render = null }) => {
   if (render) {
-    const mfsPaths = atlasMfsPaths(atlasDoc.metadata?.itemKey);
+    const paths = objectLayerMfsPaths(atlasDoc.objectLayerCid);
     for (const [cid, mfsPath] of [
-      [render.cid, mfsPaths.png],
-      [render.metadataCid, mfsPaths.metadata],
+      [render.cid, paths['atlas.png']],
+      [render.metadataCid, paths['atlas.json']],
     ]) {
       if (!cid) continue;
       try {

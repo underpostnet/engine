@@ -5,43 +5,28 @@ import { IpfsClient } from './ipfs.client.js';
 import { IpfsDto } from './ipfs.model.js';
 const logger = loggerFactory(import.meta);
 /**
- * Upsert a CID registry entry.
- * Called by asset services (ObjectLayer, AtlasSpriteSheet) after a successful
- * IPFS pin so the registry always reflects what is actually pinned.
+ * Records a CID this host pinned. One record per CID: recording it again changes nothing.
+ * Called by the content writers after a successful pin, so the registry reflects what is pinned.
  *
  * @param {object} opts
  * @param {string} opts.cid          - IPFS Content Identifier.
- * @param {string} opts.resourceType - Asset category ('object-layer-data' | 'atlas-sprite-sheet' | 'atlas-metadata').
- * @param {string} [opts.mfsPath]    - MFS path used when adding the content.
+ * @param {string} opts.resourceType - One of `IPFS_RESOURCE_TYPES`.
+ * @param {number} [opts.size=0]     - DAG size the node reported.
  * @param {object} opts.options      - Router options ({ host, path }) for DB lookup.
  * @returns {Promise<import('mongoose').Document>}
  */
-const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => {
+const createPinRecord = async ({ cid, resourceType, size = 0, options }) => {
   const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
-  // mfsPath uniquely identifies an item-id asset, so it is the upsert key: a new
-  // CID arriving for the same path overwrites the previous association (last write
-  // wins). Only content added without an MFS copy falls back to cid+resourceType.
-  const filter = mfsPath ? { mfsPath } : { cid, resourceType };
-  const update = { $set: { cid, resourceType, mfsPath } };
+  const update = { $set: { resourceType, size } };
   try {
-    const record = await Ipfs.findOneAndUpdate(filter, update, {
-      upsert: true,
-      returnDocument: 'after',
-      setDefaultsOnInsert: true,
-    });
-    logger.info(`IPFS registry upserted – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
-    return record;
+    return await Ipfs.findOneAndUpdate({ cid }, update, { upsert: true, returnDocument: 'after' });
   } catch (err) {
-    if (err?.code === 11000) {
-      const record = await Ipfs.findOneAndUpdate(filter, update, { returnDocument: 'after' });
-      logger.info(`IPFS registry reconciled (duplicate key) – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
-      return record;
-    }
+    if (err?.code === 11000) return await Ipfs.findOneAndUpdate({ cid }, update, { returnDocument: 'after' });
     throw err;
   }
 };
 /**
- * Remove all DB registry entries for a CID, then best-effort unpin from the IPFS node.
+ * Remove the registry record of a CID, then best-effort unpin it from the IPFS node.
  * Always deletes DB records first so the registry stays clean even if the node is down.
  *
  * @param {string} cid     - IPFS Content Identifier to remove.
@@ -90,20 +75,8 @@ class IpfsService {
     const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
     if (req.params.id) {
       const record = await Ipfs.findById(req.params.id);
-      if (record) {
-        await Ipfs.findByIdAndDelete(req.params.id);
-        // Only unpin from the node when no other registry entries reference this CID.
-        const remaining = await Ipfs.countDocuments({ cid: record.cid });
-        if (remaining === 0) {
-          try {
-            await IpfsClient.unpinCid(record.cid);
-          } catch (err) {
-            logger.warn(`Failed to unpin CID ${record.cid}: ${err.message}`);
-          }
-        }
-        return record;
-      }
-      return null;
+      if (record) await removePinRecordsAndUnpin(record.cid, options);
+      return record;
     }
     return await Ipfs.deleteMany();
   };
@@ -118,7 +91,7 @@ class IpfsService {
    * and automated alerting.
    *
    * Response shape:
-   *   { total, pinned, unpinned, errors, entries: [{ cid, resourceType, mfsPath, pinned, error? }] }
+   *   { total, pinned, unpinned, errors, entries: [{ cid, resourceType, pinned, error? }] }
    */
   static verify = async (req, res, options) => {
     const Ipfs = DataBaseProviderService.getModel('Ipfs', options);
@@ -132,10 +105,10 @@ class IpfsService {
           const isPinned = await IpfsClient.isCidPinned(r.cid);
           if (isPinned) pinned++;
           else unpinned++;
-          return { cid: r.cid, resourceType: r.resourceType, mfsPath: r.mfsPath, pinned: isPinned };
+          return { cid: r.cid, resourceType: r.resourceType, pinned: isPinned };
         } catch (err) {
           errors++;
-          return { cid: r.cid, resourceType: r.resourceType, mfsPath: r.mfsPath, pinned: false, error: err.message };
+          return { cid: r.cid, resourceType: r.resourceType, pinned: false, error: err.message };
         }
       }),
     );

@@ -22,11 +22,9 @@ import { AtlasSpriteSheetStore } from '../atlas-sprite-sheet/atlas-sprite-sheet.
 import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { resolveRegisteredCids } from '../../server/domain/object-layer-resolver.js';
 import { objectLayerCache } from './object-layer.publication.js';
+import { removeObjectLayerBundle } from './object-layer.ipfs.js';
 
 const logger = loggerFactory(import.meta);
-
-/** The MFS directory an item label owns: its canonical bytes and its atlas content. */
-const itemMfsPath = (itemId) => `/object-layer/${itemId}`;
 
 /**
  * The values of a field some remaining definition still carries. Two definitions share a render or
@@ -53,7 +51,7 @@ const PURGE_PROJECTION = { cid: 1, 'data.item': 1, 'data.render': 1 };
  * @property {number} files - Render File documents removed.
  * @property {number} pinRecords - IPFS registry records removed.
  * @property {number} unpinned - CIDs the node unpinned.
- * @property {number} mfsPaths - MFS directories removed.
+ * @property {number} mfsPaths - MFS directories (`/object-layer/cid/<cid>`) removed.
  * @property {string[]} itemIds - Labels the purge covered.
  * @property {Array<{cid:string,itemId:string}>} kept - Definitions kept because ItemLedger registers them.
  * @memberof ObjectLayerPurge
@@ -150,8 +148,7 @@ export async function purgeObjectLayers({ options, filter = {}, pruneOrphans = f
   if (cids.length > 0) report.pinRecords = (await model('Ipfs').deleteMany({ cid: { $in: cids } })).deletedCount ?? 0;
   if (!AtlasSpriteSheetStore.sharedStore(options)) {
     for (const cid of cids) if (await IpfsClient.unpinCid(cid)) report.unpinned++;
-    for (const itemId of await without('data.item.id', itemIds))
-      if (await IpfsClient.removeMfsPath(itemMfsPath(itemId))) report.mfsPaths++;
+    for (const cid of definitionCids) if (await removeObjectLayerBundle(cid)) report.mfsPaths++;
   }
 
   await CacheService.invalidate(objectLayerCache(options));

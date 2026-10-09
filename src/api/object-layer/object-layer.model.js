@@ -11,6 +11,7 @@
  */
 import { Schema, model } from 'mongoose';
 import {
+  OBJECT_LAYER_ORIGINS,
   OBJECT_LAYER_SCHEMA_VERSION,
   isProfileRef,
   isStatRecord,
@@ -71,16 +72,6 @@ const ProfileSchema = new Schema(
   },
   { _id: false },
 );
-
-/**
- * What one stored copy of a definition is.
- * - `canonical`: stored by the Object Layer authority. The only published copy.
- * - `cache`: a consumer's copy of a canonical definition, identical to the authority's.
- * - `draft`: authoring work of a consumer, not published. Never bound, never served.
- * @constant {ReadonlyArray<string>}
- * @memberof ObjectLayerModel
- */
-export const OBJECT_LAYER_ORIGINS = Object.freeze(['draft', 'cache', 'canonical']);
 
 /**
  * @typedef {Object} ObjectLayer
@@ -185,6 +176,22 @@ ObjectLayerSchema.statics.setArchived = async function (cid, archived) {
     { $set: { archivedAt: archived ? new Date() : null } },
     { returnDocument: 'after' },
   );
+};
+
+/**
+ * The selector of the stored copies whose status is one of `statuses`.
+ * @param {string[]} statuses - Values of `OBJECT_LAYER_STATUSES` (Object Layer protocol).
+ * @returns {Object}
+ * @memberof ObjectLayerModel
+ */
+ObjectLayerSchema.statics.statusQuery = function (statuses) {
+  const origins = statuses.filter((status) => OBJECT_LAYER_ORIGINS.includes(status));
+  const clauses = [
+    ...(origins.length > 0 ? [{ archivedAt: null, origin: { $in: origins } }] : []),
+    ...(statuses.includes('archived') ? [{ archivedAt: { $ne: null } }] : []),
+  ];
+  // A filter that names no known status matches nothing.
+  return clauses.length > 0 ? { $or: clauses } : { _id: null };
 };
 
 /** Legacy document fields the identity migration removes. */

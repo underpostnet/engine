@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Types } from 'mongoose';
 
 // Object-level authorization of the Object Layer API over a stubbed store: who may delete a
-// copy, who may change a lifecycle, and where a lifecycle is changed.
+// copy, who may purge a definition, who may change a lifecycle, and where a lifecycle is changed.
 const models = {};
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
@@ -13,6 +13,13 @@ vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
 }));
 // The atlas store needs the Cyberia catalog packages; no suite here reaches it.
 vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({ AtlasSpriteSheetStore: {} }));
+const purged = [];
+vi.mock('../../../src/api/object-layer/object-layer.purge.js', () => ({
+  purgeObjectLayers: async ({ filter }) => {
+    purged.push(filter);
+    return { kept: [] };
+  },
+}));
 
 const { assertOwnerOrAdmin } = await import('../../../src/server/security/auth.js');
 const { ObjectLayerService } = await import('../../../src/api/object-layer/object-layer.service.js');
@@ -94,5 +101,30 @@ describe('deleting a copy of a definition', () => {
     await expect(remove(other, draft)).rejects.toMatchObject({ status: 403 });
     const canonical = { ...draft, origin: 'canonical' };
     await expect(remove({ _id: String(owner), role: 'moderator' }, canonical)).rejects.toThrow(/archive it instead/);
+  });
+});
+
+describe('purging a definition at the authority', () => {
+  const cid = 'bafkreihybtse75bd3lj6whsoy26ywxqmrw63eai3ehgpsk6tbogjyh3owa';
+  const stored = { _id: new Types.ObjectId(), cid, origin: 'canonical', createdBy: service._id };
+  const purge = (user, body = { cid }) => {
+    models.ObjectLayer = { findByCid: () => stored };
+    return ObjectLayerService.purge({ params: { id: cid }, body, auth: { user } }, {}, authority);
+  };
+
+  beforeEach(() => {
+    purged.length = 0;
+  });
+
+  it('lets the domain that published it, or an admin, purge it', async () => {
+    await purge(service);
+    await purge(admin);
+    expect(purged).toEqual([{ _id: stored._id }, { _id: stored._id }]);
+  });
+
+  it('refuses another moderator and a stale cid before anything is removed', async () => {
+    await expect(purge(other)).rejects.toMatchObject({ status: 403 });
+    await expect(purge(admin, { cid: 'bafkreiother' })).rejects.toThrow(/names the cid it removes/);
+    expect(purged).toEqual([]);
   });
 });

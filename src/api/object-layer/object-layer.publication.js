@@ -13,9 +13,8 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import { consumesOf } from '../../server/domain/consumed-api.js';
 import { domainOrigin } from '../../server/domain/domain-client.js';
 import { publishObjectLayer } from '../../server/domain/object-layer-resolver.js';
-import { createPinRecord } from '../ipfs/ipfs.service.js';
-import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { canonicalObjectLayerBytes, objectLayerIdentity } from './object-layer.identity.js';
+import { objectLayerMfsPaths, storeResource } from './object-layer.ipfs.js';
 import { CACHE_POLICY, CacheService } from '../../server/storage/cache.js';
 
 const logger = loggerFactory(import.meta);
@@ -54,8 +53,9 @@ export class PublicationError extends Error {
 export const isObjectLayerAuthority = (options) => !consumesOf(options)['object-layer'];
 
 /**
- * Pins the canonical bytes of a definition to IPFS under the item's MFS path and records the
- * pin. The node assigns the same CID the identity computed; a different one is reported.
+ * Pins the canonical bytes of a definition to IPFS, records the pin and lists the bytes as
+ * `object-layer.json` under the definition's CID (`object-layer.ipfs.js`). The node assigns the
+ * CID the identity computed; a different one is reported.
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model.
  * @param {Object} params.definition - Canonical definition (document or payload).
@@ -64,28 +64,38 @@ export const isObjectLayerAuthority = (options) => !consumesOf(options)['object-
  * @memberof ObjectLayerPublication
  */
 export async function pinCanonical({ ObjectLayer, definition, options }) {
-  const itemId = definition?.data?.item?.id;
   const { cid } = objectLayerIdentity(definition);
-  const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
   let published = false;
   try {
-    const ipfsResult = await IpfsClient.addToIpfs(
-      canonicalObjectLayerBytes(definition),
-      `${itemId}_data.json`,
-      mfsPath,
-    );
-    if (ipfsResult && ipfsResult.cid !== cid)
-      logger.error(`IPFS assigned ${ipfsResult.cid} to "${itemId}" but its canonical cid is ${cid}`);
-    else if (ipfsResult) {
-      await createPinRecord({ cid, resourceType: 'object-layer-data', mfsPath, options });
-      published = true;
-    }
+    ({ pinned: published } = await storeResource({
+      bytes: canonicalObjectLayerBytes(definition),
+      cid,
+      resourceType: 'object-layer-data',
+      mfsPath: objectLayerMfsPaths(cid)['object-layer.json'],
+      options,
+    }));
   } catch (error) {
-    logger.warn(`Failed to pin canonical bytes of "${itemId}": ${error.message}`);
+    logger.error(`Failed to pin canonical bytes of ${cid}: ${error.message}`);
   }
   await ObjectLayer.setPublished(cid, published);
   await CacheService.invalidate(objectLayerCache(options));
   return published;
+}
+
+/**
+ * Stores a definition as a draft: the authoring work of a host, published nowhere, bound to no
+ * label and served to no one. Identical content resolves to the stored document.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
+ * @param {Object} params.payload - `{ profile, data, createdBy?, _id? }`.
+ * @param {Object} [params.options] - Router options of this host.
+ * @returns {Promise<Object>} The stored document.
+ * @memberof ObjectLayerPublication
+ */
+export async function storeDraft({ ObjectLayer, payload, options }) {
+  const draft = await ObjectLayer.upsertByIdentity(payload, { origin: 'draft' });
+  await CacheService.invalidate(objectLayerCache(options));
+  return draft;
 }
 
 /**
@@ -108,8 +118,7 @@ export async function publishDefinition({ ObjectLayer, payload, options, publish
     return definition;
   }
 
-  const draft = await ObjectLayer.upsertByIdentity(payload, { origin: 'draft' });
-  await CacheService.invalidate(objectLayerCache(options));
+  const draft = await storeDraft({ ObjectLayer, payload, options });
   if (draft.origin !== 'draft') return draft;
   if (!domainOrigin('object-layer')) throw new PublicationError(draft.cid, 'no Object Layer authority is configured');
   let stored;
@@ -125,10 +134,10 @@ export async function publishDefinition({ ObjectLayer, payload, options, publish
 }
 
 /**
- * Has the canonical bytes of a stored definition pinned again under its MFS path
- * (`/object-layer/<item>/<item>_data.json`). The authority pins them itself; a consumer sends the
- * definition to the authority, which stores known content as it is and pins it. Idempotent. The
- * MFS path is the authority's alone: this is how a restore repairs it, never by writing it.
+ * Has the canonical bytes of a stored definition pinned again and listed under its CID. The
+ * authority pins them itself; a consumer sends the definition to the authority, which stores
+ * known content as it is and pins it. Idempotent. The canonical bytes are the authority's alone:
+ * this is how a restore repairs them, never by writing them.
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
  * @param {Object} params.definition - Stored definition (document or lean).

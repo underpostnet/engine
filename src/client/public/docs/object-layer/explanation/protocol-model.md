@@ -22,18 +22,17 @@ definition once it has one.
 
 A runtime references definitions by canonical identity.
 
-Cyberia keeps two things apart:
+Cyberia keeps three things apart:
 
-| concern          | where                                                                 | rule                                            |
-| ---------------- | --------------------------------------------------------------------- | ----------------------------------------------- |
-| alias            | `CyberiaItemCatalog`: one `itemId → objectLayerCid` binding per label | authoring and discovery; rebinding is allowed   |
-| pinned reference | `objectLayerCid` beside the label in persisted content                | what the content means; a rebind never moves it |
+| concern   | where                                                                | rule                                                  |
+| --------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| binding   | `CyberiaItemCatalog`: one `itemId → objectLayerCid` binding per item | the one runtime authority; a bind names what it moves |
+| reference | the item id in quests, actions, entity defaults, sagas and maps      | names the item, never a definition                    |
+| snapshot  | `object-layers/<itemId>.json` of an exported instance                | the frozen binding a restore applies                  |
 
-`src/api/cyberia-item-catalog/item-ref.js` declares every pinned path (quest objectives and
-rewards, vendor items and their currency, craft inputs and outputs). A world loads the
-definitions its content pins, and the catalog answers only for labels nothing pinned. One label
-pinned to two definitions in one world is a content error, reported at boot, never a silent
-choice. No "newest definition" rule exists anywhere.
+A world loads the definition the catalog binds for each item id it names, so one world never runs
+two definitions of one item. No "newest definition" rule exists anywhere.
+[Runtime binding](../../cyberia/explanation/runtime-binding.md) holds the Cyberia lifecycle.
 
 ## Render directions
 

@@ -113,7 +113,8 @@ describe('a purge', () => {
       ]),
     );
     expect(report.unpinned).toBe(ipfs.unpinned.length);
-    expect(ipfs.mfsRemoved).toEqual(['/object-layer/hatchet', '/object-layer/sword']);
+    // Each purged definition's own directory, by cid: never a listing by item id.
+    expect(ipfs.mfsRemoved).toEqual(['/object-layer/cid/bafkreihatchet', '/object-layer/cid/bafkreisword']);
     expect(report.mfsPaths).toBe(2);
     expect(invalidations).toHaveLength(1);
   });
@@ -124,7 +125,7 @@ describe('a purge', () => {
     expect(deleted.ObjectLayerRenderFrames).toEqual([{ objectLayerCid: { $in: ['bafkreihatchet', 'bafkreisword'] } }]);
   });
 
-  it('keeps the render and label a surviving definition still names, and its own materializations', async () => {
+  it('keeps the render a surviving definition still names, and the listing of that definition', async () => {
     // Another definition of the same label and render: ItemLedger registers it, so it stays.
     stored.push({ ...definition('hatchet', 1), _id: 'doc-hatchet-2', cid: 'bafkreihatchet2' });
     registered.add('bafkreihatchet2');
@@ -134,7 +135,7 @@ describe('a purge', () => {
     expect(report.objectLayers).toBe(2);
     expect(atlasPurge).toHaveBeenCalledWith({ objectLayerCids: ['bafkreihatchet', 'bafkreisword'], options });
     expect(ipfs.unpinned.sort()).toEqual(['bafkreihatchet', 'bafkreilayout2', 'bafkreirender2', 'bafkreisword']);
-    expect(ipfs.mfsRemoved).toEqual(['/object-layer/sword']);
+    expect(ipfs.mfsRemoved).toEqual(['/object-layer/cid/bafkreihatchet', '/object-layer/cid/bafkreisword']);
   });
 
   it('asks the Studio what it keeps for each definition, and says whether the assets go', async () => {
@@ -157,7 +158,7 @@ describe('a purge', () => {
     const report = await purgeObjectLayers({ options });
     expect(report.objectLayers).toBe(1);
     expect(report.kept).toEqual([{ cid: 'bafkreisword', itemId: 'sword' }]);
-    expect(ipfs.mfsRemoved).toEqual(['/object-layer/hatchet']);
+    expect(ipfs.mfsRemoved).toEqual(['/object-layer/cid/bafkreihatchet']);
   });
 
   it('removes nothing while ItemLedger does not answer: the registration check fails closed', async () => {

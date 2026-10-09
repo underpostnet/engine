@@ -36,6 +36,10 @@ the fields in one order and the keyframes sorted, so one source always gives the
 }
 ```
 
+`framesByDirection()` reads a source as rgba frames by direction code (`08`, `18`, …): the frames of
+the first keyframe the code feeds. `sourceFromDirectionFrames()` writes them back, and each code
+feeds every keyframe it names. The editor, the import and the Procedural Engine use both.
+
 `fromWire()` refuses an unknown format, a palette over 256 colors or not `#rrggbbaa`, a frame of
 another size, and an index past the palette.
 

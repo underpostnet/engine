@@ -1,65 +1,38 @@
 /**
- * Mongoose model for the IPFS CID Registry.
+ * Mongoose model for the IPFS content registry: one record per CID this host pinned.
  *
- * Purpose: tracks every CID that the Engine has pinned to IPFS so that:
- *   1. Deletions can cleanly unpin the right CID from the IPFS node/cluster.
- *   2. Admins can run a health-check that verifies every DB-registered CID is
- *      still actually pinned (GET /ipfs/verify).
- *   3. Garbage-collection jobs can discover orphaned CIDs (pinned on the node
- *      but not referenced by any DB document).
+ * A record is content identity only. The MFS path a CID is listed under is derived from the
+ * content it belongs to (`objectLayerMfsPaths` of `object-layer.ipfs.js`), never stored, and a pin
+ * is the node's state, never a record field. The registry lets a deletion unpin what this host
+ * pinned, `GET /ipfs/verify` check every recorded CID is still pinned, and a prune find content no
+ * kept store references.
  *
  * Fields:
- *   cid          - IPFS Content Identifier (CIDv0 or CIDv1).
- *   resourceType - What kind of asset this CID belongs to:
- *                    'object-layer-data'  - JSON payload of an ObjectLayer document.
- *                    'atlas-sprite-sheet' - Primary render PNG of an ObjectLayer (`data.render.cid`).
- *                    'atlas-metadata'     - Render metadata JSON of an ObjectLayer (`data.render.metadataCid`).
- *   mfsPath      - MFS (Mutable File System) path used when the CID was added,
- *                  e.g. /object-layer/sword/sword_data.json.
- *                  Enables targeted removal via files/rm without knowing the CID.
- *                  Uniquely identifies an item-id asset: exactly one registry
- *                  record per non-empty mfsPath. Distinct item-ids (mfsPaths) may
- *                  still resolve to the same CID — this is expected for
- *                  renders that several item-ids name.
+ *   cid          - IPFS Content Identifier (CIDv1). Unique.
+ *   resourceType - What the content is:
+ *                    'object-layer-data'  - Canonical bytes of an ObjectLayer definition (`object-layer.json`).
+ *                    'atlas-sprite-sheet' - Primary render PNG of an ObjectLayer (`data.render.cid`, `atlas.png`).
+ *                    'atlas-metadata'     - Render metadata JSON of an ObjectLayer (`data.render.metadataCid`, `atlas.json`).
+ *   size         - Cumulative DAG size the node reported.
  *
  * @module src/api/ipfs/ipfs.model.js
  * @namespace IpfsModel
  */
 import { Schema, model } from 'mongoose';
+
+export const IPFS_RESOURCE_TYPES = Object.freeze(['object-layer-data', 'atlas-sprite-sheet', 'atlas-metadata']);
+
 const IpfsSchema = new Schema(
   {
-    cid: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    // Asset category - determines which service owns this CID.
-    resourceType: {
-      type: String,
-      required: true,
-      trim: true,
-      enum: ['object-layer-data', 'atlas-sprite-sheet', 'atlas-metadata'],
-    },
-    // MFS path used when the content was added to IPFS.
-    // Empty string when the content was added without an MFS copy.
-    mfsPath: {
-      type: String,
-      default: '',
-      trim: true,
-    },
+    cid: { type: String, required: true, unique: true, trim: true },
+    resourceType: { type: String, required: true, trim: true, enum: IPFS_RESOURCE_TYPES },
+    size: { type: Number, default: 0 },
   },
   {
     timestamps: true,
   },
 );
-// One DB record per item-id asset path. A CID may be shared across several
-// mfsPaths (a render several item-ids name), so the CID itself is not unique.
-// Partial filter keeps the constraint scoped to real (non-empty) MFS paths.
-IpfsSchema.index({ mfsPath: 1 }, { unique: true, partialFilterExpression: { mfsPath: { $gt: '' } } });
-// Fast look-ups for health-check and garbage-collection by type.
 IpfsSchema.index({ resourceType: 1 });
-// Fast unpin look-ups by CID (non-unique: shared across sprite-sheet item-ids).
-IpfsSchema.index({ cid: 1 });
 const IpfsModel = model('Ipfs', IpfsSchema);
 const ProviderSchema = IpfsSchema;
 class IpfsDto {
@@ -68,7 +41,7 @@ class IpfsDto {
       _id: 1,
       cid: 1,
       resourceType: 1,
-      mfsPath: 1,
+      size: 1,
       createdAt: 1,
       updatedAt: 1,
     }),

@@ -22,7 +22,7 @@ authority. No configuration sets the path or the version, and no unversioned pat
 | publish a definition                            | `POST /api/v1/object-layer/canonical` with the service key; the authority only, a consumer refuses it                                           |
 | archive a definition, or offer it again         | `PUT /api/v1/object-layer/lifecycle/:cid` `{ archived }`; its owner or an admin, at the authority                                               |
 | remove a draft or a cache copy                  | `DELETE /api/v1/object-layer/:id`; its owner or an admin. A published definition is archived, never deleted                                     |
-| remove every record of a definition on one host | `DELETE /api/v1/object-layer/purge/:cid` with body `{ cid }`; an admin. See Purge                                                               |
+| remove every record of a definition on one host | `DELETE /api/v1/object-layer/purge/:cid` with body `{ cid }`; its owner (the domain that published it) or an admin                              |
 | CID → registrations                             | `GET /api/v1/item-ledger/cid/:cid`                                                                                                              |
 | qualified token → asset                         | `GET /api/v1/item-ledger/asset/:chainId/:contractAddress/:tokenId`                                                                              |
 | token → supply                                  | `GET /api/v1/item-ledger-balance/supply/:chainId/:contractAddress/:tokenId`                                                                     |

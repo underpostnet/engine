@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   RENDER_SOURCE_FORMAT,
+  framesByDirection,
   fromWire,
   hexToRgba,
   rgbaFrame,
   rgbaToHex,
   sameSource,
+  sourceFromDirectionFrames,
   sourceFromIndexedFrames,
   sourceFromRgbaFrames,
   toWire,
@@ -92,5 +94,37 @@ describe('render source', () => {
     expect(() => fromWire({ ...wire, width: 3 })).toThrow('is not 3×2 palette indexes');
     expect(() => fromWire({ ...wire, palette: wire.palette.slice(0, 2) })).toThrow('palette indexes');
     expect(() => fromWire({ ...wire, frameDurationMs: -1 })).toThrow('frame duration');
+  });
+});
+
+describe('render source by direction', () => {
+  const frame = [
+    [RED, CLEAR],
+    [CLEAR, BLUE],
+  ];
+
+  it('feeds every keyframe of a direction code and reads the code back', () => {
+    const source = sourceFromDirectionFrames({
+      framesByCode: { '08': [frame, frame], '06': [frame] },
+      frameDurationMs: 90,
+    });
+    expect(Object.keys(source.frames).sort()).toEqual([
+      'default_idle',
+      'down_idle',
+      'down_right_idle',
+      'none_idle',
+      'right_idle',
+      'up_right_idle',
+    ]);
+    expect(source.frames.down_idle).toHaveLength(2);
+    const byCode = framesByDirection(source);
+    expect(byCode['08']).toEqual([frame, frame]);
+    expect(byCode['06']).toEqual([frame]);
+    expect(byCode['02']).toEqual([]);
+  });
+
+  it('leaves out a direction with no frame', () => {
+    const source = sourceFromDirectionFrames({ framesByCode: { '08': [frame], '02': [] }, frameDurationMs: 90 });
+    expect(Object.keys(source.frames)).not.toContain('up_idle');
   });
 });

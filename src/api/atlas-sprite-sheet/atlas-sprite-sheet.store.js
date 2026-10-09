@@ -4,10 +4,10 @@
  *
  * The definition owns the render. `data.render.cid` addresses the primary render and
  * `data.render.metadataCid` its layout, both computed from the bytes by
- * {@link canonicalRender}. This store writes those bytes to the File collection, pins them,
- * and keeps the AtlasSpriteSheet document of each definition that names them, keyed by the
- * definition's cid, together with the renders derived from them. Every writer — the REST service
- * and the Cyberia CLI — goes through here.
+ * {@link canonicalRender}. This store writes those bytes to the File collection and keeps the
+ * AtlasSpriteSheet document of each definition that names them, keyed by the definition's cid,
+ * together with the renders derived from them. Every writer — the REST service and the Cyberia
+ * CLI — goes through here. IPFS stores the render with its definition (`object-layer.ipfs.js`).
  *
  * A definition never changes, so neither does the primary render and layout of its atlas. Only
  * the derived renders are filled in afterwards. Files are addressed by their bytes, so the atlases
@@ -22,11 +22,9 @@ import { isDeepStrictEqual } from 'node:util';
 import { Types } from 'mongoose';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
-import { createPinRecord } from '../ipfs/ipfs.service.js';
 import { FileFactory } from '../file/file.service.js';
 import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.ref.js';
 import { AtlasSpriteSheetGenerator, DEFAULT_ATLAS_UPSCALE_FACTOR } from './atlas-sprite-sheet.generator.js';
-import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { canonicalRender } from '../object-layer/object-layer.identity.js';
 import { objectLayerCache } from '../object-layer/object-layer.publication.js';
 import { CacheService } from '../../server/storage/cache.js';
@@ -44,18 +42,6 @@ const fileProjection = Object.fromEntries(ATLAS_FILE_FIELDS.map((field) => [fiel
  * @memberof CyberiaAtlasSpriteSheetStore
  */
 const ATLAS_RENDER_NAME = /-(primary|upscale|idle)\.png$/;
-
-/**
- * MFS paths the render of an item label is listed under. A label is no identity, so the path
- * lists the last render written for it; the pins keep every render alive.
- * @param {string} itemKey - Object layer item label.
- * @returns {{ png: string, metadata: string }}
- * @memberof CyberiaAtlasSpriteSheetStore
- */
-export const atlasMfsPaths = (itemKey) => ({
-  png: `/object-layer/${itemKey}/${itemKey}_render.png`,
-  metadata: `/object-layer/${itemKey}/${itemKey}_render_metadata.json`,
-});
 
 /**
  * The File `_id` a render resolves through, derived from the item label, the render role and
@@ -141,69 +127,6 @@ const deleteReplacedFiles = async (AtlasSpriteSheet, File, previousIds, currentI
 };
 
 /**
- * Pins a payload to IPFS and records it in the registry. A pin under another CID than the
- * render contract names is refused: every host reads the render by that CID.
- *
- * @param {Object} params
- * @param {function(): Promise<{cid: string}|null>} params.add - The IpfsClient call.
- * @param {string} params.cid - The CID the render contract names for the payload.
- * @param {string} params.resourceType - Registry category.
- * @param {string} params.mfsPath - MFS path of the payload.
- * @param {Object} [params.options] - Router options ({ host, path }).
- * @returns {Promise<boolean>} Whether the node pinned it.
- * @throws {Error} When IPFS assigns another CID than the contract names.
- * @memberof CyberiaAtlasSpriteSheetStore
- */
-const pin = async ({ add, cid, resourceType, mfsPath, options }) => {
-  let result;
-  try {
-    result = await add();
-  } catch (error) {
-    logger.warn(`Failed to pin ${resourceType} ${cid}: ${error.message}`);
-    return false;
-  }
-  if (!result) return false;
-  if (result.cid !== cid)
-    throw new Error(`IPFS pinned ${resourceType} as ${result.cid}; its render contract names ${cid}`);
-  await createPinRecord({ cid, resourceType, mfsPath, options });
-  logger.info(`Pinned ${resourceType} – CID: ${cid}`);
-  return true;
-};
-
-/**
- * Pins a render under the CIDs its contract names: the primary render and the canonical bytes
- * of its layout. The one way a render is pinned, so a restore reproduces the CIDs a build made.
- * @param {Object} params
- * @param {string} params.itemKey - Object layer item label.
- * @param {Buffer} params.primary - PNG bytes of the primary render.
- * @param {Object} params.metadata - Layout of the primary render.
- * @param {Object} [params.options] - Router options ({ host, path }).
- * @returns {Promise<{render: {cid: string, metadataCid: string}, pinned: boolean}>} The contract, computed
- *   from the bytes, and whether IPFS holds both payloads.
- * @throws {Error} When IPFS assigns another CID than the contract names.
- * @memberof CyberiaAtlasSpriteSheetStore
- */
-export const pinRender = async ({ itemKey, primary, metadata, options }) => {
-  const { payloads, contract: render } = canonicalRender({ primary, metadata });
-  const mfsPaths = atlasMfsPaths(itemKey);
-  const pngPinned = await pin({
-    add: () => IpfsClient.addToIpfs(payloads.primary, `${itemKey}_render.png`, mfsPaths.png),
-    cid: render.cid,
-    resourceType: 'atlas-sprite-sheet',
-    mfsPath: mfsPaths.png,
-    options,
-  });
-  const metadataPinned = await pin({
-    add: () => IpfsClient.addToIpfs(payloads.metadata, `${itemKey}_render_metadata.json`, mfsPaths.metadata),
-    cid: render.metadataCid,
-    resourceType: 'atlas-metadata',
-    mfsPath: mfsPaths.metadata,
-    options,
-  });
-  return { render, pinned: pngPinned && metadataPinned };
-};
-
-/**
  * @typedef {Object} AtlasMaterialization
  * @property {import('mongoose').Types.ObjectId} fileId - Primary render File.
  * @property {import('mongoose').Types.ObjectId|null} upscaleFileId - Upscaled derived render File.
@@ -219,9 +142,9 @@ export const pinRender = async ({ itemKey, primary, metadata, options }) => {
  */
 export class AtlasSpriteSheetStore {
   /**
-   * Generates the render of an item's frames, stores its Files and pins it. The render contract
-   * is computed from the bytes; the caller publishes the definition that names it, then records
-   * the materialization under that definition with {@link AtlasSpriteSheetStore.materialize}.
+   * Generates the render of an item's frames and stores its Files. The render contract is computed
+   * from the bytes; the caller publishes the definition that names it, then records the
+   * materialization under that definition with {@link AtlasSpriteSheetStore.materialize}.
    *
    * @static
    * @param {Object} params
@@ -247,8 +170,7 @@ export class AtlasSpriteSheetStore {
       upscaleFactor,
       maxAtlasDim,
     );
-    const { render, pinned } = await pinRender({ itemKey, primary, metadata, options });
-    if (!pinned) logger.warn(`The render of '${itemKey}' is not pinned yet; hosts read ${render.cid} once it is`);
+    const render = canonicalRender({ primary, metadata }).contract;
     const fileId = await upsertRenderFile(File, itemKey, 'primary', primary);
     const derived = await upsertDerivedRenders(File, itemKey, primary, metadata);
     return { render, atlas: { fileId, ...derived, metadata } };

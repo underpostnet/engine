@@ -64,6 +64,29 @@ export async function publishObjectLayer(definition) {
 }
 
 /**
+ * Purges a definition this domain published from the Object Layer authority: every record the
+ * authority stores of it. The authority lets only the domain that published it, or an admin, do
+ * this, and refuses a definition ItemLedger registers.
+ * @param {string} cid - Canonical Object Layer CID.
+ * @returns {Promise<Object|null>} The purge report of the authority; null when it holds no such definition.
+ * @throws {Error} When no authority URL is configured, or the authority refuses the purge.
+ * @memberof ObjectLayerResolver
+ */
+export async function purgeObjectLayer(cid) {
+  try {
+    return await domainWrite({
+      domain: 'object-layer',
+      path: `object-layer/purge/${cid}`,
+      method: 'DELETE',
+      body: { cid },
+    });
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
  * The ItemLedger bindings of a CID, across chains and contracts.
  * @param {string} cid - Canonical Object Layer CID.
  * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.

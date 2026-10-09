@@ -56,12 +56,12 @@ class ObjectLayerRouter {
       */
       return await ObjectLayerController.lifecycle(req, res, options);
     });
-    router.delete(`/purge/:id`, options.authMiddleware, adminGuard, async (req, res) => {
+    router.delete(`/purge/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['object-layer']
         #swagger.summary = 'Purge a definition from this host'
-        #swagger.description = 'Removes every record this host stores of the definition: the document, render frames, atlas, render files, IPFS pin records, pinned content and MFS paths. Body { cid } names the definition. Admin only, not reversible, refused for a definition ItemLedger registers.'
+        #swagger.description = 'Removes every record this host stores of the definition: the document, render frames, atlas, render files, IPFS pin records, pinned content and MFS paths. Body { cid } names the definition. The owner of the definition (the domain that published it) or an admin. Not reversible, refused for a definition ItemLedger registers.'
         #swagger.path = '/object-layer/purge/{id}'
         #swagger.method = 'delete'
         #swagger.produces = ['application/json']

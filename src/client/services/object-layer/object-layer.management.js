@@ -10,6 +10,7 @@ import { BtnIcon } from '../../components/core/BtnIcon.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { AgGrid, ValueListFilter } from '../../components/core/AgGrid.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
+import { OBJECT_LAYER_STATUSES, objectLayerStatus } from '../../components/objectlayer-studio/ObjectLayerProtocol.js';
 
 const SERVICE_ID = 'object-layer-engine-management';
 const gridIdOf = (idModal) => `${SERVICE_ID}-grid-${idModal}`;
@@ -499,10 +500,11 @@ class ObjectLayerManagement {
         field: 'status',
         headerName: 'Status',
         width: 110,
-        valueGetter: (params) => (params.data?.archivedAt ? 'archived' : params.data?.origin || ''),
+        valueGetter: (params) => (params.data ? objectLayerStatus(params.data) : ''),
         editable: false,
         sortable: false,
-        filter: false,
+        filter: ValueListFilter,
+        filterParams: { values: OBJECT_LAYER_STATUSES },
       },
       {
         field: 'frame08',
