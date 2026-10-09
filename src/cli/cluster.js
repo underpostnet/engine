@@ -286,6 +286,8 @@ class UnderpostCluster {
       // Host config is applied per cluster type (not shared) so the K3s path can
       // stay minimal and avoid the Docker/containerd/kubelet setup it does not need.
       if (!alreadyCluster) {
+        // A control plane binds its node address into certificates and leases; it must not depend on a DHCP lease.
+        if ((options.k3s || options.kubeadm) && !options.dev) await Underpost.dns.ensureStaticIpv4();
         if (options.k3s) {
           // K3s is self-contained (bundles containerd, kubelet, CNI, CoreDNS).
           // Apply ONLY minimal host config — see configMinimalK3s.

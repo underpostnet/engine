@@ -456,6 +456,23 @@ sudo scripts/audit-selinux.sh --since boot
 sudo ausearch -m AVC,USER_AVC,SELINUX_ERR -ts recent -i
 ```
 
+### Control-plane address
+
+A control plane binds its node address into its certificates, its leases and the event webhook URL. A DHCP address does not survive a short link drop: NetworkManager removes it, and the next lease can take a full DHCP timeout (45 s). The API server is then unreachable, and every leader-elected component restarts.
+
+The kubeadm and K3s bring-up therefore pins the default interface's current IPv4 binding before it configures the host. Kind and `--dev` hosts keep their own network configuration. On an existing control plane, run the same step by hand:
+
+```bash
+node bin ip --static-ipv4 --dry-run   # print the plan
+node bin ip --static-ipv4             # pin the address, gateway and DNS
+```
+
+The step reads the live binding (address, gateway, DNS) with `nmcli` and writes it into the interface's NetworkManager profile with `ipv4.method manual`. `nmcli device reapply` changes the running interface without a link drop, so an SSH session survives.
+
+A transient timer, `underpost-ipv4-revert-<interface>`, restores the previous profile after 5 minutes. The step stops the timer only after verification: the profile and the live binding must match, and name resolution must still work if it worked before. A failed verification reverts at once. If the session dies during the change, the timer reverts it without console access.
+
+A pinned address stops renewing its DHCP lease, so the DHCP server can lease it to another device. Reserve the address for the interface's MAC address on the DHCP server, or remove it from the DHCP range.
+
 ### What `--dev` sets up on its own
 
 The dev cluster is a single command — there are no extra flags to remember, because everything the browser needs is derived from `conf.server.json` and applied by the runner itself:
