@@ -92,13 +92,15 @@ class SystemdService {
   }
 
   /**
-   * Builds a transient systemd-run command.
-   * @param {{command?: string, user?: string, properties?: Object<string, *>, quiet?: boolean, collect?: boolean, wait?: boolean, sudo?: boolean}} [options]
+   * Builds a transient systemd-run command. `onActive` defers it behind a transient timer.
+   * @param {{command?: string, user?: string, unit?: string, onActive?: string, properties?: Object<string, *>, quiet?: boolean, collect?: boolean, wait?: boolean, sudo?: boolean}} [options]
    * @returns {string}
    */
   static systemdRunCommandFactory({
     command,
     user,
+    unit,
+    onActive,
     properties = {},
     quiet = true,
     collect = true,
@@ -110,7 +112,9 @@ class SystemdService {
       'systemd-run',
       quiet ? '--quiet' : '',
       collect ? '--collect' : '',
-      wait ? '--wait' : '',
+      wait && !onActive ? '--wait' : '',
+      unit ? `--unit=${unit}` : '',
+      onActive ? `--on-active=${onActive}` : '',
       user ? `--uid=${user}` : '',
       ...Object.entries(properties).map(([name, value]) => `--property=${name}=${value}`),
       `${command || ''}`.trim(),

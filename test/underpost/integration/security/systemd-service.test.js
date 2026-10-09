@@ -7,6 +7,7 @@ import SystemdService, {
   nodeCandidatesFactory,
   nodeProbeCommandFactory,
   scriptProbeCommandFactory,
+  systemdRunCommandFactory,
 } from '../../../../src/server/ops/systemd.js';
 
 describe('nodeCandidatesFactory', () => {
@@ -33,6 +34,15 @@ describe('nodeCandidatesFactory', () => {
     expect(homeDirectoryPathFactory('/root')).to.equal(true);
     expect(homeDirectoryPathFactory('/opt/underpost/engine')).to.equal(false);
     expect(homeDirectoryPathFactory('/homelab/engine')).to.equal(false);
+  });
+});
+
+describe('systemdRunCommandFactory', () => {
+  // systemd-run refuses --wait on a timer, so a deferred command never carries it.
+  it('defers a named unit behind a transient timer', () => {
+    expect(systemdRunCommandFactory({ command: 'true', unit: 'fixture-unit', onActive: '300s' })).to.equal(
+      'sudo systemd-run --quiet --collect --unit=fixture-unit --on-active=300s true',
+    );
   });
 });
 
