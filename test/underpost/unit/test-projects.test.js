@@ -187,7 +187,7 @@ describe('product contexts', () => {
     const vitestNames = testProjectsFactory({}, context(false)).map(({ test }) => test.name);
     for (const { name } of owned) expect(vitestNames).to.not.include(name);
     const include = coverageIncludeFactory([], context(false));
-    expect(include).to.not.include('src/projects/cyberia/stat-balance.js');
+    expect(include).to.not.include('src/projects/cyberia/stats/stat-balance.js');
     expect(include).to.include('src/server/build/package.js');
   });
 });

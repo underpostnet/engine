@@ -1,4 +1,3 @@
-import { CoreService } from '../../services/core/core.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { borderChar, Css, dynamicCol, Themes } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
@@ -17,14 +16,9 @@ import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { ObjectLayerEngineElement } from './ObjectLayerEngine.js';
-import {
-  OBJECT_LAYER_DIRECTION_CODES,
-  OBJECT_LAYER_DIRECTION_LABELS,
-  getKeyframeDirectionsByCode,
-} from './ObjectLayerProtocol.js';
-import { fromWire, rgbaFrame, sourceFromRgbaFrames, toWire } from './RenderSource.js';
+import { OBJECT_LAYER_DIRECTION_CODES, OBJECT_LAYER_DIRECTION_LABELS } from './ObjectLayerProtocol.js';
+import { framesByDirection, fromWire, sourceFromDirectionFrames, toWire } from './RenderSource.js';
 import { renderTemplate, templateSuits } from './PixelTemplate.js';
-import { transformImportedFrames } from './FrameMutation.js';
 import { contextIcon, contextIconSrc, contextPanelStyle, mountContextPanel } from './ContextPanel.js';
 import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
 import { EditorCrud } from '../core/EditorCrud.js';
@@ -544,6 +538,8 @@ class ObjectLayerEngineModal {
   /** Whether a frame import mutates the contour of the frames it brings, and by how much, 0 to 1. */
   static mutateFrames = false;
   static mutationFactor = 0;
+  /** The seed of the next frame import: it counts up, so each import is another variation. */
+  static importSeed = 0;
   static templates = [EMPTY_TEMPLATE];
   /** What the host's Studio adds: `context(key)` for the foundation panel, and `templates`. */
   static studio = null;
@@ -645,20 +641,6 @@ class ObjectLayerEngineModal {
       distortionStatusNode.innerHTML = DEFAULT_DISTORTION_STATUS;
     }
   }
-
-  /**
-   * The key the editor opens for a key: the cid of the definition its item runs when the key names
-   * another one, so a reload after another save or an import edits the current definition.
-   * @param {string} key - cid, document id or item label.
-   * @returns {Promise<string>}
-   */
-  static currentKey = async (key) => {
-    const { status, data: named } = await ObjectLayerService.getMetadata({ id: key });
-    const itemId = named?.data?.item?.id;
-    if (status !== 'success' || !itemId || itemId === key) return key;
-    const { status: runStatus, data: runs } = await ObjectLayerService.getMetadata({ id: itemId });
-    return runStatus === 'success' && runs?.cid && runs.cid !== named.cid ? runs.cid : key;
-  };
 
   static loadFromDatabase = async (objectLayerId) => {
     try {
@@ -920,15 +902,8 @@ class ObjectLayerEngineModal {
       });
     };
 
-    // The editor edits the definition an item runs; a key naming a replaced one opens the current one.
-    const cid = queryParams.cid ? await ObjectLayerEngineModal.currentKey(queryParams.cid) : '';
-    if (queryParams.cid && cid !== queryParams.cid) {
-      setQueryParams({ cid }, { replace: true });
-      NotificationManager.Push({
-        html: 'A later save or import replaced the definition you asked for: the editor opened the current one.',
-        status: 'warning',
-      });
-    }
+    // A cid opens exactly that revision; an item id opens the revision the item runs.
+    const cid = queryParams.cid ?? '';
     if (cid) {
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(cid);
 
@@ -955,19 +930,13 @@ class ObjectLayerEngineModal {
       }
     }
 
+    // ?review=<key> opens the definition as a revision under review in the host's Studio, which saves it.
+    const review = queryParams.review ? await ObjectLayerEngineModal.studio?.review?.resolve(queryParams.review) : null;
+    // Outside a review, the host's Studio says whether this revision is the one its item runs.
+    const binding =
+      loadedData && !review ? await ObjectLayerEngineModal.studio?.binding?.resolve(loadedData.metadata) : null;
+
     if (ObjectLayerEngineModal.templates.length === 1) {
-      for (const url of [
-        `${getProxyPath()}assets/templates/item-skin-08.json`,
-        `${getProxyPath()}assets/templates/item-skin-06.json`,
-      ]) {
-        const id = url.split('/').pop().replace('.json', '');
-        ObjectLayerEngineModal.templates.push({
-          label: id,
-          id,
-          itemTypes: ['skin'],
-          colors: JSON.parse(await CoreService.getRaw({ url })).color,
-        });
-      }
       ObjectLayerEngineModal.templates.push(...(ObjectLayerEngineModal.studio?.templates ?? []));
     }
     // Templates that suit the item type come first.
@@ -1280,18 +1249,6 @@ class ObjectLayerEngineModal {
       }
     };
 
-    // The rgba frames of each direction code in a render source: those of its first keyframe with any.
-    const framesByCodeOf = (source) =>
-      Object.fromEntries(
-        directionCodes.map((directionCode) => {
-          const frames =
-            ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode)
-              .map((direction) => source?.frames?.[direction] ?? [])
-              .find((list) => list.length > 0) ?? [];
-          return [directionCode, frames.map((pixels) => rgbaFrame(source, pixels))];
-        }),
-      );
-
     // Replaces the frames of every direction bar with rgba frames by direction code.
     const fillDirectionBars = async (framesByCode) => {
       for (const directionCode of directionCodes) {
@@ -1375,7 +1332,7 @@ class ObjectLayerEngineModal {
           showFrameLoading();
           // Object layers with an empty render (no render-frames doc yet) load with zero frames so
           // the user can author them from scratch.
-          await fillDirectionBars(loadedData?.metadata?.data ? framesByCodeOf(loadedData.renderSource) : {});
+          await fillDirectionBars(loadedData?.metadata?.data ? framesByDirection(loadedData.renderSource) : {});
 
           for (const directionCode of directionCodes) {
             // Use IIFE to properly capture directionCode and handle async operations
@@ -1603,28 +1560,31 @@ class ObjectLayerEngineModal {
           });
           return;
         }
-        const { status, data } = await ObjectLayerService.getRender({ id: itemId });
-        if (status !== 'success' || !data?.renderFrames) {
-          NotificationManager.Push({ html: `"${itemId}" has no frames to import`, status: 'error' });
-          return;
-        }
         if (editingFrameId) exitEditMode();
-        const source = fromWire(data.renderFrames);
         const factorInput = s('.ol-input-mutation-factor');
         const mutationFactor = Math.round(clampNumber(Number.parseFloat(factorInput?.value) || 0, 0, 1) * 100) / 100;
         ObjectLayerEngineModal.mutationFactor = mutationFactor;
         if (factorInput) factorInput.value = String(mutationFactor);
         const mutate = ObjectLayerEngineModal.mutateFrames;
-        const result = transformImportedFrames(framesByCodeOf(source), palette.roles, {
-          mutate,
-          mutationFactor,
-          seed: Math.floor(Math.random() * 2 ** 32),
-          source: itemId,
-          target: s('.ol-input-item-id')?.value.trim() ?? '',
+        // The server remaps and mutates: the editor only shows its result.
+        const { status, data, message } = await ObjectLayerService.importFrames({
+          body: {
+            id: itemId,
+            roles: palette.roles,
+            mutate,
+            mutationFactor,
+            seed: ObjectLayerEngineModal.importSeed++,
+            target: s('.ol-input-item-id')?.value.trim() ?? '',
+          },
         });
+        if (status !== 'success') {
+          NotificationManager.Push({ html: message ?? `"${itemId}" has no frames to import`, status: 'error' });
+          return;
+        }
+        const result = { ...data, framesByCode: framesByDirection(fromWire(data.renderFrames)) };
         await fillDirectionBars(result.framesByCode);
-        ObjectLayerEngineModal.renderFrameDuration = source.frameDurationMs;
-        if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = source.frameDurationMs;
+        ObjectLayerEngineModal.renderFrameDuration = result.frameDurationMs;
+        if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = result.frameDurationMs;
         scheduleDraft();
         NotificationManager.Push({
           html: [
@@ -1735,6 +1695,12 @@ class ObjectLayerEngineModal {
         randomizeStatInputs();
       });
 
+      if (review) EventsUI.onClick('.ol-btn-review-back', () => ObjectLayerEngineModal.studio.review.close(review));
+      if (binding?.bindable && canMutate)
+        EventsUI.onClick('.ol-btn-bind', async () => {
+          if (await binding.bind()) await ObjectLayerEngineModal.Reload();
+        });
+
       const persistObjectLayer = async ({ clone = false } = {}) => {
         const isUpdateMode = Boolean(ObjectLayerEngineModal.existingObjectLayerId) && !clone;
 
@@ -1779,13 +1745,15 @@ class ObjectLayerEngineModal {
         // The render source: every frame of every keyframe its direction code feeds.
         let objectLayerRenderFramesData;
         try {
-          const frames = {};
-          for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData))
-            for (const keyframe of ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode))
-              frames[keyframe] = ObjectLayerEngineModal.ObjectLayerData[directionCode].map(
-                (frameData) => JSON.parse(frameData.json).matrix,
-              );
-          objectLayerRenderFramesData = toWire(sourceFromRgbaFrames({ frames, frameDurationMs: frameDuration }));
+          const framesByCode = Object.fromEntries(
+            Object.entries(ObjectLayerEngineModal.ObjectLayerData).map(([directionCode, frames]) => [
+              directionCode,
+              frames.map((frameData) => JSON.parse(frameData.json).matrix),
+            ]),
+          );
+          objectLayerRenderFramesData = toWire(
+            sourceFromDirectionFrames({ framesByCode, frameDurationMs: frameDuration }),
+          );
         } catch (error) {
           NotificationManager.Push({ html: error.message, status: 'error' });
           return;
@@ -1819,7 +1787,11 @@ class ObjectLayerEngineModal {
         }
 
         // One request: the definition with its render source inline. MongoDB holds every frame.
-        const body = { data: objectLayer.data, objectLayerRenderFramesData };
+        const body = {
+          data: objectLayer.data,
+          objectLayerRenderFramesData,
+          ...(review && { review: queryParams.review }),
+        };
         const { status, data, message } = isUpdateMode
           ? await ObjectLayerService.put({ id: ObjectLayerEngineModal.existingObjectLayerId, body })
           : await ObjectLayerService.post({ body });
@@ -1829,10 +1801,13 @@ class ObjectLayerEngineModal {
           AtlasSpriteSheetService.invalidateIdlePreview(objectLayer.data.item.id);
           const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
           NotificationManager.Push({
-            html: `Object layer "${objectLayer.data.item.id}" ${successAction} successfully!`,
+            html: review
+              ? `Revision of "${objectLayer.data.item.id}" saved. It returns to review.`
+              : `Object layer "${objectLayer.data.item.id}" ${successAction} successfully! The item runs it once you bind it.`,
             status: 'success',
           });
-          ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
+          if (review) ObjectLayerEngineModal.studio.review.close(review);
+          else ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
         } else {
           const errorAction = clone ? 'cloning' : isUpdateMode ? 'updating' : 'creating';
           NotificationManager.Push({
@@ -1859,7 +1834,7 @@ class ObjectLayerEngineModal {
         },
         ...(canMutate && {
           save: () => persistObjectLayer(),
-          clone: () => persistObjectLayer({ clone: true }),
+          ...(!review && { clone: () => persistObjectLayer({ clone: true }) }),
         }),
       }));
     });
@@ -1963,6 +1938,34 @@ class ObjectLayerEngineModal {
         '.direction-code-bar-frames-btn-add',
         '.direction-code-bar-preview-btn',
       ])}
+      ${
+        review
+          ? html`<div class="in section-mp studio-group ol-review-banner">
+              <div class="in sub-title-modal"><i class="fa-solid fa-clipboard-check"></i> ${review.title}</div>
+              <div class="in" style="font-size: 12px; opacity: 0.7;">${review.detail}</div>
+              ${await BtnIcon.instance({
+                class: 'ol-btn-review-back',
+                label: html`<i class="fa-solid fa-arrow-left"></i> Back to review`,
+              })}
+            </div>`
+          : ''
+      }
+      ${
+        binding
+          ? html`<div class="in section-mp studio-group ol-binding-banner">
+              <div class="in sub-title-modal"><i class="fa-solid fa-link"></i> ${binding.title}</div>
+              <div class="in" style="font-size: 12px; opacity: 0.7;">${binding.detail}</div>
+              ${
+                binding.bindable && canMutate
+                  ? await BtnIcon.instance({
+                      class: 'ol-btn-bind',
+                      label: html`<i class="fa-solid fa-link"></i> Bind as Runtime Version`,
+                    })
+                  : ''
+              }
+            </div>`
+          : ''
+      }
       <div class="in frame-editor-container-loading">
         <div class="abs center frame-editor-container-loading-center"></div>
       </div>
@@ -2321,10 +2324,6 @@ class ObjectLayerEngineModal {
     `;
   };
 
-  static getDirectionsFromDirectionCode(directionCode = '08') {
-    return getKeyframeDirectionsByCode(directionCode);
-  }
-
   static toManagement = async (id = null) => {
     await ObjectLayerEngineModal.clearData();
     const subModalId = 'management';
@@ -2358,13 +2357,14 @@ class ObjectLayerEngineModal {
    * lacks would become the proxy prefix of every later asset and API request.
    * @param {object} [options]
    * @param {string} [options.cid] - The object layer to edit.
+   * @param {string} [options.review] - The key of the review the edit belongs to; the host's Studio resolves it.
    * @returns {boolean} Whether the host offers the editor.
    */
-  static open({ cid } = {}) {
+  static open({ cid, review } = {}) {
     const entryEl = s(`.main-btn-object-layer-engine`);
     if (!entryEl) return false;
     setPath(`${getProxyPath()}object-layer-engine`);
-    if (cid) setQueryParams({ id: null, cid }, { replace: true });
+    if (cid) setQueryParams({ id: null, cid, review: review ?? null }, { replace: true });
     if (s(`.modal-object-layer-engine`)) setTimeout(() => ObjectLayerEngineModal.Reload());
     entryEl.click();
     return true;

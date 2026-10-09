@@ -2,13 +2,14 @@
  * Domain ownership of the dd-cyberia deploy: which host owns which API, which client serves
  * which host, and the checks a deploy runs before it builds anything.
  *
- * @module src/projects/cyberia/domain-ownership.js
+ * @module src/projects/cyberia/stack/domain-ownership.js
  * @namespace CyberiaDomainOwnership
  */
 import fs from 'node:fs';
-import { apiExtensionUrl, ownsApi } from '../../server/domain/consumed-api.js';
-import { domainOrigin } from '../../server/domain/domain-client.js';
-import { CONTENT_PARTITION } from './content-release.js';
+import { apiExtensionUrl, ownsApi } from '../../../server/domain/consumed-api.js';
+import { domainOrigin } from '../../../server/domain/domain-client.js';
+import { CONTENT_PARTITION } from '../content/content-release.js';
+import { PROCEDURAL_APIS } from '../procedural/engine.js';
 
 /** Hosts of the deploy, their main client, and the domain key other domains address them by. */
 export const DOMAIN_HOSTS = Object.freeze({
@@ -30,12 +31,13 @@ export const DOMAIN_APIS = Object.freeze({
   ]),
 });
 
-/** Cyberia records that are runtime state: never inside a content release. */
+/** Cyberia records that are runtime state or Studio workflow: never inside a content release. */
 export const CYBERIA_RUNTIME_APIS = Object.freeze([
   'cyberia-quest-progress',
   'cyberia-server-registry',
   'cyberia-global-map-code-registry',
   'cyberia-content-release',
+  ...PROCEDURAL_APIS,
 ]);
 
 /** Object Layer APIs the Cyberia Studio extends on the Cyberia host (`apiExtensions`). */

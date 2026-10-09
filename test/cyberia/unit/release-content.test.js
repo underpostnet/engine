@@ -8,7 +8,7 @@ import {
   selectReleaseContent,
   validateReleaseContent,
   withReleaseVariants,
-} from '../../../src/projects/cyberia/release-content.js';
+} from '../../../src/projects/cyberia/content/release-content.js';
 import { DEFAULT_INSTANCE_CODE } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { buildInstanceEnv } from '../../../src/projects/cyberia/instance-data.js';
 
@@ -33,7 +33,7 @@ describe('release content', () => {
 
   it('runs nothing when imported: every check is an explicit call', () => {
     const source = fs.readFileSync(
-      new URL('../../../src/projects/cyberia/release-content.js', import.meta.url),
+      new URL('../../../src/projects/cyberia/content/release-content.js', import.meta.url),
       'utf8',
     );
     const statements = source.split('\n').filter((line) => /^[a-z]/i.test(line));

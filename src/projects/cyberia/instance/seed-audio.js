@@ -1,15 +1,15 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_AUDIO_BANK } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { CyberiaAudioService } from '../../api/cyberia-audio/cyberia-audio.service.js';
-import { CyberiaMapAudioConfService } from '../../api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DEFAULT_AUDIO_BANK } from '../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { CyberiaAudioService } from '../../../api/cyberia-audio/cyberia-audio.service.js';
+import { CyberiaMapAudioConfService } from '../../../api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 
 // The renderer lives in cyberia-audio, a sibling repository this one does not contain (see
 // .gitignore, alongside cyberia-server and cyberia-client). Named once so the runtime and the
 // suites that need real bytes ask the same question of the same path.
-const AUDIO_RENDERER_URL = new URL('../../../cyberia-audio/src/dispatcher.js', import.meta.url);
+const AUDIO_RENDERER_URL = new URL('../../../../cyberia-audio/src/dispatcher.js', import.meta.url);
 
 /** Whether the cyberia-audio renderer is present beside this repository. */
 const hasAudioRenderer = () => fs.existsSync(AUDIO_RENDERER_URL);

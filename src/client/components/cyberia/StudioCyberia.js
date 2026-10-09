@@ -27,6 +27,11 @@ const VIEWS = Object.freeze([
     description: 'Browse every item: its render, stats, identity and sagas',
   },
   {
+    route: 'cyberia-procedural-engine',
+    icon: 'reload.png',
+    description: 'Generate batches of item variants in the background, then review, edit and approve each one',
+  },
+  {
     route: 'cyberia-map-engine',
     icon: 'map.png',
     description: 'Place the entities of a map and track its foundation composition',
@@ -45,6 +50,11 @@ const VIEWS = Object.freeze([
     route: 'cyberia-entity-engine',
     icon: 'character.png',
     description: 'Wire entity-type defaults: live, dead, drop and inventory items',
+  },
+  {
+    route: 'cyberia-item-catalog',
+    icon: 'registry.png',
+    description: 'See and change the exact definition the runtime runs for each item',
   },
 ]);
 

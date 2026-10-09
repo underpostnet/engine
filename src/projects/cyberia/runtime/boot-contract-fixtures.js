@@ -1,7 +1,7 @@
-import { STAT_DEFAULTS } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
-import { profileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
-import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
+import { STAT_DEFAULTS } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
+import { profileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
 import {
   toInstanceConfig,
   toMapMsg,
@@ -9,7 +9,7 @@ import {
   toObjectLayerMsg,
   toActionMsg,
   toQuestMsg,
-} from './instance-data.js';
+} from '../instance-data.js';
 
 // One definition feeds every runtime contract: the Go boot fixtures (engine → cyberia-server)
 // and the WebSocket metadata fixture (cyberia-server → cyberia-client). Its render contract and

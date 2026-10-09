@@ -10,6 +10,7 @@ const PALETTE = { base: ['#44aa44'], shadow: ['#226622'], highlight: ['#88dd88']
 describe('the Object Layer templates of the Cyberia Studio', () => {
   it('offers a template for each kind of item, painted in the biome palette', () => {
     for (const [itemType, kind] of [
+      ['skin', ''],
       ['floor', ''],
       ['resource', 'tree'],
       ['resource', 'rock'],

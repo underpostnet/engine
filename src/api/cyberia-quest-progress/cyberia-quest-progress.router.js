@@ -1,7 +1,7 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { moderatorGuard } from '../../server/security/auth.js';
-import { serverKeyGuard } from '../../projects/cyberia/server-key.js';
+import { serverKeyGuard } from '../../projects/cyberia/runtime/server-key.js';
 import { CyberiaQuestProgressController } from './cyberia-quest-progress.controller.js';
 
 class CyberiaQuestProgressRouter {

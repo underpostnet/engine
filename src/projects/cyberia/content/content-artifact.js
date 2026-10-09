@@ -9,29 +9,30 @@
  * unsupported artifact fails, and nothing falls back. This module also imports the compiled
  * document families into the operational models and audits serialized content against the artifact.
  *
- * @module src/projects/cyberia/content-artifact.js
+ * @module src/projects/cyberia/content/content-artifact.js
  * @namespace CyberiaContentArtifact
  */
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { objectLayerIdentity } from '../../api/object-layer/object-layer.identity.js';
+import { objectLayerIdentity } from '../../../api/object-layer/object-layer.identity.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   isMaterialItemId,
-} from '../../api/cyberia-instance/cyberia-instance-items.js';
-import { STAT_TYPES } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+} from '../../../api/cyberia-instance/cyberia-instance-items.js';
+import { STAT_TYPES } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import {
+  bindItem,
   composeItemDefinition,
   findAllBoundDefinitions,
   findBoundDefinition,
-  writeItemDefinition,
-} from './object-layer-catalog.js';
+  publishItemDefinition,
+} from '../catalog/object-layer-catalog.js';
 
 /** The artifact layout and document shapes this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 4;
+export const CONTENT_SCHEMA_VERSION = 5;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what
@@ -48,7 +49,7 @@ export const CONTENT_FAMILIES = Object.freeze({
   actions: 'actions',
 });
 
-const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const ENGINE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 
 /** A checkout the engine works with: the path its variable names, or the one nested in the engine. */
 const checkoutRoot = (variable, name) => path.resolve(process.env[variable] || path.join(ENGINE_ROOT, name));
@@ -282,8 +283,13 @@ function runtimeArtifact(opened) {
     manifest: deepFreeze(opened.manifest),
     foundation,
     baseline: deepFreeze(opened.json('foundation/baseline.json')),
+    itemBaseline: deepFreeze(opened.json('foundation/item-baseline.json')),
     byItemId: new Map(foundation.objectLayers.map((item) => [item.itemId, item])),
     context: deepFreeze(opened.json('context.json')),
+    procedural: deepFreeze({
+      templates: opened.json('procedural/genesis-templates.json'),
+      ...opened.json('procedural/palettes.json'),
+    }),
     saga(code) {
       if (!opened.manifest.sagas.includes(code)) throw new Error(`The content artifact holds no saga ${code}`);
       return {
@@ -300,9 +306,12 @@ function runtimeArtifact(opened) {
  * The verified content artifact of the content this process serves: the copy the served release
  * holds ({@link serveContentArtifact}), else the artifact on disk, opened once per process.
  * @returns {{manifest:Object, foundation:Object<string,Object[]>, baseline:ReadonlyArray<Object>,
- *   byItemId:Map<string,Object>, context:Object, saga:(code:string)=>{saga:Object, instance:Object,
- *   families:Object<string,Object[]>}, instanceDir:(code:string)=>string}} `baseline` holds the entity-type
- *   defaults every world resolves against; `context` is the index of every definition and its references.
+ *   itemBaseline:Object<string,string>, byItemId:Map<string,Object>, context:Object,
+ *   procedural:{templates:Object[], families:string[], palettes:Object[]}, saga:(code:string)=>{saga:Object,
+ *   instance:Object, families:Object<string,Object[]>}, instanceDir:(code:string)=>string}} `baseline` holds the
+ *   entity-type defaults every world resolves against; `itemBaseline` the item label a new item of each type
+ *   takes its function from; `context` is the index of every definition and its references; `procedural`
+ *   the Genesis Templates and the palette families and templates.
  * @throws {Error} When the artifact is missing, invalid, altered or of an unsupported schema.
  * @memberof CyberiaContentArtifact
  */
@@ -398,7 +407,7 @@ export function planObjectLayer(item, bound) {
  * definition its label is bound to. The plan compares identities, never item ids.
  * @param {Object} params
  * @param {Object[]} params.items - Artifact Object Layer items.
- * @param {import('./object-layer-catalog.js').CatalogModels} params.models
+ * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models
  * @returns {Promise<Object[]>} {@link planObjectLayer} entries, in item order.
  * @memberof CyberiaContentArtifact
  */
@@ -418,7 +427,7 @@ export async function planMaterialization({ items, models }) {
  * @param {Object} params
  * @param {Object[]} params.plan - {@link planMaterialization} output.
  * @param {Object[]} params.items - The planned artifact items.
- * @param {import('./object-layer-catalog.js').CatalogModels} params.models
+ * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models
  * @param {Object} [params.options] - Router options of this host.
  * @param {boolean} [params.rebind=false]
  * @returns {Promise<Object[]>} The written entries, with the cid the label is bound to now.
@@ -429,10 +438,18 @@ export async function materializeObjectLayers({ plan, items, models, options, re
   const written = [];
   for (const entry of plan) {
     if (entry.status === 'in-sync' || (entry.status === 'differs' && !rebind)) continue;
-    const definition = await writeItemDefinition({
+    const definition = await publishItemDefinition({
       models,
       payload: byId.get(entry.id).payload,
       setOnInsert: RENDERLESS,
+      options,
+    });
+    await bindItem({
+      models,
+      itemId: entry.itemId,
+      objectLayerCid: definition.cid,
+      expectedCid: entry.boundCid,
+      source: 'content',
       options,
     });
     written.push({ ...entry, cid: definition.cid });

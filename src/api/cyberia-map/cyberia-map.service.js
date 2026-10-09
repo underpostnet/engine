@@ -4,8 +4,8 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { CyberiaMapDto } from './cyberia-map.model.js';
-import { mapContext } from '../../projects/cyberia/foundation-context.js';
-import { loadSagaAssociations, withSagaFilter } from '../../projects/cyberia/saga-associations.js';
+import { mapContext } from '../../projects/cyberia/content/foundation-context.js';
+import { loadSagaAssociations, withSagaFilter } from '../../projects/cyberia/saga/saga-associations.js';
 
 const logger = loggerFactory(import.meta);
 

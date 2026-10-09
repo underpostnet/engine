@@ -60,7 +60,7 @@ Cyberia is one participating runtime on the platform. The content it runs on com
 
 Identity model, frozen:
 
-- `itemId` (`data.item.id`) is a semantic label. Many definitions may share it. Cyberia world content (entities, entity defaults, skills, quests, actions, inventory) names items by label; the `CyberiaItemCatalog` collection binds each label to one `olCid`, and `src/projects/cyberia/object-layer-catalog.js` is the one path that resolves it. No label resolves without a binding.
+- `itemId` (`data.item.id`) is a semantic label. Many definitions may share it. Cyberia world content (entities, entity defaults, skills, quests, actions, inventory) names items by label; the `CyberiaItemCatalog` collection binds each label to one `olCid`, and `src/projects/cyberia/catalog/object-layer-catalog.js` is the one path that resolves it. No label resolves without a binding.
 - `olCid` is the canonical identity of a definition, computed from its content before any pin or registration.
 - `tokenId` is ItemLedger's ERC-1155 representation, derived from `olCid`.
 - Ownership is chain state, read through ItemLedger, never stored in the Object Layer.

@@ -5,7 +5,8 @@ import {
   DOMAIN_APIS,
   DOMAIN_HOSTS,
   validateDomainConf,
-} from '../../../src/projects/cyberia/domain-ownership.js';
+} from '../../../src/projects/cyberia/stack/domain-ownership.js';
+import { PROCEDURAL_APIS } from '../../../src/projects/cyberia/procedural/engine.js';
 import { consumedApisOf, ownsApi } from '../../../src/server/domain/consumed-api.js';
 
 const OL = DOMAIN_APIS['object-layer'];
@@ -139,6 +140,15 @@ describe('domain ownership', () => {
       'www.cyberiaonline.com: runtime api cyberia-quest-progress is inside the content partition',
     );
     expect(errors).toContain('www.cyberiaonline.com: content api cyberia-map is outside the content partition');
+  });
+
+  it('keeps the Procedural Engine records out of a content release', () => {
+    expect(CYBERIA_RUNTIME_APIS).toEqual(expect.arrayContaining(PROCEDURAL_APIS));
+    const conf = fixture();
+    conf.confServer['www.cyberiaonline.com']['/'].db.partitions.content.apis.push('cyberia-procedural-job');
+    expect(validateDomainConf(conf)).toContain(
+      'www.cyberiaonline.com: runtime api cyberia-procedural-job is inside the content partition',
+    );
   });
 
   it('requires a content database apart from the runtime database', () => {

@@ -24,7 +24,7 @@ import {
   itemTypesOf,
 } from '../../../src/projects/cyberia/instance-data.js';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
 
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
 const contentBuilt = hasContentArtifact();
@@ -142,17 +142,11 @@ describe('wire converters', () => {
       craftRecipes: [{ outputItems: [{ itemId: 'plank' }], ingredients: [{ itemId: 'wood-1', qty: 2 }] }],
       questDialogueCodes: [{ questCode: 'q1' }],
     });
-    // The label is what the runtime displays; the pinned cid is the definition it means.
-    expect(action.shopItems[0]).toEqual({
-      itemId: 'hatchet',
-      objectLayerCid: 'cid-hatchet',
-      priceItemId: 'coin',
-      priceObjectLayerCid: '',
-      priceQty: 1,
-    });
+    // Items travel by item id; a cid a legacy document still pins never reaches the wire.
+    expect(action.shopItems[0]).toEqual({ itemId: 'hatchet', priceItemId: 'coin', priceQty: 1 });
     expect(action.craftRecipes[0]).toEqual({
-      outputItems: [{ itemId: 'plank', objectLayerCid: '', qty: 1 }],
-      ingredients: [{ itemId: 'wood-1', objectLayerCid: '', qty: 2 }],
+      outputItems: [{ itemId: 'plank', qty: 1 }],
+      ingredients: [{ itemId: 'wood-1', qty: 2 }],
       craftTimeMs: 0,
     });
     expect(action.questDialogueCodes[0]).toEqual({ questCode: 'q1', dialogCode: '' });
@@ -163,13 +157,8 @@ describe('wire converters', () => {
       steps: [{ id: 's1', objectives: [{ type: 'collect', itemId: 'wood-1', objectLayerCid: 'cid-wood' }] }],
       rewards: [{ itemId: 'coin' }],
     });
-    expect(quest.steps[0].objectives[0]).toEqual({
-      type: 'collect',
-      itemId: 'wood-1',
-      objectLayerCid: 'cid-wood',
-      quantity: 1,
-    });
-    expect(quest.rewards[0]).toEqual({ itemId: 'coin', objectLayerCid: '', quantity: 1 });
+    expect(quest.steps[0].objectives[0]).toEqual({ type: 'collect', itemId: 'wood-1', quantity: 1 });
+    expect(quest.rewards[0]).toEqual({ itemId: 'coin', quantity: 1 });
     expect(toQuestMsg({})).toMatchObject({ code: '', steps: [], unlocksQuestCodes: [] });
   });
 });
@@ -341,40 +330,8 @@ describe.skipIf(!contentBuilt)('full world load', () => {
   });
 
   // A quest names the definition it means; rebinding the label never moves it.
-  it('loads the definition a quest pins, not the one the catalog binds the label to', async () => {
+  it('loads the definition the catalog binds, whatever a legacy quest still pins', async () => {
     const store = catalog([ol('hatchet', 'weapon')]);
-    const pinned = { ...ol('hatchet', 'weapon'), _id: 'ol-hatchet-pinned', cid: 'cid-hatchet-pinned' };
-    const find = store.ObjectLayer.find;
-    store.ObjectLayer.find = (filter, projection) =>
-      lean(filter.cid.$in.includes(pinned.cid) ? [pinned] : (find(filter, projection).leanValue ?? []));
-    const models = {
-      CyberiaInstance: {
-        findOne: () => lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf: { _id: 'c1' } }),
-      },
-      CyberiaMap: {
-        find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['hatchet'] }] }]),
-      },
-      CyberiaEntityTypeDefault: { find: () => lean([]) },
-      CyberiaAction: { find: () => lean([]) },
-      CyberiaQuest: {
-        find: () =>
-          lean([
-            {
-              code: 'q1',
-              sourceMapCode: 'forest-1',
-              rewards: [{ itemId: 'hatchet', objectLayerCid: pinned.cid, quantity: 1 }],
-            },
-          ]),
-      },
-      CyberiaSkill: { find: () => lean([]) },
-      ...store,
-    };
-    const world = await fetchFullInstance(models, 'FOREST');
-    expect(world.objectLayers.map(({ cid }) => cid)).toContain(pinned.cid);
-    expect(world.quests[0].rewards[0].objectLayerCid).toBe(pinned.cid);
-  });
-
-  it('refuses a world whose content pins one label to two definitions', async () => {
     const models = {
       CyberiaInstance: {
         findOne: () => lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf: { _id: 'c1' } }),
@@ -392,9 +349,14 @@ describe.skipIf(!contentBuilt)('full world load', () => {
           ]),
       },
       CyberiaSkill: { find: () => lean([]) },
-      ...catalog([ol('hatchet', 'weapon')]),
+      ...store,
     };
-    await expect(fetchFullInstance(models, 'FOREST')).rejects.toThrow(/pins several definitions/);
+    const world = await fetchFullInstance(models, 'FOREST');
+    expect(world.objectLayers.map(({ cid }) => cid)).toEqual(['cid-hatchet']);
+    expect(world.quests.map(({ rewards }) => rewards[0])).toEqual([
+      { itemId: 'hatchet', quantity: 1 },
+      { itemId: 'hatchet', quantity: 1 },
+    ]);
   });
 
   it('runs a world whose conf reference is gone on the foundation baseline', async () => {

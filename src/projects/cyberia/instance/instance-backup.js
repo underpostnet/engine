@@ -1,32 +1,34 @@
 /**
  * One Object Layer inside an instance backup, in both directions.
  *
- * A backup holds, per item: the definition (`object-layers/`), its render frames
- * (`render-frames/`), its atlas (`atlas-sprite-sheets/`) and the atlas render Files (`files/`).
+ * A backup is a snapshot: it holds, per item id, the definition the item ran when it was exported
+ * (`object-layers/<itemId>.json`, the snapshot's binding), its render frames (`render-frames/`),
+ * its atlas (`atlas-sprite-sheets/`) and the atlas render Files (`files/`).
  * Nothing else: the IPFS payloads are derived. The canonical render CID addresses the atlas
  * `fileId` File; the canonical metadata CID addresses the canonical bytes of the atlas metadata; the
  * definition's `_data.json` is its canonical bytes, which only the Object Layer authority pins.
  *
- * @module src/projects/cyberia/instance-backup.js
+ * @module src/projects/cyberia/instance/instance-backup.js
  * @namespace CyberiaInstanceBackup
  */
 import fs from 'fs-extra';
 import path from 'node:path';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { documentFileIds } from '../../api/file/file.ref.js';
-import {
-  ATLAS_FILE_FIELDS,
-  AtlasSpriteSheetStore,
-  pinRender,
-} from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+import { documentFileIds } from '../../../api/file/file.ref.js';
+import { ATLAS_FILE_FIELDS, AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import sharp from 'sharp';
-import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
-import { parseIdentityJson, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
-import { repinCanonical } from '../../api/object-layer/object-layer.publication.js';
-import { ObjectLayerEngine } from './object-layer.js';
-import { catalogModels, findBoundDefinition } from './object-layer-catalog.js';
-import { fromWire, toWire } from '../../client/components/objectlayer-studio/RenderSource.js';
+import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
+import { parseIdentityJson, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
+import { repinCanonical } from '../../../api/object-layer/object-layer.publication.js';
+import { ObjectLayerEngine } from '../object-layer/object-layer.js';
+import {
+  bindItem,
+  catalogModels,
+  findBoundDefinition,
+  publishItemDefinition,
+} from '../catalog/object-layer-catalog.js';
+import { fromWire, toWire } from '../../../client/components/objectlayer-studio/RenderSource.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -46,6 +48,16 @@ const HOST_STATE_FIELDS = ['origin', 'published'];
 const declared = (Model, doc) =>
   doc &&
   Object.fromEntries(Object.entries(doc).filter(([field]) => Model.schema.pathType(field) !== 'adhocOrUndefined'));
+
+/**
+ * A stored document with only what its schema declares, at every depth: what a backup writes of
+ * a content document.
+ * @param {import('mongoose').Model} Model
+ * @param {Object} doc - Lean document.
+ * @returns {Object}
+ * @memberof CyberiaInstanceBackup
+ */
+export const declaredDocument = (Model, doc) => new Model(doc).toObject({ virtuals: false });
 
 /* A File's bytes as the export wrote them: base64, or a serialised Buffer. */
 const decodeFileData = (data) => {
@@ -139,22 +151,22 @@ export function atlasFileIdsOf(backupDir) {
 }
 
 /**
- * Writes one object layer into an instance backup: the definition without host state, its render
- * frames, its atlas and the atlas render Files, each with the fields its schema declares. A
- * projection of the database: no IPFS call.
+ * Writes the binding of one item into an instance backup: the definition the item runs, without
+ * host state, its render frames, its atlas and the atlas render Files, each with the fields its
+ * schema declares, all under the item id. A projection of the database: no IPFS call.
  * @param {Object} params
  * @param {string} params.backupDir
+ * @param {string} params.itemId - The item the catalog binds to `definition`.
  * @param {Object} params.definition - Lean bound definition.
  * @param {{host: string, path: string}} params.options
  * @returns {Promise<{itemId: string, renderFrames: boolean, atlas: boolean, files: number}>}
  * @memberof CyberiaInstanceBackup
  */
-export async function exportObjectLayerBackup({ backupDir, definition, options }) {
+export async function exportObjectLayerBackup({ backupDir, itemId, definition, options }) {
   const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
   const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
   const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
   const File = DataBaseProviderService.getModel('File', options);
-  const itemId = definition.data.item.id;
   const write = (dir, value) => fs.outputJsonSync(path.join(backupDir, dir, `${itemId}.json`), value, { spaces: 2 });
 
   const renderFrames = await ObjectLayerRenderFrames.findOne({ objectLayerCid: definition.cid }).lean();
@@ -201,26 +213,26 @@ const backedRender = async ({ objectLayer, atlas, files }) => {
 
 /**
  * Restores one object layer from an instance backup: the definition it holds, with its render
- * frames, atlas, atlas render Files and render payloads on IPFS, and binds the label to it. Every
- * other definition of the label stays: an item id is a label, and content that pins another
- * definition keeps it. Idempotent: every write is an upsert on the backup's File `_id`s, the
- * restored definition's cid and content-addressed CIDs.
+ * frames, atlas, atlas render Files and render payloads on IPFS, and binds the item to it. The
+ * backup is a snapshot: its `object-layers/<itemId>.json` is the definition the item ran when it
+ * was exported, so the restore rebinds the item whatever it runs now. Every other definition of
+ * the item stays. Idempotent: every write is an upsert on the backup's File `_id`s, the restored
+ * definition's cid and content-addressed CIDs.
  *
  * A backup atlas that is not the render the definition names is not restored: the render is
  * rebuilt from the backup's render frames, and the definition that names it replaces the
- * backup's. The caller moves the content that pins `replaced` onto `cid`.
+ * backup's.
  *
- * The definition's canonical bytes are the authority's: they are pinned again through
- * {@link repinCanonical}, which also repairs an MFS path an older restore overwrote.
- * Orphaned atlas renders are left for the caller to prune once, after its last item.
+ * The definition's canonical bytes are the authority's: they are pinned and listed again through
+ * {@link repinCanonical}. Orphaned atlas renders are left for the caller to prune once, after its
+ * last item.
  *
  * @param {Object} params
  * @param {string} params.backupDir
  * @param {string} params.itemId
  * @param {{host: string, path: string}} params.options
  * @param {boolean} [params.clientPublic=false] - Also write the item's frames and metadata to the asset tree.
- * @returns {Promise<{itemId: string, cid: string, replaced: string|null, rebuilt: boolean, files: number, renderFrames: boolean, atlas: boolean, pins: number, staticFiles: number}>}
- *   `replaced` is the backup cid the restored definition replaces, null when it is the same.
+ * @returns {Promise<{itemId: string, cid: string, rebuilt: boolean, files: number, renderFrames: boolean, atlas: boolean, staticFiles: number}>}
  * @throws {Error} When the backup holds neither the named render nor the frames to rebuild it,
  *   or the definition cannot be published.
  * @memberof CyberiaInstanceBackup
@@ -236,15 +248,7 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options, cli
   if (rebuilt && !renderFrames)
     throw new Error(`'${itemId}' names render ${named.cid}; the backup holds neither it nor the frames to rebuild it`);
 
-  // 1. The render payloads, so the definition names CIDs the node serves.
-  let pins = 0;
-  if (primary) {
-    const { pinned } = await pinRender({ itemKey: itemId, primary, metadata: atlas.metadata, options });
-    if (pinned) pins = 2;
-    else logger.warn(`IPFS did not pin the render of '${itemId}'; the next import pins it`);
-  }
-
-  // 2. The render: rebuilt from the frames, or the backup atlas with the Files it points at.
+  // 1. The render: rebuilt from the frames, or the backup atlas with the Files it points at.
   let rendered;
   if (rebuilt) {
     rendered = await AtlasSpriteSheetStore.build({
@@ -262,28 +266,37 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options, cli
     rendered = { render: named, atlas };
   }
 
-  // 3. The definition the label runs on, its render frames and atlas stored under its cid. Its
-  //    _id is kept when the content is new here.
+  // 2. The definition the item runs, its render frames and atlas stored under its cid, and its
+  //    render on IPFS. Its _id is kept when the content is new here.
   const bound = await findBoundDefinition(models, itemId);
   if (!bound && objectLayer._id) await models.ObjectLayer.deleteOne({ _id: objectLayer._id });
-  const restored = await ObjectLayerEngine.publishItemDefinition({
+  const restored = await publishItemDefinition({
     models,
     payload: objectLayer,
     renderFrames: renderFrames ?? undefined,
     rendered,
+    exact: true,
+    options,
+  });
+  await bindItem({
+    models,
+    itemId,
+    objectLayerCid: restored.cid,
+    expectedCid: bound?.cid ?? null,
+    source: 'snapshot',
     options,
   });
   // The derived renders are exact derivations of the primary one: cut any the backup lacks.
   if (primary) await AtlasSpriteSheetStore.syncDerivedRenders({ objectLayerCid: restored.cid, options });
 
-  // 4. The canonical bytes under the item's MFS path, pinned by the authority.
+  // 3. The canonical bytes, pinned and listed under the definition's cid by the authority.
   try {
     await repinCanonical({ ObjectLayer: models.ObjectLayer, definition: restored, options });
   } catch (error) {
     logger.warn(`Canonical bytes of '${itemId}' not pinned again: ${error.message}`);
   }
 
-  // 5. The static frame PNGs the web client serves, from the same render frames.
+  // 4. The static frame PNGs the web client serves, from the same render frames.
   let staticFiles = 0;
   const itemType = objectLayer.data?.item?.type;
   if (clientPublic && renderFrames && itemType) {
@@ -301,12 +314,10 @@ export async function restoreObjectLayerBackup({ backupDir, itemId, options, cli
   return {
     itemId,
     cid: restored.cid,
-    replaced: objectLayer.cid && objectLayer.cid !== restored.cid ? objectLayer.cid : null,
     rebuilt,
     files: rebuilt ? 0 : files.length,
     renderFrames: !!renderFrames,
     atlas: rebuilt || !!atlas,
-    pins,
     staticFiles,
   };
 }

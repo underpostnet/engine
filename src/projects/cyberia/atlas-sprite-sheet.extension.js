@@ -1,7 +1,7 @@
 /**
  * Cyberia Studio routes of the atlas API: regenerate the render of a definition and publish the
- * definition that names it through the Object Layer authority, rebinding the label, or remove a
- * definition's atlas from this host. The host declares it in `conf.server.json` as
+ * definition that names it through the Object Layer authority, or remove a definition's atlas from
+ * this host. The item keeps its binding. The host declares it in `conf.server.json` as
  * `apiExtensions: { "atlas-sprite-sheet": "cyberia" }`.
  *
  * @module src/projects/cyberia/atlas-sprite-sheet.extension.js
@@ -11,8 +11,8 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { moderatorGuard } from '../../server/security/auth.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
 import { purgeAtlasDoc } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { ObjectLayerEngine } from './object-layer.js';
-import { catalogModels, catalogMounted, findBoundCid } from './object-layer-catalog.js';
+import { ObjectLayerEngine } from './object-layer/object-layer.js';
+import { catalogModels, catalogMounted, findBoundCid } from './catalog/object-layer-catalog.js';
 
 /**
  * Atlas authoring handlers of the Cyberia Studio.
@@ -21,7 +21,7 @@ import { catalogModels, catalogMounted, findBoundCid } from './object-layer-cata
 class AtlasStudioService {
   /**
    * POST `/generate/:id`: regenerates the render of a definition from its render frames and
-   * publishes the definition that names it; the label is rebound to it.
+   * publishes the definition that names it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../../api/types.js').RouterOptions} options - Router options.

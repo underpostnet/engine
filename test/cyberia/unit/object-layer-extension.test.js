@@ -7,16 +7,15 @@ import { sourceFromIndexedFrames, toWire } from '../../../src/client/components/
 // The Studio writes through the Object Layer engine; here it records what the routes hand it.
 const persisted = vi.hoisted(() => []);
 const trees = vi.hoisted(() => ({ paths: [] }));
-vi.mock('../../../src/projects/cyberia/object-layer.js', () => ({
+vi.mock('../../../src/projects/cyberia/object-layer/object-layer.js', () => ({
   ObjectLayerEngine: {
     persistObjectLayerDocuments: async (write) => (persisted.push(write), { _id: 'new' }),
-    publishItemDefinition: async (write) => (persisted.push(write), { _id: 'new' }),
     payloadOf: (doc) => ({ data: doc.data }),
     clientPublicPaths: () => trees.paths,
   },
 }));
 const store = vi.hoisted(() => ({ loaded: null, boundCid: null, stored: null }));
-vi.mock('../../../src/projects/cyberia/object-layer-catalog.js', () => ({
+vi.mock('../../../src/projects/cyberia/catalog/object-layer-catalog.js', () => ({
   catalogModels: () => ({
     ObjectLayer: {
       findById: () => Object.assign(Promise.resolve(store.loaded), { lean: async () => store.loaded }),
@@ -26,6 +25,7 @@ vi.mock('../../../src/projects/cyberia/object-layer-catalog.js', () => ({
   }),
   catalogMounted: () => true,
   findBoundDefinition: async () => (store.boundCid ? { cid: store.boundCid } : null),
+  publishItemDefinition: async (write) => (persisted.push(write), { _id: 'new' }),
 }));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: {
@@ -71,10 +71,17 @@ describe('the Cyberia Studio routes of the Object Layer API', () => {
   });
 
   it('serves no route that writes the asset tree', () => {
-    expect(Object.keys(routes).sort()).toEqual(['get /context/:id', 'post /', 'post /:id', 'put /', 'put /:id']);
+    expect(Object.keys(routes).sort()).toEqual([
+      'get /context/:id',
+      'post /',
+      'post /:id',
+      'post /import-frames',
+      'put /',
+      'put /:id',
+    ]);
   });
 
-  it('publishes the render source the editor sends inline, and answers 409 once another save moved the label', async () => {
+  it('publishes the render source the editor sends inline, from any definition of the item: a save never binds', async () => {
     const body = { data: { item: { id: 'grass', type: 'floor' } }, objectLayerRenderFramesData: toWire(source) };
     const saved = await call('put /:id', { params: { id: 'ol1' }, body });
     expect(saved.code).toBe(200);
@@ -82,9 +89,8 @@ describe('the Cyberia Studio routes of the Object Layer API', () => {
     expect(persisted[0].objectLayerData).toMatchObject({ data: body.data, createdBy: 'u1' });
 
     store.boundCid = 'cid-2';
-    const stale = await call('put /:id', { params: { id: 'ol1' }, body });
-    expect(stale.code).toBe(409);
-    expect(persisted).toHaveLength(1);
+    expect((await call('put /:id', { params: { id: 'ol1' }, body })).code).toBe(200);
+    expect(persisted).toHaveLength(2);
   });
 
   it('rebuilds from the stored render frames when the body carries none', async () => {

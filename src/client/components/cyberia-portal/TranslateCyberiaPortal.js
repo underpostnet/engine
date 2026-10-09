@@ -18,6 +18,10 @@ class TranslateCyberiaPortal {
       en: 'Object Layer Viewer',
       es: 'Object Layer Viewer',
     };
+    Translate.Data['cyberia-procedural-engine'] = {
+      en: 'Cyberia Procedural Engine',
+      es: 'Cyberia Procedural Engine',
+    };
     Translate.Data['cyberia-map-engine'] = {
       en: 'Cyberia Map Engine',
       es: 'Cyberia Map Engine',
@@ -33,6 +37,10 @@ class TranslateCyberiaPortal {
     Translate.Data['cyberia-entity-engine'] = {
       en: 'Cyberia Entity Engine',
       es: 'Cyberia Entity Engine',
+    };
+    Translate.Data['cyberia-item-catalog'] = {
+      en: 'Cyberia Item Catalog',
+      es: 'Cyberia Item Catalog',
     };
     Translate.Data['instance-selection'] = {
       en: 'Select World',

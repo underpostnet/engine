@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Types } from 'mongoose';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
-import { refreshMapPreview } from '../../../src/projects/cyberia/map-preview-generator.js';
+import { refreshMapPreview } from '../../../src/projects/cyberia/instance/map-preview-generator.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 // A refreshed map preview on a real MongoDB: the map names the new File, the replaced File goes,

@@ -2,7 +2,7 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
-import { triggerHotReload } from '../../projects/cyberia/hot-reload-trigger.js';
+import { triggerHotReload } from '../../projects/cyberia/runtime/hot-reload-trigger.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 

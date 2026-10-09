@@ -58,7 +58,7 @@ vi.mock('../../../src/api/cyberia-map/cyberia-map.service.js', () => ({ mapCache
 vi.mock('../../../src/api/file/file.service.js', () => ({
   FileFactory: { create: (data, name) => ({ data, name, md5: `md5-of-${data.length}-${data[data.length - 20]}` }) },
 }));
-vi.mock('../../../src/projects/cyberia/object-layer-catalog.js', () => ({
+vi.mock('../../../src/projects/cyberia/catalog/object-layer-catalog.js', () => ({
   catalogMounted: () => true,
   catalogModels: () => ({
     CyberiaItemCatalog: {
@@ -72,7 +72,7 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js', () 
 }));
 
 const { renderMapPreviewPng, refreshMapPreview, refreshMapPreviews } =
-  await import('../../../src/projects/cyberia/map-preview-generator.js');
+  await import('../../../src/projects/cyberia/instance/map-preview-generator.js');
 
 const solid = (background) =>
   sharp({ create: { width: 4, height: 4, channels: 4, background } })

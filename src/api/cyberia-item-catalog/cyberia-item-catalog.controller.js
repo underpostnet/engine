@@ -2,6 +2,8 @@ import { buildCrudController, serviceHandler } from '../../server/network/middle
 import { CyberiaItemCatalogService } from './cyberia-item-catalog.service.js';
 
 const CyberiaItemCatalogController = buildCrudController(CyberiaItemCatalogService, {
+  history: serviceHandler(CyberiaItemCatalogService.history, { crossOrigin: true }),
+  diagnostics: serviceHandler(CyberiaItemCatalogService.diagnostics),
   reconcile: serviceHandler(CyberiaItemCatalogService.reconcile),
 });
 

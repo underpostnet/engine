@@ -130,7 +130,7 @@ describe('execution plan', () => {
   });
 
   it('plans the selection a change makes', () => {
-    const selector = impactSelector(['src/projects/cyberia/stat-balance.js']);
+    const selector = impactSelector(['src/projects/cyberia/stats/stat-balance.js']);
     expect(testExecutionPlanFactory({ selector })).to.deep.equal(testExecutionPlanFactory({ selector: 'cyberia' }));
   });
 

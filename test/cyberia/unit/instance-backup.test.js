@@ -22,27 +22,34 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
 vi.mock('../../../src/api/object-layer/object-layer.publication.js', () => ({
   repinCanonical: vi.fn(async () => true),
 }));
-// Publication names the render it is handed and stores the materializations under the cid; here
-// it records what the restore hands it.
-const published = vi.hoisted(() => []);
-vi.mock('../../../src/projects/cyberia/object-layer.js', () => ({
+vi.mock('../../../src/projects/cyberia/object-layer/object-layer.js', () => ({
   ObjectLayerEngine: {
     writeStaticFrameAssets: vi.fn(async () => ['08/0.png']),
     clientPublicPaths: ({ host, path }) => ['./src/client/public/cyberia/', `./public/${host}${path}`],
-    publishItemDefinition: async (write) => {
-      published.push(write);
-      const { models, payload, rendered } = write;
-      const data = rendered ? { ...payload.data, render: rendered.render } : payload.data;
-      return await models.ObjectLayer.upsertByIdentity({ ...payload, data });
-    },
   },
+}));
+// Publication names the render it is handed, stores the materializations and the IPFS bundle under
+// the cid; here it records what the restore hands it, and the bindings the restore makes.
+const published = vi.hoisted(() => []);
+const bound = vi.hoisted(() => []);
+vi.mock('../../../src/projects/cyberia/catalog/object-layer-catalog.js', () => ({
+  catalogModels: () => ({ ObjectLayer: models.ObjectLayer, CyberiaItemCatalog: models.ObjectLayer }),
+  findBoundDefinition: async (catalog, itemId) =>
+    models.ObjectLayer.live?.data.item.id === itemId ? models.ObjectLayer.live : null,
+  publishItemDefinition: async (write) => {
+    published.push(write);
+    const { models: written, payload, rendered } = write;
+    const data = rendered ? { ...payload.data, render: rendered.render } : payload.data;
+    return await written.ObjectLayer.upsertByIdentity({ ...payload, data });
+  },
+  bindItem: async (binding) => (bound.push(binding), {}),
 }));
 const { AtlasSpriteSheetGenerator } =
   await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js');
-const { canonicalJsonBytes, renderContractOf } = await import('../../../src/api/object-layer/object-layer.identity.js');
+const { renderContractOf } = await import('../../../src/api/object-layer/object-layer.identity.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
 const { repinCanonical } = await import('../../../src/api/object-layer/object-layer.publication.js');
-const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer.js');
+const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer/object-layer.js');
 const { sourceFromIndexedFrames, toWire } =
   await import('../../../src/client/components/objectlayer-studio/RenderSource.js');
 const emptySource = () => sourceFromIndexedFrames({ frames: {}, colors: [], frameDurationMs: 100 });
@@ -54,7 +61,7 @@ const {
   fileFromBackup,
   readObjectLayerBackup,
   restoreObjectLayerBackup,
-} = await import('../../../src/projects/cyberia/instance-backup.js');
+} = await import('../../../src/projects/cyberia/instance/instance-backup.js');
 const { ObjectLayerSchema } = await import('../../../src/api/object-layer/object-layer.model.js');
 const { AtlasSpriteSheetSchema } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.model.js');
 const { ObjectLayerRenderFramesSchema } =
@@ -218,6 +225,7 @@ describe('restoring one object layer from an instance backup', () => {
     ipfs.added.length = 0;
     ipfs.answer = null;
     published.length = 0;
+    bound.length = 0;
     repinCanonical.mockClear();
     ObjectLayerEngine.writeStaticFrameAssets.mockClear();
     for (const name of ['ObjectLayer', 'File']) models[name] = collection();
@@ -241,32 +249,16 @@ describe('restoring one object layer from an instance backup', () => {
     expect(models.ObjectLayer.live.data.render).toEqual(render);
   });
 
-  it('pins the primary render and its metadata, and never writes the definition payload', async () => {
-    ipfs.answer = { png: render.cid, json: render.metadataCid };
-    const { pins } = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
-    expect(pins).toBe(2);
-    expect(ipfs.added.map(({ mfsPath }) => mfsPath)).toEqual([
-      '/object-layer/hatchet/hatchet_render.png',
-      '/object-layer/hatchet/hatchet_render_metadata.json',
-    ]);
-    expect(ipfs.added[0].content.equals(primary)).toBe(true);
-    expect(ipfs.added[1].content.equals(canonicalJsonBytes(metadata))).toBe(true);
-    expect(ipfs.added.some(({ mfsPath }) => mfsPath.endsWith('_data.json'))).toBe(false);
+  it('publishes the snapshot definition exactly, and pins nothing itself: the render goes with the definition', async () => {
+    await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
+    expect(published[0]).toMatchObject({ exact: true, payload: { data: { item: { id: 'hatchet' } } } });
+    expect(ipfs.added).toEqual([]);
   });
 
   it('has the authority pin the canonical bytes of the restored definition again', async () => {
     await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
     expect(repinCanonical).toHaveBeenCalledOnce();
     expect(repinCanonical.mock.calls[0][0].definition).toBe(models.ObjectLayer.live);
-  });
-
-  it('refuses a pin under another CID than the render contract names, and writes nothing', async () => {
-    ipfs.answer = { png: 'cid-other', json: render.metadataCid };
-    await expect(restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} })).rejects.toThrow(
-      /pinned atlas-sprite-sheet as cid-other/,
-    );
-    expect(models.File.created).toEqual([]);
-    expect(models.ObjectLayer.live).toBeNull();
   });
 
   it('refuses an atlas that is not the render the definition names when no frames can rebuild it', async () => {
@@ -314,18 +306,23 @@ describe('restoring one object layer from an instance backup', () => {
     expect(models.File.created).toEqual([]);
     expect(models.ObjectLayer.live.data.render).toEqual(render);
     expect(derived).not.toHaveBeenCalled();
-    expect(summary).toMatchObject({ rebuilt: true, replaced: 'cid-ember', cid: models.ObjectLayer.live.cid });
+    expect(summary).toMatchObject({ rebuilt: true, cid: models.ObjectLayer.live.cid });
   });
 
-  it('binds the label to the restored definition and removes no other definition of the label', async () => {
-    // Another instance pins its own definition of the same label; it must stay resolvable.
+  it('binds the item to the restored definition over what it runs, and removes no other definition', async () => {
     await models.ObjectLayer.upsertByIdentity({ data: { item: { id: 'hatchet', type: 'weapon' }, render: {} } });
     const other = models.ObjectLayer.live.cid;
     const summary = await restoreObjectLayerBackup({ backupDir, itemId: 'hatchet', options: {} });
     expect(summary.cid).not.toBe(other);
-    expect(models.ObjectLayer.live.cid).toBe(summary.cid);
+    expect(bound).toEqual([
+      expect.objectContaining({
+        itemId: 'hatchet',
+        objectLayerCid: summary.cid,
+        expectedCid: other,
+        source: 'snapshot',
+      }),
+    ]);
     expect(models.ObjectLayer.deleted).toEqual([]);
-    expect(summary.replaced).toBe('cid-data');
   });
 
   it('writes the asset tree only when asked', async () => {
@@ -400,7 +397,7 @@ describe('exporting one object layer into an instance backup', () => {
   afterAll(() => rm(exportDir, { recursive: true, force: true }));
 
   it('writes the definition without host state, and the materializations of its cid', async () => {
-    const summary = await exportObjectLayerBackup({ backupDir: exportDir, definition, options: {} });
+    const summary = await exportObjectLayerBackup({ backupDir: exportDir, itemId: 'hatchet', definition, options: {} });
     expect(summary).toEqual({ itemId: 'hatchet', renderFrames: true, atlas: true, files: 2 });
     const {
       objectLayer,
@@ -428,6 +425,7 @@ describe('exporting one object layer into an instance backup', () => {
     models.AtlasSpriteSheet.findOne = ownedBy({ ...atlas, cid: 'bafkrei-old', minifyFileId: 'f-min' });
     await exportObjectLayerBackup({
       backupDir: exportDir,
+      itemId: 'hatchet',
       definition: { ...definition, atlasSpriteSheetId: 'at1', objectLayerRenderFramesId: 'rf1' },
       options: {},
     });
@@ -440,17 +438,24 @@ describe('exporting one object layer into an instance backup', () => {
   it('reads the materializations by the definition cid only, never by the label', async () => {
     const summary = await exportObjectLayerBackup({
       backupDir: exportDir,
+      itemId: 'hatchet',
       definition: { ...definition, cid: 'cid-other' },
       options: {},
     });
     expect(summary).toEqual({ itemId: 'hatchet', renderFrames: false, atlas: false, files: 0 });
   });
 
+  it('writes the binding under the item id the catalog binds, whatever item id the definition carries', async () => {
+    const summary = await exportObjectLayerBackup({ backupDir: exportDir, itemId: 'axe', definition, options: {} });
+    expect(summary.itemId).toBe('axe');
+    expect(readObjectLayerBackup({ backupDir: exportDir, itemId: 'axe' }).objectLayer.cid).toBe('cid-data');
+  });
+
   it('is a pure projection: exporting twice writes the same bytes, and no IPFS payload', async () => {
     const { readFile, readdir } = await import('node:fs/promises');
-    await exportObjectLayerBackup({ backupDir: exportDir, definition, options: {} });
+    await exportObjectLayerBackup({ backupDir: exportDir, itemId: 'hatchet', definition, options: {} });
     const first = await readFile(join(exportDir, 'object-layers', 'hatchet.json'), 'utf8');
-    await exportObjectLayerBackup({ backupDir: exportDir, definition, options: {} });
+    await exportObjectLayerBackup({ backupDir: exportDir, itemId: 'hatchet', definition, options: {} });
     expect(await readFile(join(exportDir, 'object-layers', 'hatchet.json'), 'utf8')).toBe(first);
     expect((await readdir(exportDir)).sort()).toEqual([
       'atlas-sprite-sheets',

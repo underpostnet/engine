@@ -2,7 +2,7 @@
  * The internal shared secret between engine-cyberia and the game servers, CYBERIA_SERVER_API_KEY.
  * It travels in the `X-Cyberia-Server-Api-Key` header, server to server, never to a game client.
  *
- * @module src/projects/cyberia/server-key.js
+ * @module src/projects/cyberia/runtime/server-key.js
  * @namespace CyberiaServerKey
  */
 import crypto from 'crypto';

@@ -15,12 +15,14 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () =>
 }));
 vi.mock('../../../src/api/object-layer/object-layer.publication.js', () => ({
   publishDefinition: async ({ ObjectLayer, payload }) => ObjectLayer.store(payload),
+  cacheCanonical: async () => {},
+  isObjectLayerAuthority: () => true,
   objectLayerCache: () => ({}),
 }));
 vi.mock('../../../src/server/storage/cache.js', () => ({ CacheService: { invalidate: async () => {} } }));
 
 const { objectLayerIdentity } = await import('../../../src/api/object-layer/object-layer.identity.js');
-const { composeItemDefinition } = await import('../../../src/projects/cyberia/object-layer-catalog.js');
+const { composeItemDefinition } = await import('../../../src/projects/cyberia/catalog/object-layer-catalog.js');
 const { readSourceLock, verifyLockedSource } = await import('../../../src/server/release/source-lock.js');
 const {
   CONTENT_FAMILIES,
@@ -44,7 +46,10 @@ const {
   serveContentArtifact,
   servedContentArtifact,
   storeContentArtifact,
-} = await import('../../../src/projects/cyberia/content-artifact.js');
+} = await import('../../../src/projects/cyberia/content/content-artifact.js');
+const { resolveTemplate, templateProblems } = await import('../../../src/projects/cyberia/procedural/templates.js');
+const { validatePaletteTemplate } = await import('../../../src/projects/cyberia/procedural/palettes/catalog.js');
+const { DEFAULT_PROFILES } = await import('../../../src/projects/cyberia/procedural/profiles/registry.js');
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const RENDERLESS = { data: { render: {} } };
@@ -110,6 +115,9 @@ const FILES = {
   ...Object.fromEntries(Object.values(CONTENT_FAMILIES).map((family) => [`foundation/${family}.json`, []])),
   'foundation/object-layers.json': ITEMS,
   'foundation/baseline.json': [],
+  'foundation/item-baseline.json': {},
+  'procedural/genesis-templates.json': [],
+  'procedural/palettes.json': { families: [], palettes: [] },
   'instances/X/cyberia-instance.json': { code: 'X' },
 };
 
@@ -141,12 +149,16 @@ const store = (seed = []) => {
       const doc = docs.get(cid);
       return doc ? { ...doc, toObject: () => JSON.parse(JSON.stringify(doc)) } : null;
     },
+    findOne: ({ cid }) => ({ lean: async () => docs.get(cid) ?? null }),
   };
   const CyberiaItemCatalog = {
     findOne: ({ itemId }) => ({
       lean: async () => (bindings.has(itemId) ? { objectLayerCid: bindings.get(itemId) } : null),
     }),
-    bind: async (itemId, cid) => bindings.set(itemId, cid),
+    bind: async (itemId, cid, { expectedCid }) => {
+      if ((bindings.get(itemId) ?? '') !== (expectedCid ?? '')) throw new Error(`${itemId} moved`);
+      bindings.set(itemId, cid);
+    },
   };
   return { models: { ObjectLayer, CyberiaItemCatalog }, docs, bindings };
 };
@@ -359,6 +371,18 @@ describe('the source lock entry of the content artifact', () => {
 
 // cyberia-content is a checkout of the workspace: without its built artifact there is nothing to open.
 describe.skipIf(!hasContentArtifact())('the workspace content artifact', () => {
+  it('holds procedural content the engine verifies, and a baseline item for each template item type', () => {
+    const { procedural, itemBaseline, byItemId } = contentArtifact();
+    expect(Object.isFrozen(procedural.templates)).toBe(true);
+    for (const template of procedural.templates) {
+      const profile = DEFAULT_PROFILES.find(({ itemType }) => itemType === template.itemType);
+      expect(templateProblems(resolveTemplate(template), profile), template.id).toEqual([]);
+      expect(byItemId.get(itemBaseline[template.itemType]).payload.data.item.type).toBe(template.itemType);
+    }
+    for (const palette of procedural.palettes)
+      expect(() => validatePaletteTemplate(palette, procedural.families), palette.id).not.toThrow();
+  });
+
   it('opens once, of a supported schema, with every foundation family and its baseline frozen', () => {
     const artifact = contentArtifact();
     expect(contentArtifact()).toBe(artifact);

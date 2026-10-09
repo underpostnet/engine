@@ -16,7 +16,7 @@ vi.mock(import('../../../src/server/runtime/conf.js'), async (importOriginal) =>
 
 const { composeStacks, cyberiaComposeStack, gatewayHostAliases } =
   await import('../../../src/projects/cyberia/compose-stack.js');
-const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/release-content.js');
+const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/content/release-content.js');
 
 const generate = (env = 'development') => {
   const nginx = new NginxService();

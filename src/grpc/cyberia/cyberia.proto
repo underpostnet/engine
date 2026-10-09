@@ -169,18 +169,20 @@ message ActionQuestDialogue {
   string dialog_code = 2;
 }
 
+// Items are named by item id; the catalog resolves the definition each one runs.
 message ActionShopItem {
-  string item_id             = 1; // label
-  string price_item_id       = 2; // currency item label (default "coin")
-  int32  price_qty           = 3;
-  string object_layer_cid    = 4; // pinned definition of the sold item
-  string price_object_layer_cid = 5; // pinned definition of the currency
+  string item_id       = 1;
+  string price_item_id = 2; // currency item id (default "coin")
+  int32  price_qty     = 3;
+  reserved 4, 5;
+  reserved "object_layer_cid", "price_object_layer_cid";
 }
 
 message ActionCraftItem {
-  string item_id          = 1; // label
-  int32  qty              = 2;
-  string object_layer_cid = 3; // pinned definition
+  string item_id = 1;
+  int32  qty     = 2;
+  reserved 3;
+  reserved "object_layer_cid";
 }
 
 message ActionCraftRecipe {
@@ -206,10 +208,11 @@ message CyberiaActionMessage {
 }
 
 message QuestObjectiveMessage {
-  string type             = 1; // collect | talk | kill
-  string item_id          = 2; // label
-  int32  quantity         = 3;
-  string object_layer_cid = 4; // pinned definition, empty when the objective names no content
+  string type     = 1; // collect | talk | kill
+  string item_id  = 2;
+  int32  quantity = 3;
+  reserved 4;
+  reserved "object_layer_cid";
 }
 
 message QuestStepMessage {
@@ -219,9 +222,10 @@ message QuestStepMessage {
 }
 
 message QuestRewardMessage {
-  string item_id          = 1; // label
-  int32  quantity         = 2;
-  string object_layer_cid = 3; // pinned definition
+  string item_id  = 1;
+  int32  quantity = 2;
+  reserved 3;
+  reserved "object_layer_cid";
 }
 
 message CyberiaQuestMessage {

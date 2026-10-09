@@ -9,7 +9,7 @@
 import Underpost from '../../index.js';
 import { getConfFolder, loadConfServerJson, normalizeInstanceTopology } from '../../server/runtime/conf.js';
 import { hostPortsFactory } from '../../server/network/router.js';
-import { RELEASE_CONTENT, buildCyberiaMmoInstanceEnv } from './release-content.js';
+import { RELEASE_CONTENT, buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 
 /** The API whose host is the Cyberia data plane: the WASM client's `/api/` and the game servers' engine. */
 const DATA_PLANE_API = 'cyberia-instance';

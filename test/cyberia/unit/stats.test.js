@@ -20,8 +20,11 @@ import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import { toObjectLayerMsg, toEntityMsg, toInstanceConfig } from '../../../src/projects/cyberia/instance-data.js';
-import { generateStatContract, hasCyberiaSiblings } from '../../../src/projects/cyberia/stat-contract-generator.js';
-import { registerStatCommands } from '../../../src/projects/cyberia/stat-commands.js';
+import {
+  generateStatContract,
+  hasCyberiaSiblings,
+} from '../../../src/projects/cyberia/stats/stat-contract-generator.js';
+import { registerStatCommands } from '../../../src/projects/cyberia/stats/stat-commands.js';
 
 const block = (value) => Object.fromEntries(STAT_TYPES.map((key) => [key, value]));
 const record = (stats) => ({

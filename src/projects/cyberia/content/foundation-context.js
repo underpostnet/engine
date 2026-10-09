@@ -5,10 +5,10 @@
  * A bundle holds the target in full and every related definition as a summary. A client expands a
  * summary with a second request, so no request walks the whole graph. Every bundle is read-only.
  *
- * @module src/projects/cyberia/foundation-context.js
+ * @module src/projects/cyberia/content/foundation-context.js
  * @namespace CyberiaFoundationContext
  */
-import { trackComposition } from '../../client/components/cyberia/MapPlacementCyberia.js';
+import { trackComposition } from '../../../client/components/cyberia/MapPlacementCyberia.js';
 import { contentArtifact } from './content-artifact.js';
 
 const kindOf = (id) => id.slice(0, id.indexOf('.'));

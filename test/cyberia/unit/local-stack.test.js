@@ -5,14 +5,14 @@ import os from 'os';
 import path from 'path';
 import Underpost from '../../../src/index.js';
 
-vi.mock(import('../../../src/projects/cyberia/content-artifact.js'), async (importOriginal) => ({
+vi.mock(import('../../../src/projects/cyberia/content/content-artifact.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   openContentArtifact: vi.fn(),
 }));
 
-const { openContentArtifact } = await import('../../../src/projects/cyberia/content-artifact.js');
+const { openContentArtifact } = await import('../../../src/projects/cyberia/content/content-artifact.js');
 const { STACK_IMAGES } = await import('../../../src/projects/cyberia/compose-stack.js');
-const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/release-content.js');
+const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/content/release-content.js');
 const {
   STACK_BUILDER_STAGE,
   STACK_IMAGE_IDS,
@@ -23,7 +23,7 @@ const {
   localImageEnv,
   stackProbes,
   stageLocalEngineSource,
-} = await import('../../../src/projects/cyberia/local-stack.js');
+} = await import('../../../src/projects/cyberia/stack/local-stack.js');
 
 const hostLib = new URL('../../../deploy/lib/host.sh', import.meta.url).pathname;
 

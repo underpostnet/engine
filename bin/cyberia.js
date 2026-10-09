@@ -10,14 +10,21 @@
  */
 
 import dotenv from 'dotenv';
-import { registerStatCommands } from '../src/projects/cyberia/stat-commands.js';
-import { generateStatContract } from '../src/projects/cyberia/stat-contract-generator.js';
+import { registerStatCommands } from '../src/projects/cyberia/stats/stat-commands.js';
+import { generateStatContract } from '../src/projects/cyberia/stats/stat-contract-generator.js';
+import {
+  STORAGE_CATEGORIES,
+  checkCatalogStorage,
+  checkWorldBindings,
+  repairLegacyPins,
+} from '../src/projects/cyberia/catalog/catalog-consistency.js';
+import { migrateObjectLayerStorage } from '../src/api/object-layer/object-layer.ipfs.js';
 import { Command, InvalidArgumentError } from 'commander';
 import fs from 'fs-extra';
 import { shellArgumentFactory, shellExec, shellExecAsync } from '../src/server/runtime/process.js';
 import { cli } from '../src/server/build/execution.js';
 import { loggerFactory } from '../src/server/ops/logger.js';
-import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/besu-genesis-generator.js';
+import { generateBesuManifests, deployBesu, removeBesu } from '../src/projects/cyberia/stack/besu-genesis-generator.js';
 import { DataBaseProviderService } from '../src/db/DataBaseProvider.js';
 import { CyberiaAudioService } from '../src/api/cyberia-audio/cyberia-audio.service.js';
 import { CyberiaEntityTypeDefaultService } from '../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
@@ -27,8 +34,8 @@ import {
   collectSummonedItemIds,
   selectInstanceSkills,
 } from '../src/api/cyberia-instance/cyberia-instance-items.js';
-import { recordAudioBank, seedInstanceAudio } from '../src/projects/cyberia/seed-audio.js';
-import { refreshMapPreviews } from '../src/projects/cyberia/map-preview-generator.js';
+import { recordAudioBank, seedInstanceAudio } from '../src/projects/cyberia/instance/seed-audio.js';
+import { refreshMapPreviews } from '../src/projects/cyberia/instance/map-preview-generator.js';
 import {
   CyberiaMapAudioConfService,
   parseEventAudioBinding,
@@ -39,18 +46,19 @@ import {
   resolveItemIdentity,
   pngDirectoryIteratorByObjectLayerType,
   writeFrameImage,
-} from '../src/projects/cyberia/object-layer.js';
+} from '../src/projects/cyberia/object-layer/object-layer.js';
 import {
   ITEM_DEFINITION_APIS,
+  bindItem,
   boundItemIds,
   catalogModels,
   reconcileItemCatalog,
+  findBoundCid,
   findBoundDefinition,
   findBoundDefinitions,
   reviseItemDefinition,
   seedItemCatalog,
-} from '../src/projects/cyberia/object-layer-catalog.js';
-import { pinContentReferences } from '../src/api/cyberia-item-catalog/item-ref.js';
+} from '../src/projects/cyberia/catalog/object-layer-catalog.js';
 import { objectLayerTokenId, ownershipRecord } from '../src/api/item-ledger/item-ledger.model.js';
 import { sha256HexFromCid } from '../src/api/object-layer/object-layer.identity.js';
 import { ItemLedgerIndexer } from '../src/api/item-ledger/item-ledger.indexer.js';
@@ -60,7 +68,7 @@ import {
   releaseInstanceCodes,
   selectReleaseContent,
   withReleaseVariants,
-} from '../src/projects/cyberia/release-content.js';
+} from '../src/projects/cyberia/content/release-content.js';
 import { gatewayHostAliases } from '../src/projects/cyberia/compose-stack.js';
 import {
   STACK_BUILDER_STAGE,
@@ -73,14 +81,15 @@ import {
   localImageEnv,
   stackProbes,
   stageLocalEngineSource,
-} from '../src/projects/cyberia/local-stack.js';
+} from '../src/projects/cyberia/stack/local-stack.js';
 import {
   atlasFileIdsOf,
+  declaredDocument,
   exportObjectLayerBackup,
   fileBackup,
   fileFromBackup,
   restoreObjectLayerBackup,
-} from '../src/projects/cyberia/instance-backup.js';
+} from '../src/projects/cyberia/instance/instance-backup.js';
 import { getKeyframeDirectionsByCode } from '../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { DEFAULT_ATLAS_UPSCALE_FACTOR } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
 import { AtlasSpriteSheetStore } from '../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
@@ -103,7 +112,7 @@ import {
   rollbackContentRelease,
   servedContent,
   validateContentRelease,
-} from '../src/projects/cyberia/content-release.js';
+} from '../src/projects/cyberia/content/content-release.js';
 import { RELEASE_PROFILES, assertReleaseId, assertSourceChannel } from '../src/server/release/source-release.js';
 import { RELEASE_STORE_ROOT, ReleaseWorkspace, fetchRevision } from '../src/server/release/release-workspace.js';
 import {
@@ -118,7 +127,7 @@ import { dropConsumerCanonicalPins, isObjectLayerAuthority } from '../src/api/ob
 import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js';
 import * as cyberiaStudio from '../src/projects/cyberia/object-layer.extension.js';
 import { consumedApisOf, ownsApi } from '../src/server/domain/consumed-api.js';
-import { validateDomainConf } from '../src/projects/cyberia/domain-ownership.js';
+import { validateDomainConf } from '../src/projects/cyberia/stack/domain-ownership.js';
 import { ValkeyAPI, closeValkeyConnection, createValkeyConnection } from '../src/db/valkey/Valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
@@ -142,10 +151,10 @@ import {
   readBackupContent,
   readDatabaseContent,
   storeContentArtifact,
-} from '../src/projects/cyberia/content-artifact.js';
+} from '../src/projects/cyberia/content/content-artifact.js';
 
 import { ITEM_TYPES as itemTypes } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { balanceStats, resolveStatBounds, statPolicyActive } from '../src/projects/cyberia/stat-balance.js';
+import { balanceStats, resolveStatBounds, statPolicyActive } from '../src/projects/cyberia/stats/stat-balance.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
 import {
   DEPLOY_MANIFEST_INDENT,
@@ -378,15 +387,13 @@ function assertDestructiveConfirmation(options, deployId, action) {
 
 /**
  * Runs the idempotent ObjectLayer identity migration under the Cyberia profile, links every
- * materialization to its definition by cid, binds every label that has one definition, and pins
- * persisted content to the definitions it means.
+ * materialization to its definition by cid, and binds every label that has one definition.
  * Exits when a label has several definitions and no binding.
- * @param {import('../src/projects/cyberia/object-layer-catalog.js').CatalogModels} models
- * @param {Object<string,import('mongoose').Model>} [contentModels={}] - Collections that pin references.
+ * @param {import('../src/projects/cyberia/catalog/object-layer-catalog.js').CatalogModels} models
  * @param {{host:string,path:string}} [context] - Host the models belong to; the Object Layer
  *   authority states legacy documents canonical, a consumer states them drafts to publish.
  */
-async function runIdentityMigration(models, contentModels = {}, context) {
+async function runIdentityMigration(models, context) {
   const result = await models.ObjectLayer.migrateIdentity({
     profile: CyberiaObjectLayerProfile,
     origin: isObjectLayerAuthority(context) ? 'canonical' : 'draft',
@@ -432,27 +439,9 @@ async function runIdentityMigration(models, contentModels = {}, context) {
       logger.error(`Item "${itemId}" has ${cids.length} definitions and no binding: ${cids.join(', ')}`);
     }
     logger.error(
-      `Bind each label with POST /${API_BASE_PATH}/cyberia-item-catalog { itemId, objectLayerCid } before writing`,
+      `Bind each label with POST /${API_BASE_PATH}/cyberia-item-catalog { itemId, objectLayerCid, expectedCid: '' } before writing`,
     );
     process.exit(1);
-  }
-
-  await pinReferences(models, contentModels);
-}
-
-/**
- * Pins every unpinned quest and action reference to the definition its label is bound to now,
- * and moves every reference to a replaced definition onto its replacement.
- * Idempotent: any other pinned reference keeps its definition.
- * @param {import('../src/projects/cyberia/object-layer-catalog.js').CatalogModels} models
- * @param {Object<string,import('mongoose').Model>} contentModels - Collections that pin references.
- * @param {Map<string,string>} [replacements] - Replaced cid → the cid that replaces it.
- */
-async function pinReferences(models, contentModels, replacements) {
-  const references = await pinContentReferences({ models: { ...models, ...contentModels }, replacements });
-  if (references.pinned > 0) logger.info(`Pinned ${references.pinned} content reference(s) to their definition`);
-  for (const { collection, code, itemId } of references.unbound) {
-    logger.warn(`${collection} "${code}" names unbound item "${itemId}"; bind the label to pin the reference`);
   }
 }
 
@@ -638,7 +627,7 @@ const parseItemIds = (itemId) =>
  * payload needs no mark. A policy that changes nothing leaves the stats alone.
  *
  * @param {{ data: { item: { id: string, type: string }, stats: Object }, markModified?: Function }} objectLayer
- * @param {import('../src/projects/cyberia/stat-balance.js').StatPolicy} policy
+ * @param {import('../src/projects/cyberia/stats/stat-balance.js').StatPolicy} policy
  * @returns {boolean} Whether the stats were rewritten.
  */
 const applyStatPolicy = (objectLayer, policy) => {
@@ -904,10 +893,6 @@ try {
         // connection when it drops. A batch that runs for minutes therefore resolves its
         // models per item instead of holding the handles it started with.
         const models = () => catalogModels({ host, path });
-        const contentModels = () => ({
-          CyberiaQuest: DataBaseProviderService.getModel('cyberia-quest', { host, path }),
-          CyberiaAction: DataBaseProviderService.getModel('cyberia-action', { host, path }),
-        });
 
         /** With --client-public, the asset trees follow an item the action wrote: its stored frames and metadata. */
         const writeClientPublic = async (objectLayer) => {
@@ -954,7 +939,7 @@ try {
           await connectEngineCache({ host, path, valkey });
           // Idempotent migration: every document carries its content identity and every label its
           // binding before a write lands. A read-only subcommand stays free of side effects.
-          await runIdentityMigration(models(), contentModels(), { host, path });
+          await runIdentityMigration(models(), { host, path });
         }
 
         if (options.drop) {
@@ -1063,7 +1048,6 @@ try {
           const backupDir = contentArtifact().instanceDir(options.instance);
           logger.info(`Restoring ${itemIds.length} item(s) from instance backup '${options.instance}'`);
           let restored = 0;
-          const replacements = new Map();
           for (const currentItemId of itemIds) {
             try {
               const summary = await restoreObjectLayerBackup({
@@ -1075,14 +1059,12 @@ try {
               logger.info(`Restored '${currentItemId}' from backup`, summary);
               touched.itemIds.add(currentItemId);
               restored++;
-              if (summary.replaced) replacements.set(summary.replaced, summary.cid);
             } catch (restoreError) {
               logger.error(`Restore failed for '${currentItemId}': ${restoreError.message}`);
             }
           }
           // The replaced atlases took their renders out of reach; prune what no atlas points at.
           await AtlasSpriteSheetStore.pruneOrphanRenders({ options: { host, path } });
-          await pinReferences(models(), contentModels(), replacements);
           logger.info(`Instance restore done: ${restored}/${itemIds.length} item(s)`);
         }
 
@@ -1126,11 +1108,20 @@ try {
               });
             applyStatPolicy(objectLayerData, statPolicy);
 
+            const expectedCid = await findBoundCid(models(), currentItemId);
             const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
               models: models(),
               objectLayerRenderFramesData,
               objectLayerData,
               persistOptions: { upscaleFactor, options: { host, path } },
+            });
+            await bindItem({
+              models: models(),
+              itemId: currentItemId,
+              objectLayerCid: objectLayer.cid,
+              expectedCid,
+              source: 'content',
+              options: { host, path },
             });
             await writeClientPublic(objectLayer);
             touched.itemIds.add(currentItemId);
@@ -1149,7 +1140,7 @@ try {
 
           /**
            * Accumulated object layer data keyed by objectLayerId.
-           * @type {Object<string, import('../src/projects/cyberia/object-layer.js').ObjectLayerData>}
+           * @type {Object<string, import('../src/projects/cyberia/object-layer/object-layer.js').ObjectLayerData>}
            */
           const objectLayers = {};
 
@@ -1193,11 +1184,20 @@ try {
 
             // A bulk import of every type skips atlas generation; `--to-atlas-sprite-sheet`
             // or a targeted `--import` builds the atlas for an item that needs one.
+            const expectedCid = await findBoundCid(models(), objectLayerId);
             const objectLayer = await ObjectLayerEngine.persistObjectLayerDocuments({
               models: models(),
               objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
               objectLayerData: { data: entry.data },
               persistOptions: { generateAtlas: !isImportAll, upscaleFactor, options: { host, path } },
+            });
+            await bindItem({
+              models: models(),
+              itemId: objectLayerId,
+              objectLayerCid: objectLayer.cid,
+              expectedCid,
+              source: 'content',
+              options: { host, path },
             });
             await writeClientPublic(objectLayer);
             touched.itemIds.add(objectLayerId);
@@ -1271,7 +1271,7 @@ try {
         }
 
         // ── Handle --to-atlas-sprite-sheet ───────────────────────────────
-        // Rebuilds the render and publishes the definition that names it. The scope is the
+        // Rebuilds the render, publishes the definition that names it and binds the item to it. The scope is the
         // same selection --sync uses: the given item-id(s), one instance, or the whole
         // collection. A bare --upscale asks for the same rebuild: the factor is part of the
         // layout, so it is part of the render contract.
@@ -1324,6 +1324,14 @@ try {
                 tally.skipped++;
                 continue;
               }
+              await bindItem({
+                models: models(),
+                itemId: currentItemId,
+                objectLayerCid: rebuilt.definition.cid,
+                expectedCid: objectLayer.cid,
+                source: 'revise',
+                options: { host, path },
+              });
 
               const { metadata } = rebuilt.atlas;
               const frameCount = Object.values(metadata.frames).reduce((sum, frames) => sum + frames.length, 0);
@@ -1727,16 +1735,19 @@ try {
         }
 
         // 3b. Export quests + actions bound to THIS instance's maps (sourceMapCode
-        //     in the instance's map codes) — only the content tied to this instance.
+        //     in the instance's map codes) — only the content tied to this instance,
+        //     with the fields their schema declares: items by item id, never a cid.
         //     Dialogue codes the actions reference are collected so they travel too.
         const actionDialogueCodes = new Set();
         const quests = await CyberiaQuest.find({ sourceMapCode: { $in: [...mapCodes] } }).lean();
         if (quests.length > 0) {
           fs.ensureDirSync(`${backupDir}/cyberia-quests`);
           for (const quest of quests) {
-            fs.writeJsonSync(`${backupDir}/cyberia-quests/${encodeURIComponent(quest.code)}.json`, quest, {
-              spaces: 2,
-            });
+            fs.writeJsonSync(
+              `${backupDir}/cyberia-quests/${encodeURIComponent(quest.code)}.json`,
+              declaredDocument(CyberiaQuest, quest),
+              { spaces: 2 },
+            );
           }
           logger.info(`Exported ${quests.length} CyberiaQuest document(s)`, { codes: quests.map((q) => q.code) });
         }
@@ -1745,9 +1756,11 @@ try {
         if (actions.length > 0) {
           fs.ensureDirSync(`${backupDir}/cyberia-actions`);
           for (const action of actions) {
-            fs.writeJsonSync(`${backupDir}/cyberia-actions/${encodeURIComponent(action.code)}.json`, action, {
-              spaces: 2,
-            });
+            fs.writeJsonSync(
+              `${backupDir}/cyberia-actions/${encodeURIComponent(action.code)}.json`,
+              declaredDocument(CyberiaAction, action),
+              { spaces: 2 },
+            );
             if (action.dialogCode) actionDialogueCodes.add(action.dialogCode);
             for (const qd of action.questDialogueCodes || []) {
               if (qd.dialogCode) actionDialogueCodes.add(qd.dialogCode);
@@ -1852,17 +1865,32 @@ try {
           }
         }
 
-        // 5. Export object layers: each definition with its render frames, atlas and atlas Files.
+        // 5. Export object layers: the binding of each item the instance names, frozen into the
+        //    snapshot as `object-layers/<itemId>.json`, with its render frames, atlas and atlas Files.
         if (objectLayerItemIds.size > 0) {
-          const objectLayers = await findBoundDefinitions(models, [...objectLayerItemIds]);
-          for (const definition of objectLayers) {
-            const exported = await exportObjectLayerBackup({ backupDir, definition, options: { host, path } });
+          const bindings = await models.CyberiaItemCatalog.resolve([...objectLayerItemIds]);
+          const definitions = new Map(
+            (await findBoundDefinitions(models, [...bindings.keys()])).map((definition) => [
+              definition.cid,
+              definition,
+            ]),
+          );
+          for (const [boundItemId, cid] of bindings) {
+            const definition = definitions.get(cid);
+            if (!definition) {
+              logger.warn(`'${boundItemId}' runs ${cid}, which this host does not serve; not exported`);
+              continue;
+            }
+            const exported = await exportObjectLayerBackup({
+              backupDir,
+              itemId: boundItemId,
+              definition,
+              options: { host, path },
+            });
             if (definition.data?.render?.cid && !exported.atlas)
-              logger.warn(
-                `'${exported.itemId}' names render ${definition.data.render.cid} but has no atlas to back up`,
-              );
+              logger.warn(`'${boundItemId}' names render ${definition.data.render.cid} but has no atlas to back up`);
           }
-          logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, { itemIds: [...objectLayerItemIds] });
+          logger.info(`Exported ${definitions.size} ObjectLayer document(s)`, { itemIds: [...bindings.keys()] });
         } else {
           logger.info('No ObjectLayer references found in map entities');
         }
@@ -1889,12 +1917,10 @@ try {
 
         // A restore writes object layers, so every stored document carries its content identity
         // and every label its binding first.
-        await runIdentityMigration(models, { CyberiaQuest, CyberiaAction }, { host, path });
+        await runIdentityMigration(models, { host, path });
 
         let restoredObjectLayers = 0;
         const restoreFailures = [];
-        // Backup cid → the cid of the definition that replaced it: the content moves with it.
-        const replacements = new Map();
 
         // 0. Drop existing documents if --drop is set
         if (options.drop && !options.conf) {
@@ -2146,7 +2172,6 @@ try {
               restoredObjectLayers++;
               staticFiles += restored.staticFiles;
               if (restored.rebuilt) rebuilt++;
-              if (restored.replaced) replacements.set(restored.replaced, restored.cid);
             } catch (restoreError) {
               restoreFailures.push(olItemId);
               logger.error(`Restore failed for '${olItemId}': ${restoreError.message}`);
@@ -2399,10 +2424,6 @@ try {
           }
           logger.info(`Imported ${sagaCount} CyberiaSaga document(s)`);
         }
-
-        // 7. Pin the imported quests and actions to the definitions their labels are bound to now,
-        //    and move what they pin from a replaced backup definition onto its replacement.
-        await pinReferences(models, { CyberiaQuest, CyberiaAction }, replacements);
 
         if (restoreFailures.length > 0) {
           logger.error(`Instance import incomplete: ${restoreFailures.length} object layer(s) failed`, {
@@ -4239,6 +4260,31 @@ try {
     process.exit(0);
   });
 
+  // ─── IPFS storage ───────────────────────────────────────────────────────────
+  const ipfs = program.command('ipfs').description('IPFS storage of Object Layer definitions, by CID');
+
+  releaseEnvOptions(
+    ipfs
+      .command('migrate')
+      .description(
+        'Move IPFS storage to the CID-first layout: one registry record per CID, every stored definition listed under /object-layer/cid/<cid>/, no listing by item id. Reports only without --apply',
+      )
+      .option('--apply', 'Write the migration'),
+  ).action(async (options = {}) => {
+    const { host, path, db, consumes } = resolveDeployDb(options);
+    await DataBaseProviderService.load({ apis: ITEM_DEFINITION_APIS, host, path, db });
+    const context = { host, path, consumes };
+    const report = await migrateObjectLayerStorage({
+      ObjectLayer: DataBaseProviderService.getModel('ObjectLayer', context),
+      Ipfs: DataBaseProviderService.getModel('Ipfs', context),
+      canonical: isObjectLayerAuthority(context),
+      apply: !!options.apply,
+      options: context,
+    });
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.failed.length > 0 ? 1 : 0);
+  });
+
   // ─── Content artifact ───────────────────────────────────────────────────────
   // The content artifact is the only content source. These commands show its identity, audit
   // serialized content against it, and import it.
@@ -4259,10 +4305,57 @@ try {
 
   /** Opens the content models of the deploy host. */
   const openContent = async (options) => {
-    const { host, path, db, valkey } = resolveDeployDb(options);
+    const { host, path, db, valkey, consumes } = resolveDeployDb(options);
     await DataBaseProviderService.load({ apis: CONTENT_APIS, host, path, db });
-    return { host, path, valkey, provider: DataBaseProviderService.getProvider({ host, path }, 'mongoose') };
+    return { host, path, valkey, consumes, provider: DataBaseProviderService.getProvider({ host, path }, 'mongoose') };
   };
+
+  releaseEnvOptions(
+    catalog
+      .command('check')
+      .description(
+        'Check that every item each world names runs a stored, published definition with its atlas, and that no document pins a definition',
+      )
+      .option('--instance <codes>', 'Comma-separated instance codes; every instance by default')
+      .option('--ipfs', 'Also check how every bound definition is stored: binding, content, MFS and pin'),
+  ).action(async (options = {}) => {
+    const { host, path, consumes, provider } = await openContent(options);
+    const result = await checkWorldBindings(provider.models, { instanceCodes: options.instance?.split(',') });
+    for (const { instanceCode, items, findings } of result.worlds) {
+      logger.info(`World ${instanceCode}: ${items} item(s), ${findings.filter(({ error }) => error).length} error(s)`);
+      for (const { itemId, cid, problem, error } of findings)
+        logger[error ? 'error' : 'warn'](`${instanceCode}: ${itemId} ${problem}${cid ? ` (${cid})` : ''}`);
+    }
+    let ok = result.ok;
+    if (options.ipfs) {
+      const context = { host, path, consumes };
+      const storage = await checkCatalogStorage(provider.models, {
+        canonical: isObjectLayerAuthority(context),
+        options: context,
+      });
+      for (const category of STORAGE_CATEGORIES) {
+        const findings = storage.findings.filter((finding) => finding.category === category);
+        logger.info(`Storage ${category}: ${findings.length} finding(s)`);
+        for (const { itemIds, cid, file, problem } of findings)
+          logger.error(`${category}: ${itemIds.join(',')} ${cid}${file ? `/${file}` : ''} ${problem}`);
+      }
+      ok = ok && storage.ok;
+    }
+    process.exit(ok ? 0 : 1);
+  });
+
+  releaseEnvOptions(
+    catalog
+      .command('repair')
+      .description(
+        'Report the definitions legacy quests and actions still pin and the items they make ambiguous; print the audit result as JSON',
+      )
+      .option('--apply', 'Remove every legacy pin: each item then resolves through the catalog alone'),
+  ).action(async (options = {}) => {
+    const { provider } = await openContent(options);
+    console.log(JSON.stringify(await repairLegacyPins(provider.models, { apply: !!options.apply }), null, 2));
+    process.exit(0);
+  });
 
   content
     .command('status')
@@ -4367,11 +4460,7 @@ try {
       // The engine serves a release database only once it is promoted, and a promotion reads fresh keys.
       if (!options.release) await connectEngineCache({ host, path, valkey });
       // A write stores definitions, so the collection migrates first.
-      await runIdentityMigration(
-        catalogModels({ host, path }),
-        { CyberiaQuest: models.CyberiaQuest, CyberiaAction: models.CyberiaAction },
-        { host, path },
-      );
+      await runIdentityMigration(catalogModels({ host, path }), { host, path });
       const context = { host, path };
       const result = saga
         ? await importSaga({ saga, models, context, rebind })

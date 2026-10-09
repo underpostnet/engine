@@ -44,7 +44,7 @@ describe('test impact', () => {
   });
 
   it('leaves an unrelated domain out', () => {
-    const cyberia = impactedDomains(['src/projects/cyberia/content-release.js']);
+    const cyberia = impactedDomains(['src/projects/cyberia/content/content-release.js']);
     expect(cyberia).to.not.include('underpost');
     expect(cyberia).to.not.include('cryptokoyn');
   });
@@ -70,7 +70,9 @@ describe('test impact', () => {
   });
 
   it('unions the domains of a mixed change, in declaration order', () => {
-    expect(impactSelector(['src/projects/cyberia/stat-balance.js', 'src/cli/deploy.js'])).to.equal('underpost,cyberia');
+    expect(impactSelector(['src/projects/cyberia/stats/stat-balance.js', 'src/cli/deploy.js'])).to.equal(
+      'underpost,cyberia',
+    );
   });
 
   it('names only domains it documents, and reaches every one of them', () => {

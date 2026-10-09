@@ -222,20 +222,25 @@ const TEST_PROJECTS = [
     sources: [
       'src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js',
       'src/api/cyberia-content-release/cyberia-content-release.model.js',
+      'src/projects/cyberia/procedural/context.js',
+      'src/projects/cyberia/procedural/core/*.js',
+      'src/projects/cyberia/procedural/generators/**/*.js',
+      'src/projects/cyberia/procedural/palettes/*.js',
+      'src/projects/cyberia/procedural/profiles/*.js',
       'src/api/cyberia-server-defaults/*.js',
       'src/projects/cyberia/compose-stack.js',
-      'src/projects/cyberia/content-artifact.js',
-      'src/projects/cyberia/content-release.js',
-      'src/projects/cyberia/domain-ownership.js',
-      'src/projects/cyberia/instance-backup.js',
+      'src/projects/cyberia/content/content-artifact.js',
+      'src/projects/cyberia/content/content-release.js',
+      'src/projects/cyberia/stack/domain-ownership.js',
+      'src/projects/cyberia/instance/instance-backup.js',
       'src/projects/cyberia/instance-data.js',
-      'src/projects/cyberia/local-stack.js',
-      'src/projects/cyberia/map-preview-generator.js',
-      'src/projects/cyberia/object-layer-catalog.js',
-      'src/projects/cyberia/release-content.js',
-      'src/projects/cyberia/server-key.js',
-      'src/projects/cyberia/shape-generator.js',
-      'src/projects/cyberia/stat-balance.js',
+      'src/projects/cyberia/stack/local-stack.js',
+      'src/projects/cyberia/instance/map-preview-generator.js',
+      'src/projects/cyberia/catalog/object-layer-catalog.js',
+      'src/projects/cyberia/content/release-content.js',
+      'src/projects/cyberia/runtime/server-key.js',
+      'src/projects/cyberia/object-layer/shape-generator.js',
+      'src/projects/cyberia/stats/stat-balance.js',
     ],
     description:
       'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, stats ' +
@@ -345,8 +350,12 @@ const TEST_PROJECTS = [
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/served-databases.js',
-      'src/projects/cyberia/content-artifact.js',
-      'src/projects/cyberia/content-release.js',
+      'src/projects/cyberia/content/content-artifact.js',
+      'src/projects/cyberia/content/content-release.js',
+      'src/projects/cyberia/procedural/engine.js',
+      'src/projects/cyberia/procedural/jobs/*.js',
+      'src/projects/cyberia/procedural/source.js',
+      'src/projects/cyberia/procedural/spec.js',
       'test/support/mongod.js',
     ],
     // Every content-release test does real database round trips: a release build copies ten collections.
@@ -355,7 +364,8 @@ const TEST_PROJECTS = [
       'Cyberia against real boundaries: content releases on a MongoDB replica set — build, validate, ' +
       'promote, roll back, prune, restart, concurrent promotion, runtime isolation and one data source ' +
       'for every role — the content ' +
-      'artifact materialization and saga import, the product CLI, the audio seed and the map preview ' +
+      'artifact materialization and saga import, the Procedural Engine — the two generation modes, jobs, the background worker, ' +
+      'leases, human review and promotion — the product CLI, the audio seed and the map preview ' +
       'refresh. The database suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites ' +
       'a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its ' +
       'requirement.',

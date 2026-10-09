@@ -15,11 +15,11 @@
  * Both transports carry CYBERIA_SERVER_API_KEY, the internal shared secret. It
  * is read from the environment and never returned to a browser.
  *
- * @module src/projects/cyberia/hot-reload-trigger.js
+ * @module src/projects/cyberia/runtime/hot-reload-trigger.js
  */
 
 import * as grpc from '@grpc/grpc-js';
-import { loggerFactory } from '../../server/ops/logger.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
 import { serverApiKey } from './server-key.js';
 
 const logger = loggerFactory(import.meta);

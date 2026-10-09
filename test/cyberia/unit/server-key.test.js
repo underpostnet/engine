@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { SERVER_API_KEY_HEADER, isServerApiKey, serverKeyGuard } from '../../../src/projects/cyberia/server-key.js';
+import {
+  SERVER_API_KEY_HEADER,
+  isServerApiKey,
+  serverKeyGuard,
+} from '../../../src/projects/cyberia/runtime/server-key.js';
 
 // The guard of a route only a game server calls: it fails closed.
 const call = (headers) => {

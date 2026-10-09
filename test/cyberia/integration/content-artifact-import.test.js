@@ -8,7 +8,7 @@ import {
   importContent,
   importSaga,
   readDatabaseContent,
-} from '../../../src/projects/cyberia/content-artifact.js';
+} from '../../../src/projects/cyberia/content/content-artifact.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 // One host that is its own Object Layer authority, so definitions are stored here. IPFS points at

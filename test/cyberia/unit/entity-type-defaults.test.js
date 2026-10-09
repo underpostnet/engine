@@ -12,7 +12,7 @@ import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   resolveEntityInventory,
 } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
 
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
 const contentBuilt = hasContentArtifact();

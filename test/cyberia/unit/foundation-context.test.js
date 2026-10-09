@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
-import { definitionContext, itemContext, mapContext } from '../../../src/projects/cyberia/foundation-context.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
+import {
+  definitionContext,
+  itemContext,
+  mapContext,
+} from '../../../src/projects/cyberia/content/foundation-context.js';
 
 const brief = (paletteDirection) => ({
   silhouette: 'A shape.',

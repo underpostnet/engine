@@ -28,11 +28,22 @@ vi.mock('../../../src/api/object-layer/object-layer.publication.js', () => ({
     if (publication.refuse) throw publication.refuse;
     return await ObjectLayer.upsertByIdentity(payload, { origin: 'canonical' });
   },
+  cacheCanonical: async () => {},
+  isObjectLayerAuthority: () => true,
   objectLayerCache: () => ({ instance: {}, prefix: 'cache:test', label: 'test', ttlMs: 0 }),
 }));
 vi.mock('../../../src/server/storage/cache.js', () => ({ CacheService: { invalidate: async () => {} } }));
+// The IPFS bundle of every written definition, by cid, after its materializations.
+const bundles = vi.hoisted(() => []);
+vi.mock('../../../src/api/object-layer/object-layer.ipfs.js', () => ({
+  publishObjectLayerBundle: async ({ definition }) => {
+    bundles.push(definition.cid);
+    return { resources: [] };
+  },
+}));
 
 const {
+  bindItem,
   boundItemIds,
   catalogModels,
   composeItemDefinition,
@@ -40,10 +51,10 @@ const {
   findBoundDefinition,
   findBoundDefinitions,
   mergeObjectLayerData,
+  publishItemDefinition,
   reviseItemDefinition,
   seedItemCatalog,
-  writeItemDefinition,
-} = await import('../../../src/projects/cyberia/object-layer-catalog.js');
+} = await import('../../../src/projects/cyberia/catalog/object-layer-catalog.js');
 const { objectLayerIdentity } = await import('../../../src/api/object-layer/object-layer.identity.js');
 const { CyberiaObjectLayerProfile } =
   await import('../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js');
@@ -60,9 +71,10 @@ const stubModels = ({ bindings = {}, definitions = [] } = {}) => {
       new Map(itemIds.filter((id) => state.bindings[id]).map((id) => [id, state.bindings[id]])),
     distinct: async (field) =>
       field === 'itemId' ? Object.keys(state.bindings) : [...new Set(Object.values(state.bindings))],
-    bind: async (itemId, cid) => {
-      state.bound.push([itemId, cid]);
+    bind: async (itemId, cid, { expectedCid, source, by }) => {
+      state.bound.push({ itemId, cid, expectedCid, source, by });
       state.bindings[itemId] = cid;
+      return { itemId, objectLayerCid: cid };
     },
   };
   const ObjectLayer = {
@@ -70,10 +82,13 @@ const stubModels = ({ bindings = {}, definitions = [] } = {}) => {
       const doc = state.definitions.find((d) => d.cid === cid);
       return doc ? { ...doc, toObject: () => JSON.parse(JSON.stringify(doc)) } : null;
     },
+    findOne: ({ cid }) => lean(state.definitions.find((d) => d.cid === cid) ?? null),
     find: (filter) => lean(state.definitions.filter((d) => filter.cid.$in.includes(d.cid))),
     upsertByIdentity: async (payload, { origin }) => {
       state.created = { ...payload, origin };
-      return { ...payload, cid: `cid-of-${payload.data.item.id}-${payload.data.stats?.effect ?? 0}` };
+      const stored = { ...payload, origin, cid: `cid-of-${payload.data.item.id}-${payload.data.stats?.effect ?? 0}` };
+      state.definitions.push(stored);
+      return stored;
     },
     aggregate: async () => {
       const groups = new Map();
@@ -153,7 +168,7 @@ describe('object layer data merge', () => {
   });
 });
 
-describe('writeItemDefinition', () => {
+describe('publishItemDefinition', () => {
   const profile = { id: CyberiaObjectLayerProfile.id, version: CyberiaObjectLayerProfile.version };
 
   beforeEach(() => {
@@ -162,12 +177,12 @@ describe('writeItemDefinition', () => {
 
   it('rejects a payload without data.item.id', async () => {
     const { models } = stubModels();
-    await expect(writeItemDefinition({ models, payload: { data: { item: {} } } })).rejects.toThrow(/data\.item\.id/);
+    await expect(publishItemDefinition({ models, payload: { data: { item: {} } } })).rejects.toThrow(/data\.item\.id/);
   });
 
-  it('publishes a new label under the Cyberia profile and binds it', async () => {
+  it('publishes a new label under the Cyberia profile and binds nothing', async () => {
     const { models, state } = stubModels();
-    await writeItemDefinition({
+    await publishItemDefinition({
       models,
       payload: { data: { item: { id: 'shard', type: 'resource' }, stats: { effect: 1 } } },
       setOnInsert: { data: { render: {} } },
@@ -175,23 +190,23 @@ describe('writeItemDefinition', () => {
     expect(state.created.profile).toEqual(profile);
     expect(state.created.data.render).toEqual({});
     expect(state.created.data.stats.effect).toBe(1);
-    expect(state.bound).toEqual([['shard', 'cid-of-shard-1']]);
+    expect(state.bound).toEqual([]);
   });
 
   it('rejects stats outside the Cyberia profile', async () => {
     const { models } = stubModels();
     await expect(
-      writeItemDefinition({
+      publishItemDefinition({
         models,
         payload: { data: { item: { id: 'shard', type: 'resource' }, stats: { effect: 101 } } },
       }),
     ).rejects.toThrow();
   });
 
-  it('never lets a degraded import erase what the bound definition holds, and rebinds changed content', async () => {
+  it('never lets a degraded import erase what the bound definition holds, and keeps the binding', async () => {
     const bound = { _id: 'a', cid: 'cid-of-hatchet-5', data: storedData() };
     const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
-    await writeItemDefinition({
+    await publishItemDefinition({
       models,
       payload: {
         _id: 'backup-id',
@@ -207,14 +222,27 @@ describe('writeItemDefinition', () => {
     expect(created.data.render).toEqual({ cid: 'bafk-atlas', metadataCid: 'bafk-atlas-metadata' });
     expect(created.data.item.description).toBe('a hatchet');
     expect(created.data.stats.effect).toBe(7);
-    expect(state.bound).toEqual([['hatchet', 'cid-of-hatchet-7']]);
+    expect(state.bound).toEqual([]);
+    expect(state.bindings.hatchet).toBe(bound.cid);
   });
 
-  it('stores the render frames and atlas it is given under the written cid, and names that render', async () => {
+  it('composes an exact payload alone, never over the bound definition', async () => {
+    const bound = { _id: 'a', cid: 'cid-of-hatchet-5', data: storedData() };
+    const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
+    await publishItemDefinition({
+      models,
+      payload: { data: { item: { id: 'hatchet', type: 'weapon' }, stats: { effect: 7 } } },
+      exact: true,
+    });
+    expect(state.created.data.render).toBeUndefined();
+    expect(state.created.data.item.description).toBeUndefined();
+  });
+
+  it('stores the render frames and atlas it is given under the written cid, names that render, and stores its bundle', async () => {
     const { models, state } = stubModels();
     const renderFrames = { frames: {}, colors: [], frame_duration: 100 };
     const rendered = { render: { cid: 'bafk-new', metadataCid: 'bafk-new-metadata' }, atlas: { fileId: 'f1' } };
-    const definition = await writeItemDefinition({
+    const definition = await publishItemDefinition({
       models,
       payload: { data: { item: { id: 'shard', type: 'resource' }, stats: { effect: 1 } } },
       renderFrames,
@@ -223,6 +251,7 @@ describe('writeItemDefinition', () => {
     expect(state.created.data.render).toEqual(rendered.render);
     expect(materializations.ObjectLayerRenderFrames.get(definition.cid)).toBe(renderFrames);
     expect(materializations.AtlasSpriteSheet.get(definition.cid)).toBe(rendered.atlas);
+    expect(bundles.at(-1)).toBe(definition.cid);
   });
 
   it("hands the bound definition's materializations to a successor that names its render", async () => {
@@ -231,7 +260,7 @@ describe('writeItemDefinition', () => {
     materializations.ObjectLayerRenderFrames.set(bound.cid, { frames: { down_idle: [] } });
     materializations.AtlasSpriteSheet.set(bound.cid, { fileId: 'f-hatchet' });
 
-    const successor = await writeItemDefinition({
+    const successor = await publishItemDefinition({
       models,
       payload: { data: { item: { id: 'hatchet' }, stats: { effect: 7 } } },
     });
@@ -247,7 +276,7 @@ describe('writeItemDefinition', () => {
     materializations.ObjectLayerRenderFrames.set(bound.cid, { frames: { down_idle: [] } });
     const rendered = { render: { cid: 'bafk-other', metadataCid: 'bafk-other-metadata' }, atlas: { fileId: 'f2' } };
 
-    const successor = await writeItemDefinition({
+    const successor = await publishItemDefinition({
       models,
       payload: { data: { item: { id: 'hatchet' }, stats: { effect: 7 } } },
       rendered,
@@ -257,10 +286,10 @@ describe('writeItemDefinition', () => {
     expect(materializations.AtlasSpriteSheet.get(successor.cid)).toBe(rendered.atlas);
   });
 
-  it('keeps the binding when the content is unchanged', async () => {
+  it('binds nothing when the content is unchanged', async () => {
     const bound = { _id: 'a', cid: 'cid-of-hatchet-5', data: storedData() };
     const { models, state } = stubModels({ bindings: { hatchet: bound.cid }, definitions: [bound] });
-    await writeItemDefinition({ models, payload: { data: { item: { id: 'hatchet' }, stats: { effect: 5 } } } });
+    await publishItemDefinition({ models, payload: { data: { item: { id: 'hatchet' }, stats: { effect: 5 } } } });
     expect(state.bound).toEqual([]);
   });
 
@@ -270,13 +299,40 @@ describe('writeItemDefinition', () => {
     publication.refuse = new Error('Object Layer cid-of-hatchet-7 is kept as a draft: authority unreachable');
     try {
       await expect(
-        writeItemDefinition({ models, payload: { data: { item: { id: 'hatchet' }, stats: { effect: 7 } } } }),
+        publishItemDefinition({ models, payload: { data: { item: { id: 'hatchet' }, stats: { effect: 7 } } } }),
       ).rejects.toThrow(/kept as a draft/);
     } finally {
       publication.refuse = null;
     }
     expect(state.bound).toEqual([]);
     expect(state.bindings.hatchet).toBe('cid-of-hatchet-5');
+  });
+});
+
+describe('bindItem', () => {
+  it('binds through the catalog with the cid the caller saw, what binds and who', async () => {
+    const { models, state } = stubModels({ definitions: [{ ...def('A'), origin: 'canonical' }] });
+    await bindItem({ models, itemId: 'hatchet', objectLayerCid: 'A', expectedCid: '', source: 'studio', by: 'u1' });
+    expect(state.bound).toEqual([{ itemId: 'hatchet', cid: 'A', expectedCid: '', source: 'studio', by: 'u1' }]);
+  });
+
+  it('refuses a draft, an archived definition and one no host holds, and binds nothing', async () => {
+    const { models, state } = stubModels({
+      definitions: [
+        { ...def('D'), origin: 'draft' },
+        { ...def('R'), origin: 'canonical', archivedAt: new Date() },
+      ],
+    });
+    const bind = (objectLayerCid) =>
+      bindItem({ models, itemId: 'hatchet', objectLayerCid, expectedCid: '', source: 'studio' });
+    await expect(bind('D')).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/draft/) });
+    await expect(bind('R')).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/archived/) });
+    await expect(bind('ghost')).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringMatching(/No Object Layer/),
+    });
+    await expect(bindItem({ models, itemId: '', objectLayerCid: 'D', expectedCid: '' })).rejects.toThrow(/item id/);
+    expect(state.bound).toEqual([]);
   });
 });
 
@@ -308,7 +364,9 @@ describe('reviseItemDefinition', () => {
     expect(result.written).toBe(true);
     expect(state.created.profile).toEqual(profile);
     expect(state.created.data.stats.utility).toBe(0);
-    expect(state.bound).toEqual([['hatchet', 'cid-of-hatchet-5']]);
+    expect(state.bound).toEqual([
+      { itemId: 'hatchet', cid: 'cid-of-hatchet-5', expectedCid: bound.cid, source: 'revise', by: '' },
+    ]);
   });
 
   it('writes what revise changes on a copy, and rebinds the label', async () => {
@@ -322,7 +380,9 @@ describe('reviseItemDefinition', () => {
       },
     });
     expect(result.written).toBe(true);
-    expect(state.bound).toEqual([['hatchet', 'cid-of-hatchet-9']]);
+    expect(state.bound).toEqual([
+      { itemId: 'hatchet', cid: 'cid-of-hatchet-9', expectedCid: bound.cid, source: 'revise', by: '' },
+    ]);
     expect(bound.data.stats.effect).toBe(5);
   });
 

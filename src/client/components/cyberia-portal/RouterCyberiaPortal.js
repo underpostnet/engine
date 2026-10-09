@@ -46,6 +46,10 @@ class RouterCyberiaPortal {
         render: () => s(`.main-btn-object-layer-engine-viewer`).click(),
       },
       '/object-layer': { title: 'object-layer', render: () => ObjectLayerEngineViewer.route() },
+      '/cyberia-procedural-engine': {
+        title: 'cyberia-procedural-engine',
+        render: () => s(`.main-btn-cyberia-procedural-engine`).click(),
+      },
       '/cyberia-map-engine': {
         title: 'cyberia-map-engine',
         render: () => s(`.main-btn-cyberia-map-engine`).click(),
@@ -61,6 +65,10 @@ class RouterCyberiaPortal {
       '/cyberia-entity-engine': {
         title: 'cyberia-entity-engine',
         render: () => s(`.main-btn-cyberia-entity-engine`).click(),
+      },
+      '/cyberia-item-catalog': {
+        title: 'cyberia-item-catalog',
+        render: () => s(`.main-btn-cyberia-item-catalog`).click(),
       },
       '/instance-selection': {
         title: 'instance-selection',

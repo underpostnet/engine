@@ -324,7 +324,7 @@ CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
 
 The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
 builder by deploy id: the `buildInstanceEnv` export of `src/projects/<project>/instance-data.js`.
-Cyberia takes each code from its release content, `src/projects/cyberia/release-content.js`:
+Cyberia takes each code from its release content, `src/projects/cyberia/content/release-content.js`:
 the code of the world the variant path serves, and `CYBERIA_DEFAULT_INSTANCE` from the `/` world.
 `cyberia release build` writes the same paths into the `variants` of `mmo-server` and `mmo-client`.
 Origins, API keys, and other operator values remain unchanged, and separate canonical files

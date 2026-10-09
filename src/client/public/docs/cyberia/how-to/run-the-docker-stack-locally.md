@@ -103,7 +103,7 @@ names. It exits with code 1 if one request fails or answers 400 or more.
 ## Release instances
 
 The instances of the [release content](../explanation/content-artifact.md#release-content),
-`src/projects/cyberia/release-content.js`, link each public path to the instance code that it
+`src/projects/cyberia/content/release-content.js`, link each public path to the instance code that it
 serves. `/` is first, and it serves `DEFAULT_INSTANCE_CODE` of `SharedDefaultsCyberia.js`, which the
 portal reads too.
 

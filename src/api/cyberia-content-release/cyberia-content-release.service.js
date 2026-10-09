@@ -8,7 +8,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaContentReleaseDto } from './cyberia-content-release.model.js';
-import { servedContentArtifact } from '../../projects/cyberia/content-artifact.js';
+import { servedContentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 
 class CyberiaContentReleaseService {
   /**

@@ -2,7 +2,7 @@
  * Canonical simulation contract of the Cyberia runtime: simulation / AOI / combat / economy /
  * skill rules, equipment rules, status-icon numeric IDs, inventory resolution and audio routing.
  *
- * Content lives in the cyberia-content artifact (src/projects/cyberia/content-artifact.js).
+ * Content lives in the cyberia-content artifact (src/projects/cyberia/content/content-artifact.js).
  *
  * STRICT BOUNDARY: never import this from `src/client/`. The browser bundler
  * resolves imports recursively, so one browser-side import ships the whole

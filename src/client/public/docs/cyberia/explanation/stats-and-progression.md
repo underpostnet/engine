@@ -39,7 +39,7 @@ The randomizer validates its bounds and uses the full signed range by default.
 | `resource`    |      0 |      0..10 |       0 |     0 |            0 |       0 |
 | world content |      0 |          0 |       0 |     0 |            0 |       0 |
 
-`src/projects/cyberia/stat-balance.js` applies one policy to every object layer the `ol` command writes: import, batch import, generation, render rebuilds, and the derived-render refresh. `--normalize-stats` clamps the stats the content carries into its type's range. `--random-stats` draws every stat inside the range instead. `--min-stat` and `--max-stat` narrow the range; a request that leaves no overlap pins the stat to the semantic edge nearest it. The policy is a pure function of the content and the flags, so a run is deterministic and normalizing is idempotent.
+`src/projects/cyberia/stats/stat-balance.js` applies one policy to every object layer the `ol` command writes: import, batch import, generation, render rebuilds, and the derived-render refresh. `--normalize-stats` clamps the stats the content carries into its type's range. `--random-stats` draws every stat inside the range instead. `--min-stat` and `--max-stat` narrow the range; a request that leaves no overlap pins the stat to the semantic edge nearest it. The policy is a pure function of the content and the flags, so a run is deterministic and normalizing is idempotent.
 
 ## Aggregation and levels
 

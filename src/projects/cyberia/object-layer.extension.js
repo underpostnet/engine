@@ -1,9 +1,9 @@
 /**
  * Cyberia Object Layer Studio: the authoring routes the Cyberia host adds to the Object Layer API.
  *
- * It builds definitions from the editor's render source under the Cyberia profile, publishes them
- * through the Object Layer authority and binds their labels in the Cyberia item catalog. MongoDB
- * holds every frame; the asset tree changes only through `cyberia ol --client-public`. It also
+ * It builds definitions from the editor's render source under the Cyberia profile and publishes
+ * them through the Object Layer authority. A save never binds: the item runs a definition only
+ * once a moderator binds it in the Cyberia item catalog. MongoDB holds every frame; the asset tree changes only through `cyberia ol --client-public`. It also
  * lets a Cyberia item label name a definition. The host declares it in `conf.server.json` as
  * `apiExtensions: { "object-layer": "cyberia" }`; a host without it serves the canonical API only.
  *
@@ -14,32 +14,26 @@ import fs from 'fs-extra';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { moderatorGuard } from '../../server/security/auth.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
-import { ObjectLayerEngine } from './object-layer.js';
-import { catalogModels, catalogMounted, findBoundDefinition } from './object-layer-catalog.js';
+import { ObjectLayerEngine } from './object-layer/object-layer.js';
+import {
+  catalogModels,
+  catalogMounted,
+  findBoundDefinition,
+  publishItemDefinition,
+} from './catalog/object-layer-catalog.js';
 import { findObjectLayerByKey } from '../../api/object-layer/object-layer.service.js';
-import { contentArtifact } from './content-artifact.js';
-import { itemContext } from './foundation-context.js';
-import { loadSagaAssociations, withSagaFilter } from './saga-associations.js';
-import { fromWire } from '../../client/components/objectlayer-studio/RenderSource.js';
-
-/**
- * Refuses a write made from a definition the label no longer runs: another save came first.
- * @param {import('./object-layer-catalog.js').CatalogModels} models
- * @param {string} loadedId - Document id of the definition the editor loaded.
- * @param {string} itemId - The label the write is for.
- * @throws {Error} 409 when the label binds another definition than the loaded one.
- * @memberof CyberiaObjectLayerStudio
- */
-async function assertCurrentDefinition(models, loadedId, itemId) {
-  const loaded = await models.ObjectLayer.findById(loadedId, { cid: 1, 'data.item.id': 1 }).lean();
-  if (loaded?.data?.item?.id !== itemId) return;
-  const bound = await findBoundDefinition(models, itemId);
-  if (bound && bound.cid !== loaded.cid)
-    throw Object.assign(
-      new Error(`'${itemId}' now runs definition ${bound.cid}, not the ${loaded.cid} you edited: reload before saving`),
-      { status: 409 },
-    );
-}
+import { contentArtifact } from './content/content-artifact.js';
+import { itemContext } from './content/foundation-context.js';
+import { loadSagaAssociations, withSagaFilter } from './saga/saga-associations.js';
+import {
+  framesByDirection,
+  fromWire,
+  sourceFromDirectionFrames,
+  toWire,
+} from '../../client/components/objectlayer-studio/RenderSource.js';
+import { transformImportedFrames } from './procedural/core/frame-mutation.js';
+import { proceduralModels } from './procedural/engine.js';
+import { saveRevision } from './procedural/jobs/review.js';
 
 /**
  * Authoring handlers of the Cyberia Studio.
@@ -52,7 +46,7 @@ class ObjectLayerStudioService {
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build and the materializations; publication goes through the Object Layer
-   * authority and the label binds after it.
+   * authority. The item keeps its binding.
    *
    * @async
    * @function post
@@ -67,8 +61,7 @@ class ObjectLayerStudioService {
   static post = async (req, res, options) => {
     const { objectLayerRenderFramesData, ...objectLayerData } = { ...req.body, createdBy: req.auth.user._id };
     const models = catalogModels(options);
-    if (!objectLayerRenderFramesData)
-      return await ObjectLayerEngine.publishItemDefinition({ models, payload: objectLayerData, options });
+    if (!objectLayerRenderFramesData) return await publishItemDefinition({ models, payload: objectLayerData, options });
     return await ObjectLayerEngine.persistObjectLayerDocuments({
       models,
       objectLayerRenderFramesData: fromWire(objectLayerRenderFramesData),
@@ -78,9 +71,10 @@ class ObjectLayerStudioService {
   };
 
   /**
-   * PUT `/:id`: publishes the body's content as the definition of the item. Its render source comes
-   * inline in `objectLayerRenderFramesData` when the editor sends one, else from the render frames
-   * of `:id`. A save made from a definition another save replaced answers 409.
+   * PUT `/:id`: publishes the body's content as a new definition of the item; the item keeps its
+   * binding. Its render source comes inline in `objectLayerRenderFramesData` when the editor sends
+   * one, else from the render frames of `:id`. A body with `review`, the id of a Procedural Engine
+   * item, stores the save as a draft revision of that item instead: nothing is published.
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build, the identity, the IPFS pins and the materializations.
@@ -94,17 +88,24 @@ class ObjectLayerStudioService {
    * @param {string} options.host - The deployment host.
    * @param {string} options.path - The deployment path.
    * @returns {Promise<Object>} The published object layer document.
-   * @throws {Error} 404 when `:id` names no definition; 409 when the label runs another one.
+   * @throws {Error} When `:id` names no definition.
    */
   static put = async (req, res, options) => {
     const models = catalogModels(options);
     const existingOL = await models.ObjectLayer.findById(req.params.id);
     if (!existingOL) throw new Error('ObjectLayer not found');
 
-    const { objectLayerRenderFramesData, ...body } = req.body;
+    const { review, objectLayerRenderFramesData, ...body } = req.body;
+    if (review)
+      return await saveRevision({
+        models: proceduralModels(options),
+        id: review,
+        body: { data: body.data, objectLayerRenderFramesData },
+        actor: String(req.auth.user._id),
+        options,
+      });
     const objectLayerData = { ...body, createdBy: req.auth.user._id };
     objectLayerData.data ??= ObjectLayerEngine.payloadOf(existingOL).data;
-    await assertCurrentDefinition(models, req.params.id, objectLayerData.data.item?.id);
     if (objectLayerRenderFramesData)
       return await ObjectLayerEngine.persistObjectLayerDocuments({
         models,
@@ -114,7 +115,7 @@ class ObjectLayerStudioService {
       });
     const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
     const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: existingOL.cid }).lean();
-    if (!stored) return await ObjectLayerEngine.publishItemDefinition({ models, payload: objectLayerData, options });
+    if (!stored) return await publishItemDefinition({ models, payload: objectLayerData, options });
     return await ObjectLayerEngine.persistObjectLayerDocuments({
       models,
       objectLayerRenderFramesData: ObjectLayerRenderFrames.sourceOf(stored),
@@ -123,6 +124,35 @@ class ObjectLayerStudioService {
     });
   };
 }
+
+/**
+ * POST `/import-frames`: the frames of the definition a key names, in the palette roles the body
+ * gives and, with `mutate`, with a seeded contour mutation. Nothing is stored: the editor takes
+ * the frames and saves them as it saves any frames.
+ * @memberof CyberiaObjectLayerStudio
+ */
+const importFrames = async (req, res, options) => {
+  const { id, roles, mutate = false, mutationFactor = 0, seed = 0, target = '' } = req.body;
+  const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
+  const objectLayer = await findObjectLayerByKey({ ObjectLayer, key: id, options, select: { cid: 1 } });
+  if (!objectLayer) throw Object.assign(new Error(`No definition for ${id}`), { status: 404 });
+  const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
+  const stored = await ObjectLayerRenderFrames.findOne({ objectLayerCid: objectLayer.cid }).lean();
+  if (!stored) throw Object.assign(new Error(`"${id}" has no frames to import`), { status: 404 });
+  const source = ObjectLayerRenderFrames.sourceOf(stored);
+  const { framesByCode, ...metrics } = transformImportedFrames(framesByDirection(source), roles, {
+    mutate,
+    mutationFactor,
+    seed,
+    source: id,
+    target,
+  });
+  return {
+    ...metrics,
+    frameDurationMs: source.frameDurationMs,
+    renderFrames: toWire(sourceFromDirectionFrames({ framesByCode, frameDurationMs: source.frameDurationMs })),
+  };
+};
 
 /**
  * GET `/context/:id`: the foundation context of the item a key names. The key is a cid, a document
@@ -148,6 +178,7 @@ const ObjectLayerStudioController = {
   post: serviceHandler(ObjectLayerStudioService.post),
   put: serviceHandler(ObjectLayerStudioService.put),
   context: serviceHandler(context, { crossOrigin: true }),
+  importFrames: serviceHandler(importFrames),
 };
 
 /**
@@ -212,6 +243,22 @@ export function mount(router, options) {
       #swagger.parameters['id'] = { in: 'path', description: 'cid, document id or item label', required: true, type: 'string' }
     */
     return await ObjectLayerStudioController.context(req, res, options);
+  });
+  router.post(`/import-frames`, options.authMiddleware, moderatorGuard, async (req, res) => {
+    /*
+      #swagger.auto = false
+      #swagger.tags = ['object-layer']
+      #swagger.summary = 'Frames of a definition in a palette'
+      #swagger.description = 'Body { id, roles, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, remapped to the palette `roles` and, with `mutate`, with a seeded contour mutation. Stores nothing.'
+      #swagger.path = '/object-layer/import-frames'
+      #swagger.method = 'post'
+      #swagger.produces = ['application/json']
+      #swagger.consumes = ['application/json']
+      #swagger.security = [{
+        'bearerAuth': []
+      }]
+    */
+    return await ObjectLayerStudioController.importFrames(req, res, options);
   });
   router.post(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*

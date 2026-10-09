@@ -6,8 +6,8 @@ import {
 import { collectInstanceItemIds, selectInstanceSkills } from '../cyberia-instance/cyberia-instance-items.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
-import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
+import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/catalog/object-layer-catalog.js';
+import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 
 const logger = loggerFactory(import.meta);
 

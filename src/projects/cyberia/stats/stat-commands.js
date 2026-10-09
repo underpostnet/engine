@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { generateRandomStats, validateStats } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { PROGRESSION_RULES_DEFAULTS } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { generateRandomStats, validateStats } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { PROGRESSION_RULES_DEFAULTS } from '../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { generateStatContract } from './stat-contract-generator.js';
 
 export function registerStatCommands(program) {

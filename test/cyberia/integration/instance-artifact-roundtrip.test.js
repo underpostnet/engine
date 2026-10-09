@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content-artifact.js';
+import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 const cli = new URL('../../../bin/cyberia.js', import.meta.url).pathname;
@@ -100,7 +100,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())(
       if (pod) fs.removeSync(pod);
     });
 
-    it('imports the artifact backup by default and exports the same instance again', async () => {
+    it('imports the artifact backup by default and exports the same instance and bindings again', async () => {
       const imported = await run('--import');
       expect(imported.status, imported.output).toBe(0);
 
@@ -112,6 +112,12 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())(
       expect(fs.readJsonSync(path.join(out, 'cyberia-instance.json')).code).toBe(CODE);
       for (const directory of ['maps', 'object-layers', 'cyberia-quests', 'cyberia-actions', 'cyberia-dialogues'])
         expect(jsonFiles(path.join(out, directory)), directory).toEqual(jsonFiles(path.join(source, directory)));
+
+      // The snapshot binds each item to the definition it ran: an import into an empty database
+      // restores that binding exactly, and an export captures it again.
+      const cidOf = (dir, file) => fs.readJsonSync(path.join(dir, 'object-layers', file)).cid;
+      for (const file of jsonFiles(path.join(source, 'object-layers')))
+        expect(cidOf(out, file), file).toBe(cidOf(source, file));
 
       // Render sources travel as indexed frames: an import and an export keep every byte.
       const wire = (file) => {

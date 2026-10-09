@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { balanceStats, resolveStatBounds, statPolicyActive } from '../../../src/projects/cyberia/stat-balance.js';
+import { balanceStats, resolveStatBounds, statPolicyActive } from '../../../src/projects/cyberia/stats/stat-balance.js';
 import {
   STAT_TYPE_BOUNDS,
   STAT_TYPES,

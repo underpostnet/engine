@@ -37,6 +37,8 @@ import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
+import { ProceduralEngineCyberia } from '../cyberia/ProceduralEngineCyberia.js';
+import { ItemCatalogCyberia } from '../cyberia/ItemCatalogCyberia.js';
 import { CyberiaObjectLayerProfile } from '../cyberia/ObjectLayerProfileCyberia.js';
 import { CyberiaObjectLayerStudio } from '../cyberia/ObjectLayerStudioCyberia.js';
 import { StudioCyberia } from '../cyberia/StudioCyberia.js';
@@ -657,6 +659,40 @@ class AppShellCyberiaPortal {
         barConfig,
         title: StudioCyberia.renderTitle('cyberia-action-engine'),
         html: async () => await ActionEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-procedural-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-cyberia-procedural-engine',
+        route: 'cyberia-procedural-engine',
+        barConfig,
+        title: StudioCyberia.renderTitle('cyberia-procedural-engine'),
+        html: async () => await ProceduralEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-item-catalog`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.instance({
+        id: 'modal-cyberia-item-catalog',
+        route: 'cyberia-item-catalog',
+        barConfig,
+        title: StudioCyberia.renderTitle('cyberia-item-catalog'),
+        html: async () => await ItemCatalogCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

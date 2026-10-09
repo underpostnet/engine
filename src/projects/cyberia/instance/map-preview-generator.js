@@ -12,17 +12,17 @@
  * editors show, read from the atlas of the definition each label is bound to.
  * `refreshMapPreview` stores that picture as the map's preview.
  *
- * @module src/projects/cyberia/map-preview-generator.js
+ * @module src/projects/cyberia/instance/map-preview-generator.js
  */
 
 import sharp from 'sharp';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { CacheService } from '../../server/storage/cache.js';
-import { renderFileBytes } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { mapCache } from '../../api/cyberia-map/cyberia-map.service.js';
-import { FileFactory } from '../../api/file/file.service.js';
-import { catalogModels, catalogMounted } from './object-layer-catalog.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+import { CacheService } from '../../../server/storage/cache.js';
+import { renderFileBytes } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { mapCache } from '../../../api/cyberia-map/cyberia-map.service.js';
+import { FileFactory } from '../../../api/file/file.service.js';
+import { catalogModels, catalogMounted } from '../catalog/object-layer-catalog.js';
 
 const logger = loggerFactory(import.meta);
 

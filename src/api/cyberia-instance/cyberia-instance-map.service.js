@@ -2,12 +2,12 @@
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { refreshMapPreview } from '../../projects/cyberia/map-preview-generator.js';
+import { refreshMapPreview } from '../../projects/cyberia/instance/map-preview-generator.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
-import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/object-layer-catalog.js';
-import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
+import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/catalog/object-layer-catalog.js';
+import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 
 const logger = loggerFactory(import.meta);
 

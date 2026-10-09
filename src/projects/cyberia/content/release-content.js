@@ -2,12 +2,12 @@
  * The release content of dd-cyberia: what a release carries — the foundation, its sagas and the
  * worlds it serves, one instance code per public path — and the operations that check, select and
  * apply it. Importing this module runs nothing.
- * @module src/projects/cyberia/release-content.js
+ * @module src/projects/cyberia/content/release-content.js
  * @namespace CyberiaReleaseContent
  */
 
-import { normalizeInstanceTopology } from '../../server/runtime/conf.js';
-import { DEFAULT_INSTANCE_CODE } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { normalizeInstanceTopology } from '../../../server/runtime/conf.js';
+import { DEFAULT_INSTANCE_CODE } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 

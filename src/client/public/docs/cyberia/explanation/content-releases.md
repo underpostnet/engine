@@ -58,7 +58,7 @@ building ──▶ candidate ──validate──▶ validated ──promote─�
 | Contract  | In the Release Job, the repository's own `npm ci`, `npm test` and `npm pack` build a copy of the workspace, with no Secret                                                                                                 |
 | Verify    | The built artifact has the locked digest and revision                                                                                                                                                                      |
 | Ingest    | The release copy of the artifact is stored, then the foundation, the release sagas and each served world are imported into the release database: the release is a `candidate`. A failed foundation import imports no world |
-| Validate  | Definitions are published to the Object Layer authority, then `artifact`, `catalog`, `canonical`, `pinned-references`, `labels`, `render`, `instances`, `schema`                                                           |
+| Validate  | Definitions are published to the Object Layer authority, then `artifact`, `catalog`, `canonical`, `legacy-pins`, `labels`, `render`, `instances`, `schema`                                                                 |
 | Promote   | One transaction retires the active release and activates the new one. A unique index allows one active release                                                                                                             |
 | Serve     | Each engine follows the ledger (`CYBERIA_CONTENT_RELEASE_WATCH_MS`), reads the release copy of the artifact, rebinds the partition and hot-reloads the game servers                                                        |
 | Roll back | `cyberia content-release rollback` re-promotes the previous release                                                                                                                                                        |
@@ -73,14 +73,14 @@ runtime promotes only a release built from an exact source revision; a local rel
 A validation failure names each defect: a release copy of the artifact that is missing, incomplete,
 altered or of another content than the release records, a cid missing from the release, content
 whose hash is not its cid, a draft, a profile other than the Cyberia runtime's, a cid the authority
-does not hold, an unpinned or dangling quest or shop reference, a map label the catalog does not
+does not hold, a quest or an action that still pins a definition, a map label the catalog does not
 bind, a bound definition with no stored primary render or with a primary render or metadata that is
 not the pair its `data.render` names, an instance without its conf or maps.
 
 The ledger records for each release its source (the channel, the repository and the revision),
 every source the deploy resolved, the content artifact, its provenance (engine version and commit,
 builder, Release Job), its manifest (instances, maps, bindings, quests, actions) and its Object
-Layer dependencies (every bound and pinned CID). A failed release names the stage that failed.
+Layer dependencies (every bound CID). A failed release names the stage that failed.
 
 A rerun of the same deploy resumes the same release: a validated or promoted one is left as it is,
 and a failed one is built again. Every build starts from an empty candidate database, the first one
@@ -128,7 +128,9 @@ release baseline + live authorized changes = current production state
 The next release replaces the baseline with the content of `cyberia-content`, and keeps no live
 change. A change that must outlive its release goes into `cyberia-content` on purpose:
 `cyberia instance <code> --export <dir> --release <id>` writes it out, and a commit makes it source.
-Nothing writes Git on its own. A rollback serves the previous release with the live changes it held
+An item binding is such a change: the export freezes the definition each item runs into the
+snapshot, and the next release restores it. Nothing writes Git on its own, and no release reads
+the previous database. See [Runtime binding](runtime-binding.md#releases). A rollback serves the previous release with the live changes it held
 when it retired.
 
 With no release active, the runtime serves the workspace. That is the local development mode;

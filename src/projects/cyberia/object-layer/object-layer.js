@@ -1,7 +1,7 @@
 /**
  * Provides utilities and engine logic for processing and managing Cyberia Online's object layer assets (skins, floors, weapons, etc.).
  * Shared logic consumed by both the Cyberia CLI and the REST API service layer.
- * @module src/projects/cyberia/object-layer.js
+ * @module src/projects/cyberia/object-layer/object-layer.js
  * @namespace CyberiaObjectLayer
  */
 
@@ -9,26 +9,26 @@ import fs from 'fs-extra';
 import path from 'path';
 import { PNG } from 'pngjs';
 import { Jimp, intToRGBA } from 'jimp';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { isObjectLayerAuthority, pinCanonical } from '../../api/object-layer/object-layer.publication.js';
-import { parseIdentityJson } from '../../api/object-layer/object-layer.identity.js';
-import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
-import { AtlasSpriteSheetGenerator } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
-import { findBoundDefinition, writeItemDefinition } from './object-layer-catalog.js';
-import { range } from '../../client/components/core/CommonJs.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { isObjectLayerAuthority, pinCanonical } from '../../../api/object-layer/object-layer.publication.js';
+import { parseIdentityJson } from '../../../api/object-layer/object-layer.identity.js';
+import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
+import { AtlasSpriteSheetGenerator } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
+import { findBoundDefinition, publishItemDefinition, writeDraftDefinition } from '../catalog/object-layer-catalog.js';
+import { range } from '../../../client/components/core/CommonJs.js';
 import {
   getKeyframeDirectionsByCode,
   OBJECT_LAYER_DIRECTION_NAME_TO_CODE,
-} from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+} from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
   fromWire,
   isRenderSource,
   sourceFromIndexedFrames,
   toWire,
-} from '../../client/components/objectlayer-studio/RenderSource.js';
-import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
+} from '../../../client/components/objectlayer-studio/RenderSource.js';
+import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+import { resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -83,6 +83,7 @@ const DEFAULT_FRAME_DURATION_MS = 250;
 /**
  * @typedef {Object} PersistDocumentsOptions
  * @property {boolean} [generateAtlas=true] - Whether to generate the atlas sprite sheet.
+ * @property {boolean} [draft=false] - Store the definition as a draft: no publication.
  * @property {number} [upscaleFactor] - Pixels per cell of the upscaled render.
  * @property {Object} [options] - Router options ({ host, path }) for model lookup.
  * @memberof CyberiaObjectLayer
@@ -435,16 +436,17 @@ export class ObjectLayerEngine {
   /**
    * Writes the definition of a Cyberia item from its render frames: builds the render, publishes
    * the definition that names it, and stores the render frames and the atlas under its cid.
-   * Changed content becomes a new definition bound to the label; identical content keeps the
-   * bound one and takes the new materializations.
+   * Changed content becomes a new definition; identical content resolves to the stored one and
+   * takes the new materializations. The item keeps its binding. With `persistOptions.draft` the
+   * definition is stored as a draft instead: nothing is published.
    *
    * @static
    * @param {Object} params - Parameters.
-   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
+   * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
    * @param {ObjectLayerRenderFramesData} params.objectLayerRenderFramesData - Render frames payload.
    * @param {Object} params.objectLayerData - Object layer payload (must include `data`).
    * @param {PersistDocumentsOptions} [params.persistOptions={}] - Atlas generation and IPFS options.
-   * @returns {Promise<Object>} The bound definition.
+   * @returns {Promise<Object>} The published definition, or the draft.
    * @memberof CyberiaObjectLayer
    */
   static async persistObjectLayerDocuments({
@@ -453,7 +455,7 @@ export class ObjectLayerEngine {
     objectLayerData,
     persistOptions = {},
   }) {
-    const { generateAtlas = true, upscaleFactor, options } = persistOptions;
+    const { generateAtlas = true, draft = false, upscaleFactor, options } = persistOptions;
     const itemId = objectLayerData.data.item.id;
 
     let rendered;
@@ -470,7 +472,8 @@ export class ObjectLayerEngine {
       }
     }
 
-    const objectLayer = await ObjectLayerEngine.publishItemDefinition({
+    const write = draft ? writeDraftDefinition : publishItemDefinition;
+    const objectLayer = await write({
       models,
       payload: objectLayerData,
       renderFrames: objectLayerRenderFramesData,
@@ -482,29 +485,12 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Publishes a definition for a Cyberia item label through the Object Layer authority.
-   *
-   * @static
-   * @param {Object} params - Parameters.
-   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
-   * @param {Object} params.payload - `{ data, createdBy?, _id? }`.
-   * @param {Object} [params.renderFrames] - Editor source of the definition.
-   * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it.
-   * @param {Object} [params.options] - Router options ({ host, path }).
-   * @returns {Promise<Object>} The bound document.
-   * @memberof CyberiaObjectLayer
-   */
-  static async publishItemDefinition({ models, payload, renderFrames, rendered, options }) {
-    return await writeItemDefinition({ models, payload, renderFrames, rendered, options });
-  }
-
-  /**
    * Builds the render of a definition again from its stored render frames and publishes the
-   * definition that names it; the label rebinds to it. `revise` may change the payload first.
+   * definition that names it. The item keeps its binding. `revise` may change the payload first.
    *
    * @static
    * @param {Object} params
-   * @param {import('./object-layer-catalog.js').CatalogModels} params.models
+   * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models
    * @param {Object} params.objectLayer - A mongoose ObjectLayer document.
    * @param {number} [params.upscaleFactor] - Pixels per cell of the upscaled render.
    * @param {number|null} [params.maxAtlasDim=null] - Atlas dimension cap.
@@ -534,13 +520,7 @@ export class ObjectLayerEngine {
     });
     const payload = ObjectLayerEngine.payloadOf(objectLayer);
     revise(payload);
-    const definition = await ObjectLayerEngine.publishItemDefinition({
-      models,
-      payload,
-      renderFrames,
-      rendered,
-      options,
-    });
+    const definition = await publishItemDefinition({ models, payload, renderFrames, rendered, options });
     return { definition, atlas: rendered.atlas };
   }
 
@@ -563,7 +543,7 @@ export class ObjectLayerEngine {
    * @static
    * @param {Object} params
    * @param {string} params.itemId - Cyberia item label.
-   * @param {import('./object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
+   * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models - ObjectLayer and CyberiaItemCatalog models.
    * @param {Object} [params.options] - `{ host, path }` forwarded to pin helpers.
    * @returns {Promise<{ cid: string, contentHash: string, objectLayerId: string, pinned: boolean }>}
    * @memberof CyberiaObjectLayer

@@ -13,7 +13,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loggerFactory } from '../../server/ops/logger.js';
-import { activateContentRelease, watchContentRelease } from '../../projects/cyberia/content-release.js';
+import { activateContentRelease, watchContentRelease } from '../../projects/cyberia/content/content-release.js';
 import {
   buildFallbackConfig,
   fetchFullInstance,

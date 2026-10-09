@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Types } from 'mongoose';
 import sharp from 'sharp';
-import {
-  canonicalJsonBytes,
-  payloadCid,
-  renderContractOf,
-} from '../../../src/api/object-layer/object-layer.identity.js';
+import { renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 
 const models = {};
 const ipfs = vi.hoisted(() => ({ addToIpfs: async () => null }));
@@ -122,32 +118,16 @@ describe('building a render', () => {
     expect(atlas.idlePreviewFileId).toBeTruthy();
   });
 
-  it('refuses a pin under another CID than the render contract names', async () => {
-    ipfs.addToIpfs = async () => ({ cid: 'bafkreiother' });
-
-    await expect(
-      AtlasSpriteSheetStore.build({ itemKey: 'hatchet', objectLayerRenderFrames: twoFrames }),
-    ).rejects.toThrow('render contract');
-  });
-
-  it('pins the exact bytes the contract names: the primary render and the canonical bytes of its metadata', async () => {
-    const pinned = [];
-    ipfs.addToIpfs = async (bytes, name, mfsPath) => {
-      pinned.push({ bytes, mfsPath });
-      return { cid: payloadCid(bytes) };
+  it('builds without IPFS: the render is stored with the definition that names it', async () => {
+    ipfs.addToIpfs = async () => {
+      throw new Error('a build never pins');
     };
-
     const { atlas, render } = await AtlasSpriteSheetStore.build({
       itemKey: 'hatchet',
       objectLayerRenderFrames: twoFrames,
     });
-
-    expect(pinned.map(({ mfsPath }) => mfsPath)).toEqual([
-      '/object-layer/hatchet/hatchet_render.png',
-      '/object-layer/hatchet/hatchet_render_metadata.json',
-    ]);
-    expect(pinned[1].bytes.equals(canonicalJsonBytes(atlas.metadata))).toBe(true);
-    expect(pinned.map(({ bytes }) => payloadCid(bytes))).toEqual([render.cid, render.metadataCid]);
+    const primary = (await models.File.findById(atlas.fileId)).data;
+    expect(renderContractOf({ primary, metadata: atlas.metadata })).toEqual(render);
   });
 });
 

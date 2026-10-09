@@ -20,11 +20,13 @@ import { sourceFromIndexedFrames } from '../../../src/client/components/objectla
 import { profileRef } from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import {
+  bindItem,
   catalogModels,
+  findBoundCid,
+  publishItemDefinition,
   reconcileItemCatalog,
   seedItemCatalog,
-  writeItemDefinition,
-} from '../../../src/projects/cyberia/object-layer-catalog.js';
+} from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
 import {
   CONTENT_PARTITION,
   activateContentRelease,
@@ -37,7 +39,7 @@ import {
   retireContentRelease,
   rollbackContentRelease,
   validateContentRelease,
-} from '../../../src/projects/cyberia/content-release.js';
+} from '../../../src/projects/cyberia/content/content-release.js';
 import {
   CONTENT_FAMILIES,
   CONTENT_SCHEMA_VERSION,
@@ -45,7 +47,7 @@ import {
   openContentArtifact,
   servedContentArtifact,
   storeContentArtifact,
-} from '../../../src/projects/cyberia/content-artifact.js';
+} from '../../../src/projects/cyberia/content/content-artifact.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 // A real replica set: transactions, unique indexes and cross-database `$out` behave as in
@@ -160,10 +162,18 @@ const payload = (itemId, effect, render = { cid: '', metadataCid: '' }) => ({
 });
 /** A definition as a writer outside the catalog stores it. */
 const definition = (itemId, effect) => ({ profile: PROFILE, ...payload(itemId, effect) });
+/** Publishes a definition and binds its item to it, as a content import does. */
+const writeBound = async (write) => {
+  const itemId = write.payload.data.item.id;
+  const expectedCid = await findBoundCid(write.models, itemId);
+  const published = await publishItemDefinition(write);
+  await bindItem({ ...write, itemId, objectLayerCid: published.cid, expectedCid, source: 'content' });
+  return published;
+};
 
 /** Content the portal authors, all of it in the workspace. */
 const authorWorkspace = async ({ mapCode = 'forest-1' } = {}) => {
-  const hatchet = await writeItemDefinition({
+  const hatchet = await writeBound({
     models: catalogModels(cyberia),
     payload: payload('hatchet', 5),
     options: cyberia,
@@ -177,7 +187,7 @@ const authorWorkspace = async ({ mapCode = 'forest-1' } = {}) => {
     { $setOnInsert: FileFactory.create(primary, 'sword-primary.png') },
     { upsert: true, returnDocument: 'after' },
   );
-  const sword = await writeItemDefinition({
+  const sword = await writeBound({
     models: catalogModels(cyberia),
     payload: payload('sword', 9),
     rendered: { render: renderContractOf({ primary, metadata }), atlas: { fileId: file._id, metadata } },
@@ -224,6 +234,9 @@ const writeArtifact = (releaseId) => {
   const files = {
     ...Object.fromEntries(Object.values(CONTENT_FAMILIES).map((family) => [`foundation/${family}.json`, []])),
     'foundation/baseline.json': [],
+    'foundation/item-baseline.json': {},
+    'procedural/genesis-templates.json': [],
+    'procedural/palettes.json': { families: [], palettes: [] },
     'context.json': {
       definitions: { 'map.forest-1': { id: 'map.forest-1', name: releaseId } },
       labels: {},
@@ -358,7 +371,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
 
   describe('one canonical writer', () => {
     it('publishes at the authority, and keeps only a cache copy on Cyberia', async () => {
-      const definition = await writeItemDefinition({
+      const definition = await writeBound({
         models: catalogModels(cyberia),
         payload: payload('shield', 3),
         options: cyberia,
@@ -378,7 +391,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       authorityDown = true;
       let refused;
       try {
-        await writeItemDefinition({ models: catalogModels(cyberia), payload: payload('shield', 4), options: cyberia });
+        await writeBound({ models: catalogModels(cyberia), payload: payload('shield', 4), options: cyberia });
       } catch (error) {
         refused = error;
       } finally {
@@ -391,7 +404,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect((await model('CyberiaItemCatalog').findOne({ itemId: 'shield' }).lean()).objectLayerCid).toBe(before);
 
       // A retry once the authority answers publishes the same draft.
-      const published = await writeItemDefinition({
+      const published = await writeBound({
         models: catalogModels(cyberia),
         payload: payload('shield', 4),
         options: cyberia,
@@ -428,12 +441,12 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
 
   describe('ownership and lifecycle', () => {
     it('owns a definition by the principal that stored it, once', async () => {
-      const first = await writeItemDefinition({
+      const first = await writeBound({
         models: catalogModels(cyberia),
         payload: { ...payload('lantern', 1), createdBy: 'moderator-1' },
         options: cyberia,
       });
-      const again = await writeItemDefinition({
+      const again = await writeBound({
         models: catalogModels(cyberia),
         payload: { ...payload('lantern', 1), createdBy: 'moderator-2' },
         options: cyberia,
@@ -574,7 +587,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
 
     it('refuses a release that names a definition the authority does not hold', async () => {
       const { cid } = await model('ObjectLayer').upsertByIdentity(definition('ghost', 1), { origin: 'cache' });
-      await model('CyberiaItemCatalog').bind('ghost', cid);
+      await model('CyberiaItemCatalog').bind('ghost', cid, { expectedCid: null, source: 'studio' });
       const validation = await buildRelease('r3');
       expect(validation.ok).toBe(false);
       const failing = Object.fromEntries(

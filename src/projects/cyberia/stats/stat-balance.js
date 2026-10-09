@@ -5,7 +5,7 @@ import {
   statBoundsForType,
   validateStatModifier,
   validateStats,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+} from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 /**
  * Stat balancing for every object layer the content pipeline writes.

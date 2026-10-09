@@ -18,14 +18,14 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () =>
     })),
   },
 }));
-vi.mock('../../../src/projects/cyberia/object-layer-catalog.js', () => ({
+vi.mock('../../../src/projects/cyberia/catalog/object-layer-catalog.js', () => ({
   findBoundDefinition: async () => null,
-  writeItemDefinition: vi.fn(async ({ payload, rendered }) => ({ cid: 'written', data: payload.data, rendered })),
+  publishItemDefinition: vi.fn(async ({ payload, rendered }) => ({ cid: 'written', data: payload.data, rendered })),
 }));
 
-const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer.js');
+const { ObjectLayerEngine } = await import('../../../src/projects/cyberia/object-layer/object-layer.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
-const { writeItemDefinition } = await import('../../../src/projects/cyberia/object-layer-catalog.js');
+const { publishItemDefinition } = await import('../../../src/projects/cyberia/catalog/object-layer-catalog.js');
 
 const definition = (data) => ({ cid: 'bound', data, toObject: () => ({ data: structuredClone(data) }) });
 
@@ -33,7 +33,7 @@ describe('item render rebuild', () => {
   beforeEach(() => {
     store.renderFrames.clear();
     AtlasSpriteSheetStore.build.mockClear();
-    writeItemDefinition.mockClear();
+    publishItemDefinition.mockClear();
   });
 
   it('builds from the stored render source and publishes the revised payload under the new render', async () => {
@@ -55,7 +55,7 @@ describe('item render rebuild', () => {
       upscaleFactor: 20,
       maxAtlasDim: null,
     });
-    expect(writeItemDefinition.mock.calls[0][0]).toMatchObject({
+    expect(publishItemDefinition.mock.calls[0][0]).toMatchObject({
       renderFrames: { source: 'down_idle' },
       rendered: { render: { cid: 'render-hatchet' } },
     });
@@ -68,6 +68,6 @@ describe('item render rebuild', () => {
     const objectLayer = definition({ item: { id: 'hatchet', type: 'weapon' } });
     expect(await ObjectLayerEngine.rebuildItemRender({ models: {}, objectLayer, options: {} })).toBeNull();
     expect(AtlasSpriteSheetStore.build).not.toHaveBeenCalled();
-    expect(writeItemDefinition).not.toHaveBeenCalled();
+    expect(publishItemDefinition).not.toHaveBeenCalled();
   });
 });

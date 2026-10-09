@@ -1,4 +1,4 @@
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, getQueryParams, isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -12,6 +12,7 @@ import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
+import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS } from './SharedDefaultsCyberia.js';
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
@@ -19,7 +20,8 @@ const dropdownOption = (value) => ({ value, display: value, data: value, onClick
 
 // EntityEngineCyberia — CRUD surface for the cyberia-entity-type-default
 // collection (instance wiring over the foundation baseline). An ag-grid lists
-// every default; clicking a row loads it into the form. The form binds an
+// the defaults a page at a time, from the `page` and `limit` query parameters;
+// clicking a row loads it into the form. The form binds an
 // entityType to its lifecycle item-id sets (live / dead / drop) plus the
 // inventory-only extras, with server-backed item-id autocomplete pickers so the
 // high-frequency itemId fields stay fast and typo-free. The runtime linking
@@ -28,6 +30,9 @@ const dropdownOption = (value) => ({ value, display: value, data: value, onClick
 // simulation — it owns the default content the seed/instance pipelines consume.
 class EntityEngineCyberia {
   static listCache = [];
+  // The runtime binding of each item id shown, read from the catalog: itemId → its row, or null
+  // when unbound. Read only: the Cyberia Item Catalog changes a binding.
+  static bindings = new Map();
   static currentId = null;
   static crud = null;
 
@@ -48,6 +53,9 @@ class EntityEngineCyberia {
   // from every id added in the form, which is what makes a just-picked item preview immediately.
 
   static gridId = 'entity-engine-grid';
+  static route = 'cyberia-entity-engine';
+  // The page the grid shows, as `{ page, limit }`; null until the first read.
+  static loadedPage = null;
 
   static ids = {
     entityType: 'entity-engine-entity-type',
@@ -157,7 +165,7 @@ class EntityEngineCyberia {
         style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;display:flex;align-items:center;gap:6px;">
-          ${EntityEngineCyberia.itemPreview(items[i])}${items[i]}
+          ${EntityEngineCyberia.itemPreview(items[i])}${items[i]} ${EntityEngineCyberia.bindingMark(items[i])}
         </div>
         ${await BtnIcon.instance({
           class: `btn-entity-engine-rm-${field}-${i}`,
@@ -175,6 +183,42 @@ class EntityEngineCyberia {
           EntityEngineCyberia.renderItemList(field);
         };
     }
+    EntityEngineCyberia.loadBindings(items);
+  }
+
+  /** Reads from the catalog the binding of each item id not read yet, then draws what shows them again. */
+  static async loadBindings(itemIds) {
+    const missing = [...new Set(itemIds)].filter((itemId) => itemId && !EntityEngineCyberia.bindings.has(itemId));
+    if (missing.length === 0) return;
+    const { status, data } = await CyberiaItemCatalogService.get({
+      limit: missing.length,
+      filterModel: { itemId: { filterType: 'set', values: missing } },
+    });
+    if (status !== 'success') return;
+    const rows = new Map(data.data.map((row) => [row.itemId, row]));
+    for (const itemId of missing) EntityEngineCyberia.bindings.set(itemId, rows.get(itemId) ?? null);
+    AgGrid.grids[EntityEngineCyberia.gridId]?.refreshCells({
+      columns: Object.values(EntityEngineCyberia.ITEM_FIELD_KEYS),
+      force: true,
+      suppressFlash: true,
+    });
+    for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
+  }
+
+  /** The runtime binding of an item id as a mark: the cid it runs, or why it runs none. */
+  static bindingMark(itemId) {
+    if (!EntityEngineCyberia.bindings.has(itemId)) return '';
+    const row = EntityEngineCyberia.bindings.get(itemId);
+    if (row?.bindingStatus === 'bound')
+      return html`<span style="color:#2e7d32;" title="Runtime binding CID: ${row.objectLayerCid}"
+        >✓ ${row.objectLayerCid.slice(0, 9)}…</span
+      >`;
+    const problem = !row
+      ? 'Runtime render not bound'
+      : row.bindingStatus === 'unrendered'
+        ? 'Runtime binding without a render'
+        : `Runtime binding ${row.bindingStatus}`;
+    return html`<span style="color:#c62828;" title="${problem}">⚠ ${problem}</span>`;
   }
 
   static async addItem(field, pickerId) {
@@ -422,7 +466,8 @@ class EntityEngineCyberia {
               html`<span
                 style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-family:monospace;"
                 title="${itemId}"
-                >${EntityEngineCyberia.itemPreview(itemId)}${itemId}${index < itemIds.length - 1 ? ',' : ''}</span
+                >${EntityEngineCyberia.itemPreview(itemId)}${itemId}
+                ${EntityEngineCyberia.bindingMark(itemId)}${index < itemIds.length - 1 ? ',' : ''}</span
               >`,
           )
           .join('');
@@ -432,8 +477,9 @@ class EntityEngineCyberia {
         return this.eGui;
       }
 
+      // A rebuilt cell shows the binding marks read since it was drawn.
       refresh() {
-        return true;
+        return false;
       }
     };
   }
@@ -520,16 +566,44 @@ class EntityEngineCyberia {
     for (const codes of EntityEngineCyberia.instanceLinks.values()) codes.sort();
   }
 
+  /** The page the query parameters name. */
+  static pageQuery() {
+    const { page, limit } = getQueryParams();
+    return { page: parseInt(page, 10) || 1, limit: parseInt(limit, 10) || 10 };
+  }
+
+  /** Reads the page the query parameters name, and shows it with its pager. */
   static async refreshList() {
+    const { page, limit } = EntityEngineCyberia.pageQuery();
     const [res] = await Promise.all([
-      CyberiaEntityTypeDefaultService.get({ limit: 500 }),
+      CyberiaEntityTypeDefaultService.get({ page, limit }),
       EntityEngineCyberia.refreshInstanceLinks(),
     ]);
-    EntityEngineCyberia.listCache = res?.data?.data || [];
+    const { data = [], total = 0, totalPages = 1 } = res?.data || {};
+    EntityEngineCyberia.listCache = data;
+    EntityEngineCyberia.loadedPage = { page, limit };
     const rows = EntityEngineCyberia.listCache.map((d) => EntityEngineCyberia.toRow(d));
     if (AgGrid.grids[EntityEngineCyberia.gridId])
       AgGrid.grids[EntityEngineCyberia.gridId].setGridOption('rowData', rows);
+    EntityEngineCyberia.loadBindings(
+      data.flatMap((doc) => Object.values(EntityEngineCyberia.ITEM_FIELD_KEYS).flatMap((key) => doc[key] || [])),
+    );
+    const pager = s(`#ag-pagination-${EntityEngineCyberia.gridId}`);
+    if (pager) {
+      pager.setAttribute('limit', limit);
+      pager.setAttribute('current-page', page);
+      pager.setAttribute('total-items', total);
+      pager.setAttribute('total-pages', Math.max(1, totalPages));
+    }
     EntityEngineCyberia.renderInstanceList();
+  }
+
+  /** Reads the list again when the query parameters of its route name another page. */
+  static followPageQuery() {
+    if (!isCurrentRoute(EntityEngineCyberia.route) || !s('.entity-engine-container')) return;
+    const { page, limit } = EntityEngineCyberia.pageQuery();
+    const loaded = EntityEngineCyberia.loadedPage;
+    if (!loaded || loaded.page !== page || loaded.limit !== limit) EntityEngineCyberia.refreshList();
   }
 
   // ── Payload / load / persistence ──────────────────────────────────────────
@@ -666,6 +740,8 @@ class EntityEngineCyberia {
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
     EntityEngineCyberia.canMutate = commonModeratorGuard(role);
     EntityEngineCyberia.listCache = [];
+    EntityEngineCyberia.bindings = new Map();
+    EntityEngineCyberia.loadedPage = null;
     EntityEngineCyberia.currentId = null;
     EntityEngineCyberia.liveItemIds = [];
     EntityEngineCyberia.deadItemIds = [];
@@ -726,10 +802,13 @@ class EntityEngineCyberia {
       }));
       if (s('.btn-entity-engine-refresh'))
         s('.btn-entity-engine-refresh').onclick = () => EntityEngineCyberia.refreshList();
+      if (s('.btn-entity-engine-item-catalog'))
+        s('.btn-entity-engine-item-catalog').onclick = () => s('.main-btn-cyberia-item-catalog')?.click();
 
       for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
       EntityEngineCyberia.renderOverrideList();
       await EntityEngineCyberia.refreshList();
+      listenQueryParamsChange({ id: 'entity-engine-page', event: () => EntityEngineCyberia.followPageQuery() });
     });
 
     return html`<div class="in section-mp studio-editor entity-engine-container">
@@ -745,6 +824,9 @@ class EntityEngineCyberia {
           <div class="in" style="font-size:12px;color:#888;">Click a row to load it into the form.</div>`,
         stage: await AgGrid.instance({
           id: EntityEngineCyberia.gridId,
+          ownerRoute: EntityEngineCyberia.route,
+          usePagination: true,
+          paginationOptions: { limitOptions: [10, 25, 50, 100] },
           darkTheme,
           style: { width: '44rem', 'max-width': '100%', height: '50vh' },
           gridOptions: {
@@ -832,6 +914,15 @@ class EntityEngineCyberia {
             html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
                 <i class="fa-solid fa-key"></i> Lookup key — each itemId may belong to only one entity default across the
                 whole collection (empty is allowed for non-lookup categories).
+              </div>
+              <div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
+                <i class="fa-solid fa-link"></i> Each item shows its runtime binding. A default names items only; the
+                Cyberia Item Catalog binds each one to the definition the runtime runs.
+                ${await BtnIcon.instance({
+                  class: 'btn-entity-engine-item-catalog',
+                  label: html`<i class="fa-solid fa-link"></i> Item Catalog`,
+                  style: 'padding:2px 10px;',
+                })}
               </div>
               ${await itemListEditor('live', html`Search live itemId`)}`,
           )}

@@ -1,28 +1,36 @@
 /**
  * Cyberia item catalog over the Object Layer store.
  *
- * Cyberia content names items by label (`data.item.id`), a label the protocol never keeps
- * unique. The `CyberiaItemCatalog` collection binds each label to one canonical `objectLayerCid`;
- * this module is the one path that resolves labels and writes definitions Cyberia runs on.
+ * Cyberia content names items by item id (`data.item.id`), which the protocol never keeps
+ * unique. The `CyberiaItemCatalog` collection binds each item id to the one `objectLayerCid` the
+ * runtime runs. This module resolves item ids, publishes definitions, and holds {@link bindItem},
+ * the one write of a binding: publishing a definition never binds it.
  *
- * @module src/projects/cyberia/object-layer-catalog.js
+ * @module src/projects/cyberia/catalog/object-layer-catalog.js
  * @namespace CyberiaObjectLayerCatalog
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { profileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
-import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
-import { objectLayerCache, publishDefinition } from '../../api/object-layer/object-layer.publication.js';
-import { objectLayerIdentity } from '../../api/object-layer/object-layer.identity.js';
-import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
-import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
-import { CacheService } from '../../server/storage/cache.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { profileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
+import {
+  cacheCanonical,
+  isObjectLayerAuthority,
+  objectLayerCache,
+  publishDefinition,
+  storeDraft,
+} from '../../../api/object-layer/object-layer.publication.js';
+import { objectLayerIdentity } from '../../../api/object-layer/object-layer.identity.js';
+import { publishObjectLayerBundle } from '../../../api/object-layer/object-layer.ipfs.js';
+import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
+import { resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
+import { CacheService } from '../../../server/storage/cache.js';
 
 /** Definitions the runtime may serve: published ones, never a draft. */
 const PUBLISHED = Object.freeze({ origin: { $ne: 'draft' } });
 
 /**
  * The APIs a writer of item definitions loads: the store and the catalog, the materializations
- * {@link writeItemDefinition} stores under every written cid, and the Files and pins they hold.
+ * {@link publishItemDefinition} stores under every written cid, and the Files and pins they hold.
  * @memberof CyberiaObjectLayerCatalog
  */
 export const ITEM_DEFINITION_APIS = Object.freeze([
@@ -113,6 +121,115 @@ export async function findAllBoundDefinitions({ ObjectLayer, CyberiaItemCatalog 
 }
 
 /**
+ * The state of a binding: `bound` when the item runs a published definition with a render,
+ * `unrendered` without a render, `draft` or `archived` when the definition cannot run, and
+ * `missing` when this host does not store it.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export const BINDING_STATUSES = Object.freeze(['bound', 'unrendered', 'draft', 'archived', 'missing']);
+
+/**
+ * A page of bindings, each with what its definition says about it: `itemType`, `render` (the
+ * render CID, empty without one), `atlas` (whether this host holds the atlas of the render),
+ * `bindingStatus` (one of {@link BINDING_STATUSES}) and the `source`, `by` and `at` of its last
+ * change. The filter and the sort apply to every field of a row.
+ * @param {CatalogModels & {AtlasSpriteSheet: import('mongoose').Model}} models
+ * @param {{query:Object,sort:Object,skip:number,limit:number}} page - A parsed data query.
+ * @returns {Promise<{data:Object[],total:number}>}
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function listBindings({ CyberiaItemCatalog, ObjectLayer, AtlasSpriteSheet }, page) {
+  const { query, sort, skip, limit } = page;
+  const first = (path) => ({ $arrayElemAt: [path, 0] });
+  const [{ data, total }] = await CyberiaItemCatalog.aggregate([
+    {
+      $lookup: {
+        from: ObjectLayer.collection.name,
+        localField: 'objectLayerCid',
+        foreignField: 'cid',
+        pipeline: [{ $project: { 'data.item.type': 1, 'data.render.cid': 1, origin: 1, archivedAt: 1 } }],
+        as: 'definition',
+      },
+    },
+    {
+      $lookup: {
+        from: AtlasSpriteSheet.collection.name,
+        localField: 'objectLayerCid',
+        foreignField: 'objectLayerCid',
+        pipeline: [{ $limit: 1 }, { $project: { _id: 1 } }],
+        as: 'atlas',
+      },
+    },
+    { $set: { definition: first('$definition'), last: { $arrayElemAt: ['$history', -1] } } },
+    {
+      $project: {
+        _id: 0,
+        itemId: 1,
+        objectLayerCid: 1,
+        updatedAt: 1,
+        itemType: { $ifNull: ['$definition.data.item.type', ''] },
+        render: { $ifNull: ['$definition.data.render.cid', ''] },
+        atlas: { $gt: [{ $size: '$atlas' }, 0] },
+        source: { $ifNull: ['$last.source', ''] },
+        by: { $ifNull: ['$last.by', ''] },
+        bindingStatus: {
+          $switch: {
+            branches: [
+              { case: { $eq: [{ $type: '$definition' }, 'missing'] }, then: 'missing' },
+              { case: { $eq: ['$definition.origin', 'draft'] }, then: 'draft' },
+              { case: { $gt: ['$definition.archivedAt', null] }, then: 'archived' },
+              { case: { $not: ['$definition.data.render.cid'] }, then: 'unrendered' },
+            ],
+            default: 'bound',
+          },
+        },
+      },
+    },
+    { $match: query },
+    {
+      $facet: {
+        data: [{ $sort: Object.keys(sort).length > 0 ? sort : { itemId: 1 } }, { $skip: skip }, { $limit: limit }],
+        total: [{ $count: 'count' }],
+      },
+    },
+    { $project: { data: 1, total: { $ifNull: [{ $arrayElemAt: ['$total.count', 0] }, 0] } } },
+  ]);
+  return { data, total };
+}
+
+/**
+ * The binding history of an item and every definition it could run: the definitions stored under
+ * its item id and every definition it ran, newest first.
+ * @param {CatalogModels} models
+ * @param {string} itemId
+ * @returns {Promise<{itemId:string,objectLayerCid:string,history:Object[],definitions:Object[]}>}
+ *   `objectLayerCid` is empty for an unbound item.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function itemBindingHistory({ CyberiaItemCatalog, ObjectLayer }, itemId) {
+  const entry = await CyberiaItemCatalog.findOne({ itemId }, { objectLayerCid: 1, history: 1 }).lean();
+  const ran = (entry?.history ?? []).map(({ objectLayerCid }) => objectLayerCid);
+  const definitions = await ObjectLayer.find(
+    { $or: [{ 'data.item.id': itemId }, { cid: { $in: ran } }] },
+    { cid: 1, origin: 1, archivedAt: 1, createdAt: 1, 'data.render.cid': 1 },
+  )
+    .sort({ createdAt: -1 })
+    .lean();
+  return {
+    itemId,
+    objectLayerCid: entry?.objectLayerCid ?? '',
+    history: [...(entry?.history ?? [])].reverse(),
+    definitions: definitions.map(({ cid, origin, archivedAt, createdAt, data }) => ({
+      cid,
+      origin,
+      archived: !!archivedAt,
+      createdAt,
+      render: data?.render?.cid ?? '',
+    })),
+  };
+}
+
+/**
  * Every bound label.
  * @param {CatalogModels} models
  * @returns {Promise<string[]>}
@@ -149,6 +266,49 @@ export function mergeObjectLayerData(existing, incoming) {
 }
 
 const sameRender = (a, b) => (a?.cid ?? '') === (b?.cid ?? '') && (a?.metadataCid ?? '') === (b?.metadataCid ?? '');
+
+const invalid = (message) => Object.assign(new Error(message), { status: 400 });
+
+/**
+ * Makes sure a definition can run: stored here and published, or held by the Object Layer
+ * authority, in which case a consumer keeps a copy to serve.
+ * @throws {Error} 400 for a draft, an archived or an unknown definition.
+ */
+async function assertRunnable({ ObjectLayer }, cid, options) {
+  const stored = await ObjectLayer.findOne({ cid }, { origin: 1, archivedAt: 1 }).lean();
+  if (stored?.origin === 'draft') throw invalid(`Object Layer ${cid} is a draft; publish it first`);
+  if (stored?.archivedAt) throw invalid(`Object Layer ${cid} is archived`);
+  if (stored) return;
+  const definition = isObjectLayerAuthority(options) ? null : await resolveObjectLayer(cid, options);
+  if (!definition) throw invalid(`No Object Layer definition with cid ${cid}`);
+  if (definition.archivedAt) throw invalid(`Object Layer ${cid} is archived at the authority`);
+  await cacheCanonical({ ObjectLayer, cid, definition, options });
+}
+
+/**
+ * Binds an item id to a definition: the one write of the active runtime binding. The item must
+ * still run `expectedCid`, so a concurrent binding is never overwritten, and the change joins the
+ * binding history in the same write.
+ * @param {Object} params
+ * @param {CatalogModels} params.models
+ * @param {string} params.itemId
+ * @param {string} params.objectLayerCid
+ * @param {string|null} params.expectedCid - The definition the caller saw the item run; empty when unbound.
+ * @param {string} params.source - What binds: see `BINDING_SOURCES` of the catalog model.
+ * @param {string} [params.by=''] - The actor.
+ * @param {import('mongoose').ClientSession} [params.session] - The transaction the binding joins.
+ * @param {Object} [params.options] - Router options of this host.
+ * @returns {Promise<Object>} The catalog entry.
+ * @throws {Error} 400 when the definition cannot run; 409 when the item runs another definition.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function bindItem({ models, itemId, objectLayerCid, expectedCid, source, by = '', session, options }) {
+  if (!itemId) throw invalid('An item id is required');
+  await assertRunnable(models, objectLayerCid, options);
+  const entry = await models.CyberiaItemCatalog.bind(itemId, objectLayerCid, { expectedCid, source, by, session });
+  await CacheService.invalidate(objectLayerCache(options));
+  return entry;
+}
 
 /**
  * Stores the materializations of a written definition under its cid: the editor source the writer
@@ -201,15 +361,15 @@ export function composeItemDefinition({ boundData, payload, setOnInsert = null }
 }
 
 /**
- * Publishes the definition a Cyberia item label runs on, under the Cyberia profile, and binds
- * the label to it.
+ * Publishes a definition of a Cyberia item under the Cyberia profile. The item keeps its binding:
+ * {@link bindItem} moves it.
  *
- * The payload is composed by {@link composeItemDefinition}, so a degraded writer keeps what an
- * earlier one stored. Changed content becomes a new immutable
- * definition and the label is rebound to it; identical content keeps the bound one. The label
- * binds only after {@link publishDefinition} succeeds: a definition the Object Layer authority
- * did not store stays a draft and the label keeps its binding. The materializations of the
- * written definition are stored under its cid by {@link materializeDefinition}.
+ * The payload is composed by {@link composeItemDefinition} over the definition the item runs, so a
+ * degraded writer keeps what an earlier one stored; `exact` composes it alone, as a snapshot
+ * restore reproduces its definition. Changed content becomes a new immutable definition; identical
+ * content resolves to the stored one. A definition the Object Layer authority did not store stays
+ * a draft. The materializations of the written definition are stored under its cid by
+ * {@link materializeDefinition}, and its render on IPFS under the same cid.
  *
  * @param {Object} params
  * @param {CatalogModels} params.models
@@ -217,18 +377,27 @@ export function composeItemDefinition({ boundData, payload, setOnInsert = null }
  * @param {Object} [params.setOnInsert=null] - Partial payload applied only when the label has no definition yet.
  * @param {Object} [params.renderFrames] - Editor source of the written definition.
  * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it: it sets `data.render`.
+ * @param {boolean} [params.exact=false] - Compose the payload alone, never over the bound definition.
  * @param {Object} [params.options] - Router options of this host; they say whether it is the Object Layer authority.
- * @returns {Promise<Object>} The bound document.
- * @throws {import('../../api/object-layer/object-layer.publication.js').PublicationError} When the authority did not store it.
+ * @returns {Promise<Object>} The published document.
+ * @throws {import('../../../api/object-layer/object-layer.publication.js').PublicationError} When the authority did not store it.
  * @memberof CyberiaObjectLayerCatalog
  */
-export async function writeItemDefinition({ models, payload, setOnInsert = null, renderFrames, rendered, options }) {
+export async function publishItemDefinition({
+  models,
+  payload,
+  setOnInsert = null,
+  renderFrames,
+  rendered,
+  exact = false,
+  options,
+}) {
   const itemId = payload?.data?.item?.id;
-  if (!itemId) throw new Error('writeItemDefinition requires data.item.id');
+  if (!itemId) throw new Error('publishItemDefinition requires data.item.id');
 
   const bound = await findBoundDefinition(models, itemId);
   const next = composeItemDefinition({
-    boundData: bound ? bound.toObject({ virtuals: false }).data : null,
+    boundData: bound && !exact ? bound.toObject({ virtuals: false }).data : null,
     payload,
     setOnInsert,
   });
@@ -236,19 +405,42 @@ export async function writeItemDefinition({ models, payload, setOnInsert = null,
   if (payload.createdBy) next.createdBy = payload.createdBy;
 
   const definition = await publishDefinition({ ObjectLayer: models.ObjectLayer, payload: next, options });
-  if (!bound || bound.cid !== definition.cid) {
-    await models.CyberiaItemCatalog.bind(itemId, definition.cid);
-    await CacheService.invalidate(objectLayerCache(options));
-  }
   await materializeDefinition({ definition, bound, renderFrames, rendered, options });
+  await publishObjectLayerBundle({ definition, options });
+  return definition;
+}
+
+/**
+ * Stores a definition as a draft: composed under the Cyberia profile and written with its
+ * materializations and its render on IPFS under its cid, bound to no item, published nowhere and
+ * served to no one. Identical content resolves to the stored document.
+ * {@link publishItemDefinition} publishes it later.
+ *
+ * @param {Object} params
+ * @param {CatalogModels} params.models
+ * @param {Object} params.payload - `{ data, createdBy? }`; `data.item.id` required.
+ * @param {Object} [params.renderFrames] - Editor source of the written definition.
+ * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it: it sets `data.render`.
+ * @param {Object} [params.options] - Router options of this host.
+ * @returns {Promise<Object>} The stored document.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function writeDraftDefinition({ models, payload, renderFrames, rendered, options }) {
+  if (!payload?.data?.item?.id) throw new Error('writeDraftDefinition requires data.item.id');
+  const next = composeItemDefinition({ boundData: null, payload });
+  if (rendered) next.data.render = rendered.render;
+  if (payload.createdBy) next.createdBy = payload.createdBy;
+  const definition = await storeDraft({ ObjectLayer: models.ObjectLayer, payload: next, options });
+  await materializeDefinition({ definition, bound: null, renderFrames, rendered, options });
+  await publishObjectLayerBundle({ definition, options });
   return definition;
 }
 
 /**
  * Brings the definition a label runs on in line with the current Cyberia profile: its profile
  * and stats are composed again, and `revise` may change its data first. Only a definition whose
- * identity changes is written, through {@link writeItemDefinition}; the label then rebinds and
- * keeps its materializations.
+ * identity changes is written, through {@link publishItemDefinition}; the label then rebinds to it
+ * and keeps its materializations.
  * @param {Object} params
  * @param {CatalogModels} params.models
  * @param {string} params.itemId - The label.
@@ -266,7 +458,9 @@ export async function reviseItemDefinition({ models, itemId, revise = () => {}, 
   revise(payload);
   if (objectLayerIdentity(composeItemDefinition({ boundData, payload })).cid === bound.cid)
     return { definition: bound, written: false };
-  return { definition: await writeItemDefinition({ models, payload, options }), written: true };
+  const definition = await publishItemDefinition({ models, payload, options });
+  await bindItem({ models, itemId, objectLayerCid: definition.cid, expectedCid: bound.cid, source: 'revise', options });
+  return { definition, written: true };
 }
 
 /**
@@ -315,7 +509,7 @@ export async function seedItemCatalog({ ObjectLayer, CyberiaItemCatalog }) {
   for (const { _id: itemId, cids } of groups) {
     if (!itemId || bound.has(itemId)) continue;
     if (cids.length === 1) {
-      await CyberiaItemCatalog.bind(itemId, cids[0]);
+      await CyberiaItemCatalog.bind(itemId, cids[0], { expectedCid: null, source: 'seed' });
       result.bound++;
     } else result.ambiguous.push({ itemId, cids });
   }

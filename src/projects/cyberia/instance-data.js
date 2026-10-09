@@ -23,16 +23,15 @@ import {
 import { loggerFactory } from '../../server/ops/logger.js';
 import { domainOrigin } from '../../server/domain/domain-client.js';
 import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
-import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './object-layer-catalog.js';
-import { PINNED_REFERENCES, collectPinnedCids } from '../../api/cyberia-item-catalog/item-ref.js';
+import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './catalog/object-layer-catalog.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   resolveProgressionRules,
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { validateStats, validateEntityLevel } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { contentArtifact } from './content-artifact.js';
-import { buildCyberiaMmoInstanceEnv } from './release-content.js';
+import { contentArtifact } from './content/content-artifact.js';
+import { buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -285,7 +284,7 @@ function toInstanceMsg(doc) {
   };
 }
 
-const toCraftItemMsg = (i) => ({ itemId: i.itemId || '', objectLayerCid: i.objectLayerCid || '', qty: i.qty ?? 1 });
+const toCraftItemMsg = (i) => ({ itemId: i.itemId || '', qty: i.qty ?? 1 });
 
 // CyberiaAction → CyberiaActionMessage (proto camelCase fields).
 function toActionMsg(a) {
@@ -302,9 +301,7 @@ function toActionMsg(a) {
     })),
     shopItems: (a.shopItems || []).map((si) => ({
       itemId: si.itemId || '',
-      objectLayerCid: si.objectLayerCid || '',
       priceItemId: si.priceItemId || 'coin',
-      priceObjectLayerCid: si.priceObjectLayerCid || '',
       priceQty: si.priceQty ?? 1,
     })),
     craftRecipes: (a.craftRecipes || []).map((r) => ({
@@ -333,13 +330,11 @@ function toQuestMsg(q) {
       objectives: (s.objectives || []).map((o) => ({
         type: o.type || '',
         itemId: o.itemId || '',
-        objectLayerCid: o.objectLayerCid || '',
         quantity: o.quantity || 1,
       })),
     })),
     rewards: (q.rewards || []).map((r) => ({
       itemId: r.itemId || '',
-      objectLayerCid: r.objectLayerCid || '',
       quantity: r.quantity || 1,
     })),
   };
@@ -494,11 +489,12 @@ async function fetchObjectLayerManifest(models) {
 }
 
 /**
- * Full world-load payload for one instance (RPC: getFullInstance):
- * `{ instance, maps, objectLayers, config, version, actions, quests }`.
+ * The stored content of one world: the instance, its conf, its maps, its entity-type defaults,
+ * the actions and quests on its maps, the skills it runs, and every item id they name. The world
+ * load and the binding check read a world through here, so they never disagree on what it holds.
  * @throws {Error} When no CyberiaInstance holds that code.
  */
-async function fetchFullInstance(models, instanceCode) {
+async function loadWorld(models, instanceCode) {
   const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).populate('conf').lean();
   if (!inst) throw new Error(`CyberiaInstance "${instanceCode}" not found`);
 
@@ -558,25 +554,20 @@ async function fetchFullInstance(models, instanceCode) {
     owned,
   );
   for (const summoned of collectSummonedItemIds(skillDocs)) itemIds.add(summoned);
+  return { inst, conf, mapDocs, entityDefaultDocs, entityDefaultsConfig, actionDocs, questDocs, skillDocs, itemIds };
+}
 
-  // Content that pins a definition decides which one this world runs; the catalog answers
-  // only for labels no content pinned. One label pinned to two definitions is a content
-  // error, never a silent choice.
-  const pinned = collectPinnedCids(questDocs, PINNED_REFERENCES.CyberiaQuest);
-  collectPinnedCids(actionDocs, PINNED_REFERENCES.CyberiaAction, pinned);
-  const conflicts = [...pinned].filter(([, cids]) => cids.size > 1);
-  if (conflicts.length > 0) {
-    throw new Error(
-      `Instance "${instanceCode}" pins several definitions for: ${conflicts
-        .map(([itemId, cids]) => `${itemId} (${[...cids].join(', ')})`)
-        .join('; ')}`,
-    );
-  }
-  const pinnedCids = [...pinned].filter(([itemId]) => itemIds.has(itemId)).map(([, cids]) => [...cids][0]);
-  const olDocs = [
-    ...(pinnedCids.length ? await models.ObjectLayer.find({ cid: { $in: pinnedCids } }).lean() : []),
-    ...(await findBoundDefinitions(models, [...itemIds].filter((itemId) => !pinned.has(itemId)))),
-  ];
+/**
+ * Full world-load payload for one instance (RPC: getFullInstance):
+ * `{ instance, maps, objectLayers, config, version, actions, quests }`.
+ * @throws {Error} When no CyberiaInstance holds that code.
+ */
+async function fetchFullInstance(models, instanceCode) {
+  const { inst, conf, mapDocs, entityDefaultDocs, entityDefaultsConfig, actionDocs, questDocs, skillDocs, itemIds } =
+    await loadWorld(models, instanceCode);
+
+  // The catalog is the one authority for the definition each item runs.
+  const olDocs = await findBoundDefinitions(models, [...itemIds]);
 
   // Opaque version over the updatedAt timestamps. The server compares it to
   // skip a full world rebuild when nothing changed.
@@ -658,4 +649,5 @@ export {
   fetchMapData,
   fetchObjectLayerManifest,
   fetchFullInstance,
+  loadWorld,
 };

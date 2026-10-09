@@ -110,15 +110,16 @@ copy consistent with the action:
 - `--drop` removes the folder of each dropped item.
 
 An item id names the definition the Cyberia item catalog binds it to (`CyberiaItemCatalog`,
-resolved through `src/projects/cyberia/object-layer-catalog.js`). Definitions are immutable: a
+resolved through `src/projects/cyberia/catalog/object-layer-catalog.js`). Definitions are immutable: a
 write through `ol` stores changed content as a draft, publishes it at the Object Layer authority,
-and rebinds the label only after the authority stored it. When the authority does not answer, the
-draft stays, the label keeps its definition and the command fails. See
+and binds the item to it only after the authority stored it: an `ol` write is an operator's
+explicit bind. When the authority does not answer, the draft stays, the item keeps its definition
+and the command fails. See
 [One Object Layer writer](../explanation/domain-boundaries.md#one-object-layer-writer).
 Every writing flow first runs the idempotent identity migration, which moves a legacy collection
 (unique item id, `sha256`, `data.ledger`) to the content identity model and binds every label that
 has one published definition; a label with several definitions and no binding must be bound
-explicitly (`POST /api/v1/cyberia-item-catalog { itemId, objectLayerCid }`).
+explicitly (`POST /api/v1/cyberia-item-catalog { itemId, objectLayerCid, expectedCid: '' }`).
 
 `--sync` works on the definitions the catalog binds, in scope: an item-id, an instance, or every
 label. For each one it:
@@ -142,8 +143,8 @@ Every flow that writes (`--import`, `--import-types`, `--sync`, `--to-atlas-spri
   runtime serves the content database the write went to. A workspace write behind an active
   release reaches no reader: the runtime serves the release.
 
-Pinned quest and action references keep the definition they name: a rebind never moves them. A
-browser keeps the item pictures it loaded until the page reloads.
+Quests and actions name items by item id, so every world that names a rebound item runs its new
+definition after the reload. A browser keeps the item pictures it loaded until the page reloads.
 
 ---
 
@@ -602,12 +603,31 @@ other checkout it publishes. The lock format is the platform
 
 ```
 cyberia catalog reconcile --dev
+cyberia catalog check [--instance <codes>] [--ipfs] --dev
+cyberia catalog repair [--apply] --dev
 ```
 
-Asks the Object Layer authority about every binding of the item catalog and unbinds a label whose
-definition it no longer offers: archived, a draft, or unknown. Idempotent; an authority that does
-not answer fails the run and changes nothing. The same reconciliation is served over REST
-(`POST /api/v1/cyberia-item-catalog/reconcile`, moderator).
+| Command     | Does                                                                                                                                                                                                                    |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reconcile` | Asks the Object Layer authority about every binding and unbinds an item whose definition it no longer offers: archived, a draft, or unknown. Idempotent. Also `POST /api/v1/cyberia-item-catalog/reconcile` (moderator) |
+| `check`     | Reads each world as the game server receives it and reports every item that cannot run. `--ipfs` also checks how each bound definition is stored: binding, content, MFS and pin. Exits 1 on an error                    |
+| `repair`    | Prints, as JSON, the documents that still pin a definition and the items the pins make ambiguous. `--apply` removes every legacy pin                                                                                    |
+
+The bindings themselves change in the **Cyberia Item Catalog** view or over REST: `POST
+/api/v1/cyberia-item-catalog { itemId, objectLayerCid, expectedCid }` binds while the item runs
+`expectedCid` and answers 409 otherwise; `GET /:itemId/history` and `GET /:itemId/diagnostics`
+(moderator) read the history and the IPFS state. See
+[Manage runtime bindings](../how-to/manage-runtime-bindings.md).
+
+## `cyberia ipfs` — IPFS storage
+
+```
+cyberia ipfs migrate [--apply] --dev
+```
+
+Moves IPFS storage to the CID-first layout: one registry record per CID, every stored definition
+listed under `/object-layer/cid/<cid>/`, no listing by item id. Prints the report as JSON; it
+writes only with `--apply`. See [IPFS storage](../../object-layer/explanation/ipfs-storage.md).
 
 ## `cyberia content` — content artifact
 

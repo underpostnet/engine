@@ -15,7 +15,11 @@ import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.
 import { CyberiaActionService } from '../../services/cyberia-action/cyberia-action.service.js';
 import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
 import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
+import { CyberiaSagaService } from '../../services/cyberia-saga/cyberia-saga.service.js';
+import { contextIconSrc } from '../objectlayer-studio/ContextPanel.js';
 import { QUEST_STEPS_TYPES, SKILL_LOGIC_IDS } from './SharedDefaultsCyberia.js';
+import { sagaBadgeList } from './SagaCyberia.js';
+import { SagaSync } from './SagaSyncCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
 // DropDown invokes optionData.onClick on selection, so every option (including
@@ -25,7 +29,7 @@ const dropdownOption = (value) => ({ value, display: value, data: value, onClick
 // ActionEngineCyberia — a map-driven engine that unifies quest, action and
 // dialogue authoring around a shared, visual map surface. It is intentionally
 // decoupled from MapEngineCyberia: the only integration points are the public
-// data services (maps, quests, actions, dialogues, object-layer item ids) and
+// data services (maps, quests, actions, dialogues, sagas, object-layer item ids) and
 // the same object-layer texture-loading convention. The engine reads a map
 // purely as a placement backdrop and never mutates map documents. CRUD is
 // surfaced as per-entity card lists (mirroring the map-engine entity list),
@@ -40,6 +44,8 @@ class ActionEngineCyberia {
   static actionListCache = [];
   static dialogueListCache = [];
   static skillListCache = [];
+  // The sagas of each code, by bucket: `{ items, maps, quests, actions, dialogues }`.
+  static sagaSources = {};
 
   // The loaded document of each kind, `{ id, name }`, or null while its form holds a new one.
   static current = { quest: null, action: null, dialogue: null, skill: null };
@@ -293,9 +299,13 @@ class ActionEngineCyberia {
   }
 
   // ── Mode switching ──────────────────────────────────────────────────────
+  // `mode` is the document kind the CRUD bar edits; a tab with no kind hides the bar.
   static setMode(mode) {
-    ActionEngineCyberia.mode = mode;
     Tabs.select(s('.action-engine-tabs'), mode);
+    const kind = Boolean(ActionEngineCyberia.KINDS[mode]);
+    s('.action-engine-crud').style.display = kind ? '' : 'none';
+    if (!kind) return;
+    ActionEngineCyberia.mode = mode;
     ActionEngineCyberia.crud?.refresh();
   }
 
@@ -534,10 +544,7 @@ class ActionEngineCyberia {
   static async renderQuestCards() {
     const container = s('.action-engine-quest-cards');
     if (!container) return;
-    const filter = (s('.action-engine-quest-search')?.value || '').toLowerCase();
-    const items = ActionEngineCyberia.questListCache.filter(
-      (d) => !filter || (d.code || '').toLowerCase().includes(filter) || (d.title || '').toLowerCase().includes(filter),
-    );
+    const items = ActionEngineCyberia.visible('quest');
     let out = '';
     for (const doc of items) {
       const stepCount = (doc.steps || []).length;
@@ -555,6 +562,7 @@ class ActionEngineCyberia {
               ${doc.sourceMapCode ? `${doc.sourceMapCode} (${doc.sourceCellX}, ${doc.sourceCellY})` : 'unplaced'} ·
               ${stepCount} step(s) · ${objCount} objective(s)
             </div>
+            ${sagaBadgeList(ActionEngineCyberia.sagasOf('quest', doc))}
           </div>
           <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
         </div>`,
@@ -573,10 +581,7 @@ class ActionEngineCyberia {
   static async renderActionCards() {
     const container = s('.action-engine-action-cards');
     if (!container) return;
-    const filter = (s('.action-engine-action-search')?.value || '').toLowerCase();
-    const items = ActionEngineCyberia.actionListCache.filter(
-      (d) => !filter || (d.code || '').toLowerCase().includes(filter) || (d.label || '').toLowerCase().includes(filter),
-    );
+    const items = ActionEngineCyberia.visible('action');
     let out = '';
     for (const doc of items) {
       const [loadBtn, delBtn] = await ActionEngineCyberia.cardActionsHtml(
@@ -592,6 +597,7 @@ class ActionEngineCyberia {
               ${doc.sourceMapCode ? `${doc.sourceMapCode} (${doc.sourceCellX}, ${doc.sourceCellY})` : 'unplaced'} ·
               dialog: ${doc.dialogCode || '—'} · ${(doc.questDialogueCodes || []).length} quest-dialog(s)
             </div>
+            ${sagaBadgeList(ActionEngineCyberia.sagasOf('action', doc))}
           </div>
           <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
         </div>`,
@@ -610,14 +616,7 @@ class ActionEngineCyberia {
   static async renderDialogueCards() {
     const container = s('.action-engine-dialogue-cards');
     if (!container) return;
-    const filter = (s('.action-engine-dialogue-search')?.value || '').toLowerCase();
-    const items = ActionEngineCyberia.dialogueListCache.filter(
-      (d) =>
-        !filter ||
-        (d.code || '').toLowerCase().includes(filter) ||
-        (d.speaker || '').toLowerCase().includes(filter) ||
-        (d.text || '').toLowerCase().includes(filter),
-    );
+    const items = ActionEngineCyberia.visible('dialogue');
     let out = '';
     for (const doc of items) {
       const [loadBtn, delBtn] = await ActionEngineCyberia.cardActionsHtml(
@@ -631,6 +630,7 @@ class ActionEngineCyberia {
             <div style="font-weight:bold;font-family:monospace;font-size:12px;">${doc.code} #${doc.order ?? 0}</div>
             <div style="font-size:11px;color:#888;">${doc.speaker || '—'} · ${doc.mood || 'neutral'}</div>
             <div style="font-size:11px;color:#888;">${snippet}</div>
+            ${sagaBadgeList(ActionEngineCyberia.sagasOf('dialogue', doc))}
           </div>
           <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
         </div>`,
@@ -664,14 +664,56 @@ class ActionEngineCyberia {
     await ActionEngineCyberia.renderDialogueCards();
   }
 
+  static async refreshSagaSources() {
+    const { status, data } = await CyberiaSagaService.getSources().catch(() => ({}));
+    ActionEngineCyberia.sagaSources = status === 'success' ? data : {};
+  }
+
+  /** Reads again the saga sources, every list and the assignments of the loaded map. */
+  static async refreshAll() {
+    await ActionEngineCyberia.refreshSagaSources();
+    await Promise.all([
+      ActionEngineCyberia.refreshQuestList(),
+      ActionEngineCyberia.refreshActionList(),
+      ActionEngineCyberia.refreshDialogueList(),
+      ActionEngineCyberia.refreshSkillList(),
+      ActionEngineCyberia.refreshAssignments(),
+    ]);
+  }
+
+  /** The sagas a document of a kind belongs to. */
+  static sagasOf(kind, doc) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    return ActionEngineCyberia.sagaSources[spec.sagas]?.[spec.key(doc)] ?? [];
+  }
+
+  /** The listed documents of a kind whose search fields or saga codes hold the text of its search box. */
+  static visible(kind) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const filter = (s(`.action-engine-${kind}-search`)?.value || '').toLowerCase();
+    const values = (doc) => [
+      ...spec.search.flatMap((field) => doc[field] ?? []),
+      ...ActionEngineCyberia.sagasOf(kind, doc),
+    ];
+    return spec
+      .cache()
+      .filter((doc) => !filter || values(doc).some((value) => String(value).toLowerCase().includes(filter)));
+  }
+
   // The document each tab edits: its service, how its form reads, checks, clears and loads, and what
-  // a change refreshes. A kind with a `cloneKey` offers Clone under a fresh value of that field.
+  // a change refreshes. A kind with a `cloneKey` offers Clone under a fresh value of that field. `key`
+  // is the code the sagas and the saga report name it by, `sagas` the bucket of the saga sources,
+  // `cache` its listed documents and `search` the fields its search box matches.
   static KINDS = {
     quest: {
       subject: 'quest',
       service: CyberiaQuestService,
       cloneKey: 'code',
       name: (doc) => doc.code,
+      key: (doc) => doc.code,
+      sagas: 'quests',
+      cache: () => ActionEngineCyberia.questListCache,
+      search: ['code', 'title'],
       payload: () => ActionEngineCyberia.getQuestPayload(),
       check: (body) => (body.code && body.title ? '' : 'Quest code and title are required.'),
       new: () => ActionEngineCyberia.newQuest(),
@@ -683,6 +725,10 @@ class ActionEngineCyberia {
       service: CyberiaActionService,
       cloneKey: 'code',
       name: (doc) => doc.code,
+      key: (doc) => doc.code,
+      sagas: 'actions',
+      cache: () => ActionEngineCyberia.actionListCache,
+      search: ['code', 'label'],
       payload: () => ActionEngineCyberia.getActionPayload(),
       check: (body) => (body.code ? '' : 'Action code is required.'),
       new: () => ActionEngineCyberia.newAction(),
@@ -693,6 +739,10 @@ class ActionEngineCyberia {
       subject: 'dialogue line',
       service: CyberiaDialogueService,
       name: (doc) => `${doc.code} #${doc.order ?? 0}`,
+      key: (doc) => doc.code,
+      sagas: 'dialogues',
+      cache: () => ActionEngineCyberia.dialogueListCache,
+      search: ['code', 'speaker', 'text'],
       payload: () => ActionEngineCyberia.getDialoguePayload(),
       check: (body) => (body.code && body.text ? '' : 'Dialogue code and text are required.'),
       new: () => ActionEngineCyberia.newDialogue(),
@@ -703,6 +753,10 @@ class ActionEngineCyberia {
       subject: 'skill',
       service: CyberiaSkillService,
       name: (doc) => doc.triggerItemId,
+      key: (doc) => doc.triggerItemId,
+      sagas: 'items',
+      cache: () => ActionEngineCyberia.skillListCache,
+      search: ['triggerItemId', 'logicEventIds'],
       payload: () => ActionEngineCyberia.getSkillPayload(),
       check: (body) =>
         !body.triggerItemId
@@ -733,6 +787,14 @@ class ActionEngineCyberia {
     const { status, data, message } = await spec.service.get({ id });
     if (status === 'success' && data) await spec.load(data);
     else NotificationManager.Push({ html: message, status: 'error' });
+  }
+
+  /** Loads the listed document of a kind that `key` names into its tab. */
+  static async openByKey(kind, key) {
+    const spec = ActionEngineCyberia.KINDS[kind];
+    const doc = spec.cache().find((listed) => spec.key(listed) === key);
+    if (doc) await ActionEngineCyberia.open(kind, doc._id);
+    else NotificationManager.Push({ html: `No ${spec.subject} ${key} is stored.`, status: 'warning' });
   }
 
   static async save(kind) {
@@ -997,13 +1059,7 @@ class ActionEngineCyberia {
   static async renderSkillCards() {
     const container = s('.action-engine-skill-cards');
     if (!container) return;
-    const filter = (s('.action-engine-skill-search')?.value || '').toLowerCase();
-    const items = ActionEngineCyberia.skillListCache.filter(
-      (d) =>
-        !filter ||
-        (d.triggerItemId || '').toLowerCase().includes(filter) ||
-        (d.logicEventIds || []).some((l) => (l || '').toLowerCase().includes(filter)),
-    );
+    const items = ActionEngineCyberia.visible('skill');
     let out = '';
     for (const doc of items) {
       const [loadBtn, delBtn] = await ActionEngineCyberia.cardActionsHtml(
@@ -1016,6 +1072,7 @@ class ActionEngineCyberia {
             <div style="font-weight:bold;font-family:monospace;font-size:12px;">${doc.triggerItemId}</div>
             <div style="font-size:11px;color:#888;">${(doc.logicEventIds || []).join(', ') || '—'}</div>
             <div style="font-size:11px;color:#888;">${(doc.skills || []).length} skill(s)</div>
+            ${sagaBadgeList(ActionEngineCyberia.sagasOf('skill', doc))}
           </div>
           <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
         </div>`,
@@ -1089,6 +1146,7 @@ class ActionEngineCyberia {
     ActionEngineCyberia.actionListCache = [];
     ActionEngineCyberia.dialogueListCache = [];
     ActionEngineCyberia.skillListCache = [];
+    ActionEngineCyberia.sagaSources = {};
     ActionEngineCyberia.current = { quest: null, action: null, dialogue: null, skill: null };
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
@@ -1185,6 +1243,10 @@ class ActionEngineCyberia {
           ActionEngineCyberia.renderMapCanvas();
         };
 
+      for (const kind of Object.keys(ActionEngineCyberia.KINDS))
+        if (s(`.btn-action-engine-${kind}-refresh`))
+          s(`.btn-action-engine-${kind}-refresh`).onclick = () => ActionEngineCyberia.refreshAll();
+
       // Quest wiring
       if (s('.btn-action-engine-add-step'))
         s('.btn-action-engine-add-step').onclick = () => ActionEngineCyberia.addStep();
@@ -1192,8 +1254,6 @@ class ActionEngineCyberia {
         s('.btn-action-engine-add-objective').onclick = () => ActionEngineCyberia.addObjective();
       if (s('.btn-action-engine-add-reward'))
         s('.btn-action-engine-add-reward').onclick = () => ActionEngineCyberia.addReward();
-      if (s('.btn-action-engine-quest-refresh'))
-        s('.btn-action-engine-quest-refresh').onclick = () => ActionEngineCyberia.refreshQuestList();
       if (s('.action-engine-quest-search'))
         s('.action-engine-quest-search').addEventListener('input', () => ActionEngineCyberia.renderQuestCards());
 
@@ -1209,22 +1269,16 @@ class ActionEngineCyberia {
           ActionEngineCyberia.actionQuestDialogues.push({ questCode, dialogCode });
           ActionEngineCyberia.renderQuestDialogueList();
         };
-      if (s('.btn-action-engine-action-refresh'))
-        s('.btn-action-engine-action-refresh').onclick = () => ActionEngineCyberia.refreshActionList();
       if (s('.action-engine-action-search'))
         s('.action-engine-action-search').addEventListener('input', () => ActionEngineCyberia.renderActionCards());
 
       // Dialogue wiring
-      if (s('.btn-action-engine-dialogue-refresh'))
-        s('.btn-action-engine-dialogue-refresh').onclick = () => ActionEngineCyberia.refreshDialogueList();
       if (s('.action-engine-dialogue-search'))
         s('.action-engine-dialogue-search').addEventListener('input', () => ActionEngineCyberia.renderDialogueCards());
 
       // Skill wiring
       if (s('.btn-action-engine-add-skill-def'))
         s('.btn-action-engine-add-skill-def').onclick = () => ActionEngineCyberia.addSkillDef();
-      if (s('.btn-action-engine-skill-refresh'))
-        s('.btn-action-engine-skill-refresh').onclick = () => ActionEngineCyberia.refreshSkillList();
       if (s('.action-engine-skill-search'))
         s('.action-engine-skill-search').addEventListener('input', () => ActionEngineCyberia.renderSkillCards());
 
@@ -1233,10 +1287,7 @@ class ActionEngineCyberia {
       ActionEngineCyberia.renderQuestDialogueList();
       ActionEngineCyberia.renderSkillDefList();
       ActionEngineCyberia.renderAssignmentReview();
-      await ActionEngineCyberia.refreshQuestList();
-      await ActionEngineCyberia.refreshActionList();
-      await ActionEngineCyberia.refreshDialogueList();
-      await ActionEngineCyberia.refreshSkillList();
+      await Promise.all([ActionEngineCyberia.refreshAll(), SagaSync.mount()]);
     });
 
     return html`<div class="in section-mp studio-editor action-engine-container">
@@ -1652,6 +1703,16 @@ class ActionEngineCyberia {
                   html`${await listToolbar('skill')}
                     <div class="in action-engine-skill-cards" style="max-height:300px;overflow-y:auto;"></div>`,
                 )}`,
+              },
+              {
+                id: 'saga',
+                label: 'Saga integration',
+                image: contextIconSrc(),
+                content: await SagaSync.render({
+                  canMutate: ActionEngineCyberia.canMutate,
+                  onOpen: (kind, key) => ActionEngineCyberia.openByKey(kind, key),
+                  onSynced: () => ActionEngineCyberia.refreshAll(),
+                }),
               },
             ],
           })}

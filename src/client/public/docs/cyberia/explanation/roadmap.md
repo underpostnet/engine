@@ -34,13 +34,13 @@ Two derived values follow from them:
 
 **`itemId` is a label, never an identity.** `data.item.id` (`hatchet`, `skin-dark-001`,
 `floor-desert`) is a human-readable slug for authoring and display. It is not unique, and a label
-may be rebound to another definition. The `CyberiaItemCatalog` binds `itemId → olCid`, and every
-persisted reference pins the `objectLayerCid` it means. Rebinding a label never changes what
-pinned content means.
+may be rebound to another definition. The `CyberiaItemCatalog` alone binds `itemId → olCid`:
+content names items by item id, and an exported instance snapshot freezes the binding of each item
+it holds. [Runtime binding](runtime-binding.md) holds the lifecycle.
 
 ### Runtime handle
 
-The runtime handle for an Object Layer is the pair **label + pinned `olCid`**. No parallel
+The runtime handle for an Object Layer is the pair **label + resolved `olCid`**. No parallel
 reference type exists:
 
 ```
@@ -96,7 +96,7 @@ blockchain dependency**: no node, no deployed contract and no chain call is need
 | Lock                 | Contract                                                                                          |
 | -------------------- | ------------------------------------------------------------------------------------------------- |
 | Content identity     | `olCid` = CIDv1 raw sha2-256 of the canonical payload; one canonical serializer in Node, Go and C |
-| Label semantics      | `itemId` is a label; `CyberiaItemCatalog` binds it; persisted content pins `objectLayerCid`       |
+| Label semantics      | `itemId` is a label; `CyberiaItemCatalog` alone binds it; a snapshot freezes the binding          |
 | Token identity       | `tokenId = uint256(contentHash)`; a qualified asset is `chainId + contractAddress + tokenId`      |
 | Account identity     | CAIP-10 `accountId`; the address is the account, the session token is not                         |
 | Authentication       | SIWE (ERC-4361): challenge, nonce, single use, server-issued session token                        |

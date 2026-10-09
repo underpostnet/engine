@@ -183,6 +183,17 @@ const CssCommonCyberia = async () => {
         font-weight: bold;
         line-height: 20px;
       }
+      .saga-badge-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+      .saga-badge-list > .saga-badge {
+        padding: 0 8px;
+        font-size: 12px;
+        line-height: 18px;
+      }
       .studio-group {
         border: 1px solid var(--studio-border);
         border-radius: 8px;

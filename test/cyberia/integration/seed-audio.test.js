@@ -12,7 +12,7 @@ import { FileService } from '../../../src/api/file/file.service.js';
 import { CyberiaMapAudioConfService } from '../../../src/api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
 import {
   hasAudioRenderer, loadAudioRenderer, recordAudioBank, seedInstanceAudio,
-} from '../../../src/projects/cyberia/seed-audio.js';
+} from '../../../src/projects/cyberia/instance/seed-audio.js';
 import {
   DEFAULT_AUDIO_BANK, DEFAULT_AUDIO_BINDINGS, DEFAULT_MAP_MUSIC, buildAudioEventBindings,
 } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';

@@ -31,7 +31,7 @@ One owner for each concept. No module holds a second answer.
 | `cyberia-content`          | Foundation, instances, sagas, generator, compiler, validation, artifact |
 | `cyberia-deployment`       | Deployment conf, runtime images, manifests and `underpost.lock.json`    |
 | Object Layer               | Canonical, content-addressed item definitions                           |
-| `CyberiaItemCatalog`       | The binding of a Cyberia item label to an Object Layer CID              |
+| `CyberiaItemCatalog`       | The runtime binding of a Cyberia item id to an Object Layer CID         |
 | `CyberiaEntity`            | An entity of a map: item stack, runtime properties and cell             |
 | `CyberiaMap`               | A map and its entities                                                  |
 | `CyberiaInstance`          | The map topology: portal graph and player spawn                         |
@@ -56,17 +56,24 @@ The deployment contains no public asset tree. Public source directories have no 
 ## The artifact
 
 The artifact is `dist/`: the compiled document families of the foundation and of each saga, the
-instance backups and a manifest. It holds no code; the engine reads and verifies it.
+procedural templates, the instance backups and a manifest. It holds no code; the engine reads and
+verifies it.
 
-| Path                         | Holds                                                  |
-| ---------------------------- | ------------------------------------------------------ |
-| `context.json`               | The context index: every definition and its references |
-| `foundation/<family>.json`   | The compiled foundation, one file per document family  |
-| `foundation/baseline.json`   | The entity-type defaults every world resolves against  |
-| `sagas/<code>/<family>.json` | Each compiled saga, one file per document family       |
-| `sagas/<code>/saga.json`     | Its `CyberiaSaga` record                               |
-| `sagas/<code>/instance.json` | The shell of its instance                              |
-| `instances/<code>/`          | Each instance backup                                   |
+| Path                                | Holds                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------- |
+| `context.json`                      | The context index: every definition and its references                  |
+| `foundation/<family>.json`          | The compiled foundation, one file per document family                   |
+| `foundation/baseline.json`          | The entity-type defaults every world resolves against                   |
+| `foundation/item-baseline.json`     | The item label a new item of each type takes its function from          |
+| `procedural/genesis-templates.json` | The Genesis Templates of the Procedural Engine                          |
+| `procedural/palettes.json`          | The palette families and the Palette Templates of the Procedural Engine |
+| `sagas/<code>/<family>.json`        | Each compiled saga, one file per document family                        |
+| `sagas/<code>/saga.json`            | Its `CyberiaSaga` record                                                |
+| `sagas/<code>/instance.json`        | The shell of its instance                                               |
+| `instances/<code>/`                 | Each instance backup                                                    |
+
+The Procedural Engine verifies the templates when it reads them. See
+[Procedural Engine](procedural-engine.md).
 
 The manifest names:
 
@@ -112,7 +119,7 @@ pinned revision from the channel it runs on, and the image build from the public
 image build checks out that revision, packs it, and runs `cyberia release verify` before anything
 reads content.
 
-`src/projects/cyberia/content-artifact.js` opens the artifact once per process. It fails, and
+`src/projects/cyberia/content/content-artifact.js` opens the artifact once per process. It fails, and
 never falls back, when:
 
 - the artifact or its manifest is missing, or the manifest is invalid;
@@ -163,7 +170,7 @@ its maps place.
 The context index, `context.json`, is derived at build time. It holds every definition of the
 foundation and the sagas, where each one comes from, the item label and the map entity it answers
 to, and every reference in both directions with the field that makes it. The Studio editors read
-it through `src/projects/cyberia/foundation-context.js`: one definition in full, the rest as
+it through `src/projects/cyberia/content/foundation-context.js`: one definition in full, the rest as
 summaries.
 
 ## Import
@@ -196,9 +203,10 @@ Only an insert writes the instance portal graph.
 `cyberia instance <code> --import` restores an instance backup of the artifact, and it needs the
 foundation in the store:
 
-- An Object Layer item of the backup is published under its cid, and the label binds to it. No
-  other definition of the label is removed: a quest or an action of another instance that pins
-  another cid keeps it.
+- The backup is a snapshot: `object-layers/<itemId>.json` is the definition the item ran when it
+  was exported. The import publishes it exactly and binds the item to it, whatever the item ran
+  before. No other definition of the item is removed.
+- A quest or an action of the backup names items by item id; a cid it still carries is dropped.
 - A map, quest, action, skill, dialogue, saga, audio asset, instance and instance conf of the
   backup replaces the stored document of its key.
 - An entity-type default of the backup replaces each stored default of the same entity type and
@@ -206,7 +214,7 @@ foundation in the store:
 
 ## Release content
 
-`src/projects/cyberia/release-content.js` declares what a release carries: the foundation, the
+`src/projects/cyberia/content/release-content.js` declares what a release carries: the foundation, the
 release sagas and the release instances, each instance with the public path that serves it.
 
 ```json
@@ -229,7 +237,7 @@ Every content initialization imports this set, in one order:
 The import takes only the declared sagas and instances. It fails before it writes when the
 artifact lacks one of them, and it never imports another saga or instance that the artifact holds.
 An import starts only once the one before it succeeded, so a failed foundation import stops the
-instances. `src/projects/cyberia/content-release.js` holds that order, and every path runs it:
+instances. `src/projects/cyberia/content/content-release.js` holds that order, and every path runs it:
 
 | Path                                  | Store                       | Imports                                                                        |
 | ------------------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
@@ -272,5 +280,6 @@ The foundation and the sagas leave two jobs to Cyberia Studio:
    and connects maps into an instance.
 
 The map editor tracks each composition: an entry is met once the map holds an entity of its type
-and item ids.
+and item ids. A saga synchronization then sets the quest and action sources from the placed
+entities ([Synchronize a saga](../how-to/synchronize-a-saga.md)).
 [Paint and place in the Studio](../how-to/paint-and-place-in-studio.md) describes both editors.

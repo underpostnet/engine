@@ -1,7 +1,7 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { contentArtifact } from '../../projects/cyberia/content-artifact.js';
+import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 
 const logger = loggerFactory(import.meta);
 

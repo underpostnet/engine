@@ -28,7 +28,7 @@
 
 import express from 'express';
 import { crossOriginMiddleware } from '../../server/network/middlewares.js';
-import { serverKeyGuard } from '../../projects/cyberia/server-key.js';
+import { serverKeyGuard } from '../../projects/cyberia/runtime/server-key.js';
 import { CyberiaServerRegistryController } from './cyberia-server-registry.controller.js';
 
 class CyberiaServerRegistryRouter {

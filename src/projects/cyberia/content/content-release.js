@@ -7,26 +7,27 @@
  * at it. Runtime state (players, sessions, quest progress) stays in the host database and no
  * content operation touches it.
  *
- * @module src/projects/cyberia/content-release.js
+ * @module src/projects/cyberia/content/content-release.js
  * @namespace CyberiaContentRelease
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { domainOrigin } from '../../server/domain/domain-client.js';
-import { publishObjectLayer, resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
-import { objectLayerIdentity, renderContractOf } from '../../api/object-layer/object-layer.identity.js';
-import { isProfileRef } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
-import { PINNED_REFERENCES, readItemRefs } from '../../api/cyberia-item-catalog/item-ref.js';
+import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+import { domainOrigin } from '../../../server/domain/domain-client.js';
+import { publishObjectLayer, resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
+import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
+import { isProfileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import { findLegacyPins } from '../catalog/catalog-consistency.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   isMaterialItemId,
-} from '../../api/cyberia-instance/cyberia-instance-items.js';
-import { triggerHotReload } from './hot-reload-trigger.js';
-import { CyberiaObjectLayerProfile } from '../../client/components/cyberia/ObjectLayerProfileCyberia.js';
-import { AtlasSpriteSheetStore } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
-import { MongooseDB } from '../../db/mongo/MongooseDB.js';
-import { assertReleaseId } from '../../server/release/source-release.js';
+} from '../../../api/cyberia-instance/cyberia-instance-items.js';
+import { triggerHotReload } from '../runtime/hot-reload-trigger.js';
+import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
+import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
+import { pruneUnreferencedContent } from '../../../api/object-layer/object-layer.ipfs.js';
+import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
+import { assertReleaseId } from '../../../server/release/source-release.js';
 import { loadContentArtifact, serveContentArtifact, servedContentArtifact } from './content-artifact.js';
 
 const logger = loggerFactory(import.meta);
@@ -150,7 +151,7 @@ const identityDefect = (doc) => {
  *   runtime's profile, whose identity is its content's.
  * - `canonical`: every bound cid resolves at the Object Layer authority, with the same digest.
  *   Skipped, and said so, when this deployment is the authority.
- * - `pinned-references`: every pinned quest and action reference names a cached definition.
+ * - `legacy-pins`: no quest or action pins a definition: the catalog alone binds each item.
  * - `labels`: every label a map entity or entity default uses is bound in the catalog.
  * - `render`: the atlas each bound definition points at holds the render it names: its primary
  *   render and its layout address `data.render`.
@@ -161,7 +162,7 @@ const identityDefect = (doc) => {
  *   `AtlasSpriteSheet`, `File`, `CyberiaQuest`, `CyberiaAction`, `CyberiaMap`,
  *   `CyberiaEntityTypeDefault`, `CyberiaSkill`, `CyberiaInstance`, `CyberiaInstanceConf`.
  * @param {Object} [params]
- * @param {import('../../api/types.js').RouterOptions} [params.options] - Router options of the host, for the canonical resolver.
+ * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host, for the canonical resolver.
  * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
  * @param {{db:import('mongodb').Db, digest:string}} [params.artifact] - The release database and the
  *   content digest the release records; absent for the workspace.
@@ -229,24 +230,12 @@ export async function validateContentRelease(models, { options, resolveCanonical
   }
   checks.push(canonicalCheck);
 
-  const pinnedCheck = check('pinned-references');
-  const pinned = [];
-  for (const [collection, references] of Object.entries(PINNED_REFERENCES)) {
-    for (const document of await models[collection].find({}).lean()) {
-      for (const ref of readItemRefs(document, references)) pinned.push({ collection, code: document.code, ...ref });
-    }
-  }
-  pinnedCheck.count = pinned.length;
-  const pinnedCids = [...new Set(pinned.map((ref) => ref.cid).filter(Boolean))];
-  const pinnedKnown = new Set(
-    (await models.ObjectLayer.find({ cid: { $in: pinnedCids } }, { cid: 1 }).lean()).map((doc) => doc.cid),
-  );
-  for (const ref of pinned) {
-    if (!ref.cid) fail(pinnedCheck, `${ref.collection} ${ref.code}: ${ref.itemId} is not pinned`);
-    else if (!pinnedKnown.has(ref.cid))
-      fail(pinnedCheck, `${ref.collection} ${ref.code}: ${ref.itemId} pins ${ref.cid}, not in the release cache`);
-  }
-  checks.push(pinnedCheck);
+  const legacyCheck = check('legacy-pins');
+  const legacy = await findLegacyPins(models);
+  legacyCheck.count = legacy.documents.length;
+  for (const { collection, code, pins } of legacy.documents)
+    fail(legacyCheck, `${collection} ${code}: pins ${pins.map(({ itemId, cid }) => `${itemId} → ${cid}`).join(', ')}`);
+  checks.push(legacyCheck);
 
   // Every label the content names, by the rule the boot payload and the export use, with the
   // first document that names it.
@@ -337,7 +326,7 @@ export async function validateContentRelease(models, { options, resolveCanonical
   }
   checks.push(schemaCheck);
 
-  const dependencies = [...new Set([...boundCids, ...pinnedCids])].sort();
+  const dependencies = [...boundCids].sort();
   const manifest = {
     instances: instances.map((instance) => instance.code).sort(),
     maps: mapCodes.size,
@@ -354,7 +343,7 @@ export async function validateContentRelease(models, { options, resolveCanonical
  * with the identity it already has. A no-op when this deployment is the authority.
  * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`.
  * @param {Object} [params]
- * @param {import('../../api/types.js').RouterOptions} [params.options] - Router options of the host.
+ * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host.
  * @param {(definition:Object)=>Promise<{cid:string,created:boolean}>} [params.publish] - Defaults to the domain publisher.
  * @returns {Promise<{name:string,ok:boolean,count:number,findings:string[],created:number}>}
  * @memberof CyberiaContentRelease
@@ -621,12 +610,13 @@ export async function materializeWorkspace({ connection, workspace, database, ap
 
 /**
  * Drops the releases beyond the newest `keep`: their database, then their ledger entry, then the
- * atlas renders no kept release points at. Never a building, validated or active release, the
- * rollback target, or a release whose execution lease is live. The host prunes the release store.
+ * atlas renders no kept release points at, and the IPFS render content and MFS listings no kept
+ * store references. Never a building, validated or active release, the rollback target, or a
+ * release whose execution lease is live. The host prunes the release store.
  * @param {Object} params
  * @param {import('mongoose').Model} params.CyberiaContentRelease
  * @param {import('mongoose').Connection} params.connection - A connection on the content server.
- * @param {{host:string,path:string}} [params.context] - Host context; when given, orphaned atlas renders are removed.
+ * @param {{host:string,path:string}} [params.context] - Host context; when given, orphaned atlas renders and IPFS content are removed.
  * @param {string} [params.baseDatabase] - The partition's base database, kept like a release.
  * @param {number} [params.keep=2] - Releases to keep beyond the protected ones, newest first.
  * @returns {Promise<string[]>} The release ids removed.
@@ -657,9 +647,18 @@ export async function pruneContentReleases({
   if (context) {
     const kept = (await CyberiaContentRelease.find({}, { database: 1 }).lean()).map((release) => release.database);
     const owners = [];
-    for (const database of new Set([baseDatabase, ...kept].filter(Boolean)))
-      owners.push(await MongooseDB.bindModel(connection.useDb(database, { useCache: true }), 'atlas-sprite-sheet'));
+    const stores = [];
+    for (const database of new Set([baseDatabase, ...kept].filter(Boolean))) {
+      const store = connection.useDb(database, { useCache: true });
+      owners.push(await MongooseDB.bindModel(store, 'atlas-sprite-sheet'));
+      stores.push({
+        ObjectLayer: await MongooseDB.bindModel(store, 'object-layer'),
+        Ipfs: await MongooseDB.bindModel(store, 'ipfs'),
+      });
+    }
     await AtlasSpriteSheetStore.pruneOrphanRenders({ options: context, owners });
+    const content = await pruneUnreferencedContent({ stores });
+    logger.info('IPFS render content no kept store references pruned', content);
   }
   return removed;
 }

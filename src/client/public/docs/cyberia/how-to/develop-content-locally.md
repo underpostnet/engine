@@ -152,15 +152,17 @@ without a restart. The WASM client runs with `wasm-driver.py --data-server-url=h
    authority is the only writer of published definitions. A Cyberia database never holds an
    authoritative one.
 
-6. Bind `itemId → olCid`. A Studio or CLI write binds the label to the definition it published.
-   To bind a label to a definition the authority already holds:
+6. Bind `itemId → olCid`. A CLI write binds the item to the definition it published; a Studio save
+   never binds. Bind in the **Cyberia Item Catalog** view or the Studio banner, or over REST, with
+   the cid the item runs now (empty when unbound):
 
    ```
-   POST http://localhost:4008/api/v1/cyberia-item-catalog  { "itemId": "hatchet", "objectLayerCid": "bafkrei…" }
+   POST http://localhost:4008/api/v1/cyberia-item-catalog
+     { "itemId": "hatchet", "objectLayerCid": "bafkrei…", "expectedCid": "bafkrei…" }
    ```
 
-   The catalog is an alias table. Quests and actions pin the `objectLayerCid` they mean; a rebind
-   of the label never moves a pinned reference.
+   The catalog is the one runtime authority: quests and actions name items by item id. See
+   [Manage runtime bindings](manage-runtime-bindings.md).
 
 7. Load the instance. The runtime serves the workspace, so a game server started as shown above
    runs the content as it is. With the poll interval set, it follows each change.
@@ -171,7 +173,8 @@ without a restart. The WASM client runs with `wasm-driver.py --data-server-url=h
    ```
 
    With no release named, every check runs on the workspace: catalog bindings, canonical CIDs at
-   the authority, pinned references, map labels, atlas renders, instance conf and maps, schemas.
+   the authority, legacy pins, map labels, atlas renders, instance conf and maps, schemas.
+   `node bin/cyberia catalog check --dev` checks each world as the game server receives it.
    Each finding names the missing or invalid dependency.
 
 9. Test in the client, the Studio or the server dashboard.

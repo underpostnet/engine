@@ -7,18 +7,18 @@
  *   clone  the repositories of a source channel: the deployment at its branch tip, every other
  *          repository at the revision its lock pins.
  *
- * @module src/projects/cyberia/local-stack.js
+ * @module src/projects/cyberia/stack/local-stack.js
  * @namespace CyberiaLocalStack
  */
 
 import fs from 'fs-extra';
 import nodePath from 'path';
-import Underpost from '../../index.js';
-import { API_BASE_PATH } from '../../server/domain/api-contract.js';
-import { git } from '../../server/release/release-workspace.js';
-import { openContentArtifact } from './content-artifact.js';
-import { SERVER_READY_PATH, STACK_IMAGES } from './compose-stack.js';
-import { RELEASE_CONTENT } from './release-content.js';
+import Underpost from '../../../index.js';
+import { API_BASE_PATH } from '../../../server/domain/api-contract.js';
+import { git } from '../../../server/release/release-workspace.js';
+import { openContentArtifact } from '../content/content-artifact.js';
+import { SERVER_READY_PATH, STACK_IMAGES } from '../compose-stack.js';
+import { RELEASE_CONTENT } from '../content/release-content.js';
 
 /**
  * The sources an image build can take.
