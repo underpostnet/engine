@@ -786,7 +786,7 @@ EOF
           namespace,
         }),
       );
-      const alertmanagerConf = stamp(alertmanagerConfFactory({ webhookUrl }));
+      const alertmanagerConf = stamp(alertmanagerConfFactory({ webhookUrl, events }));
 
       // disableLog: shellExec echoes the command, and this heredoc carries the
       // webhook token.

@@ -268,6 +268,26 @@ describe('alertmanagerConfFactory', () => {
   it('always presents the mounted bearer token', () => {
     expect(conf).to.include(`credentials_file: /etc/alertmanager/secret/${UNDERPOST_MONITORING.alertmanager.tokenKey}`);
   });
+
+  it('renders no inhibition when no event declares one', () => {
+    expect(conf).to.not.include('inhibit_rules');
+  });
+
+  it('silences the rendered dependants of a vantage alert, never the alert itself', () => {
+    const inhibited = alertmanagerConfFactory({
+      webhookUrl: 'http://10.0.0.5:9099/event',
+      events: [
+        { id: 'wireguard-spoke-down', inhibits: ['wireguard-spoke-down', 'public-ingress-down', 'not-rendered'] },
+        { id: 'public-ingress-down' },
+      ],
+    });
+    const { vantageLabel } = UNDERPOST_MONITORING;
+    expect(inhibited).to.include('inhibit_rules:');
+    expect(inhibited).to.include(`- underpost_event = "wireguard-spoke-down"\n      - ${vantageLabel} = "true"`);
+    expect(inhibited).to.include(`- underpost_event =~ "wireguard-spoke-down|public-ingress-down"`);
+    expect(inhibited).to.include(`- ${vantageLabel} != "true"`);
+    expect(inhibited).to.not.include('not-rendered');
+  });
 });
 
 describe('blackboxConfFactory', () => {

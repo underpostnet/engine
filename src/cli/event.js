@@ -334,8 +334,15 @@ const EVENTS = {
       Underpost.event.spokes().map((spoke) => ({
         module: 'icmp',
         targets: [spoke.local ? Underpost.event.hubAddress() : spoke.address],
-        labels: { underpost_role: 'spoke', underpost_spoke: spoke.id },
+        labels: {
+          underpost_role: 'spoke',
+          underpost_spoke: spoke.id,
+          ...(spoke.local ? { [UNDERPOST_MONITORING.vantageLabel]: 'true' } : {}),
+        },
       })),
+    // Every probe from the control plane crosses its own tunnel; while that tunnel is down,
+    // only its local repair applies. The hub event stays live as the escalation.
+    inhibits: ['wireguard-spoke-down', 'public-ingress-down'],
     remediation: () =>
       Underpost.event.spokes().map((spoke) => {
         try {

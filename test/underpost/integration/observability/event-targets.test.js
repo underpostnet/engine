@@ -205,6 +205,19 @@ describe('event execution targets', () => {
     expect(UnderpostEvent.API.spokeTarget('worker-b')).to.include({ via: 'local', user: '', host: '' });
   });
 
+  it('marks only the probe of this machine own tunnel as the vantage subject', () => {
+    eventFixture({ hostname: 'control-node' });
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+      eth0: [{ family: 'IPv4', address: '198.51.100.2', internal: false }],
+    });
+    const probes = UnderpostEvent.API.EVENTS['wireguard-spoke-down'].probes();
+    const { vantageLabel } = UNDERPOST_MONITORING;
+    expect(probes.map(({ targets, labels }) => [targets[0], labels[vantageLabel]])).to.deep.equal([
+      ['10.0.0.1', 'true'],
+      ['10.0.0.3', undefined],
+    ]);
+  });
+
   it('names the command that registers an unknown or identity-less spoke', () => {
     eventFixture();
     expect(() => UnderpostEvent.API.spokeTarget('ghost')).to.throw('register it with --peer-add');
