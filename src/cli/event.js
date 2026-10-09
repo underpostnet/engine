@@ -1500,7 +1500,7 @@ class UnderpostEvent {
           remote: Boolean(user),
           silent: options.silent === true,
         });
-        return { ok: true, output: `${output || ''}` };
+        return { ok: true, output: plainText(output) };
       } catch (error) {
         // What the command said, not the wrapper that carried it: the generated
         // SSH script is in the thrown message and tells a reader nothing.

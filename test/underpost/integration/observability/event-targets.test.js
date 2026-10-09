@@ -676,6 +676,12 @@ describe('event dispatch and publication', () => {
     expect(runner.mock.calls[0][1]).to.include({ user: 'u', host: 'h', remote: true });
   });
 
+  // The output reaches the notification mail, where colour codes are noise.
+  it('returns the command output without terminal colour codes', async () => {
+    vi.spyOn(UnderpostSSH.API, 'sshRemoteRunner').mockResolvedValue('\u001b[32minfo\u001b[39m done\n');
+    expect(await UnderpostEvent.API.runCommand('uptime', {})).to.deep.equal({ ok: true, output: 'info done' });
+  });
+
   // The generated SSH script is in the thrown message and tells a reader nothing.
   it('reports what the command said rather than the wrapper that carried it', async () => {
     vi.spyOn(UnderpostSSH.API, 'sshRemoteRunner').mockRejectedValue(
