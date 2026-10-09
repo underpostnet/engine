@@ -1068,6 +1068,30 @@ describe('event CLI', () => {
     await UnderpostEvent.API.callback('', { list: true });
   });
 
+  // A threshold rule reads scraped host metrics and declares no probe by design.
+  it('warns of missing probe targets only for a rule that reads probe_success', async () => {
+    vi.spyOn(UnderpostMonitor.API, 'readDeployedEventState').mockReturnValue({ readable: true, ids: [], reason: '' });
+    const definition = (expr) => ({
+      id: 'fixture-event',
+      role: 'node',
+      description: 'fixture',
+      schedule: { probeInterval: '1m', alertFor: '5m' },
+      alert: { name: 'FixtureAlert', expr, for: '5m' },
+      probes: [],
+      remediation: [],
+      notifications: [],
+    });
+    const printed = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warned = async (expr) => {
+      printed.mockClear();
+      vi.spyOn(UnderpostEvent.API, 'definitions').mockReturnValue([definition(expr)]);
+      await UnderpostEvent.API.callback('', { list: true });
+      return printed.mock.calls.some(([line]) => `${line}`.includes('no resolvable targets'));
+    };
+    expect(await warned('node_load1 > 4')).to.equal(false);
+    expect(await warned('probe_success == 0')).to.equal(true);
+  });
+
   it('reports an unreadable cluster and an event no longer declared', async () => {
     vi.spyOn(UnderpostMonitor.API, 'readDeployedEventState').mockReturnValue({
       readable: false,

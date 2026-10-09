@@ -2262,7 +2262,8 @@ class UnderpostEvent {
                     .map((recipient) => recipient.email)
                     .join(', ')}`,
             );
-          if (definition.probes.length === 0) console.log(`  ${'no resolvable targets'.yellow}`);
+          if (definition.probes.length === 0 && `${definition.alert.expr}`.includes('probe_success'))
+            console.log(`  ${'no resolvable targets'.yellow}`);
         }
         return;
       }
