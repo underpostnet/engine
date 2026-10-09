@@ -605,7 +605,7 @@ Detection and remediation are behaviour and live in code. Who hears about them i
 
 A **provider** is a transport plus the identity it sends as; a **notification** binds one event to one provider and its subscribers. Providers are named once and referenced by id, so several events reach the same inbox without repeating a transport, and one event can fan out to several providers.
 
-Credentials never appear in the file. Every value may be an `env:` reference resolved at dispatch time from the cron deploy environment `loadCronDeployEnv()` loads — the same resolution `conf.server.json` uses, including its `int:` and `bool:` typed defaults. The file is structure; the environment is secrets.
+Credentials never appear in the file. Every value may be an `env:` reference resolved at dispatch time from the host configuration `loadCronDeployEnv()` loads (`engine-private/deploy/scopes/*.env.<env>`) — the same resolution `conf.server.json` uses, including its `int:` and `bool:` typed defaults. The file is structure; the environment is secrets.
 
 `mailer` is the only provider type today. A type is one entry in `NOTIFICATION_PROVIDER_TYPES` in `src/server/ops/event-notification.js`, holding how a route is described and how one notification is delivered; adding a transport does not touch the dispatcher.
 

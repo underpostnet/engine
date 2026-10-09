@@ -82,18 +82,21 @@ const cronDeployIdResolve = () => {
 };
 
 /**
- * Loads cron and router deployment environment files into `process.env`.
+ * The environment whose deploy configuration this process loads.
+ * @returns {string}
+ * @memberof UnderpostCron
+ */
+const processDeployEnvResolve = () => process.env.NODE_ENV || 'production';
+
+/**
+ * Loads the host configuration and the router deployment environment files into `process.env`.
+ * The host configuration is read through `Underpost.host.read`, so the scoped sources win once they exist.
  * @returns {void}
  * @memberof UnderpostCron
  */
 const loadCronDeployEnv = () => {
-  const envName = process.env.NODE_ENV || 'production';
-  const cronDeployId = cronDeployIdResolve();
-
-  if (cronDeployId) {
-    const path = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
-    if (fs.existsSync(path)) process.env = { ...process.env, ...dotenv.parse(fs.readFileSync(path, 'utf8')) };
-  }
+  const envName = processDeployEnvResolve();
+  process.env = { ...process.env, ...Underpost.host.read(envName) };
 
   for (const id of readDeployRoutes()) {
     const path = `./engine-private/conf/${id}/.env.${envName}`;
@@ -944,6 +947,7 @@ export {
   engineMirrorContentsFactory,
   loadCronDeployEnv,
   parseList,
+  processDeployEnvResolve,
   resolveDeployId,
   resolveJobDeployList,
 };

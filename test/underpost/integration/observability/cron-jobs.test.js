@@ -134,6 +134,31 @@ describe('cron deploy environment', () => {
     }
   });
 
+  it('loads the scoped host sources once they exist, ahead of the unsplit file', () => {
+    const previous = { ...process.env };
+    fileSystemFixture({
+      [CRON_ID_PATH]: 'dd-cron',
+      [ROUTES_PATH]: 'dd-core',
+      './engine-private/conf/dd-cron/.env.production': 'UNSPLIT_FIXTURE_KEY=legacy\n',
+      './engine-private/deploy/scopes/host.env.production': 'HOST_FIXTURE_KEY=host\nSHARED_FIXTURE_KEY=host\n',
+      './engine-private/deploy/scopes/cron.env.production': 'CRON_FIXTURE_KEY=cron\n',
+      './engine-private/conf/dd-core/.env.production': 'SHARED_FIXTURE_KEY=core\n',
+    });
+    const previousEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      loadCronDeployEnv();
+      expect(process.env.HOST_FIXTURE_KEY).to.equal('host');
+      expect(process.env.CRON_FIXTURE_KEY).to.equal('cron');
+      expect(process.env.SHARED_FIXTURE_KEY).to.equal('host');
+      expect(process.env.UNSPLIT_FIXTURE_KEY).to.equal(undefined);
+    } finally {
+      process.env = previous;
+      if (previousEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousEnv;
+    }
+  });
+
   it('loads nothing at all when neither marker nor route table exists', () => {
     fileSystemFixture({});
     expect(() => loadCronDeployEnv()).not.to.throw();
