@@ -373,6 +373,15 @@ describe('edge host provisioning', () => {
       expect(() => UnderpostWireguard.API.setup({ sshForwardPort: 2222 })).to.throw('configure the hub only');
     });
 
+    it('refuses to rebuild a host that is not the expected identity', () => {
+      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
+      expect(() => UnderpostWireguard.API.setup({ expectedRole: 'worker' })).to.throw("expected role 'worker'");
+      expect(() => UnderpostWireguard.API.setup({ expectedRole: 'control', expectedId: 'worker-b' })).to.throw(
+        "expected peer 'worker-b'",
+      );
+      expect(harness.ran('install -m 0600')).to.equal(false);
+    });
+
     it('refuses a hub address with no prefix length', () => {
       edgeFixture({ files: HUB_IDENTITY_FILES });
       stubKeyPair();

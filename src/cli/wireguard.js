@@ -1587,7 +1587,7 @@ class UnderpostWireguard {
       const buildConf = options.buildConf === true;
       const topology = readTopology();
       const identity = readNodeIdentity();
-      const state = edgeContextFactory({ topology, identity });
+      const state = assertEdgeIdentity(edgeContextFactory({ topology, identity }), options);
       const interfaceName = `${options.interface || state.interfaceName}`.trim();
       if (state.role !== 'hub' && (options.port !== undefined || options.sshForwardPort !== undefined))
         throw new Error('[wireguard] --port and --ssh-forward-port configure the hub only');
