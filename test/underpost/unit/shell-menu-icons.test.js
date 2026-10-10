@@ -2,38 +2,29 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import { shellEntries } from '../../support/shell-entries.js';
 
 /**
- * A shell that draws its menu with the `<client>-menu-icon` image set draws every visible entry
- * with it, and titles the view each entry opens with the `-modal` variant. A font icon on one
- * entry breaks the set; a hidden entry may keep one, as nothing draws it.
+ * A shell that declares an `iconSet` draws every visible drawer entry from that image set, and
+ * `ShellNavigation` titles the view each entry opens with the `-modal` variant. A font icon on a
+ * visible entry, or a view title of its own, breaks the set; a hidden entry may keep a font icon.
  */
 const COMPONENTS = './src/client/components';
-const MENU_ENTRY = /class: '([^']*\bmain-btn-menu\b[^']*)',[\s\S]*?icon: html`(<[a-z]+)[^`]*`/g;
-const VIEW_HANDLER =
-  /EventsUI\.onClick\(`\.main-btn-([a-z0-9-]+)`[\s\S]*?title: renderViewTitle\(\{\s*icon: html`\s*(<[a-z]+)[^`]*`/g;
 
-const imageMenuShells = () => {
+const imageSetShells = () => {
   const shells = [];
   for (const client of fs.readdirSync(COMPONENTS)) {
     for (const file of fs.readdirSync(`${COMPONENTS}/${client}`)) {
       if (!file.startsWith('AppShell')) continue;
       const source = fs.readFileSync(`${COMPONENTS}/${client}/${file}`, 'utf8');
-      // The set is named after the public assets the shell draws from, not after the client.
-      if (/class="inl [a-z0-9-]+-menu-icon"/.test(source)) shells.push({ client, source });
+      if (/iconSet: '[a-z0-9-]+'/.test(source)) shells.push({ client, entries: shellEntries(source) });
     }
   }
   return shells;
 };
 
-const routeOf = (classList) =>
-  classList
-    .split(/\s+/)
-    .map((name) => name.match(/^main-btn-(?!menu\b)(?!menu-active\b)(.+)$/)?.[1])
-    .find(Boolean);
-
 describe('shell menu icon set', () => {
-  const shells = imageMenuShells();
+  const shells = imageSetShells();
 
   it('finds the shells that draw their menu with an image set', () => {
     // A sliced tree carries only some of these clients, or none.
@@ -41,28 +32,22 @@ describe('shell menu icon set', () => {
       fs.existsSync(`${COMPONENTS}/${client}`),
     );
     expect(shells.map(({ client }) => client)).to.include.members(carried);
+    for (const { client, entries } of shells) expect(entries.length, client).to.be.greaterThan(0);
   });
 
   it('draws every visible menu entry with the image set', () => {
     const fontIcons = [];
-    for (const { client, source } of shells) {
-      for (const [, classList, tag] of source.matchAll(MENU_ENTRY)) {
-        if (classList.split(/\s+/).includes('hide')) continue;
-        if (tag !== '<img') fontIcons.push(`${client}: ${routeOf(classList)}`);
-      }
-    }
+    for (const { client, entries } of shells)
+      for (const { id, hidden, properties } of entries)
+        if (!hidden && !properties.has('image')) fontIcons.push(`${client}: ${id}`);
     expect(fontIcons).to.deep.equal([]);
   });
 
   it('titles the view a visible entry opens with the modal image variant', () => {
-    const fontIcons = [];
-    for (const { client, source } of shells) {
-      const visible = new Set();
-      for (const [, classList] of source.matchAll(MENU_ENTRY))
-        if (!classList.split(/\s+/).includes('hide')) visible.add(routeOf(classList));
-      for (const [, route, tag] of source.matchAll(VIEW_HANDLER))
-        if (visible.has(route) && tag !== '<img') fontIcons.push(`${client}: ${route}`);
-    }
-    expect(fontIcons).to.deep.equal([]);
+    const ownTitles = [];
+    for (const { client, entries } of shells)
+      for (const { id, hidden, text } of entries)
+        if (!hidden && /renderViewTitle\(/.test(text)) ownTitles.push(`${client}: ${id}`);
+    expect(ownTitles).to.deep.equal([]);
   });
 });

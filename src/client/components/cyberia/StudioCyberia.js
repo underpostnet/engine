@@ -1,12 +1,10 @@
 /**
- * The Cyberia Studio menu: its editors, the icon of each one, the submenu that opens them, the
- * landing that shows them as cards, and the modal title of each view.
+ * The Cyberia Studio menu: its editors, the icon of each one, the drawer entry whose submenu opens
+ * them, and the landing that shows them as cards.
  *
  * @module src/client/components/cyberia/StudioCyberia.js
  */
-import { Badge } from '../core/Badge.js';
-import { BtnIcon } from '../core/BtnIcon.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { Modal } from '../core/Modal.js';
 import { getProxyPath } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
@@ -59,63 +57,22 @@ const VIEWS = Object.freeze([
   },
 ]);
 
-const iconImage = (icon, className = 'cyberia-menu-icon') =>
-  html`<img class="inl ${className}" src="${getProxyPath()}assets/ui-icons/${icon}" />`;
-
-const iconOf = (route) => (route === STUDIO_ROUTE ? STUDIO_ICON : VIEWS.find((view) => view.route === route).icon);
-
-/** One button of the Studio submenu. */
-const viewButton = async ({ route, icon, hidden }) =>
-  await BtnIcon.instance({
-    class: `in wfa main-btn-menu submenu-btn btn-${STUDIO_ROUTE} btn-${STUDIO_ROUTE}-${route} main-btn-${route}${
-      hidden ? ' hide' : ''
-    }`,
-    useMenuBtn: true,
-    label: renderMenuLabel({
-      icon: iconImage(icon),
-      text: html`<span class="menu-label-text menu-label-text-${STUDIO_ROUTE}">${Translate.instance(route)}</span>`,
-    }),
-    attrs: `data-id="${route}"`,
-    tabHref: `${getProxyPath()}${route}`,
-    handleContainerClass: 'handle-btn-container',
-    tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(route)),
-  });
+const iconImage = (icon) => html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/${icon}" />`;
 
 class StudioCyberia {
-  /** The Studio menu entry: its button and the submenu of its editors. */
-  static async renderMenu() {
-    const button = await BtnIcon.instance({
-      class: `in wfa main-btn-menu main-btn-${STUDIO_ROUTE}`,
-      useMenuBtn: true,
-      label: html`<div class="in">
-        ${renderMenuLabel({
-          icon: iconImage(STUDIO_ICON),
-          text: html`<span class="menu-label-text"
-            >${Translate.instance(STUDIO_ROUTE)}
-            <i
-              class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-${STUDIO_ROUTE}"
-              style="rotate: 0deg; transition: 0.4s;"
-            ></i
-          ></span>`,
-        })}
-      </div> `,
-      attrs: `data-id="${STUDIO_ROUTE}"`,
-      tabHref: `${getProxyPath()}${STUDIO_ROUTE}`,
-      handleContainerClass: 'handle-btn-container',
-      tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(STUDIO_ROUTE)),
-    });
-    return html`${button}
-      <div class="abs menu-btn-container-children-${STUDIO_ROUTE}" style="height: 0px; overflow: hidden;">
-        ${(await Promise.all(VIEWS.map(viewButton))).join('')}
-      </div>`;
-  }
-
-  /** The modal title of the Studio landing or of an editor: the icon and the name of its menu button. */
-  static renderTitle(route, text = Translate.instance(route)) {
-    return renderViewTitle({
-      icon: iconImage(iconOf(route), 'cyberia-menu-icon-modal'),
-      text: html`<span class="inl cyberia-text-title-modal">${text}</span>`,
-    });
+  /**
+   * The Studio drawer entry: the landing view, and a submenu entry for each editor.
+   * @param {Object.<string, Function>} views - The view options of each editor, by route.
+   * @returns {import('../core/ShellNavigation.js').ShellNavigationEntry}
+   */
+  static navigationEntry(views) {
+    return {
+      id: STUDIO_ROUTE,
+      image: STUDIO_ICON,
+      submenu: true,
+      view: () => ({ observer: true, html: async () => StudioCyberia.renderLanding() }),
+      children: VIEWS.map(({ route, icon, hidden }) => ({ id: route, image: icon, hidden, view: views[route] })),
+    };
   }
 
   /** Renders each open editor again, so what it offers follows the role of the session. */

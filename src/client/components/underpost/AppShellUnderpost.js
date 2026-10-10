@@ -1,29 +1,16 @@
 import { Account } from '../core/Account.js';
-import { BtnIcon } from '../core/BtnIcon.js';
-import { commonAdminGuard, getId, newInstance } from '../core/CommonJs.js';
+import { commonAdminGuard, newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
-import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import {
-  buildBadgeToolTipMenuOption,
-  isSubMenuOpen,
-  Modal,
-  SUBMENU_SELECTION_QUERY_KEY,
-  renderMenuLabel,
-  renderViewTitle,
-  sortableSubMenuEvents,
-  subMenuRender,
-} from '../core/Modal.js';
+import { Modal } from '../core/Modal.js';
+import { ShellNavigation } from '../core/ShellNavigation.js';
 import { SignUp } from '../core/SignUp.js';
-import { Translate } from '../core/Translate.js';
-import { append, htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath, getPublicRouteParam, setQueryParams } from '../core/Router.js';
+import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
-import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
-import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
 import { organizationUrl } from '../core/Repository.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
@@ -38,222 +25,156 @@ import { Content } from '../core/Content.js';
 import { UserManagement } from '../../services/user/user.management.js';
 
 class AppShellUnderpost {
-  static Data = {};
   static async instance() {
-    const id = getId(AppShellUnderpost.Data, 'menu-');
-    AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost.instance();
     const githubUrl = organizationUrl();
+    const user = () => AppStoreUnderpost.Data.user.main.model.user;
+    const navigation = {
+      RouterInstance,
+      iconSet: 'underpost',
+      entries: [
+        {
+          id: 'contracultura-cyberpunk',
+          image: 'blogger.png',
+          view: () => ({ html: async () => await CyberpunkBloggerUnderpost.instance() }),
+        },
+        { id: 'home', route: '', image: 'home.png', active: true, hidden: true },
+        { id: 'log-in', image: 'log-in.png', view: () => ({ html: async () => await LogIn.instance() }) },
+        {
+          id: 'sign-up',
+          image: 'sign-up.png',
+          view: () => ({ html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }) }),
+        },
+        {
+          id: 'log-out',
+          image: 'log-out.png',
+          session: true,
+          view: () => ({ html: async () => await LogOut.instance() }),
+        },
+        {
+          id: 'account',
+          image: 'account.png',
+          session: true,
+          view: () => ({
+            html: async () => await Account.instance({ idModal: 'modal-account', user: user(), disabled: [] }),
+          }),
+        },
+        {
+          id: 'public-profile',
+          route: 'u',
+          image: 'character.png',
+          session: true,
+          action: async (e, open) => {
+            const idModal = 'modal-public-profile';
+            // `/u/:username`, or the signed-in user's own profile on a bare `/u`
+            const username = getPublicRouteParam('profile') || user().username;
+            if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername)
+              return await PublicProfile.Update({ idModal, user: { username } });
+            return await open({
+              title: '',
+              observer: true,
+              html: async () => await PublicProfile.instance({ idModal, user: { username } }),
+            });
+          },
+        },
+        {
+          id: 'content',
+          image: 'doc.png',
+          hidden: true,
+          view: () => {
+            const stableSlug = getPublicRouteParam('content');
+            const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
+            return {
+              id: idModal,
+              observer: true,
+              html: async () =>
+                await Content.instance({
+                  idModal,
+                  stableSlug,
+                  titleIcon: html`<img
+                    class="inl underpost-menu-icon-modal"
+                    src="${getProxyPath()}assets/ui-icons/doc.png"
+                  />`,
+                }),
+            };
+          },
+        },
+        {
+          id: 'cloud',
+          image: 'cloud.png',
+          hidden: true,
+          view: () => ({ html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }) }),
+        },
+        {
+          // Admins only: shown by the log-in handler for an admin session, hidden again on log-out.
+          id: 'user-management',
+          image: 'users.png',
+          hidden: true,
+          // The route reaches here for anyone; only an admin session opens the view, the rest go home.
+          action: async (e, open) =>
+            commonAdminGuard(user()?.role)
+              ? await open({
+                  observer: true,
+                  html: async () => await UserManagement.instance({ appStore: AppStoreUnderpost }),
+                })
+              : await Modal.onHomeRouterEvent(),
+        },
+        {
+          id: 'settings',
+          image: 'settings.png',
+          view: () => ({ html: async () => await SettingsUnderpost.instance({ idModal: 'modal-settings' }) }),
+        },
+        {
+          id: 'docs',
+          image: 'wiki.png',
+          submenu: true,
+          view: () => ({
+            observer: true,
+            html: async () =>
+              await Docs.instance({
+                idModal: 'modal-docs',
+                ...Docs.uiIcons({ iconClass: 'underpost-menu-icon' }),
+              }),
+          }),
+        },
+        {
+          id: 'recover',
+          image: 'update.png',
+          hidden: true,
+          view: () => ({ html: async () => await Recover.instance({ idModal: 'modal-recover', user: user() }) }),
+        },
+        {
+          id: 'polyhedron',
+          image: 'polyhedron.png',
+          text: 'Polyhedron',
+          view: () => ({
+            html: async () =>
+              await Polyhedron.instance({
+                idModal: 'modal-polyhedron',
+                style: {
+                  scene: { background: '#111' },
+                  face: {
+                    background: 'rgba(255,255,255,.08)',
+                    border: '1px solid rgba(255,255,255,.18)',
+                    color: '#fff',
+                  },
+                },
+              }),
+          }),
+        },
+        { id: 'github', image: 'github.png', href: githubUrl, action: () => (location.href = githubUrl) },
+      ],
+    };
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
     await Modal.instance({
       id: 'modal-menu',
-      html: html`
-        <div class="fl menu-btn-container">
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-contracultura-cyberpunk',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('contracultura-cyberpunk')}</span>`,
-            }),
-            // style: 'display: none',
-            attrs: `data-id="contracultura-cyberpunk"`,
-            tabHref: `${getProxyPath()}contracultura-cyberpunk`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
-            }),
-            // style: 'display: none',
-            attrs: `data-id="home"`,
-            tabHref: `${getProxyPath()}`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-log-in',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
-            }),
-            attrs: `data-id="log-in"`,
-            tabHref: `${getProxyPath()}log-in`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-sign-up',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
-            }),
-            attrs: `data-id="sign-up"`,
-            tabHref: `${getProxyPath()}sign-up`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-log-out',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
-            }),
-            attrs: `data-id="log-out"`,
-            style: 'display: none',
-            tabHref: `${getProxyPath()}log-out`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-account',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
-            }),
-            style: 'display: none',
-            attrs: `data-id="account"`,
-            tabHref: `${getProxyPath()}account`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-public-profile',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/character.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('public-profile')}</span>`,
-            }),
-            style: 'display: none',
-            attrs: `data-id="public-profile"`,
-            tabHref: `${getProxyPath()}u`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('public-profile')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-content hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('content')}</span>`,
-            }),
-            attrs: `data-id="content"`,
-            tabHref: `${getProxyPath()}content`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-cloud hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('cloud')}</span>`,
-            }),
-            attrs: `data-id="cloud"`,
-            tabHref: `${getProxyPath()}cloud`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud')),
-          })}
-          ${await BtnIcon.instance({
-            // Admins only: shown by the log-in handler for an admin session, hidden again on log-out.
-            class: 'in wfa main-btn-menu main-btn-user-management hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/users.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('user-management')}</span>`,
-            }),
-            attrs: `data-id="user-management"`,
-            tabHref: `${getProxyPath()}user-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-settings',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
-            }),
-            attrs: `data-id="settings"`,
-            tabHref: `${getProxyPath()}settings`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-docs',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
-              text: html`<span class="menu-label-text"
-                >${Translate.instance('docs')}
-                <i
-                  class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
-                  style="rotate: 0deg; transition: 0.4s;"
-                ></i
-              ></span>`,
-            }),
-            attrs: `data-id="docs"`,
-            tabHref: `${getProxyPath()}docs`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
-          })}
-          <div class="abs menu-btn-container-children-docs"></div>
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-recover hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/update.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
-            }),
-            attrs: `data-id="recover"`,
-            tabHref: `${getProxyPath()}recover`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-polyhedron',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/polyhedron.png" />`,
-              text: html`<span class="menu-label-text">Polyhedron</span>`,
-            }),
-            attrs: `data-id="polyhedron"`,
-            tabHref: `${getProxyPath()}polyhedron`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('polyhedron')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-github',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/github.png" />`,
-              text: html`<span class="menu-label-text">${Translate.instance('github')}</span>`,
-            }),
-            attrs: `data-id="github"`,
-            tabHref: githubUrl,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('github')),
-          })}
-        </div>
-      `,
+      html: await ShellNavigation.render(navigation),
+      shell: { layout: 'split', side: 'right' },
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
-      // titleClass: 'hide',
-      titleRender: () => {
-        return '';
-      },
-      // mode: 'slide-menu-right',
-      barMode: 'top-bottom-bar',
+      titleRender: () => '',
       mode: 'slide-menu',
       RouterInstance,
       searchCustomImgClass: 'underpost-menu-icon',
@@ -325,6 +246,7 @@ class AppShellUnderpost {
         return panelFormInstance;
       },
     });
+    ShellNavigation.bind(navigation);
 
     ThemeEvents['underpost-main-theme-event'] = () => {
       const srcLogo = darkTheme
@@ -334,394 +256,7 @@ class AppShellUnderpost {
       if (s('.action-btn-app-icon-render'))
         htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
     };
-    setTimeout(() => {
-      ThemeEvents['underpost-main-theme-event']();
-      setTimeout(() => {
-        s(`.action-btn-home`).classList.add('hide');
-      });
-      const customReloadBtnId = 'underpost-reload';
-      append(
-        '.main-body-btn-container',
-        html`
-          <div class="abs main-body-btn main-body-btn-${customReloadBtnId}" style="bottom: -50px; left: 0px">
-            <div class="abs center"><i class="fas fa-sync-alt"></i></div>
-          </div>
-        `,
-      );
-      EventsUI.onClick(`.main-body-btn-${customReloadBtnId}`, async () => {
-        s('.main-btn-home').click();
-        setTimeout(() => {
-          const mainBody = s(`.main-body`);
-          if (mainBody && mainBody.scrollTop > 0) {
-            mainBody.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        }, 50);
-      });
-    });
-
-    const sortableSubMenus = sortableSubMenuEvents(['docs']);
-    AppShellUnderpost.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
-      animation: 150,
-      group: `menu-sortable`,
-      forceFallback: true,
-      fallbackOnBody: true,
-      handle: '.handle-btn-container',
-      draggable: '.main-btn-menu',
-      store: {
-        /**
-         * Get the order of elements. Called once during initialization.
-         * @param   {Sortable}  sortable
-         * @returns {Array}
-         */
-        get: function (sortable) {
-          const order = localStorage.getItem(sortable.options.group.name);
-          return order ? order.split('|') : [];
-        },
-
-        /**
-         * Save the order of elements. Called onEnd (when the item is dropped).
-         * @param {Sortable}  sortable
-         */
-        set: function (sortable) {
-          const order = sortable.toArray();
-          localStorage.setItem(sortable.options.group.name, order.join('|'));
-        },
-      },
-      // chosenClass: 'css-class',
-      // ghostClass: 'css-class',
-      // Element dragging ended
-      onEnd: function (/**Event*/ evt) {
-        sortableSubMenus.onEnd();
-        // console.log('Sortable onEnd', evt);
-        // console.log('evt.oldIndex', evt.oldIndex);
-        // console.log('evt.newIndex', evt.newIndex);
-        const slotId = Array.from(evt.item.classList).pop();
-        // console.log('slotId', slotId);
-        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
-
-        // var itemEl = evt.item; // dragged HTMLElement
-        // evt.to; // target list
-        // evt.from; // previous list
-        // evt.oldIndex; // element's old index within old parent
-        // evt.newIndex; // element's new index within new parent
-        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-        // evt.clone; // the clone element
-        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-      },
-      onStart: sortableSubMenus.onStart,
-    });
-
-    EventsUI.onClick(`.main-btn-docs`, async (e) => {
-      if (!isSubMenuOpen('docs') || e.isTrusted) {
-        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
-        await subMenuRender('docs');
-      }
-
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-docs',
-        route: 'docs',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('docs')}</span>`,
-        }),
-        html: async () =>
-          await Docs.instance({
-            idModal: 'modal-docs',
-            ...Docs.uiIcons({ iconClass: 'underpost-menu-icon' }),
-          }),
-        handleType: 'bar',
-        observer: true,
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-sign-up`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-sign-up',
-        route: 'sign-up',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('sign-up')}</span>`,
-        }),
-        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-out`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-out',
-        route: 'log-out',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('log-out')}</span>`,
-        }),
-        html: async () => await LogOut.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-in`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-in',
-        route: 'log-in',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('log-in')}</span>`,
-        }),
-        html: async () => await LogIn.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-contracultura-cyberpunk`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-contracultura-cyberpunk',
-        route: 'contracultura-cyberpunk',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('contracultura-cyberpunk')}</span>`,
-        }),
-        html: async () => await CyberpunkBloggerUnderpost.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-account`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-account',
-        route: 'account',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('account')}</span>`,
-        }),
-        html: async () =>
-          await Account.instance({
-            idModal: 'modal-account',
-            user: AppStoreUnderpost.Data.user.main.model.user,
-            disabled: [],
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-public-profile`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      const idModal = 'modal-public-profile';
-      // `/u/:username`, or the signed-in user's own profile on a bare `/u`
-      const username = getPublicRouteParam('profile') || AppStoreUnderpost.Data.user.main.model.user.username;
-
-      if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername) {
-        await PublicProfile.Update({ idModal, user: { username } });
-        return;
-      }
-
-      await Modal.instance({
-        id: idModal,
-        route: 'u',
-        barConfig,
-        title: '',
-        //   renderViewTitle({
-        //   icon: html`<i class="fas fa-user-circle"></i>`,
-        //   text: Translate.instance('public-profile'),
-        // }),
-        html: async () =>
-          await PublicProfile.instance({
-            idModal,
-            user: { username },
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-settings`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-settings',
-        route: 'settings',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('settings')}</span>`,
-        }),
-        html: async () => await SettingsUnderpost.instance({ idModal: 'modal-settings' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-content`, async () => {
-      const stableSlug = getPublicRouteParam('content');
-      const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
-
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: idModal,
-        route: 'content',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('content')}</span>`,
-        }),
-        html: async () =>
-          await Content.instance({
-            idModal,
-            stableSlug,
-            titleIcon: html`<img
-              class="inl underpost-menu-icon-modal"
-              src="${getProxyPath()}assets/ui-icons/doc.png"
-            />`,
-          }),
-        observer: true,
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-cloud`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-cloud',
-        route: 'cloud',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('cloud')}</span>`,
-        }),
-        html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-user-management`, async () => {
-      // The route reaches here for anyone; only an admin session opens the view, the rest go home.
-      if (!commonAdminGuard(AppStoreUnderpost.Data.user?.main?.model?.user?.role)) return Modal.onHomeRouterEvent();
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-user-management',
-        route: 'user-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/users.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('user-management')}</span>`,
-        }),
-        html: async () => await UserManagement.instance({ appStore: AppStoreUnderpost }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-recover`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-recover',
-        route: 'recover',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/update.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('recover')}</span>`,
-        }),
-        html: async () =>
-          await Recover.instance({ idModal: 'modal-recover', user: AppStoreUnderpost.Data.user.main.model.user }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-polyhedron`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-polyhedron',
-        route: 'polyhedron',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<img
-            class="inl underpost-menu-icon-modal"
-            src="${getProxyPath()}assets/ui-icons/polyhedron.png"
-          />`,
-          text: `<span class='inl underpost-text-title-modal'>Polyhedron</span>`,
-        }),
-        html: async () =>
-          await Polyhedron.instance({
-            idModal: 'modal-polyhedron',
-            style: {
-              scene: { background: '#111' },
-              face: {
-                background: 'rgba(255,255,255,.08)',
-                border: '1px solid rgba(255,255,255,.18)',
-                color: '#fff',
-              },
-            },
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-github`, async () => {
-      location.href = githubUrl;
-    });
+    setTimeout(ThemeEvents['underpost-main-theme-event']);
   }
 }
 

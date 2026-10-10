@@ -1,37 +1,13 @@
 import { Account } from '../core/Account.js';
-import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
-import {
-  Css,
-  ThemeEvents,
-  Themes,
-  borderChar,
-  boxShadow,
-  cssEffect,
-  darkTheme,
-  renderCssAttr,
-  subThemeManager,
-  darkenHex,
-  lightenHex,
-} from '../core/Css.js';
-import { EventsUI } from '../core/EventsUI.js';
+import { newInstance } from '../core/CommonJs.js';
+import { Css, ThemeEvents, Themes, boxShadow, darkTheme, subThemeManager, darkenHex, lightenHex } from '../core/Css.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import {
-  buildBadgeToolTipMenuOption,
-  isSubMenuOpen,
-  Modal,
-  SUBMENU_SELECTION_QUERY_KEY,
-  renderMenuLabel,
-  renderViewTitle,
-  sortableSubMenuEvents,
-  subMenuRender,
-} from '../core/Modal.js';
+import { Modal } from '../core/Modal.js';
+import { ShellNavigation } from '../core/ShellNavigation.js';
 import { SignUp } from '../core/SignUp.js';
-import { Translate } from '../core/Translate.js';
-import { htmls, s, sa } from '../core/VanillaJs.js';
+import { htmls } from '../core/VanillaJs.js';
 import { AppStoreNexodev } from './AppStoreNexodev.js';
-import Sortable from 'sortablejs';
 import { RouterNexodev, BannerAppTemplate } from './RouterNexodev.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
 import { DashboardNexodev } from './DashboardNexodev.js';
@@ -47,288 +23,177 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { getProxyPath, getPublicRouteParam, setQueryParams } from '../core/Router.js';
+import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
-import { Scroll } from '../core/Scroll.js';
+import { Translate } from '../core/Translate.js';
+
+const cronIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
+  <path
+    fill="currentColor"
+    d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
+  />
+</svg>`;
 
 class AppShellNexodev {
-  static Data = {};
   static async instance(options = { htmlMainBody: () => '' }) {
-    const id = getId(AppShellNexodev.Data, 'menu-');
-    AppShellNexodev.Data[id] = {};
     const RouterInstance = RouterNexodev.instance();
+    const user = () => AppStoreNexodev.Data.user.main.model.user;
+    const navigation = {
+      RouterInstance,
+      entries: [
+        {
+          id: 'blog',
+          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
+          view: () => ({
+            publicRoute: 'entry',
+            observer: true,
+            html: async () => {
+              setTimeout(async () => {
+                await PanelForm.instance({
+                  idPanel: 'nexodev-blog',
+                  defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
+                  appStore: AppStoreNexodev,
+                  parentIdModal: 'modal-blog',
+                  scrollClassContainer: `html-modal-blog`,
+                  route: 'blog',
+                  entryHost: true,
+                });
+              });
+            },
+          }),
+        },
+        {
+          id: 'calendar',
+          icon: html`<i class="fas fa-calendar-alt"></i>`,
+          view: () => ({
+            observer: true,
+            html: async () =>
+              await CalendarNexodev.instance({
+                idModal: 'modal-calendar',
+                appStore: AppStoreNexodev,
+                route: 'calendar',
+                parentIdModal: 'modal-calendar',
+              }),
+          }),
+        },
+        {
+          id: 'dashboard',
+          icon: html`<i class="fa-solid fa-chart-line"></i>`,
+          view: () => ({ html: async () => await DashboardNexodev.instance({ idModal: 'modal-dashboard' }) }),
+        },
+        {
+          id: 'stream',
+          icon: html`<i class="fa-solid fa-video"></i>`,
+          view: () => ({ html: async () => await StreamNexodev.instance({ idModal: 'modal-stream' }) }),
+        },
+        {
+          id: 'docs',
+          icon: html`<i class="fas fa-book"></i>`,
+          submenu: true,
+          view: () => ({ observer: true, html: async () => await Docs.instance({ idModal: 'modal-docs' }) }),
+        },
+        {
+          id: 'content',
+          icon: html`<i class="far fa-file"></i>`,
+          view: () => {
+            const stableSlug = getPublicRouteParam('content');
+            const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
+            return { id: idModal, observer: true, html: async () => await Content.instance({ idModal, stableSlug }) };
+          },
+        },
+        {
+          id: 'cloud',
+          icon: html`<i class="fas fa-cloud"></i>`,
+          view: () => ({ html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }) }),
+        },
+        {
+          id: 'chat',
+          icon: html`<i class="far fa-comments"></i>`,
+          badge: await Badge.instance({
+            id: 'main-btn-chat',
+            type: 'circle-red',
+            classList: 'hide badge-notification-menu',
+          }),
+          view: () => ({ observer: true, html: async () => await Chat.instance({ idModal: 'modal-chat' }) }),
+        },
+        {
+          id: 'settings',
+          icon: html`<i class="fas fa-sliders-h"></i>`,
+          view: () => ({ html: async () => await SettingsNexodev.instance({ idModal: 'modal-settings' }) }),
+        },
+        { id: 'home', route: '', icon: html`<i class="fas fa-home"></i>`, active: true },
+        {
+          id: 'log-in',
+          icon: html`<i class="fas fa-sign-in-alt"></i>`,
+          view: () => ({ html: async () => await LogIn.instance() }),
+        },
+        {
+          id: 'sign-up',
+          icon: html`<i class="fas fa-user-plus"></i>`,
+          view: () => ({ html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }) }),
+        },
+        {
+          id: 'log-out',
+          icon: html`<i class="fas fa-sign-out-alt"></i>`,
+          session: true,
+          view: () => ({ html: async () => await LogOut.instance() }),
+        },
+        {
+          id: 'account',
+          icon: html`<i class="fas fa-user-circle"></i>`,
+          session: true,
+          view: () => ({
+            html: async () => await Account.instance({ idModal: 'modal-account', user: user(), disabled: [] }),
+          }),
+        },
+        {
+          id: 'recover',
+          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+          hidden: true,
+          view: () => ({ html: async () => await Recover.instance({ idModal: 'modal-recover', user: user() }) }),
+        },
+        {
+          id: 'default-management',
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          view: () => ({ observer: true, html: async () => await DefaultManagement.instance() }),
+        },
+        {
+          id: 'user-management',
+          icon: html`<i class="fas fa-users-cog"></i>`,
+          view: () => ({
+            observer: true,
+            html: async () => await UserManagement.instance({ appStore: AppStoreNexodev }),
+          }),
+        },
+        {
+          id: 'instance-management',
+          icon: html`<i class="fas fa-layer-group"></i>`,
+          view: () => ({
+            observer: true,
+            html: async () => InstanceManagement.instance({ appStore: AppStoreNexodev }),
+          }),
+        },
+        {
+          id: 'cron-management',
+          icon: cronIcon,
+          text: html`<div class="inl" style="top: -5px">${Translate.instance('cron-management')}</div>`,
+          view: () => ({ observer: true, html: async () => CronManagement.instance({ appStore: AppStoreNexodev }) }),
+        },
+      ],
+    };
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
-      html: html`
-        <div class="fl menu-btn-container">
-          <div class="fl menu-btn-container-main">
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-blog',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('blog')}</span>`,
-              }),
-              attrs: `data-id="blog"`,
-              tabHref: `${getProxyPath()}blog`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-calendar',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-calendar-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('calendar')}</span>`,
-              }),
-              attrs: `data-id="calendar"`,
-              tabHref: `${getProxyPath()}calendar`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('calendar')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-dashboard',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fa-solid fa-chart-line"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('dashboard')}</span>`,
-              }),
-              attrs: `data-id="dashboard"`,
-              tabHref: `${getProxyPath()}dashboard`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('dashboard')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-stream',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fa-solid fa-video"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('stream')}</span>`,
-              }),
-              attrs: `data-id="stream"`,
-              tabHref: `${getProxyPath()}stream`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('stream')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-docs',
-              useMenuBtn: true,
-              label: html`<div class="in">
-                ${renderMenuLabel({
-                  icon: html`<i class="fas fa-book"></i>`,
-                  text: html`<span class="menu-label-text"
-                    >${Translate.instance('docs')}
-                    <i
-                      class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
-                      style="rotate: 0deg; transition: 0.4s;"
-                    ></i
-                  ></span>`,
-                })}
-              </div> `,
-              attrs: `data-id="docs"`,
-              tabHref: `${getProxyPath()}docs`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
-            })}
-            <div class="abs menu-btn-container-children-docs"></div>
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-content',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="far fa-file"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('content')}</span>`,
-              }),
-              attrs: `data-id="content"`,
-              tabHref: `${getProxyPath()}content`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-cloud',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-cloud"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('cloud')}</span>`,
-              }),
-              attrs: `data-id="cloud"`,
-              tabHref: `${getProxyPath()}cloud`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-chat',
-              useMenuBtn: true,
-              label: html`${renderMenuLabel({
-                icon: html`<i class="far fa-comments"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('chat')}</span>`,
-              })}
-              ${await Badge.instance({
-                id: 'main-btn-chat',
-                type: 'circle-red',
-                classList: 'hide badge-notification-menu',
-              })}`,
-              attrs: `data-id="chat"`,
-              tabHref: `${getProxyPath()}chat`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-settings',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-sliders-h"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
-              }),
-              attrs: `data-id="settings"`,
-              tabHref: `${getProxyPath()}settings`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-home"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
-              }),
-              // style: 'display: none',
-              attrs: `data-id="home"`,
-              tabHref: `${getProxyPath()}`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-log-in',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-sign-in-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
-              }),
-              attrs: `data-id="log-in"`,
-              tabHref: `${getProxyPath()}log-in`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-sign-up',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-user-plus"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
-              }),
-              attrs: `data-id="sign-up"`,
-              tabHref: `${getProxyPath()}sign-up`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-log-out',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-sign-out-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
-              }),
-              attrs: `data-id="log-out"`,
-              tabHref: `${getProxyPath()}log-out`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
-              style: 'display: none',
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-account',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-user-circle"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
-              }),
-              style: 'display: none',
-              attrs: `data-id="account"`,
-              tabHref: `${getProxyPath()}account`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-recover hide',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
-              }),
-              attrs: `data-id="recover"`,
-              tabHref: `${getProxyPath()}recover`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-default-management',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('default-management')}</span>`,
-              }),
-              attrs: `data-id="default-management"`,
-              tabHref: `${getProxyPath()}default-management`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('default-management')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-user-management',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-users-cog"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('user-management')}</span>`,
-              }),
-              attrs: `data-id="user-management"`,
-              tabHref: `${getProxyPath()}user-management`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-instance-management',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-layer-group"></i>`,
-                text: html`<span class="menu-label-text">${Translate.instance('instance-management')}</span>`,
-              }),
-              attrs: `data-id="instance-management"`,
-              tabHref: `${getProxyPath()}instance-management`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('instance-management')),
-            })}
-            ${await BtnIcon.instance({
-              class: 'in wfa main-btn-menu main-btn-cron-management',
-              useMenuBtn: true,
-              label: renderMenuLabel({
-                icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
-                  />
-                </svg>`,
-                text: html`<span class="menu-label-text"
-                  ><div class="inl" style="top: -5px">${Translate.instance('cron-management')}</div></span
-                >`,
-              }),
-              attrs: `data-id="cron-management"`,
-              tabHref: `${getProxyPath()}cron-management`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cron-management')),
-            })}
-          </div>
-        </div>
-      `,
+      html: await ShellNavigation.render(navigation),
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
-      // titleClass: 'hide',
-      // titleRender: () => '',
-      mode: 'slide-menu-right',
+      mode: 'slide-menu',
+      shell: { side: 'right' },
       RouterInstance,
-      barMode,
       htmlMainBody: options.htmlMainBody,
     });
+    ShellNavigation.bind(navigation);
 
     ThemeEvents['main-theme-handler'] = () => {
       const srcLogo = darkTheme
@@ -370,486 +235,6 @@ class AppShellNexodev {
     };
 
     setTimeout(ThemeEvents['main-theme-handler']);
-
-    const sortableSubMenus = sortableSubMenuEvents(['docs']);
-    const sortableFactor = () =>
-      new Sortable(s(`.menu-btn-container-main`), {
-        animation: 150,
-        group: `menu-sortable`,
-        forceFallback: true,
-        fallbackOnBody: true,
-        handle: '.handle-btn-container',
-        draggable: '.main-btn-menu',
-        store: {
-          /**
-           * Get the order of elements. Called once during initialization.
-           * @param   {Sortable}  sortable
-           * @returns {Array}
-           */
-          get: function (sortable) {
-            const order = localStorage.getItem(sortable.options.group.name);
-            return order ? order.split('|') : [];
-          },
-
-          /**
-           * Save the order of elements. Called onEnd (when the item is dropped).
-           * @param {Sortable}  sortable
-           */
-          set: function (sortable) {
-            const order = sortable.toArray();
-            localStorage.setItem(sortable.options.group.name, order.join('|'));
-          },
-        },
-        // chosenClass: 'css-class',
-        // ghostClass: 'css-class',
-        // Element dragging ended
-        onEnd: function (/**Event*/ evt) {
-          sortableSubMenus.onEnd();
-          // console.log('Sortable onEnd', evt);
-          // console.log('evt.oldIndex', evt.oldIndex);
-          // console.log('evt.newIndex', evt.newIndex);
-          const slotId = Array.from(evt.item.classList).pop();
-          // console.log('slotId', slotId);
-          if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
-
-          // var itemEl = evt.item; // dragged HTMLElement
-          // evt.to; // target list
-          // evt.from; // previous list
-          // evt.oldIndex; // element's old index within old parent
-          // evt.newIndex; // element's new index within new parent
-          // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-          // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-          // evt.clone; // the clone element
-          // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-        },
-        onStart: sortableSubMenus.onStart,
-      });
-    AppShellNexodev.Data[id].sortable = sortableFactor();
-
-    EventsUI.onClick(`.main-btn-sign-up`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-sign-up',
-        route: 'sign-up',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.instance('sign-up'),
-        }),
-        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-out`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-out',
-        route: 'log-out',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.instance('log-out'),
-        }),
-        html: async () => await LogOut.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-in`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-in',
-        route: 'log-in',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.instance('log-in'),
-        }),
-        html: async () => await LogIn.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-blog`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      const idModal = 'modal-blog';
-      const routeModal = 'blog';
-      const idEvent = `form-panel-${idModal}`;
-      await Modal.instance({
-        id: idModal,
-        route: routeModal,
-        publicRoute: 'entry',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-          text: Translate.instance('blog'),
-        }),
-        observer: true,
-        html: async () => {
-          setTimeout(async () => {
-            await PanelForm.instance({
-              idPanel: 'nexodev-blog',
-              defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
-              appStore: AppStoreNexodev,
-              parentIdModal: idModal,
-              scrollClassContainer: `html-${idModal}`,
-              route: routeModal,
-              entryHost: true,
-            });
-          });
-        },
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-account`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-account',
-        route: 'account',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.instance('account'),
-        }),
-        html: async () =>
-          await Account.instance({
-            idModal: 'modal-account',
-            user: AppStoreNexodev.Data.user.main.model.user,
-            disabled: [],
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-dashboard`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-dashboard',
-        route: 'dashboard',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-chart-line"></i>`,
-          text: Translate.instance('dashboard'),
-        }),
-        html: async () =>
-          await DashboardNexodev.instance({
-            idModal: 'modal-dashboard',
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-stream`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-stream',
-        route: 'stream',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-video"></i>`,
-          text: Translate.instance('stream'),
-        }),
-        html: async () =>
-          await StreamNexodev.instance({
-            idModal: 'modal-stream',
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-calendar`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      const route = 'calendar';
-      await Modal.instance({
-        id: 'modal-calendar',
-        route,
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-calendar-alt"></i>`,
-          text: Translate.instance('calendar'),
-        }),
-        html: async () => {
-          return await CalendarNexodev.instance({
-            idModal: 'modal-calendar',
-            appStore: AppStoreNexodev,
-            route,
-            parentIdModal: 'modal-calendar',
-          });
-        },
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-content`, async () => {
-      const stableSlug = getPublicRouteParam('content');
-      const idModal = `modal-content${stableSlug ? `-${stableSlug}` : ''}`;
-
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: idModal,
-        route: 'content',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="far fa-file"></i>`,
-          text: Translate.instance('content'),
-        }),
-        html: async () =>
-          await Content.instance({
-            idModal,
-            stableSlug,
-          }),
-        observer: true,
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-cloud`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-cloud',
-        route: 'cloud',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-cloud"></i>`,
-          text: Translate.instance('cloud'),
-        }),
-        html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-chat`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-chat',
-        route: 'chat',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="far fa-comments"></i>`,
-          text: Translate.instance('chat'),
-        }),
-        html: async () => await Chat.instance({ idModal: 'modal-chat' }),
-        handleType: 'bar',
-        maximize: true,
-        observer: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-settings`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-settings',
-        route: 'settings',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.instance('settings'),
-        }),
-        html: async () => await SettingsNexodev.instance({ idModal: 'modal-settings' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-docs`, async (e) => {
-      if (!isSubMenuOpen('docs') || e.isTrusted) {
-        if (e.isTrusted) setQueryParams({ [SUBMENU_SELECTION_QUERY_KEY]: '' });
-        await subMenuRender('docs');
-      }
-
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-docs',
-        route: 'docs',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-book"></i>`,
-          text: Translate.instance('docs'),
-        }),
-        html: async () =>
-          await Docs.instance({
-            idModal: 'modal-docs',
-          }),
-        handleType: 'bar',
-        observer: true,
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-recover`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-recover',
-        route: 'recover',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-          text: Translate.instance('recover'),
-        }),
-        html: async () =>
-          await Recover.instance({ idModal: 'modal-recover', user: AppStoreNexodev.Data.user.main.model.user }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-default-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-default-management',
-        route: 'default-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.instance('default-management'),
-        }),
-        html: async () => await DefaultManagement.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-user-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-user-management',
-        route: 'user-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-users-cog"></i>`,
-          text: Translate.instance('user-management'),
-        }),
-        html: async () => await UserManagement.instance({ appStore: AppStoreNexodev }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-instance-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-instance-management',
-        route: 'instance-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-layer-group"></i>`,
-          text: Translate.instance('instance-management'),
-        }),
-        html: async () => InstanceManagement.instance({ appStore: AppStoreNexodev }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-cron-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-cron-management',
-        route: 'cron-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
-            <path
-              fill="currentColor"
-              d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
-            />
-          </svg>`,
-          text: html`<div class="inl" style="top:-5px">${Translate.instance('cron-management')}</div>`,
-        }),
-        html: async () => CronManagement.instance({ appStore: AppStoreNexodev }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-        observer: true,
-      });
-    });
   }
 }
 

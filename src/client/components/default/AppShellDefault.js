@@ -1,17 +1,14 @@
 import { Account } from '../core/Account.js';
-import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { newInstance } from '../core/CommonJs.js';
 import { Css, darkTheme, ThemeEvents, Themes } from '../core/Css.js';
-import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { Modal } from '../core/Modal.js';
+import { ShellNavigation } from '../core/ShellNavigation.js';
 import { SignUp } from '../core/SignUp.js';
-import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
 import { AppStoreDefault } from './AppStoreDefault.js';
-import Sortable from 'sortablejs';
 import { RouterDefault, BannerAppTemplate } from './RouterDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
@@ -24,189 +21,124 @@ import { Chat } from '../core/Chat.js';
 import { PublicProfile } from '../core/PublicProfile.js';
 
 class AppShellDefault {
-  static Data = {};
   static async instance(options = { htmlMainBody: () => html`` }) {
-    const id = getId(AppShellDefault.Data, 'menu-');
-    AppShellDefault.Data[id] = {};
     const RouterInstance = RouterDefault.instance();
+    const user = () => AppStoreDefault.Data.user.main.model.user;
+    const navigation = {
+      RouterInstance,
+      entries: [
+        { id: 'home', route: '', icon: html`<i class="fas fa-home"></i>`, active: true },
+        {
+          id: 'log-in',
+          icon: html`<i class="fas fa-sign-in-alt"></i>`,
+          view: () => ({ html: async () => await LogIn.instance() }),
+        },
+        {
+          id: 'sign-up',
+          icon: html`<i class="fas fa-user-plus"></i>`,
+          view: () => ({ html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }) }),
+        },
+        {
+          id: 'log-out',
+          icon: html`<i class="fas fa-sign-out-alt"></i>`,
+          session: true,
+          view: () => ({ html: async () => await LogOut.instance() }),
+        },
+        {
+          id: 'account',
+          icon: html`<i class="fas fa-user-circle"></i>`,
+          session: true,
+          view: () => ({
+            html: async () => await Account.instance({ idModal: 'modal-account', user: user(), disabled: [] }),
+          }),
+        },
+        {
+          id: 'public-profile',
+          route: 'u',
+          icon: html`<i class="fas fa-user-tag"></i>`,
+          session: true,
+          action: async (e, open) => {
+            const idModal = 'modal-public-profile';
+            // `/u/:username`, or the signed-in user's own profile on a bare `/u`
+            const username = getPublicRouteParam('profile') || user().username;
+            if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername)
+              return await PublicProfile.Update({ idModal, user: { username } });
+            return await open({
+              title: '',
+              observer: true,
+              html: async () => await PublicProfile.instance({ idModal, user: { username } }),
+            });
+          },
+        },
+        {
+          id: 'settings',
+          icon: html`<i class="fas fa-sliders-h"></i>`,
+          view: () => ({ html: async () => await SettingsDefault.instance({ idModal: 'modal-settings' }) }),
+        },
+        {
+          id: 'recover',
+          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+          hidden: true,
+          view: () => ({ html: async () => await Recover.instance({ idModal: 'modal-recover', user: user() }) }),
+        },
+        {
+          id: 'default-management',
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          view: () => ({ observer: true, html: async () => await DefaultManagement.instance() }),
+        },
+        {
+          id: '404',
+          icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
+          hidden: true,
+          view: () => ({ observer: true, html: async () => await Page404.instance({ idModal: 'modal-404' }) }),
+        },
+        {
+          id: '500',
+          icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
+          hidden: true,
+          view: () => ({ observer: true, html: async () => await Page500.instance({ idModal: 'modal-500' }) }),
+        },
+        {
+          id: 'blog',
+          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
+          view: () => ({
+            publicRoute: 'entry',
+            observer: true,
+            html: async () => {
+              setTimeout(async () => {
+                await PanelForm.instance({
+                  idPanel: 'default-blog',
+                  defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
+                  appStore: AppStoreDefault,
+                  parentIdModal: 'modal-blog',
+                  scrollClassContainer: `html-modal-blog`,
+                  route: 'blog',
+                  entryHost: true,
+                });
+              });
+            },
+          }),
+        },
+        {
+          id: 'chat',
+          icon: html`<i class="far fa-comments"></i>`,
+          badge: await Badge.instance({
+            id: 'main-btn-chat',
+            type: 'circle-red',
+            classList: 'hide badge-notification-menu',
+          }),
+          view: () => ({ observer: true, html: async () => await Chat.instance({ idModal: 'modal-chat' }) }),
+        },
+      ],
+    };
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const barMode = 'top-bottom-bar';
     await Modal.instance({
       id: 'modal-menu',
-      html: html`
-        <div class="style-lading-render"></div>
-        <div class="fl menu-btn-container">
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
-            }),
-            // style: 'display: none',
-            attrs: `data-id="home"`,
-            tabHref: `${getProxyPath()}`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-log-in',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
-            }),
-            attrs: `data-id="log-in"`,
-            tabHref: `${getProxyPath()}log-in`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-sign-up',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
-            }),
-            attrs: `data-id="sign-up"`,
-            tabHref: `${getProxyPath()}sign-up`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-log-out',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
-            }),
-            attrs: `data-id="log-out"`,
-            style: 'display: none',
-            tabHref: `${getProxyPath()}log-out`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-account',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
-            }),
-            style: 'display: none',
-            attrs: `data-id="account"`,
-            tabHref: `${getProxyPath()}account`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-public-profile',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-tag"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('public-profile')}</span>`,
-            }),
-            style: 'display: none',
-            attrs: `data-id="public-profile"`,
-            tabHref: `${getProxyPath()}u`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('public-profile')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-settings',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
-            }),
-            attrs: `data-id="settings"`,
-            tabHref: `${getProxyPath()}settings`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-recover hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
-            }),
-            attrs: `data-id="recover"`,
-            tabHref: `${getProxyPath()}recover`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-default-management',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('default-management')}</span>`,
-            }),
-            attrs: `data-id="default-management"`,
-            tabHref: `${getProxyPath()}default-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('default-management')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-404 hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('404')}</span>`,
-            }),
-            attrs: `data-id="404"`,
-            tabHref: `${getProxyPath()}404`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('404')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-500 hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('500')}</span>`,
-            }),
-            attrs: `data-id="500"`,
-            tabHref: `${getProxyPath()}500`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('500')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-blog',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('blog')}</span>`,
-            }),
-            attrs: `data-id="blog"`,
-            tabHref: `${getProxyPath()}blog`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
-          })}
-          ${await BtnIcon.instance({
-            class: 'in wfa main-btn-menu main-btn-chat',
-            useMenuBtn: true,
-            label: html`${renderMenuLabel({
-              icon: html`<i class="far fa-comments"></i>`,
-              text: html`<span class="menu-label-text">${Translate.instance('chat')}</span>`,
-            })}
-            ${await Badge.instance({
-              id: 'main-btn-chat',
-              type: 'circle-red',
-              classList: 'hide badge-notification-menu',
-            })}`,
-            attrs: `data-id="chat"`,
-            tabHref: `${getProxyPath()}chat`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat')),
-          })}
-        </div>
-      `,
+      html: html`<div class="style-lading-render"></div>
+        ${await ShellNavigation.render(navigation)}`,
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
-      // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
           const srcLogo = `${getProxyPath()}apple-touch-icon-114x114-precomposed.png`;
@@ -220,10 +152,10 @@ class AppShellDefault {
         return '';
       },
       mode: 'slide-menu',
-      barMode,
       RouterInstance,
       htmlMainBody: options.htmlMainBody,
     });
+    ShellNavigation.bind(navigation);
 
     ThemeEvents['main-theme-handler'] = () => {
       if (darkTheme) {
@@ -429,327 +361,6 @@ class AppShellDefault {
     };
 
     setTimeout(ThemeEvents['main-theme-handler']);
-
-    AppShellDefault.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
-      animation: 150,
-      group: `menu-sortable`,
-      forceFallback: true,
-      fallbackOnBody: true,
-      handle: '.handle-btn-container',
-      store: {
-        /**
-         * Get the order of elements. Called once during initialization.
-         * @param   {Sortable}  sortable
-         * @returns {Array}
-         */
-        get: function (sortable) {
-          const order = localStorage.getItem(sortable.options.group.name);
-          return order ? order.split('|') : [];
-        },
-
-        /**
-         * Save the order of elements. Called onEnd (when the item is dropped).
-         * @param {Sortable}  sortable
-         */
-        set: function (sortable) {
-          const order = sortable.toArray();
-          localStorage.setItem(sortable.options.group.name, order.join('|'));
-        },
-      },
-      // chosenClass: 'css-class',
-      // ghostClass: 'css-class',
-      // Element dragging ended
-      onEnd: function (/**Event*/ evt) {
-        // console.log('Sortable onEnd', evt);
-        // console.log('evt.oldIndex', evt.oldIndex);
-        // console.log('evt.newIndex', evt.newIndex);
-        const slotId = Array.from(evt.item.classList).pop();
-        // console.log('slotId', slotId);
-        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
-
-        // var itemEl = evt.item; // dragged HTMLElement
-        // evt.to; // target list
-        // evt.from; // previous list
-        // evt.oldIndex; // element's old index within old parent
-        // evt.newIndex; // element's new index within new parent
-        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-        // evt.clone; // the clone element
-        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-      },
-    });
-
-    EventsUI.onClick(`.main-btn-sign-up`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-sign-up',
-        route: 'sign-up',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.instance('sign-up'),
-        }),
-        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-out`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-out',
-        route: 'log-out',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.instance('log-out'),
-        }),
-        html: async () => await LogOut.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-log-in`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-log-in',
-        route: 'log-in',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.instance('log-in'),
-        }),
-        html: async () => await LogIn.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-account`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-account',
-        route: 'account',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.instance('account'),
-        }),
-        html: async () =>
-          await Account.instance({
-            idModal: 'modal-account',
-            user: AppStoreDefault.Data.user.main.model.user,
-            disabled: [],
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-public-profile`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      const idModal = 'modal-public-profile';
-      // `/u/:username`, or the signed-in user's own profile on a bare `/u`
-      const username = getPublicRouteParam('profile') || AppStoreDefault.Data.user.main.model.user.username;
-
-      if (s(`.${idModal}`) && username && username !== PublicProfile.currentUsername) {
-        await PublicProfile.Update({ idModal, user: { username } });
-        return;
-      }
-
-      await Modal.instance({
-        id: idModal,
-        route: 'u',
-        barConfig,
-        title: '',
-        //   renderViewTitle({
-        //   icon: html`<i class="fas fa-user-circle"></i>`,
-        //   text: Translate.instance('public-profile'),
-        // }),
-        html: async () =>
-          await PublicProfile.instance({
-            idModal,
-            user: { username },
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-settings`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-settings',
-        route: 'settings',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.instance('settings'),
-        }),
-        html: async () => await SettingsDefault.instance({ idModal: 'modal-settings' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-recover`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-recover',
-        route: 'recover',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-          text: Translate.instance('recover'),
-        }),
-        html: async () =>
-          await Recover.instance({ idModal: 'modal-recover', user: AppStoreDefault.Data.user.main.model.user }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-default-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-default-management',
-        route: 'default-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.instance('default-management'),
-        }),
-        html: async () => await DefaultManagement.instance(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-404`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-404',
-        route: '404',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
-          text: Translate.instance('404'),
-        }),
-        html: async () => await Page404.instance({ idModal: 'modal-404' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-500`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-500',
-        route: '500',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
-          text: Translate.instance('500'),
-        }),
-        html: async () => await Page500.instance({ idModal: 'modal-500' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-blog`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      const idModal = 'modal-blog';
-      const routeModal = 'blog';
-      const idEvent = `form-panel-${idModal}`;
-      await Modal.instance({
-        id: idModal,
-        route: routeModal,
-        publicRoute: 'entry',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-          text: Translate.instance('blog'),
-        }),
-        observer: true,
-        html: async () => {
-          setTimeout(async () => {
-            await PanelForm.instance({
-              idPanel: 'default-blog',
-              defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
-              appStore: AppStoreDefault,
-              parentIdModal: idModal,
-              scrollClassContainer: `html-${idModal}`,
-              route: routeModal,
-              entryHost: true,
-            });
-          });
-        },
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-chat`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.instance({
-        id: 'modal-chat',
-        route: 'chat',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="far fa-comments"></i>`,
-          text: Translate.instance('chat'),
-        }),
-        html: async () => await Chat.instance({ idModal: 'modal-chat' }),
-        handleType: 'bar',
-        maximize: true,
-        observer: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        barMode,
-      });
-    });
   }
 }
 
