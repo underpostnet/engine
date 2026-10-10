@@ -527,7 +527,7 @@ class UnderpostRun {
           { async: true },
         );
       }
-      const hostListenResult = etcHostFactory([`${primaryPodName}.mongodb-service`]);
+      const hostListenResult = etcHostFactory([`${primaryPodName}.mongodb-service`], { blockId: 'dev-cluster' });
       logger.info(hostListenResult.renderHosts);
     },
 

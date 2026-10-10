@@ -2992,7 +2992,7 @@ const etcHostFactory = (hosts = [], options = { append: false }) => {
       return host;
     }
   });
-  const renderHosts = `127.0.0.1         ${hosts.join(
+  const renderHosts = `127.0.0.1         ${[...new Set(hosts)].join(
     ' ',
   )} localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;

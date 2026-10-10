@@ -167,6 +167,17 @@ describe('cluster custom instances', () => {
       expect(hosts).to.include('127.0.0.1 localhost');
       expect(hosts).to.include('fixture-client fixture-server fixture-engine');
     });
+
+    // A proxy names one host once per route; the hosts line names it once.
+    it('names each host once', () => {
+      const hostsPath = 'engine-private/conf/dd-fixture-a/docker-compose/custom-stack/hosts';
+      fs.writeFileSync(hostsPath, '', 'utf8');
+      const { renderHosts } = etcHostFactory(['app.test:643/socket.io', 'app.test:643/api/v1', 'app.test:643'], {
+        path: hostsPath,
+        blockId: 'fixture-proxy',
+      });
+      expect(renderHosts.split('\n')[0]).to.match(/^127\.0\.0\.1\s+app\.test localhost /);
+    });
   });
 
   it('binds an instance to the deploy that declares it', () => {
