@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # RHEL / Rocky Linux — Generate local TLS cert + fullchain (cert + root CA) using mkcert
 # Usage:
-#   ./generate-local-ssl-fullchain.sh /path/to/target "localhost 127.0.0.1 ::1"
+#   ./scripts/ssl.sh /path/to/target "localhost 127.0.0.1 ::1"
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -54,32 +54,32 @@ if [ "$EUID" -ne 0 ]; then
   SUDO="sudo"
 fi
 
-$SUDO dnf install -y curl nss-tools ca-certificates
+if ! command -v curl >/dev/null 2>&1 || ! command -v certutil >/dev/null 2>&1 || ! command -v update-ca-trust >/dev/null 2>&1; then
+  $SUDO dnf install -y curl nss-tools ca-certificates
+fi
+
+# The mkcert release this script installs, and the SHA-256 of each build.
+MKCERT_VERSION='v1.4.4'
 
 # Download and install mkcert binary (no 'go install')
 download_mkcert_binary() {
-  UNAME_M=$(uname -m)
-  case "$UNAME_M" in
-    x86_64|amd64) ARCH_STR='linux-amd64' ;;
-    aarch64|arm64) ARCH_STR='linux-arm64' ;;
-    *) ARCH_STR='linux-amd64' ;;
+  local arch sha256
+  case "$(uname -m)" in
+    x86_64|amd64) arch='linux-amd64'; sha256='6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52' ;;
+    aarch64|arm64) arch='linux-arm64'; sha256='b98f2cc69fd9147fe4d405d859c57504571adec0d3611c3eefd04107c7ac00d0' ;;
+    *) err "No pinned mkcert build for $(uname -m)"; return 1 ;;
   esac
-  info "Searching mkcert release for $ARCH_STR"
-  ASSET_URL=$(curl -sS "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | \
-    grep -E '"browser_download_url":' | grep -i "$ARCH_STR" | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/')
-  if [[ -z "$ASSET_URL" ]]; then
-    ASSET_URL=$(curl -sS "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | \
-      grep -E '"browser_download_url":' | grep -i 'linux' | grep -i 'amd64' | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/')
+  local url="https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-${arch}"
+  local tmp_bin
+  tmp_bin="$(mktemp /tmp/mkcert.XXXXXX)"
+  info "Downloading mkcert ${MKCERT_VERSION} ${arch}"
+  if ! curl -fsSL -o "$tmp_bin" "$url"; then rm -f "$tmp_bin"; err "mkcert download failed"; return 1; fi
+  if ! echo "${sha256}  ${tmp_bin}" | sha256sum -c --quiet -; then
+    rm -f "$tmp_bin"; err "mkcert checksum mismatch; not installed"; return 1
   fi
-  if [[ -z "$ASSET_URL" ]]; then err "Could not find mkcert asset for your arch"; return 1; fi
-  TMP_BIN="$(mktemp -u /tmp/mkcert.XXXXXX)"
-  if curl -fSL -o "$TMP_BIN" "$ASSET_URL"; then
-    $SUDO mv "$TMP_BIN" /usr/local/bin/mkcert
-    $SUDO chmod +x /usr/local/bin/mkcert
-    info "mkcert installed to /usr/local/bin/mkcert"
-    return 0
-  fi
-  return 1
+  $SUDO install -m 0755 "$tmp_bin" /usr/local/bin/mkcert
+  rm -f "$tmp_bin"
+  info "mkcert installed to /usr/local/bin/mkcert"
 }
 
 use_mkcert() {
