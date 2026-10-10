@@ -62,6 +62,15 @@ const publicRouteErrorsOf = (hostConf = {}) => {
 };
 
 /**
+ * The declared public routes a host can render; the others fall back to the plain shell.
+ * @param {PublicRouteHost} hostConf
+ * @returns {string[]}
+ * @memberof PublicRouteRenderers
+ */
+const servablePublicRoutesOf = (hostConf = {}) =>
+  (hostConf.publicRoutes ?? []).filter((name) => RENDERERS[name]?.requirements(hostConf).length === 0);
+
+/**
  * The renderer of each public route a host declares, loaded on demand.
  * @param {PublicRouteHost} hostConf
  * @returns {Promise<Object<string, (req: import('express').Request, shellHtml: string, param: string) => Promise<string>>>}
@@ -77,4 +86,4 @@ const publicRouteRenderersFactory = async (hostConf) => {
   return renderers;
 };
 
-export { PUBLIC_ROUTE_RENDERER_NAMES, publicRouteErrorsOf, publicRouteRenderersFactory };
+export { PUBLIC_ROUTE_RENDERER_NAMES, publicRouteErrorsOf, publicRouteRenderersFactory, servablePublicRoutesOf };

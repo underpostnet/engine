@@ -6,6 +6,7 @@ import {
   PUBLIC_ROUTE_RENDERER_NAMES,
   publicRouteErrorsOf,
   publicRouteRenderersFactory,
+  servablePublicRoutesOf,
 } from '../../../src/server/network/public-route-renderers.js';
 
 const owner = { host: 'site.test', path: '/', apis: ['document', 'user'], db: { name: 'site' } };
@@ -36,6 +37,13 @@ describe('public route declaration', () => {
       { ...owner, apiBaseHost: 'api.site.test' },
     ])
       expect(publicRouteErrorsOf({ ...hostConf, publicRoutes: ['entry'] })[0]).toMatch(/public route "entry" needs/);
+  });
+
+  it('keeps the declared routes a host can render, in their order', () => {
+    const declared = { publicRoutes: ['entry', 'objectLayer', 'profile'] };
+    expect(servablePublicRoutesOf({ ...owner, ...declared })).toEqual(['entry', 'objectLayer']);
+    expect(servablePublicRoutesOf({ ...owner, ...declared, apiBaseHost: 'localhost:4001' })).toEqual(['objectLayer']);
+    expect(servablePublicRoutesOf({ ...owner })).toEqual([]);
   });
 });
 

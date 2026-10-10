@@ -300,4 +300,24 @@ describe('separate client and api development servers', () => {
     expect(instance.apiBaseProxyPath).to.equal('/');
     expect(written.get(`${folder}/.env.development.local-dev-client`)).to.include('PORT=4003');
   });
+
+  // The client server mounts no API, so the entry shell is rendered by the client, not the server.
+  it('keeps only the public routes the client host can render', async () => {
+    written.set(
+      `${folder}/conf.server.dev.local.json`,
+      JSON.stringify({
+        'default.net': {
+          '/': { client: 'Default', apis: ['document'], db: { name: 'site' }, publicRoutes: ['entry', 'objectLayer'] },
+        },
+      }),
+    );
+    await buildApiConf({ ...base, origin: 'http://localhost:4004' });
+    await buildClientStaticConf({ ...base });
+
+    const instance = JSON.parse(written.get(`${folder}/conf.server.dev.local-dev-client.json`))['default.net']['/'];
+    expect(instance.publicRoutes).to.deep.equal(['objectLayer']);
+    expect(
+      JSON.parse(written.get(`${folder}/conf.server.dev.local-dev-api.json`))['default.net']['/'].publicRoutes,
+    ).to.deep.equal(['entry', 'objectLayer']);
+  });
 });

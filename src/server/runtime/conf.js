@@ -28,6 +28,7 @@ import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
 import { DefaultConf } from '../../../underpost.config.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
+import { servablePublicRoutesOf } from '../network/public-route-renderers.js';
 import Underpost from '../../index.js';
 import {
   clearAwaitDeploy,
@@ -1596,9 +1597,12 @@ const buildClientStaticConf = async (
     : options?.apiBaseHost
       ? options.apiBaseHost
       : `localhost:${envObj.PORT + 1}`;
-  confServer[host][path].apiBaseHost = apiBaseHost;
-  confServer[host][path].apiBaseProxyPath = path;
-  logger.warn('Build client static conf', { host, path, apiBaseHost });
+  const hostConf = confServer[host][path];
+  hostConf.apiBaseHost = apiBaseHost;
+  hostConf.apiBaseProxyPath = path;
+  // The client host mounts no API, so a route rendered from this host's own API serves the plain shell.
+  if (hostConf.publicRoutes) hostConf.publicRoutes = servablePublicRoutesOf({ host, path, ...hostConf });
+  logger.warn('Build client static conf', { host, path, apiBaseHost, publicRoutes: hostConf.publicRoutes });
   envObj.PORT = parseInt(confServer[host][path].origins[0].split(':')[2]) - 1;
   writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`, envObj);
   fs.writeFileSync(

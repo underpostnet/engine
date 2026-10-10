@@ -78,6 +78,9 @@ both of them. Starting the client first fails with a message naming the missing 
       the API server.
     - The script `createClientDevServer` is then called, which uses the `local-dev-client` configuration.
     - It will first build the client assets and then start a server on `http://localhost:4004`.
+    - The client server mounts no API. A public route that the API host renders from its own data,
+      such as `entry`, is removed from the client configuration, and the client server answers it
+      with the plain page shell. The page then loads its data from the API server.
     - `nodemon` will watch for changes in `src/client` and automatically rebuild the client-side code.
 
 You should now have the API running on port 4001 and the client on port 4004, with the client correctly making API calls to the separate API server.
