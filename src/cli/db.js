@@ -33,6 +33,20 @@ const logger = loggerFactory(import.meta);
 const MAX_BACKUP_RETENTION = 5;
 
 /**
+ * Builds the quoted auth flags of `mongodump` and `mongorestore`, or nothing without credentials.
+ * @param {object} params
+ * @param {string} [params.user] - MongoDB username.
+ * @param {string} [params.password] - MongoDB password.
+ * @param {string} [params.authDatabase] - Auth database.
+ * @returns {string} The flags with a leading space, or an empty string.
+ * @memberof UnderpostDB
+ */
+const mongoToolAuthFlagsFactory = ({ user, password, authDatabase }) =>
+  user && password
+    ? ` --username ${shellArgumentFactory(user)} --password ${shellArgumentFactory(password)} --authenticationDatabase ${shellArgumentFactory(authDatabase)}`
+    : '';
+
+/**
  * @typedef {Object} DatabaseOptions
  * @memberof UnderpostDB
  * @property {boolean} [import=false] - Flag to import data from a backup
@@ -149,7 +163,7 @@ class UnderpostDB {
         Underpost.kubectl.exec({
           podName,
           namespace,
-          command: `rm -rf ${containerSqlPath}`,
+          command: `rm -rf ${shellArgumentFactory(containerSqlPath)}`,
         });
 
         // Copy SQL file to pod
@@ -166,7 +180,7 @@ class UnderpostDB {
 
         // Import SQL file. No retry: a replayed import would re-apply whatever the
         // first attempt already wrote.
-        const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
+        const importCmd = `mariadb -u ${shellArgumentFactory(user)} -p${shellArgumentFactory(password)} ${shellArgumentFactory(dbName)} < ${shellArgumentFactory(containerSqlPath)}`;
         Underpost.kubectl.exec({ podName, namespace, command: importCmd, retries: 0 });
 
         logger.info('Successfully imported MariaDB database', { podName, dbName });
@@ -206,11 +220,11 @@ class UnderpostDB {
         Underpost.kubectl.exec({
           podName,
           namespace,
-          command: `rm -rf ${containerSqlPath}`,
+          command: `rm -rf ${shellArgumentFactory(containerSqlPath)}`,
         });
 
         // Dump database
-        const dumpCmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${containerSqlPath}`;
+        const dumpCmd = `mariadb-dump --user=${shellArgumentFactory(user)} --password=${shellArgumentFactory(password)} --lock-tables ${shellArgumentFactory(dbName)} > ${shellArgumentFactory(containerSqlPath)}`;
         Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
 
         // Copy SQL file from pod
@@ -290,7 +304,7 @@ class UnderpostDB {
         Underpost.kubectl.exec({
           podName,
           namespace,
-          command: `rm -rf ${containerBsonPath}`,
+          command: `rm -rf ${shellArgumentFactory(containerBsonPath)}`,
         });
 
         // Copy BSON directory to pod
@@ -306,11 +320,8 @@ class UnderpostDB {
         }
 
         // Restore database
-        const authFlags =
-          user && password
-            ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
-            : '';
-        const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=100 --stopOnError${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
+        const authFlags = mongoToolAuthFlagsFactory({ user, password, authDatabase });
+        const restoreCmd = `mongorestore -d ${shellArgumentFactory(dbName)} ${shellArgumentFactory(containerBsonPath)} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=100 --stopOnError${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
         // Only a `--drop` restore is idempotent; without it a replay would re-apply
         // whatever the interrupted attempt already inserted, so it runs exactly once.
         Underpost.kubectl.exec({ podName, namespace, command: restoreCmd, retries: drop ? undefined : 0 });
@@ -363,14 +374,11 @@ class UnderpostDB {
         Underpost.kubectl.exec({
           podName,
           namespace,
-          command: `rm -rf ${containerBsonPath}`,
+          command: `rm -rf ${shellArgumentFactory(containerBsonPath)}`,
         });
 
         // Dump database or specific collections
-        const authFlags =
-          user && password
-            ? ` --username ${JSON.stringify(user)} --password ${JSON.stringify(password)} --authenticationDatabase ${JSON.stringify(authDatabase)}`
-            : '';
+        const authFlags = mongoToolAuthFlagsFactory({ user, password, authDatabase });
 
         // Serial dump: mongodump defaults to 4 collections at once, and its buffers share the
         // mongod container's memory limit. Parallel dumping is what pushes the container over
@@ -382,11 +390,15 @@ class UnderpostDB {
             Underpost.kubectl.exec({
               podName,
               namespace,
-              command: `mongodump -d ${dbName} --collection ${collection}${dumpFlags}`,
+              command: `mongodump -d ${shellArgumentFactory(dbName)} --collection ${shellArgumentFactory(collection)}${dumpFlags}`,
             });
           }
         } else {
-          Underpost.kubectl.exec({ podName, namespace, command: `mongodump -d ${dbName}${dumpFlags}` });
+          Underpost.kubectl.exec({
+            podName,
+            namespace,
+            command: `mongodump -d ${shellArgumentFactory(dbName)}${dumpFlags}`,
+          });
         }
 
         // Copy BSON directory from pod
