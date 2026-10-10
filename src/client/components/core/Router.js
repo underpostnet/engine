@@ -70,7 +70,7 @@ const queryParamsChangeListeners = {};
  * @description Array of core UI component IDs that should not trigger modal close route changes.
  * @memberof PwaRouter
  */
-const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
+const coreUI = ['modal-menu', 'main-body', 'bottom-bar', 'board-notification'];
 /**
  * @type {Object.<string, function>}
  * @description Holds event listeners for route changes that should close a modal.

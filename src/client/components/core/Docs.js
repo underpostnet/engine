@@ -3,6 +3,7 @@ import { buildManifest } from './BuildManifest.js';
 import { Modal, SUBMENU_SELECTION_QUERY_KEY, renderViewTitle } from './Modal.js';
 import { coverallsUrl, githubPagesUrl, packageRepository, releaseUrl } from './Repository.js';
 import { Responsive } from './Responsive.js';
+import { ShellLayout } from './ShellLayout.js';
 import {
   listenQueryPathInstance,
   setQueryPath,
@@ -19,7 +20,6 @@ class Docs {
     if (!docData || !parentModal?.options) return;
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const parentBarMode = parentModal.options.barMode;
     // A shell that draws from an icon set titles the view with it; the rest with the entry's icon.
     const { viewTitle } = Docs.Tokens[parentModalId] ?? {};
     await Modal.instance({
@@ -48,7 +48,6 @@ class Docs {
       route: 'docs',
       slideMenu: 'modal-menu',
       observer: true,
-      barMode: parentBarMode,
       query: true,
       RouterInstance: parentModal.options.RouterInstance,
     });
@@ -57,7 +56,7 @@ class Docs {
     let unbindIframeLayoutSync = null;
     if (iframeEl) {
       const scheduleViewLayoutSync = () => {
-        const sync = () => Modal.syncViewLayout();
+        const sync = () => ShellLayout.sync();
         sync();
         setTimeout(sync, 0);
         setTimeout(sync, 120);
@@ -93,14 +92,9 @@ class Docs {
             // never sees the keystroke unless the frame forwards it.
             const onIframeSearchShortcut = (e) => {
               if (!e.shiftKey || e.key?.toLowerCase() !== 'k') return;
-              const searchBox = s(`.top-bar-search-box`);
-              if (!searchBox) return;
               e.preventDefault();
               e.stopPropagation();
-              if (s(`.main-body-btn-ui-close`)?.classList.contains('hide')) s(`.main-body-btn-ui-open`).click();
-              searchBox.blur();
-              searchBox.focus();
-              searchBox.select();
+              ShellLayout.focusSearch();
             };
             iframeDoc.addEventListener('click', onIframeAnchorClick, true);
             iframeDoc.addEventListener('keydown', onIframeSearchShortcut);
@@ -344,6 +338,7 @@ class Docs {
     // under the submenu key: `/docs?cid=src` is a published deep link.
     const openDoc = async (docData) => {
       if (docData.external) return (location.href = docData.url());
+      ShellLayout.closeDrawer();
       // A deep link that already selects this entry keeps the rest of its state: `doc`, an anchor.
       if (getQueryParams()[SUBMENU_SELECTION_QUERY_KEY] !== docData.type)
         setQueryPath({ path: 'docs', queryPath: docData.type }, SUBMENU_SELECTION_QUERY_KEY);
@@ -363,11 +358,6 @@ class Docs {
           routeId: 'docs',
           event: (path) => {
             if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
-            if (Modal.mobileModal()) {
-              setTimeout(() => {
-                s(`.btn-close-modal-menu`).click();
-              });
-            }
           },
         },
         SUBMENU_SELECTION_QUERY_KEY,

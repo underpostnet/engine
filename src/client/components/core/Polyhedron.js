@@ -3,6 +3,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { getId, random } from './CommonJs.js';
 import { dynamicCol } from './Css.js';
 import { fullScreenIn, htmls, s } from './VanillaJs.js';
+import { ShellLayout } from './ShellLayout.js';
 import { Translate } from './Translate.js';
 // https://css-loaders.com/3d/
 class Polyhedron {
@@ -66,8 +67,7 @@ class Polyhedron {
       if (!scene) return;
       const canvas = s(`.polyhedron-immersive-canvas-${id}`);
       if (!canvas) return;
-      if (!s(`.main-body-btn-ui-close`).classList.contains('hide')) s(`.main-body-btn-ui`).click();
-      if (!s(`.main-body-btn-ui-menu-close`).classList.contains('hide')) s(`.main-body-btn-menu`).click();
+      ShellLayout.hideChrome();
       fullScreenIn();
       // Ensure canvas is visible during immersive mode.
       canvas.style.display = 'block';

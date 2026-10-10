@@ -11,7 +11,7 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { Translate } from '../core/Translate.js';
 import { navigatePublicRoute } from '../core/Router.js';
 import { Css, ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
-import { s } from '../core/VanillaJs.js';
+import { ShellLayout } from '../core/ShellLayout.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -167,25 +167,8 @@ const DocumentSearchProvider = {
 
           const tagValue = tagEl.getAttribute('data-tag-value') || tagEl.textContent.trim();
 
-          // Open search bar if closed
-          if (
-            !s('.main-body-btn-ui-bar-custom-open').classList.contains('hide') ||
-            !s(`.main-body-btn-ui-open`).classList.contains('hide')
-          )
-            s('.main-body-btn-bar-custom').click();
-
-          // Find and populate search box
-          const searchBox = s('.top-bar-search-box');
-          if (searchBox) {
-            searchBox.value = tagValue;
-            searchBox.focus();
-
-            // Trigger input event to start search
-            const inputEvent = new Event('input', { bubbles: true });
-            searchBox.dispatchEvent(inputEvent);
-
-            logger.info(`Document search tag clicked: ${tagValue}`);
-          }
+          ShellLayout.focusSearch(tagValue);
+          logger.info(`Document search tag clicked: ${tagValue}`);
         };
       });
     }, 50);

@@ -180,6 +180,8 @@ const TEST_PROJECTS = [
       'src/client-builder/build-manifest.js',
       'src/client-builder/client-build-docs.js',
       'src/client/components/core/BuildManifest.js',
+      'src/client/components/core/ShellLayout.js',
+      'src/client/components/core/ShellNavigation.js',
       'src/projects/underpost/*.js',
       'src/runtime/nginx/Nginx.js',
       'src/server/build/docs.js',

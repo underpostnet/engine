@@ -200,6 +200,12 @@ class TranslateCore {
     Translate.Data['load'] = { en: 'load', es: 'Cargar' };
     Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
     Translate.Data['search'] = { en: 'Search', es: 'Buscar' };
+    Translate.Data['close-search'] = { en: 'Close search', es: 'Cerrar búsqueda' };
+    Translate.Data['navigation'] = { en: 'Navigation', es: 'Navegación' };
+    Translate.Data['open-navigation'] = { en: 'Open navigation', es: 'Abrir navegación' };
+    Translate.Data['close-navigation'] = { en: 'Close navigation', es: 'Cerrar navegación' };
+    Translate.Data['hide-bars'] = { en: 'Hide bars', es: 'Ocultar barras' };
+    Translate.Data['show-bars'] = { en: 'Show bars', es: 'Mostrar barras' };
     Translate.Data['filter-by-file-name'] = { en: 'Filter by file name', es: 'Filtrar por nombre de archivo' };
     Translate.Data['view'] = { en: 'view', es: 'ver' };
     Translate.Data['user'] = { en: 'User', es: 'Usuario' };

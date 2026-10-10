@@ -1,8 +1,7 @@
-import { getId, newInstance, s4 } from './CommonJs.js';
+import { getId, s4 } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
 import { append, s, prepend, htmls, sa, getAllChildNodes, isActiveElement, htmlStrSanitize } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
-import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
 import {
   Css,
@@ -38,6 +37,7 @@ import { Scroll } from './Scroll.js';
 import { windowGetH, windowGetW } from './windowGetDimensions.js';
 import { SearchBox } from './SearchBox.js';
 import { createModalEvents } from './ClientEvents.js';
+import { ShellLayout, ShellLayoutPresets, SHELL_BAR_SIZE } from './ShellLayout.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -63,7 +63,8 @@ const SUBMENU_SELECTION_QUERY_KEY = 'cid';
  * @property {string} [title=''] - Modal title HTML.
  * @property {string|Function} [html=''] - Modal body HTML or async factory.
  * @property {string} [handleType='bar'] - Drag handle type ('bar' or default full).
- * @property {string} [mode=''] - Layout mode: 'view', 'slide-menu', 'slide-menu-right', 'slide-menu-left', 'dropNotification'.
+ * @property {string} [mode=''] - Layout mode: 'view', 'slide-menu' (the shell drawer), 'dropNotification'.
+ * @property {{ layout?: 'standard'|'split', side?: 'left'|'right' }} [shell] - Shell layout of a 'slide-menu' modal; see `ShellLayout`.
  * @property {object} [RouterInstance={}] - Router instance for route-aware modals.
  * @property {string[]} [disableTools=[]] - Tool ids to hide ('app-icon', 'text-box', 'profile', 'lang', 'theme', 'navigator').
  * @property {boolean} [observer=false] - Attach a ResizeObserver to the modal element.
@@ -78,10 +79,9 @@ const SUBMENU_SELECTION_QUERY_KEY = 'cid';
  * @property {string} [btnContainerClass=''] - Class for each bar button.
  * @property {string} [btnIconContainerClass=''] - Class for each bar button inner icon div.
  * @property {string} [barClass=''] - Class for the top/bottom bar flex row.
- * @property {string} [barMode=''] - Bar layout variant ('top-bottom-bar').
  * @property {string} [renderType=''] - Insertion strategy ('prepend' or default append).
  * @property {string} [selector='body'] - Parent selector for insertion.
- * @property {string} [slideMenu=''] - Id of the slide-menu modal this view should attach to.
+ * @property {string} [slideMenu=''] - Id of the shell drawer; a maximized view then fills the main body area.
  * @property {string} [route=''] - URL path segment for view-mode route tracking.
  * @property {string} [publicRoute=''] - `PublicRoutes` key a view also presents (e.g. 'entry' for a blog view).
  * @property {string} [status=''] - Status icon descriptor rendered in the bar.
@@ -92,8 +92,6 @@ const SUBMENU_SELECTION_QUERY_KEY = 'cid';
  * @property {Function} [htmlMainBody] - Factory for main-body modal html (slide-menu mode).
  * @property {Function} [slideMenuTopBarBannerFix] - Async factory for top-bar banner content.
  * @property {number} [minSearchQueryLength=1] - Minimum search query length.
- * @property {Function} [onCollapseMenu] - Callback when slide menu collapses.
- * @property {Function} [onExtendMenu] - Callback when slide menu extends.
  */
 
 /**
@@ -106,23 +104,14 @@ const SUBMENU_SELECTION_QUERY_KEY = 'cid';
  * listener, `delete` to remove, and `Object.keys` to enumerate registered keys.
  * @property {Object.<string, Function>} onCloseListener - Close event listeners keyed by id.
  * @property {Object.<string, Function>} onMenuListener - Menu button event listeners.
- * @property {Object.<string, Function>} onCollapseMenuListener - Collapse menu listeners.
- * @property {Object.<string, Function>} onExtendMenuListener - Extend menu listeners.
  * @property {Object.<string, Function>} onDragEndListener - Drag-end listeners.
  * @property {Object.<string, Function>} onObserverListener - ResizeObserver listeners.
  * @property {Object.<string, Function>} onClickListener - Click listeners.
- * @property {Object.<string, Function>} onExpandUiListener - UI expand/collapse listeners.
- * @property {Object.<string, Function>} onBarUiOpen - Bar UI open listeners.
- * @property {Object.<string, Function>} onBarUiClose - Bar UI close listeners.
  * @property {Object.<string, Function>} onReloadModalListener - Reload listeners.
  * @property {Object.<string, Function>} onHome - Home navigation listeners.
  * @property {string[]} homeModals - Home modal ids.
  * @property {string} [query] - Snapshotted query string.
- * @property {Function} getTop - Returns computed top offset.
- * @property {Function} getHeight - Returns computed modal height.
- * @property {Function} getMenuLeftStyle - Returns slide menu left CSS value.
  * @property {Function} center - Centers the modal in the viewport.
- * @property {object} [slideMenu] - Active slide-menu link data.
  * @property {ResizeObserver} [observer] - Attached ResizeObserver.
  * @property {Function} [observerCallBack] - ResizeObserver callback.
  * @property {Function} [setDragInstance] - Updates drag options and re-creates the Draggable.
@@ -133,60 +122,6 @@ const SUBMENU_SELECTION_QUERY_KEY = 'cid';
 class Modal {
   /** @type {Object.<string, ModalDataEntry>} */
   static Data = {};
-
-  /** @type {Function|null} Recomputes visibility of the search/home toggle button; set once the slide-menu modal renders it. */
-  static updateBarCustomVisibility = null;
-
-  /**
-   * Bottom offset of the slide-menu area for the given options.
-   * @param {ModalRenderOptions} options
-   * @param {number} [heightDefaultBottomBar=0]
-   * @returns {number}
-   */
-  static getModalTop(options, heightDefaultBottomBar = 0) {
-    return windowGetH() - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
-  }
-
-  /**
-   * Available modal height, accounting for the top/bottom bars when the UI is expanded.
-   * @param {ModalRenderOptions} options
-   * @param {number} [heightDefaultTopBar=50]
-   * @param {number} [heightDefaultBottomBar=0]
-   * @returns {number}
-   */
-  static getModalHeight(options, heightDefaultTopBar = 50, heightDefaultBottomBar = 0) {
-    const barsVisible = s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide');
-    return (
-      windowGetH() -
-      (barsVisible
-        ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) +
-          (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-        : 0)
-    );
-  }
-
-  /**
-   * Left CSS value for a slide menu in its open/closed state.
-   * @param {ModalRenderOptions} options
-   * @param {{ originSlideMenuWidth: number, collapseSlideMenuWidth: number }} widths
-   * @param {{ open: boolean }} [ops={ open: false }]
-   * @returns {string}
-   */
-  static getModalMenuLeftStyle(options, { originSlideMenuWidth, collapseSlideMenuWidth }, ops = { open: false }) {
-    return `${
-      options.mode === 'slide-menu-right'
-        ? `${
-            windowGetW() +
-            (ops?.open
-              ? -1 * originSlideMenuWidth +
-                (options.mode === 'slide-menu-right' && s(`.btn-icon-menu-mode-right`).classList.contains('hide')
-                  ? originSlideMenuWidth - collapseSlideMenuWidth
-                  : 0)
-              : originSlideMenuWidth)
-          }px`
-        : `-${ops?.open ? '0px' : originSlideMenuWidth}px`
-    }`;
-  }
 
   /**
    * Viewport-centered top/left CSS values for a modal of the given size.
@@ -224,7 +159,6 @@ class Modal {
       style: {},
       class: '',
       titleClass: '',
-      barMode: '',
       route: '',
       slideMenu: '',
       zIndexSync: false,
@@ -232,55 +166,20 @@ class Modal {
       homeModals: [],
     },
   ) {
-    const originHeightBottomBar = 50;
-    const originHeightTopBar = 50;
-    options.heightBottomBar = 0;
-    options.heightTopBar = 100;
-    // A view sits under its slide menu's bars, so it follows that menu's bar mode unless it
-    // names one — otherwise a 'top-bottom-bar' shell opens every view 100px down instead of 50px.
-    if (options && !options.barMode && options.slideMenu && Modal.Data[options.slideMenu]?.options?.barMode)
-      options.barMode = Modal.Data[options.slideMenu].options.barMode;
-    if (options && options.barMode && options.barMode === 'top-bottom-bar') {
-      options.heightTopBar = 50;
-      options.heightBottomBar = 50;
-    }
     let width = 300;
     let height = 400;
     let top = options.style?.top ? options.style.top : 0;
     let left = options.style?.left ? options.style.left : 0;
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
-    const originSlideMenuWidth = 320;
-    const collapseSlideMenuWidth = 50;
-    let slideMenuWidth = originSlideMenuWidth;
     const minWidth = width;
-    const heightDefaultTopBar = 50;
-    const heightDefaultBottomBar = 0;
     const idModal = options.id ? options.id : getId(this.Data, 'modal-');
-    // The floating .main-body-btn-container (bars toggle, hamburger, search/home) hugs the menu's
-    // free edge: a right menu's left edge, or a left menu's right edge under 'top-bottom-bar'.
-    // Only a left 'modal-menu' under the default 100px top bar keeps its hamburger in the top bar,
-    // leaving the container pinned to the screen's right edge without one.
-    const menuRight = !!options.mode?.match('right');
-    const topBarHamburger = idModal === 'modal-menu' && !menuRight && options.barMode !== 'top-bottom-bar';
-    const floatingBtnSide = !menuRight && options.barMode === 'top-bottom-bar' ? 'left' : 'right';
-    const floatingBtnWidth = 50;
-    const setFloatingBtnOffset = (open) => {
-      if (!s(`.main-body-btn-container`)) return;
-      const hugsMenu = menuRight || floatingBtnSide === 'left';
-      s(`.main-body-btn-container`).style[floatingBtnSide] = `${open && hugsMenu ? slideMenuWidth : 0}px`;
-    };
     const { bus: eventBus, channels: eventChannels } = createModalEvents();
     this.Data[idModal] = {
       options,
       events: eventBus,
       ...eventChannels,
       homeModals: options.homeModals ? options.homeModals : [],
-      floatingBtnSide,
       query: options.query ? `${window.location.search}` : undefined,
-      getTop: () => Modal.getModalTop(options, heightDefaultBottomBar),
-      getHeight: () => Modal.getModalHeight(options, heightDefaultTopBar, heightDefaultBottomBar),
-      getMenuLeftStyle: (ops = { open: false }) =>
-        Modal.getModalMenuLeftStyle(options, { originSlideMenuWidth, collapseSlideMenuWidth }, ops),
       center: () => {
         const { top: centeredTop, left: centeredLeft } = Modal.getModalCenter({ width, height });
         top = centeredTop;
@@ -293,7 +192,6 @@ class Modal {
       Modal.Data[idModal][options.mode] = {};
       switch (options.mode) {
         case 'view':
-          // if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
           options.zIndexSync = true;
 
           options.style = { width: '100%', ...options.style, 'min-width': `${minWidth}px` };
@@ -303,84 +201,62 @@ class Modal {
             options.barConfig.buttons.minimize.disabled = true;
             options.dragDisabled = true;
             options.style.resize = 'none';
-            setTimeout(() => {
-              s(`.btn-close-modal-menu`).click();
-            });
           }
 
-          Responsive.onChanged(
-            () => {
-              if (!this.Data[idModal]) return Responsive.offChanged(`view-${idModal}`);
-              if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${this.Data[idModal].getHeight()}px`;
-            },
-            { key: `view-${idModal}` },
-          );
-          Responsive.triggerChanged(`view-${idModal}`);
-
-          // Handle view mode modal route
-          if (options.route) {
+          if (options.route)
             handleModalViewRoute({
               route: options.route,
               RouterInstance: options.RouterInstance,
               idModal,
               publicRoute: options.publicRoute,
             });
-            // Path just changed away from (or back to) home — recompute the search/home
-            // toggle's visibility instead of leaving it stuck on its last computed state.
-            setTimeout(() => Modal.updateBarCustomVisibility?.());
-          }
 
           break;
         case 'slide-menu':
-        case 'slide-menu-right':
-        case 'slide-menu-left':
-          // The menu starts closed; a view maximized before the first close event lays out against
-          // this width rather than against `undefined`.
-          Modal.Data[idModal][options.mode].width = 0;
+          ShellLayout.mount({ ...options.shell, onDrawerOpen: () => Modal.menuTextLabelAnimation() });
           (async () => {
+            const { footer: footerHeight } = ShellLayoutPresets[ShellLayout.config.layout];
             if (!options.slideMenuTopBarBannerFix) {
               options.slideMenuTopBarBannerFix = async () => {
-                let style = html``;
-                if (options.barMode === 'top-bottom-bar') {
-                  style = html`<style>
-                    .default-slide-menu-top-bar-fix-logo-container {
-                      width: 50px;
-                      height: 50px;
-                    }
-                    .default-slide-menu-top-bar-fix-logo {
-                      width: 40px;
-                      height: 40px;
-                      padding: 5px;
-                    }
-                    .default-slide-menu-top-bar-fix-title-container-text {
-                      color: ${darkTheme ? '#ffffff' : '#000000'};
-                    }
-                    /* Themes size and offset the title for the 100px banner with !important;
-                       the 50px one has to win over them or the title spills into the menu. */
-                    .slide-menu-top-bar-fix .default-slide-menu-top-bar-fix-title-container-text {
-                      font-size: 26px !important;
-                      top: 8px !important;
-                      left: 0px !important;
-                    }
-                  </style>`;
-                } else {
-                  style = html`<style>
-                    .default-slide-menu-top-bar-fix-logo-container {
-                      width: 100px;
-                      height: 100px;
-                    }
-                    .default-slide-menu-top-bar-fix-logo {
-                      width: 50px;
-                      height: 50px;
-                      padding: 24px;
-                    }
-                    .default-slide-menu-top-bar-fix-title-container-text {
-                      font-size: 30px;
-                      top: 30px;
-                      color: ${darkTheme ? '#ffffff' : '#000000'};
-                    }
-                  </style>`;
-                }
+                const style =
+                  footerHeight > 0
+                    ? html`<style>
+                        .default-slide-menu-top-bar-fix-logo-container {
+                          width: 50px;
+                          height: 50px;
+                        }
+                        .default-slide-menu-top-bar-fix-logo {
+                          width: 40px;
+                          height: 40px;
+                          padding: 5px;
+                        }
+                        .default-slide-menu-top-bar-fix-title-container-text {
+                          color: ${darkTheme ? '#ffffff' : '#000000'};
+                        }
+                        /* Themes size and offset the title for the 100px banner with !important;
+                           the 50px one has to win over them or the title spills into the menu. */
+                        .slide-menu-top-bar-fix .default-slide-menu-top-bar-fix-title-container-text {
+                          font-size: 26px !important;
+                          top: 8px !important;
+                          left: 0px !important;
+                        }
+                      </style>`
+                    : html`<style>
+                        .default-slide-menu-top-bar-fix-logo-container {
+                          width: 100px;
+                          height: 100px;
+                        }
+                        .default-slide-menu-top-bar-fix-logo {
+                          width: 50px;
+                          height: 50px;
+                          padding: 24px;
+                        }
+                        .default-slide-menu-top-bar-fix-title-container-text {
+                          font-size: 30px;
+                          top: 30px;
+                          color: ${darkTheme ? '#ffffff' : '#000000'};
+                        }
+                      </style>`;
                 setTimeout(() => {
                   if (s(`.top-bar-app-icon`) && s(`.top-bar-app-icon`).src) {
                     s(`.default-slide-menu-top-bar-fix-logo`).src = s(`.top-bar-app-icon`).src;
@@ -406,492 +282,104 @@ class Modal {
                   <div class="in fll default-slide-menu-top-bar-fix-title-container"></div>`;
               };
             }
-            const { barConfig } = options;
-            options.style = {
-              height: `${windowGetH() - options.heightTopBar - options.heightBottomBar}px`,
-              width: `${slideMenuWidth}px`,
-              // 'overflow-x': 'hidden',
-              // overflow: 'visible', // required for tooltip
-              'z-index': 6,
-              resize: 'none',
-              top: `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`,
-            };
+            options.style = { 'z-index': 6, resize: 'none' };
             const contentIconClass = 'abs center';
             top = 'auto';
-            left = Modal.Data[idModal].getMenuLeftStyle();
             transition = '.3s';
             options.dragDisabled = true;
             options.titleClass = 'hide';
             options.disableCenter = true;
-
-            // barConfig.buttons.maximize.disabled = true;
-            // barConfig.buttons.minimize.disabled = true;
-            // barConfig.buttons.restore.disabled = true;
-            // barConfig.buttons.menu.disabled = true;
-            // barConfig.buttons.close.disabled = true;
             options.btnBarModalClass = 'hide';
-            Responsive.onChanged(
-              () => {
-                for (const _idModal of Object.keys(this.Data)) {
-                  if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
-                    this.Data[_idModal].slideMenu.callBack();
-                }
-                s(`.${idModal}`).style.height = `${Modal.Data[idModal].getHeight()}px`;
-                s(`.${idModal}`).style.left = Modal.Data[idModal].getMenuLeftStyle({
-                  open: Modal.Data[idModal][options.mode].width > 0,
-                });
-                // The overlay dims the main body only while a mobile menu covers it at full width;
-                // closed, or collapsed to its 50px icon rail, leaves the body usable underneath.
-                if (s(`.main-body-top`)) {
-                  const menuOpen = s(`.btn-menu-${idModal}`).classList.contains('hide');
-                  const covers = Modal.mobileModal() && menuOpen && slideMenuWidth !== collapseSlideMenuWidth;
-                  s(`.main-body-top`).classList[covers ? 'remove' : 'add']('hide');
-                }
-              },
-              { key: `slide-menu-${idModal}` },
-            );
-            // The fixed hamburger stands in for the top bar's while it is collapsed, opening and
-            // closing the menu alike. Its 50px corner is kept clear two ways: the menu content is
-            // padded down while it shows, and a view title is padded right only while the menu
-            // is closed — an open menu (50px or full) already pushes the views aside.
-            const syncFixedMenuButton = () => {
-              const fixed = s(`.main-btn-menu-top-fixed-container`);
-              if (!fixed) return;
-              const collapsed = s(`.main-body-btn-ui-close`) && s(`.main-body-btn-ui-close`).classList.contains('hide');
-              const menuClosed = Modal.Data[idModal][options.mode].width === 0;
-              fixed.classList[collapsed ? 'remove' : 'add']('hide');
-              s('body').classList[collapsed ? 'add' : 'remove']('main-btn-menu-top-fixed-active');
-              s('body').classList[collapsed && menuClosed ? 'add' : 'remove']('main-btn-menu-top-fixed-title-offset');
-            };
-            // Hides the search/home toggle only while it's showing the "close" (home) icon
-            // AND the body is already scrolled to top — nothing left for it to do there.
-            // Reactive: called on every scroll tick and state change, so it restores to its
-            // normal visible state the moment either condition stops holding.
-            const updateBarCustomVisibility = () => {
-              const barCustom = s(`.main-body-btn-bar-custom`);
-              if (!barCustom || !options?.slideMenuTopBarBannerFix) return;
-              const mainBody = s(`.main-body`);
-              const atTop = !!mainBody && mainBody.scrollTop <= 0;
-              const bannerFix = s(`.slide-menu-top-bar-fix`);
-              const bannerVisible = !!bannerFix && parseInt(bannerFix.style.top, 10) >= 0;
-              const isHomePath = location.pathname === getProxyPath();
-              // Never hide while the open (magnifying-glass) icon is showing — that's the
-              // idle "click to search" state, not the "close/home" state this hide targets.
-              const openIconHidden =
-                !!s(`.main-body-btn-ui-bar-custom-open`) &&
-                s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide');
-              barCustom.classList[bannerVisible && isHomePath && atTop && openIconHidden ? 'add' : 'remove']('hide');
-            };
-            // Exposed statically so other code paths (e.g. opening a view/route) can force a
-            // recompute — otherwise the hidden state goes stale once the path stops being home.
-            Modal.updateBarCustomVisibility = updateBarCustomVisibility;
-            barConfig.buttons.menu.onClick = () => {
-              Modal.Data[idModal][options.mode].width = slideMenuWidth;
-              s(`.btn-menu-${idModal}`).classList.add('hide');
-              s(`.btn-close-${idModal}`).classList.remove('hide');
-              // s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
-              s(`.html-${idModal}`).style.display = 'block';
-              // s(`.title-modal-${idModal}`).style.display = 'block';
-              s(`.main-body-btn-ui-menu-menu`).classList.add('hide');
-              s(`.main-body-btn-ui-menu-close`).classList.remove('hide');
-              if (s(`.btn-bar-center-icon-menu`)) {
-                sa(`.btn-bar-center-icon-close`).forEach((el) => el.classList.remove('hide'));
-                sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.add('hide'));
-              }
-
-              setFloatingBtnOffset(true);
-              if (options.mode === 'slide-menu-right') {
-                s(`.${idModal}`).style.left = `${windowGetW() - originSlideMenuWidth}px`;
-              } else {
-                s(`.${idModal}`).style.left = `0px`;
-              }
-              syncFixedMenuButton();
-              Responsive.triggerChanged(`slide-menu-${idModal}`);
-              if (options.onExtendMenu) options.onExtendMenu();
-              Object.keys(this.Data[idModal].onExtendMenuListener).map((keyListener) =>
-                this.Data[idModal].onExtendMenuListener[keyListener](),
-              );
-            };
-            barConfig.buttons.close.onClick = () => {
-              Modal.Data[idModal][options.mode].width = 0;
-              s(`.btn-close-${idModal}`).classList.add('hide');
-              s(`.btn-menu-${idModal}`).classList.remove('hide');
-              // s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
-              // s(`.html-${idModal}`).style.display = 'none';
-              // s(`.title-modal-${idModal}`).style.display = 'none';
-              s(`.main-body-btn-ui-menu-close`).classList.add('hide');
-              s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
-              if (s(`.btn-bar-center-icon-menu`)) {
-                sa(`.btn-bar-center-icon-menu`).forEach((el) => el.classList.remove('hide'));
-                sa(`.btn-bar-center-icon-close`).forEach((el) => el.classList.add('hide'));
-              }
-              setFloatingBtnOffset(false);
-              if (options.mode === 'slide-menu-right') {
-                s(`.${idModal}`).style.left = `${windowGetW() + originSlideMenuWidth}px`;
-              } else {
-                s(`.${idModal}`).style.left = `-${originSlideMenuWidth}px`;
-              }
-              syncFixedMenuButton();
-              Responsive.triggerChanged(`slide-menu-${idModal}`);
-              if (options.onCollapseMenu) options.onCollapseMenu();
-              Object.keys(this.Data[idModal].onCollapseMenuListener).map((keyListener) =>
-                this.Data[idModal].onCollapseMenuListener[keyListener](),
-              );
-            };
-            transition += `, width 0.3s`;
-
-            setTimeout(async () => {
-              setTimeout(btnCloseEvent);
-              append(
-                'body',
-                html`
-                  <div
-                    class="abs main-body-btn-container hide"
-                    style="top: ${options.heightTopBar +
-                    50}px; z-index: 9; ${floatingBtnSide}: 0px; width: ${floatingBtnWidth}px; height: 150px; transition: .3s"
-                  >
-                    <div class="abs main-body-btn main-body-btn-ui" style="top: 0px; ${floatingBtnSide}: 0px">
-                      <div class="abs center">
-                        <i class="fas fa-caret-down main-body-btn-ui-open hide"></i>
-                        <i class="fas fa-caret-up main-body-btn-ui-close"></i>
-                      </div>
-                    </div>
-                    <div class="abs main-body-btn main-body-btn-menu" style="top: 50px; ${floatingBtnSide}: 0px">
-                      <div class="abs center">
-                        <i class="fa-solid fa-xmark hide main-body-btn-ui-menu-close"></i>
-                        <i class="fa-solid fa-bars main-body-btn-ui-menu-menu"></i>
-                      </div>
-                    </div>
-                    <div
-                      class="abs main-body-btn main-body-btn-bar-custom ${options?.slideMenuTopBarBannerFix
-                        ? ''
-                        : 'hide'}"
-                      style="top: 100px; ${floatingBtnSide}: 0px"
-                    >
-                      <div class="abs center">
-                        <i class="fa-solid fa-magnifying-glass main-body-btn-ui-bar-custom-open"></i>
-                        <i class="fa-solid fa-home hide main-body-btn-ui-bar-custom-close"></i>
-                      </div>
-                    </div>
-                  </div>
-                `,
-              );
-
-              s(`.main-body-btn-menu`).onclick = () => {
-                Modal.actionBtnCenter();
-              };
-
-              // Fixed top-left hamburger, shown only while the bars are collapsed
-              // (main-body-btn-ui-close hidden): it stands in for the top bar's hamburger the
-              // collapse hid. Every other layout keeps its floating .main-body-btn-menu instead.
-              if (topBarHamburger) {
-                append(
-                  'body',
-                  html`
-                    <div
-                      class="fix main-btn-menu-top-fixed-container hide"
-                      style="top: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
-                    >
-                      ${await BtnIcon.instance({
-                        style: `height: 100%`,
-                        class: `in fll main-btn-menu-top action-bar-box action-btn-center-top-fixed`,
-                        label: html`<div class="abs center">
-                          <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
-                          <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
-                        </div>`,
-                      })}
-                    </div>
-                    <style>
-                      /* The menu content starts below the fixed hamburger while it shows. */
-                      body.main-btn-menu-top-fixed-active .html-${idModal} {
-                        padding-top: ${originHeightTopBar}px;
-                      }
-                      /* View modals sit at top: 0 while the top bar is collapsed; keep their
-                         title clear of the fixed hamburger. The padding eases at the same pace
-                         the views slide so the title moves once, not a jump and a slide back. */
-                      .title-main-modal {
-                        transition: padding-left 0.3s;
-                      }
-                      body.main-btn-menu-top-fixed-title-offset .title-main-modal {
-                        padding-left: ${originHeightTopBar}px;
-                      }
-                    </style>
-                  `,
-                );
-                EventsUI.onClick(`.action-btn-center-top-fixed`, (e) => {
-                  e.preventDefault();
-                  Modal.actionBtnCenter();
-                });
-              }
-
-              s(`.main-body-btn-bar-custom`).onclick = () => {
-                if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
-                  s(`.main-body-btn-ui`).click();
-                }
-                if (s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide')) {
-                  s(`.main-body-btn-ui-bar-custom-open`).classList.remove('hide');
-                  s(`.main-body-btn-ui-bar-custom-close`).classList.add('hide');
-                  s(`.slide-menu-top-bar-fix`).style.top = '0px';
-
-                  setTimeout(async () => {
-                    setTimeout(() => {
-                      s(`.action-btn-home`).click();
-                    });
-                    setTimeout(() => {
-                      const mainBody = s(`.main-body`);
-                      if (mainBody && mainBody.scrollTop > 0) {
-                        mainBody.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }, 50);
-                    updateBarCustomVisibility();
-                  });
-                } else {
-                  s(`.main-body-btn-ui-bar-custom-open`).classList.add('hide');
-                  s(`.main-body-btn-ui-bar-custom-close`).classList.remove('hide');
-                  s(`.slide-menu-top-bar-fix`).style.top = '-100px';
-                  s(`.top-bar-search-box-container`).click();
-                }
-                updateBarCustomVisibility();
-                if (Modal.mobileModal()) {
-                  btnCloseEvent();
-                }
-              };
-
-              let _heightTopBar, _heightBottomBar, _topMenu, _barsAnimationTimeout;
-              // The layout offsets below are set inline, so they only ease while this class is on.
-              const animateBarsToggle = () => {
-                s('body').classList.add('ui-bars-animating');
-                clearTimeout(_barsAnimationTimeout);
-                _barsAnimationTimeout = setTimeout(() => s('body').classList.remove('ui-bars-animating'), 300);
-              };
-              s(`.main-body-btn-ui`).onclick = () => {
-                animateBarsToggle();
-                if (s(`.main-body-btn-ui-open`).classList.contains('hide')) {
-                  s(`.main-body-btn-ui-open`).classList.remove('hide');
-                  s(`.main-body-btn-ui-close`).classList.add('hide');
-                  _heightTopBar = newInstance(options.heightTopBar);
-                  _heightBottomBar = newInstance(options.heightBottomBar);
-                  _topMenu = newInstance(s(`.modal-menu`).style.top);
-                  options.heightTopBar = 0;
-                  options.heightBottomBar = 0;
-                  s('body').classList.add('ui-bars-collapsed');
-                  syncFixedMenuButton();
-                  s(`.modal-menu`).style.top = '0px';
-                  s(`.main-body-btn-container`).style.top = '50px';
-                  s(`.main-body`).style.top = '0px';
-                  s(`.main-body`).style.height = `${windowGetH()}px`;
-                  for (const event of Object.keys(Modal.Data[idModal].onBarUiClose))
-                    Modal.Data[idModal].onBarUiClose[event]();
-                } else {
-                  s(`.main-body-btn-ui-close`).classList.remove('hide');
-                  s(`.main-body-btn-ui-open`).classList.add('hide');
-                  options.heightTopBar = _heightTopBar;
-                  options.heightBottomBar = _heightBottomBar;
-                  s(`.modal-menu`).style.top = _topMenu;
-                  s(`.main-body-btn-container`).style.top = `${options.heightTopBar + 50}px`;
-                  s('body').classList.remove('ui-bars-collapsed');
-                  syncFixedMenuButton();
-                  s(`.main-body`).style.top = `${options.heightTopBar}px`;
-                  s(`.main-body`).style.height = `${windowGetH() - options.heightTopBar}px`;
-                  for (const event of Object.keys(Modal.Data[idModal].onBarUiOpen))
-                    Modal.Data[idModal].onBarUiOpen[event]();
-                }
-                Responsive.triggerChanged(`slide-menu-modal-menu`);
-                Object.keys(this.Data).map((_idModal) => {
-                  if (this.Data[_idModal].slideMenu) {
-                    if (s(`.btn-maximize-${_idModal}`)) s(`.btn-maximize-${_idModal}`).click();
-                  }
-                });
-                Responsive.triggerChanged(`view-${'main-body'}`);
-                if (Responsive.hasChangedListener(`view-${'bottom-bar'}`))
-                  Responsive.triggerChanged(`view-${'bottom-bar'}`);
-                if (Responsive.hasChangedListener(`view-${'main-body-top'}`))
-                  Responsive.triggerChanged(`view-${'main-body-top'}`);
-                for (const keyEvent of Object.keys(this.Data[idModal].onExpandUiListener)) {
-                  this.Data[idModal].onExpandUiListener[keyEvent](
-                    !s(`.main-body-btn-ui-open`).classList.contains('hide'),
-                  );
-                }
-              };
-              updateBarCustomVisibility();
-              Modal.setTopBannerLink();
-            });
 
             const inputSearchBoxId = `top-bar-search-box`;
             append(
               'body',
-              html`<style>
-                  /* Collapsing slides the bars off-screen instead of removing them; they turn
-                     invisible only once the slide ends, so no hidden control stays focusable. */
-                  .slide-menu-top-bar,
-                  .bottom-bar {
-                    transition:
-                      transform 0.3s ease,
-                      opacity 0.3s ease,
-                      visibility 0s linear 0s !important;
-                  }
-                  body.ui-bars-collapsed .slide-menu-top-bar {
-                    transform: translateY(-100%);
-                  }
-                  body.ui-bars-collapsed .bottom-bar {
-                    transform: translateY(100%) !important;
-                  }
-                  /* A bottom bar rendered inside the top bar leaves with it. */
-                  body.ui-bars-collapsed .slide-menu-top-bar .bottom-bar {
-                    transform: none !important;
-                  }
-                  body.ui-bars-collapsed .slide-menu-top-bar,
-                  body.ui-bars-collapsed .bottom-bar {
-                    visibility: hidden;
-                    pointer-events: none;
-                    transition:
-                      transform 0.3s ease,
-                      opacity 0.3s ease,
-                      visibility 0s linear 0.3s !important;
-                  }
-                  body.ui-bars-animating .main-body,
-                  body.ui-bars-animating .main-body-btn-container {
-                    transition:
-                      top 0.3s ease,
-                      left 0.3s ease,
-                      height 0.3s ease,
-                      opacity 0.3s ease !important;
-                  }
-                  @media (prefers-reduced-motion: reduce) {
-                    .slide-menu-top-bar,
-                    .bottom-bar,
-                    body.ui-bars-collapsed .slide-menu-top-bar,
-                    body.ui-bars-collapsed .bottom-bar,
-                    body.ui-bars-animating .main-body,
-                    body.ui-bars-animating .main-body-btn-container {
-                      transition: none !important;
-                    }
-                  }
-                </style>
-                <div class="fix modal slide-menu-top-bar">
+              html`<div class="fix modal slide-menu-top-bar" style="z-index: 7">
+                <div
+                  class="fl top-bar ${options.barClass ? options.barClass : ''}"
+                  style="height: ${SHELL_BAR_SIZE}px;"
+                >
+                  ${ShellLayout.renderSlot('start')}
+                  ${await BtnIcon.instance({
+                    style: `height: 100%`,
+                    class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
+                      options?.disableTools?.includes('app-icon') ? 'hide' : ''
+                    }`,
+                    label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
+                  })}
+                  <form
+                    id="shell-search"
+                    class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
+                      ? 'hide'
+                      : ''}"
+                  >
+                    ${await Input.instance({
+                      id: inputSearchBoxId,
+                      autocomplete: 'off',
+                      placeholder: Modal.mobileModal()
+                        ? Translate.instance('search', '.top-bar-search-box')
+                        : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
+                      placeholderIcon: html`<div
+                        class="in fll"
+                        style="width: ${SHELL_BAR_SIZE}px; height: ${SHELL_BAR_SIZE}px;"
+                      >
+                        <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
+                        ${!Modal.mobileModal()
+                          ? html` <div
+                              class="inl wfm key-shortcut-container-info"
+                              style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
+                            >
+                              ${await Badge.instance({
+                                id: 'shortcut-key-info-search',
+                                text: 'Shift',
+                                classList: 'inl',
+                                style: { 'z-index': 1 },
+                              })}
+                              ${await Badge.instance({
+                                id: 'shortcut-key-info-search',
+                                text: '+',
+                                classList: 'inl',
+                                style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
+                              })}
+                              ${await Badge.instance({
+                                id: 'shortcut-key-info-search',
+                                text: 'k',
+                                classList: 'inl',
+                                style: { 'z-index': 1 },
+                              })}
+                            </div>`
+                          : ''}
+                      </div>`,
+                      inputClass: 'in fll',
+                      // containerClass: '',
+                    })}
+                  </form>
                   <div
-                    class="fl top-bar  ${options.barClass ? options.barClass : ''}"
-                    style="height: ${originHeightTopBar}px;"
+                    class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
                   >
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
-                      label: html` <div class="${contentIconClass} action-btn-close-render">
-                        <i class="fa-solid fa-xmark"></i>
-                      </div>`,
+                      class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
+                      label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
                     })}
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
-                      class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
-                        options?.disableTools?.includes('app-icon') ? 'hide' : ''
-                      }`,
-                      label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
+                      class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
+                      label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
+                        <i class="fas fa-user-plus"></i>
+                      </div>`,
                     })}
-                    <form
-                      class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
-                        ? 'hide'
-                        : ''}"
-                    >
-                      ${await Input.instance({
-                        id: inputSearchBoxId,
-                        autocomplete: 'off',
-                        placeholder: Modal.mobileModal()
-                          ? Translate.instance('search', '.top-bar-search-box')
-                          : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
-                        placeholderIcon: html`<div
-                          class="in fll"
-                          style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
-                        >
-                          <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
-                          ${!Modal.mobileModal()
-                            ? html` <div
-                                class="inl wfm key-shortcut-container-info"
-                                style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
-                              >
-                                ${await Badge.instance({
-                                  id: 'shortcut-key-info-search',
-                                  text: 'Shift',
-                                  classList: 'inl',
-                                  style: { 'z-index': 1 },
-                                })}
-                                ${await Badge.instance({
-                                  id: 'shortcut-key-info-search',
-                                  text: '+',
-                                  classList: 'inl',
-                                  style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
-                                })}
-                                ${await Badge.instance({
-                                  id: 'shortcut-key-info-search',
-                                  text: 'k',
-                                  classList: 'inl',
-                                  style: { 'z-index': 1 },
-                                })}
-                              </div>`
-                            : ''}
-                        </div>`,
-                        inputClass: 'in fll',
-                        // containerClass: '',
-                      })}
-                    </form>
-                    <div
-                      class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
-                    >
-                      ${await BtnIcon.instance({
-                        style: `height: 100%`,
-                        class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
-                        label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
-                      })}
-                      ${await BtnIcon.instance({
-                        style: `height: 100%`,
-                        class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
-                        label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
-                          <i class="fas fa-user-plus"></i>
-                        </div>`,
-                      })}
-                    </div>
                   </div>
-                  ${options?.slideMenuTopBarBannerFix
-                    ? html`<div
-                        class="abs modal slide-menu-top-bar-fix"
-                        style="height: ${options.heightTopBar}px; top: 0px"
-                      >
-                        <a class="a-link-top-banner fl">
-                          <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
-                        >
-                      </div>`
-                    : ''}
-                  ${topBarHamburger
-                    ? html`<div
-                          class="abs main-btn-menu-top-container"
-                          style="bottom: 0px; left: 0px; z-index: 10; height: ${originHeightTopBar}px; width: ${originHeightTopBar}px"
-                        >
-                          ${await BtnIcon.instance({
-                            style: `height: 100%`,
-                            class: `in fll main-btn-menu-top action-bar-box action-btn-center-top`,
-                            label: html`<div class="abs center">
-                              <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                              <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
-                              <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
-                            </div>`,
-                          })}
-                        </div>
-
-                        <style>
-                          /* The top bar owns the hamburger here, so the floating container drops its
-                           copy and closes the gap it leaves. */
-                          .a-link-top-banner {
-                            padding-left: 35px;
-                          }
-                          .main-body-btn-bar-custom {
-                            top: 50px !important;
-                          }
-                          .main-body-btn-menu {
-                            display: none;
-                          }
-                        </style>`
-                    : ''}
-                </div>`,
+                  ${ShellLayout.renderSlot('end')}
+                </div>
+                <div class="abs modal slide-menu-top-bar-fix" style="height: 100%">
+                  <a class="a-link-top-banner fl">
+                    <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
+                  >
+                </div>
+              </div>`,
             );
+            Modal.setTopBannerLink();
             EventsUI.onClick(`.action-btn-profile-log-in`, () => {
               if (Modal.mobileModal() && s(`.btn-close-search-box-history`)) {
                 s(`.btn-close-search-box-history`).click();
@@ -904,12 +392,6 @@ class Modal {
               }
               s(`.main-btn-sign-up`).click();
             });
-            if (topBarHamburger) {
-              EventsUI.onClick(`.action-btn-center-top`, (e) => {
-                e.preventDefault();
-                Modal.actionBtnCenter();
-              });
-            }
             s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
             htmls(`.input-info-${inputSearchBoxId}`, '');
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
@@ -1074,12 +556,7 @@ class Modal {
                 setTimeout(() => {
                   getResultSearchBox(validatorData);
 
-                  if (
-                    s(`.slide-menu-top-bar-fix`) &&
-                    !s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide')
-                  ) {
-                    s(`.main-body-btn-bar-custom`).click();
-                  }
+                  if (!ShellLayout.state.searchOpen) ShellLayout.openSearch();
                 });
               };
 
@@ -1135,9 +612,7 @@ class Modal {
               let boxHistoryDelayRender = 0;
               const searchBoxHistoryOpen = async () => {
                 if (boxHistoryDelayRender) return;
-                if (Modal.mobileModal()) {
-                  btnCloseEvent();
-                }
+                ShellLayout.closeDrawer();
                 boxHistoryDelayRender = 1000;
                 setTimeout(() => (boxHistoryDelayRender = 0));
                 if (!s(`.${searchBoxHistoryId}`)) {
@@ -1176,14 +651,13 @@ class Modal {
                       'max-width': '450px',
                       height:
                         this.mobileModal() && windowGetW() < 445
-                          ? `${windowGetH() - originHeightTopBar}px !important`
+                          ? `${windowGetH() - SHELL_BAR_SIZE}px !important`
                           : '300px !important',
                       'z-index': 9,
                     },
                     class: 'search-history-modal',
                     dragDisabled: true,
                     maximize: true,
-                    barMode: options.barMode,
                   });
 
                   // Bind hover/focus and click-outside to dismiss
@@ -1275,16 +749,11 @@ class Modal {
                   } catch (e) {}
                 }
                 Modal.removeModal(searchBoxHistoryId);
-                updateBarCustomVisibility();
               };
               s('.top-bar-search-box').onblur = () => {
                 hoverFocusCtl.checkDismiss();
               };
               EventsUI.onClick(`.top-bar-search-box-container`, () => {
-                if (SearchBox.Data.skipOpen) {
-                  SearchBox.Data.skipOpen = false;
-                  return;
-                }
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
                 const inputEl = s(`.${inputSearchBoxId}`);
@@ -1368,31 +837,6 @@ class Modal {
               };
             }
             setTimeout(async () => {
-              // clone and change position
-
-              // s(`.btn-close-${idModal}`);
-              // s(`.btn-menu-${idModal}`);
-              if (originHeightBottomBar === 0) {
-                const btnCloseNode = s(`.btn-close-${idModal}`).cloneNode(true);
-                s(`.btn-close-${idModal}`).remove();
-                s(`.top-bar`).appendChild(btnCloseNode);
-                s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
-
-                const btnMenuNode = s(`.btn-menu-${idModal}`).cloneNode(true);
-                s(`.btn-menu-${idModal}`).remove();
-                s(`.top-bar`).appendChild(btnMenuNode);
-                s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
-              }
-
-              // const titleNode = s(`.title-modal-${idModal}`).cloneNode(true);
-              // s(`.title-modal-${idModal}`).remove();
-              // s(`.top-bar`).appendChild(titleNode);
-
-              s(`.slide-menu-top-bar`).style.zIndex = 7;
-
-              // s('body').removeChild(`.${idModal}`);
-              // while (s(`.top-modal`).firstChild) s(`.top-modal`).removeChild(s(`.top-modal`).firstChild);
-
               {
                 const { barConfig } = await Themes[Css.currentTheme]();
                 barConfig.buttons.maximize.disabled = true;
@@ -1400,53 +844,23 @@ class Modal {
                 barConfig.buttons.restore.disabled = true;
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
-                const id = 'main-body';
                 await Modal.instance({
-                  id,
+                  id: 'main-body',
                   barConfig,
                   html: options.htmlMainBody ? options.htmlMainBody : () => html``,
                   titleClass: 'hide',
                   style: {
-                    // overflow: 'hidden',
                     background: 'none',
                     resize: 'none',
                     'min-width': `${minWidth}px`,
                     width: '100%',
-                    // border: '3px solid red',
                   },
                   dragDisabled: true,
                   maximize: true,
                   slideMenu: 'modal-menu',
-                  barMode: options.barMode,
                   observer: true,
                   disableBoxShadow: true,
                 });
-                const maxWidthInputSearchBox = 450;
-                const paddingInputSearchBox = 5;
-                const paddingRightSearchBox = 50;
-                Responsive.onChanged(
-                  () => {
-                    if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                    const widthInputSearchBox =
-                      windowGetW() > maxWidthInputSearchBox ? maxWidthInputSearchBox : windowGetW();
-                    s(`.top-bar-search-box-container`).style.width = `${
-                      widthInputSearchBox - originHeightTopBar - paddingRightSearchBox - 1
-                    }px`;
-                    s(`.top-bar-search-box`).style.width = `${
-                      widthInputSearchBox -
-                      originHeightTopBar * 2 -
-                      paddingRightSearchBox -
-                      paddingInputSearchBox * 2 /*padding input*/ -
-                      10 /* right-margin */
-                    }px`;
-                    s(`.top-bar-search-box`).style.top = `${
-                      (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
-                    }px`;
-                    if (this.Data[id].slideMenu) s(`.${id}`).style.height = `${Modal.Data[id].getHeight()}px`;
-                  },
-                  { key: `view-${id}` },
-                );
-                Responsive.triggerChanged(`view-${id}`);
                 Keyboard.instanceMultiPressKey({
                   id: 'input-search-shortcut-k',
                   keys: [
@@ -1454,15 +868,7 @@ class Modal {
                     ['Alt', 'k'],
                   ],
                   eventCallBack: () => {
-                    if (isTextInputFocused()) return;
-                    if (s(`.top-bar-search-box`)) {
-                      if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
-                        s(`.main-body-btn-ui-open`).click();
-                      }
-                      s(`.top-bar-search-box`).blur();
-                      s(`.top-bar-search-box`).focus();
-                      s(`.top-bar-search-box`).select();
-                    }
+                    if (!isTextInputFocused()) ShellLayout.focusSearch();
                   },
                 });
               }
@@ -1475,10 +881,7 @@ class Modal {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
-                if (!this.Data[idModal].homeModals) this.Data[idModal].homeModals = [];
-                if (!this.Data[idModal].homeModals.includes(id)) {
-                  this.Data[idModal].homeModals.push(id);
-                }
+                if (!this.Data[idModal].homeModals.includes(id)) this.Data[idModal].homeModals.push(id);
                 const html = async () => html`
                   <style>
                     .top-bar-search-box-container {
@@ -1495,10 +898,8 @@ class Modal {
                       min-height: 50px;
                     }
                   </style>
-                  <div
-                    class="fl ${options.barClass ? options.barClass : ''}"
-                    style="height: ${originHeightBottomBar}px;"
-                  >
+                  <div class="fl ${options.barClass ? options.barClass : ''}" style="height: ${SHELL_BAR_SIZE}px;">
+                    ${ShellLayout.renderSlot('footer')}
                     ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-lang ${
@@ -1536,7 +937,7 @@ class Modal {
                     })}
                   </div>
                 `;
-                if (options.heightBottomBar === 0 && options.heightTopBar > 0) {
+                if (footerHeight === 0) {
                   append(`.slide-menu-top-bar`, html` <div class="in ${id}">${await html()}</div>`);
                 } else {
                   await Modal.instance({
@@ -1546,30 +947,14 @@ class Modal {
                     titleClass: 'hide',
                     style: {
                       resize: 'none',
-                      height: `${options.heightBottomBar}px`,
                       'min-width': `${minWidth}px`,
                       'z-index': 7,
-                      // bottom: '0px !important',
-                      width: `${windowGetW()}px`,
-                      top: `${Modal.Data['modal-menu'].getTop()}px`,
                     },
                     dragDisabled: true,
                     disableCenter: true,
-                    // maximize: true,
-                    barMode: options.barMode,
                   });
-                  Responsive.onChanged(
-                    () => {
-                      if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                      //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
-                      // s(`.right-offset-menu-bottom-bar`).style.width = `${windowGetW() - slideMenuWidth}px`;
-                      s(`.${id}`).style.top = `${Modal.Data['modal-menu'].getTop()}px`;
-                      s(`.${id}`).style.width = `${windowGetW()}px`;
-                    },
-                    { key: `view-${id}` },
-                  );
-                  // Responsive.Event[`view-${id}`]();
                 }
+                ShellLayout.bind();
                 EventsUI.onClick(`.action-btn-left`, (e) => {
                   e.preventDefault();
                   window.history.back();
@@ -1582,12 +967,14 @@ class Modal {
                   await Modal.onHomeRouterEvent();
                   subMenuHandler(Object.keys(options.RouterInstance.Routes()));
                   Object.keys(this.Data[idModal].onHome).map((keyListener) => this.Data[idModal].onHome[keyListener]());
+                  s(`.main-body`)?.scrollTo({ top: 0, behavior: 'smooth' });
                 });
                 EventsUI.onClick(`.action-btn-app-icon`, () => s(`.action-btn-home`).click());
                 Keyboard.instanceMultiPressKey({
                   id: 'input-shortcut-global-escape',
                   keys: ['Escape'],
                   eventCallBack: () => {
+                    if (ShellLayout.state.drawerOpen) return ShellLayout.closeDrawer();
                     if (s(`.btn-close-${this.currentTopModalId}`)) s(`.btn-close-${this.currentTopModalId}`).click();
                   },
                 });
@@ -1664,7 +1051,6 @@ class Modal {
                       },
                       dragDisabled: true,
                       maximize: true,
-                      barMode: options.barMode,
                     });
 
                     // Move title inside the bar container to align with control buttons
@@ -1697,70 +1083,14 @@ class Modal {
                 );
               }
 
-              {
-                const { barConfig } = await Themes[Css.currentTheme]();
-                barConfig.buttons.maximize.disabled = true;
-                barConfig.buttons.minimize.disabled = true;
-                barConfig.buttons.restore.disabled = true;
-                barConfig.buttons.menu.disabled = true;
-                barConfig.buttons.close.disabled = true;
-                const id = 'main-body-top';
-                await Modal.instance({
-                  id,
-                  barConfig,
-                  html: () => html``,
-                  titleClass: 'hide',
-                  class: 'hide',
-                  style: {
-                    // overflow: 'hidden',
-                    resize: 'none',
-                    'min-width': `${minWidth}px`,
-                    'z-index': 5,
-                    background: `rgba(61, 61, 61, 0.5)`,
-                    // border: '3px solid red',
-                  },
-                  dragDisabled: true,
-                  maximize: true,
-                  barMode: options.barMode,
-                });
-
-                Responsive.onChanged(
-                  () => {
-                    if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                    s(`.${id}`).style.height =
-                      s(`.main-body-btn-ui-close`).classList.contains('hide') &&
-                      s(`.btn-restore-${id}`).style.display !== 'none'
-                        ? `${windowGetH()}px`
-                        : `${Modal.Data[id].getHeight()}px`;
-
-                    if (
-                      s(`.main-body-btn-ui-close`).classList.contains('hide') &&
-                      s(`.btn-restore-${id}`).style.display !== 'none'
-                    ) {
-                      s(`.${id}`).style.top = '0px';
-                    } else {
-                      s(`.${id}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-                    }
-                  },
-                  { key: `view-${id}` },
-                );
-                Responsive.triggerChanged(`view-${id}`);
-
-                s(`.main-body-top`).onclick = () => s(`.btn-close-modal-menu`).click();
-              }
-
               await NotificationManager.RenderBoard(options);
 
               const { removeEvent } = Scroll.setEvent('.main-body', async (payload) => {
-                // console.warn('scroll', payload);
                 if (payload.scrollTop > 100) {
-                  if (!s(`.main-body-btn-ui-close`).classList.contains('hide')) s(`.main-body-btn-ui-close`).click();
-
+                  ShellLayout.hideChrome();
                   removeEvent();
                 }
               });
-              Scroll.setEvent('.main-body', () => updateBarCustomVisibility());
-              updateBarCustomVisibility();
               setTimeout(window.onresize);
               setRouterReady();
             });
@@ -1861,6 +1191,7 @@ class Modal {
         class="fix ${options && options.class ? options.class : ''} modal ${options.disableBoxShadow
           ? ''
           : 'box-shadow'} ${idModal === 'main-body' ? `${idModal} modal-home` : idModal}"
+        ${options.mode === 'slide-menu' ? ShellLayout.drawerAttributes : ''}
       >
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
@@ -1928,42 +1259,6 @@ class Modal {
           </div>
 
           <div class="in html-modal html-${idModal}">
-            ${options.mode && options.mode.match('slide-menu')
-              ? html`<div
-                  class="stq modal"
-                  style="${renderCssAttr({ style: { height: '50px', 'z-index': 1, top: '0px' } })}"
-                >
-                  ${await BtnIcon.instance({
-                    style: renderCssAttr({ style: { height: '100%' } }),
-                    class: `in flr main-btn-menu action-bar-box btn-icon-menu-mode`,
-                    label: html` <div class="abs center">
-                      <i
-                        class="fas fa-caret-right btn-icon-menu-mode-right ${options.mode && options.mode.match('right')
-                          ? ''
-                          : 'hide'}"
-                      ></i
-                      ><i
-                        class="fas fa-caret-left btn-icon-menu-mode-left  ${options.mode && options.mode.match('right')
-                          ? 'hide'
-                          : ''}"
-                      ></i>
-                    </div>`,
-                  })}
-                  ${await BtnIcon.instance({
-                    style: renderCssAttr({ style: { height: '100%' } }),
-                    class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
-                    label: html`<div class="abs center"><i class="fas fa-undo-alt"></i></div>`,
-                  })}
-                  <div class="abs sub-menu-title-container-${idModal} ac">
-                    <div class="abs nav-title-display-${idModal}">
-                      <!-- <i class="fas fa-home"></i> ${Translate.instance('home')} -->
-                    </div>
-                  </div>
-                  <div class="abs nav-path-container-${idModal} ahc bold">
-                    <div class="abs nav-path-display-${idModal}"><!-- ${location.pathname} --></div>
-                  </div>
-                </div>`
-              : ''}
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
           </div>
         </div>
@@ -1991,81 +1286,8 @@ class Modal {
           break;
       }
     }
-    switch (options.mode) {
-      case 'slide-menu':
-      case 'slide-menu-right':
-      case 'slide-menu-left':
-        const backMenuButtonEvent = async () => {
-          // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.instance('home')}`);
-          htmls(`.nav-title-display-${'modal-menu'}`, html``);
-          htmls(`.nav-path-display-${idModal}`, '');
-          s(`.btn-icon-menu-back`).classList.add('hide');
-          // sa(`.main-btn-menu`).forEach((el) => {
-          //   el.classList.remove('hide');
-          // });
-        };
-        s(`.main-btn-home`).onclick = async () => {
-          // await this.onHomeRouterEvent();
-          s(`.action-btn-home`).click();
-        };
-        EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);
-        EventsUI.onClick(`.btn-icon-menu-mode`, () => {
-          if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
-            s(`.btn-icon-menu-mode-right`).classList.remove('hide');
-            s(`.btn-icon-menu-mode-left`).classList.add('hide');
-          } else {
-            s(`.btn-icon-menu-mode-left`).classList.remove('hide');
-            s(`.btn-icon-menu-mode-right`).classList.add('hide');
-          }
-          if (slideMenuWidth === originSlideMenuWidth) {
-            slideMenuWidth = collapseSlideMenuWidth;
-            s(`.${idModal}`).style.width = `${slideMenuWidth}px`;
-            sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
-            setFloatingBtnOffset(Modal.Data[idModal][options.mode].width > 0);
-            sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
-            if (options.onCollapseMenu) options.onCollapseMenu();
-            s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
-            s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
-            // Shrink any already-open submenu containers to icon-only width
-            Object.keys(Modal.subMenuBtnClass).forEach((subMenuId) => {
-              const container = s(`.menu-btn-container-children-${subMenuId}`);
-              if (container && container.style.height && container.style.height !== '0px')
-                container.style.width = `${collapseSlideMenuWidth}px`;
-            });
-            Object.keys(this.Data[idModal].onCollapseMenuListener).map((keyListener) =>
-              this.Data[idModal].onCollapseMenuListener[keyListener](),
-            );
-          } else {
-            slideMenuWidth = originSlideMenuWidth;
-            s(`.${idModal}`).style.width = `${slideMenuWidth}px`;
-            sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
-            setFloatingBtnOffset(Modal.Data[idModal][options.mode].width > 0);
-            sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
+    if (options.mode === 'slide-menu') s(`.main-btn-home`).onclick = () => s(`.action-btn-home`).click();
 
-            Modal.menuTextLabelAnimation(idModal);
-
-            if (options.onExtendMenu) options.onExtendMenu();
-            s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
-            s(`.nav-path-container-${'modal-menu'}`).classList.remove('hide');
-            // Expand any already-open submenu containers back to full width
-            Object.keys(Modal.subMenuBtnClass).forEach((subMenuId) => {
-              const container = s(`.menu-btn-container-children-${subMenuId}`);
-              if (container && container.style.height && container.style.height !== '0px')
-                container.style.width = `${originSlideMenuWidth}px`;
-            });
-            Object.keys(this.Data[idModal].onExtendMenuListener).map((keyListener) =>
-              this.Data[idModal].onExtendMenuListener[keyListener](),
-            );
-          }
-          Modal.Data[idModal][options.mode].width = slideMenuWidth;
-          Responsive.triggerChanged(`slide-menu-${idModal}`);
-        });
-
-        break;
-
-      default:
-        break;
-    }
     // Track drag position for consistency
     let dragPosition = { x: 0, y: 0 };
 
@@ -2140,7 +1362,7 @@ class Modal {
       }
 
       // A dragged modal moves inside the page; a maximized view keeps the fixed bounds
-      // `Modal.placeView` gives it, so its position is left alone.
+      // `ShellLayout.fill` gives it, so its position is left alone.
       if (
         !(options.slideMenu && Modal.isMaximized(idModal)) &&
         window.getComputedStyle(modal).position !== 'absolute'
@@ -2225,28 +1447,12 @@ class Modal {
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
 
-    // A maximized view beside a left 'top-bottom-bar' menu has the floating button column over its
-    // content (its title bar sits above the column), so only the content shifts past it.
-    const syncViewHtmlOffset = (maximized) => {
-      const htmlEl = s(`.html-${idModal}`);
-      if (!htmlEl || options.mode !== 'view') return;
-      const offset =
-        maximized && options.slideMenu && this.Data[options.slideMenu]?.floatingBtnSide === 'left'
-          ? floatingBtnWidth
-          : 0;
-      htmlEl.style.left = offset ? `${offset}px` : '';
-      htmlEl.style.width = offset ? `calc(100% - ${offset}px)` : '';
-    };
-
     // Minimize button handler
     s(`.btn-minimize-${idModal}`).onclick = () => {
       const modal = s(`.${idModal}`);
       if (!modal) return;
 
-      if (options.slideMenu) {
-        delete this.Data[idModal].slideMenu;
-      }
-      syncViewHtmlOffset(false);
+      ShellLayout.release(modal);
 
       // Keep drag enabled when minimized
       if (dragInstance) {
@@ -2280,10 +1486,7 @@ class Modal {
       const modal = s(`.${idModal}`);
       if (!modal) return;
 
-      if (options.slideMenu) {
-        delete this.Data[idModal].slideMenu;
-      }
-      syncViewHtmlOffset(false);
+      ShellLayout.release(modal);
 
       // Re-enable dragging
       if (dragInstance) {
@@ -2337,48 +1540,18 @@ class Modal {
       s(`.btn-minimize-${idModal}`).style.display = null;
       modal.style.transform = null;
 
-      if (options.slideMenu) {
-        const idSlide = this.Data[options.slideMenu]['slide-menu']
-          ? 'slide-menu'
-          : this.Data[options.slideMenu]['slide-menu-right']
-            ? 'slide-menu-right'
-            : 'slide-menu-left';
-        // Width and left follow the menu, animated when the menu opens or closes.
-        const placeBesideMenu = ({ animate }) => {
-          const menuWidth = this.Data[options.slideMenu][idSlide].width;
-          // A left 'top-bottom-bar' menu keeps its floating button column beside its edge; the
-          // main body starts past that column instead of sliding under it.
-          const floatingBtnGap =
-            idModal === 'main-body' && this.Data[options.slideMenu].floatingBtnSide === 'left' ? floatingBtnWidth : 0;
-          s(`.${idModal}`).style.transition = animate ? '0.3s' : 'none';
-          s(`.${idModal}`).style.width = `${windowGetW() - menuWidth - floatingBtnGap}px`;
-          s(`.${idModal}`).style.left = idSlide === 'slide-menu-right' ? `0px` : `${menuWidth + floatingBtnGap}px`;
-          syncViewHtmlOffset(true);
-          setTimeout(
-            () => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null),
-            animate ? 300 : 0,
-          );
-        };
-        placeBesideMenu({ animate });
-        this.Data[idModal].slideMenu = {
-          callBack: () => placeBesideMenu({ animate: true }),
-          id: options.slideMenu,
-        };
-        Modal.placeView(idModal);
-        Responsive.onChanged(() => setTimeout(() => Modal.placeView(idModal)), { key: 'h-ui-hide-' + idModal });
-      } else {
-        Responsive.offChanged('h-ui-hide-' + idModal);
-        s(`.${idModal}`).style.width = '100%';
-        s(`.${idModal}`).style.height = '100%';
-        s(`.${idModal}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-        s(`.${idModal}`).style.left = `0px`;
+      if (options.slideMenu) ShellLayout.fill(modal);
+      else {
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.top = 'var(--shell-body-top, 0px)';
+        modal.style.left = '0px';
       }
       dragInstance = setDragInstance();
     };
     s(`.btn-maximize-${idModal}`).onclick = () => maximize();
 
     const btnMenuEvent = () => {
-      Modal.menuTextLabelAnimation(idModal);
       Object.keys(this.Data[idModal].onMenuListener).map((keyListener) =>
         this.Data[idModal].onMenuListener[keyListener](),
       );
@@ -2458,19 +1631,7 @@ class Modal {
       Modal.removeModal(id);
     }
 
-    // 4. Finally, handle UI cleanup for the slide-menu.
-
-    if (s(`.nav-title-display-modal-menu`)) htmls(`.nav-title-display-modal-menu`, '');
-    if (s(`.nav-path-display-modal-menu`)) htmls(`.nav-path-display-modal-menu`, '');
-    if (s(`.btn-icon-menu-back`)) s(`.btn-icon-menu-back`).classList.add('hide');
-    // sa(`.main-btn-menu`).forEach((el) => {
-    //   el.classList.remove('hide');
-    // });
-
-    // And close the slide menu if it's open
-    if (s(`.btn-close-modal-menu`) && !s(`.btn-close-modal-menu`).classList.contains('hide')) {
-      s(`.btn-close-modal-menu`).click();
-    }
+    ShellLayout.closeDrawer();
   };
 
   /** @type {string} */
@@ -2762,18 +1923,10 @@ class Modal {
   static labelSelectorTopOffsetEndAnimation = `-3px`;
 
   /**
-   * Animate slide-menu labels into view.
-   * @param {string} idModal - The slide-menu modal id.
+   * Animate the drawer labels into view.
    * @param {string} [subMenuId] - If provided, animate only this sub-menu.
    */
-  static menuTextLabelAnimation = (idModal, subMenuId) => {
-    if (
-      !s(
-        `.btn-icon-menu-mode-${Modal.Data[idModal].options.mode === 'slide-menu-right' ? 'left' : 'right'}`,
-      ).classList.contains('hide')
-    ) {
-      return;
-    }
+  static menuTextLabelAnimation = (subMenuId) => {
     const btnSelector = `.main-btn-menu`;
     const labelSelector = `.menu-label-text`;
 
@@ -2823,8 +1976,6 @@ class Modal {
    */
   static buildSubMenuItemsHtml = async (subMenuId, items = [], options = {}) => {
     let result = '';
-    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
-    const _tooltipSide = options.tooltipSide || (_menuMode === 'slide-menu-right' ? 'right' : 'left');
     for (const item of items) {
       const tabHref = typeof item.url === 'function' ? item.url() : item.url || '';
       const icon =
@@ -2834,7 +1985,6 @@ class Modal {
         label: html`<span class="inl menu-btn-icon">${icon}</span
           ><span class="menu-label-text menu-label-text-${subMenuId}"> ${item.text} </span>`,
         tabHref,
-        tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(item.text, _tooltipSide)),
         useMenuBtn: true,
       })} `;
     }
@@ -2842,8 +1992,7 @@ class Modal {
   };
 
   /**
-   * Injects pre-built submenu item HTML into the submenu container and syncs
-   * the collapse state so labels are hidden when the menu is icon-only.
+   * Injects pre-built submenu item HTML into the submenu container.
    * Does nothing when the shell renders no container for `subMenuId`.
    * @param {string} subMenuId
    * @param {string} itemsHtml
@@ -2853,12 +2002,6 @@ class Modal {
     if (!s(`.menu-btn-container-children-${subMenuId}`)) return;
     htmls(`.menu-btn-container-children-${subMenuId}`, itemsHtml);
     if (isSubMenuOpen(subMenuId)) layoutSubMenus();
-    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
-    const _collapseIndicatorClass =
-      _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
-    if (s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide')) {
-      sa(`.menu-label-text-${subMenuId}`).forEach((el) => el.classList.add('hide'));
-    }
   };
 
   /**
@@ -3159,64 +2302,10 @@ class Modal {
   /** @type {number} */
   static headerTitleHeight = 40;
 
-  /** Toggle the slide-menu open/close via the center action button. */
-  static actionBtnCenter() {
-    if (!s(`.btn-close-modal-menu`).classList.contains('hide')) {
-      return s(`.btn-close-modal-menu`).click();
-    }
-    if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) {
-      return s(`.btn-menu-modal-menu`).click();
-    }
-  }
-
-  /** Hide the top-bar, bottom-bar and slide-menu (full-screen mode). */
-  static cleanUI() {
-    s(`.top-bar`).classList.add('hide');
-    s(`.bottom-bar`).classList.add('hide');
-    s(`.modal-menu`).classList.add('hide');
-  }
-
-  /** Restore the top-bar, bottom-bar and slide-menu after cleanUI. */
-  static restoreUI() {
-    s(`.top-bar`).classList.remove('hide');
-    s(`.bottom-bar`).classList.remove('hide');
-    s(`.modal-menu`).classList.remove('hide');
-  }
-
   /** A modal is maximized while its restore button offers the way back. */
   static isMaximized(idModal) {
     const restoreEl = s(`.btn-restore-${idModal}`);
     return !!restoreEl && restoreEl.style.display !== 'none';
-  }
-
-  /**
-   * Places a maximized slide-menu view: anchored to the viewport, between the bars, with no drag
-   * offset left on it. Every view of the shell takes its bounds from here.
-   * @param {string} idModal
-   */
-  static placeView(idModal) {
-    const modalData = this.Data[idModal];
-    const modalEl = s(`.${idModal}`);
-    if (!modalData || !modalEl || !modalData.slideMenu || !Modal.isMaximized(idModal)) return;
-    const barsHidden = !!s(`.main-body-btn-ui-close`)?.classList.contains('hide');
-    modalEl.style.position = 'fixed';
-    modalEl.style.translate = '0px 0px';
-    modalEl.style.transform = '';
-    modalEl.style.top = barsHidden ? '0px' : `${modalData.options.heightTopBar ?? 50}px`;
-    modalEl.style.height = `${modalData.getHeight()}px`;
-  }
-
-  /**
-   * Re-applies canonical top/height layout for maximized slide-menu-backed view modals.
-   * This avoids iframe navigation leaving view containers offset at the top.
-   */
-  static syncViewLayout() {
-    Object.keys(this.Data).forEach((idModal) => Modal.placeView(idModal));
-
-    for (const id of coreUI) {
-      const key = `view-${id}`;
-      if (Responsive.hasChangedListener(key)) Responsive.triggerChanged(key);
-    }
   }
 
   /** Add missing `alt` attributes to all images for SEO/accessibility. */
@@ -3279,19 +2368,6 @@ const renderViewTitle = (
     </div>`;
 };
 
-/**
- * Tooltip badge for a collapsed menu button. ToolTip places it beside the button on the side
- * the menu leaves free, read from the menu mode when it shows — so a shell never pins an
- * offset that only holds for one of 'slide-menu' or 'slide-menu-right'.
- * @param {string} id - Translation key and tooltip id suffix.
- * @param {'left'|'right'} [sideKey] - Forces the side the menu sits on; omit to follow the mode.
- */
-const buildBadgeToolTipMenuOption = (id, sideKey) => ({
-  id: `tooltip-content-main-btn-${id}`,
-  text: `${Translate.instance(`${id}`)}`,
-  classList: `tooltip-menu${sideKey ? ` tooltip-menu-side-${sideKey}` : ''}`,
-});
-
 /** Whether a submenu is open: the state `subMenuRender` keeps, whatever its caret shows mid-turn. */
 const isSubMenuOpen = (subMenuId) => !!Modal.subMenuBtnClass[subMenuId]?.open;
 
@@ -3329,17 +2405,7 @@ const subMenuRender = async (subMenuId, forceOpen) => {
 
   if (!menuBtn || !menuContainer || !arrow) return;
 
-  const top = () => {
-    let value = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar;
-
-    const isHidden = s('.main-body-btn-ui-open').classList.contains('hide');
-    const isTopBottom = Modal.Data['modal-menu'].options.barMode === 'top-bottom-bar';
-
-    if (!isTopBottom && isHidden) value -= 51;
-    else if (!isHidden) value += 51;
-
-    menuContainer.style.top = `${value}px`;
-  };
+  const top = () => (menuContainer.style.top = `${menuBtn.offsetTop + menuBtn.offsetHeight}px`);
 
   const shouldOpen = forceOpen ?? !isSubMenuOpen(subMenuId);
   Modal.subMenuBtnClass[subMenuId] = {
@@ -3367,14 +2433,9 @@ const subMenuRender = async (subMenuId, forceOpen) => {
       if (!el.classList.contains('hide')) el.classList.add('hide');
     });
     setTimeout(() => {
-      Modal.menuTextLabelAnimation('modal-menu', subMenuId);
+      Modal.menuTextLabelAnimation(subMenuId);
     });
-    // Open animation — match the current menu width (collapsed = 50px, extended = 320px)
-    const _menuMode = Modal.Data['modal-menu']?.options?.mode;
-    const _collapseIndicatorClass =
-      _menuMode === 'slide-menu-right' ? '.btn-icon-menu-mode-left' : '.btn-icon-menu-mode-right';
-    const _isMenuCollapsed = s(_collapseIndicatorClass) && !s(_collapseIndicatorClass).classList.contains('hide');
-    menuContainer.style.width = `${_isMenuCollapsed ? 50 : 320}px`;
+    menuContainer.style.width = '100%';
     menuContainer.style.overflow = null;
     arrow.style.rotate = '0deg';
     setTimeout(() => {
@@ -3428,7 +2489,6 @@ export {
   SUBMENU_SELECTION_QUERY_KEY,
   renderMenuLabel,
   renderViewTitle,
-  buildBadgeToolTipMenuOption,
   subMenuRender,
   sortableSubMenuEvents,
   isSubMenuOpen,

@@ -18,6 +18,8 @@ const DefaultConf = /**/ {
           'Keyboard',
           'Translate',
           'Modal',
+          'ShellLayout',
+          'ShellNavigation',
           'BtnIcon',
           'Logger',
           'Css',

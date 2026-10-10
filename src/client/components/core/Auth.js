@@ -12,6 +12,7 @@ import { LogIn } from './LogIn.js';
 import { LogOut } from './LogOut.js';
 import { NotificationManager } from './NotificationManager.js';
 import { SearchBox } from './SearchBox.js';
+import { ShellLayout } from './ShellLayout.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 import { GuestService } from '../../services/user/guest.service.js';
@@ -319,11 +320,7 @@ class Auth {
       // Close any open login/signup modals
       if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
       if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
-      if (!s(`.main-body-btn-ui-open`).classList.contains('hide')) s(`.main-body-btn-ui-open`).click();
-      if (!s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide')) {
-        SearchBox.Data.skipOpen = true;
-        s(`.main-body-btn-ui-bar-custom-open`).click();
-      }
+      ShellLayout.openSearch();
     });
   }
 

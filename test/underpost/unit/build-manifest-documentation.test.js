@@ -17,6 +17,7 @@ vi.mock('../../../src/client/components/core/Modal.js', () => ({
   renderViewTitle: () => '',
 }));
 vi.mock('../../../src/client/components/core/Responsive.js', () => ({ Responsive: {} }));
+vi.mock('../../../src/client/components/core/ShellLayout.js', () => ({ ShellLayout: {} }));
 vi.mock('../../../src/client/components/core/Router.js', () => ({
   listenQueryPathInstance: () => {},
   setQueryPath: () => {},

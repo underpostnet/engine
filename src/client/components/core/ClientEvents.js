@@ -48,14 +48,9 @@ const AppointmentEventType = {
 const ModalEventType = {
   close: 'modal:close',
   menu: 'modal:menu',
-  collapseMenu: 'modal:collapse-menu',
-  extendMenu: 'modal:extend-menu',
   dragEnd: 'modal:drag-end',
   observer: 'modal:observer',
   click: 'modal:click',
-  expandUi: 'modal:expand-ui',
-  barUiOpen: 'modal:bar-ui-open',
-  barUiClose: 'modal:bar-ui-close',
   reload: 'modal:reload',
   home: 'modal:home',
 };
@@ -63,14 +58,9 @@ const ModalEventType = {
 const ModalListenerChannels = {
   onCloseListener: ModalEventType.close,
   onMenuListener: ModalEventType.menu,
-  onCollapseMenuListener: ModalEventType.collapseMenu,
-  onExtendMenuListener: ModalEventType.extendMenu,
   onDragEndListener: ModalEventType.dragEnd,
   onObserverListener: ModalEventType.observer,
   onClickListener: ModalEventType.click,
-  onExpandUiListener: ModalEventType.expandUi,
-  onBarUiOpen: ModalEventType.barUiOpen,
-  onBarUiClose: ModalEventType.barUiClose,
   onReloadModalListener: ModalEventType.reload,
   onHome: ModalEventType.home,
 };

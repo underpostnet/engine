@@ -13,7 +13,7 @@ class NotificationManager {
           .notification-board-container {
             right: 5px !important;
             width: 300px !important;
-            bottom: ${5 + (options?.heightBottomBar ? options.heightBottomBar : 0)}px !important;
+            bottom: calc(5px + var(--shell-body-bottom, 0px)) !important;
             z-index: 11 !important;
           }
           .notification-board-title {

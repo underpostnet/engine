@@ -134,7 +134,6 @@ class LoadingAnimation {
       s(backgroundContainer).style.display = 'none';
       if (callBack) callBack();
     }
-    if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
     for (const key of Object.keys(LoadingAnimation.onRemoveSplashScreen)) {
       const event = LoadingAnimation.onRemoveSplashScreen[key];
       delete LoadingAnimation.onRemoveSplashScreen[key];

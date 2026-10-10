@@ -863,7 +863,6 @@ const subThemeManager = {
         .main-btn-menu-active,
         .top-bar-search-box-container:hover,
         .down-arrow-submenu:hover,
-        .btn-icon-menu-mode:hover,
         .handle-btn-container:hover {
           color: ${darkenHex(this.lightColor, 0.5)};
           background-color: ${lightenHex(this.lightColor, 0.8)};
@@ -883,7 +882,6 @@ const subThemeManager = {
           background-color: rgba(0, 0, 0, 0.2);
         }
         .down-arrow-submenu,
-        .btn-icon-menu-mode,
         .handle-btn-container {
           color: #c4c3c3;
         }
@@ -902,7 +900,6 @@ const subThemeManager = {
         .documentation-step:hover,
         .top-bar-search-box-container:hover,
         .down-arrow-submenu:hover,
-        .btn-icon-menu-mode:hover,
         .handle-btn-container:hover {
           color: ${this.darkColor};
           background-color: ${darkenHex(this.darkColor, 0.75)};
@@ -922,7 +919,6 @@ const subThemeManager = {
           background-color: rgba(255, 255, 255, 0.2);
         }
         .down-arrow-submenu,
-        .btn-icon-menu-mode,
         .handle-btn-container {
           color: #3f3f3f;
         }

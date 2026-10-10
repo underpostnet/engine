@@ -860,7 +860,6 @@ class FileExplorer {
                 mode: 'view',
                 slideMenu: 'modal-menu',
                 RouterInstance: Modal.Data[options.idModal].options.RouterInstance,
-                barMode: Modal.Data[options.idModal].options.barMode,
               });
               // Handle submit button
               setTimeout(() => {

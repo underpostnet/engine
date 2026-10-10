@@ -61,7 +61,6 @@ class BtnIcon {
             id: tokenId,
             htmlRender: options.tooltipHtml,
             useVisibilityHover: !!options.useVisibilityHover,
-            useMenuBtn: !!options.useMenuBtn,
           });
       });
     return render;

@@ -4,6 +4,7 @@ import { s, htmls } from './VanillaJs.js';
 import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
+import { ShellLayout } from './ShellLayout.js';
 import { getId } from './CommonJs.js';
 import { getPublicRouteParam, getViewPath, presentPublicRoute } from './Router.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
@@ -43,7 +44,7 @@ class PublicProfile {
       Modal.writeHTML({ idModal, html: newContent });
       Modal.zIndexSync({ idModal });
 
-      if (Modal.mobileModal()) setTimeout(() => s(`.btn-close-modal-menu`).click());
+      ShellLayout.closeDrawer();
 
       this._addTransitionEffect(idModal);
       return newContent;

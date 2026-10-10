@@ -79,7 +79,6 @@ const CssCommonCore = async () => {
       }
       .top-box-profile-container {
         top: 0px;
-        right: 0px;
         box-sizing: border-box;
         /* border: 2px solid red; */
       }
@@ -128,7 +127,6 @@ const CssCommonCore = async () => {
         left: 0;
         width: 100%;
         z-index: 1;
-        transition: 0.3s;
       }
       @keyframes ripple {
         to {
@@ -149,15 +147,6 @@ const CssCommonCore = async () => {
         left: 115px;
         transform-origin: center;
         width: 0px;
-      }
-      .main-body-btn {
-        width: 50px;
-        height: 50px;
-        font-size: 18px;
-        cursor: pointer;
-      }
-      .main-body-btn:hover {
-        font-size: 21px;
       }
       .main-menu-btn-selector {
         overflow: hidden;
@@ -557,7 +546,7 @@ class CssCoreDark {
           border: 2px solid #313131;
         }
       </style>
-      ${scrollBarDarkRender()} ${borderChar(1, 'black', ['.main-body-btn-container'])}
+      ${scrollBarDarkRender()} ${borderChar(1, 'black', ['.shell-restore', '.shell-nav-fixed'])}
     `;
 }
 class CssCoreLight {
@@ -869,7 +858,7 @@ class CssCoreLight {
           border: 2px solid #bbb;
         }
       </style>
-      ${scrollBarLightRender()} ${borderChar(1, 'white', ['.main-body-btn-container'])}
+      ${scrollBarLightRender()} ${borderChar(1, 'white', ['.shell-restore', '.shell-nav-fixed'])}
     `;
 }
 export { CssCoreDark, CssCoreLight };

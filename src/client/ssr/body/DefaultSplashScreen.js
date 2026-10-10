@@ -1,6 +1,6 @@
-// Skeleton of a `barMode: 'top-bottom-bar'` app shell as it first paints, with its left
-// `slide-menu` closed: a 50px top bar (app icon, search box, profile), a 50px bottom bar (the
-// navigator on the right) and the floating column beside the menu. Keep every box on the 50px
+// Skeleton of a `split` app shell (`ShellLayout`) as it first paints, with its left drawer closed:
+// a 50px top bar (navigation toggle, app icon, search box, profile, search toggle) and a 50px
+// bottom bar (hide-bars toggle on the left, navigator on the right). Keep every box on the 50px
 // grid the live bars use so nothing jumps when the shell replaces this.
 //
 // Painted in the theme the app will load — `_theme` in localStorage, the key `Css.loadThemes`
@@ -66,16 +66,25 @@ SSRComponent = ({ backgroundImage }) => html`
       height: 40px;
       width: 40px;
     }
-    /* Top bar: app icon, then the search box beside it, profile on the right. */
-    .ssr-btn-app-icon {
+    /* Top bar: navigation toggle, app icon and search box; profile and search toggle on the right. */
+    .ssr-btn-nav-toggle {
       left: 5px;
     }
+    .ssr-btn-app-icon {
+      left: 55px;
+    }
     .ssr-btn-profile {
-      right: 5px;
+      right: 55px;
       border-radius: 50%;
     }
+    .ssr-btn-search-toggle {
+      right: 5px;
+    }
     .ssr-top-bar .ssr-search-box {
-      left: 55px;
+      left: 105px;
+    }
+    .ssr-btn-chrome-toggle {
+      left: 5px;
     }
     /* Bottom bar: the navigator on the right — left, right, home, theme, lang. */
     .ssr-btn-nav-0 {
@@ -92,26 +101,6 @@ SSRComponent = ({ backgroundImage }) => html`
     }
     .ssr-btn-nav-4 {
       right: 205px;
-    }
-    /* Floating column beside the closed menu (the live .main-body-btn-container, hidden until the
-       splash lifts): bars toggle, hamburger and search stacked from 100px down the left edge. */
-    .ssr-float-bar {
-      top: 100px;
-      left: 0px;
-      width: 50px;
-      height: 150px;
-    }
-    .ssr-btn-float-0 {
-      top: 5px;
-    }
-    .ssr-btn-float-1 {
-      top: 55px;
-    }
-    .ssr-btn-float-2 {
-      top: 105px;
-    }
-    .ssr-float-bar .ssr-btn {
-      left: 5px;
     }
     .ssr-loader {
       width: auto;
@@ -146,7 +135,7 @@ SSRComponent = ({ backgroundImage }) => html`
   <div class="ssr-background-image"></div>
   <div class="ssr-abs ssr-background" style="opacity: 1">
     <div class="ssr-abs ssr-top-bar">
-      ${['app-icon', 'profile']
+      ${['nav-toggle', 'app-icon', 'profile', 'search-toggle']
         .map(
           (id) =>
             html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
@@ -157,17 +146,7 @@ SSRComponent = ({ backgroundImage }) => html`
       <div class="ssr-abs ssr-search-box"><div class="ssr-shimmer-dark-search-box"></div></div>
     </div>
     <div class="ssr-abs ssr-bottom-bar">
-      ${['nav-0', 'nav-1', 'nav-2', 'nav-3', 'nav-4']
-        .map(
-          (id) =>
-            html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
-              <div class="ssr-shimmer-dark"></div>
-            </div>`,
-        )
-        .join('')}
-    </div>
-    <div class="ssr-abs ssr-float-bar">
-      ${['float-0', 'float-1', 'float-2']
+      ${['chrome-toggle', 'nav-0', 'nav-1', 'nav-2', 'nav-3', 'nav-4']
         .map(
           (id) =>
             html`<div class="ssr-abs ssr-btn ssr-btn-${id}">
