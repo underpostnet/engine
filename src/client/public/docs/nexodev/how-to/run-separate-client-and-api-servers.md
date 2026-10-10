@@ -12,7 +12,7 @@ Your `package.json` should be configured with the following scripts:
 
 ```json
 "scripts": {
-  "dev:api": "NODE_ENV=development nodemon --watch src --ignore src/client src/api",
+  "dev:api": "NODE_ENV=development node src/dev src/api",
   "dev:client": "NODE_ENV=development node src/client.dev"
 }
 ```
@@ -64,6 +64,10 @@ both of them. Starting the client first fails with a message naming the missing 
       as the CORS origin of the `local-dev-api` configuration, and then loads that configuration —
       passing no origin here leaves the API on its base `local` configuration instead.
     - The API server will run on `http://localhost:4001` (`PORT + 1` from your `.env.development`).
+    - `src/dev.js` restarts the API server when a `.js`, `.mjs`, `.cjs` or `.json` file under `src/`
+      changes, except under `src/client/`. It stops the server with `SIGINT`, and with `SIGKILL` after
+      5 seconds, so a restart never waits for a process that ignores the signal. The output is never
+      cleared. Ctrl+C stops the watcher and the server.
 
 2.  **Run the Client Server:**
     Open another terminal and run:
@@ -81,6 +85,7 @@ both of them. Starting the client first fails with a message naming the missing 
     - The client server mounts no API. A public route that the API host renders from its own data,
       such as `entry`, is removed from the client configuration, and the client server answers it
       with the plain page shell. The page then loads its data from the API server.
-    - `nodemon` will watch for changes in `src/client` and automatically rebuild the client-side code.
+    - A native `fs.watch` watcher follows `src/client` (`.js`, `.mjs`, `.cjs` and `.json` files) and restarts the live build with the changed paths in `/tmp/client.build.json`.
 
 You should now have the API running on port 4001 and the client on port 4004, with the client correctly making API calls to the separate API server.
+

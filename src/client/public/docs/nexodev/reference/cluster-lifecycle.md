@@ -212,7 +212,7 @@ the node's own configuration, which `node bin host load` owns.
 
 **Command:** `npm run dev [deploy-id] [sub-conf]`
 
-Starts the server in development mode with hot-reload via nodemon.
+Starts the server in development mode through `src/dev.js`. The server restarts when a `.js`, `.mjs`, `.cjs` or `.json` file under `src/` changes, except under `src/client/`, which the client dev server rebuilds. A configuration file outside `src/`, such as a `conf.server.json`, needs a manual restart.
 
 ```bash
 npm run dev dd-core
@@ -266,7 +266,7 @@ npm run dev:proxy
 
 | Script           | Description                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
-| `dev:container`  | Starts the server in development mode without nodemon (`NODE_ENV=development node src/server`)  |
+| `dev:container`  | Starts the server in development mode without watching (`NODE_ENV=development node src/server`) |
 | `prod:container` | Starts the server in production mode inside a container (`NODE_ENV=production node src/server`) |
 | `dev:proxy`      | Starts an Express proxy server for development (`NODE_ENV=development node src/proxy proxy`)    |
 
