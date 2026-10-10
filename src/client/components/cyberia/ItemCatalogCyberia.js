@@ -1,22 +1,27 @@
 /**
  * The Cyberia Item Catalog view: which exact definition the runtime runs for each item, and the one
- * place a moderator changes it. The grid lists every binding with the state of its definition; a
- * row opens the definitions the item could run, its binding history and how its definition is
- * stored on IPFS. A bind names the definition the moderator saw the item run, so a concurrent bind
- * answers 409 and changes nothing.
+ * place a moderator changes it. The grid lists every binding with the state of its definition, a
+ * page at a time from the `page` and `limit` query parameters; a row opens the definitions the item
+ * could run, its binding history and how its definition is stored on IPFS. Add binding opens the same view for an item with no binding. A bind names the
+ * definition the moderator saw the item run, so a concurrent bind answers 409 and changes nothing.
  *
  * @module src/client/components/cyberia/ItemCatalogCyberia.js
  */
-import { ValueListFilter } from '../core/AgGrid.js';
+import { AgGrid, ValueListFilter } from '../core/AgGrid.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
+import { darkTheme } from '../core/Css.js';
+import { DropDown } from '../core/DropDown.js';
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { pageQuery } from '../core/Pagination.js';
+import { isCurrentRoute, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
-import { ProceduralGrid } from './ProceduralGridCyberia.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 
 const GRID = 'item-catalog-grid';
+const ROUTE = 'cyberia-item-catalog';
 const STATUSES = Object.freeze({
   bound: { label: 'bound', tone: 'ok' },
   unrendered: { label: 'no render', tone: 'warn' },
@@ -45,6 +50,16 @@ const stamp = (date) => (date ? new Date(date).toLocaleString() : '—');
 const notify = (text, status = 'error') => NotificationManager.Push({ html: text, status });
 const refusal = (response) =>
   notify(response.code === 409 ? `Conflict detected. ${response.message}` : response.message, 'warning');
+const button = (label, run, icon) => {
+  const node = element('button', 'item-catalog-button', label);
+  node.type = 'button';
+  if (icon) node.prepend(element('i', icon), ' ');
+  node.onclick = (event) => {
+    event.stopPropagation();
+    run();
+  };
+  return node;
+};
 const statusBadge = (status) => {
   const { label, tone } = STATUSES[status] ?? { label: status, tone: 'warn' };
   return element('span', `item-catalog-status item-catalog-status-${tone}`, label);
@@ -54,6 +69,8 @@ class ItemCatalogCyberia {
   static canBind = false;
   /** The item the details show. */
   static itemId = '';
+  /** The page the grid shows, as `{ page, limit }`; null until the first read. */
+  static loadedPage = null;
 
   static style = css`
     .item-catalog .item-catalog-muted {
@@ -90,8 +107,7 @@ class ItemCatalogCyberia {
       font-size: 12px;
       overflow-wrap: anywhere;
     }
-    .item-catalog .item-catalog-row button,
-    .item-catalog .item-catalog-cell-actions button {
+    .item-catalog .item-catalog-button {
       padding: 2px 10px;
       border: 1px solid var(--studio-subtle-border);
       border-radius: 4px;
@@ -101,7 +117,16 @@ class ItemCatalogCyberia {
       font-size: 12px;
       cursor: pointer;
     }
-    .item-catalog .item-catalog-row button:disabled {
+    .item-catalog .item-catalog-button:hover:not(:disabled) {
+      border-color: var(--studio-accent);
+      background: var(--studio-accent);
+      color: var(--studio-card);
+    }
+    .item-catalog .item-catalog-button:focus-visible {
+      outline: 2px solid var(--studio-accent);
+      outline-offset: 2px;
+    }
+    .item-catalog .item-catalog-button:disabled {
       opacity: 0.4;
       cursor: default;
     }
@@ -110,6 +135,17 @@ class ItemCatalogCyberia {
       flex-wrap: wrap;
       gap: 4px;
       padding: 4px 0;
+    }
+    .item-catalog .item-catalog-preview {
+      display: block;
+      width: 48px;
+      height: 48px;
+      padding: 2px 0;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .item-catalog .item-catalog-add {
+      margin-bottom: 8px;
     }
   `;
 
@@ -122,6 +158,24 @@ class ItemCatalogCyberia {
     const { column } = ItemCatalogCyberia;
     const text = { sortable: true, filter: 'agTextColumnFilter' };
     return [
+      {
+        headerName: 'Preview',
+        colId: 'preview',
+        minWidth: 70,
+        maxWidth: 80,
+        sortable: false,
+        filter: false,
+        autoHeight: true,
+        // The idle frame of the render the bound definition names.
+        cellRenderer: ({ data }) => {
+          if (!data.render) return element('span', 'item-catalog-muted', '—');
+          const preview = element('img', 'item-catalog-preview');
+          preview.alt = data.itemId;
+          preview.onerror = () => preview.replaceWith(element('span', 'item-catalog-muted', '—'));
+          preview.src = AtlasSpriteSheetService.idlePreviewUrl(data.objectLayerCid);
+          return preview;
+        },
+      },
       column('itemId', 'Item ID', { ...text, minWidth: 160 }),
       column('itemType', 'Item Type', text),
       column('objectLayerCid', 'Active CID', {
@@ -153,20 +207,11 @@ class ItemCatalogCyberia {
         autoHeight: true,
         cellRenderer: ({ data }) => {
           const cell = element('div', 'item-catalog-cell-actions');
-          for (const [label, icon, run] of [
-            ['Open', 'fa-solid fa-pen', () => ItemCatalogCyberia.openStudio(data.objectLayerCid)],
-            ['Change Binding', 'fa-solid fa-link', () => ItemCatalogCyberia.showItem(data.itemId)],
-            ['View History', 'fa-solid fa-clock-rotate-left', () => ItemCatalogCyberia.showItem(data.itemId)],
-          ]) {
-            const control = element('button', '', ` ${label}`);
-            control.type = 'button';
-            control.prepend(element('i', icon));
-            control.onclick = (event) => {
-              event.stopPropagation();
-              run();
-            };
-            cell.append(control);
-          }
+          cell.append(
+            button('Open', () => ItemCatalogCyberia.openStudio(data.objectLayerCid), 'fa-solid fa-pen'),
+            button('Change Binding', () => ItemCatalogCyberia.showItem(data.itemId), 'fa-solid fa-link'),
+            button('View History', () => ItemCatalogCyberia.showItem(data.itemId), 'fa-solid fa-clock-rotate-left'),
+          );
           return cell;
         },
       },
@@ -177,7 +222,41 @@ class ItemCatalogCyberia {
     const role = options.appStore?.Data?.user?.main?.model?.user?.role || 'guest';
     ItemCatalogCyberia.canBind = commonModeratorGuard(role);
     ItemCatalogCyberia.itemId = '';
-    setTimeout(() => ProceduralGrid.load(GRID));
+    ItemCatalogCyberia.loadedPage = null;
+    const addBinding = ItemCatalogCyberia.canBind
+      ? html`<div class="in item-catalog-add">
+          ${await DropDown.instance({
+            id: 'item-catalog-add-item',
+            label: html`<i class="fa-solid fa-plus"></i> Add binding`,
+            data: [],
+            containerClass: 'inl',
+            serviceProvider: (q) => ItemCatalogCyberia.unboundOptions(q),
+          })}
+        </div>`
+      : '';
+    const grid = await AgGrid.instance({
+      id: GRID,
+      ownerRoute: ROUTE,
+      usePagination: true,
+      paginationOptions: { limitOptions: [10, 25, 50, 100] },
+      darkTheme,
+      style: { width: '100%', height: '50vh' },
+      gridOptions: {
+        rowData: [],
+        columnDefs: ItemCatalogCyberia.columns(),
+        defaultColDef: { flex: 1, minWidth: 90, resizable: true, sortable: false, filter: false },
+        getRowId: ({ data }) => data.itemId,
+        suppressColumnVirtualisation: true,
+        rowSelection: 'single',
+        onFilterChanged: () => ItemCatalogCyberia.queryChanged(),
+        onSortChanged: () => ItemCatalogCyberia.queryChanged(),
+        onRowClicked: ({ data }) => ItemCatalogCyberia.showItem(data.itemId),
+      },
+    });
+    setTimeout(async () => {
+      await ItemCatalogCyberia.refreshList();
+      listenQueryParamsChange({ id: 'item-catalog-page', event: () => ItemCatalogCyberia.followPageQuery() });
+    });
     return html`<style>
         ${ItemCatalogCyberia.style}
       </style>
@@ -188,14 +267,7 @@ class ItemCatalogCyberia {
             The catalog says which exact definition the runtime runs for each item. A save in the Studio and a
             procedural candidate make new definitions; only a bind here, or a promotion, moves an item to one.
           </div>
-          ${await ProceduralGrid.instance({
-            id: GRID,
-            height: '420px',
-            columnDefs: ItemCatalogCyberia.columns(),
-            rowId: (row) => row.itemId,
-            fetch: (query) => ItemCatalogCyberia.fetchPage(query),
-            onRowClicked: (row) => ItemCatalogCyberia.showItem(row.itemId),
-          })}
+          ${addBinding} ${grid}
         </div>
         <div class="in studio-group">
           <div class="in studio-group-title"><i class="fa-solid fa-clock-rotate-left"></i> Item</div>
@@ -206,13 +278,53 @@ class ItemCatalogCyberia {
       </div>`;
   }
 
-  static async fetchPage(query) {
-    const response = await CyberiaItemCatalogService.get(query);
+  /** Reads the page the query parameters name, filtered and sorted as the grid shows, with its pager. */
+  static async refreshList() {
+    const { page, limit } = pageQuery();
+    const api = AgGrid.grids[GRID];
+    const response = await CyberiaItemCatalogService.get({
+      page,
+      limit,
+      filterModel: api.getFilterModel(),
+      sortModel: api
+        .getColumnState()
+        .filter(({ sort }) => sort)
+        .map(({ colId, sort }) => ({ colId, sort })),
+    });
+    if (response.status !== 'success') return refusal(response);
+    const { data, total, totalPages } = response.data;
+    ItemCatalogCyberia.loadedPage = { page, limit };
+    api.setGridOption('rowData', data);
+    s(`#ag-pagination-${GRID}`)?.showPage({ page, limit, total, totalPages });
+  }
+
+  /** Reads the list again when the query parameters of its route name another page. */
+  static followPageQuery() {
+    if (!isCurrentRoute(ROUTE) || !s('.item-catalog')) return;
+    const { page, limit } = pageQuery();
+    const loaded = ItemCatalogCyberia.loadedPage;
+    if (!loaded || loaded.page !== page || loaded.limit !== limit) ItemCatalogCyberia.refreshList();
+  }
+
+  /** A new filter or sort reads from the first page. */
+  static queryChanged() {
+    if (pageQuery().page === 1) ItemCatalogCyberia.refreshList();
+    else setQueryParams({ page: 1 });
+  }
+
+  /** The items Add binding offers: a published definition and no binding. A pick shows the item. */
+  static async unboundOptions(q) {
+    const response = await CyberiaItemCatalogService.getUnbound({ q });
     if (response.status !== 'success') {
       refusal(response);
-      return null;
+      return [];
     }
-    return response.data;
+    return response.data.items.map(({ itemId }) => ({
+      value: itemId,
+      display: itemId,
+      data: itemId,
+      onClick: () => ItemCatalogCyberia.showItem(itemId),
+    }));
   }
 
   static openStudio(cid) {
@@ -232,7 +344,7 @@ class ItemCatalogCyberia {
     const title = element('div', '', '');
     title.append(
       element('strong', '', itemId),
-      element('span', 'item-catalog-muted', ` runs ${shortCid(objectLayerCid)}`),
+      element('span', 'item-catalog-muted', objectLayerCid ? ` runs ${shortCid(objectLayerCid)}` : ' is not bound'),
     );
     const definitionRows = definitions.map((definition) => {
       const row = element('div', 'item-catalog-row');
@@ -244,17 +356,13 @@ class ItemCatalogCyberia {
         element('span', 'item-catalog-muted', stamp(definition.createdAt)),
       );
       if (active) row.append(statusBadge('bound'));
-      const open = element('button', '', 'Open');
-      open.type = 'button';
-      open.onclick = () => ItemCatalogCyberia.openStudio(definition.cid);
-      const bind = element('button', '', 'Bind as Runtime Version');
-      bind.type = 'button';
+      const open = button('Open', () => ItemCatalogCyberia.openStudio(definition.cid));
+      const bind = button('Bind as Runtime Version', () =>
+        ItemCatalogCyberia.bind(itemId, definition.cid, objectLayerCid),
+      );
       bind.disabled = !ItemCatalogCyberia.canBind || active || definition.archived || definition.origin === 'draft';
-      bind.onclick = () => ItemCatalogCyberia.bind(itemId, definition.cid, objectLayerCid);
-      const ipfs = element('button', '', 'IPFS');
-      ipfs.type = 'button';
+      const ipfs = button('IPFS', () => ItemCatalogCyberia.showIpfs(itemId, definition.cid, row));
       ipfs.disabled = !ItemCatalogCyberia.canBind;
-      ipfs.onclick = () => ItemCatalogCyberia.showIpfs(itemId, definition.cid, row);
       row.append(open, bind, ipfs);
       return row;
     });
@@ -290,7 +398,7 @@ class ItemCatalogCyberia {
     const response = await CyberiaItemCatalogService.bind({ itemId, objectLayerCid, expectedCid });
     if (response.status !== 'success') refusal(response);
     else notify(`${itemId} runs ${shortCid(objectLayerCid)}.`, 'success');
-    await Promise.all([ProceduralGrid.load(GRID), ItemCatalogCyberia.showItem(itemId)]);
+    await Promise.all([ItemCatalogCyberia.refreshList(), ItemCatalogCyberia.showItem(itemId)]);
   }
 
   /** Shows how a definition is stored on IPFS, below its row: one line for each file. */

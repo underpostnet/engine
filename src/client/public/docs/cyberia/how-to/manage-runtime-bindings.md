@@ -15,6 +15,7 @@ Open **Cyberia Studio**, then **Cyberia Item Catalog**. Each row is one item:
 
 | Column          | Shows                                                                           |
 | --------------- | ------------------------------------------------------------------------------- |
+| Preview         | The idle frame of the render the active definition names                        |
 | Item ID         | The item                                                                        |
 | Item Type       | The type its definition declares                                                |
 | Active CID      | The definition the runtime runs                                                 |
@@ -23,7 +24,9 @@ Open **Cyberia Studio**, then **Cyberia Item Catalog**. Each row is one item:
 | Updated         | When the binding last changed                                                   |
 | Binding Status  | `bound`, `no render`, `draft`, `archived` or `not stored`                       |
 
-Filter and sort any column; the server does the work. **Binding Status** filters by its values.
+Filter and sort any column; the server does the work, and a new filter or sort shows the first
+page. **Binding Status** filters by its values. The URL keeps the page and the page size
+(`?page=&limit=`), so a reload, Back and Forward show the same page.
 
 ## Bind a runtime version
 
