@@ -23,12 +23,15 @@ class HTMLElementStub extends EventTarget {
   attachShadow() {
     this.shadowRoot = { querySelector: () => null };
   }
+  setAttribute(name, value) {
+    this.attributeChangedCallback(name, null, String(value));
+  }
 }
 
 globalThis.HTMLElement = HTMLElementStub;
 globalThis.customElements = { define: vi.fn() };
 
-const { AgPagination } = await import('../../../src/client/components/core/Pagination.js');
+const { AgPagination, pageQuery } = await import('../../../src/client/components/core/Pagination.js');
 
 describe('pagination page validation', () => {
   beforeEach(() => {
@@ -38,6 +41,26 @@ describe('pagination page validation', () => {
     router.setQueryParams.mockReset();
     router.listenQueryParamsChange.mockReset();
     router.unlistenQueryParamsChange.mockReset();
+  });
+
+  it('reads the page and the page size from the query parameters', () => {
+    expect(pageQuery({ page: '3', limit: '25' })).to.deep.equal({ page: 3, limit: 25 });
+    expect(pageQuery({ page: 'x' })).to.deep.equal({ page: 1, limit: 10 });
+    router.queryParams = { page: '2', limit: '50' };
+    expect(pageQuery()).to.deep.equal({ page: 2, limit: 50 });
+  });
+
+  it('shows the page a server read answered', () => {
+    const pagination = new AgPagination();
+
+    pagination.showPage({ page: 2, limit: 25, total: 60, totalPages: 3 });
+
+    expect([pagination._currentPage, pagination._limit, pagination._totalItems, pagination._totalPages]).to.deep.equal([
+      2, 25, 60, 3,
+    ]);
+    pagination.showPage({ page: 1, limit: 10, total: 0, totalPages: 0 });
+    expect(pagination._totalPages).to.equal(1);
+    expect(router.setQueryParams).not.toHaveBeenCalled();
   });
 
   it('keeps a page that exists', () => {

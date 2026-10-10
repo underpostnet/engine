@@ -1,4 +1,4 @@
-import { getProxyPath, getQueryParams, isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
+import { getProxyPath, isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -6,6 +6,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
+import { pageQuery } from '../core/Pagination.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
@@ -566,15 +567,9 @@ class EntityEngineCyberia {
     for (const codes of EntityEngineCyberia.instanceLinks.values()) codes.sort();
   }
 
-  /** The page the query parameters name. */
-  static pageQuery() {
-    const { page, limit } = getQueryParams();
-    return { page: parseInt(page, 10) || 1, limit: parseInt(limit, 10) || 10 };
-  }
-
   /** Reads the page the query parameters name, and shows it with its pager. */
   static async refreshList() {
-    const { page, limit } = EntityEngineCyberia.pageQuery();
+    const { page, limit } = pageQuery();
     const [res] = await Promise.all([
       CyberiaEntityTypeDefaultService.get({ page, limit }),
       EntityEngineCyberia.refreshInstanceLinks(),
@@ -588,20 +583,14 @@ class EntityEngineCyberia {
     EntityEngineCyberia.loadBindings(
       data.flatMap((doc) => Object.values(EntityEngineCyberia.ITEM_FIELD_KEYS).flatMap((key) => doc[key] || [])),
     );
-    const pager = s(`#ag-pagination-${EntityEngineCyberia.gridId}`);
-    if (pager) {
-      pager.setAttribute('limit', limit);
-      pager.setAttribute('current-page', page);
-      pager.setAttribute('total-items', total);
-      pager.setAttribute('total-pages', Math.max(1, totalPages));
-    }
+    s(`#ag-pagination-${EntityEngineCyberia.gridId}`)?.showPage({ page, limit, total, totalPages });
     EntityEngineCyberia.renderInstanceList();
   }
 
   /** Reads the list again when the query parameters of its route name another page. */
   static followPageQuery() {
     if (!isCurrentRoute(EntityEngineCyberia.route) || !s('.entity-engine-container')) return;
-    const { page, limit } = EntityEngineCyberia.pageQuery();
+    const { page, limit } = pageQuery();
     const loaded = EntityEngineCyberia.loadedPage;
     if (!loaded || loaded.page !== page || loaded.limit !== limit) EntityEngineCyberia.refreshList();
   }
