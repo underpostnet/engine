@@ -7,9 +7,9 @@
  * @namespace UnderpostExecution
  */
 
-import { execFileSync } from 'node:child_process';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
+import shell from 'shelljs';
 
 const packageRoot = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -391,12 +391,7 @@ const cli = (name = 'underpost', { local = false } = {}) => {
   if (name !== 'underpost') return name;
   if (local) return localUnderpostCli;
   if (underpostCliCache) return underpostCliCache;
-  try {
-    execFileSync('sh', ['-c', 'command -v underpost'], { stdio: 'ignore' });
-    underpostCliCache = 'underpost';
-  } catch {
-    underpostCliCache = localUnderpostCli;
-  }
+  underpostCliCache = shell.which('underpost') ? 'underpost' : localUnderpostCli;
   return underpostCliCache;
 };
 
