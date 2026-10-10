@@ -30,7 +30,7 @@ updates:
           - 'cookie-parser'
           - 'helmet'
           - 'morgan'
-          - 'http-proxy-middleware'
+          - 'httpxy'
       database-clients:
         patterns:
           - 'mongoose'
@@ -58,7 +58,6 @@ updates:
           - 'workbox-*'
       tooling:
         patterns:
-          - 'nodemon'
           - 'esbuild'
           - 'html-minifier-terser'
           - 'prettier'
