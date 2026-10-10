@@ -138,4 +138,18 @@ describe('central logger redaction', () => {
     ])
       expect(redactSensitiveText(command), command).to.not.include('secret');
   });
+
+  it('filters a password inside a quoted sh -c command, quoted once or twice', () => {
+    for (const command of [
+      `sudo kubectl exec -n 'ns' -i 'pod' -- sh -c 'mongodump -d app --password "Qv7Lm4" -o /'`,
+      `sudo kubectl exec -n 'ns' -i 'pod' -- sh -c 'mongodump -d app --password '\\''Qv7Lm4'\\'' -o /'`,
+      `sudo kubectl exec -n 'ns' -i 'pod' -- sh -c 'mariadb -p'\\''Qv7'\\''\\'\\'''\\''Lm4'\\'' app'`,
+      `ssh -o BatchMode=yes host -- bash -lc "mongorestore --password Qv7Lm4"`,
+      `mariadb -p'Qv7'\\''Lm4' -e 'SELECT 1'`,
+    ]) {
+      const output = redactSensitiveText(command);
+      expect(output, command).to.not.include('Qv7');
+      expect(output, command).to.not.include('Lm4');
+    }
+  });
 });

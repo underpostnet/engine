@@ -36,7 +36,8 @@ const level = (logLevel = '') => logLevel || 'info';
 
 const REDACTED = '[REDACTED]';
 const CONFIG_NAME_SOURCE = '[A-Za-z_][A-Za-z0-9_.-]*';
-const SENSITIVE_VALUE_SOURCE = '(?:"[^"\\r\\n]*"|\'[^\'\\r\\n]*\'|[^\\s;&|]+)';
+// Single-quoted alternatives also match a word quoted again inside `sh -c '…'`.
+const SENSITIVE_VALUE_SOURCE = String.raw`(?:'\\''(?:[^'\r\n]|'\\''\\'\\'''\\'')*'\\''|'(?:[^'\r\n]|'\\'')*'|"[^"\r\n]*"|[^\s;&|]+)`;
 const SENSITIVE_WORDS = new Set([
   'authorization',
   'cookie',
@@ -94,31 +95,52 @@ const redactAdjacentCredentials = (text) => {
   return cursor === 0 ? text : out + text.slice(cursor);
 };
 
+/**
+ * Redacts the value of each sensitive `-name value` or `--name=value` flag.
+ *
+ * Only a redacted value is consumed. The scan reads every other value as text, so a credential
+ * inside `sh -c '<command>'` is still found.
+ * @param {string} text - Text to scan.
+ * @returns {string} The text with sensitive flag values redacted.
+ * @memberof Logger
+ */
+const redactSensitiveFlags = (text) => {
+  const flags = new RegExp(`(\\s--?)(${CONFIG_NAME_SOURCE})(=|\\s+)(?=(${SENSITIVE_VALUE_SOURCE}))`, 'g');
+  let out = '';
+  let cursor = 0;
+  for (const match of text.matchAll(flags)) {
+    const [flag, , key, , secret] = match;
+    if (match.index < cursor || !sensitiveField(key)) continue;
+    const valueStart = match.index + flag.length;
+    out += text.slice(cursor, valueStart) + REDACTED;
+    cursor = valueStart + secret.length;
+  }
+  return cursor === 0 ? text : out + text.slice(cursor);
+};
+
 const redactSensitiveText = (value = '') =>
   redactAdjacentCredentials(
-    `${value ?? ''}`
-      .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, REDACTED)
-      .replace(
-        /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g,
-        REDACTED,
-      )
-      .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
-      .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
-      .replace(
-        /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
-        `$1"${REDACTED}"`,
-      )
-      .replace(
-        new RegExp(
-          `(\\b(?:host|app|state|secret)\\s+set\\s+)(${CONFIG_NAME_SOURCE})(\\s+)(${SENSITIVE_VALUE_SOURCE})`,
-          'gi',
+    redactSensitiveFlags(
+      `${value ?? ''}`
+        .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, REDACTED)
+        .replace(
+          /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g,
+          REDACTED,
+        )
+        .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
+        .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
+        .replace(
+          /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
+          `$1"${REDACTED}"`,
+        )
+        .replace(
+          new RegExp(
+            `(\\b(?:host|app|state|secret)\\s+set\\s+)(${CONFIG_NAME_SOURCE})(\\s+)(${SENSITIVE_VALUE_SOURCE})`,
+            'gi',
+          ),
+          (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
         ),
-        (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
-      )
-      .replace(
-        new RegExp(`(\\s--?)(${CONFIG_NAME_SOURCE})(=|\\s+)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
-        (match, prefix, key, separator) => (sensitiveField(key) ? `${prefix}${key}${separator}${REDACTED}` : match),
-      )
+    )
       .replace(
         new RegExp(`(^|\\s)(-p)(\\s*)(${SENSITIVE_VALUE_SOURCE})`, 'gi'),
         (match, prefix, flag, separator, secret) =>
