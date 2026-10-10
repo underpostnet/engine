@@ -26,7 +26,13 @@ class RichText {
       // easyMDE.value();
       // easyMDE.value(val);
     });
-    return html` <style></style>
+    return html` <style>
+        /* The edit box keeps the neutral face of the core theme under any app theme. */
+        .md-container .EasyMDEContainer .CodeMirror,
+        .md-container textarea {
+          font-family: arial, sans-serif;
+        }
+      </style>
       <div class="in md-container"><textarea class="${id}"></textarea></div>`;
   }
 }
