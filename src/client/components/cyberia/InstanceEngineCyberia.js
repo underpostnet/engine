@@ -700,16 +700,6 @@ class InstanceEngineCyberia {
         Tabs.select(s('.instance-engine-tabs'), 'instance');
       },
       appStore,
-      readyRowDataEvent: {
-        'instance-engine-check-deleted': (rowData) => {
-          if (InstanceEngineCyberia.currentInstanceId) {
-            const stillExists = rowData.some((row) => row._id === InstanceEngineCyberia.currentInstanceId);
-            if (stillExists) return;
-            InstanceEngineCyberia.currentInstanceId = null;
-            InstanceEngineCyberia.crud?.refresh();
-          }
-        },
-      },
     });
 
     const dcFields = 'instance-engine-dc-fields';

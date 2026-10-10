@@ -10,7 +10,7 @@ import { getApiBaseUrl } from '../core/core.service.js';
 
 class CyberiaInstanceManagement {
   static instance = async (options = {}) => {
-    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadInstanceCallback, appStore } = options;
+    const { idModal: rawIdModal, customEvent, loadInstanceCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-instance-management';
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
 
@@ -182,15 +182,6 @@ class CyberiaInstanceManagement {
     if (!commonAdminGuard(role)) {
       const cleanBtn = s(`.management-table-btn-clean-${idModal}`);
       if (cleanBtn) cleanBtn.classList.add('hide');
-    }
-
-    if (readyRowDataEvent) {
-      if (!DefaultManagement.Tokens[idModal].readyRowDataEvent)
-        DefaultManagement.Tokens[idModal].readyRowDataEvent = {};
-
-      for (const key of Object.keys(readyRowDataEvent)) {
-        DefaultManagement.Tokens[idModal].readyRowDataEvent[key] = readyRowDataEvent[key];
-      }
     }
 
     return renderResult;

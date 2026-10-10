@@ -11,7 +11,7 @@ import { sagaColumn } from '../../components/cyberia/SagaCyberia.js';
 
 class CyberiaMapManagement {
   static instance = async (options = {}) => {
-    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, appStore } = options;
+    const { idModal: rawIdModal, customEvent, loadMapCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-map-management';
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
 
@@ -183,15 +183,6 @@ class CyberiaMapManagement {
     if (!commonAdminGuard(role)) {
       const cleanBtn = s(`.management-table-btn-clean-${idModal}`);
       if (cleanBtn) cleanBtn.classList.add('hide');
-    }
-
-    if (readyRowDataEvent) {
-      if (!DefaultManagement.Tokens[idModal].readyRowDataEvent)
-        DefaultManagement.Tokens[idModal].readyRowDataEvent = {};
-
-      for (const key of Object.keys(readyRowDataEvent)) {
-        DefaultManagement.Tokens[idModal].readyRowDataEvent[key] = readyRowDataEvent[key];
-      }
     }
 
     return renderResult;

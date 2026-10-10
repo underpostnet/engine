@@ -9,6 +9,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { getProxyPath } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
+import { s } from '../core/VanillaJs.js';
 
 const STUDIO_ROUTE = 'cyberia-studio';
 const STUDIO_ICON = 'cyberia-red-white.png';
@@ -115,6 +116,14 @@ class StudioCyberia {
       icon: iconImage(iconOf(route), 'cyberia-menu-icon-modal'),
       text: html`<span class="inl cyberia-text-title-modal">${text}</span>`,
     });
+  }
+
+  /** Renders each open editor again, so what it offers follows the role of the session. */
+  static async reload() {
+    for (const { route } of VIEWS) {
+      const idModal = `modal-${route}`;
+      if (s(`.${idModal}`)) Modal.writeHTML({ idModal, html: await Modal.Data[idModal].options.html() });
+    }
   }
 
   /** The Studio landing: one card for each editor the submenu shows. */

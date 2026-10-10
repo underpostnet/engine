@@ -1,17 +1,15 @@
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
-import { s } from '../core/VanillaJs.js';
+import { StudioCyberia } from '../cyberia/StudioCyberia.js';
 import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
-import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 
 class LogInCyberiaPortal {
   static async instance() {
   LogIn.onLogin(async (options) => {
-    const { token, user } = options;
-
+    const { user } = options;
+    const changed = AppStoreCyberiaPortal.Data.user.main.model.user?._id !== user?._id;
     AppStoreCyberiaPortal.Data.user.main.model.user = user;
-
-    await ObjectLayerManagement.Reload('viewer');
+    if (changed) await StudioCyberia.reload();
   }, { key: 'LogInCyberiaPortal' });
   const { user } = await Auth.sessionIn();
   AppStoreCyberiaPortal.Data.user.main.model.user = user;

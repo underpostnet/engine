@@ -1,6 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input, InputFile, getFileFromBlobEndpoint } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import Sortable from 'sortablejs';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Modal } from '../core/Modal.js';
@@ -543,6 +544,16 @@ class MapEngineCyberia {
     return offscreen;
   }
 
+  /** Moves the entity the list shows at position `from` to the stored index of the one shown at `to`. */
+  static moveEntity(from, to) {
+    const shown = MapEngineCyberia.getFilteredEntities().map(({ i }) => i);
+    if (from === to || shown[from] === undefined || shown[to] === undefined) return false;
+    return MapEngineCyberia.commitEntityMutation('ReorderEntity', () => {
+      const [entity] = MapEngineCyberia.entities.splice(shown[from], 1);
+      MapEngineCyberia.entities.splice(shown[to], 0, entity);
+    });
+  }
+
   static renderEntityList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
@@ -572,6 +583,14 @@ class MapEngineCyberia {
         class="fl"
         style="border-bottom:1px solid var(--studio-subtle-border); padding:4px 0; align-items:center;"
       >
+        <button
+          type="button"
+          class="map-engine-entity-handle"
+          aria-label="Move entity ${i}"
+          title="Drag, or press the up and down arrows, to move"
+        >
+          <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>${i}
+        </button>
         <div
           class="in fll"
           style="width:20px;height:20px;background:${entity.color};border:1px solid #888;margin-right:6px;"
@@ -601,6 +620,16 @@ class MapEngineCyberia {
     if (!html)
       html = `<div style="color:#888;font-size:13px;">${MapEngineCyberia.entities.length > 0 ? 'No matching entities.' : 'No entities added yet.'}</div>`;
     htmls(`.${containerId}`, html);
+
+    container.querySelectorAll('.map-engine-entity-handle').forEach((handle, position) => {
+      handle.onkeydown = (event) => {
+        const step = { ArrowUp: -1, ArrowDown: 1 }[event.key];
+        if (!step) return;
+        event.preventDefault();
+        if (MapEngineCyberia.moveEntity(position, position + step))
+          container.querySelectorAll('.map-engine-entity-handle')[position + step]?.focus();
+      };
+    });
 
     container.querySelectorAll('.btn-map-engine-remove-entity').forEach((btn) => {
       btn.onclick = () => {
@@ -1473,38 +1502,22 @@ class MapEngineCyberia {
           }, 'image/png');
         };
 
-      if (s(`.btn-map-engine-toggle-thumbnail`))
-        s(`.btn-map-engine-toggle-thumbnail`).onclick = () => {
-          const body = s(`.map-engine-thumbnail-body`);
-          const caret = s(`.map-engine-thumbnail-caret`);
-          if (body) body.classList.toggle('hide');
-          if (caret) {
-            caret.classList.toggle('fa-caret-right');
-            caret.classList.toggle('fa-caret-down');
-          }
-        };
+      for (const section of ['thumbnail', 'preview', 'entity-filter', 'rename']) {
+        const toggle = s(`.btn-map-engine-toggle-${section}`);
+        if (toggle)
+          toggle.onclick = () => {
+            const open = !s(`.map-engine-${section}-body`).classList.toggle('hide');
+            toggle.setAttribute('aria-expanded', String(open));
+            s(`.map-engine-${section}-caret`).classList.toggle('fa-caret-right', !open);
+            s(`.map-engine-${section}-caret`).classList.toggle('fa-caret-down', open);
+          };
+      }
 
-      if (s(`.btn-map-engine-toggle-preview`))
-        s(`.btn-map-engine-toggle-preview`).onclick = () => {
-          const body = s(`.map-engine-preview-body`);
-          const caret = s(`.map-engine-preview-caret`);
-          if (body) body.classList.toggle('hide');
-          if (caret) {
-            caret.classList.toggle('fa-caret-right');
-            caret.classList.toggle('fa-caret-down');
-          }
-        };
-
-      if (s('.btn-map-engine-toggle-entity-filter'))
-        s('.btn-map-engine-toggle-entity-filter').onclick = () => {
-          const body = s('.map-engine-entity-filter-body');
-          const caret = s('.map-engine-entity-filter-caret');
-          if (body) body.classList.toggle('hide');
-          if (caret) {
-            caret.classList.toggle('fa-caret-right');
-            caret.classList.toggle('fa-caret-down');
-          }
-        };
+      new Sortable(s(`.${entityListId}`), {
+        animation: 150,
+        handle: '.map-engine-entity-handle',
+        onEnd: ({ oldIndex, newIndex }) => MapEngineCyberia.moveEntity(oldIndex, newIndex),
+      });
 
       let entityFilterTimeout = null;
       const applyEntityFilter = () => {
@@ -1554,16 +1567,6 @@ class MapEngineCyberia {
         Tabs.select(s('.map-engine-tabs'), 'map');
       },
       appStore,
-      readyRowDataEvent: {
-        'map-engine-check-deleted': (rowData) => {
-          if (MapEngineCyberia.currentMapId) {
-            const stillExists = rowData.some((row) => row._id === MapEngineCyberia.currentMapId);
-            if (stillExists) return;
-            MapEngineCyberia.currentMapId = null;
-            MapEngineCyberia.crud?.refresh();
-          }
-        },
-      },
     });
 
     const dcMapFields = 'map-engine-dc-fields';
@@ -1626,6 +1629,31 @@ class MapEngineCyberia {
         .map-engine-stage-button:focus-visible {
           outline: 2px solid currentColor;
           outline-offset: 2px;
+        }
+        .map-engine-entity-list .map-engine-entity-handle {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+          min-height: 0;
+          margin: 0 6px 0 0;
+          padding: 2px 6px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: transparent;
+          color: inherit;
+          font: 12px monospace;
+          cursor: grab;
+        }
+        .map-engine-entity-list .map-engine-entity-handle:hover {
+          background: #8882;
+        }
+        .map-engine-entity-list .map-engine-entity-handle:focus-visible {
+          outline: 2px solid currentColor;
+          outline-offset: 2px;
+        }
+        .map-engine-entity-list .sortable-ghost {
+          opacity: 0.4;
         }
         .map-engine-tool-hint {
           font-size: 13px;
@@ -2005,6 +2033,7 @@ class MapEngineCyberia {
                 content: html`<div class="in" style="margin-top: 10px;">
                     ${await BtnIcon.instance({
                       class: 'wfa btn-map-engine-toggle-entity-filter',
+                      attrs: 'aria-expanded="false"',
                       label: html`<i class="fa-solid fa-caret-right map-engine-entity-filter-caret"></i> Filters`,
                     })}
                     <div class="in map-engine-entity-filter-body hide">
@@ -2076,9 +2105,16 @@ class MapEngineCyberia {
                       </div>
                     </div>
                   </div>
-                  <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
-                  <div class="in section-mp-border" style="margin: 10px; padding: 10px;">
-                    <div class="in input-label">Rename Object Layer ItemId on Filtered Entities</div>
+                  <div class="in ${entityListId}" style="margin-top: 10px; max-height: 60vh; overflow-y: auto;"></div>
+                  <div class="in" style="margin-top: 10px;">
+                    ${await BtnIcon.instance({
+                      class: 'wfa btn-map-engine-toggle-rename',
+                      attrs: 'aria-expanded="false"',
+                      label: html`<i class="fa-solid fa-caret-right map-engine-rename-caret"></i> Rename Object Layer
+                        ItemId on Filtered Entities`,
+                    })}
+                  </div>
+                  <div class="in section-mp-border map-engine-rename-body hide" style="margin: 10px; padding: 10px;">
                     <div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
                       Replaces only exact source ItemId matches inside entities currently visible through the filters.
                       Both fields take comma-separated lists: several targets expand one source into all of them, one
@@ -2145,6 +2181,7 @@ class MapEngineCyberia {
                   </div>
                   ${await BtnIcon.instance({
                     class: 'wfa btn-map-engine-toggle-thumbnail',
+                    attrs: 'aria-expanded="false"',
                     label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Thumbnail`,
                   })}
                   <div class="in map-engine-thumbnail-body hide">
@@ -2180,6 +2217,7 @@ class MapEngineCyberia {
                   </div>
                   ${await BtnIcon.instance({
                     class: 'wfa btn-map-engine-toggle-preview',
+                    attrs: 'aria-expanded="false"',
                     label: html`<i class="fa-solid fa-caret-right map-engine-preview-caret"></i> Instance Map Preview`,
                   })}
                   <div class="in map-engine-preview-body hide">

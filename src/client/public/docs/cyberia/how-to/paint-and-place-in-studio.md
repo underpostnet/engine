@@ -60,9 +60,11 @@ open tab. The **Saga integration** tab has no bar.
 | **Delete** | Removes the loaded document.                                                                  |
 
 New, Reset and Delete ask first. Clone, Reset and Delete need a loaded document. Save, Clone and
-Delete need a moderator. An editor shows only the buttons it has: the instance editor has no
-Clone and no Delete, dialogue lines and skills have no Clone, and the Object Layer editor has no
-Delete (the viewer removes an item).
+Delete need a moderator; a log-in or a log-out renders the open editors again for the new role.
+The table under an editor pages on its own: the loaded document stays loaded on any page. An
+editor shows only the buttons it has: the instance editor has no Clone and no Delete, dialogue
+lines and skills have no Clone, and the Object Layer editor has no Delete (the viewer removes an
+item).
 
 ## Tabs
 
@@ -136,8 +138,12 @@ The drawing tools of the Object Layer editor stay above its tabs.
 4. Set the size, level and color, then click the canvas to add the entity at a cell. The entity
    buttons edit many entities at once: fill the map, flip, generate a variation, swap or replace
    around preserved types, rename an item id, delete the entities the filters select, delete all.
-5. Save. A save names the map revision it loaded; another save first answers 409.
-6. To place the quests and actions of a saga at the entities you placed, synchronize the saga
+5. **Entities** lists the entities in the order the map stores them, with the index of each. Drag
+   an entity by its handle, or focus the handle and press the up or down arrow, to move it. The
+   order is also the drawing order: a later entity draws over an earlier one. A move is one undo
+   step.
+6. Save. A save names the map revision it loaded; another save first answers 409.
+7. To place the quests and actions of a saga at the entities you placed, synchronize the saga
    ([Synchronize a saga](synchronize-a-saga.md)).
 
 ## Drafts
