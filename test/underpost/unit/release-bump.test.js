@@ -148,7 +148,7 @@ describe('release pipeline commands', () => {
       commands.push(command);
       return { code: 0, stdout: '', stderr: '', toString: () => '' };
     });
-    vi.spyOn(shell, 'cd').mockImplementation((dir) => directories.push(`${dir}`));
+    vi.spyOn(process, 'chdir').mockImplementation((dir) => directories.push(`${dir}`));
     // `release build` and `release deploy` load dd-cron's production env with
     // `override: true`; on a checkout that carries it, that would replace this
     // process's own environment with live deploy credentials.

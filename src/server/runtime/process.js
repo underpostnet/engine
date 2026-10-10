@@ -335,21 +335,22 @@ const sleepSync = (ms) => {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 };
 /**
- * Changes the current working directory using shelljs.
+ * Changes the current working directory of this process.
  *
  * Note: `shellCd` mutates global state. Prefer `shellExec(cmd, { cwd })`
  * for one-shot directory-scoped commands; use `shellCd` only for the
  * outermost shell where the cwd should persist across many calls.
+ * The path is taken literally; a missing directory throws.
  *
  * @memberof Process
  * @param {string} cd - The path to change the directory to.
  * @param {Object} [options] - Options for the CD operation.
  * @param {boolean} [options.disableLog=false] - Prevent logging of the CD command.
- * @returns {shelljs.ShellString} The result of the shelljs cd command.
+ * @returns {void}
  */
 const shellCd = (cd, options = { disableLog: false }) => {
   if (!options.disableLog) logger.info(`cd`, cd);
-  return shell.cd(cd);
+  process.chdir(cd);
 };
 /**
  * Wraps a command to run it as a daemon process in a shell (keeping the process alive/terminal open).
