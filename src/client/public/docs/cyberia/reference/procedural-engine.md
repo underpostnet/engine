@@ -87,8 +87,9 @@ A manual edit is not a Procedural Engine route. The Object Layer Studio saves wi
 The server stores the save as a draft revision of that candidate and promotes nothing.
 
 The editor import is `POST /api/v1/object-layer/import-frames`. The body is
-`{ id, roles, mutate, mutationFactor, seed, target }`. The server remaps the frames of `id` to the
-palette `roles` and, with `mutate`, mutates their contour. It stores nothing.
+`{ id, roles, mutate, mutationFactor, seed, target }`. Without `mutate`, the server answers the
+frames of `id` as stored. With `mutate`, it remaps them to the palette `roles` and mutates their
+contour. It stores nothing.
 
 ## Generation request
 

@@ -1547,13 +1547,14 @@ class ObjectLayerEngineModal {
         else await discardDraft();
       }
 
-      // Takes the frames of every direction and the frame duration from another object layer, in the
-      // studio palette of this item and, with Mutate, with a new contour; the item data and the stats stay.
+      // Takes the frames of every direction and the frame duration from another object layer: as stored or,
+      // with Mutate, in the studio palette of this item and with a new contour. The item data and the stats stay.
       EventsUI.onClick('.ol-btn-import-frames', async () => {
         const itemId = DropDown.Tokens['ol-dropdown-import-frames']?.value;
         if (typeof itemId !== 'string' || !itemId) return;
-        const palette = ObjectLayerEngineModal.palettePanel?.studioPalette();
-        if (!palette) {
+        const mutate = ObjectLayerEngineModal.mutateFrames;
+        const palette = mutate ? ObjectLayerEngineModal.palettePanel?.studioPalette() : null;
+        if (mutate && !palette) {
           NotificationManager.Push({
             html: 'The foundation palette of this item is unavailable, so its frames cannot be remapped',
             status: 'error',
@@ -1565,12 +1566,11 @@ class ObjectLayerEngineModal {
         const mutationFactor = Math.round(clampNumber(Number.parseFloat(factorInput?.value) || 0, 0, 1) * 100) / 100;
         ObjectLayerEngineModal.mutationFactor = mutationFactor;
         if (factorInput) factorInput.value = String(mutationFactor);
-        const mutate = ObjectLayerEngineModal.mutateFrames;
         // The server remaps and mutates: the editor only shows its result.
         const { status, data, message } = await ObjectLayerService.importFrames({
           body: {
             id: itemId,
-            roles: palette.roles,
+            roles: palette?.roles,
             mutate,
             mutationFactor,
             seed: ObjectLayerEngineModal.importSeed++,
@@ -1589,10 +1589,12 @@ class ObjectLayerEngineModal {
         NotificationManager.Push({
           html: [
             `Frames of "${itemId}" imported: ${result.frames}`,
-            `Palette: ${palette.name}`,
-            mutate && mutationFactor > 0
-              ? `Mutation: factor ${mutationFactor}, ${result.accepted} accepted, ${result.rejected} rejected`
-              : 'Mutation: no',
+            ...(mutate
+              ? [
+                  `Palette: ${palette.name}`,
+                  `Mutation: factor ${mutationFactor}, ${result.accepted} accepted, ${result.rejected} rejected`,
+                ]
+              : ['Mutation: no']),
           ].join('<br />'),
           status: 'success',
         });

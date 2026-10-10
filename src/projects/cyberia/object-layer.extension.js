@@ -126,9 +126,9 @@ class ObjectLayerStudioService {
 }
 
 /**
- * POST `/import-frames`: the frames of the definition a key names, in the palette roles the body
- * gives and, with `mutate`, with a seeded contour mutation. Nothing is stored: the editor takes
- * the frames and saves them as it saves any frames.
+ * POST `/import-frames`: the frames of the definition a key names, as stored or, with `mutate`, in
+ * the palette roles the body gives and with a seeded contour mutation. Nothing is stored: the
+ * editor takes the frames and saves them as it saves any frames.
  * @memberof CyberiaObjectLayerStudio
  */
 const importFrames = async (req, res, options) => {
@@ -249,7 +249,7 @@ export function mount(router, options) {
       #swagger.auto = false
       #swagger.tags = ['object-layer']
       #swagger.summary = 'Frames of a definition in a palette'
-      #swagger.description = 'Body { id, roles, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, remapped to the palette `roles` and, with `mutate`, with a seeded contour mutation. Stores nothing.'
+      #swagger.description = 'Body { id, roles, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette `roles` and with a seeded contour mutation. Stores nothing.'
       #swagger.path = '/object-layer/import-frames'
       #swagger.method = 'post'
       #swagger.produces = ['application/json']

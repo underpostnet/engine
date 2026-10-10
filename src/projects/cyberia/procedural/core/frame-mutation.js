@@ -375,10 +375,11 @@ export function transformImportedFrame(frame, mapping, { mutationFactor = 0, see
 }
 
 /**
- * Every frame of an import in the target palette, each mutated with a seed of its own when `mutate`
- * is on and the factor is above 0. Directions, frame order, frame count and frame size stay.
+ * Every frame of an import. With `mutate` off, each frame stays as it is. With `mutate` on, each
+ * frame takes the target palette and, when the factor is above 0, a mutation with a seed of its own.
+ * Directions, frame order, frame count and frame size stay.
  * @param {Object<string, number[][][][]>} framesByCode - rgba frames by direction code.
- * @param {Object<string,string[]>} roles - The target palette.
+ * @param {Object<string,string[]>} [roles] - The target palette. Only `mutate` reads it.
  * @param {Object} [options]
  * @param {boolean} [options.mutate]
  * @param {number} [options.mutationFactor] - 0 to 1.
@@ -392,15 +393,17 @@ export function transformImportedFrames(
   roles,
   { mutate = false, mutationFactor = 0, seed = 0, source = '', target = '' } = {},
 ) {
-  const mapping = paletteMapping(Object.values(framesByCode).flat(), roles);
-  const factor = mutate ? Math.min(1, Math.max(0, Number(mutationFactor) || 0)) : 0;
+  const mapping = mutate ? paletteMapping(Object.values(framesByCode).flat(), roles) : null;
+  const factor = Math.min(1, Math.max(0, Number(mutationFactor) || 0));
   const result = { framesByCode: {}, frames: 0, accepted: 0, rejected: 0 };
   for (const [code, frames] of Object.entries(framesByCode))
     result.framesByCode[code] = frames.map((frame, index) => {
-      const next = transformImportedFrame(frame, mapping, {
-        mutationFactor: factor,
-        seed: deriveSeed(seed, source, target, code, index),
-      });
+      const next = mapping
+        ? transformImportedFrame(frame, mapping, {
+            mutationFactor: factor,
+            seed: deriveSeed(seed, source, target, code, index),
+          })
+        : { frame: frame.map((row) => row.map((cell) => cell.slice())), accepted: 0, rejected: 0 };
       result.frames++;
       result.accepted += next.accepted;
       result.rejected += next.rejected;

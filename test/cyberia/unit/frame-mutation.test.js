@@ -299,7 +299,7 @@ describe('frame mutation', () => {
 
 describe('frame import', () => {
   const framesByCode = () => ({ '08': [sprite(), frameOf(RING), sprite()], 18: [sprite()], '02': [] });
-  const paletteOnly = transformImportedFrames(framesByCode(), ROLES);
+  const paletteOnly = transformImportedFrames(framesByCode(), ROLES, { mutate: true, mutationFactor: 0 });
 
   it('keeps the directions, the frame count, the order and the size', () => {
     expect(Object.keys(paletteOnly.framesByCode).sort()).toEqual(['02', '08', '18']);
@@ -310,13 +310,20 @@ describe('frame import', () => {
     expect(paletteOnly.framesByCode['08'][0]).toEqual(paletteOnly.framesByCode['08'][2]);
   });
 
-  it('mutates nothing with Mutate off, or on at factor 0', () => {
-    const options = { seed: 9, source: 'a', target: 'b' };
-    const off = transformImportedFrames(framesByCode(), ROLES, { ...options, mutate: false, mutationFactor: 0.9 });
-    const zero = transformImportedFrames(framesByCode(), ROLES, { ...options, mutate: true, mutationFactor: 0 });
-    expect(off.framesByCode).toEqual(paletteOnly.framesByCode);
+  it('keeps every frame as it is with Mutate off', () => {
+    const source = framesByCode();
+    const off = transformImportedFrames(source, ROLES, { seed: 9, source: 'a', target: 'b', mutationFactor: 0.9 });
+    expect(off.framesByCode).toEqual(framesByCode());
+    expect(off.framesByCode['08'][0]).not.toBe(source['08'][0]);
+    expect([off.frames, off.accepted, off.rejected]).toEqual([4, 0, 0]);
+    expect(transformImportedFrames(framesByCode(), undefined).framesByCode).toEqual(framesByCode());
+  });
+
+  it('remaps and mutates no contour with Mutate on at factor 0', () => {
+    const zero = transformImportedFrames(framesByCode(), ROLES, { seed: 9, source: 'a', target: 'b', mutate: true });
     expect(zero.framesByCode).toEqual(paletteOnly.framesByCode);
-    expect([off.accepted, zero.accepted]).toEqual([0, 0]);
+    expect(zero.framesByCode).not.toEqual(framesByCode());
+    expect(zero.accepted).toBe(0);
   });
 
   it('gives each frame a seed of its own', () => {

@@ -16,8 +16,8 @@ hides and shows the stage. Ids, labels and definitions show in a case-sensitive 
 The **Cyberia Procedural Engine** makes candidates for existing or new items in the background. A
 candidate opens in the Object Layer editor in review mode: a banner names the item and its revision,
 and **Clone** is off. A save stores a new revision for review and promotes nothing. See
-[Generate skin variants](generate-skin-variants.md). **Import frames**, with its palette remap and
-its contour mutation, runs on the server: the editor shows the frames the server answers.
+[Generate skin variants](generate-skin-variants.md). **Import frames** runs on the server, also its
+palette remap and contour mutation with **Mutate** on: the editor shows the frames the server answers.
 
 A save of an item never changes what the runtime runs: it stores a new revision under its own cid.
 Outside a review, a banner above the editor says whether the revision is the one the item runs.
@@ -96,13 +96,14 @@ The drawing tools of the Object Layer editor stay above its tabs.
      colors between two marked ones to the custom palette.
 4. To start from another item's animation, pick it under **Frames of object layer** in
    **Frames** and click **Import frames**: the frames of every direction and the frame duration are replaced; the item
-   data and the stats stay. The frames take the palette in use in **Palettes**, or the first
-   palette of the context: the darkest color takes the outline, the lightest the highlight, a rare
-   saturated color the accent, and transparency stays. An item without a context palette imports
-   nothing. With **Mutate** on, a **Random factor** above 0 moves a share of each frame's outer
-   contour by one cell, each frame with a seed of its own. A move that splits the shape, fills or
-   opens a hole, or shifts its box or center by more than one cell is rejected. The message counts
-   the frames and the moves accepted and rejected.
+   data and the stats stay. With **Mutate** off, the frames stay exactly as stored. With **Mutate**
+   on, the frames take the palette in use in **Palettes**, or the first palette of the context: the
+   darkest color takes the outline, the lightest the highlight, a rare saturated color the accent,
+   and transparency stays. An item without a context palette imports nothing with **Mutate** on.
+   A **Random factor** above 0 also moves a share of each frame's outer contour by one cell, each
+   frame with a seed of its own. A move that splits the shape, fills or opens a hole, or shifts its
+   box or center by more than one cell is rejected. The message counts the frames and the moves
+   accepted and rejected.
 5. Pick a template in **Paint**. Templates that suit the item type come first (★). A template paints in the
    palette in use, sets its mirror, and becomes the stamp.
 6. Paint. The tools: pencil, eraser, fill, eyedropper, line, rectangle and ellipse (Shift fills),
