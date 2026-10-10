@@ -10,7 +10,7 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { getBearerToken, jwtVerify } from '../../server/security/auth.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import crypto from 'crypto';
-import { Types } from 'mongoose';
+import { Types, isObjectIdOrHexString } from 'mongoose';
 
 /**
  * Logger instance for this module.
@@ -19,6 +19,18 @@ import { Types } from 'mongoose';
  * @private
  */
 const logger = loggerFactory(import.meta);
+
+/**
+ * Returns the id of one File, or throws. A missing id casts to `{}` and matches every file.
+ * @param {*} id - The request id.
+ * @returns {string} The id.
+ * @memberof FileServiceServer
+ * @private
+ */
+const fileIdGuard = (id) => {
+  if (!isObjectIdOrHexString(id)) throw new Error('Invalid file id');
+  return id;
+};
 
 /**
  * File Data Transfer Object (DTO) for the service layer.
@@ -365,7 +377,7 @@ class FileService {
    * @param {Object} res - Express response object.
    * @param {Object} options - Request options containing host and path.
    * @returns {Promise<Array|Buffer>} Array of file metadata objects or Buffer for blob endpoint.
-   * @throws {Error} If file not found or user not authorized.
+   * @throws {Error} If the id is invalid, the file is not found or the user is not authorized.
    */
   static get = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
@@ -426,9 +438,9 @@ class FileService {
     };
 
     // Handle blob endpoint - return raw buffer data
-    if (req.path.startsWith('/blob') && req.params.id) {
+    if (req.path.startsWith('/blob')) {
       // Check authorization
-      const authorized = await isFileAuthorized(req.params.id);
+      const authorized = await isFileAuthorized(fileIdGuard(req.params.id));
       if (!authorized) {
         throw new Error('Unauthorized');
       }
@@ -457,7 +469,7 @@ class FileService {
 
       default: {
         // Check authorization
-        const authorized = await isFileAuthorized(req.params.id);
+        const authorized = await isFileAuthorized(fileIdGuard(req.params.id));
         if (!authorized) {
           throw new Error('Unauthorized');
         }
@@ -480,13 +492,13 @@ class FileService {
    * @param {Object} res - Express response object.
    * @param {Object} options - Request options containing host and path.
    * @returns {Promise<Object>} Deleted file metadata object.
-   * @throws {Error} If file not found.
+   * @throws {Error} If the id is invalid or the file is not found.
    */
   static delete = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProviderService.getModel("File", options);
 
-    const result = await File.findByIdAndDelete(req.params.id);
+    const result = await File.findByIdAndDelete(fileIdGuard(req.params.id));
 
     if (!result) {
       throw new Error('File not found');

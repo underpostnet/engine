@@ -20,15 +20,8 @@ class FileRouter {
       async (req, res) => await FileController.get(req, res, options),
     );
     router.get(`/:id`, async (req, res) => await FileController.get(req, res, options));
-    router.get(`/`, async (req, res) => await FileController.get(req, res, options));
     router.delete(
       `/:id`,
-      options.authMiddleware,
-      adminGuard,
-      async (req, res) => await FileController.delete(req, res, options),
-    );
-    router.delete(
-      `/`,
       options.authMiddleware,
       adminGuard,
       async (req, res) => await FileController.delete(req, res, options),
