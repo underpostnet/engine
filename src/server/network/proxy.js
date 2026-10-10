@@ -7,16 +7,98 @@
 'use strict';
 
 import express from 'express';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyServer } from 'httpxy';
 import { loggerFactory, loggerMiddleware } from '../ops/logger.js';
 import { etcHostFactory, getTlsHosts, isDevProxyContext, isTlsDevProxy } from '../runtime/conf.js';
 import { buildPortProxyRouter, buildProxyRouter } from './router.js';
-
-import { shellExec } from '../runtime/process.js';
-import fs from 'fs-extra';
 import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * @method proxyTargetFactory
+ * @description The target a router table assigns to a request; the first matching key wins.
+ * A `host` key needs the same Host header, a `host/path` key also needs the URL to start with the
+ * path, and a `/path` key needs only that.
+ * @param {Object<string, string>} [router] - Router table, in priority order.
+ * @param {{host?: string, url?: string}} [request] - Host header and request URL.
+ * @returns {string|undefined} Target URL, or undefined when no key matches.
+ * @memberof ProxyService
+ */
+const proxyTargetFactory = (router = {}, { host = '', url = '' } = {}) => {
+  for (const [key, target] of Object.entries(router)) {
+    const slash = key.indexOf('/');
+    if (slash === -1 ? key === host : (slash === 0 || key.slice(0, slash) === host) && url.startsWith(key.slice(slash)))
+      return target;
+  }
+  return undefined;
+};
+
+/**
+ * @method proxyErrorStatusFactory
+ * @description The status a failed proxy request answers with; an unreachable target is a gateway timeout.
+ * @param {string} [code] - Error code.
+ * @returns {number} HTTP status.
+ * @memberof ProxyService
+ */
+const proxyErrorStatusFactory = (code = '') =>
+  /HPE_INVALID/.test(code) ? 502 : ['ECONNRESET', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'].includes(code) ? 504 : 500;
+
+/**
+ * @method proxyMiddlewareFactory
+ * @description Express middleware that forwards every request to the target the router table
+ * selects, else to `target`.
+ *
+ * WebSocket upgrades are taken over from the server the first proxied request arrives on, so
+ * TLS and plain listeners need no extra wiring.
+ * @param {object} params
+ * @param {string} params.target - Default target.
+ * @param {Object<string, string>} [params.router] - Router table, in priority order.
+ * @param {boolean} [params.ws] - Proxy WebSocket upgrades.
+ * @param {boolean} [params.xfwd] - Add the X-Forwarded headers.
+ * @param {object} [params.logger] - Logger for proxied responses and proxy errors.
+ * @returns {Function} Express middleware.
+ * @memberof ProxyService
+ */
+const proxyMiddlewareFactory = ({ target, router = {}, ws = false, xfwd = false, logger: proxyLogger = logger }) => {
+  const proxy = createProxyServer({});
+  const targets = new WeakMap();
+  const upgradeServers = new WeakSet();
+  const optionsFactory = (req) => {
+    const selected = proxyTargetFactory(router, { host: req.headers.host, url: req.url }) || target;
+    targets.set(req, selected);
+    return { target: selected, ws, xfwd };
+  };
+  const escape = (value = '') => `${value}`.replace(/[<>]/g, (character) => encodeURIComponent(character));
+
+  proxy.on('error', (error, req, res) => {
+    proxyLogger.error('Proxy request failed', {
+      request: `${req?.headers?.host}${req?.url}`,
+      target: targets.get(req),
+      code: error.code || error.message,
+    });
+    if (typeof res?.writeHead !== 'function') return res?.destroy?.();
+    if (!res.headersSent) res.writeHead(proxyErrorStatusFactory(error.code));
+    res.end(`Error occurred while trying to proxy: ${escape(req.headers.host)}${escape(req.url)}`);
+  });
+  proxy.on('proxyRes', (proxyRes, req) =>
+    proxyLogger.info(
+      `${req.method} ${req.originalUrl ?? req.url} -> ${new URL(proxyRes.req.path, targets.get(req))} [${proxyRes.statusCode}]`,
+    ),
+  );
+
+  const upgrade = (req, socket, head) =>
+    proxy.ws(req, socket, optionsFactory(req), head).catch((error) => proxy.emit('error', error, req, socket));
+
+  return (req, res) => {
+    const server = req.socket?.server;
+    if (ws && server && !upgradeServers.has(server)) {
+      upgradeServers.add(server);
+      server.on('upgrade', upgrade);
+    }
+    proxy.web(req, res, optionsFactory(req)).catch((error) => proxy.emit('error', error, req, res));
+  };
+};
 
 /**
  * Main class for building and running the proxy server.
@@ -39,9 +121,10 @@ class ProxyService {
 
     const proxyRouter = buildProxyRouter();
 
-    for (let port of Object.keys(proxyRouter)) {
-      const hosts = proxyRouter[port];
-      port = parseInt(port) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
+    for (const confPort of Object.keys(proxyRouter)) {
+      const hosts = proxyRouter[confPort];
+      // The configured port decides TLS; the dev offset only moves where the proxy listens.
+      const port = parseInt(confPort) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
       const proxyPath = '/';
       const proxyHost = 'localhost';
       const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
@@ -50,73 +133,41 @@ class ProxyService {
       // Set logger middleware
       app.use(loggerMiddleware(import.meta));
 
-      // Proxy middleware options
-      /** @type {import('http-proxy-middleware/dist/types').Options} */
       const options = {
-        pathFilter: proxyPath, // Use '/' as the general filter (v3 API)
-        ws: true, // Enable websocket proxying
-        target: `http://localhost:${parseInt(process.env.PORT - 1)}`, // Default target (should be overridden by router)
-        router: {},
-        // changeOrigin: true,
-        logger: logger,
-        xfwd: true, // Adds x-forward headers (Host, Proto, etc.)
-        onProxyReq: (proxyReq, req, res, options) => {},
-        pathRewrite: {},
+        target: `http://localhost:${parseInt(process.env.PORT - 1)}`,
+        router: buildPortProxyRouter({
+          port,
+          proxyRouter,
+          hosts,
+          orderByPathLength: true,
+          devProxyContext: process.env.NODE_ENV !== 'production',
+        }),
+        ws: true,
+        xfwd: true,
       };
 
-      options.router = buildPortProxyRouter({
-        port,
-        proxyRouter,
-        hosts,
-        orderByPathLength: true,
-        devProxyContext: process.env.NODE_ENV !== 'production',
-      });
+      app.use(proxyPath, proxyMiddlewareFactory(options));
 
-      app.use(proxyPath, createProxyMiddleware(options));
-
-      // Determine which server to start (HTTP or HTTPS) based on port and environment
-      switch (process.env.NODE_ENV) {
-        case 'production':
-          switch (port) {
-            case 443:
-              // For port 443 (HTTPS), create the SSL server
-              const { ServerSSL } = await Underpost.tls.createSslServer(app, hosts);
-              await Underpost.start.listenPortController(ServerSSL, port, runningData);
-              break;
-
-            default:
-              // For other ports in production, use standard HTTP
-              await Underpost.start.listenPortController(app, port, runningData);
-              break;
+      let server = app;
+      if (parseInt(confPort) === 443) {
+        if (process.env.NODE_ENV !== 'production' && isDevProxyContext() && isTlsDevProxy()) {
+          // A dev proxy serves this machine's own certificates, never the stored ones of the real domain.
+          const tlsHosts = {};
+          for (const tlsHost of getTlsHosts(hosts)) {
+            Underpost.tls.ensureLocalCertificate(tlsHost);
+            tlsHosts[tlsHost] = {};
           }
-          break;
-
-        default:
-          switch (port) {
-            case 443: {
-              let tlsHosts = hosts;
-              if (isDevProxyContext() && isTlsDevProxy()) {
-                tlsHosts = {};
-                for (const tlsHost of getTlsHosts(hosts)) {
-                  if (fs.existsSync(Underpost.tls.SSL_BASE(tlsHost))) fs.removeSync(Underpost.tls.SSL_BASE(tlsHost));
-                  if (!Underpost.tls.validateSecureContext(tlsHost)) shellExec(`node bin/deploy tls "${tlsHost}"`);
-                  tlsHosts[tlsHost] = {};
-                }
-              }
-              const { ServerSSL } = await Underpost.tls.createSslServer(app, tlsHosts);
-              await Underpost.start.listenPortController(ServerSSL, port, runningData);
-              break;
-            }
-            default: // In non-production, always use standard HTTP listener
-              await Underpost.start.listenPortController(app, port, runningData);
-              break;
-          }
+          ({ ServerSSL: server } = await Underpost.tls.createSslServer(app, tlsHosts, {
+            root: Underpost.tls.LOCAL_SSL_ROOT,
+          }));
+        } else ({ ServerSSL: server } = await Underpost.tls.createSslServer(app, hosts));
       }
+      await Underpost.start.listenPortController(server, port, runningData);
       logger.info('Proxy running', { port, router: options.router });
       if (process.env.NODE_ENV === 'development')
         logger.info(
           etcHostFactory(Object.keys(options.router), {
-            append: true,
+            blockId: `dev-proxy-${port}`,
           }).renderHosts,
         );
     }
@@ -130,4 +181,4 @@ class ProxyService {
  */
 const buildProxy = ProxyService.build;
 
-export { ProxyService, buildProxy };
+export { ProxyService, buildProxy, proxyErrorStatusFactory, proxyMiddlewareFactory, proxyTargetFactory };

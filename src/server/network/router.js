@@ -340,7 +340,10 @@ const buildPortProxyRouter = (
   Object.keys(hosts).map((hostKey) => {
     let { host, path, target, proxy, peer } = hosts[hostKey];
 
-    if (!proxy.includes(port)) {
+    // Conf lists the configured port; a dev proxy listens on it plus the offset.
+    const confPort =
+      options.devProxyContext === true ? port - (parseInt(process.env.DEV_PROXY_PORT_OFFSET) || 0) : port;
+    if (!proxy.includes(confPort)) {
       logger.warn('Proxy port not set on conf', { port, host, path, proxy, target });
       if (process.env.NODE_ENV === 'production') {
         logger.warn('Omitting host', { host, path, target });
