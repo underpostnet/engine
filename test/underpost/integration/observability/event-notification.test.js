@@ -194,4 +194,10 @@ describe('mailer transport lifecycle', () => {
     const provider = await loadedProviderFactory();
     expect(provider.close('absent')).to.equal(false);
   });
+
+  it('keeps SMTP certificate verification on when the transport sets no TLS options', async () => {
+    const provider = await loadedProviderFactory();
+    expect(provider.instance.test.transporter.options.tls).to.equal(undefined);
+    provider.close('test');
+  });
 });

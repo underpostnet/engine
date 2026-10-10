@@ -25,6 +25,7 @@ const logger = loggerFactory(import.meta);
  * @property {object} transport.auth - Authentication details.
  * @property {string} transport.auth.user - Username.
  * @property {string} transport.auth.pass - Password.
+ * @property {object} [transport.tls] - Node TLS options. Certificates are verified unless this sets `rejectUnauthorized: false`.
  * @property {string} [host=''] - Application host for context.
  * @property {string} [path=''] - Application path for context.
  * @property {object.<string, string>} templates - Map of template keys to SSR component file names.
@@ -117,9 +118,6 @@ class MailerProviderService {
     },
   ) {
     try {
-      options.transport.tls = {
-        rejectUnauthorized: false, // allows self-signed certs for local/dev
-      };
       const { id } = options;
 
       const transporter = nodemailer.createTransport(options.transport);
