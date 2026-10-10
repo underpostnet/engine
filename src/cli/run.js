@@ -3810,7 +3810,9 @@ EOF`);
         writeEnv(envPath, envObj);
       }
       dotenv.config({ path: `./engine-private/conf/${deployId}/.env.development`, override: true });
-      shellExec(`node bin run dev-cluster --expose --namespace ${options.namespace}`, { async: true });
+      shellExec(`node bin run dev-cluster --expose --${clusterTypeFactory(options)} --namespace ${options.namespace}`, {
+        async: true,
+      });
       {
         const cmd = `npm run dev:api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${
           options.tls ? ' tls' : ''
