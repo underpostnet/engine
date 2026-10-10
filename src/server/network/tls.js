@@ -7,12 +7,20 @@
 import fs from 'fs-extra';
 import https from 'https';
 import path from 'path';
+import { X509Certificate } from 'node:crypto';
 import { loggerFactory } from '../ops/logger.js';
+import { shellArgumentFactory, shellExec } from '../runtime/process.js';
 
 const logger = loggerFactory(import.meta);
 
 const DEFAULT_HOST = 'localhost';
-const SSL_BASE = (host = DEFAULT_HOST) => path.resolve(`./engine-private/ssl/${host}`);
+/** Stored certificates, shared through the private repository. */
+const SSL_ROOT = './engine-private/ssl';
+/** Certificates this machine issues for itself; never shared, because only this machine trusts their CA. */
+const LOCAL_SSL_ROOT = './.underpost/ssl';
+/** A certificate that expires within this window is renewed. */
+const SSL_RENEW_MS = 7 * 24 * 60 * 60 * 1000;
+const SSL_BASE = (host = DEFAULT_HOST, root = SSL_ROOT) => path.resolve(root, host);
 
 // Common filename candidates for certs/keys produced by various tools (mkcert, certbot, openssl scripts).
 const CERT_CANDIDATES = [
@@ -39,11 +47,12 @@ class TLS {
    * Look for existing SSL files under engine-private/ssl/<host> and return canonical paths.
    * It attempts to be permissive: accepts cert-only, cert+ca, or fullchain.
    * @param {string} host
+   * @param {string} [root] - Certificate root directory.
    * @returns {{key?:string, cert?:string, fullchain?:string, ca?:string, dir:string}}
    * @memberof UnderpostTLS
    */
-  static locateSslFiles(host = DEFAULT_HOST) {
-    const dir = SSL_BASE(host);
+  static locateSslFiles(host = DEFAULT_HOST, root = SSL_ROOT) {
+    const dir = SSL_BASE(host, root);
     const result = { dir };
 
     if (!fs.existsSync(dir)) {
@@ -99,12 +108,46 @@ class TLS {
   /**
    * Validate that a secure context can be built for host (key + cert or fullchain present)
    * @param {string} host
+   * @param {string} [root] - Certificate root directory.
    * @returns {boolean}
    * @memberof UnderpostTLS
    */
-  static validateSecureContext(host = DEFAULT_HOST) {
-    const files = TLS.locateSslFiles(host);
+  static validateSecureContext(host = DEFAULT_HOST, root = SSL_ROOT) {
+    const files = TLS.locateSslFiles(host, root);
     return Boolean((files.key && files.cert) || (files.key && files.fullchain));
+  }
+
+  /**
+   * Whether the certificate for a host names it and stays valid beyond the renewal window.
+   * @param {string} host
+   * @param {string} [root] - Certificate root directory.
+   * @param {number} [now] - Current time in milliseconds.
+   * @returns {boolean}
+   * @memberof UnderpostTLS
+   */
+  static certificateValidFor(host, root = SSL_ROOT, now = Date.now()) {
+    const files = TLS.locateSslFiles(host, root);
+    if (!files.key || !files.cert) return false;
+    try {
+      const certificate = new X509Certificate(fs.readFileSync(files.cert));
+      return Boolean(certificate.checkHost(host)) && Date.parse(certificate.validTo) - now > SSL_RENEW_MS;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Issues a certificate for a host into the local root, unless a valid one is there already.
+   * The local root holds only certificates this machine issued, so a stale one is replaced whole.
+   * @param {string} host
+   * @returns {boolean} True when a certificate was issued.
+   * @memberof UnderpostTLS
+   */
+  static ensureLocalCertificate(host) {
+    if (TLS.certificateValidFor(host, LOCAL_SSL_ROOT)) return false;
+    fs.removeSync(SSL_BASE(host, LOCAL_SSL_ROOT));
+    shellExec(`node bin/deploy tls ${shellArgumentFactory(host)} ${shellArgumentFactory(LOCAL_SSL_ROOT)}`);
+    return true;
   }
 
   /**
@@ -112,11 +155,12 @@ class TLS {
    * If a fullchain is available it will be used for cert and ca will be omitted (fullchain already includes chain).
    * If separate cert + ca are found, they will be used accordingly.
    * @param {string} host
+   * @param {string} [root] - Certificate root directory.
    * @returns {{key:string, cert:string, ca?:string}} options
    * @memberof UnderpostTLS
    */
-  static buildSecureContext(host = DEFAULT_HOST) {
-    const files = TLS.locateSslFiles(host);
+  static buildSecureContext(host = DEFAULT_HOST, root = SSL_ROOT) {
+    const files = TLS.locateSslFiles(host, root);
     if (!files.key) throw new Error(`SSL key not found for host ${host} (looked in ${files.dir})`);
     if (!files.cert) throw new Error(`SSL certificate not found for host ${host} (looked in ${files.dir})`);
 
@@ -138,13 +182,14 @@ class TLS {
    * This is useful if your generator produced nonstandard names and you want to normalize them.
    * The function will copy existing discovered files to: key.key, crt.crt, ca_bundle.crt when possible.
    * @param {string} host
+   * @param {string} [root] - Certificate root directory.
    * @returns {boolean} true if at least key+cert exist after operation
    * @memberof UnderpostTLS
    */
-  static async buildLocalSSL(host = DEFAULT_HOST) {
-    const dir = SSL_BASE(host);
+  static async buildLocalSSL(host = DEFAULT_HOST, root = SSL_ROOT) {
+    const dir = SSL_BASE(host, root);
     await fs.ensureDir(dir);
-    const files = TLS.locateSslFiles(host);
+    const files = TLS.locateSslFiles(host, root);
 
     // If key+cert already exist under canonical names, done
     const canonicalKey = path.join(dir, 'key.key');
@@ -164,7 +209,7 @@ class TLS {
       logger.warn('buildLocalSSL copy step failed', { err: err.message });
     }
 
-    return TLS.validateSecureContext(host);
+    return TLS.validateSecureContext(host, root);
   }
 
   /**
@@ -173,22 +218,23 @@ class TLS {
    * Returns the created https.Server instance (or undefined if none created).
    * @param {import('express').Application} app
    * @param {Object<string, any>} hosts
+   * @param {{root?: string}} [options] - Certificate root directory.
    * @returns {{ServerSSL?: https.Server}}
    * @memberof UnderpostTLS
    */
-  static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }) {
+  static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }, { root = SSL_ROOT } = {}) {
     let server;
     for (const host of Object.keys(hosts)) {
       // ensure canonical files exist (copies where possible)
-      await TLS.buildLocalSSL(host);
-      if (!TLS.validateSecureContext(host)) {
+      await TLS.buildLocalSSL(host, root);
+      if (!TLS.validateSecureContext(host, root)) {
         logger.error('Invalid SSL context, skipping host', { host });
         continue;
       }
 
       // build secure context options
       try {
-        const ctx = TLS.buildSecureContext(host);
+        const ctx = TLS.buildSecureContext(host, root);
         if (!server) {
           server = https.createServer(ctx, app);
           logger.info('Created HTTPS server for host', { host });
@@ -241,8 +287,11 @@ class UnderpostTLS {
   static API = {
     TLS,
     SSL_BASE,
+    LOCAL_SSL_ROOT,
     locateSslFiles: TLS.locateSslFiles,
     validateSecureContext: TLS.validateSecureContext,
+    certificateValidFor: TLS.certificateValidFor,
+    ensureLocalCertificate: TLS.ensureLocalCertificate,
     buildSecureContext: TLS.buildSecureContext,
     buildLocalSSL: TLS.buildLocalSSL,
     createSslServer: TLS.createSslServer,
@@ -250,5 +299,5 @@ class UnderpostTLS {
   };
 }
 
-export { TLS, SSL_BASE, UnderpostTLS };
+export { LOCAL_SSL_ROOT, SSL_BASE, TLS, UnderpostTLS };
 export default UnderpostTLS;

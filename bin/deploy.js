@@ -546,8 +546,8 @@ nvidia/gpu-operator \
     }
 
     case 'tls': {
-      fs.mkdirSync(`./engine-private/ssl/localhost`, { recursive: true });
-      const targetDir = `./engine-private/ssl/${process.argv[3] ? process.argv[3] : 'localhost'}`;
+      // `node bin/deploy tls [host] [root]`: the root defaults to the stored certificates.
+      const targetDir = Underpost.tls.SSL_BASE(process.argv[3] || 'localhost', process.argv[4] || undefined);
       const domains = ['localhost', '127.0.0.1', '::1'].concat(process.argv[3] ? process.argv[3] : []);
       shellExec(`chmod +x ./scripts/ssl.sh`);
       shellExec(`./scripts/ssl.sh ${targetDir} "${domains.join(' ')}"`);
