@@ -38,6 +38,9 @@ class UnderpostBaremetal {
   // POST handler and consumed by waitForBootstrapStage during orchestration.
   static bootstrapStatusEvents = new Map();
 
+  // A hostname or a lifecycle stage: one path segment, never `.` or `..`.
+  static BOOTSTRAP_STATUS_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$/;
+
   static API = {
     /**
      * @method callback
@@ -2816,6 +2819,49 @@ fi
     },
 
     /**
+     * @method bootstrapStatusHandlerFactory
+     * @description Builds the lifecycle event sink. The ephemeral runtime POSTs its stage
+     * transitions (ssh-ready, installing, completed, …) to it. The handler keeps each event in
+     * memory for `waitForBootstrapStage` and mirrors it under `<path>/<hostname>/status/`.
+     * It rejects a hostname or stage that is not one path segment, before any state changes.
+     * @param {object} params
+     * @param {string} params.bootstrapHttpServerPath - Root of the bootstrap HTTP server.
+     * @memberof UnderpostBaremetal
+     * @returns {import('express').RequestHandler}
+     */
+    bootstrapStatusHandlerFactory({ bootstrapHttpServerPath }) {
+      return (req, res) => {
+        const reqHostname = req.params.hostname;
+        const event = {
+          ...(req.body && typeof req.body === 'object' ? req.body : {}),
+          receivedAt: new Date().toISOString(),
+          remoteIp: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString(),
+        };
+        const stage = event.stage || 'unknown';
+        if (![reqHostname, stage].every((segment) => UnderpostBaremetal.BOOTSTRAP_STATUS_SEGMENT.test(`${segment}`))) {
+          logger.warn('Rejected bootstrap status event', { hostname: `${reqHostname}`, stage: `${stage}` });
+          return res.status(400).json({ ok: false });
+        }
+
+        const events = UnderpostBaremetal.bootstrapStatusEvents.get(reqHostname) || [];
+        events.push(event);
+        UnderpostBaremetal.bootstrapStatusEvents.set(reqHostname, events);
+
+        try {
+          const statusDir = `${bootstrapHttpServerPath}/${reqHostname}/status`;
+          fs.ensureDirSync(statusDir);
+          fs.writeFileSync(`${statusDir}/${stage}.json`, JSON.stringify(event, null, 2), 'utf8');
+          fs.appendFileSync(`${statusDir}/events.log`, `${JSON.stringify(event)}\n`, 'utf8');
+        } catch (error) {
+          logger.warn('Failed to persist bootstrap status event', { error: error.message });
+        }
+
+        logger.info(`Bootstrap status event [${reqHostname}] stage=${stage}`, event);
+        return res.json({ ok: true, stage });
+      };
+    },
+
+    /**
      * @method httpBootstrapServerRunnerFactory
      * @description Starts a simple HTTP server to serve boot files for network booting.
      * @param {object} options - Options for the HTTP server.
@@ -2838,37 +2884,8 @@ fi
 
       app.use(loggerMiddleware(import.meta, 'debug', () => false));
 
-      // Lifecycle event sink. The ephemeral Kickstart/Anaconda runtime POSTs
-      // stage transitions (ssh-ready, installing, completed, …) here so the
-      // controller can observe progress without polling the machine itself.
-      // Events are kept in-memory (consumed by the orchestration step) and
-      // mirrored to disk for auditing.
       app.use(express.json({ limit: '256kb' }));
-      app.post('/:hostname/status', (req, res) => {
-        const reqHostname = req.params.hostname;
-        const event = {
-          ...(req.body && typeof req.body === 'object' ? req.body : {}),
-          receivedAt: new Date().toISOString(),
-          remoteIp: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString(),
-        };
-        const stage = event.stage || 'unknown';
-
-        const events = UnderpostBaremetal.bootstrapStatusEvents.get(reqHostname) || [];
-        events.push(event);
-        UnderpostBaremetal.bootstrapStatusEvents.set(reqHostname, events);
-
-        try {
-          const statusDir = `${bootstrapHttpServerPath}/${reqHostname}/status`;
-          fs.ensureDirSync(statusDir);
-          fs.writeFileSync(`${statusDir}/${stage}.json`, JSON.stringify(event, null, 2), 'utf8');
-          fs.appendFileSync(`${statusDir}/events.log`, `${JSON.stringify(event)}\n`, 'utf8');
-        } catch (error) {
-          logger.warn('Failed to persist bootstrap status event', { error: error.message });
-        }
-
-        logger.info(`Bootstrap status event [${reqHostname}] stage=${stage}`, event);
-        res.json({ ok: true, stage });
-      });
+      app.post('/:hostname/status', Underpost.baremetal.bootstrapStatusHandlerFactory({ bootstrapHttpServerPath }));
 
       app.use('/', express.static(bootstrapHttpServerPath));
 
