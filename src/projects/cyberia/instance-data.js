@@ -580,6 +580,8 @@ async function fetchFullInstance(models, instanceCode) {
   // Entity-type-default edits live in their own collection too — fold them
   // in so adding/editing a default (e.g. a new resource) rebuilds the world.
   for (const ed of entityDefaultDocs) versionParts.push(String(ed.updatedAt || ed._id));
+  // A bind, a rebind or an unbind of an item the world names rebuilds the world.
+  versionParts.push(...olDocs.map((doc) => `${doc.data?.item?.id}=${doc.cid}`).sort());
   const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
   const baseConfig = toInstanceConfig(conf);

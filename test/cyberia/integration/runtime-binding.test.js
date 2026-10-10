@@ -4,6 +4,8 @@ import {
   findBoundDefinitions,
   itemBindingHistory,
   publishItemDefinition,
+  unboundItems,
+  writeDraftDefinition,
 } from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
 import { mongodBinary } from '../../support/mongod.js';
 import {
@@ -73,6 +75,26 @@ describe.skipIf(!mongodBinary)('the runtime binding on a real MongoDB', () => {
     expect(await runs('generated-skin-001')).toEqual([created.cid]);
     await expect(bind('generated-skin-001', created.cid, null)).resolves.toMatchObject({ objectLayerCid: created.cid });
     expect(await rejection(bind('generated-skin-001', cids['base-skin'], null))).toMatchObject({ status: 409 });
+  });
+
+  it('offers an item with a published definition and no binding to Add binding, until it is bound', async () => {
+    const offered = async (q) => (await unboundItems(models(), { q })).map(({ itemId }) => itemId);
+    const created = await publishItemDefinition({
+      models: models(),
+      payload: { data: definitionOf('unbound-skin-001') },
+      options: host,
+    });
+    await writeDraftDefinition({
+      models: models(),
+      payload: { data: definitionOf('unbound-skin-002') },
+      options: host,
+    });
+    expect(await unboundItems(models(), { q: 'UNBOUND-SKIN' })).toEqual([
+      { itemId: 'unbound-skin-001', itemType: 'skin', definitions: 1 },
+    ]);
+    expect(await offered('base-skin')).toEqual([]);
+    await bind('unbound-skin-001', created.cid, '');
+    expect(await offered('unbound-skin')).toEqual([]);
   });
 
   it('lets several items run one definition', async () => {

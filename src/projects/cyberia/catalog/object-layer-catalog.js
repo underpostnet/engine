@@ -24,6 +24,7 @@ import { publishObjectLayerBundle } from '../../../api/object-layer/object-layer
 import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
 import { CacheService } from '../../../server/storage/cache.js';
+import { DataQuery } from '../../../server/storage/data-query.js';
 
 /** Definitions the runtime may serve: published ones, never a draft. */
 const PUBLISHED = Object.freeze({ origin: { $ne: 'draft' } });
@@ -227,6 +228,28 @@ export async function itemBindingHistory({ CyberiaItemCatalog, ObjectLayer }, it
       render: data?.render?.cid ?? '',
     })),
   };
+}
+
+/**
+ * The items a bind can add to the catalog: each has a published definition that is not archived,
+ * and no binding. `q` matches a part of the item id, case-insensitive.
+ * @param {CatalogModels} models
+ * @param {{q?:string,limit?:number}} [params]
+ * @returns {Promise<Array<{itemId:string,itemType:string,definitions:number}>>} By item id.
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export async function unboundItems({ ObjectLayer, CyberiaItemCatalog }, { q = '', limit = 20 } = {}) {
+  const { query } = DataQuery.parse({
+    filterModel: q ? { 'data.item.id': { filterType: 'text', type: 'contains', filter: q } } : null,
+  });
+  const bound = await CyberiaItemCatalog.distinct('itemId');
+  const groups = await ObjectLayer.aggregate([
+    { $match: { $and: [query, PUBLISHED, { archivedAt: null }, { 'data.item.id': { $nin: [...bound, '', null] } }] } },
+    { $group: { _id: '$data.item.id', itemType: { $first: '$data.item.type' }, definitions: { $sum: 1 } } },
+    { $sort: { _id: 1 } },
+    { $limit: limit },
+  ]);
+  return groups.map(({ _id, itemType, definitions }) => ({ itemId: _id, itemType: itemType ?? '', definitions }));
 }
 
 /**

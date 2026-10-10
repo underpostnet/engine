@@ -17,6 +17,7 @@ import {
   itemBindingHistory,
   listBindings,
   reconcileItemCatalog,
+  unboundItems,
 } from '../../projects/cyberia/catalog/object-layer-catalog.js';
 import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
 
@@ -46,6 +47,17 @@ class CyberiaItemCatalogService {
     const { data, total } = await listBindings(bindingModels(options), page);
     return { data, total, page: page.page, totalPages: Math.ceil(total / page.limit) };
   };
+
+  /**
+   * GET `/unbound?q=`: the items a bind can add, see `unboundItems`.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<{items:Array<{itemId:string,itemType:string,definitions:number}>}>}
+   */
+  static unbound = async (req, res, options) => ({
+    items: await unboundItems(catalogModels(options), { q: String(req.query.q ?? '').trim() }),
+  });
 
   /**
    * GET `/:id/history`: the binding history of an item and the definitions it could run.

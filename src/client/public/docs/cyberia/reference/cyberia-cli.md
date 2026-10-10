@@ -615,8 +615,9 @@ cyberia catalog repair [--apply] --dev
 
 The bindings themselves change in the **Cyberia Item Catalog** view or over REST: `POST
 /api/v1/cyberia-item-catalog { itemId, objectLayerCid, expectedCid }` binds while the item runs
-`expectedCid` and answers 409 otherwise; `GET /:itemId/history` and `GET /:itemId/diagnostics`
-(moderator) read the history and the IPFS state. See
+`expectedCid` and answers 409 otherwise; `GET /unbound?q=` lists the items a bind can add;
+`GET /:itemId/history` and `GET /:itemId/diagnostics` (moderator) read the history and the IPFS
+state. See
 [Manage runtime bindings](../how-to/manage-runtime-bindings.md).
 
 ## `cyberia ipfs` — IPFS storage

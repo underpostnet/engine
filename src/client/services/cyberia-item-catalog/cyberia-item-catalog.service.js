@@ -19,6 +19,13 @@ class CyberiaItemCatalogService {
   static get = (options = {}) =>
     request(buildQueryUrl(getApiBaseUrl({ id: options.id && itemPath(options.id), endpoint }), options).toString());
 
+  /** The items a bind can add: a published definition and no binding. `q` matches a part of the id. */
+  static getUnbound = ({ q = '' } = {}) => {
+    const url = new URL(getApiBaseUrl({ id: 'unbound', endpoint }));
+    if (q) url.searchParams.set('q', q);
+    return request(url.toString());
+  };
+
   /** The binding history of an item and every definition it could run. */
   static getHistory = ({ itemId }) => request(getApiBaseUrl({ id: itemPath(itemId, 'history'), endpoint }));
 

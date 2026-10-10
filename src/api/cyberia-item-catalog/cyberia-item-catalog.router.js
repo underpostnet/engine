@@ -12,6 +12,7 @@ class CyberiaItemCatalogRouter {
     const router = express.Router();
     const moderator = [options.authMiddleware, moderatorGuard];
     const handle = (method) => async (req, res) => await CyberiaItemCatalogController[method](req, res, options);
+    router.get(`/unbound`, handle('unbound'));
     router.get(`/:id/history`, handle('history'));
     router.get(`/:id/diagnostics`, ...moderator, handle('diagnostics'));
     router.get(`/:id`, handle('get'));

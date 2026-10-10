@@ -329,6 +329,27 @@ describe.skipIf(!contentBuilt)('full world load', () => {
     expect(world.version).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('changes its version when the catalog binds, rebinds or unbinds an item the world names', async () => {
+    const world = (definitions) => ({
+      CyberiaInstance: {
+        findOne: () => lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf: { _id: 'c1' } }),
+      },
+      CyberiaMap: {
+        find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['hatchet'] }] }]),
+      },
+      CyberiaEntityTypeDefault: { find: () => lean([]) },
+      CyberiaAction: { find: () => lean([]) },
+      CyberiaQuest: { find: () => lean([]) },
+      CyberiaSkill: { find: () => lean([]) },
+      ...catalog(definitions),
+    });
+    const version = async (definitions) => (await fetchFullInstance(world(definitions), 'FOREST')).version;
+    const bound = await version([ol('hatchet', 'weapon')]);
+    expect(await version([ol('hatchet', 'weapon')])).toBe(bound);
+    expect(await version([{ ...ol('hatchet', 'weapon'), cid: 'cid-hatchet-2' }])).not.toBe(bound);
+    expect(await version([])).not.toBe(bound);
+  });
+
   // A quest names the definition it means; rebinding the label never moves it.
   it('loads the definition the catalog binds, whatever a legacy quest still pins', async () => {
     const store = catalog([ol('hatchet', 'weapon')]);

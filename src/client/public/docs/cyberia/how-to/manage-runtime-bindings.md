@@ -38,6 +38,19 @@ Filter and sort any column; the server does the work. **Binding Status** filters
 If another moderator bound the item meanwhile, the bind answers 409 and changes nothing. The view
 reads the item again; bind again if you still want the change.
 
+## Add a binding
+
+An item that has a published definition and no binding has no row. A Studio save of a new item
+makes such an item.
+
+1. Type a part of the item id in **Add binding**. The list shows only items with no binding.
+2. Click the item. The **Item** section says it is not bound and lists its definitions.
+3. Click **Bind as Runtime Version** on the definition to run, and confirm. The item gets its row.
+
+The engine asks the game servers to reload. A hot reload from the **Cyberia Instance Engine**, full
+or incremental, also loads the binding: the world version changes when a binding of an item the
+world names changes.
+
 In the Object Layer Studio, a banner above the editor says whether the revision you edit is the
 runtime version. **Bind as Runtime Version** there does the same bind. A save never binds.
 
