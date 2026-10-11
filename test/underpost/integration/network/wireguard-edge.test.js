@@ -1209,6 +1209,54 @@ describe('edge hub forward proxy', () => {
       });
       expect(status).to.equal(407);
     });
+
+    // An https target goes through a CONNECT tunnel, so each refusal of the proxy is an error, not a response.
+    it('fails an https fetch the proxy refuses to tunnel', async () => {
+      const failure = (url, proxyOptions) =>
+        fetchViaForwardProxy(url, { proxy: proxyOptions, timeout: 5000 }).then(
+          () => expect.fail('the tunnel must not open'),
+          (error) => error.message,
+        );
+      expect(await failure('https://127.0.0.1:443/', { ...proxyConfig, apiKey: 'wrong-key' })).to.equal(
+        '[forward-proxy] proxy refused CONNECT 127.0.0.1:443 (407)',
+      );
+      expect(await failure('https://127.0.0.1:1/', proxyConfig)).to.equal(
+        '[forward-proxy] proxy refused CONNECT 127.0.0.1:1 (502)',
+      );
+    });
+
+    it('refuses to fetch without an API key, before opening any socket', async () => {
+      try {
+        await fetchViaForwardProxy('https://origin.test/', { proxy: { ...proxyConfig, apiKey: '' } });
+        expect.fail('the proxy cannot be used without a key');
+      } catch (error) {
+        expect(error.message).to.include('is not set; the proxy cannot be used without it');
+      }
+    });
+
+    it('fails an https fetch to a target that does not speak TLS, and closes the tunnel', async () => {
+      let closed;
+      const tunnelClosed = new Promise((resolve) => (closed = resolve));
+      const plain = await listen(
+        net.createServer((socket) => {
+          socket.on('close', closed);
+          socket.end('not tls\r\n');
+        }),
+      );
+      servers.push(plain);
+      try {
+        await fetchViaForwardProxy(`https://127.0.0.1:${port(plain)}/`, {
+          proxy: proxyConfig,
+          method: 'post',
+          body: { id: 1 },
+          timeout: 5000,
+        });
+        expect.fail('a plain socket cannot complete a TLS handshake');
+      } catch (error) {
+        expect(error.message).to.not.include('[forward-proxy]');
+      }
+      await tunnelClosed;
+    });
   });
 
   // SSH carries no SNI and no Host, so there is nothing to route it on. The port
