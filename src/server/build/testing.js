@@ -447,14 +447,14 @@ const TEST_FOOTPRINTS = Object.freeze({
       'One project per fresh process, one worker, one file and one test at a time, inside a host budget. The default.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 1, fileParallelism: false, maxConcurrency: 1 },
-    budget: { memoryShare: 0.3, reserveShare: 0.1, cpuShare: 0.5, nice: 10 },
+    budget: { memoryShare: 0.3, reserveShare: 0.05, cpuShare: 0.5, nice: 10 },
   },
   balanced: {
     description:
       'One project per fresh process, two workers, parallel files where the project permits, inside a host budget.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 2, maxConcurrency: 2 },
-    budget: { memoryShare: 0.5, reserveShare: 0.05, cpuShare: 0.75, nice: 5 },
+    budget: { memoryShare: 0.5, reserveShare: 0.03, cpuShare: 0.75, nice: 5 },
   },
   ci: {
     description:

@@ -221,8 +221,8 @@ and logs the budget when the run starts.
 
 | Footprint        | Memory of one batch | Host reserve | Threads    | Priority  |
 | ---------------- | ------------------- | ------------ | ---------- | --------- |
-| `safe` (default) | 30%                 | 10%          | 50% of CPU | `nice 10` |
-| `balanced`       | 50%                 | 5%           | 75% of CPU | `nice 5`  |
+| `safe` (default) | 30%                 | 5%           | 50% of CPU | `nice 10` |
+| `balanced`       | 50%                 | 3%           | 75% of CPU | `nice 5`  |
 | `ci`             | no limit            | no limit     | no limit   | unchanged |
 
 - The runner samples the process tree of the batch four times a second. When the

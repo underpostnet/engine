@@ -81,7 +81,7 @@ describe('test budgets', () => {
   it('gives a batch of the safe footprint a share of the host', () => {
     expect(testBudgetFactory({ ...host })).to.deep.equal({
       memoryBytes: Math.floor(16 * 1024 ** 3 * 0.3),
-      reserveBytes: Math.floor(16 * 1024 ** 3 * 0.1),
+      reserveBytes: Math.floor(16 * 1024 ** 3 * 0.05),
       threads: 6,
       nice: 10,
     });
