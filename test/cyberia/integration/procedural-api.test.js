@@ -391,8 +391,14 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     const plain = await send({ id: cids['violet-skin'], roles, seed: 1 });
     expect(plain.status).toBe(200);
     expect(plain.body.data).toMatchObject({ frames: 6, accepted: 0, frameDurationMs: 250 });
-    const palette = fromWire(plain.body.data.renderFrames).palette.filter((color) => !color.endsWith('00'));
+    // Without Mutate the frames come as stored, so the palette of the body changes nothing.
+    expect(frames(await send({ id: cids['violet-skin'], roles: { ...roles, base: ['#204060'] }, seed: 1 }))).toEqual(
+      frames(plain),
+    );
+    const remapped = await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 0, seed: 1 });
+    const palette = fromWire(remapped.body.data.renderFrames).palette.filter((color) => !color.endsWith('00'));
     expect(palette.every((color) => Object.values(roles).flat().includes(color.slice(0, 7)))).toBe(true);
+    expect(frames(remapped)).not.toEqual(frames(plain));
     const mutated = await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 1, seed: 3 });
     expect(mutated.body.data.accepted).toBeGreaterThan(0);
     expect(frames(await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 1, seed: 3 }))).toEqual(
