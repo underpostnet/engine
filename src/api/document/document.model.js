@@ -182,6 +182,8 @@ DocumentSchema.statics.updateWithStableSlug = async function (document, { stable
       return await document.save();
     } catch (error) {
       if (!isStableSlugConflict(error) || attempt >= STABLE_SLUG_WRITE_ATTEMPTS) throw error;
+      // The lost candidate still derives from the title, so the validate hook would keep it.
+      document.stableSlug = await this.nextStableSlug(document.title);
     }
   }
 };

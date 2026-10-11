@@ -242,15 +242,19 @@ describe('stable slug after create', () => {
         return this;
       },
     };
-    const saved = await DocumentModel.updateWithStableSlug(document, {
-      title: 'Renamed',
-      stableSlug: 'hijacked',
-      isPublic: true,
+    const saved = await withTakenSlugs(['renamed'], async (lookups) => {
+      const result = await DocumentModel.updateWithStableSlug(document, {
+        title: 'Renamed',
+        stableSlug: 'hijacked',
+        isPublic: true,
+      });
+      expect(lookups).to.deep.equal(['Renamed']);
+      return result;
     });
     expect(saved.title).to.equal('Renamed');
     expect(saved.isPublic).to.equal(true);
-    expect(saved).to.not.have.property('stableSlug');
-    expect(saves).to.have.length(2);
+    expect(saves.map(({ stableSlug }) => stableSlug)).to.deep.equal([undefined, 'renamed-2']);
+    expect(saved.stableSlug).to.equal('renamed-2');
     const other = await DocumentModel.updateWithStableSlug(
       { set() {}, save: async () => Promise.reject(new Error('boom')) },
       {},
