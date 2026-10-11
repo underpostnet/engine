@@ -51,29 +51,29 @@ CyberiaEntity {
 
 ---
 
-## Runtime PlayerState (Go)
+## Runtime entity (Go)
 
-```go
-type PlayerState struct {
-    ID                string             // Go server player UUID
-    MapCode           string             // current map
-    Pos               Point              // world position (float64 X, Y)
-    Dims              Dimensions         // entity size
-    Color             ColorRGBA          // fallback solid color
-    Direction         Direction          // UP, UP_RIGHT, RIGHT, DOWN_RIGHT, DOWN, DOWN_LEFT, LEFT, UP_LEFT, NONE
-    Mode              ObjectLayerMode    // IDLE, WALKING, TELEPORTING
-    ObjectLayers      []ObjectLayerState // active OL stack: { ItemID, Active, Quantity }
-    MaxLife           float64
-    Life              float64
-    LifeRegen         float64
-    Coins             uint32             // flat coin balance (single source of truth)
-    Frozen            bool               // FrozenInteractionState active
-    FreezeReason      string             // "dialogue" | "inventory" | ...
-    Path              []PointI           // A* path (for smooth movement)
-    AOI               Rectangle          // current area-of-interest bounds
-    Progression       EntityProgression  // level, total XP, and progression freeze
-}
-```
+The server keeps no struct per entity type. Each map holds an entity table (`game/world`): every entity is a numeric `EntityID` with one slot, a component mask, and one array per component. A system reads only the components it needs.
+
+| Component    | Fields                                         | Carried by                          |
+| ------------ | ---------------------------------------------- | ----------------------------------- |
+| `EntityData` | `Kind`, `DrawOrder`, `Flags`                   | every entity                        |
+| `Transform`  | `Pos`, `Size` (grid units)                     | every entity                        |
+| `Appearance` | `Layers` — OL stack `{ ItemID, Active, Quantity }` | every entity                    |
+| `Vitals`     | `Life`, `MaxLife`, `RespawnAt` (zero while alive) | players, bots, resources         |
+| `Motion`     | `Direction`, `Mode` (IDLE, WALKING, TELEPORTING) | entities that move                 |
+| `Agent`      | `Behavior`, `CasterID`, `ActionCode`           | bots                                |
+| `Portal`     | `TargetMap`, `TargetCell`                      | portals                             |
+
+Server-only side tables, keyed by `EntityID`, hold what never goes on the wire:
+
+| Side table | Holds                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------- |
+| `Mortal`   | `BaseMaxLife`, `LifeRegen`, `RespawnDuration`, pre-death layers, damage ledger                            |
+| `Session`  | a connected player: map, path, AOI, `Coins` (single source of truth), frozen state, `InputQueue`, `InputConsumedThrough` |
+| `Brain`    | a bot: path, spawn center and radius, aggro range, pursuit target, lifetime, `Coins`, drop item           |
+
+Level, XP and progression freeze sit in a progression side table in `game/content`. The client mirrors the same table: its `game_state` has one array per component.
 
 ---
 
@@ -126,7 +126,7 @@ z-order  type
   3      weapon (weapon overlay)
 ```
 
-`get_priority_for_type()` in `entity_render.c` maps item type → z-order integer. Multiple layers of the same type are rendered in declared order within that z-level.
+`layer_z_priority()` in `world/layer_z_order.c` maps item type → z-order integer. Multiple layers of the same type are rendered in declared order within that z-level.
 
 ---
 
@@ -153,7 +153,7 @@ The overhead HUD and the Stats tab display the server values. XP and level never
 The Go server computes a status `u8` per entity each AOI tick. The C client renders the corresponding icon above the entity nameplate.
 
 ```go
-// Status constants (entity_status.go) — MUST stay in sync with JS STATUS_ICONS array
+// Status constants (game/content/entity_status.go) — MUST stay in sync with JS STATUS_ICONS array
 StatusNone              = 0  // skill/coin bots, world objects
 StatusPassive           = 1  // passive bot
 StatusHostile           = 2  // hostile bot
@@ -189,18 +189,7 @@ instance. A default that no instance references reaches no world.
 
 ## Bot Entity Profile
 
-Bot entities extend the base schema with runtime AI state:
-
-```go
-type BotState struct {
-    // Inherits all PlayerState fields
-    Behavior      string     // "hostile" | "passive" | "skill" | "coin"
-    SpawnRadius   int        // wander / respawn radius
-    AggroRange    int        // attack range (0 = passive)
-    SpawnPoint    PointI     // original spawn cell
-    RespawnTimer  time.Time  // next respawn timestamp
-}
-```
+A bot is an entity with an `Agent` component (`Behavior`, `CasterID`, `ActionCode`) and a `Brain` side-table row (`SpawnCenter`, `SpawnRadius`, `AggroRange`, path, pursuit target). Its respawn instant is `Vitals.RespawnAt`; the wait is the `respawnDurationMs` of its map entity.
 
 **Bot behaviors:**
 

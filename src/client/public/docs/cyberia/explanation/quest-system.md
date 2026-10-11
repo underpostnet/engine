@@ -144,7 +144,7 @@ sequenceDiagram
 
 Each `CyberiaQuest` can declare `sourceMapCode + sourceCellX + sourceCellY`, linking it to the map entity at that cell. This binding is used during instance initialization:
 
-- `instance_loader.go` reads `CyberiaEntity.initCellX/initCellY` and correlates with quest `sourceCellX/sourceCellY` to assign quest-granting behaviors to the correct NPC entity at world construction time.
+- `game/sim/instance_loader.go` reads `CyberiaEntity.initCellX/initCellY` and correlates with quest `sourceCellX/sourceCellY` to assign quest-granting behaviors to the correct NPC entity at world construction time.
 - The `ObjectLayerEngineModal` (Engine UI) allows editors to assign quest codes to entity cells visually.
 
 ---

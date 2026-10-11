@@ -411,7 +411,6 @@ export function resolveProgressionRules(input = {}) {
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Tick model ─────────────────────────────────────────────────────
   tickRate: 60,
-  snapshotRate: 20,
 
   // ── World / AOI ────────────────────────────────────────────────────
   aoiRadius: 10,

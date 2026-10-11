@@ -11,7 +11,6 @@ import {
 // is the lookup key and is only present when the source doc carries it).
 const SCHEMA_FIELDS = [
   'tickRate',
-  'snapshotRate',
   'aoiRadius',
   'portalHoldTimeMs',
   'portalSpawnRadius',
@@ -68,7 +67,7 @@ describe('fillInstanceConfDefaults', () => {
     expect(out.tickRate).to.equal(30);
     expect(out.collisionLifeLoss).to.equal(0);
     // Fields not overridden still come from defaults.
-    expect(out.snapshotRate).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.snapshotRate);
+    expect(out.aoiRadius).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.aoiRadius);
   });
 
   it('backfills a missing nested sub-document (economyRules)', () => {

@@ -90,7 +90,6 @@ const CyberiaInstanceConfSchema = new Schema(
 
     // ── Tick model (authoritative simulation cadence) ─────────────────
     tickRate: { type: Number, default: D.tickRate },
-    snapshotRate: { type: Number, default: D.snapshotRate },
 
     // ── World / AOI ─────────────────────────────────────────────────
     aoiRadius: { type: Number, default: D.aoiRadius },

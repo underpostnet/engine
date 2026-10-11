@@ -199,7 +199,7 @@ describe('instance config', () => {
     });
     const fb = CYBERIA_INSTANCE_CONF_DEFAULTS;
     expect(config.tickRate).toBe(5);
-    expect(config.snapshotRate).toBe(fb.snapshotRate);
+    expect(config.aoiRadius).toBe(fb.aoiRadius);
     expect(config.economyRules).toEqual({ ...fb.economyRules, portalFee: 9 });
     expect(config.skillRules).toEqual({ ...fb.skillRules, projectileWidth: 3, doppelgangerSpawnChance: 0.2 });
     expect(config.equipmentRules).toEqual({ ...fb.equipmentRules, requireSkin: false });

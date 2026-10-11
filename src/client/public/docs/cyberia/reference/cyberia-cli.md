@@ -393,7 +393,7 @@ reward, a purchase, an assembly output — so one emission covers them all. It i
 
 `craft` is a held bed rather than a cue, the same shape as `portal-cooldown`: it takes over the map's music
 for exactly as long as a recipe's assembly bar charges, loops seamlessly while the player waits, and releases
-back to the map on completion. Both holds are arbitrated in `audio_context.c`, which is also what makes them
+back to the map on completion. Both holds are arbitrated in `audio/audio_context.c`, which is also what makes them
 outlive a combat exchange instead of being cut by it — the modal owns the bar and only reports whether one is
 running.
 

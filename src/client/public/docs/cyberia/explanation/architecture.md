@@ -28,7 +28,7 @@ Underpost Platform provides the toolchain, deployment surface, PWA delivery, and
 │  │ ──────────────────  │                                                 │
 │  │  cyberia-server     │     Go                                          │
 │  └─────────┬───────────┘                                                 │
-│            │ WebSocket (binary AOI snapshots, typed input commands)      │
+│            │ WebSocket (JSON AOI snapshots, client event batches)        │
 │            ▼                                                             │
 │  ┌─────────────────────┐                                                 │
 │  │ Presentation        │   ← Cyberia render + prediction client          │
@@ -185,18 +185,16 @@ Per-instance hosts follow the same layout under their own sub-path — `client.c
 
 ## Tick model
 
-The tick is the universal coordinate of the simulation. Every server→client snapshot and every client→server input command carries a tick value.
+The server counts ticks; the client counts frames (its own completed fixed steps). Every client event carries its frame. Every snapshot carries the client frame it stands for.
 
-| Concept                  | Value                                 | Notes                                                                                                                       |
-| ------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **tick**                 | `uint32`                              | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                                        |
-| **tick rate**            | Hz (default `30`)                     | Simulation frequency. Authoritative; comes from world configuration. The string "fps" is never used to describe the server. |
-| **snapshot rate**        | Hz (default `20`)                     | AOI replication frequency. Decoupled from tick rate so bandwidth scales independently of simulation fidelity.               |
-| **tick duration**        | `1 / tick_rate`                       | The dt used by every simulation phase.                                                                                      |
-| **client tick estimate** | derived                               | Client estimate of the server's current tick, used to stamp outgoing input commands.                                        |
-| **render tick**          | `server_tick_estimate − INTERP_TICKS` | The tick the interpolation module samples remote entities at.                                                               |
+| Concept           | Value             | Notes                                                                                                   |
+| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| **tick**          | `uint32`          | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                    |
+| **tick rate**     | `30` Hz           | Simulation frequency, fixed at compile time on both sides. One snapshot per player goes out every tick. |
+| **tick duration** | `1 / tick_rate`   | The dt used by every simulation phase.                                                                  |
+| **frame**         | `uint32`          | Completed client fixed steps in one session. Not a server tick.                                         |
 
-Three clocks, one tick number: simulation tick (server), snapshot tick (server replication), render frame (client). The tick number is the only synchronization point.
+The server dates each tick in client frames from the newest consumed event: an event pushed in frame F and applied in tick T makes tick T stand for frame F + 1.
 
 ---
 
@@ -204,16 +202,14 @@ Three clocks, one tick number: simulation tick (server), snapshot tick (server r
 
 Inside one simulation tick, `cyberia-server` runs the following phases in fixed order. These are the only functions that mutate authoritative world state:
 
-1. `phaseInput` — drain each player's `InputQueue`; dispatch typed input commands to gameplay handlers.
-2. `phaseLifecycle` — respawn timers, despawn expirations.
-3. `phaseSkills` — skill projectile collisions.
-4. `phaseAI` — bot behaviour decisions.
-5. `phaseMovement` — integrate positions using `tickDuration`.
-6. `phasePortals` — portal entry and teleport.
-
-A separate ticker runs replication independently of the simulation:
-
-- `phaseReplication` — per player: compute AOI, encode snapshot, dispatch. Runs at `snapshotRate`.
+1. `PhaseInput` — drain each player's `InputQueue`; dispatch typed input commands to gameplay handlers.
+2. `PhaseLifecycle` — respawn timers, despawn expirations.
+3. `PhaseSkills` — skill projectile collisions.
+4. `PhaseAI` — bot behaviour decisions.
+5. `PhaseMovement` — integrate positions using `tickDuration`.
+6. `PhaseLoot` — drop token collection.
+7. `PhasePortals` — portal entry and teleport.
+8. `phaseReplication` — per player: compute AOI, encode snapshot, dispatch. Runs after every map has stepped.
 
 Phases never read presentation data. They consume world configuration loaded at boot (gameplay rules) and the input queue.
 
@@ -223,43 +219,37 @@ Phases never read presentation data. They consume world configuration loaded at 
 
 The render frame runs at vsync. Inside one render frame, `cyberia-client` performs:
 
-1. Poll any pending optional client-hints fetch.
-2. Capture raw input → build typed input command (`kind`, `clientTick`, `sequence`, payload) → apply to prediction → send on the wire.
-3. Reconcile against the latest snapshot: difference the authoritative position against the position this client predicted for that same tick, shift the prediction trail by that error, and — once `moveAck` covers the newest command — adopt the server's own `targetPos` and route as the walk destination.
-4. Fixed-timestep simulation: while accumulator ≥ `tickDuration`, advance prediction one tick.
-5. Interpolation: compute remote-entity view positions at `renderTick`.
-6. Render. Read view models; never mutate world state.
+1. Reconcile against the newest snapshot: replace the own state, drop the events up to `inputConsumedThrough`, replay the rest from the snapshot `frame` to the current frame.
+2. Capture raw input → push client events (`kind`, `frame`, `sequence`, payload).
+3. Fixed-timestep simulation: while accumulator ≥ `tickDuration`, advance one frame. Then send the new events once.
+4. View: draw the own player between the last two fixed steps; interpolate remote entities.
+5. Render. Read view models; never mutate world state.
 
 Render frame rate is independent of simulation tick rate. The fixed-timestep accumulator ensures the predicted simulation advances at the authoritative `tickRate` regardless of FPS.
 
 ---
 
-## Wire protocol — AOI snapshot header
+## Wire protocol — AOI snapshot
 
-Snapshots travel as binary WebSocket frames. The header carries the simulation tick and the per-player acknowledged input sequence.
+Every WebSocket message is a JSON envelope `{ "type", "payload" }` in a binary frame. The `snapshot` payload carries the AOI `entities`, the `self` block and two cursor fields:
 
-```
-Header (binary, little-endian, 11 bytes for AOI snapshots):
-  [0]       u8   msgType     0x01 = aoi_update, 0x03 = full_aoi
-  [1..4]    u32  tick        simulation tick at which the snapshot was produced
-  [5..8]    u32  lastAcked   highest InputCommand.Sequence applied for this player
-  [9..10]   u16  entityCount entity blocks that follow
-```
+| Field                  | Meaning                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `frame`                | the client frame this state stands for; 0 before the first consumed event |
+| `inputConsumedThrough` | highest client event sequence a tick has applied for this player          |
 
-Other message types (init data, FCT) use their own headers and are not part of the per-tick replication stream.
+Other message types (`init_data`, `combat_text`, `audio_event`, ...) are not part of the per-tick replication stream.
 
 ---
 
 ## Input command pipeline
 
-Client input flows through a typed pipeline. There is no JSON intermediate on the binary path. The simulation tick is the only consumer.
+The client sends its new events once per frame as one `events` message. The simulation tick is the only consumer.
 
 ```
-WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequence, payload}
+"events" message  →  receiveMessage  →  one typed InputCommand{kind, frame, sequence, payload} per event
                                               ↓
-                                              dispatchInputCommand
-                                              ↓
-                                              PlayerState.InputQueue (per-player, bounded)
+                                              Session.InputQueue (per-player, bounded)
                                               ↓
                        phaseInput (under world mutex, once per simulation tick)
                                               ↓
@@ -268,20 +258,13 @@ WS frame (binary)  →  decode  →  typed InputCommand{kind, clientTick, sequen
                        authoritative world state
 ```
 
-`InputCommand.Sequence` is monotonic per client. Every snapshot carries two acknowledgements of it, and they are not interchangeable:
+`InputCommand.Sequence` is monotonic per client. Every snapshot carries `inputConsumedThrough`, the highest sequence a tick has applied. The client keeps each event until that cursor passes it, and replays it on top of each new state.
 
-| Field     | Meaning                                                       | Client use                                                |
-| --------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| `ack`     | Highest sequence **received** for this player.                | Retires commands from the prediction buffer.              |
-| `moveAck` | Highest `PlayerAction` sequence that **re-planned movement**. | Gates adoption of the authoritative `targetPos` / `path`. |
-
-**Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A\* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned — the rest were superseded before they could mean anything. That coalescing is the only bound on pathfinder cost.
-
-This is why the two acknowledgements diverge: a superseded tap is acked on arrival and never planned, so `self.path` and `self.targetPos` can still describe an earlier command. A client that adopted the route on `ack` alone would turn back toward the abandoned target — worst during rapid changes of direction, where it reads as input lag and as a walk that sets off the wrong way.
+**Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A\* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned. That coalescing is the only bound on pathfinder cost.
 
 Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter (`DefaultMessageRate`, 30/s) is what bounds the stream.
 
-The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; steering, from the keys or the joystick, paces its _refresh_ by it, while a change of heading emits at once. `self.actionReadyInMs` is the time left on that cooldown, 0 when the next tap fires skills; the inventory bar draws it.
+The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; key steering paces its _refresh_ by it, while a change of heading emits at once.
 
 ---
 
@@ -300,7 +283,7 @@ Presentation is client-owned. The authoritative server holds no presentation sta
 | Dev-overlay flag                                 | engine-cyberia (REST) | same                                                                                                                |
 | World configuration (gameplay rules)             | engine-cyberia (gRPC) | `CyberiaInstanceConf` — no presentation; only simulation                                                            |
 
-The cyberia-client carries **no** compile-time palette. `domain/presentation_runtime.{c,h}` fetches the full presentation surface on startup; until the fetch settles the runtime returns a tiny inline neutral-grey bootstrap so the splash screen has something to draw. The simulation is unaffected by the fetch outcome.
+The cyberia-client carries **no** compile-time palette. `content/presentation_runtime.{c,h}` fetches the full presentation surface on startup; until the fetch settles the runtime returns a tiny inline neutral-grey bootstrap so the splash screen has something to draw. The simulation is unaffected by the fetch outcome.
 
 `cyberia-server` never reads any presentation field. The only "representational" data on the simulation wire is the **active item IDs** carried inside each AOI snapshot. Everything else visual is the client's job, fed by the hints REST endpoint.
 
@@ -316,9 +299,9 @@ Every Cyberia document uses the same terms. Aliases are not permitted.
 | **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                        |
 | **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                       |
 | **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                    |
-| **reconciliation**        | Correct prediction by the error measured at one tick: authoritative position minus the position predicted for that tick. Input is a destination, not a per-tick impulse, so the client keeps walking toward the `targetPos` that `moveAck` confirms, rather than replaying a command log. |
-| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost, and the reason `moveAck` trails `ack`.                                                                                                                                     |
-| **display smoothing**     | Per-render-frame exponential lerp from the discrete predicted self position to a continuous on-screen position. Decouples the visible main player from sim-tick boundaries.                                                                                                               |
+| **reconciliation**        | Replace the own state with the newest snapshot, then replay the unconsumed client events from the snapshot `frame` to the current frame, with the same motion function and `dt` as the live step.                                                                                       |
+| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost.                                                                                                                                                                            |
+| **display smoothing**     | Per-render-frame lerp of the own player between the last two fixed steps. View-only; it never writes simulation state.                                                                                                                                                                    |
 | **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                  |
 | **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                          |
 | **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                                            |

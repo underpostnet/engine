@@ -373,7 +373,6 @@ function toInstanceConfig(gc, baseline) {
 
   return {
     tickRate: gc.tickRate ?? fb.tickRate,
-    snapshotRate: gc.snapshotRate ?? fb.snapshotRate,
     aoiRadius: gc.aoiRadius ?? fb.aoiRadius,
     portalHoldTimeMs: gc.portalHoldTimeMs ?? fb.portalHoldTimeMs,
     portalSpawnRadius: gc.portalSpawnRadius ?? fb.portalSpawnRadius,

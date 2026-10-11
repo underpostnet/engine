@@ -254,7 +254,7 @@ const renderRuntimePanel = (m) => {
     'Simulation',
     html`
       <div class="grid-2">
-        ${kv('Tick rate', `${r.tick_rate_hz || 0} Hz`)} ${kv('Snapshot rate', `${r.snapshot_rate_hz || 0} Hz`)}
+        ${kv('Tick rate', `${r.tick_rate_hz || 0} Hz`)}
         ${kv('Tick #', formatNumber(r.current_tick))}
         ${kv('Tick duration', `${(r.tick_duration_ms || 0).toFixed(2)} ms`)}
         ${kv('AOI radius', `${(r.aoi_radius || 0).toFixed(1)}`)} ${kv('GOMAXPROCS', r.gomaxprocs || r.num_cpu || 0)}

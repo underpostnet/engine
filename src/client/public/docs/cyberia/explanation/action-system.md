@@ -280,7 +280,7 @@ freeze, so there is never a thawed frame between them.
 
 `sourceMapCode + sourceCellX + sourceCellY` links an Action to a specific entity cell in a specific map. During instance initialization:
 
-1. `instance_loader.go` reads each `CyberiaEntity` at its `initCellX/initCellY`.
+1. `game/sim/instance_loader.go` reads each `CyberiaEntity` at its `initCellX/initCellY`.
 2. For entities with matching Action source coordinates, the Go server attaches the Action payload to the runtime entity.
 3. The entity's `entityStatus` is set to `action-provider` (ESI id=8) — the bouncing chat icon renders above its nameplate.
 

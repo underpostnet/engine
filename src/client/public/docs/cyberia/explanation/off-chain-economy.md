@@ -115,27 +115,25 @@ s.craftingFeePercent      = er.GetCraftingFeePercent()
 
 ---
 
-## 3. Runtime Economy API (`economy.go`)
+## 3. Runtime Economy API (`game/content/economy.go`)
 
-All economy logic is encapsulated in a single file enforcing the single-source principle. Callers (`handlers.go`, `collision.go`, `skill.go`) call named methods and never manipulate coin wallets directly.
+All economy logic is encapsulated in a single file enforcing the single-source principle. Callers (`game/net/handlers.go`, `game/sim/collision.go`, `game/sim/skill.go`) call named methods and never manipulate coin wallets directly.
 
 ### Method Reference
 
-| Method                          | Caller                             | Description                                          |
-| ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| `FountainInitPlayer(player)`    | `handlers.go` on WebSocket connect | Credits `playerSpawnCoins` to new player             |
-| `FountainInitBot(bot)`          | `collision.go` on bot respawn      | Resets bot wallet to `botSpawnCoins` (infinite mint) |
-| `botCoinDropAmount(bot)`        | `collision.go handleBotDeath`      | Coin stake a dead bot scatters as a grid drop        |
-| `pvpCoinDropAmount(player)`     | `collision.go handlePlayerDeath`   | Coin stake a dead player scatters as a grid drop     |
-| `SinkRespawnCost(player)`       | `collision.go handlePlayerDeath`   | Burns `respawnCostPercent`% of player coins          |
-| `SinkPortalFee(player)`         | Portal handler                     | Burns flat `portalFee` coins on portal use           |
-| `SinkCraftingFee(player, item)` | Craft handler                      | Burns `craftingFeePercent`% on crafting              |
+| Method                          | Caller                                       | Description                                          |
+| ------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| `FountainInitPlayer(player)`    | `handlers.go` on WebSocket connect           | Credits `playerSpawnCoins` to new player             |
+| `FountainInitBot(id, ms)`       | `instance_loader.go`; `collision.go` respawn | Resets bot wallet to `botSpawnCoins` (infinite mint) |
+| `BotCoinDropAmount(id, ms)`     | `collision.go handleBotDeath`                | Coin stake a dead bot scatters as a grid drop        |
+| `PvpCoinDropAmount(player)`     | `collision.go handlePlayerDeath`             | Coin stake a dead player scatters as a grid drop     |
+| `SinkRespawnCost(player)`       | `collision.go handlePlayerDeath`             | Burns `respawnCostPercent`% of player coins          |
 
 ### Kill Loot Logic
 
 Every kill scatters the victim's configured `dropItemIds` (resolved per entity
 via the entity-type default build) plus its coin stake — where the entity carries
-coins — as grid drop tokens (`spawnDrops`, `loot.go`). Contribution is tracked
+coins — as grid drop tokens (`SpawnDrops`, `game/content/loot.go`). Contribution is tracked
 uniformly for **any** victim (player, bot, resource, destructible obstacle): players and the bots that
 dealt damage all join the set. Only contributors may collect — the amount of
 damage does not matter, only that the entity contributed — and collection is a
