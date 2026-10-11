@@ -190,4 +190,35 @@ describe('the release store and the checkout origin', () => {
       expect(origin()).toBe('https://github.com/acme/widget');
     });
   });
+
+  describe('the commits a checkout has not pushed', () => {
+    const unpushed = () => Underpost.repo.getUnpushedCount(work);
+    const commitLocal = (text) => git(work, 'commit', '-q', '--allow-empty', '-m', text);
+
+    it('counts the commits ahead of the origin branch', () => {
+      git(work, 'remote', 'add', 'origin', remote('widget-private').url);
+      commit('first');
+      expect(unpushed()).toEqual({ count: 1, branch: 'main', hasUnpushed: false });
+      commitLocal('second');
+      commitLocal('third');
+      expect(unpushed()).toEqual({ count: 2, branch: 'main', hasUnpushed: true });
+    });
+
+    it('fetches an SSH GitHub origin over HTTPS', () => {
+      git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'https://github.com/acme/');
+      git(work, 'remote', 'add', 'origin', 'git@github.com:acme/widget-private.git');
+      commit('first');
+      commitLocal('second');
+      expect(unpushed()).toEqual({ count: 1, branch: 'main', hasUnpushed: true });
+    });
+
+    it('tells why when the origin cannot be fetched', () => {
+      commitLocal('first');
+      expect(unpushed().error).toMatch(/no origin remote/);
+      git(work, 'remote', 'add', 'origin', remote('missing').url);
+      const { hasUnpushed, error } = unpushed();
+      expect(hasUnpushed).toBe(false);
+      expect(error).toMatch(/fetch failed/);
+    });
+  });
 });

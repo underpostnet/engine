@@ -22,6 +22,8 @@ const logger = loggerFactory(import.meta);
 
 const diffCmd = `--no-pager show -U0 -w --word-diff=color --word-diff-regex='[^[:space:]]' --color=always`;
 
+const githubRemotePattern = /^(?:git@github\.com:|https:\/\/github\.com\/)/;
+
 /**
  * @class UnderpostRepository
  * @description Manages Git operations and configurations.
@@ -402,9 +404,9 @@ class UnderpostRepository {
       }
       if (options.log || options.unpush) {
         if (options.unpush) {
-          const { count, hasUnpushed } = Underpost.repo.getUnpushedCount(repoPath);
+          const { count, hasUnpushed, error } = Underpost.repo.getUnpushedCount(repoPath);
           if (!hasUnpushed) {
-            logger.warn('No unpushed commits found');
+            logger.warn(error || 'No unpushed commits found');
             return;
           }
           options.log = count;
@@ -1484,7 +1486,7 @@ Prevent build private config repo.`,
     setOrigin({ path: repoPath = '.', repository }) {
       const slug = Underpost.repo.repoSlugFactory(repository);
       const current = Underpost.repo.getRemoteUrl({ path: repoPath });
-      const github = /^(?:git@github\.com:|https:\/\/github\.com\/)/.exec(current)?.[0];
+      const github = githubRemotePattern.exec(current)?.[0];
       if (github && Underpost.repo.repoSlugFactory(current) === slug) return;
       const url = github === 'git@github.com:' ? `git@github.com:${slug}.git` : `https://github.com/${slug}.git`;
       shellExec(`cd "${repoPath}" && git remote ${current ? 'set-url' : 'add'} origin "${url}"`);
@@ -1571,10 +1573,13 @@ Prevent build private config repo.`,
 
     /**
      * Returns metadata about unpushed commits in a git repository.
-     * Fetches from origin, then counts commits ahead of the remote branch.
+     * Fetches the current branch of origin, then counts commits ahead of it.
+     * A GitHub origin is fetched over HTTPS with `GITHUB_TOKEN`, as {@link UnderpostRepository.push} does;
+     * another origin is fetched as configured.
      * @param {string} [repoPath='.'] - Path to the git repository.
      * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
-     * @returns {{ count: number, branch: string, hasUnpushed: boolean }} Unpush metadata.
+     * @returns {{ count: number, branch: string, hasUnpushed: boolean, error?: string }} Unpush metadata;
+     *   `error` tells why origin could not be compared.
      * @memberof UnderpostRepository
      */
     getUnpushedCount(repoPath = '.', fallback = 1) {
@@ -1590,11 +1595,19 @@ Prevent build private config repo.`,
         .toString()
         .trim();
       if (!branch) return { count: fallback, branch: '', hasUnpushed: false };
-      shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, {
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      });
+      const origin = Underpost.repo.getRemoteUrl({ path: repoPath });
+      if (!origin) return { count: fallback, branch, hasUnpushed: false, error: `${repoPath}: no origin remote` };
+      const auth = githubRemotePattern.test(origin)
+        ? Underpost.repo.gitAuthFactory(`https://github.com/${Underpost.repo.repoSlugFactory(origin)}.git`)
+        : { url: 'origin', env: process.env };
+      const fetch = shellExec(
+        `cd ${repoPath} && git fetch "${auth.url}" "+refs/heads/${branch}:refs/remotes/origin/${branch}" 2>&1`,
+        { silent: true, disableLog: true, silentOnError: true, env: auth.env },
+      );
+      if (fetch.code !== 0) {
+        const reason = `${fetch.stdout || ''}`.trim().split('\n').pop();
+        return { count: fallback, branch, hasUnpushed: false, error: `${auth.url} ${branch}: fetch failed: ${reason}` };
+      }
       const raw = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
         stdout: true,
         silent: true,
