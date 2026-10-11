@@ -9,6 +9,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { watchRunnerFactory } from '../../../src/server/runtime/watch-runner.js';
+import { alive } from '../../support/process.js';
 
 // The runner watches a real directory and restarts a real child script, so what is asserted is the
 // file system events Linux delivers and the processes that run. The script appends one JSON line
@@ -31,15 +32,6 @@ setInterval(() => {}, 1000);
 `;
 const ARGS = ['dd-fixture', 'local-dev-client', 'fixture.test', '/'];
 const WAIT = { timeout: 8000, interval: 50 };
-
-const alive = (pid) => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (_) {
-    return false;
-  }
-};
 
 const fixture = (watched = 'src/client') => {
   const root = nodeFs.realpathSync(nodeFs.mkdtempSync(path.join(os.tmpdir(), 'underpost-watch-runner-')));

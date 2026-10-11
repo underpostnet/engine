@@ -9,26 +9,13 @@ import os from 'node:os';
 import nodePath from 'node:path';
 import { UNDERPOST_TESTING, testBatchStatus } from '../../../src/server/build/testing.js';
 import { runTestProcess } from '../../../src/cli/test.js';
+import { alive } from '../../support/process.js';
 
 const engineRoot = process.cwd();
 
 const until = async (condition, timeoutMs = 15000) => {
   const deadline = Date.now() + timeoutMs;
   while (!condition() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
-};
-
-// A killed orphan stays a zombie where PID 1 does not reap it: it is dead.
-const alive = (pid) => {
-  try {
-    process.kill(pid, 0);
-  } catch {
-    return false;
-  }
-  try {
-    return !fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ').pop().startsWith('Z');
-  } catch {
-    return true;
-  }
 };
 
 const node = (script, options = {}) =>
