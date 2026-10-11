@@ -120,7 +120,7 @@ services:
       start_period: 40s
     restart: unless-stopped
   engine-cyberia-runtime:
-    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.4.5}
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.5.0}
     container_name: dd-cyberia-engine
     env_file:
       - ./compose.env
@@ -161,7 +161,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   engine-cyberia-content:
-    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.4.5}
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v3.5.0}
     container_name: dd-cyberia-content
     network_mode: service:engine-cyberia-runtime
     command:
@@ -186,7 +186,7 @@ services:
         condition: service_healthy
     restart: 'no'
   cyberia-server-runtime:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.4.5}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.5.0}
     container_name: dd-cyberia-server
     environment:
       INSTANCE_CODE: amethyst-strata-expansion
@@ -227,7 +227,7 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
   cyberia-server-test:
-    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.4.5}
+    image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v3.5.0}
     container_name: dd-cyberia-server-test
     environment:
       INSTANCE_CODE: test
@@ -268,7 +268,7 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
   cyberia-client-runtime:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.4.5}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.5.0}
     container_name: dd-cyberia-client
     environment:
       CYBERIA_PORT: '8081'
@@ -294,7 +294,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   cyberia-client-test:
-    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.4.5}
+    image: ${CYBERIA_CLIENT_IMAGE:-underpost/cyberia-client-dev}:${CYBERIA_CLIENT_TAG:-v3.5.0}
     container_name: dd-cyberia-client-test
     environment:
       CYBERIA_PORT: '8081'

@@ -11,7 +11,7 @@ ARG CYBERIA_SOURCE=clone
 # Stage 1 — builder: take the sources, build the deploy, then scrub secrets.
 # ---------------------------------------------------------------------------
 FROM rockylinux/rockylinux:9 AS base
-ARG UNDERPOST_VERSION=3.4.5
+ARG UNDERPOST_VERSION=3.5.0
 # Pin Node to an exact patch: dnf's nodejs:24 module lags (24.14.1) while
 # underpost's dependencies require >=24.15.0, so install the official binary.
 ARG NODE_VERSION=24.15.0

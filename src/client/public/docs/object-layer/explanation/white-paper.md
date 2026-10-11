@@ -13,7 +13,7 @@ order: 1
 
 ### Semantic Identity and Interoperability for Composable Digital Objects
 
-**Version:** 3.4.5 Draft  
+**Version:** 3.5.0 Draft  
 **Status:** Technical Proposal  
 **Authors:** Underpost Engineering
 
