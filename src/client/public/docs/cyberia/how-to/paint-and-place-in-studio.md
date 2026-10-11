@@ -142,6 +142,8 @@ The drawing tools of the Object Layer editor stay above its tabs.
    an entity by its handle, or focus the handle and press the up or down arrow, to move it. The
    order is also the drawing order: a later entity draws over an earlier one. A move is one undo
    step.
+   To exchange two entities, type their indexes in **Swap two entities by index** and click
+   **Swap Entities**: each index keeps its place and holds the other entity. A swap is one undo step.
 6. Save. A save names the map revision it loaded; another save first answers 409.
 7. To place the quests and actions of a saga at the entities you placed, synchronize the saga
    ([Synchronize a saga](synchronize-a-saga.md)).

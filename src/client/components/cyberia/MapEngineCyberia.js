@@ -554,6 +554,23 @@ class MapEngineCyberia {
     });
   }
 
+  /** Exchanges the entities stored at indexes `a` and `b`; each index keeps its place in the array. */
+  static swapEntities(a, b) {
+    const { length } = MapEngineCyberia.entities;
+    const valid = (i) => Number.isInteger(i) && i >= 0 && i < length;
+    if (!valid(a) || !valid(b) || a === b) {
+      NotificationManager.Push({
+        html: `Enter two different entity indexes between 0 and ${length - 1}.`,
+        status: 'error',
+      });
+      return false;
+    }
+    return MapEngineCyberia.commitEntityMutation('SwapEntities', () => {
+      const { entities } = MapEngineCyberia;
+      [entities[a], entities[b]] = [entities[b], entities[a]];
+    });
+  }
+
   static renderEntityList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
@@ -711,6 +728,8 @@ class MapEngineCyberia {
     const entityListId = 'map-engine-entity-list';
     const idObjLayerDropdown = MapEngineCyberia.objectLayerDropdownId;
     const idObjLayerDropdownHost = MapEngineCyberia.objectLayerDropdownHostId;
+    const idSwapEntityA = 'map-engine-swap-entity-a';
+    const idSwapEntityB = 'map-engine-swap-entity-b';
     const idRenameSourceObjectLayer = MapEngineCyberia.renameSourceObjectLayerInputId;
     const idRenameTargetObjectLayer = MapEngineCyberia.renameTargetObjectLayerInputId;
     const managementId = 'modal-cyberia-map-engine';
@@ -1513,6 +1532,13 @@ class MapEngineCyberia {
           };
       }
 
+      if (s('.btn-map-engine-swap-entities'))
+        s('.btn-map-engine-swap-entities').onclick = () =>
+          MapEngineCyberia.swapEntities(
+            parseInt(s(`.${idSwapEntityA}`).value, 10),
+            parseInt(s(`.${idSwapEntityB}`).value, 10),
+          );
+
       new Sortable(s(`.${entityListId}`), {
         animation: 150,
         handle: '.map-engine-entity-handle',
@@ -2106,6 +2132,37 @@ class MapEngineCyberia {
                     </div>
                   </div>
                   <div class="in ${entityListId}" style="margin-top: 10px; max-height: 60vh; overflow-y: auto;"></div>
+                  <div class="in section-mp-border" style="margin: 10px; padding: 10px;">
+                    <div class="in input-label">Swap two entities by index</div>
+                    <div class="fl" style="align-items:flex-end;">
+                      <div class="in fll" style="flex:1;padding-right:5px;">
+                        ${await Input.instance({
+                          id: idSwapEntityA,
+                          label: html`Index A`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 0,
+                          placeholder: true,
+                        })}
+                      </div>
+                      <div class="in fll" style="flex:1;padding-left:5px;">
+                        ${await Input.instance({
+                          id: idSwapEntityB,
+                          label: html`Index B`,
+                          containerClass: 'inl',
+                          type: 'number',
+                          min: 0,
+                          placeholder: true,
+                        })}
+                      </div>
+                    </div>
+                    <div class="in" style="margin-top: 5px;">
+                      ${await BtnIcon.instance({
+                        class: 'wfa btn-map-engine-swap-entities',
+                        label: html`<i class="fa-solid fa-right-left"></i> Swap Entities`,
+                      })}
+                    </div>
+                  </div>
                   <div class="in" style="margin-top: 10px;">
                     ${await BtnIcon.instance({
                       class: 'wfa btn-map-engine-toggle-rename',
