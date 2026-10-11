@@ -47,6 +47,13 @@ jobs:
       - name: Install Go
         run: dnf install -y golang
 
+      # The database suites of the cyberia tier start a throwaway mongod
+      # (test/support/mongod.js). Without one they skip, and the modules they drive count as uncovered.
+      - name: Install the MongoDB server
+        run: |
+          curl -fsSL https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-rhel93-8.0.14.tgz | tar -xz -C /opt
+          echo "UNDERPOST_MONGOD_BIN=/opt/mongodb-linux-x86_64-rhel93-8.0.14/bin/mongod" >> "$GITHUB_ENV"
+
       - name: Install project dependencies
         run: npm install
 
