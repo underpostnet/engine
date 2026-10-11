@@ -11,6 +11,7 @@
  */
 
 import fs from 'fs-extra';
+import os from 'node:os';
 import nodePath from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -31,6 +32,7 @@ import {
   resolveTestProjects,
   staleTestRuns,
   testBatchStatus,
+  testBudgetFactory,
   testExecutionPlanFactory,
   testFailuresFactory,
   testJobManifestFactory,
@@ -57,6 +59,11 @@ const GATE_LINE = /does not meet|threshold/i;
 
 /** Linux reports CPU time in USER_HZ ticks, fixed at 100 per second. */
 const CLOCK_TICKS_PER_SECOND = 100;
+
+/** Time between two samples of the memory of a batch. */
+const SAMPLE_INTERVAL_MS = 250;
+
+const megabytes = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
 /**
  * The Vitest CLI entry of an engine tree. The runner starts it with its own Node binary,
@@ -118,8 +125,11 @@ const processTreeUsage = (pid) => {
  * @param {number} [params.timeoutMs] - Time limit, 0 for none.
  * @param {number} [params.graceMs] - Time between SIGTERM and SIGKILL at the time limit.
  * @param {boolean} [params.diagnose] - Sample the memory and CPU of the process tree.
+ * @param {{memoryBytes: number, reserveBytes: number, threads: number, nice: number}|null} [params.budget] - Host
+ *   budget, from `testBudgetFactory`. Null runs the batch without limits.
+ * @param {() => number} [params.availableMemory] - Memory the host has available, in bytes.
  * @param {{child: object|null}} [params.control] - Holds the running child for the signal forwarder.
- * @returns {Promise<{exitCode: number|null, signal: string|null, timedOut: boolean, durationMs: number, diagnostics?: object}>}
+ * @returns {Promise<{exitCode: number|null, signal: string|null, timedOut: boolean, overBudget: string, durationMs: number, diagnostics?: object}>}
  */
 const runTestProcess = ({
   command,
@@ -129,6 +139,8 @@ const runTestProcess = ({
   timeoutMs = 0,
   graceMs = UNDERPOST_TESTING.runs.terminationGraceMs,
   diagnose = false,
+  budget = null,
+  availableMemory = () => process.availableMemory(),
   control = {},
   logPath = '',
 }) =>
@@ -136,10 +148,16 @@ const runTestProcess = ({
     const started = performance.now();
     const child = spawn(command, args, {
       cwd,
-      env,
+      // esbuild sizes its Go scheduler from GOMAXPROCS. A value the operator set wins.
+      env: budget ? { GOMAXPROCS: `${budget.threads}`, ...env } : env,
       stdio: ['ignore', logPath ? 'pipe' : 'inherit', logPath ? 'pipe' : 'inherit'],
       detached: true,
     });
+    // The processes the batch starts inherit this priority.
+    if (budget && child.pid)
+      try {
+        os.setPriority(child.pid, budget.nice);
+      } catch {}
     // The output reaches the console as it is written and stays in the log file for the report.
     const log = logPath ? fs.createWriteStream(logPath) : null;
     const closed = log ? new Promise((done) => child.once('close', done)) : null;
@@ -154,6 +172,7 @@ const runTestProcess = ({
         });
     control.child = child;
     let timedOut = false;
+    let overBudget = '';
     let diagnostics = null;
     let escalation = null;
     const signalGroup = (signal) => {
@@ -166,13 +185,21 @@ const runTestProcess = ({
     };
     const sample = () => {
       const usage = processTreeUsage(child.pid);
-      if (!usage) return;
-      diagnostics = {
-        peakRssBytes: Math.max(diagnostics?.peakRssBytes ?? 0, usage.rssBytes),
-        cpuMs: Math.max(diagnostics?.cpuMs ?? 0, usage.cpuMs),
-      };
+      if (usage && diagnose)
+        diagnostics = {
+          peakRssBytes: Math.max(diagnostics?.peakRssBytes ?? 0, usage.rssBytes),
+          cpuMs: Math.max(diagnostics?.cpuMs ?? 0, usage.cpuMs),
+        };
+      if (!budget || overBudget) return;
+      const available = availableMemory();
+      if (usage && usage.rssBytes > budget.memoryBytes)
+        overBudget = `the batch held ${megabytes(usage.rssBytes)}, its budget is ${megabytes(budget.memoryBytes)}`;
+      else if (available < budget.reserveBytes)
+        overBudget = `the host had ${megabytes(available)} available, its reserve is ${megabytes(budget.reserveBytes)}`;
+      // Memory can grow faster than a grace time: the batch stops at once.
+      if (overBudget) signalGroup('SIGKILL');
     };
-    const sampler = diagnose ? setInterval(sample, 500) : null;
+    const sampler = diagnose || budget ? setInterval(sample, SAMPLE_INTERVAL_MS) : null;
     const deadline =
       timeoutMs > 0
         ? setTimeout(() => {
@@ -197,6 +224,7 @@ const runTestProcess = ({
         exitCode,
         signal,
         timedOut,
+        overBudget,
         durationMs: Math.round(performance.now() - started),
         ...(diagnose ? { diagnostics } : {}),
       };
@@ -341,6 +369,12 @@ class UnderpostTest {
         });
       // Rejects a malformed COVERAGE_MIN before the first batch, not at the merge.
       coverageThresholdFactory(process.env);
+      const budget = testBudgetFactory({
+        footprint: plan.footprint,
+        // A container limit is the host of the run. Without one, Node reports 2^64.
+        totalMemoryBytes: Math.min(os.totalmem(), process.constrainedMemory() || Infinity),
+        cpus: os.availableParallelism(),
+      });
       const allureResultsDirectory = allure
         ? nodePath.resolve(
             root,
@@ -397,6 +431,10 @@ class UnderpostTest {
         footprint: plan.footprint,
         batches: plan.batches.length,
         manifest: nodePath.relative(root, manifestPath),
+        budget: budget
+          ? `${megabytes(budget.memoryBytes)} per batch, ${megabytes(budget.reserveBytes)} host reserve, ` +
+            `${budget.threads} threads, nice ${budget.nice}`
+          : 'none',
       });
 
       const control = { child: null, interrupted: null };
@@ -414,11 +452,19 @@ class UnderpostTest {
       // A pipe is not a terminal: keep the colour a person at one reads.
       const colorEnv = process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: '1' } : {};
       const vitest = vitestBatches.length > 0 ? vitestEntry(root) : '';
-      const record = ({ exitCode, signal, timedOut, durationMs, diagnostics }, reported) => ({
-        status: testBatchStatus({ exitCode, signal, timedOut, reported, interrupted: Boolean(control.interrupted) }),
+      const record = ({ exitCode, signal, timedOut, overBudget, durationMs, diagnostics }, reported) => ({
+        status: testBatchStatus({
+          exitCode,
+          signal,
+          timedOut,
+          overBudget,
+          reported,
+          interrupted: Boolean(control.interrupted),
+        }),
         exitCode,
         signal,
         durationMs,
+        ...(overBudget ? { reason: overBudget } : {}),
         ...(diagnostics ? { diagnostics } : {}),
       });
       const runBatch = async (batch) => {
@@ -443,6 +489,7 @@ class UnderpostTest {
             cwd: projectRoot,
             timeoutMs,
             diagnose,
+            budget,
             control,
             logPath: nodePath.join(runDirectory, batch.log),
           });
@@ -476,6 +523,7 @@ class UnderpostTest {
           },
           timeoutMs,
           diagnose,
+          budget,
           control,
           logPath: nodePath.join(runDirectory, batch.log),
         });
@@ -501,6 +549,7 @@ class UnderpostTest {
             projects: batch.projects,
             exitCode: batch.exitCode,
             signal: batch.signal,
+            ...(batch.reason ? { reason: batch.reason } : {}),
           });
         }
 
@@ -521,6 +570,7 @@ class UnderpostTest {
               env: { ...vitestEnvFactory({ env: process.env, footprint: plan.footprint, diagnose }), ...colorEnv },
               timeoutMs,
               diagnose,
+              budget,
               control,
               logPath: nodePath.join(runDirectory, mergeLog),
             });

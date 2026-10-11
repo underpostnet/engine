@@ -213,6 +213,31 @@ underpost test --footprint ci           # a CI runner that owns its machine
 never a local default. The footprint reaches Vitest through
 `UNDERPOST_TEST_FOOTPRINT`, so a direct `npx vitest run` also applies `safe`.
 
+### The host budget
+
+A local footprint also sets a budget, a share of the host for each batch. The
+runner reads the memory and CPUs of the host, or the limit of its container,
+and logs the budget when the run starts.
+
+| Footprint        | Memory of one batch | Host reserve | Threads    | Priority  |
+| ---------------- | ------------------- | ------------ | ---------- | --------- |
+| `safe` (default) | 30%                 | 10%          | 50% of CPU | `nice 10` |
+| `balanced`       | 50%                 | 5%           | 75% of CPU | `nice 5`  |
+| `ci`             | no limit            | no limit     | no limit   | unchanged |
+
+- The runner samples the process tree of the batch four times a second. When the
+  tree holds more memory than its share, the runner stops the batch with
+  SIGKILL.
+- When the available memory of the host falls below the reserve, the runner
+  also stops the batch. The cause can be another application. The reserve keeps
+  the desktop responsive in all cases.
+- The batch starts at the lower priority. Every process that it starts gets
+  the same priority.
+- `GOMAXPROCS` limits the threads of esbuild. A value that you set wins.
+
+A stopped batch gets the status `over-budget`. The report gives the memory that
+the runner measured. The run continues with the next batch, and the run fails.
+
 ### The run directory
 
 Each run writes to `.vitest/test-runs/<run-id>/`:
@@ -238,16 +263,17 @@ A failed batch does not stop the run. The runner records it and continues with
 the next batch. After the last batch, the merge builds the final report from
 every blob. The run passes only when every batch and the merge passed.
 
-| Status        | Meaning                                                           |
-| ------------- | ----------------------------------------------------------------- |
-| `passed`      | The batch passed.                                                 |
-| `failed`      | Tests failed. The batch wrote its report.                         |
-| `error`       | The runner failed before it wrote a report.                       |
-| `killed`      | SIGKILL stopped the batch, often the kernel out-of-memory killer. |
-| `signaled`    | Another signal from outside stopped the batch.                    |
-| `timeout`     | The batch ran longer than `--batch-timeout` minutes.              |
-| `interrupted` | The operator stopped the run. The next batches stay `pending`.    |
-| `skipped`     | A delegated project whose directory this tree does not ship.      |
+| Status        | Meaning                                                            |
+| ------------- | ------------------------------------------------------------------ |
+| `passed`      | The batch passed.                                                  |
+| `failed`      | Tests failed. The batch wrote its report.                          |
+| `error`       | The runner failed before it wrote a report.                        |
+| `killed`      | SIGKILL stopped the batch, often the kernel out-of-memory killer.  |
+| `signaled`    | Another signal from outside stopped the batch.                     |
+| `over-budget` | The runner stopped the batch at its memory budget or host reserve. |
+| `timeout`     | The batch ran longer than `--batch-timeout` minutes.               |
+| `interrupted` | The operator stopped the run. The next batches stay `pending`.     |
+| `skipped`     | A delegated project whose directory this tree does not ship.       |
 
 At the end, the runner prints one row per batch: the batch, its projects, status,
 exit code, signal and duration. A killed batch writes no blob, so the merge of
@@ -257,7 +283,8 @@ When the run fails, the runner then prints what went wrong:
 
 - Each failed test, with its project, file and error. A suite that fails to load
   is one failure.
-- For a batch that wrote no results (killed, timeout, error), the end of its log.
+- For a batch that wrote no results (killed, over-budget, timeout, error), the
+  end of its log. An over-budget batch also gives its reason.
 - For the merge, the failed coverage threshold, or the end of its log.
 
 Read `logs/` and `results/` in the run directory for the complete output. On

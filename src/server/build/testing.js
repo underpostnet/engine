@@ -434,24 +434,34 @@ const TEST_PROJECTS = [
  * process. `selection` runs the whole selection in one process. Batches run one at a
  * time. `vitest` limits each process. A footprint can stop file parallelism, but it
  * never starts it for a project that sets `parallel` off.
+ *
+ * `budget` is the share of the host one batch can use. The runner stops a batch whose
+ * process tree holds more than `memoryShare` of the memory, or that leaves less than
+ * `reserveShare` of it available to the host. A batch runs at `nice` priority, and
+ * `cpuShare` of the CPUs sizes the thread pools of the tools it starts.
  * @memberof UnderpostTesting
  */
 const TEST_FOOTPRINTS = Object.freeze({
   safe: {
-    description: 'One project per fresh process, one worker, one file and one test at a time. The default.',
+    description:
+      'One project per fresh process, one worker, one file and one test at a time, inside a host budget. The default.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 1, fileParallelism: false, maxConcurrency: 1 },
+    budget: { memoryShare: 0.3, reserveShare: 0.1, cpuShare: 0.5, nice: 10 },
   },
   balanced: {
-    description: 'One project per fresh process, two workers, parallel files where the project permits.',
+    description:
+      'One project per fresh process, two workers, parallel files where the project permits, inside a host budget.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 2, maxConcurrency: 2 },
+    budget: { memoryShare: 0.5, reserveShare: 0.05, cpuShare: 0.75, nice: 5 },
   },
   ci: {
     description:
       'The whole selection in one process, on the Vitest default workers. For a runner that owns its machine.',
     batch: 'selection',
     vitest: {},
+    budget: null,
   },
 });
 
@@ -468,6 +478,29 @@ const testFootprintFactory = (name = '') => {
   if (!Object.hasOwn(TEST_FOOTPRINTS, key))
     throw new Error(`[test] unknown footprint '${key}' — expected one of ${Object.keys(TEST_FOOTPRINTS).join(', ')}`);
   return { name: key, ...TEST_FOOTPRINTS[key] };
+};
+
+/**
+ * @method testBudgetFactory
+ * @description Resolves the budget of a footprint against one host.
+ * @param {object} params
+ * @param {string} [params.footprint] - Footprint name.
+ * @param {number} params.totalMemoryBytes - Memory of the host, or of its container limit.
+ * @param {number} params.cpus - CPUs the runner can use.
+ * @returns {{memoryBytes: number, reserveBytes: number, threads: number, nice: number}|null} The budget,
+ *   or null for a footprint without one.
+ * @throws {Error} When the footprint is unknown.
+ * @memberof UnderpostTesting
+ */
+const testBudgetFactory = ({ footprint = '', totalMemoryBytes, cpus }) => {
+  const { budget } = testFootprintFactory(footprint);
+  if (!budget) return null;
+  return {
+    memoryBytes: Math.floor(totalMemoryBytes * budget.memoryShare),
+    reserveBytes: Math.floor(totalMemoryBytes * budget.reserveShare),
+    threads: Math.max(1, Math.floor(cpus * budget.cpuShare)),
+    nice: budget.nice,
+  };
 };
 
 /**
@@ -761,11 +794,13 @@ const testExecutionPlanFactory = ({ selector = '', contexts = [], footprint = ''
  * `failed`: tests failed and the batch wrote its report. `error`: the runner failed
  * before it wrote a report, or the process did not start. `killed`: SIGKILL, often
  * the kernel out-of-memory killer. `signaled`: another signal from outside.
+ * `over-budget`: the runner stopped the batch at its memory budget or host reserve.
  * `timeout`: the batch ran past its limit. `interrupted`: the operator stopped the run.
  * @param {object} [outcome]
  * @param {number|null} [outcome.exitCode] - Exit code, or null when a signal ended the process.
  * @param {string|null} [outcome.signal] - Signal that ended the process.
  * @param {boolean} [outcome.timedOut] - The runner stopped the batch at its time limit.
+ * @param {string} [outcome.overBudget] - Why the runner stopped the batch at its budget.
  * @param {boolean} [outcome.interrupted] - The operator stopped the run during the batch.
  * @param {boolean} [outcome.reported] - The batch wrote its report.
  * @returns {string} Status.
@@ -775,10 +810,12 @@ const testBatchStatus = ({
   exitCode = null,
   signal = null,
   timedOut = false,
+  overBudget = '',
   interrupted = false,
   reported = false,
 } = {}) => {
   if (interrupted) return 'interrupted';
+  if (overBudget) return 'over-budget';
   if (timedOut) return 'timeout';
   if (signal === 'SIGKILL') return 'killed';
   if (signal) return 'signaled';
@@ -922,7 +959,8 @@ const testRunFailureReportFactory = ({ batches = [], merge } = {}, evidence = {}
     const { tail = '' } = evidence[batch.index] ?? {};
     sections.push(
       [
-        `Batch ${batch.index} (${batch.projects.join(',')}) ${batch.status}: ${tail ? 'end of' : 'no output in'} ${batch.log ?? 'its log'}`,
+        `Batch ${batch.index} (${batch.projects.join(',')}) ${batch.status}${batch.reason ? ` (${batch.reason})` : ''}: ` +
+          `${tail ? 'end of' : 'no output in'} ${batch.log ?? 'its log'}`,
         ...(tail ? tail.split('\n').map((line) => `   | ${line}`) : []),
       ].join('\n'),
     );
@@ -932,7 +970,7 @@ const testRunFailureReportFactory = ({ batches = [], merge } = {}, evidence = {}
     const lines = failedTests.length > 0 ? thresholdLines : tail ? tail.split('\n') : [];
     sections.push(
       [
-        `Merge ${merge.status}: ${failedTests.length > 0 ? 'it replays the failed tests above' : 'end of its log'}${merge.log ? `, ${merge.log}` : ''}`,
+        `Merge ${merge.status}${merge.reason ? ` (${merge.reason})` : ''}: ${failedTests.length > 0 ? 'it replays the failed tests above' : 'end of its log'}${merge.log ? `, ${merge.log}` : ''}`,
         ...lines.map((line) => `   | ${line}`),
       ].join('\n'),
     );
@@ -1374,6 +1412,7 @@ export {
   runnableTestProjects,
   staleTestRuns,
   testBatchStatus,
+  testBudgetFactory,
   testDomainNames,
   testExecutionPlanFactory,
   testFootprintFactory,

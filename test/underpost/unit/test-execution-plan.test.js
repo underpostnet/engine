@@ -11,6 +11,7 @@ import {
   impactSelector,
   staleTestRuns,
   testBatchStatus,
+  testBudgetFactory,
   testExecutionPlanFactory,
   testFailuresFactory,
   testFootprintFactory,
@@ -71,6 +72,35 @@ describe('test footprints', () => {
 
   it('keeps the declared project settings in the ci footprint', () => {
     expect(testProjectsFactory({}, [], testFootprintFactory('ci'))).to.deep.equal(testProjectsFactory());
+  });
+});
+
+describe('test budgets', () => {
+  const host = { totalMemoryBytes: 16 * 1024 ** 3, cpus: 12 };
+
+  it('gives a batch of the safe footprint a share of the host', () => {
+    expect(testBudgetFactory({ ...host })).to.deep.equal({
+      memoryBytes: Math.floor(16 * 1024 ** 3 * 0.3),
+      reserveBytes: Math.floor(16 * 1024 ** 3 * 0.1),
+      threads: 6,
+      nice: 10,
+    });
+  });
+
+  it('gives every local footprint a budget, and the ci footprint none', () => {
+    for (const name of Object.keys(TEST_FOOTPRINTS)) {
+      const budget = testBudgetFactory({ ...host, footprint: name });
+      if (name === 'ci') expect(budget, name).to.equal(null);
+      else expect(budget.memoryBytes + budget.reserveBytes, name).to.be.below(host.totalMemoryBytes);
+    }
+  });
+
+  it('keeps one thread on a host with one CPU', () => {
+    expect(testBudgetFactory({ ...host, cpus: 1 }).threads).to.equal(1);
+  });
+
+  it('rejects a footprint that is not declared', () => {
+    expect(() => testBudgetFactory({ ...host, footprint: 'fast' })).to.throw(/unknown footprint/);
   });
 });
 
@@ -287,6 +317,7 @@ describe('batch status', () => {
       [{ exitCode: null, signal: 'SIGKILL' }, 'killed'],
       [{ exitCode: null, signal: 'SIGTERM' }, 'signaled'],
       [{ exitCode: null, signal: 'SIGKILL', timedOut: true }, 'timeout'],
+      [{ exitCode: null, signal: 'SIGKILL', overBudget: 'the batch held 5000 MB' }, 'over-budget'],
       [{ exitCode: 130, interrupted: true, reported: true }, 'interrupted'],
     ];
     for (const [outcome, status] of cases) expect(testBatchStatus(outcome), JSON.stringify(outcome)).to.equal(status);
@@ -432,6 +463,27 @@ describe('failure report', () => {
     );
     expect(report).to.equal('Merge error: end of its log, logs/merge.log\n   | boom');
     expect(testRunFailureReportFactory({ batches: [{ index: 1, projects: ['x'], status: 'passed' }] })).to.equal('');
+  });
+
+  it('names why the runner stopped a batch at its budget', () => {
+    const report = testRunFailureReportFactory(
+      {
+        batches: [
+          {
+            index: 4,
+            projects: ['underpost:audit'],
+            status: 'over-budget',
+            reason: 'the batch held 5000 MB, its budget is 4608 MB',
+            log: 'logs/batch-004.log',
+          },
+        ],
+      },
+      { 4: { failures: [], tail: 'last line' } },
+    );
+    expect(report).to.equal(
+      'Batch 4 (underpost:audit) over-budget (the batch held 5000 MB, its budget is 4608 MB): ' +
+        'end of logs/batch-004.log\n   | last line',
+    );
   });
 
   it('clips a long message and keeps the end of a log', () => {

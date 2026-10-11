@@ -98,6 +98,42 @@ describe('batch process', () => {
     expect(testBatchStatus(outcome)).to.equal('error');
   });
 
+  const budget = { memoryBytes: 64 * 1024 * 1024, reserveBytes: 0, threads: 2, nice: 7 };
+
+  it.skipIf(!fs.existsSync('/proc/self/stat'))('stops a batch that holds more than its memory budget', async () => {
+    const outcome = await node(
+      'const held = Buffer.alloc(160 * 1024 * 1024, 1); setInterval(() => held.length, 1000)',
+      {
+        budget,
+      },
+    );
+    expect(outcome).to.include({ signal: 'SIGKILL', timedOut: false });
+    expect(outcome.overBudget).to.match(/^the batch held \d+ MB, its budget is 64 MB$/);
+    expect(testBatchStatus(outcome)).to.equal('over-budget');
+  });
+
+  it('stops a batch when the host runs below its reserve', async () => {
+    const outcome = await node('setInterval(() => {}, 1000)', {
+      budget: { ...budget, memoryBytes: Infinity, reserveBytes: 1024 * 1024 * 1024 },
+      availableMemory: () => 512 * 1024 * 1024,
+    });
+    expect(outcome.signal).to.equal('SIGKILL');
+    expect(outcome.overBudget).to.equal('the host had 512 MB available, its reserve is 1024 MB');
+  });
+
+  it('runs a batch at the priority and thread count of its budget', async () => {
+    // Only root can raise a priority, and this suite can itself run at the nice value of a budget.
+    const nice = Math.min(19, os.getPriority() + 3);
+    const logPath = nodePath.join(fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-batch-')), 'batch.log');
+    const outcome = await node(
+      "setTimeout(() => console.log(require('node:os').getPriority(), process.env.GOMAXPROCS), 300)",
+      { budget: { ...budget, memoryBytes: Infinity, nice }, logPath, env: { PATH: process.env.PATH } },
+    );
+    expect(outcome).to.include({ exitCode: 0, overBudget: '' });
+    expect(fs.readFileSync(logPath, 'utf8').trim()).to.equal(`${nice} 2`);
+    fs.removeSync(nodePath.dirname(logPath));
+  });
+
   it.skipIf(!fs.existsSync('/proc/self/stat'))('samples the memory and CPU of the batch', async () => {
     const outcome = await node('const held = Buffer.alloc(96 * 1024 * 1024, 1); setTimeout(() => held.length, 1500)', {
       diagnose: true,

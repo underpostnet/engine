@@ -550,6 +550,8 @@ const runtimeImportGraphFactory = async ({ root = ENGINE_PACKAGE_PATH, entryPoin
     absWorkingDir: nodePath.resolve(root),
     entryPoints: entryPoints.flatMap((pattern) => fs.globSync(pattern, { cwd: root })),
     bundle: true,
+    // Shared chunks keep the output to one copy of the graph, not one copy for each entry point.
+    splitting: true,
     write: false,
     metafile: true,
     logLevel: 'silent',
