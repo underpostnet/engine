@@ -7,14 +7,63 @@ order: 0
 
 # Ecosystem landscape
 
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center" width="33%" valign="top">
+      <a href="https://underpost.net">
+        <img src="https://underpost.net/favicon.ico" width="28" alt="Underpost favicon" /><br/>
+        <strong>Underpost</strong>
+      </a>
+      <br/><sub>Shared tooling, engineering notes and architecture.</sub>
+    </td>
+    <td align="center" width="33%" valign="top">
+      <a href="https://www.nexodev.org">
+        <img src="https://www.nexodev.org/favicon.ico" width="28" alt="Nexodev favicon" /><br/>
+        <strong>Nexodev</strong>
+      </a>
+      <br/><sub>ERP, CRM, DevOps and cloud services.</sub>
+    </td>
+    <td align="center" width="33%" valign="top">
+      <a href="https://objectlayer.org">
+        <img src="https://objectlayer.org/favicon.ico" width="28" alt="Object Layer favicon" /><br/>
+        <strong>Object Layer</strong>
+      </a>
+      <br/><sub>Canonical definitions and identity for digital objects.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%" valign="top">
+      <a href="https://www.cyberiaonline.com">
+        <img src="https://www.cyberiaonline.com/favicon.ico" width="28" alt="Cyberia favicon" /><br/>
+        <strong>Cyberia</strong><br/>
+      </a>
+      <br/><sub>Persistent worlds, game runtime and creation tools.</sub>
+    </td>
+    <td align="center" width="33%" valign="top">
+      <a href="https://cryptokoyn.net">
+        <img src="https://cryptokoyn.net/favicon.ico" width="28" alt="CryptoKoyn favicon" /><br/>
+        <strong>CryptoKoyn</strong>
+      </a>
+      <br/><sub>Wallet identity and CKY finance.</sub>
+    </td>
+    <td align="center" width="33%" valign="top">
+      <a href="https://itemledger.com">
+        <img src="https://itemledger.com/favicon.ico" width="28" alt="ItemLedger favicon" /><br/>
+        <strong>ItemLedger</strong>
+      </a>
+      <br/><sub>Digital assets, ownership and provenance.</sub>
+    </td>
+  </tr>
+</table>
+</div>
+
+## The domains
+
 The platform is six domains. Each one owns a body of content, a database and an API, and each
 one is documented on its own terms. This states what every domain is, what it owns, how the
 domains reach each other, and which of those integrations exist today.
-
-This document does not repeat any domain's manual. Each domain's own overview is the entry
-point to its documentation.
-
-## The domains
 
 | Domain                                               | Identity                                                                 | Maturity                 |
 | ---------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------ |
