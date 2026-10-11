@@ -1,12 +1,17 @@
 'use strict';
 
 import { expect } from 'chai';
-import { MailerProviderClass } from '../../../../src/mailer/MailerProvider.js';
+import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
+import { MailerProvider, MailerProviderClass } from '../../../../src/mailer/MailerProvider.js';
 import { mailerInterceptorFactory } from '../../../../src/mailer/MailerInterceptor.js';
 import {
   EVENT_CONF_PATH,
   assertNotificationRoutes,
+  deliverEventNotification,
   eventNotificationRoutes,
+  readEventConf,
 } from '../../../../src/server/ops/event-notification.js';
 
 const CONF = {
@@ -109,6 +114,155 @@ describe('event notification contract', () => {
       'notification routes are unresolved',
     );
     expect(assertNotificationRoutes(eventNotificationRoutes('wireguard-server-down', CONF))).to.have.lengthOf(1);
+  });
+
+  it('reports a mailer provider without a transport host or a sender', () => {
+    const conf = (mailer) => ({
+      'notification-providers': { smtp: { type: 'mailer', mailer } },
+      events: {
+        'x-down': {
+          notifications: [{ 'notification-provider-id': 'smtp', payload: { subscribers: [{ email: 'a@b.com' }] } }],
+        },
+      },
+    });
+    expect(eventNotificationRoutes('x-down', conf({ sender: { email: 'a@b.com' } }))[0].error).to.equal(
+      "provider 'smtp': mailer provider has no transport.host",
+    );
+    expect(eventNotificationRoutes('x-down', conf({ transport: { host: 'smtp.b.com' } }))[0].error).to.equal(
+      "provider 'smtp': mailer provider has no sender.email",
+    );
+  });
+});
+
+// The contract is deploy data read relative to the engine root, so these cases run in a fixture tree.
+describe('event notification contract file', () => {
+  const cwd = process.cwd();
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-event-conf-'));
+    process.chdir(root);
+  });
+
+  afterEach(() => {
+    process.chdir(cwd);
+    fs.removeSync(root);
+  });
+
+  it('reads an absent contract as one that declares nothing', () => {
+    expect(readEventConf()).to.deep.equal({ 'notification-providers': {}, events: {} });
+  });
+
+  it('reads the providers and events of the contract, and defaults a missing section', () => {
+    fs.outputJsonSync(EVENT_CONF_PATH, { events: CONF.events });
+    expect(readEventConf()).to.deep.equal({ 'notification-providers': {}, events: CONF.events });
+    fs.outputJsonSync(EVENT_CONF_PATH, CONF);
+    expect(eventNotificationRoutes('wireguard-server-down')[0].target).to.equal('smtp (env)');
+  });
+
+  it('refuses a contract that does not parse', () => {
+    fs.outputFileSync(EVENT_CONF_PATH, '{ events: ');
+    expect(() => readEventConf()).to.throw(`invalid notification contract ${EVENT_CONF_PATH}`);
+  });
+});
+
+describe('event notification delivery', () => {
+  const cwd = process.cwd();
+  let root;
+  let interceptor;
+
+  const writeConf = (events) =>
+    fs.outputJsonSync(EVENT_CONF_PATH, {
+      'notification-providers': {
+        ops: {
+          type: 'mailer',
+          mailer: {
+            sender: { email: 'alerts@example.com' },
+            transport: { host: 'smtp.example.com', port: '465', auth: { user: 'env:EVENT_TEST_SMTP_USER' } },
+          },
+        },
+      },
+      events,
+    });
+  const route = (...emails) => ({
+    'notification-provider-id': 'ops',
+    payload: { subscribers: emails.map((email) => ({ email, name: 'Ops' })) },
+  });
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-event-delivery-'));
+    process.chdir(root);
+    vi.stubEnv('EVENT_TEST_SMTP_USER', 'smtp-user');
+  });
+
+  afterEach(() => {
+    interceptor?.close();
+    interceptor = undefined;
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    process.chdir(cwd);
+    fs.removeSync(root);
+  });
+
+  it('sends one plain text message over the mailer and releases its transport', async () => {
+    writeConf({ 'x-down': { notifications: [route('a@example.com', 'b@example.com')] } });
+    interceptor = mailerInterceptorFactory({ suppress: true });
+    const load = vi.spyOn(MailerProvider, 'load');
+
+    const outcome = await deliverEventNotification({ eventId: 'x-down', subject: 'x down', text: 'repaired' });
+
+    expect(outcome).to.deep.equal({
+      ok: true,
+      delivered: [{ providerId: 'ops', recipients: ['a@example.com', 'b@example.com'] }],
+      failed: [],
+    });
+    const [{ id, sendOptions }] = interceptor.messages;
+    expect(id).to.equal('event-notification:ops');
+    expect(sendOptions).to.include({
+      to: 'Ops <a@example.com>, Ops <b@example.com>',
+      subject: 'x down',
+      text: 'repaired',
+      from: 'Underpost <alerts@example.com>',
+    });
+    expect(load.mock.calls[0][0].transport).to.deep.equal({
+      host: 'smtp.example.com',
+      port: 465,
+      secure: true,
+      auth: { user: 'smtp-user', pass: '' },
+    });
+    expect(MailerProvider.instance[id]).to.equal(undefined);
+  });
+
+  it('reports an unresolved route as a failure and sends nothing over it', async () => {
+    writeConf({ 'x-down': { notifications: [{ 'notification-provider-id': 'ghost' }] } });
+    interceptor = mailerInterceptorFactory({ suppress: true });
+    const outcome = await deliverEventNotification({ eventId: 'x-down', subject: 's', text: 't' });
+    expect(outcome.ok).to.equal(false);
+    expect(outcome.failed).to.have.lengthOf(1);
+    expect(outcome.failed[0].error).to.include("'ghost' is not declared");
+    expect(interceptor.messages).to.deep.equal([]);
+  });
+
+  it('reports a message the transport rejects, and a transport that fails to load', async () => {
+    writeConf({ 'x-down': { notifications: [route('a@example.com')] } });
+    const dispose = MailerProvider.use(async () => {
+      throw new Error('550 rejected');
+    });
+    try {
+      const rejected = await deliverEventNotification({ eventId: 'x-down', subject: 's', text: 't' });
+      expect(rejected.failed).to.deep.equal([
+        { providerId: 'ops', recipients: ['a@example.com'], error: 'transport rejected the message' },
+      ]);
+    } finally {
+      dispose();
+    }
+    vi.spyOn(MailerProvider, 'load').mockRejectedValue(new Error('smtp unreachable'));
+    const unreachable = await deliverEventNotification({ eventId: 'x-down', subject: 's', text: 't' });
+    expect(unreachable).to.deep.equal({
+      ok: false,
+      delivered: [],
+      failed: [{ providerId: 'ops', recipients: ['a@example.com'], error: 'smtp unreachable' }],
+    });
   });
 });
 
