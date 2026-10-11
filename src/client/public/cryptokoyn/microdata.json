@@ -47,7 +47,7 @@
     "@type": "Organization",
     "name": "CryptoKoyn",
     "url": "https://cryptokoyn.net",
-    "logo": "https://cryptokoyn.net/assets/splash/android-chrome-256x256.png",
+    "logo": "https://cryptokoyn.net/android-chrome-256x256.png",
     "description": "The domain that owns CKY — the fungible currency of the platform — the wallet surface and the public account record.",
     "sameAs": ["https://github.com/underpost"],
     "parentOrganization": {

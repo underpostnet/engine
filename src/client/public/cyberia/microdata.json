@@ -42,7 +42,7 @@
       "url": "https://www.cyberiaonline.com/docs?cid=guide&doc=cyberia/overview/index"
     },
     "keywords": "cyberia, MMORPG, browser game, sandbox, pixel art, free to play",
-    "image": "https://www.cyberiaonline.com/assets/splash/CYBERIA.jpg",
+    "image": "https://www.cyberiaonline.com/apple-touch-icon.png",
     "inLanguage": "en"
   },
   {
@@ -50,7 +50,7 @@
     "@type": "Organization",
     "name": "Cyberia",
     "url": "https://www.cyberiaonline.com/",
-    "logo": "https://www.cyberiaonline.com/assets/splash/android-chrome-512x512.png",
+    "logo": "https://www.cyberiaonline.com/android-chrome-512x512.png",
     "description": "The domain that owns the game runtime, the Game Studio, the Cyberia Engine and CLI, world content and item bindings.",
     "sameAs": ["https://github.com/underpost"],
     "parentOrganization": {

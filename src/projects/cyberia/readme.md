@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="https://www.cyberiaonline.com/assets/splash/apple-touch-icon-precomposed.png" alt="CYBERIA Network Object Layer Engine"/>
+  <img src="https://www.cyberiaonline.com/apple-touch-icon-precomposed.png" alt="CYBERIA Network Object Layer Engine"/>
 
 <h1>CYBERIA</h1>
 

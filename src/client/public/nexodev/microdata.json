@@ -63,7 +63,7 @@
     "@type": "Organization",
     "name": "Nexodev",
     "url": "https://www.nexodev.org",
-    "logo": "https://www.nexodev.org/assets/splash/android-chrome-512x512.png",
+    "logo": "https://www.nexodev.org/android-chrome-512x512.png",
     "description": "The domain that owns ERP and CRM products, DevOps and cloud service delivery, and the infrastructure procedure of the platform.",
     "sameAs": ["https://github.com/underpost"],
     "parentOrganization": {

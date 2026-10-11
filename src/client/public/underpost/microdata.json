@@ -5,7 +5,7 @@
     "name": "Underpost",
     "alternateName": "Underpost Platform",
     "url": "https://underpost.net",
-    "logo": "https://underpost.net/assets/splash/android-chrome-256x256.png",
+    "logo": "https://underpost.net/android-chrome-256x256.png",
     "image": "https://underpost.net/assets/banner/underpost-social.jpg",
     "description": "The base platform and the engineering lineage every other domain is built on: the shared Underpost CLI, the deployment surface, the PWA delivery model and the operational infrastructure.",
     "sameAs": ["https://github.com/underpost", "https://github.com/underpostnet"],

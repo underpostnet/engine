@@ -182,7 +182,7 @@ class AppShellUnderpost {
         // Create PanelForm instance first to get update function
         const panelFormInstance = await PanelForm.instance({
           idPanel: 'underpost-panel',
-          defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
+          defaultUrlImage: `${getProxyPath()}apple-touch-icon-precomposed.png`,
           appStore: AppStoreUnderpost,
           route: 'home',
           entryHost: true,

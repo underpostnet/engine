@@ -51,7 +51,7 @@ class AppShellNexodev {
               setTimeout(async () => {
                 await PanelForm.instance({
                   idPanel: 'nexodev-blog',
-                  defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
+                  defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
                   appStore: AppStoreNexodev,
                   parentIdModal: 'modal-blog',
                   scrollClassContainer: `html-modal-blog`,

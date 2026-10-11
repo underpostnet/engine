@@ -25,7 +25,7 @@ const carriesApplications = fs.existsSync(new URL('src/client/public/cyberia', r
 describe.skipIf(!carriesApplications)('application asset ownership', () => {
   it.each(['cyberia', 'underpost'])('tracks the %s application source in engine', (client) => {
     const base = `src/client/public/${client}`;
-    for (const file of ['favicon.ico', 'browserconfig.xml', 'site.webmanifest', 'microdata.json', 'sitemap']) {
+    for (const file of ['favicon.ico', 'browserconfig.xml', 'manifest.webmanifest', 'microdata.json', 'sitemap']) {
       expect(tracked).toContain(`${base}/${file}`);
       expect(fs.statSync(new URL(`${base}/${file}`, root)).isFile()).toBe(true);
     }
