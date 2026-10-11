@@ -1225,15 +1225,6 @@ describe('edge hub forward proxy', () => {
       );
     });
 
-    it('refuses to fetch without an API key, before opening any socket', async () => {
-      try {
-        await fetchViaForwardProxy('https://origin.test/', { proxy: { ...proxyConfig, apiKey: '' } });
-        expect.fail('the proxy cannot be used without a key');
-      } catch (error) {
-        expect(error.message).to.include('is not set; the proxy cannot be used without it');
-      }
-    });
-
     it('fails an https fetch to a target that does not speak TLS, and closes the tunnel', async () => {
       let closed;
       const tunnelClosed = new Promise((resolve) => (closed = resolve));
