@@ -95,7 +95,7 @@ RUN --mount=type=secret,id=github_token \
       CONTENT_DIR="/home/dd/${CONTENT_REPOSITORY##*/}"; \
       ( cd /home/dd && underpost clone "$CONTENT_REPOSITORY" \
         && git -C "$CONTENT_DIR" checkout --detach "$CONTENT_REVISION" \
-        && cd "$CONTENT_DIR" && npm ci && node bin/cyberia-content.js pack ); \
+        && cd "$CONTENT_DIR" && npm ci --include=dev && node bin/cyberia-content.js pack ); \
       tar -xzf "$CONTENT_DIR"/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
       CYBERIA_DEPLOYMENT_ROOT="$DEPLOYMENT_DIR" node bin/cyberia release verify; \
       rm -rf "$CONTENT_DIR" "$DEPLOYMENT_DIR"; \

@@ -70,7 +70,7 @@ RUN --mount=type=secret,id=github_username \
       | awk '$1 == "cyberia-content" { print $4 }')"; \
     ( cd /home/dd && underpost clone "$GITHUB_USERNAME/cyberia-content" \
       && git -C ./cyberia-content checkout --detach "$CONTENT_REVISION" \
-      && cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
+      && cd ./cyberia-content && npm ci --include=dev && node bin/cyberia-content.js pack ); \
     mkdir -p /home/dd/engine/cyberia-content; \
     tar -xzf /home/dd/cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
     rm -rf /home/dd/cyberia-content; \
@@ -90,7 +90,6 @@ RUN --mount=type=secret,id=github_username \
     done; \
     # unset GITHUB_TOKEN GITHUB_USERNAME; \
     unset GITHUB_USERNAME; \
-
     # 2) Every .git dir — clone URLs embed the token in .git/config, and the
     #    private history itself must not ship.
     find /home/dd/engine -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true; \

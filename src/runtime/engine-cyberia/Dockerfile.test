@@ -64,7 +64,7 @@ RUN --mount=type=secret,id=github_token \
       | awk '$1 == "cyberia-content" { print $4 }')"; \
     ( cd /home/dd && underpost clone "$GITHUB_USERNAME/cyberia-content" \
       && git -C ./cyberia-content checkout --detach "$CONTENT_REVISION" \
-      && cd ./cyberia-content && npm ci && node bin/cyberia-content.js pack ); \
+      && cd ./cyberia-content && npm ci --include=dev && node bin/cyberia-content.js pack ); \
     mkdir -p /home/dd/engine/cyberia-content; \
     tar -xzf /home/dd/cyberia-content/artifacts/cyberia-content-*.tgz -C /home/dd/engine/cyberia-content --strip-components=1; \
     rm -rf /home/dd/cyberia-content; \

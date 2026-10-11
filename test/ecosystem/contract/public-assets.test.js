@@ -71,6 +71,8 @@ describe.skipIf(!carriesApplications)('application asset ownership', () => {
     const pinned = source.indexOf('release list --locked');
     expect(pinned).toBeGreaterThan(source.indexOf('npm install;'));
     expect(source.indexOf('checkout --detach "$CONTENT_REVISION"')).toBeGreaterThan(pinned);
+    // The pack runs on the cyberia-content dev dependencies, whatever NODE_ENV the image sets.
+    expect(source).toContain('npm ci --include=dev && node bin/cyberia-content.js pack');
     expect(source.indexOf('node bin/cyberia release verify')).toBeGreaterThan(source.indexOf('tar -xzf'));
     // The engine-cyberia tree carries the application assets into the image.
     expect(source).toContain('cp -a ./"$ENGINE_CYBERIA_REPO"/. /home/dd/engine/');
