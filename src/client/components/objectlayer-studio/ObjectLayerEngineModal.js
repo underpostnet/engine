@@ -1431,6 +1431,8 @@ class ObjectLayerEngineModal {
 
       await loadFrames();
       s('object-layer-engine').clear();
+      const first = directionCodes.map((code) => ObjectLayerEngineModal.ObjectLayerData[code]?.[0]).find(Boolean);
+      if (first) s('object-layer-engine').importMatrixJSON(first.json);
 
       const editor = s('object-layer-engine');
       const colorPalette = s(`.${colorPaletteClass}`);
