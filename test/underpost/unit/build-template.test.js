@@ -174,27 +174,29 @@ describe('conf manifest path', () => {
 
 const COMPONENTS = './src/client/components';
 
-describe('components of the default client', () => {
+// A product tree carries its own clients in the default conf, and no `default` client.
+describe('components of each client in the default conf', () => {
   it('lists every component that a listed component imports', () => {
-    const { components } = DefaultConf.client.default;
-    const listed = new Set(
-      Object.entries(components).flatMap(([module, names]) => names.map((name) => `${module}/${name}`)),
-    );
-    const missing = new Set();
-    const visited = new Set();
-    const visit = (id) => {
-      if (visited.has(id)) return;
-      visited.add(id);
-      const file = `${COMPONENTS}/${id}.js`;
-      if (!fs.existsSync(file)) return;
-      for (const [, specifier] of fs.readFileSync(file, 'utf8').matchAll(/from\s+'(\.[^']+)'/g)) {
-        const target = path.normalize(path.join(path.dirname(id), specifier)).replace(/\.js$/, '');
-        if (target.startsWith('..') || !fs.existsSync(`${COMPONENTS}/${target}.js`)) continue;
-        if (!listed.has(target)) missing.add(`${target} (imported by ${id})`);
-        visit(target);
-      }
-    };
-    for (const id of listed) visit(id);
-    expect([...missing]).to.deep.equal([]);
+    for (const [client, { components }] of Object.entries(DefaultConf.client)) {
+      const listed = new Set(
+        Object.entries(components).flatMap(([module, names]) => names.map((name) => `${module}/${name}`)),
+      );
+      const missing = new Set();
+      const visited = new Set();
+      const visit = (id) => {
+        if (visited.has(id)) return;
+        visited.add(id);
+        const file = `${COMPONENTS}/${id}.js`;
+        if (!fs.existsSync(file)) return;
+        for (const [, specifier] of fs.readFileSync(file, 'utf8').matchAll(/from\s+'(\.[^']+)'/g)) {
+          const target = path.normalize(path.join(path.dirname(id), specifier)).replace(/\.js$/, '');
+          if (target.startsWith('..') || !fs.existsSync(`${COMPONENTS}/${target}.js`)) continue;
+          if (!listed.has(target)) missing.add(`${target} (imported by ${id})`);
+          visit(target);
+        }
+      };
+      for (const id of listed) visit(id);
+      expect([...missing], client).to.deep.equal([]);
+    }
   });
 });
