@@ -30,6 +30,7 @@ export const ITEM_TYPES = Object.freeze({
   foreground: 'foreground',
   resource: 'resource',
   static: 'static',
+  consumable: 'consumable',
 });
 
 /**
@@ -50,6 +51,7 @@ export const ENTITY_TYPES = Object.freeze({
   foreground: 'foreground',
   resource: 'resource',
   static: 'static',
+  loot: 'loot',
 });
 
 /** Per-entity-type allowlist of item types that may appear on the entity. */
@@ -65,6 +67,7 @@ export const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
   [ENTITY_TYPES.foreground]: Object.freeze([ITEM_TYPES.foreground]),
   [ENTITY_TYPES.resource]: Object.freeze([ITEM_TYPES.resource]),
   [ENTITY_TYPES.static]: Object.freeze([ITEM_TYPES.static]),
+  [ENTITY_TYPES.loot]: Object.freeze([ITEM_TYPES.consumable]),
 });
 
 /** Quest step objective types accepted by the quest-progress engine. */
@@ -251,8 +254,8 @@ export const isCanonicalAudioLogicId = (logicEventId) =>
  * (EntityEngineCyberia) and by content-authority validation.
  *
  * `entityType` is the one entity type a behavior applies to. The Go simulation
- * owns the semantics of bot behaviors and MUST stay aligned with cyberia-server
- * `game/behavior.go`. The client owns the semantics of foreground behaviors.
+ * owns the semantics of bot, obstacle and loot behaviors and MUST stay aligned with
+ * cyberia-server `game/behavior.go`. The client owns the semantics of foreground behaviors.
  *
  * `selectable: false` marks behaviors the runtime assigns itself
  * (projectiles, coin drops) — they are not author-assignable to a default.
@@ -289,10 +292,26 @@ export const ENTITY_BEHAVIORS = Object.freeze([
     selectable: true,
   }),
   Object.freeze({
+    id: 'destructible',
+    label: 'Destructible Obstacle',
+    description:
+      'Blocks movement while it has life and takes projectile damage. Depleted, it scatters its drops, shows its dead items and stops blocking until it respawns.',
+    entityType: ENTITY_TYPES.obstacle,
+    selectable: true,
+  }),
+  Object.freeze({
     id: 'overhead-occlusion',
     label: 'Overhead Occlusion',
     description: 'Roof: fades out while the local player stands under it, and fades back in when the player leaves.',
     entityType: ENTITY_TYPES.foreground,
+    selectable: true,
+  }),
+  Object.freeze({
+    id: 'consume-on-pickup-heal',
+    label: 'Consume on Pickup (Heal)',
+    description:
+      'World loot its collector consumes at once to restore the buff factor of its item as life. Without it, collection grants the item.',
+    entityType: ENTITY_TYPES.loot,
     selectable: true,
   }),
   Object.freeze({
@@ -320,6 +339,10 @@ export const SELECTABLE_ENTITY_BEHAVIORS = Object.freeze(ENTITY_BEHAVIORS.filter
 /** True when `behavior` is a known canonical entity behavior. */
 export const isCanonicalEntityBehavior = (behavior) => ENTITY_BEHAVIOR_VALUES.includes(behavior);
 
+/** True when a default of `entityType` may bind `behavior`: none, or an author-assignable behavior of that type. */
+export const isAssignableEntityBehavior = (entityType, behavior) =>
+  !behavior || SELECTABLE_ENTITY_BEHAVIORS.some((b) => b.id === behavior && b.entityType === entityType);
+
 // Stat order is shared by authoring, simulation, and snapshots. `scale` is what one point is
 // worth in the simulation; the server reads it from the generated contract.
 export const STAT_DEFINITIONS = Object.freeze([
@@ -335,6 +358,10 @@ export const STAT_TYPES = Object.freeze(STAT_DEFINITIONS.map(({ key }) => key));
 export const STAT_SCALES = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, scale }) => [key, scale])));
 /** Life regenerated per trigger for each point of resistance, on top of the entity's base regeneration. */
 export const STAT_REGEN_PER_RESISTANCE = 0.1;
+/** Fraction of its target's max life a buff restores, where the item's override names no `buffFactor`. */
+export const BUFF_FACTOR_DEFAULT = 0.1;
+/** Fraction of its target's max life a debuff removes, where the item's override names no `debuffFactor`. */
+export const DEBUFF_FACTOR_DEFAULT = 0.1;
 export const STAT_MODIFIER_MIN = -100;
 export const STAT_MODIFIER_MAX = 100;
 export const STAT_DEFAULT = 0;
@@ -345,6 +372,15 @@ export function validateEntityLevel(level) {
     throw new RangeError('Entity level must be an integer from 1 to 65535.');
   }
   return level;
+}
+// Time a dead entity or a consumed loot token waits before it comes back.
+export const RESPAWN_DURATION_MS_MIN = 1000;
+export const RESPAWN_DURATION_MS_DEFAULT = 3000;
+export function validateRespawnDuration(ms) {
+  if (!Number.isInteger(ms) || ms < RESPAWN_DURATION_MS_MIN) {
+    throw new RangeError(`Respawn time must be an integer of at least ${RESPAWN_DURATION_MS_MIN} ms.`);
+  }
+  return ms;
 }
 export const STAT_CONTRACT_VERSION = 2;
 export const STAT_DEFAULTS = Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, STAT_DEFAULT])));
@@ -370,18 +406,9 @@ export function validateStats(stats = {}) {
  * Semantic stat bounds per item type, inclusive, as `[min, max]` per stat.
  *
  * What a type may carry: a weapon deals its effect and can cost resistance, a skin and a
- * breastplate defend, a skill reaches, and world content carries nothing. A type absent here,
- * or a stat a type leaves out, keeps the contract bounds.
+ * breastplate defend, a skill reaches, and world content and consumables carry nothing. A type
+ * absent here, or a stat a type leaves out, keeps the contract bounds.
  */
-// Time a dead entity or a consumed loot token waits before it comes back.
-export const RESPAWN_DURATION_MS_MIN = 1000;
-export const RESPAWN_DURATION_MS_DEFAULT = 3000;
-export function validateRespawnDuration(ms) {
-  if (!Number.isInteger(ms) || ms < RESPAWN_DURATION_MS_MIN) {
-    throw new RangeError(`Respawn time must be an integer of at least ${RESPAWN_DURATION_MS_MIN} ms.`);
-  }
-  return ms;
-}
 export const STAT_TYPE_BOUNDS = Object.freeze({
   weapon:      { effect: [5, 20], resistance: [-10, 2], agility: [-5, 5], range: [0, 10], intelligence: [0, 5], utility: [0, 10] },
   skin:        { effect: [1, 1], resistance: [0, 20], agility: [-5, 10], range: [0, 0], intelligence: [0, 2], utility: [0, 5] },
@@ -394,6 +421,7 @@ export const STAT_TYPE_BOUNDS = Object.freeze({
   portal:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
   foreground:  { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
   static:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  consumable:  { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
 });
 
 for (const [type, bounds] of Object.entries(STAT_TYPE_BOUNDS)) {
@@ -462,6 +490,7 @@ export const PALETTE = Object.freeze([
   { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 },
   { key: 'RESOURCE', r: 100, g: 180, b: 80, a: 255 },
   { key: 'STATIC', r: 120, g: 140, b: 110, a: 255 },
+  { key: 'LOOT', r: 120, g: 220, b: 160, a: 255 },
   { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 },
   { key: 'SELF_BORDER', r: 220, g: 190, b: 60, a: 240 },
 ]);
@@ -483,6 +512,7 @@ export const ENTITY_COLOR_KEYS = Object.freeze([
   { entityType: 'foreground', colorKey: 'FOREGROUND' },
   { entityType: 'resource', colorKey: 'RESOURCE' },
   { entityType: 'static', colorKey: 'STATIC' },
+  { entityType: 'loot', colorKey: 'LOOT' },
 ]);
 
 /**

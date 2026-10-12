@@ -6,11 +6,30 @@ import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { CyberiaMapDto } from './cyberia-map.model.js';
 import { mapContext } from '../../projects/cyberia/content/foundation-context.js';
 import { loadSagaAssociations, withSagaFilter } from '../../projects/cyberia/saga/saga-associations.js';
+import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 
 const logger = loggerFactory(import.meta);
 
 /** Map lists and reads by code; every map write invalidates them. */
 const mapCache = (options) => CacheService.namespace(options, 'cyberia-map');
+
+/**
+ * Links every instance that runs the map to the entity-type defaults its maps place, so a default
+ * reaches the world where it is placed. The map is already saved: a failed link is logged.
+ */
+const linkPlacedDefaults = async (mapCode, options) => {
+  const instances = await DataBaseProviderService.getModel('CyberiaInstance', options)
+    .find({ cyberiaMapCodes: mapCode }, { code: 1 })
+    .lean();
+  for (const { code } of instances) {
+    try {
+      const { linked } = await CyberiaEntityTypeDefaultService.linkPlacedDefaults({ instanceCode: code }, options);
+      if (linked.length > 0) logger.info('Linked placed entity-type defaults', { instanceCode: code, mapCode, linked });
+    } catch (error) {
+      logger.warn('Could not link placed entity-type defaults', { instanceCode: code, mapCode, error: error.message });
+    }
+  }
+};
 
 class CyberiaMapService {
   /** GET /context/:code - the foundation context of a map against its stored entities. Read-only. */
@@ -28,6 +47,7 @@ class CyberiaMapService {
     const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     const map = await new CyberiaMap({ ...req.body, creator: req.auth.user._id }).save();
     await CacheService.invalidate(mapCache(options));
+    await linkPlacedDefaults(map.code, options);
     return map;
   };
   static get = async (req, res, options) => {
@@ -110,6 +130,7 @@ class CyberiaMapService {
     if (!updated)
       throw Object.assign(new Error(`Map ${map.code} changed while saving: reload it before saving`), { status: 409 });
     await CacheService.invalidate(mapCache(options));
+    await linkPlacedDefaults(updated.code, options);
     return updated;
   };
   static delete = async (req, res, options) => {

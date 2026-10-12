@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const models = {};
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
@@ -9,6 +9,8 @@ vi.mock('../../../src/server/storage/cache.js', () => ({
 }));
 
 const { CyberiaMapService } = await import('../../../src/api/cyberia-map/cyberia-map.service.js');
+const { CyberiaEntityTypeDefaultService } =
+  await import('../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js');
 const { CyberiaMapModel } = await import('../../../src/api/cyberia-map/cyberia-map.model.js');
 
 const user = { _id: '64b0000000000000000000aa', role: 'admin' };
@@ -49,11 +51,32 @@ describe('map save revision', () => {
       updatedAt,
     });
     models.File = { findByIdAndDelete: async () => {} };
+    models.CyberiaInstance = {
+      find: ({ cyberiaMapCodes }) => ({
+        lean: async () =>
+          [{ code: 'forest', cyberiaMapCodes: ['glade'] }].filter((i) => i.cyberiaMapCodes.includes(cyberiaMapCodes)),
+      }),
+    };
+    vi.spyOn(CyberiaEntityTypeDefaultService, 'linkPlacedDefaults').mockResolvedValue({ linked: [] });
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it('saves the revision it was loaded at, and moves the revision forward', async () => {
     const saved = await save(4, { name: 'Glade II' });
     expect(saved).toMatchObject({ name: 'Glade II', revision: 5 });
+  });
+
+  it('links the instances that run the map to the defaults it places', async () => {
+    await save(4, { entities: [{ entityType: 'obstacle', objectLayerItemIds: ['urn'] }] });
+    expect(CyberiaEntityTypeDefaultService.linkPlacedDefaults).toHaveBeenCalledExactlyOnceWith(
+      { instanceCode: 'forest' },
+      {},
+    );
+  });
+
+  it('keeps the save when the link fails', async () => {
+    CyberiaEntityTypeDefaultService.linkPlacedDefaults.mockRejectedValue(new Error('no conf'));
+    await expect(save(4, { name: 'Glade II' })).resolves.toMatchObject({ revision: 5 });
   });
 
   it('refuses a save from an older revision, and a save without one', async () => {

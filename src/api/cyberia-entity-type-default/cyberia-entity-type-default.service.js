@@ -25,6 +25,8 @@ const toEntityDefault = (source) => ({
       ...('boolean' === typeof rule.active ? { active: rule.active } : {}),
       ...(Number.isFinite(rule.quantity) ? { quantity: rule.quantity } : {}),
       ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
+      ...(Number.isFinite(rule.buffFactor) ? { buffFactor: rule.buffFactor } : {}),
+      ...(Number.isFinite(rule.debuffFactor) ? { debuffFactor: rule.debuffFactor } : {}),
     })),
   behavior: source.behavior || '',
 });
@@ -285,7 +287,8 @@ class CyberiaEntityTypeDefaultService {
   };
 
   /**
-   * Points an instance's conf at every entity-type default its own content needs.
+   * Points an instance's conf at every entity-type default its maps place. A map save runs it for
+   * every instance the map is in, so a default works where its live items are placed.
    *
    * Matching is the runtime's rule, not a guess: a document belongs to this world when all of its
    * `liveItemIds` appear together on some entity its maps place — the same subset containment
@@ -308,32 +311,18 @@ class CyberiaEntityTypeDefaultService {
    * Membership is only ever added here. A reference an operator made is never withdrawn on a
    * guess: the sole removal is `dropped`, a reference whose document no longer exists.
    *
-   * The skills the world runs are reported, not written. They follow from its content by the
-   * shared rule in cyberia-instance-items.js — a skill belongs when its trigger item is named by
-   * a map entity, an entity-type default, a vendor or assembler catalog, or a quest. Nothing to
-   * store means nothing to keep in step: the export and the boot payload derive the same list
-   * from the same content.
-   *
    * @param {{instanceCode: string, mapCodes?: string[]}} params - Target instance; `mapCodes`
    *   overrides the stored set, which is what lets an editor sync against an unsaved selection.
    * @param {{host: string, path: string}} options - Provider context.
-   * Placed entities are rewritten too: each carries the items the default it resolves to says it
-   * wears, so a map document and the simulation agree on what is on an entity.
-   *
-   * @returns {Promise<{instanceCode: string, mapCodes: string[], linked: string[], skipped: string[],
-   *   dropped: string[], entityDefaults: string[], skills: string[],
-   *   entitiesUpdated: Array<{mapCode: string, entities: number}>, conflicts: string[],
-   *   duplicates: string[]}>}
+   * @returns {Promise<{mapCodes: string[], maps: Array<object>, linked: string[], skipped: string[],
+   *   dropped: string[], entityDefaults: string[], conflicts: string[], duplicates: string[]}>}
    */
-  static syncInstance = async ({ instanceCode, mapCodes }, options) => {
+  static linkPlacedDefaults = async ({ instanceCode, mapCodes }, options) => {
     if (!instanceCode) throw new Error('instanceCode is required to sync entity-type defaults');
-    const CyberiaAction = DataBaseProviderService.getModel('CyberiaAction', options);
     const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
     const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
-    const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
-    const CyberiaSkill = DataBaseProviderService.getModel('CyberiaSkill', options);
 
     const confs = await CyberiaInstanceConf.find({}, { instanceCode: 1, entityDefaults: 1 }).lean();
     const conf = confs.find((entry) => entry.instanceCode === instanceCode);
@@ -386,6 +375,54 @@ class CyberiaEntityTypeDefaultService {
     const entityDefaults = [...kept, ...linked];
     const duplicates = findDuplicateBuilds(entityDefaults, defaults);
 
+    if (linked.length > 0 || dropped.length > 0) {
+      // A conf written before skills were derived still carries the field. It reaches nothing —
+      // it is off the schema, and fillInstanceConfDefaults strips it from every read that matters
+      // — so it is cleared here rather than in a write of its own.
+      await CyberiaInstanceConf.updateOne(
+        { _id: conf._id },
+        { $set: { entityDefaults, updatedAt: new Date() }, $unset: { skillConfig: '' } },
+      );
+    }
+    return { mapCodes: codes, maps, linked, skipped, dropped, entityDefaults, conflicts, duplicates };
+  };
+
+  /**
+   * {@link linkPlacedDefaults}, then the rest of what an instance's content implies.
+   *
+   * The skills the world runs are reported, not written. They follow from its content by the
+   * shared rule in cyberia-instance-items.js — a skill belongs when its trigger item is named by
+   * a map entity, an entity-type default, a vendor or assembler catalog, or a quest. Nothing to
+   * store means nothing to keep in step: the export and the boot payload derive the same list
+   * from the same content.
+   *
+   * Placed entities are rewritten too: each carries the items the default it resolves to says it
+   * wears, so a map document and the simulation agree on what is on an entity.
+   *
+   * @param {{instanceCode: string, mapCodes?: string[]}} params - See {@link linkPlacedDefaults}.
+   * @param {{host: string, path: string}} options - Provider context.
+   * @returns {Promise<{instanceCode: string, mapCodes: string[], linked: string[], skipped: string[],
+   *   dropped: string[], entityDefaults: string[], skills: string[],
+   *   entitiesUpdated: Array<{mapCode: string, entities: number}>, conflicts: string[],
+   *   duplicates: string[]}>}
+   */
+  static syncInstance = async ({ instanceCode, mapCodes }, options) => {
+    const CyberiaAction = DataBaseProviderService.getModel('CyberiaAction', options);
+    const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
+    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+    const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
+    const CyberiaSkill = DataBaseProviderService.getModel('CyberiaSkill', options);
+    const {
+      mapCodes: codes,
+      maps,
+      linked,
+      skipped,
+      dropped,
+      entityDefaults,
+      conflicts,
+      duplicates,
+    } = await CyberiaEntityTypeDefaultService.linkPlacedDefaults({ instanceCode, mapCodes }, options);
+
     // Every item the world can hold: what it references, completed by the baseline defaults for
     // the entity types it does not cover. A skill triggers from one of these or from nothing.
     const referenced = await CyberiaEntityTypeDefault.find({ _id: { $in: entityDefaults } }).lean();
@@ -418,15 +455,6 @@ class CyberiaEntityTypeDefaultService {
       entitiesUpdated.push({ mapCode: map.code, entities: changed });
     }
 
-    if (linked.length > 0 || dropped.length > 0) {
-      // A conf written before skills were derived still carries the field. It reaches nothing —
-      // it is off the schema, and fillInstanceConfDefaults strips it from every read that matters
-      // — so it is cleared here rather than in a write of its own.
-      await CyberiaInstanceConf.updateOne(
-        { _id: conf._id },
-        { $set: { entityDefaults, updatedAt: new Date() }, $unset: { skillConfig: '' } },
-      );
-    }
     logger.info('Synced entity-type defaults', {
       instanceCode,
       maps: codes.length,
@@ -483,6 +511,9 @@ class CyberiaEntityTypeDefaultService {
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity-type-default.model.js').CyberiaEntityTypeDefaultModel} */
     const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
+    // A behavior is valid only for its entity type, so the merged document is what validates.
+    const stored = await CyberiaEntityTypeDefault.findById(req.params.id).lean();
+    if (stored) await new CyberiaEntityTypeDefault({ ...stored, ...req.body }).validate();
     return await CyberiaEntityTypeDefault.findByIdAndUpdate(req.params.id, req.body);
   };
   // Unlinks before it deletes: a conf pointing at a document that is gone is the one way this

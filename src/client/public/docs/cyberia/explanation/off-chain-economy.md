@@ -136,7 +136,7 @@ All economy logic is encapsulated in a single file enforcing the single-source p
 Every kill scatters the victim's configured `dropItemIds` (resolved per entity
 via the entity-type default build) plus its coin stake — where the entity carries
 coins — as grid drop tokens (`spawnDrops`, `loot.go`). Contribution is tracked
-uniformly for **any** victim (player, bot, resource): players and the bots that
+uniformly for **any** victim (player, bot, resource, destructible obstacle): players and the bots that
 dealt damage all join the set. Only contributors may collect — the amount of
 damage does not matter, only that the entity contributed — and collection is a
 race: the first eligible collider with the settled token wins it. A contributing

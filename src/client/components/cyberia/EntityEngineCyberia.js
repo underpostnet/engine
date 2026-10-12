@@ -6,7 +6,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { AgGrid } from '../core/AgGrid.js';
-import { pageQuery } from '../core/Pagination.js';
+import { firstPage, pageQuery } from '../core/Pagination.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
@@ -14,10 +14,55 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
-import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS } from './SharedDefaultsCyberia.js';
+import {
+  BUFF_FACTOR_DEFAULT,
+  DEBUFF_FACTOR_DEFAULT,
+  ENTITY_TYPES,
+  SELECTABLE_ENTITY_BEHAVIORS,
+  isAssignableEntityBehavior,
+} from './SharedDefaultsCyberia.js';
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
 const dropdownOption = (value) => ({ value, display: value, data: value, onClick: () => {} });
+
+// Optional numbers an override row may state. An empty box states nothing, and the placeholder
+// default applies. `drops` limits a number to the ids the drop list carries.
+const OVERRIDE_NUMBERS = [
+  {
+    key: 'dropChance',
+    label: 'drop',
+    title: 'Probability this id scatters on death. 1 always drops, 0 never does.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    placeholder: 1,
+    drops: true,
+  },
+  {
+    key: 'buffFactor',
+    label: 'buff',
+    title: 'Fraction of max life the item restores when it is consumed.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    placeholder: BUFF_FACTOR_DEFAULT,
+  },
+  {
+    key: 'debuffFactor',
+    label: 'debuff',
+    title: 'Fraction of max life a debuff removes. No effect uses it yet.',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    placeholder: DEBUFF_FACTOR_DEFAULT,
+  },
+];
+
+// The optional numbers a rule states, and only those.
+const overrideNumbers = (rule) =>
+  Object.fromEntries(
+    OVERRIDE_NUMBERS.filter(({ key }) => Number.isFinite(rule[key])).map(({ key }) => [key, rule[key]]),
+  );
 
 // EntityEngineCyberia — CRUD surface for the cyberia-entity-type-default
 // collection (instance wiring over the foundation baseline). An ag-grid lists
@@ -69,8 +114,8 @@ class EntityEngineCyberia {
     overrideItemPicker: 'entity-engine-override-item-picker',
   };
 
-  // Behavior options: a leading "auto" (empty → a bot derives armed→hostile,
-  // else passive; a foreground stays normal) plus the author-assignable canonical behaviors.
+  // Behavior options: a leading "auto" (empty → a bot derives armed→hostile, else passive; a
+  // foreground and an obstacle stay ordinary) plus the author-assignable canonical behaviors.
   static behaviorOptions() {
     return [
       { value: '', display: '— auto (derive) —', data: '', onClick: () => {} },
@@ -258,13 +303,13 @@ class EntityEngineCyberia {
       // An override for an id no list carries is inert — the union decides membership.
       const orphan = !carried.has(rule.itemId);
       // Drop chance only reaches the simulation for an id the drop list carries, so the input is
-      // offered where it can do something and the reason is stated where it cannot.
+      // offered where it can do something.
       const isDrop = EntityEngineCyberia.listFieldOf('drop').includes(rule.itemId);
       out += html`<div
         class="fl"
         style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
-        <div class="in fll" style="flex:1;display:flex;align-items:center;gap:6px;">
+        <div class="in fll" style="flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
           ${EntityEngineCyberia.itemPreview(rule.itemId)}
           <span style="${orphan ? 'color:#c90;' : ''}">${rule.itemId}</span>
           <label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
@@ -279,23 +324,24 @@ class EntityEngineCyberia {
             value="${rule.quantity}"
             style="width:60px;"
           />
-          ${isDrop
-            ? html`<label
-                style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;"
-                title="Probability this id scatters on death. 1 always drops, 0 never does."
-              >
-                drop
-                <input
-                  class="entity-engine-override-drop-chance-${i}"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value="${Number.isFinite(rule.dropChance) ? rule.dropChance : 1}"
-                  style="width:60px;"
-                />
-              </label>`
-            : ''}
+          ${OVERRIDE_NUMBERS.filter(({ drops }) => !drops || isDrop)
+            .map(
+              ({ key, label, title, min, max, step, placeholder }) =>
+                html`<label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="${title}">
+                  ${label}
+                  <input
+                    class="entity-engine-override-${key}-${i}"
+                    type="number"
+                    min="${min}"
+                    ${max === undefined ? '' : `max="${max}"`}
+                    step="${step}"
+                    placeholder="${placeholder}"
+                    value="${Number.isFinite(rule[key]) ? rule[key] : ''}"
+                    style="width:64px;"
+                  />
+                </label>`,
+            )
+            .join('')}
           ${orphan ? html`<span style="color:#c90;font-size:11px;">no list carries this id</span>` : ''}
         </div>
         ${await BtnIcon.instance({
@@ -314,17 +360,18 @@ class EntityEngineCyberia {
       if (qty)
         qty.onchange = () =>
           (EntityEngineCyberia.overrideItemsIdsState[i].quantity = Math.max(1, parseInt(qty.value) || 1));
-      const dropChance = s(`.entity-engine-override-drop-chance-${i}`);
-      if (dropChance)
-        dropChance.onchange = () => {
-          const parsed = parseFloat(dropChance.value);
+      for (const { key, min, max } of OVERRIDE_NUMBERS) {
+        const input = s(`.entity-engine-override-${key}-${i}`);
+        if (!input) continue;
+        input.onchange = () => {
           const rule = EntityEngineCyberia.overrideItemsIdsState[i];
-          // An empty or unreadable box means "say nothing", which the whole pipeline reads as
-          // always drops — the same as a world that never set one.
-          if (!Number.isFinite(parsed)) delete rule.dropChance;
-          else rule.dropChance = Math.min(1, Math.max(0, parsed));
-          dropChance.value = Number.isFinite(rule.dropChance) ? rule.dropChance : 1;
+          const parsed = parseFloat(input.value);
+          // An empty or unreadable box says nothing, so the default applies.
+          if (!Number.isFinite(parsed)) delete rule[key];
+          else rule[key] = Math.min(max, Math.max(min, parsed));
+          input.value = Number.isFinite(rule[key]) ? rule[key] : '';
         };
+      }
       if (s(`.btn-entity-engine-rm-override-${i}`))
         s(`.btn-entity-engine-rm-override-${i}`).onclick = () => {
           EntityEngineCyberia.overrideItemsIdsState.splice(i, 1);
@@ -502,14 +549,15 @@ class EntityEngineCyberia {
         this.eGui.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:4px 0;';
         this.eGui.innerHTML = rules
           .map(
-            ({ itemId, active, quantity, dropChance }) =>
+            (rule) =>
               html`<span
-                style="font-size:11px;font-family:monospace;white-space:nowrap;${active ? '' : 'color:#888;'}"
-                title="${itemId}"
-                >${active ? 'active' : 'inactive'} ×${Math.max(1, quantity || 1)}${Number.isFinite(dropChance) &&
-                1 !== dropChance
-                  ? ` drop ${dropChance}`
-                  : ''} ${itemId}</span
+                style="font-size:11px;font-family:monospace;white-space:nowrap;${rule.active ? '' : 'color:#888;'}"
+                title="${rule.itemId}"
+                >${rule.active ? 'active' : 'inactive'}
+                ×${Math.max(1, rule.quantity || 1)}${Object.entries(overrideNumbers(rule))
+                  .map(([key, value]) => ` ${OVERRIDE_NUMBERS.find((number) => number.key === key).label} ${value}`)
+                  .join('')}
+                ${rule.itemId}</span
               >`,
           )
           .join('');
@@ -524,17 +572,6 @@ class EntityEngineCyberia {
       }
     };
   }
-
-  // What the grid's text filter reads for a column of rules, since an array of objects has no
-  // useful string form of its own.
-  static overridesFilterText = (rules = []) =>
-    rules
-      .map(
-        ({ itemId, active, quantity, dropChance }) =>
-          `${itemId} ${active ? 'active' : 'inactive'} x${quantity || 1}` +
-          (Number.isFinite(dropChance) && 1 !== dropChance ? ` drop${dropChance}` : ''),
-      )
-      .join(', ');
 
   static toRow(doc) {
     return {
@@ -567,19 +604,20 @@ class EntityEngineCyberia {
     for (const codes of EntityEngineCyberia.instanceLinks.values()) codes.sort();
   }
 
-  /** Reads the page the query parameters name, and shows it with its pager. */
+  /** Reads the page the query parameters name, filtered and sorted as the grid shows, with its pager. */
   static async refreshList() {
     const { page, limit } = pageQuery();
     const [res] = await Promise.all([
-      CyberiaEntityTypeDefaultService.get({ page, limit }),
+      CyberiaEntityTypeDefaultService.get({ page, limit, ...AgGrid.query(EntityEngineCyberia.gridId) }),
       EntityEngineCyberia.refreshInstanceLinks(),
     ]);
     const { data = [], total = 0, totalPages = 1 } = res?.data || {};
     EntityEngineCyberia.listCache = data;
     EntityEngineCyberia.loadedPage = { page, limit };
-    const rows = EntityEngineCyberia.listCache.map((d) => EntityEngineCyberia.toRow(d));
-    if (AgGrid.grids[EntityEngineCyberia.gridId])
-      AgGrid.grids[EntityEngineCyberia.gridId].setGridOption('rowData', rows);
+    AgGrid.grids[EntityEngineCyberia.gridId].setGridOption(
+      'rowData',
+      data.map((d) => EntityEngineCyberia.toRow(d)),
+    );
     EntityEngineCyberia.loadBindings(
       data.flatMap((doc) => Object.values(EntityEngineCyberia.ITEM_FIELD_KEYS).flatMap((key) => doc[key] || [])),
     );
@@ -595,6 +633,11 @@ class EntityEngineCyberia {
     if (!loaded || loaded.page !== page || loaded.limit !== limit) EntityEngineCyberia.refreshList();
   }
 
+  /** A new filter or sort reads from the first page. */
+  static queryChanged() {
+    firstPage(() => EntityEngineCyberia.refreshList());
+  }
+
   // ── Payload / load / persistence ──────────────────────────────────────────
   static getPayload() {
     return {
@@ -608,9 +651,8 @@ class EntityEngineCyberia {
         itemId: rule.itemId,
         active: !!rule.active,
         quantity: Math.max(1, rule.quantity || 1),
-        // Sent only when authored. Omitting it is what makes the id drop every time, so a rule
-        // that never touched the input reads the same as every rule written before it existed.
-        ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
+        // Sent only when authored, so an untouched number keeps its default.
+        ...overrideNumbers(rule),
       })),
     };
   }
@@ -627,7 +669,7 @@ class EntityEngineCyberia {
       itemId: rule.itemId,
       active: !!rule.active,
       quantity: Math.max(1, rule.quantity || 1),
-      ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
+      ...overrideNumbers(rule),
     }));
     EntityEngineCyberia.instanceCodes = [...(EntityEngineCyberia.instanceLinks.get(String(doc._id)) || [])];
     for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
@@ -665,10 +707,9 @@ class EntityEngineCyberia {
       });
       return false;
     }
-    const behavior = SELECTABLE_ENTITY_BEHAVIORS.find((b) => b.id === body.behavior);
-    if (behavior && behavior.entityType !== body.entityType) {
+    if (!isAssignableEntityBehavior(body.entityType, body.behavior)) {
       NotificationManager.Push({
-        html: `Behavior ${behavior.label} applies to ${behavior.entityType} entities only.`,
+        html: `Behavior ${body.behavior} does not apply to ${body.entityType} entities.`,
         status: 'error',
       });
       return false;
@@ -763,6 +804,69 @@ class EntityEngineCyberia {
         </div>
         <div class="in entity-engine-${field}-list" style="margin-top:8px;"></div>`;
 
+    // The server filters and sorts each page, so a column matches what its document stores.
+    const table = await AgGrid.instance({
+      id: EntityEngineCyberia.gridId,
+      ownerRoute: EntityEngineCyberia.route,
+      usePagination: true,
+      paginationOptions: { limitOptions: [10, 25, 50, 100] },
+      darkTheme,
+      style: { width: '44rem', 'max-width': '100%', height: '50vh' },
+      gridOptions: {
+        rowData: [],
+        columnDefs: [
+          { field: 'entityType', headerName: 'Entity Type', minWidth: 120 },
+          { field: 'behavior', headerName: 'Behavior', minWidth: 110 },
+          // Instance confs hold the link, not the default: no server query reaches it.
+          { field: 'instances', headerName: 'Instances', minWidth: 160, filter: false, sortable: false },
+          {
+            field: 'liveItemIds',
+            headerName: 'Live Item Ids',
+            minWidth: 220,
+            autoHeight: true,
+            cellRenderer: EntityEngineCyberia.itemIdsRenderer('liveItemIds'),
+          },
+          {
+            field: 'deadItemIds',
+            headerName: 'Dead Item Ids',
+            minWidth: 220,
+            autoHeight: true,
+            cellRenderer: EntityEngineCyberia.itemIdsRenderer('deadItemIds'),
+          },
+          {
+            field: 'dropItemIds',
+            headerName: 'Drop Item Ids',
+            minWidth: 220,
+            autoHeight: true,
+            cellRenderer: EntityEngineCyberia.itemIdsRenderer('dropItemIds'),
+          },
+          {
+            field: 'inventoryItemsIds',
+            headerName: 'Inventory Items Id',
+            minWidth: 220,
+            autoHeight: true,
+            cellRenderer: EntityEngineCyberia.itemIdsRenderer('inventoryItemsIds'),
+          },
+          {
+            field: 'overrideItemsIdsState',
+            colId: 'overrideItemsIdsState.itemId',
+            headerName: 'Resume Override',
+            minWidth: 200,
+            autoHeight: true,
+            cellRenderer: EntityEngineCyberia.overridesRenderer(),
+            filterValueGetter: ({ data }) => (data?.overrideItemsIdsState || []).map(({ itemId }) => itemId).join(', '),
+          },
+        ],
+        rowSelection: 'single',
+        onFilterChanged: () => EntityEngineCyberia.queryChanged(),
+        onSortChanged: () => EntityEngineCyberia.queryChanged(),
+        onRowClicked: (event) => {
+          const doc = EntityEngineCyberia.listCache.find((d) => d._id === event.data?._id);
+          if (doc) EntityEngineCyberia.load(doc);
+        },
+      },
+    });
+
     setTimeout(async () => {
       const container = s('.entity-engine-container');
       EditorLayout.bind(container);
@@ -811,64 +915,7 @@ class EntityEngineCyberia {
             label: html`<i class="fa-solid fa-rotate"></i> Refresh`,
           })}
           <div class="in" style="font-size:12px;color:#888;">Click a row to load it into the form.</div>`,
-        stage: await AgGrid.instance({
-          id: EntityEngineCyberia.gridId,
-          ownerRoute: EntityEngineCyberia.route,
-          usePagination: true,
-          paginationOptions: { limitOptions: [10, 25, 50, 100] },
-          darkTheme,
-          style: { width: '44rem', 'max-width': '100%', height: '50vh' },
-          gridOptions: {
-            rowData: [],
-            columnDefs: [
-              { field: 'entityType', headerName: 'Entity Type', minWidth: 120 },
-              { field: 'behavior', headerName: 'Behavior', minWidth: 110 },
-              { field: 'instances', headerName: 'Instances', minWidth: 160 },
-              {
-                field: 'liveItemIds',
-                headerName: 'Live Item Ids',
-                minWidth: 220,
-                autoHeight: true,
-                cellRenderer: EntityEngineCyberia.itemIdsRenderer('liveItemIds'),
-              },
-              {
-                field: 'deadItemIds',
-                headerName: 'Dead Item Ids',
-                minWidth: 220,
-                autoHeight: true,
-                cellRenderer: EntityEngineCyberia.itemIdsRenderer('deadItemIds'),
-              },
-              {
-                field: 'dropItemIds',
-                headerName: 'Drop Item Ids',
-                minWidth: 220,
-                autoHeight: true,
-                cellRenderer: EntityEngineCyberia.itemIdsRenderer('dropItemIds'),
-              },
-              {
-                field: 'inventoryItemsIds',
-                headerName: 'Inventory Items Id',
-                minWidth: 220,
-                autoHeight: true,
-                cellRenderer: EntityEngineCyberia.itemIdsRenderer('inventoryItemsIds'),
-              },
-              {
-                field: 'overrideItemsIdsState',
-                headerName: 'Resume Override',
-                minWidth: 200,
-                autoHeight: true,
-                cellRenderer: EntityEngineCyberia.overridesRenderer(),
-                filterValueGetter: (params) =>
-                  EntityEngineCyberia.overridesFilterText(params.data?.overrideItemsIdsState),
-              },
-            ],
-            rowSelection: 'single',
-            onRowClicked: (event) => {
-              const doc = EntityEngineCyberia.listCache.find((d) => d._id === event.data?._id);
-              if (doc) EntityEngineCyberia.load(doc);
-            },
-          },
-        }),
+        stage: table,
         tools: html`${EditorCrud.render({ id: 'entity-engine-crud', label: 'Entity default' })}
           ${group(
             'Entity Default',
@@ -933,8 +980,8 @@ class EntityEngineCyberia {
             html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
                 <i class="fa-solid fa-circle-info"></i> Adjusts what the lists above derive for one id they already carry:
                 <b>active</b> forces the spawn state — a skin the equipment rules would otherwise leave inactive — and the
-                quantity sizes a stack, which is how a drop bundle declares how many it scatters. An override never adds an
-                id.
+                quantity sizes a stack, which is how a drop bundle declares how many it scatters. <b>buff</b> is the part of
+                max life a consumed item restores. An empty box keeps its default. An override never adds an id.
               </div>
               <div class="fl" style="align-items:flex-end;">
                 <div class="in fll" style="flex:1;">

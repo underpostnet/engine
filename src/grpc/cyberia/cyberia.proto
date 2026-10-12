@@ -277,6 +277,11 @@ message DefaultObjectLayerState {
   // deliberate 0: a payload from before this field existed must read as "always drops", while an
   // operator who authors 0 means "never". See OverrideItemStateSchema.dropChance.
   optional double drop_chance = 4;
+  // Fraction of its target's max life this id restores when it is consumed. See
+  // OverrideItemStateSchema.buffFactor.
+  optional double buff_factor = 5;
+  reserved 6;
+  reserved "spawn_interval_ms";
 }
 
 message SkillDetail {
@@ -540,12 +545,12 @@ message EntityTypeDefault {
 
 message EntityMessage {
   int32 level = 17;
+  int32 respawn_duration_ms = 18; // time before a dead entity or a consumed loot token comes back (0 = use server default)
   string          entity_type = 1;
   int32           init_cell_x = 2;
   int32           init_cell_y = 3;
   int32           dim_x       = 4;
   int32           dim_y       = 5;
-  int32 respawn_duration_ms = 18; // time before a dead entity or a consumed loot token comes back (0 = use server default)
   string          color       = 6;
   repeated string object_layer_item_ids = 7;
 

@@ -6,6 +6,7 @@ import {
   applyDefaultsToEntities,
   CyberiaEntityTypeDefaultService,
   findDuplicateBuilds,
+  toEntityDefault,
 } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import {
@@ -13,6 +14,14 @@ import {
   resolveEntityInventory,
 } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
+import {
+  BUFF_FACTOR_DEFAULT,
+  ENTITY_TYPE_TO_ITEM_TYPES,
+  ITEM_TYPES,
+  SELECTABLE_ENTITY_BEHAVIORS,
+  isAssignableEntityBehavior,
+  statBoundsForType,
+} from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
 const contentBuilt = hasContentArtifact();
@@ -613,10 +622,10 @@ describe('the canonical inventory contract', () => {
     // entity holds, so they start as one unit a player can bank. Dead and drop ids are lifecycle
     // slots carried empty, which is what lets the runtime activate one instead of appending it.
     expect(inventory).toEqual([
-      { itemId: 'skin', active: true, quantity: 1, dropChance: 1 },
-      { itemId: 'ghost', active: false, quantity: 0, dropChance: 1 },
-      { itemId: 'loot', active: false, quantity: 0, dropChance: 1 },
-      { itemId: 'coin', active: false, quantity: 1, dropChance: 1 },
+      { itemId: 'skin', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'ghost', active: false, quantity: 0, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'loot', active: false, quantity: 0, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'coin', active: false, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
     ]);
   });
 
@@ -643,8 +652,8 @@ describe('the canonical inventory contract', () => {
     // The equipment rules would leave a dead id inactive; the override says otherwise, and the
     // quantity follows the state it lands in.
     expect(inventory).toEqual([
-      { itemId: 'skin', active: true, quantity: 1, dropChance: 1 },
-      { itemId: 'ghost', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'skin', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'ghost', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
     ]);
   });
 
@@ -655,7 +664,13 @@ describe('the canonical inventory contract', () => {
       overrideItemsIdsState: [{ itemId: 'wood-drop', quantity: 5 }],
     });
     // The stack the server scatters, still carried inactive by the resource itself.
-    expect(drop).toEqual({ itemId: 'wood-drop', active: false, quantity: 5, dropChance: 1 });
+    expect(drop).toEqual({
+      itemId: 'wood-drop',
+      active: false,
+      quantity: 5,
+      dropChance: 1,
+      buffFactor: BUFF_FACTOR_DEFAULT,
+    });
   });
 
   it('states how often every row drops, and defaults to always', () => {
@@ -717,13 +732,13 @@ describe('the canonical inventory contract', () => {
     // id no list carries does nothing at all.
     expect(
       resolveEntityInventory({ liveItemIds: ['skin'], overrideItemsIdsState: [{ itemId: 'absent', quantity: 9 }] }),
-    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1 }]);
+    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT }]);
     expect(
       resolveEntityInventory(
         { liveItemIds: ['skin'], overrideItemsIdsState: [{ itemId: 'absent', active: true }] },
         { itemTypes: { skin: 'skin', absent: 'skin' } },
       ),
-    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1 }]);
+    ).toEqual([{ itemId: 'skin', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT }]);
   });
 
   it('puts an overridden carried item on a live entity, whatever its type', () => {
@@ -745,10 +760,10 @@ describe('the canonical inventory contract', () => {
         { itemTypes: { 'wood-1': 'skin', 'wood-extracted-1': 'skin', 'wood-drop-1': 'weapon', 'tim-knife': 'weapon' } },
       ),
     ).toEqual([
-      { itemId: 'wood-1', active: true, quantity: 1, dropChance: 1 },
-      { itemId: 'wood-extracted-1', active: false, quantity: 0, dropChance: 1 },
-      { itemId: 'wood-drop-1', active: false, quantity: 2, dropChance: 1 },
-      { itemId: 'tim-knife', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'wood-1', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'wood-extracted-1', active: false, quantity: 0, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'wood-drop-1', active: false, quantity: 2, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'tim-knife', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
     ]);
   });
 
@@ -763,9 +778,9 @@ describe('the canonical inventory contract', () => {
     ).toEqual([
       // Taken off, not taken away: the skin stays in the inventory with its stack intact, which is
       // what lets the player bank it or put it back on.
-      { itemId: 'anon', active: false, quantity: 1, dropChance: 1 },
-      { itemId: 'pistol', active: true, quantity: 1, dropChance: 1 },
-      { itemId: 'punk', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'anon', active: false, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'pistol', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'punk', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
     ]);
     // With no types to read, every row keeps the state its list derives.
     expect(
@@ -792,10 +807,10 @@ describe('the canonical inventory contract', () => {
         { itemTypes: { anon: 'skin', kaneki: 'skin', atlas_pistol_mk2: 'weapon', fragmentation: 'skin' } },
       ),
     ).toEqual([
-      { itemId: 'anon', active: false, quantity: 1, dropChance: 1 },
-      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1, dropChance: 1 },
-      { itemId: 'fragmentation', active: false, quantity: 0, dropChance: 1 },
-      { itemId: 'kaneki', active: true, quantity: 1, dropChance: 1 },
+      { itemId: 'anon', active: false, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'fragmentation', active: false, quantity: 0, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'kaneki', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
     ]);
   });
 
@@ -816,7 +831,13 @@ describe('the canonical inventory contract', () => {
       overrideItemsIdsState: [{ itemId: 'coin', quantity: 250 }],
     });
     // Quantity only: coin stays inactive, as its list derives.
-    expect(inventory.at(-1)).toEqual({ itemId: 'coin', active: false, quantity: 250, dropChance: 1 });
+    expect(inventory.at(-1)).toEqual({
+      itemId: 'coin',
+      active: false,
+      quantity: 250,
+      dropChance: 1,
+      buffFactor: BUFF_FACTOR_DEFAULT,
+    });
   });
 
   it('resolves nothing for a default that names no ids', () => {
@@ -843,5 +864,144 @@ describe('CyberiaInstanceConf.entityDefaults', () => {
   it('defaults to referencing nothing, which is a complete world', () => {
     expect(CYBERIA_INSTANCE_CONF_DEFAULTS.entityDefaults).toEqual([]);
     expect(new CyberiaInstanceConfModel({ instanceCode: 'fresh' }).entityDefaults).toEqual([]);
+  });
+});
+
+describe('the destructible behavior binds obstacle defaults only', () => {
+  const CRYSTAL = {
+    entityType: 'obstacle',
+    liveItemIds: ['crystal_rock'],
+    deadItemIds: ['crystal_rock_broken'],
+    dropItemIds: ['crystal_shard'],
+    overrideItemsIdsState: [{ itemId: 'crystal_shard', quantity: 2, dropChance: 0.5 }],
+    behavior: 'destructible',
+  };
+  const valid = (doc) =>
+    new CyberiaEntityTypeDefaultModel(doc).validate().then(
+      () => true,
+      () => false,
+    );
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('is an obstacle behavior the editor offers', () => {
+    expect(SELECTABLE_ENTITY_BEHAVIORS.find(({ id }) => id === 'destructible')).toMatchObject({
+      label: 'Destructible Obstacle',
+      entityType: 'obstacle',
+      selectable: true,
+    });
+  });
+
+  it('validates on an obstacle default, with drops or none', async () => {
+    expect(await valid(CRYSTAL)).toBe(true);
+    expect(await valid({ ...CRYSTAL, dropItemIds: [], overrideItemsIdsState: [] })).toBe(true);
+  });
+
+  it('is refused on any other entity type, as an obstacle refuses a bot behavior', async () => {
+    expect(await valid({ ...CRYSTAL, entityType: 'resource' })).toBe(false);
+    expect(await valid({ ...CRYSTAL, entityType: 'bot' })).toBe(false);
+    expect(await valid({ ...CRYSTAL, behavior: 'hostile' })).toBe(false);
+  });
+
+  it('leaves a default without a behavior valid', async () => {
+    expect(await valid({ entityType: 'obstacle', liveItemIds: ['wall'] })).toBe(true);
+    expect(await valid({ ...FOREST_BOT, _id: undefined })).toBe(true);
+  });
+
+  it('checks an update against the stored entity type', async () => {
+    const options = { host: 'entity-default-test', path: '/' };
+    vi.spyOn(DataBaseProviderService, 'getModel').mockReturnValue(CyberiaEntityTypeDefaultModel);
+    vi.spyOn(CyberiaEntityTypeDefaultModel, 'findById').mockReturnValue({ lean: async () => ({ ...FOREST_BOT }) });
+    const update = vi.spyOn(CyberiaEntityTypeDefaultModel, 'findByIdAndUpdate').mockResolvedValue(FOREST_BOT);
+    const put = (body) =>
+      CyberiaEntityTypeDefaultService.put({ params: { id: String(FOREST_BOT._id) }, body }, {}, options);
+
+    await expect(put({ behavior: 'destructible' })).rejects.toThrow();
+    expect(update).not.toHaveBeenCalled();
+    await put({ entityType: 'obstacle', behavior: 'destructible' });
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('drops through the shared rows: the override sizes the stack and rolls the chance', () => {
+    expect(resolveEntityInventory(CRYSTAL)).toEqual([
+      { itemId: 'crystal_rock', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'crystal_rock_broken', active: false, quantity: 0, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+      { itemId: 'crystal_shard', active: false, quantity: 2, dropChance: 0.5, buffFactor: BUFF_FACTOR_DEFAULT },
+    ]);
+  });
+});
+
+describe('loot binds one pickup behavior to a consumable', () => {
+  const GEL = { entityType: 'loot', liveItemIds: ['med-gel'], behavior: 'consume-on-pickup-heal' };
+  const valid = (doc) =>
+    new CyberiaEntityTypeDefaultModel(doc).validate().then(
+      () => true,
+      () => false,
+    );
+
+  it('shows a consumable, an item type that carries no stats', () => {
+    expect(ENTITY_TYPE_TO_ITEM_TYPES.loot).toEqual([ITEM_TYPES.consumable]);
+    expect(Object.values(statBoundsForType(ITEM_TYPES.consumable))).toEqual(
+      Object.values(statBoundsForType(ITEM_TYPES.consumable)).map(() => [0, 0]),
+    );
+  });
+
+  it('offers consume-on-pickup-heal for loot only', () => {
+    expect(SELECTABLE_ENTITY_BEHAVIORS.find(({ id }) => id === 'consume-on-pickup-heal')).toMatchObject({
+      entityType: 'loot',
+      selectable: true,
+    });
+    expect(isAssignableEntityBehavior('loot', 'consume-on-pickup-heal')).toBe(true);
+    expect(isAssignableEntityBehavior('bot', 'consume-on-pickup-heal')).toBe(false);
+    expect(isAssignableEntityBehavior('loot', 'passive')).toBe(false);
+  });
+
+  it('validates a loot default that consumes, grants, or names another type behavior', async () => {
+    expect(await valid(GEL)).toBe(true);
+    expect(await valid({ ...GEL, behavior: '' })).toBe(true);
+    expect(await valid({ ...GEL, behavior: 'destructible' })).toBe(false);
+    expect(await valid({ ...GEL, entityType: 'resource' })).toBe(false);
+  });
+
+  it('stores no behavior configuration', async () => {
+    const doc = new CyberiaEntityTypeDefaultModel({ ...GEL, behaviorConfig: { healAmount: 5 } });
+    expect(doc.toObject()).not.toHaveProperty('behaviorConfig');
+  });
+});
+
+describe('an override states how its item buffs', () => {
+  const GEL = {
+    entityType: 'loot',
+    liveItemIds: ['med-gel'],
+    behavior: 'consume-on-pickup-heal',
+    overrideItemsIdsState: [{ itemId: 'med-gel', buffFactor: 0.25, debuffFactor: 0.2 }],
+  };
+  const valid = (doc) =>
+    new CyberiaEntityTypeDefaultModel(doc).validate().then(
+      () => true,
+      () => false,
+    );
+  const withRule = (rule) => ({ ...GEL, overrideItemsIdsState: [{ itemId: 'med-gel', ...rule }] });
+
+  it('validates factors from 0 to 1', async () => {
+    expect(await valid(GEL)).toBe(true);
+    expect(await valid(withRule({ buffFactor: 1.2 }))).toBe(false);
+    expect(await valid(withRule({ debuffFactor: -0.1 }))).toBe(false);
+  });
+
+  it('keeps every stated number and adds none', () => {
+    expect(toEntityDefault(GEL).overrideItemsIdsState).toEqual(GEL.overrideItemsIdsState);
+    expect(toEntityDefault(withRule({ quantity: 2 })).overrideItemsIdsState).toEqual([
+      { itemId: 'med-gel', quantity: 2 },
+    ]);
+  });
+
+  it('gives every row a buff factor', () => {
+    expect(resolveEntityInventory(GEL)).toEqual([
+      { itemId: 'med-gel', active: true, quantity: 1, dropChance: 1, buffFactor: 0.25 },
+    ]);
+    expect(resolveEntityInventory({ ...GEL, overrideItemsIdsState: [] })).toEqual([
+      { itemId: 'med-gel', active: true, quantity: 1, dropChance: 1, buffFactor: BUFF_FACTOR_DEFAULT },
+    ]);
   });
 });

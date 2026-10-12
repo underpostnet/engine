@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { isAssignableEntityBehavior } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -8,7 +9,7 @@ import { Schema, model } from 'mongoose';
 // rotates through by lifecycle state:
 //   liveItemIds       — ObjectLayer item ids while the entity is alive.
 //   deadItemIds       — ids swapped in on death / ghost state.
-//   dropItemIds       — ids granted to the killer on depletion (resources).
+//   dropItemIds       — ids scattered on death for the damage contributors to collect.
 //   inventoryItemsIds     — ids the entity carries but no lifecycle state activates.
 //   overrideItemsIdsState — per-id overrides of what the lists would otherwise derive.
 //
@@ -48,6 +49,11 @@ const OverrideItemStateSchema = new Schema(
     // the drop always happens, which is what every world did before this existed. Only meaningful
     // for an id the build carries in `dropItemIds`; on any other row it is inert.
     dropChance: { type: Number, min: 0, max: 1 },
+    // Fraction of its target's max life this id restores as a buff; a consumed item heals by it.
+    // Absent: BUFF_FACTOR_DEFAULT.
+    buffFactor: { type: Number, min: 0, max: 1 },
+    // Fraction of its target's max life this id removes as a debuff. No runtime effect reads it yet.
+    debuffFactor: { type: Number, min: 0, max: 1 },
   },
   { _id: false },
 );
@@ -61,10 +67,19 @@ const CyberiaEntityTypeDefaultSchema = new Schema(
     inventoryItemsIds: [{ type: String, trim: true }],
     overrideItemsIdsState: [OverrideItemStateSchema],
     // Canonical entity behavior bound to entities matched by liveItemIds (see
-    // SharedDefaultsCyberia.ENTITY_BEHAVIORS). Empty: a bot derives it
-    // (armed → hostile, else passive); a foreground stays normal. The simulation
-    // resolves it with the same liveItemIds match it uses for the live/dead/drop sets.
-    behavior: { type: String, trim: true },
+    // SharedDefaultsCyberia.ENTITY_BEHAVIORS), and only one of this entity type. Empty: a bot
+    // derives it (armed → hostile, else passive); a foreground and an obstacle stay ordinary. The
+    // simulation resolves it with the same liveItemIds match it uses for the live/dead/drop sets.
+    behavior: {
+      type: String,
+      trim: true,
+      validate: {
+        validator(behavior) {
+          return isAssignableEntityBehavior(this.entityType, behavior);
+        },
+        message: ({ value }) => `Behavior ${value} does not apply to this entity type.`,
+      },
+    },
   },
   {
     timestamps: true,

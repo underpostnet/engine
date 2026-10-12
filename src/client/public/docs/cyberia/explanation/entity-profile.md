@@ -44,7 +44,7 @@ CyberiaEntity {
 | `skill`        | `skill`                       | no         | Runtime-spawned projectile (created by skill system)  |
 | `coin`         | `coin`                        | no         | Runtime-spawned collectible (dropped on entity death) |
 | `floor`        | static                        | yes        | Terrain tile (walkable)                               |
-| `obstacle`     | static                        | yes        | Collision tile (blocks movement)                      |
+| `obstacle`     | static / `destructible`       | yes        | Collision tile (blocks movement)                      |
 | `portal`       | static                        | yes        | Zone transition trigger                               |
 | `foreground`   | static / `overhead-occlusion` | yes        | Foreground decoration layer, drawn over every entity  |
 | `resource`     | extractable                   | yes        | Exploitable world object (drops items on extraction)  |
@@ -173,13 +173,17 @@ Every entity type resolves against a default build. The foundation baseline supp
 type ([Content artifact](content-artifact.md#document-families)); an instance conf references
 `CyberiaEntityTypeDefault` documents that replace the baseline for the types they cover:
 
-| Field               | Description                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `liveItemIds`       | ObjectLayer item IDs applied when entity is alive with no explicit items assigned                             |
-| `deadItemIds`       | ObjectLayer item IDs for dead/ghost/respawning state                                                          |
-| `dropItemIds`       | Items granted to the extractor when a resource entity is depleted                                             |
-| `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                                                    |
-| `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static. Of a foreground: overhead-occlusion |
+| Field               | Description                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `liveItemIds`       | ObjectLayer item IDs applied when entity is alive with no explicit items assigned                                                                                            |
+| `deadItemIds`       | ObjectLayer item IDs for dead/ghost/respawning state                                                                                                                         |
+| `dropItemIds`       | Items scattered on death as tokens the damage contributors race to collect                                                                                                   |
+| `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                                                                                                                   |
+| `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static. Of a foreground: overhead-occlusion. Of an obstacle: destructible. Of loot: consume-on-pickup-heal |
+
+A map save links each default whose live items the map places to every instance that runs the map,
+unless another instance references that default. The instance editor's sync does the same for a whole
+instance. A default that no instance references reaches no world.
 
 ---
 
@@ -227,12 +231,86 @@ Resource entities have a specific lifecycle:
 
 ```
 Alive (StatusResource)
-  → Player extracts (tap interaction)
-    → dropItemIds granted to player inventory
+  → Projectile damage brings life to 0
+    → dropItemIds scatter as tokens the damage contributors race to collect
+    → Objective XP goes to each player with a large enough damage share
     → Entity transitions to StatusResourceExtracted
       → Respawn timer starts
         → Entity returns to StatusResource
 ```
+
+The respawn timer of a bot, a resource or a destructible obstacle is the `respawnDurationMs` of its
+map entity, set in the Paint tab of the map editor. A player waits the default 3000 ms.
+
+---
+
+## Destructible Obstacle Profile
+
+An obstacle whose entity-type default binds `destructible` shares the resource damage and drop
+path, and keeps the obstacle rules for collision:
+
+```
+Alive (blocks its cells, sends life and maxLife)
+  → Projectile damage brings life to 0
+    → dropItemIds scatter as tokens the damage contributors race to collect
+    → deadItemIds replace the live items; with none, the client draws nothing
+    → The cells become walkable
+      → Respawn timer starts, the same timer as a resource
+        → Once no player or bot stands in the cells, the obstacle returns and blocks them again
+```
+
+- The behavior binds only when the obstacle carries every `liveItemIds` of the most specific
+  default it matches. An obstacle that matches no default stays ordinary, whatever the first
+  obstacle default binds.
+- Life is the `maxLife` of the placed map entity, else `entityBaseMaxLife`. Obstacle stats stay
+  zero and an obstacle has no level.
+- A depleted obstacle earns no XP and grants no quest credit.
+- An ordinary obstacle sends `maxLife` 0, takes no damage and never stops blocking.
+- A world reload restores every obstacle, as it restores every resource.
+
+---
+
+## World Loot and Consumables
+
+A consumed item restores the `buffFactor` of its loot default as a part of `maxLife` (default `0.1`),
+never past `maxLife`. The green "+N" shows the life it restored. Two paths consume one, and both apply
+the same server effect:
+
+| Path          | Trigger                                                        | Unit spent                                 |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------ |
+| World loot    | A collector reaches a token that consumes on pickup            | The token; nothing enters an inventory     |
+| Inventory use | `item_use { itemId }` from the inventory modal or a bar button | One unit of the stack, only after it heals |
+
+A world loot token shows one item, bound or not; an item without a render draws the `LOOT` colour. It
+is collectable at once, blocks nothing and goes to the first living, unfrozen player or loot-collecting
+bot it changes something for. The `loot` entity-type default its item matches decides what collecting
+it does: `consume-on-pickup-heal` consumes it, no behavior grants it to the inventory.
+
+```
+World build (every map, every build)
+  → each `loot` entity the map places becomes a token on its cell; a map holds no other world loot
+Consumed token
+  → back on its cell after the respawnDurationMs of its map entity
+Any consumption
+  → item_consume { entityId, itemId, behavior } goes to every viewer;
+    consume-on-pickup-heal plays the green heal aura on the consumer
+```
+
+- An override row of the loot default states the item's `buffFactor` and `debuffFactor` (no effect
+  reads it yet). An empty value keeps the default.
+- A map places loot as a `loot` entity in the Paint tab of the map editor: one item, one cell, and
+  its respawn time.
+- The foundation baseline supplies the loot default of `consumable.med-gel`, which consumes on
+  pickup, to a world that references no loot default.
+- A granted token does not come back. A token that shows more than one item is skipped and logged.
+- A full-life collector leaves a consuming token on the map; a full-life player cannot use a consumable.
+- Only an item of the `consumable` type can be used from the inventory. It carries no stats.
+- `item_use` answers with `item_use_ack { itemId, ok, reason }`. Reasons: `dead`, `not_owned`,
+  `not_consumable`, `cooldown`, `full_life`. A rejection spends nothing.
+- A use starts the item-use cooldown, timed by the action cooldown rule and sent as
+  `self.itemReadyInMs`. A repeated request inside it is rejected, so one press applies once.
+- Death drops keep their rules: only damage contributors collect them, after the launch window, and
+  they expire after 45 seconds.
 
 ---
 
@@ -242,9 +320,11 @@ Alive (StatusResource)
 stateDiagram-v2
     [*] --> Alive : Spawned by instance_loader
     Alive --> Dead : Life reaches 0 (combat/skill)
-    Alive --> ResourceExtracted : Player extracts (resource type)
+    Alive --> ResourceExtracted : Life reaches 0 (resource type)
+    Alive --> Depleted : Life reaches 0 (destructible obstacle)
     Dead --> Alive : Respawn timer elapsed
     ResourceExtracted --> Alive : Respawn timer elapsed
+    Depleted --> Alive : Respawn timer elapsed and its cells are clear
     Alive --> Frozen : Player opens modal (FrozenInteractionState)
     Frozen --> Alive : Player closes modal
     Alive --> [*] : Entity removed from AOI
