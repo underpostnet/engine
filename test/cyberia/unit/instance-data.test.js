@@ -24,6 +24,11 @@ import {
   itemTypesOf,
 } from '../../../src/projects/cyberia/instance-data.js';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
+import {
+  RESPAWN_DURATION_MS_DEFAULT,
+  RESPAWN_DURATION_MS_MIN,
+} from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
 
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
@@ -88,6 +93,20 @@ describe('wire converters', () => {
     expect(instance).toMatchObject({ mongoId: 'i1', topologyMode: 'hybrid', mapCodes: [] });
     expect(instance.portals[0]).toMatchObject({ sourceMapCode: 'a', portalMode: 'inter-portal', targetCellX: 0 });
     expect(instance.playerSpawn).toEqual({ sourceMapCode: '', sourceCellX: 0, sourceCellY: 0, random: false });
+  });
+
+  it('carries the respawn time of a map entity, from the minimum up, in whole milliseconds', async () => {
+    const entity = new CyberiaEntityModel({ entityType: 'loot' });
+    await entity.validate();
+    expect(toEntityMsg(entity.toObject()).respawnDurationMs).toBe(RESPAWN_DURATION_MS_DEFAULT);
+    expect(toEntityMsg({ respawnDurationMs: 5000 }).respawnDurationMs).toBe(5000);
+    expect(toEntityMsg({}).respawnDurationMs).toBe(0);
+    for (const respawnDurationMs of [RESPAWN_DURATION_MS_MIN - 1, 1500.5]) {
+      await expect(new CyberiaEntityModel({ respawnDurationMs }).validate()).rejects.toThrow();
+    }
+    for (const respawnDurationMs of [RESPAWN_DURATION_MS_MIN - 1, 1500.5, null, '2000']) {
+      expect(() => toEntityMsg({ respawnDurationMs })).toThrow();
+    }
   });
 
   it('carries an object layer with its cid as the one identity, its render, and no ledger state', () => {

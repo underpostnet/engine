@@ -16,7 +16,15 @@ import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
-import { ENTITY_TYPES, ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX, validateEntityLevel } from './SharedDefaultsCyberia.js';
+import {
+  ENTITY_TYPES,
+  ENTITY_LEVEL_MIN,
+  ENTITY_LEVEL_MAX,
+  RESPAWN_DURATION_MS_DEFAULT,
+  RESPAWN_DURATION_MS_MIN,
+  validateEntityLevel,
+  validateRespawnDuration,
+} from './SharedDefaultsCyberia.js';
 import { CommandHistory } from '../core/CommandHistory.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
@@ -671,6 +679,8 @@ class MapEngineCyberia {
         if (s('.map-engine-init-cell-y')) s('.map-engine-init-cell-y').value = entity.initCellY || 0;
         if (s('.map-engine-dim-x')) s('.map-engine-dim-x').value = entity.dimX || 1;
         if (s('.map-engine-level')) s('.map-engine-level').value = entity.level ?? '';
+        if (s('.map-engine-respawn-duration'))
+          s('.map-engine-respawn-duration').value = entity.respawnDurationMs ?? RESPAWN_DURATION_MS_DEFAULT;
         if (s('.map-engine-dim-y')) s('.map-engine-dim-y').value = entity.dimY || 1;
 
         // Parse rgba color back to hex + alpha
@@ -714,6 +724,7 @@ class MapEngineCyberia {
 
     const idEntityType = MapEngineCyberia.entityTypeDropdownId;
     const idLevel = 'map-engine-level';
+    const idRespawnDuration = 'map-engine-respawn-duration';
     const idInitCellX = 'map-engine-init-cell-x';
     const idInitCellY = 'map-engine-init-cell-y';
     const idDimX = 'map-engine-dim-x';
@@ -816,14 +827,17 @@ class MapEngineCyberia {
     const getEntityParams = () => {
       const rawLevel = s(`.${idLevel}`)?.value.trim();
       let level;
+      let respawnDurationMs;
       try {
         if (rawLevel) level = validateEntityLevel(Number(rawLevel));
+        respawnDurationMs = validateRespawnDuration(Number(s(`.${idRespawnDuration}`)?.value));
       } catch (error) {
         NotificationManager.Push({ html: error.message, status: 'error' });
         return null;
       }
       return {
         level,
+        respawnDurationMs,
         entityType: MapEngineCyberia.getSelectedEntityType(),
         initCellX: parseInt(s(`.${idInitCellX}`)?.value) || 0,
         initCellY: parseInt(s(`.${idInitCellY}`)?.value) || 0,
@@ -952,6 +966,7 @@ class MapEngineCyberia {
             ...target,
             entityType: template.entityType,
             level: template.level,
+            respawnDurationMs: template.respawnDurationMs,
             dimX: template.dimX,
             dimY: template.dimY,
             color: template.color,
@@ -1283,6 +1298,7 @@ class MapEngineCyberia {
       if (creatorDisplay) creatorDisplay.innerHTML = '<span style="color:#888;font-size:12px;">—</span>';
       resetDimensions();
       if (s(`.${idLevel}`)) s(`.${idLevel}`).value = '';
+      if (s(`.${idRespawnDuration}`)) s(`.${idRespawnDuration}`).value = RESPAWN_DURATION_MS_DEFAULT;
       if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
       if (s(`.${idRenameSourceObjectLayer}`)) s(`.${idRenameSourceObjectLayer}`).value = '';
       if (s(`.${idRenameTargetObjectLayer}`)) s(`.${idRenameTargetObjectLayer}`).value = '';
@@ -1867,6 +1883,15 @@ class MapEngineCyberia {
                         containerClass: 'inl',
                         type: 'color',
                         value: '#ff0000',
+                      })}
+                      ${await Input.instance({
+                        id: idRespawnDuration,
+                        label: html`Respawn time (ms, at least ${RESPAWN_DURATION_MS_MIN})`,
+                        containerClass: 'inl',
+                        type: 'number',
+                        min: RESPAWN_DURATION_MS_MIN,
+                        required: true,
+                        value: RESPAWN_DURATION_MS_DEFAULT,
                       })}
                     </div>
                   </div>

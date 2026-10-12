@@ -28,7 +28,6 @@ const SCHEMA_FIELDS = [
   'progressionRules',
   'maxActiveLayers',
   'initialLifeFraction',
-  'respawnDurationMs',
   'collisionLifeLoss',
   'economyRules',
   'lifeRegenChance',

@@ -437,7 +437,9 @@ message InstanceConfig {
   reserved "default_player_object_layers";
 
   // ── Combat / death ──
-  int32  respawn_duration_ms           = 28;
+  // Each map entity carries its own respawn_duration_ms.
+  reserved 28;
+  reserved "respawn_duration_ms";
   double collision_life_loss           = 30;
 
   // ── Economy ──
@@ -543,6 +545,7 @@ message EntityMessage {
   int32           init_cell_y = 3;
   int32           dim_x       = 4;
   int32           dim_y       = 5;
+  int32 respawn_duration_ms = 18; // time before a dead entity or a consumed loot token comes back (0 = use server default)
   string          color       = 6;
   repeated string object_layer_item_ids = 7;
 

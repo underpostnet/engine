@@ -440,7 +440,6 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   initialLifeFraction: 1.0,
 
   // ── Combat / death ─────────────────────────────────────────────────
-  respawnDurationMs: 3000,
   collisionLifeLoss: 10,
 
   // ── Economy — Fountain & Sink model ────────────────────────────────

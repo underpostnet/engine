@@ -29,7 +29,11 @@ import {
   resolveProgressionRules,
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
-import { validateStats, validateEntityLevel } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  validateStats,
+  validateEntityLevel,
+  validateRespawnDuration,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { contentArtifact } from './content/content-artifact.js';
 import { buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 
@@ -225,6 +229,7 @@ function toEntityMsg(ent) {
   return {
     entityType: ent.entityType || 'floor',
     level: ent.level === undefined ? 0 : validateEntityLevel(ent.level),
+    respawnDurationMs: ent.respawnDurationMs === undefined ? 0 : validateRespawnDuration(ent.respawnDurationMs),
     initCellX: ent.initCellX || 0,
     initCellY: ent.initCellY || 0,
     dimX: ent.dimX || 1,
@@ -383,7 +388,6 @@ function toInstanceConfig(gc, baseline) {
     progressionRules: resolveProgressionRules(gc.progressionRules),
     maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
-    respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
     // Economy — Fountain & Sink (nested EconomyRules message).
     economyRules: {

@@ -1,11 +1,23 @@
 import { Schema, model, Types } from 'mongoose';
-import { ENTITY_LEVEL_MIN, ENTITY_LEVEL_MAX } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  ENTITY_LEVEL_MIN,
+  ENTITY_LEVEL_MAX,
+  RESPAWN_DURATION_MS_DEFAULT,
+  RESPAWN_DURATION_MS_MIN,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
 const CyberiaEntitySchema = new Schema({
   entityType: { type: String, default: 'floor' },
   level: { type: Number, min: ENTITY_LEVEL_MIN, max: ENTITY_LEVEL_MAX, validate: Number.isInteger },
+  // Time this entity waits after its death, or a loot token after it is consumed, before it comes back.
+  respawnDurationMs: {
+    type: Number,
+    default: RESPAWN_DURATION_MS_DEFAULT,
+    min: RESPAWN_DURATION_MS_MIN,
+    validate: Number.isInteger,
+  },
   initCellX: { type: Number, default: 0 },
   initCellY: { type: Number, default: 0 },
   dimX: { type: Number, default: 1 },

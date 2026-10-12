@@ -373,6 +373,15 @@ export function validateStats(stats = {}) {
  * breastplate defend, a skill reaches, and world content carries nothing. A type absent here,
  * or a stat a type leaves out, keeps the contract bounds.
  */
+// Time a dead entity or a consumed loot token waits before it comes back.
+export const RESPAWN_DURATION_MS_MIN = 1000;
+export const RESPAWN_DURATION_MS_DEFAULT = 3000;
+export function validateRespawnDuration(ms) {
+  if (!Number.isInteger(ms) || ms < RESPAWN_DURATION_MS_MIN) {
+    throw new RangeError(`Respawn time must be an integer of at least ${RESPAWN_DURATION_MS_MIN} ms.`);
+  }
+  return ms;
+}
 export const STAT_TYPE_BOUNDS = Object.freeze({
   weapon:      { effect: [5, 20], resistance: [-10, 2], agility: [-5, 5], range: [0, 10], intelligence: [0, 5], utility: [0, 10] },
   skin:        { effect: [1, 1], resistance: [0, 20], agility: [-5, 10], range: [0, 0], intelligence: [0, 2], utility: [0, 5] },

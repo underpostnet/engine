@@ -22,6 +22,7 @@ CyberiaEntity {
   color:              String  // RGBA fallback color (no active OL texture)
   objectLayerItemIds: [String] // ordered list of ObjectLayer item IDs
   portalSubtype:      String  // portal only: inter/intra fixed or random mode
+  respawnDurationMs:  Number  // wait after death, or after a loot token is consumed (min 1000, default 3000)
 
   // Bot-specific (ignored for non-bot entities)
   spawnRadius:  Number  // max wander / respawn radius in cells

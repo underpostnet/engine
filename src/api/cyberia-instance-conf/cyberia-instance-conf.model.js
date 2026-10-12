@@ -117,7 +117,6 @@ const CyberiaInstanceConfSchema = new Schema(
     initialLifeFraction: { type: Number, default: D.initialLifeFraction },
 
     // ── Combat / death ───────────────────────────────────────────────
-    respawnDurationMs: { type: Number, default: D.respawnDurationMs },
     collisionLifeLoss: { type: Number, default: D.collisionLifeLoss },
 
     // ── Economy ──────────────────────────────────────────────────────
