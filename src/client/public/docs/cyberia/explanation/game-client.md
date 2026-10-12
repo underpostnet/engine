@@ -196,6 +196,34 @@ uplink send             WebSocket binary frame
 
 `InputCommand.Sequence` is allocated by `session_next_input_sequence`. Monotonic, never reused. The server echoes the highest applied sequence in every snapshot header; the prediction module drops acked commands from its replay buffer on reconciliation.
 
+### Pointer controls
+
+One pointer, a finger or the mouse, moves the player in two ways: tap or click a point, or drag a floating joystick. The joystick works on every platform and at every viewport size. `input/pointer_gesture.c` sorts each press. `ui/hud_joystick.c` draws the joystick.
+
+| Gesture                      | Result                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Tap or click on the world    | The player walks to the point. The tap goes out on release.                                                 |
+| Drag on the world past 14 px | A joystick shows at the press position. The pointer sets one of eight headings, the same as the arrow keys. |
+| Thumb in the inner 15 %      | No heading. The player stops.                                                                               |
+| Release after a drag         | The joystick hides and the player stops. The drag sends no tap.                                             |
+| Second finger                | Pinch zoom. It cancels a pending tap and stops the joystick.                                                |
+| Finger on the UI             | The UI owns the touch. The tap goes out after a 120 ms pinch window. A drag never starts the joystick.      |
+| Click on the UI              | The UI owns the click. The tap goes out on the press. A drag never starts the joystick.                     |
+
+The joystick adds no wire message. It sends the same synthetic steering taps as the keyboard: the same reach, the same refresh at the action cooldown, the same stop. While it steers, the arrow keys wait. The base stays where the drag started.
+
+To check a change, use a phone or a browser with touch emulation, and a desktop browser. A pinch needs a real device.
+
+1. Tap the ground. The player walks there. No joystick shows.
+2. Hold one finger still for a second, then lift it. The player walks to that point.
+3. Drag from any point of the ground. The joystick shows under the first contact. The player walks in the drag direction, in eight headings.
+4. Move the thumb back to the base. The player stops. Lift the finger. The joystick hides.
+5. Drag, then put a second finger down and pinch. The camera zooms, the player stops, and no tap moves the player.
+6. Drag the Quest Journal list and the inventory bar. They scroll. No joystick shows.
+7. Open the Instance Map. Drag and pinch it. No joystick shows.
+8. On a desktop, click the ground: the player walks there on release. Drag the mouse on the ground: the joystick shows and steers. Release: the player stops.
+9. On a desktop, click toolbar buttons and drag the inventory bar. They respond on the press, as before. Steer with WASD and zoom with the wheel.
+
 ---
 
 ## Binary AOI snapshot format

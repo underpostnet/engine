@@ -281,7 +281,7 @@ This is why the two acknowledgements diverge: a superseded tap is acked on arriv
 
 Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter (`DefaultMessageRate`, 30/s) is what bounds the stream.
 
-The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; keyboard steering paces its _refresh_ by it, while a change of heading emits at once.
+The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; steering, from the keys or the joystick, paces its _refresh_ by it, while a change of heading emits at once. `self.actionReadyInMs` is the time left on that cooldown, 0 when the next tap fires skills; the inventory bar draws it.
 
 ---
 
