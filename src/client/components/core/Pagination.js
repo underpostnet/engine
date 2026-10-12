@@ -12,6 +12,9 @@ const pageQuery = (queryParams = getQueryParams()) => ({
   limit: parseInt(queryParams.limit, 10) || 10,
 });
 
+/** A new filter or sort reads from the first page: `refresh` runs on it, else the query moves to it. */
+const firstPage = (refresh) => (1 === pageQuery().page ? refresh() : setQueryParams({ page: 1 }));
+
 class AgPagination extends HTMLElement {
   constructor() {
     super();
@@ -286,4 +289,4 @@ class AgPagination extends HTMLElement {
 
 customElements.define('ag-pagination', AgPagination);
 
-export { AgPagination, pageQuery };
+export { AgPagination, firstPage, pageQuery };

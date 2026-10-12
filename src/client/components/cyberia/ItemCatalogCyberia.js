@@ -13,8 +13,8 @@ import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { pageQuery } from '../core/Pagination.js';
-import { isCurrentRoute, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
+import { firstPage, pageQuery } from '../core/Pagination.js';
+import { isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
@@ -282,15 +282,7 @@ class ItemCatalogCyberia {
   static async refreshList() {
     const { page, limit } = pageQuery();
     const api = AgGrid.grids[GRID];
-    const response = await CyberiaItemCatalogService.get({
-      page,
-      limit,
-      filterModel: api.getFilterModel(),
-      sortModel: api
-        .getColumnState()
-        .filter(({ sort }) => sort)
-        .map(({ colId, sort }) => ({ colId, sort })),
-    });
+    const response = await CyberiaItemCatalogService.get({ page, limit, ...AgGrid.query(GRID) });
     if (response.status !== 'success') return refusal(response);
     const { data, total, totalPages } = response.data;
     ItemCatalogCyberia.loadedPage = { page, limit };
@@ -308,8 +300,7 @@ class ItemCatalogCyberia {
 
   /** A new filter or sort reads from the first page. */
   static queryChanged() {
-    if (pageQuery().page === 1) ItemCatalogCyberia.refreshList();
-    else setQueryParams({ page: 1 });
+    firstPage(() => ItemCatalogCyberia.refreshList());
   }
 
   /** The items Add binding offers: a published definition and no binding. A pick shows the item. */

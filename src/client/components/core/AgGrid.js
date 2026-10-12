@@ -56,6 +56,17 @@ class ValueListFilter {
 class AgGrid {
   static grids = {};
   static theme = `ag-theme-alpine`;
+  /** The filter and sort a server query takes from grid `id`. */
+  static query(id) {
+    const api = AgGrid.grids[id];
+    return {
+      filterModel: api.getFilterModel(),
+      sortModel: api
+        .getColumnState()
+        .filter(({ sort }) => sort)
+        .map(({ colId, sort }) => ({ colId, sort })),
+    };
+  }
   static async instance(options) {
     let { id, paginationOptions } = options;
     setTimeout(() => {

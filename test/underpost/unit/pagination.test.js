@@ -31,7 +31,7 @@ class HTMLElementStub extends EventTarget {
 globalThis.HTMLElement = HTMLElementStub;
 globalThis.customElements = { define: vi.fn() };
 
-const { AgPagination, pageQuery } = await import('../../../src/client/components/core/Pagination.js');
+const { AgPagination, firstPage, pageQuery } = await import('../../../src/client/components/core/Pagination.js');
 
 describe('pagination page validation', () => {
   beforeEach(() => {
@@ -48,6 +48,18 @@ describe('pagination page validation', () => {
     expect(pageQuery({ page: 'x' })).to.deep.equal({ page: 1, limit: 10 });
     router.queryParams = { page: '2', limit: '50' };
     expect(pageQuery()).to.deep.equal({ page: 2, limit: 50 });
+  });
+
+  it('reads a new filter or sort from the first page', () => {
+    const refresh = vi.fn();
+    firstPage(refresh);
+    expect(refresh.mock.calls.length).to.equal(1);
+    expect(router.setQueryParams.mock.calls.length).to.equal(0);
+
+    router.queryParams = { page: '3', limit: '10' };
+    firstPage(refresh);
+    expect(refresh.mock.calls.length).to.equal(1);
+    expect(router.setQueryParams.mock.calls).to.deep.equal([[{ page: 1 }]]);
   });
 
   it('shows the page a server read answered', () => {
