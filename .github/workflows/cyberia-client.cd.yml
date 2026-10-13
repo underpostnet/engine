@@ -16,6 +16,15 @@ on:
         options:
           - private
           - public
+      replicas:
+        description: 'Pods of the instance Deployment'
+        required: false
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
 permissions:
   contents: write
   packages: write
@@ -51,4 +60,5 @@ jobs:
             # surfaces. GITHUB_ACTIONS itself is a runner-local variable and does not travel.
             export RUN_QUIET_CI=github
             export CYBERIA_SOURCE_CHANNEL=${{ github.event.inputs.source-channel || 'private' }}
+            export REPLICAS=${{ github.event.inputs.replicas || '1' }}
             bash /home/dd/engine/deploy/cyberia-client/deploy.sh

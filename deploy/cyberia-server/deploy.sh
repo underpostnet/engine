@@ -11,6 +11,7 @@ INSTANCE_ID=mmo-server
 # The repository the instance image is built from.
 RELEASE_REPOSITORY=underpostnet/cyberia-server
 TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
+REPLICAS="${REPLICAS:-1}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the
 # private mirrors.
 CYBERIA_SOURCE_CHANNEL="${CYBERIA_SOURCE_CHANNEL:-private}"
@@ -53,6 +54,7 @@ main() {
     "cd $ENGINE_ROOT && node bin run instance \
           --kubeadm \
           ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
+          --replicas ${REPLICAS} \
           --gateway-api \
           --source-revision $revision \
           ${build_path:+--build-path $build_path} \

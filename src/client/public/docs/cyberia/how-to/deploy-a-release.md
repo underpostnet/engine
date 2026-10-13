@@ -38,6 +38,8 @@ Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
 Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. Stages D and G do not run. The new pod serves the release that is already active.
 
+`REPLICAS` sets the pod count of each colour (default `1`). Stage E and a switch back render this count.
+
 ## Failure and revert
 
 A failure from Stage E until the game server is ready in Stage G restores what served before the
@@ -73,8 +75,8 @@ nothing in the deploy writes the lock. To ship a change, run `cyberia release lo
 publish the deployment. A content release id is the same from either channel, so the same revision
 is one release.
 
-The CD workflow `engine-cyberia.cd.yml` takes the channel as an input and runs in the `production`
-environment, one run at a time. Set its protection rules in the repository settings.
+The CD workflow `engine-cyberia.cd.yml` takes the channel and `REPLICAS` as inputs and runs in the
+`production` environment, one run at a time. Set its protection rules in the repository settings.
 
 ## Release commands on the live deployment
 
@@ -87,7 +89,10 @@ data-release Secret alone. Kubernetes removes the Job a day after it ends.
 `deploy/cyberia-server/deploy.sh` and `deploy/cyberia-client/deploy.sh` release their instance as a
 container release, on the same `CYBERIA_SOURCE_CHANNEL`, from the revision the deployment lock pins.
 The public channel runs the `latest` image CI pushed; the private channel builds it on the node from
-the checkout at that revision. Either way the instance runs the image by digest.
+the checkout at that revision. Either way the instance runs the image by digest. `REPLICAS` sets the
+pod count of the instance (default `1`), and the CD workflows `cyberia-server.cd.yml` and
+`cyberia-client.cd.yml` take it as an input. The game server scales by world, not by replica: see the
+topology below.
 
 ## Game server topology
 

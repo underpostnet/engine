@@ -18,6 +18,15 @@ on:
         options:
           - private
           - public
+      replicas:
+        description: 'Pods per colour of the sync-and-deploy rollout'
+        required: false
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
 permissions:
   contents: write
   packages: write
@@ -80,6 +89,7 @@ jobs:
             set -o pipefail
             export RUN_QUIET_CI=github
             export CYBERIA_SOURCE_CHANNEL=${{ github.event.inputs.source-channel || 'private' }}
+            export REPLICAS=${{ github.event.inputs.replicas || '1' }}
             bash /home/dd/engine/deploy/dd-cyberia/sync-deploy.sh
   init:
     if: github.event.inputs.job == 'init'

@@ -10,6 +10,7 @@ source "$SCRIPT_DIR/../lib/content-release.sh"
 DEPLOY_ID=dd-cyberia
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 TARGET_NODE="${TARGET_NODE:-$HOST_NODE}"
+REPLICAS="${REPLICAS:-1}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the private
 # mirrors. A private release is the same production release.
 CYBERIA_SOURCE_CHANNEL="${CYBERIA_SOURCE_CHANNEL:-private}"
@@ -41,7 +42,7 @@ CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
 SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"
 
 # The routing a traffic switch applies: the sync and a switch back render the same routes.
-ROUTING_FLAGS="--replicas 1 --timeout-response 10000ms --gateway-api"
+ROUTING_FLAGS="--replicas $REPLICAS --timeout-response 10000ms --gateway-api"
 
 # What served before this deploy, and how far it got: `switched` from the rollout on, `promoting`
 # once the release it replaces is known, `committed` once the new release serves. A failure
