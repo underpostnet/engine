@@ -301,7 +301,7 @@ class CyberiaEntityTypeDefaultService {
    *
    * Matching is the runtime's rule, not a guess: a document belongs to this world when all of its
    * `liveItemIds` appear together on some entity its maps place — the same subset containment
-   * `game/entity_defaults.go` resolves an entity with. So whatever an author drops on a map, the
+   * `game/content/entity_defaults.go` resolves an entity with. So whatever an author drops on a map, the
    * conf ends up referencing the wiring that will actually be applied to it.
    *
    * Additive, then compacting: references already there are kept in place (order carries

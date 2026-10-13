@@ -527,7 +527,7 @@ message EntityTypeDefault {
   repeated string drop_item_ids = 6;
   // Canonical entity behavior bound to entities matched by live_item_ids. Empty
   // lets the runtime derive it (armed → hostile, else passive). See
-  // SharedDefaultsCyberia.ENTITY_BEHAVIORS / game/behavior.go.
+  // SharedDefaultsCyberia.ENTITY_BEHAVIORS / game/content/behavior.go.
   string behavior = 7;
 }
 

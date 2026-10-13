@@ -93,7 +93,7 @@ export const STATUS_ICONS = Object.freeze([
 /**
  * The default a placed entity resolves to, by the item ids it already carries.
  *
- * Mirrors `resolveEntityDefaultBuild` in cyberia-server/game/entity_defaults.go, which is the rule
+ * Mirrors `ResolveEntityDefaultBuild` in cyberia-server/game/content/entity_defaults.go, which is the rule
  * the simulation applies at spawn: a default matches only when the entity carries ALL of its live
  * ids, and the most specific match wins — the one requiring the largest set, so `{purple, pistol}`
  * beats `{purple}`. Ties keep the earlier default, which makes the order a world declares them in
@@ -129,7 +129,7 @@ export function resolveEntityDefaultBuild({ entityType, itemIds = [] }, defaults
  * (live / dead / drop) and the inventory-only extras — deduplicated, in that order. Which slots
  * are *active* is not stored anywhere: it follows from the discriminator the id belongs to, and
  * the runtime flips them as context changes (`activateOrAppendLayer` in
- * cyberia-server/game/dead_items.go activates the slot that is already there). Seeding the whole
+ * cyberia-server/game/content/dead_items.go activates the slot that is already there). Seeding the whole
  * union is what lets it activate rather than append.
  *
  * Spawn state is alive, so the live ids are the active ones. A worn item and an inventory-only
