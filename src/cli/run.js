@@ -33,6 +33,7 @@ import {
   loadProjectInstanceEnvBuilder,
   loadConfServerJson,
   resolveEnvScoped,
+  resolveReplicaCount,
   selectConfInstances,
   undeclaredInstanceBuildsFactory,
   waitForPort,
@@ -4667,8 +4668,7 @@ EOF`;
         if (options.args) options.args = options.args.split(',');
         if (!options.underpostRoot) options.underpostRoot = underpostRoot;
         if (!options.namespace) options.namespace = 'default';
-        if (options.replicas === '' || options.replicas === null || options.replicas === undefined)
-          options.replicas = 1;
+        options.replicas = resolveReplicaCount(options.replicas);
         options.npmRoot = npmRoot;
         logger.info(`Executing runner`, { runner, namespace: options.namespace });
         if (!Underpost.run.RUNNERS.includes(runner)) throw new Error(`Runner not found: ${runner}`);
