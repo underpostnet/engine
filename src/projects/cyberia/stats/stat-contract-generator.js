@@ -90,7 +90,7 @@ static const char* const CYBERIA_STAT_LABELS[CYBERIA_STAT_COUNT] = {${STAT_DEFIN
   }
   return {
     'cyberia-server/game/stat_contract_generated.go': formatted,
-    'cyberia-client/src/domain/stat_contract_generated.h': header,
+    'cyberia-client/src/content/stat_contract_generated.h': header,
   };
 }
 
