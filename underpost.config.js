@@ -61,6 +61,7 @@ const DefaultConf = /**/ {
           '404',
           '500',
           'Pagination',
+          'ListPager',
           'windowGetDimensions',
           'SearchBox',
           'SocketIoHandler',

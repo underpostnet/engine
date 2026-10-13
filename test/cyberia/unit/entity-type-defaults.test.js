@@ -107,6 +107,52 @@ describe('entity-type defaults are resolved by reference', () => {
   });
 });
 
+describe('a listed default names the instances that run it', () => {
+  const options = { host: 'entity-default-test', path: '/' };
+  const defaults = [FOREST_BOT, CAVERN_BOT];
+  const confs = [
+    { instanceCode: 'forest', entityDefaults: [FOREST_BOT._id, CAVERN_BOT._id] },
+    { instanceCode: 'cavern', entityDefaults: [CAVERN_BOT._id] },
+  ];
+  const cursor = (docs) => ({
+    sort: () => cursor(docs),
+    limit: () => cursor(docs),
+    skip: () => cursor(docs),
+    lean: async () => docs,
+  });
+  const confModel = {
+    find: (filter) => ({
+      lean: async () => {
+        const ids = filter.entityDefaults.$in.map(String);
+        return confs.filter((conf) => conf.entityDefaults.some((ref) => ids.includes(String(ref))));
+      },
+    }),
+  };
+  const defaultModel = {
+    find: () => cursor(defaults),
+    countDocuments: async () => defaults.length,
+    findById: (id) => ({ lean: async () => defaults.find((doc) => String(doc._id) === String(id)) ?? null }),
+  };
+
+  beforeEach(() => {
+    vi.spyOn(DataBaseProviderService, 'getModel').mockImplementation((name) =>
+      name === 'CyberiaInstanceConf' ? confModel : defaultModel,
+    );
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('lists each default of a page with the codes of the confs that reference it', async () => {
+    const page = await CyberiaEntityTypeDefaultService.get({ params: {}, query: { page: 1, limit: 10 } }, {}, options);
+    expect(page.data.map(({ instanceCodes }) => instanceCodes)).toEqual([['forest'], ['cavern', 'forest']]);
+    expect(page.total).toBe(2);
+  });
+
+  it('names the instances of one default read by id', async () => {
+    const doc = await CyberiaEntityTypeDefaultService.get({ params: { id: CAVERN_BOT._id }, query: {} }, {}, options);
+    expect(doc.instanceCodes).toEqual(['cavern', 'forest']);
+  });
+});
+
 describe('orphaned references are impossible to keep', () => {
   const options = { host: 'entity-default-test', path: '/' };
   let docs;

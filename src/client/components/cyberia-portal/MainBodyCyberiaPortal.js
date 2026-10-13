@@ -154,7 +154,7 @@ class MainBodyCyberiaPortal {
     const load = async () => {
       if (s(worldsSel)) htmls(worldsSel, worldSkeleton());
       try {
-        state.worlds = await defaultInstanceProvider({ limit: LANDING_WORLD_LIMIT });
+        state.worlds = (await defaultInstanceProvider({ limit: LANDING_WORLD_LIMIT })).data;
       } catch (err) {
         console.warn('[cyberia-portal-landing] could not load featured worlds', err);
         state.worlds = [];

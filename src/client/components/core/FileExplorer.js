@@ -8,6 +8,7 @@ import { getSubpaths, uniqueArray } from './CommonJs.js';
 import { Css, darkTheme, dynamicCol, renderCssAttr, Themes } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
+import { ListPager } from './ListPager.js';
 import { loggerFactory } from './Logger.js';
 import { Modal, renderViewTitle } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -77,18 +78,13 @@ class FileExplorer {
     const query = getQueryParams();
     let location = query?.location ? FileExplorer.locationFormat({ f: query }) : '/';
     let files, folders, documentId, documentInstance;
-    // Simple pagination state
-    const PAGE_SIZE = 5;
-    let currentPage = query?.page ? parseInt(query.page) - 1 : 0;
-    if (currentPage < 0) currentPage = 0;
-    let displayedFiles = [];
+    const pagerId = `${idModal}-files`;
     // Search filter state - initialize from URL query param
     let searchFilters = {
       title: query?.title || '',
       mdFile: query?.mdFile || '',
       file: query?.file || '',
     };
-    let filteredFiles = [];
     let isProcessingQueryChange = false; // Prevent recursion during URL sync
     const queryParamsListenerId = `file-explorer-${idModal}`;
     const cleanData = () => {
@@ -98,37 +94,10 @@ class FileExplorer {
       documentInstance = [];
     };
     cleanData();
-    const applySearchFilter = () => {
-      filteredFiles = files;
-    };
-    const updatePaginationUI = () => {
-      const paginationInfo = s(`.file-explorer-pagination-info`);
-      const prevBtn = s(`.file-explorer-prev-btn`);
-      const nextBtn = s(`.file-explorer-next-btn`);
-      if (paginationInfo) {
-        const totalPages = Math.ceil(filteredFiles.length / PAGE_SIZE);
-        const showing =
-          searchFilters.title || searchFilters.mdFile || searchFilters.file
-            ? `${filteredFiles.length}/${files.length}`
-            : `${files.length}`;
-        paginationInfo.textContent = `${currentPage + 1} / ${totalPages || 1} (${showing} files)`;
-      }
-      if (prevBtn) {
-        prevBtn.disabled = currentPage === 0;
-        prevBtn.style.opacity = currentPage === 0 ? '0.5' : '1';
-        prevBtn.style.cursor = currentPage === 0 ? 'not-allowed' : 'pointer';
-      }
-      if (nextBtn) {
-        const isDisabled = (currentPage + 1) * PAGE_SIZE >= filteredFiles.length;
-        nextBtn.disabled = isDisabled;
-        nextBtn.style.opacity = isDisabled ? '0.5' : '1';
-        nextBtn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
-      }
-    };
-    const getPagedFiles = () => {
-      const start = currentPage * PAGE_SIZE;
-      const end = start + PAGE_SIZE;
-      return filteredFiles.slice(start, end);
+    // Shows the folders and the first page of the files of the current location.
+    const showLocation = () => {
+      AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+      return ListPager.load(pagerId, 1);
     };
     FileExplorer.Api[idModal].displayList = async () => {
       if (!s(`.${idModal}`)) return;
@@ -147,13 +116,7 @@ class FileExplorer {
       const format = FileExplorer.documentDataFormat({ document: documentInstance, location, searchFilters });
       files = format.files;
       folders = format.folders;
-      applySearchFilter();
-      const queryPage = query?.page ? parseInt(query.page) - 1 : 0;
-      currentPage = queryPage >= 0 ? queryPage : 0;
-      displayedFiles = getPagedFiles();
-      AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-      AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-      updatePaginationUI();
+      await showLocation();
     };
     FileExplorer.Api[idModal].updateData = async (optionsUpdate = { display: false }) => {
       if (!s(`.${idModal}`)) return;
@@ -174,7 +137,6 @@ class FileExplorer {
           documentId = format.documentId;
           folders = format.folders;
           documentInstance = document;
-          applySearchFilter();
         } catch (error) {
           logger.error(error);
           NotificationManager.Push({
@@ -208,15 +170,6 @@ class FileExplorer {
           s(`.file-explorer-nav`).style.display = 'block';
           s(`.file-explorer-uploader`).style.display = 'none';
         }
-        const page = queryParams?.page ? parseInt(queryParams.page) - 1 : 0;
-        if (page !== currentPage) {
-          currentPage = page >= 0 ? page : 0;
-          displayedFiles = getPagedFiles();
-          if (AgGrid.grids[gridFileId]) {
-            AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-          }
-          updatePaginationUI();
-        }
         const newFilters = {
           title: queryParams?.title || '',
           mdFile: queryParams?.mdFile || '',
@@ -239,20 +192,7 @@ class FileExplorer {
         }
       },
     });
-    // Pagination button event handlers
     setTimeout(() => {
-      EventsUI.onClick(`.file-explorer-prev-btn`, (e) => {
-        e.preventDefault();
-        if (currentPage > 0) {
-          setQueryParams({ page: currentPage }, { replace: false });
-        }
-      });
-      EventsUI.onClick(`.file-explorer-next-btn`, (e) => {
-        e.preventDefault();
-        if ((currentPage + 1) * PAGE_SIZE < filteredFiles.length) {
-          setQueryParams({ page: currentPage + 2 }, { replace: false });
-        }
-      });
       // Search input handlers
       let searchTimeout;
       const setupSearchInput = (selector, key) => {
@@ -274,7 +214,6 @@ class FileExplorer {
               if (!searchFilters.title) queryParams.title = null;
               if (!searchFilters.mdFile) queryParams.mdFile = null;
               if (!searchFilters.file) queryParams.file = null;
-              queryParams.page = 1;
               setQueryParams(queryParams, { replace: false });
               setTimeout(() => {
                 isProcessingQueryChange = false;
@@ -305,7 +244,6 @@ class FileExplorer {
         if (!searchFilters.title) queryParams.title = null;
         if (!searchFilters.mdFile) queryParams.mdFile = null;
         if (!searchFilters.file) queryParams.file = null;
-        queryParams.page = 1;
         setQueryParams(queryParams, { replace: false });
         await FileExplorer.Api[idModal].updateData({ display: true });
         setTimeout(() => {
@@ -321,12 +259,8 @@ class FileExplorer {
         if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = '';
         if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = '';
         searchFilters = { title: '', mdFile: '', file: '' };
-        applySearchFilter();
-        currentPage = 0;
-        displayedFiles = getPagedFiles();
-        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-        updatePaginationUI();
-        setQueryParams({ title: null, mdFile: null, file: null, page: 1 }, { replace: false });
+        ListPager.load(pagerId, 1);
+        setQueryParams({ title: null, mdFile: null, file: null }, { replace: false });
         setTimeout(() => {
           isProcessingQueryChange = false;
         }, 100);
@@ -390,12 +324,7 @@ class FileExplorer {
           const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
           files = format.files;
           folders = format.folders;
-          applySearchFilter();
-          currentPage = 0;
-          displayedFiles = getPagedFiles();
-          AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-          AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-          updatePaginationUI();
+          showLocation();
           NotificationManager.Push({
             html: Translate.instance(`${status}-upload-file`),
             status,
@@ -436,12 +365,7 @@ class FileExplorer {
         const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
         files = format.files;
         folders = format.folders;
-        applySearchFilter();
-        currentPage = 0;
-        displayedFiles = getPagedFiles();
-        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-        updatePaginationUI();
+        showLocation();
       });
       EventsUI.onClick(`.btn-input-copy-directory`, async (e) => {
         e.preventDefault();
@@ -638,12 +562,8 @@ class FileExplorer {
               const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
               files = format.files;
               folders = format.folders;
-              applySearchFilter();
-              // AgGrid.grids[gridFileId].setGridOption('rowData', files);
-              // const selectedData = gridApi.getSelectedRows();
-              AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
               AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-              updatePaginationUI();
+              ListPager.load(pagerId);
             },
             { context: 'modal' },
           );
@@ -929,12 +849,7 @@ class FileExplorer {
                         const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
                         folders = format.folders;
-                        applySearchFilter();
-                        currentPage = 0;
-                        displayedFiles = getPagedFiles();
-                        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-                        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-                        updatePaginationUI();
+                        showLocation();
                         NotificationManager.Push({
                           html: Translate.instance('success-update-document'),
                           status: 'success',
@@ -1042,12 +957,7 @@ class FileExplorer {
               const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
               files = format.files;
               folders = format.folders;
-              applySearchFilter();
-              currentPage = 0;
-              displayedFiles = getPagedFiles();
-              AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-              AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-              updatePaginationUI();
+              showLocation();
             },
             { context: 'modal' },
           );
@@ -1201,12 +1111,7 @@ class FileExplorer {
                         const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
                         folders = format.folders;
-                        applySearchFilter();
-                        currentPage = 0;
-                        displayedFiles = getPagedFiles();
-                        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
-                        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-                        updatePaginationUI();
+                        showLocation();
                       },
                     },
                     {
@@ -1265,29 +1170,16 @@ class FileExplorer {
                 },
               })}
             </div>
-            <div class="fl file-explorer-pagination" style="padding: 5px 0;">
-              <div class="in fll" style="width: 33.33%;">
-                ${await BtnIcon.instance({
-                  class: 'in wfa file-explorer-prev-btn',
-                  label: html`<i class="fa-solid fa-chevron-left"></i> ${Translate.instance('previous')}`,
-                  type: 'button',
-                })}
-              </div>
-              <div class="in fll" style="width: 33.33%; text-align: center;">
-                <span
-                  class="file-explorer-pagination-info"
-                  style="display: inline-block; padding: 8px 0; min-width: 100px;"
-                  >1 / 1 (0 files)</span
-                >
-              </div>
-              <div class="in fll" style="width: 33.33%;">
-                ${await BtnIcon.instance({
-                  class: 'in wfa file-explorer-next-btn',
-                  label: html`${Translate.instance('next')} <i class="fa-solid fa-chevron-right"></i>`,
-                  type: 'button',
-                })}
-              </div>
-            </div>
+            ${await ListPager.instance({
+              id: pagerId,
+              limit: 5,
+              unit: 'files',
+              fetch: ({ page, limit }) => ({
+                data: files.slice((page - 1) * limit, page * limit),
+                total: files.length,
+              }),
+              render: (rows) => AgGrid.grids[gridFileId].setGridOption('rowData', rows),
+            })}
           </div>
         </div>
       </div>

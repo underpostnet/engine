@@ -5,13 +5,15 @@
 // Cyberia's instance-based architecture and pixel-art RPG identity:
 //   - a fully responsive grid of Instance Cards (thumbnail, name, live status,
 //     population, tags, prominent PLAY button);
-//   - search + status-filter chips so it scales to any number of instances;
+//   - a server search and a pager that read one page of instances at a time, so
+//     it scales to any number of instances; status chips filter the shown page;
 //   - a play CTA that disables with a clear reason when a world is not joinable.
 //
 // The view is pure presentation and completely separated from the data layer.
-// It consumes an injected `fetchInstances` provider that returns a list of
-// normalized, playable instances (see NormalizedInstance below); a default
-// provider adapting `CyberiaInstanceService` is supplied for convenience.
+// It consumes an injected `fetchInstances({ page, limit, search })` provider that
+// returns one page `{ data, total }` of normalized, playable instances (see
+// NormalizedInstance below); a default provider adapting `CyberiaInstanceService`
+// is supplied for convenience.
 //
 // NormalizedInstance:
 //   { id, code, name, description, thumbnailUrl, status, players, capacity,
@@ -24,6 +26,7 @@ import { Translate } from '../core/Translate.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s, htmlStrSanitize } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
+import { ListPager } from '../core/ListPager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { DEFAULT_INSTANCE_CODE } from './SharedDefaultsCyberia.js';
@@ -158,29 +161,27 @@ const enrichWithLiveStatus = async (instances, opts) => {
   return instances;
 };
 
-// Default provider: the only place the view touches the instance service. Loads
-// the instance catalogue, then (when `liveStatus`) overlays real Online/Busy/
-// Full/Maintenance/Offline from each world's metrics API. Swap the whole thing
-// via `render({ fetchInstances })` to source instances from anywhere.
-// `limit` keeps only the first N catalogue entries *before* the live overlay so
-// lightweight consumers (the portal landing) don't probe every world's metrics.
+// Default provider: the only place the view touches the instance service. Reads
+// one page of the instance catalogue whose name holds `search`, then (when
+// `liveStatus`) overlays real Online/Busy/Full/Maintenance/Offline from the
+// metrics API of each world on the page. Swap the whole thing via
+// `render({ fetchInstances })` to source instances from anywhere.
 const defaultInstanceProvider = async ({
   clientBaseUrl = DEFAULT_CLIENT_BASE_URL,
   serverBaseUrl = DEFAULT_SERVER_BASE_URL,
   defaultInstanceCode = DEFAULT_INSTANCE_CODE,
   liveStatus = true,
-  limit,
+  page = 1,
+  limit = 12,
+  search = '',
 } = {}) => {
-  const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', limit: 60 });
-  if (!res || res.status !== 'success') throw new Error(res?.message || 'Could not load instances');
-  const raw = res.data;
-  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-  let instances = list
-    .filter((doc) => doc && doc.status !== 'archived')
-    .map((doc) => normalizeInstance(doc, { clientBaseUrl }));
-  if (Number.isInteger(limit) && limit > 0) instances = instances.slice(0, limit);
+  const filterModel = { status: { filterType: 'text', type: 'notEqual', filter: 'archived' } };
+  if (search) filterModel.name = { filterType: 'text', type: 'contains', filter: search };
+  const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', page, limit, filterModel });
+  if (res?.status !== 'success') throw new Error(res?.message || 'Could not load instances');
+  const instances = res.data.data.map((doc) => normalizeInstance(doc, { clientBaseUrl }));
   if (liveStatus && instances.length > 0) await enrichWithLiveStatus(instances, { serverBaseUrl, defaultInstanceCode });
-  return instances;
+  return { data: instances, total: res.data.total };
 };
 
 // ── Presentation ─────────────────────────────────────────────────────────────
@@ -291,25 +292,14 @@ class InstanceSelectionView {
     } = options;
 
     const id = 'instance-selection';
-    // Per-render UI state (closure-scoped; the view owns no persistent data).
-    const state = { all: [], query: '', filter: 'all' };
+    // Per-render UI state (closure-scoped; the view owns no persistent data): the shown page.
+    const state = { shown: [], filter: 'all' };
 
     const gridSel = `.isv-grid`;
-    const countSel = `.isv-count`;
     const filtersSel = `.isv-filters`;
+    const searchText = () => s(`.isv-search input`)?.value.trim() ?? '';
 
-    const visibleInstances = () => {
-      const q = state.query.trim().toLowerCase();
-      return state.all.filter((it) => {
-        if (state.filter !== 'all' && it.status !== state.filter) return false;
-        if (!q) return true;
-        return (
-          it.name.toLowerCase().includes(q) ||
-          it.code.toLowerCase().includes(q) ||
-          it.tags.some((t) => t.toLowerCase().includes(q))
-        );
-      });
-    };
+    const visibleInstances = () => state.shown.filter((it) => state.filter === 'all' || it.status === state.filter);
 
     const launch = (instance) => {
       if (!instance) return;
@@ -331,18 +321,18 @@ class InstanceSelectionView {
       if (!s(gridSel)) return;
       const list = visibleInstances();
       if (list.length === 0) {
-        htmls(gridSel, state.all.length === 0 ? emptyState() : emptyState('No worlds match your filters'));
+        htmls(
+          gridSel,
+          state.shown.length === 0 && !searchText() ? emptyState() : emptyState('No worlds match your filters'),
+        );
       } else {
         htmls(gridSel, list.map(instanceCard).join(''));
       }
-      const online = state.all.filter((it) => statusMeta(it.status).playable).length;
-      if (s(countSel))
-        htmls(countSel, `${state.all.length} ${state.all.length === 1 ? 'world' : 'worlds'} · ${online} joinable`);
     };
 
     const renderFilters = () => {
       if (!s(filtersSel)) return;
-      const present = STATUS_ORDER.filter((st) => state.all.some((it) => it.status === st));
+      const present = STATUS_ORDER.filter((st) => state.shown.some((it) => it.status === st));
       const chip = (key, label) =>
         html`<button
           class="isv-chip ${state.filter === key ? 'isv-chip-active' : ''}"
@@ -354,15 +344,28 @@ class InstanceSelectionView {
       htmls(filtersSel, [chip('all', 'All'), ...present.map((st) => chip(st, statusMeta(st).label))].join(''));
     };
 
-    const load = async () => {
+    const fetchPage = async ({ page, limit }) => {
       if (s(gridSel)) htmls(gridSel, skeletonGrid());
       try {
-        state.all = await fetchInstances({ clientBaseUrl, serverBaseUrl, defaultInstanceCode, liveStatus });
-        renderFilters();
-        renderGrid();
+        return await fetchInstances({
+          clientBaseUrl,
+          serverBaseUrl,
+          defaultInstanceCode,
+          liveStatus,
+          page,
+          limit,
+          search: searchText(),
+        });
       } catch (err) {
         if (s(gridSel)) htmls(gridSel, errorState(err?.message));
+        return null;
       }
+    };
+
+    const showPage = (instances) => {
+      state.shown = instances;
+      renderFilters();
+      renderGrid();
     };
 
     ThemeEvents[id] = () => {
@@ -436,13 +439,6 @@ class InstanceSelectionView {
             color: var(--isv-dim);
             font-size: 0.95rem;
             letter-spacing: 0.4px;
-          }
-          .isv-count {
-            font-size: 0.85rem;
-            color: var(--isv-dim);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            white-space: nowrap;
           }
 
           .isv-toolbar {
@@ -842,7 +838,7 @@ class InstanceSelectionView {
         container.addEventListener('click', (event) => {
           const playBtn = event.target.closest?.('.isv-play:not(.isv-play-disabled)');
           if (playBtn) {
-            launch(state.all.find((it) => it.id === playBtn.dataset.instanceId));
+            launch(state.shown.find((it) => it.id === playBtn.dataset.instanceId));
             return;
           }
           const chip = event.target.closest?.('.isv-chip');
@@ -852,18 +848,14 @@ class InstanceSelectionView {
             renderGrid();
             return;
           }
-          if (event.target.closest?.('.isv-refresh') || event.target.closest?.('.isv-retry')) load();
+          if (event.target.closest?.('.isv-refresh') || event.target.closest?.('.isv-retry')) ListPager.load(id);
         });
       }
 
       const input = s(`.isv-search input`);
-      if (input)
-        input.addEventListener('input', (event) => {
-          state.query = event.target.value || '';
-          renderGrid();
-        });
+      if (input) ListPager.search(id, input);
 
-      load();
+      ListPager.load(id, 1);
     });
 
     return html`
@@ -874,7 +866,6 @@ class InstanceSelectionView {
             <h1 class="isv-title">${Translate.instance('instance-selection')}</h1>
             <p class="isv-subtitle">Choose an instance to enter the Cyberia universe.</p>
           </div>
-          <span class="isv-count"></span>
         </div>
         <div class="isv-toolbar">
           <label class="isv-search">
@@ -891,6 +882,7 @@ class InstanceSelectionView {
           </button>
         </div>
         <div class="isv-grid">${skeletonGrid()}</div>
+        ${await ListPager.instance({ id, limit: 12, unit: 'worlds', fetch: fetchPage, render: showPage })}
       </div>
     `;
   }

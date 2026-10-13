@@ -29,6 +29,17 @@ const toEntityDefault = (source) => ({
   behavior: source.behavior || '',
 });
 
+/** Each default with the codes of the instances whose conf references it. */
+async function withInstanceCodes(CyberiaInstanceConf, defaults) {
+  const codes = new Map(defaults.map(({ _id }) => [String(_id), []]));
+  const confs = await CyberiaInstanceConf.find(
+    { entityDefaults: { $in: defaults.map(({ _id }) => _id) } },
+    { instanceCode: 1, entityDefaults: 1 },
+  ).lean();
+  for (const conf of confs) for (const ref of conf.entityDefaults) codes.get(String(ref))?.push(conf.instanceCode);
+  return defaults.map((doc) => ({ ...doc, instanceCodes: codes.get(String(doc._id)).sort() }));
+}
+
 /** The key resolution ties on: same entity type, same live set, whatever order it is written in. */
 const buildKey = (doc) => `${doc?.entityType || ''}|${[...(doc?.liveItemIds || [])].sort().join(',')}`;
 
@@ -493,18 +504,22 @@ class CyberiaEntityTypeDefaultService {
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-entity-type-default.model.js').CyberiaEntityTypeDefaultModel} */
     const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
-    if (req.params.id) return await CyberiaEntityTypeDefault.findById(req.params.id);
+    const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
+    if (req.params.id) {
+      const doc = await CyberiaEntityTypeDefault.findById(req.params.id).lean();
+      return doc ? (await withInstanceCodes(CyberiaInstanceConf, [doc]))[0] : doc;
+    }
 
     // Parse query parameters using DataQuery helper
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
 
-    const [data, total] = await Promise.all([
-      CyberiaEntityTypeDefault.find(query).sort(sort).limit(limit).skip(skip),
+    const [defaults, total] = await Promise.all([
+      CyberiaEntityTypeDefault.find(query).sort(sort).limit(limit).skip(skip).lean(),
       CyberiaEntityTypeDefault.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limit);
-    return { data, total, page, totalPages };
+    return { data: await withInstanceCodes(CyberiaInstanceConf, defaults), total, page, totalPages };
   };
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity-type-default.model.js').CyberiaEntityTypeDefaultModel} */

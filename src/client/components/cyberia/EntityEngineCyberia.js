@@ -47,11 +47,8 @@ class EntityEngineCyberia {
   static inventoryItemsIds = [];
   // Per-id overrides of what the lists derive: { itemId, active, quantity }.
   static overrideItemsIdsState = [];
-  // Instance codes whose conf references the loaded default, and every code that could.
+  // Instance codes whose conf references the loaded default.
   static instanceCodes = [];
-  static availableInstanceCodes = [];
-  // entityDefault _id → instance codes, for the grid column. Built with the list.
-  static instanceLinks = new Map();
   // itemId → item type. A sprite lives under its type, so an item id alone cannot be previewed.
   // Types never change, so this is a cache that only ever grows: ids reach it from the list and
   // from every id added in the form, which is what makes a just-picked item preview immediately.
@@ -118,8 +115,6 @@ class EntityEngineCyberia {
     });
   }
 
-  // Instance codes are a small, already-loaded set, so the picker filters them in place rather
-  // than round-tripping per keystroke the way the item-id pickers do.
   static async buildInstanceDropdown(id) {
     return await DropDown.instance({
       id,
@@ -127,10 +122,10 @@ class EntityEngineCyberia {
       data: [],
       containerClass: 'inl',
       serviceProvider: async (q) => {
-        const query = String(q || '').toLowerCase();
-        return EntityEngineCyberia.availableInstanceCodes
-          .filter((code) => !query || code.toLowerCase().includes(query))
-          .map((code) => dropdownOption(code));
+        const { status, data } = await CyberiaInstanceConfService.get({
+          filterModel: { instanceCode: { filterType: 'text', type: 'contains', filter: q } },
+        });
+        return status === 'success' ? data.data.map(({ instanceCode }) => dropdownOption(instanceCode)) : [];
       },
     });
   }
@@ -535,7 +530,7 @@ class EntityEngineCyberia {
       _id: doc._id,
       entityType: doc.entityType || '',
       behavior: doc.behavior || '',
-      instances: (EntityEngineCyberia.instanceLinks.get(String(doc._id)) || []).join(', '),
+      instances: (doc.instanceCodes || []).join(', '),
       liveItemIds: [...(doc.liveItemIds || [])],
       deadItemIds: [...(doc.deadItemIds || [])],
       dropItemIds: [...(doc.dropItemIds || [])],
@@ -544,30 +539,10 @@ class EntityEngineCyberia {
     };
   }
 
-  // The link lives on CyberiaInstanceConf.entityDefaults, so one conf read answers it for every
-  // row at once — there is no second place to ask, and nothing to keep in sync.
-  static async refreshInstanceLinks() {
-    const res = await CyberiaInstanceConfService.get({ limit: 500 });
-    const confs = res?.data?.data || [];
-    EntityEngineCyberia.availableInstanceCodes = confs.map((conf) => conf.instanceCode).sort();
-    EntityEngineCyberia.instanceLinks = new Map();
-    for (const conf of confs) {
-      for (const ref of conf.entityDefaults || []) {
-        const key = String(ref);
-        if (!EntityEngineCyberia.instanceLinks.has(key)) EntityEngineCyberia.instanceLinks.set(key, []);
-        EntityEngineCyberia.instanceLinks.get(key).push(conf.instanceCode);
-      }
-    }
-    for (const codes of EntityEngineCyberia.instanceLinks.values()) codes.sort();
-  }
-
   /** Reads the page the query parameters name, filtered and sorted as the grid shows, with its pager. */
   static async refreshList() {
     const { page, limit } = pageQuery();
-    const [res] = await Promise.all([
-      CyberiaEntityTypeDefaultService.get({ page, limit, ...AgGrid.query(EntityEngineCyberia.gridId) }),
-      EntityEngineCyberia.refreshInstanceLinks(),
-    ]);
+    const res = await CyberiaEntityTypeDefaultService.get({ page, limit, ...AgGrid.query(EntityEngineCyberia.gridId) });
     const { data = [], total = 0, totalPages = 1 } = res?.data || {};
     EntityEngineCyberia.listCache = data;
     EntityEngineCyberia.loadedPage = { page, limit };
@@ -627,7 +602,7 @@ class EntityEngineCyberia {
       quantity: Math.max(1, rule.quantity || 1),
       ...statedDropChance(rule),
     }));
-    EntityEngineCyberia.instanceCodes = [...(EntityEngineCyberia.instanceLinks.get(String(doc._id)) || [])];
+    EntityEngineCyberia.instanceCodes = [...(doc.instanceCodes || [])];
     for (const field of EntityEngineCyberia.ITEM_FIELDS) EntityEngineCyberia.renderItemList(field);
     EntityEngineCyberia.renderOverrideList();
     EntityEngineCyberia.renderInstanceList();

@@ -31,9 +31,8 @@ const KIND_ICONS = {
 };
 
 class SagaSync {
-  /** The stored sagas, by name. */
-  static sagas = [];
-  static code = '';
+  /** The selected saga, or null. */
+  static saga = null;
   /** The last report of the selected saga, or null. */
   static report = null;
   static busy = false;
@@ -128,7 +127,7 @@ class SagaSync {
 
   /** The tab content. Call {@link SagaSync.mount} once it is in the page. */
   static async render({ canMutate, onOpen, onSynced }) {
-    Object.assign(SagaSync, { canMutate, onOpen, onSynced, code: '', report: null, busy: false });
+    Object.assign(SagaSync, { canMutate, onOpen, onSynced, saga: null, report: null, busy: false });
     const group = (title, icon, inner) =>
       html`<div class="in studio-group">
         <div class="in studio-group-title"><i class="${icon}"></i> ${title}</div>
@@ -167,20 +166,25 @@ class SagaSync {
   static async mount() {
     s('.btn-saga-sync-check').onclick = () => SagaSync.run(false);
     if (s('.btn-saga-sync-apply')) s('.btn-saga-sync-apply').onclick = () => SagaSync.confirmApply();
-    const { status, data } = await CyberiaSagaService.get({ limit: 500 }).catch(() => ({}));
-    SagaSync.sagas = status === 'success' ? [...data.data].sort((a, b) => a.name.localeCompare(b.name)) : [];
     htmls(
       '.saga-sync-picker-slot',
       await DropDown.instance({
         id: PICKER,
         label: html`Saga`,
-        data: SagaSync.sagas.map((saga) => ({
-          value: saga.code,
-          display: `${sagaBadge(saga.code).outerHTML} ${escapeHtml(saga.name)}`,
-          data: saga.code,
-          onClick: () => SagaSync.select(saga.code),
-        })),
+        data: [],
         containerClass: 'inl',
+        serviceProvider: async (q) => {
+          const { status, data } = await CyberiaSagaService.get({
+            filterModel: { name: { filterType: 'text', type: 'contains', filter: q } },
+          });
+          if (status !== 'success') return [];
+          return data.data.map((saga) => ({
+            value: saga.code,
+            display: `${sagaBadge(saga.code).outerHTML} ${escapeHtml(saga.name)}`,
+            data: saga.code,
+            onClick: () => SagaSync.select(saga),
+          }));
+        },
       }),
     );
     SagaSync.renderSummary();
@@ -188,19 +192,15 @@ class SagaSync {
   }
 
   /** Selects a saga and checks it. */
-  static select(code) {
-    Object.assign(SagaSync, { code, report: null });
+  static select(saga) {
+    Object.assign(SagaSync, { saga, report: null });
     SagaSync.renderSummary();
     SagaSync.renderReport();
     return SagaSync.run(false);
   }
 
-  static saga() {
-    return SagaSync.sagas.find(({ code }) => code === SagaSync.code);
-  }
-
   static renderSummary() {
-    const saga = SagaSync.saga();
+    const { saga } = SagaSync;
     const count = (list, noun) => `${list.length} ${noun}${list.length === 1 ? '' : 's'}`;
     htmls(
       '.saga-sync-summary',
@@ -210,20 +210,18 @@ class SagaSync {
               ${count(saga.mapCodes, 'map')} · ${count(saga.itemIds, 'item')} · ${count(saga.questCodes, 'quest')} ·
               ${count(saga.actionCodes, 'action')}
             </div>`
-        : html`<div class="saga-sync-muted">
-            ${SagaSync.sagas.length > 0 ? 'Select a saga.' : 'No saga is stored.'}
-          </div>`,
+        : html`<div class="saga-sync-muted">Select a saga.</div>`,
     );
     SagaSync.renderTools();
   }
 
   static renderTools() {
     for (const selector of ['.btn-saga-sync-check', '.btn-saga-sync-apply'])
-      if (s(selector)) s(selector).disabled = SagaSync.busy || !SagaSync.code;
+      if (s(selector)) s(selector).disabled = SagaSync.busy || !SagaSync.saga;
   }
 
   static async confirmApply() {
-    const saga = SagaSync.saga();
+    const { saga } = SagaSync;
     if (!saga) return;
     const answer = await Modal.RenderConfirm({
       id: 'saga-sync-confirm',
@@ -238,7 +236,7 @@ class SagaSync {
 
   /** Checks the selected saga, or synchronizes it with `apply`. */
   static async run(apply) {
-    const code = SagaSync.code;
+    const code = SagaSync.saga?.code;
     if (!code || SagaSync.busy) return;
     SagaSync.busy = true;
     SagaSync.renderTools();
@@ -248,7 +246,7 @@ class SagaSync {
     }));
     SagaSync.busy = false;
     SagaSync.renderTools();
-    if (code !== SagaSync.code) return;
+    if (code !== SagaSync.saga?.code) return;
     if (result.status !== 'success') return NotificationManager.Push({ html: result.message, status: 'error' });
     SagaSync.report = result.data;
     SagaSync.renderReport();
@@ -267,7 +265,7 @@ class SagaSync {
       htmls(
         '.saga-sync-report',
         html`<div class="saga-sync-muted">
-          ${SagaSync.code ? 'Checking…' : 'Select a saga to see what a synchronization does.'}
+          ${SagaSync.saga ? 'Checking…' : 'Select a saga to see what a synchronization does.'}
         </div>`,
       );
       return;
