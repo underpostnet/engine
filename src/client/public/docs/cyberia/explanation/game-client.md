@@ -200,15 +200,16 @@ uplink send             WebSocket binary frame
 
 One pointer, a finger or the mouse, moves the player in two ways: tap or click a point, or drag a floating joystick. The joystick works on every platform and at every viewport size. `input/pointer_gesture.c` sorts each press. `ui/hud_joystick.c` draws the joystick.
 
-| Gesture                      | Result                                                                                                      |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Tap or click on the world    | The player walks to the point. The tap goes out on release.                                                 |
-| Drag on the world past 14 px | A joystick shows at the press position. The pointer sets one of eight headings, the same as the arrow keys. |
-| Thumb in the inner 15 %      | No heading. The player stops.                                                                               |
-| Release after a drag         | The joystick hides and the player stops. The drag sends no tap.                                             |
-| Second finger                | Pinch zoom. It cancels a pending tap and stops the joystick.                                                |
-| Finger on the UI             | The UI owns the touch. The tap goes out after a 120 ms pinch window. A drag never starts the joystick.      |
-| Click on the UI              | The UI owns the click. The tap goes out on the press. A drag never starts the joystick.                     |
+| Gesture                   | Result                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tap or click on the world | The player walks to the point. The tap goes out on release, at the press position.                                                                    |
+| Quick press on the world  | Released within 150 ms, a press is a tap, however far the pointer moved. A fast click on the move never starts the joystick.                          |
+| Held drag on the world    | Held 150 ms and moved past 35 px, a press shows a joystick at the press position. The pointer sets one of eight headings, the same as the arrow keys. |
+| Thumb in the inner 15 %   | No heading. The player stops.                                                                                                                         |
+| Release after a drag      | The joystick hides and the player stops. The drag sends no tap.                                                                                       |
+| Second finger             | Pinch zoom. It cancels a pending tap and stops the joystick.                                                                                          |
+| Finger on the UI          | The UI owns the touch. The tap goes out after a 120 ms pinch window. A drag never starts the joystick.                                                |
+| Click on the UI           | The UI owns the click. The tap goes out on the press. A drag never starts the joystick.                                                               |
 
 The joystick adds no wire message. It sends the same synthetic steering taps as the keyboard: the same reach, the same refresh at the action cooldown, the same stop. While it steers, the arrow keys wait. The base stays where the drag started.
 
@@ -313,7 +314,11 @@ The Stats tab of the interact modal draws one shared stat panel per block: the s
 
 An XP award floats as gold `+N XP` combat text over the earner only. A server level increment triggers a `LEVEL UP` aura: shaded gold sparks stream from the entity's feet up past its head for 3 s under a spinning star and a label, and the whole effect follows the entity as it moves, for any entity in view. First sight, repeated snapshots, and lower levels do not trigger it.
 
-An `item_consume` event whose `behavior` is `consume-on-pickup-heal` triggers the heal aura on the consumer: shaded green sparks turn on a ring around its feet while more sparks and pixel plus marks rise through its body for 1.8 s, following the entity. It plays for a world loot pickup and for an inventory use alike, for any entity in view. Any other behavior triggers nothing.
+An `item_consume` event whose `behavior` is `consume-on-pickup-heal` triggers the heal aura on the consumer: shaded green sparks turn on a ring around its feet while more sparks and pixel plus marks rise through its body for 1.8 s, following the entity. It plays for a world loot pickup and for a held unit the zero-waste heal consumes alike, for any entity in view. Any other behavior triggers nothing.
+
+A player standing on a portal shows a blue transport bar at the top of its overhead stack, with `Transporting...` centered inside. The teleport charge fills it. While the charge runs, shaded blue sparks circle the player's feet and climb a spiral through its body; the charge raises the column and adds sparks, so the aura gathers as the jump nears. The snapshot carries `onPortal` and `portalHoldProgress` for every player, so every viewer sees both on every player in view.
+
+Every damage `combat_text` throws a hit burst at its point: a few shaded red sparks jump up, fall back and shrink away in under half a second. It marks each hit, a projectile on any entity in view above all, without hiding the fight.
 
 A defeat of a player or bot triggers the death cue: shaded red sparks burst out of the body and fall while a `skull` icon rises over it for 2.6 s, following the body. It fires once, when an entity seen alive in the prior snapshot is dead in this one. An entity first seen dead, or still dead, triggers nothing. A resource is extracted, not slain: it goes straight to its extracted state with no cue.
 
@@ -323,9 +328,11 @@ The cues are visual only. Their sounds arrive as `audio_event` messages the serv
 
 Item slots badge an object layer with the `stack` icon and its signed stat sum, red when negative.
 
-An active inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. One bar under the row shows the shared action cooldown from `self.actionReadyInMs`: it fills while the cooldown runs and turns green when the next tap fires skills. A green bar does not promise a summon: the server still rolls each skill's chance. The row takes no input and hides while the player is in stasis.
+An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
 
-A consumable shows **Use** in the inventory modal where other items show Activate. The button names what blocks a use — "Life is full", "Using..." while the request waits for `item_use_ack` — and draws the item-use cooldown from `self.itemReadyInMs` along its base. Above a consumable slot in the bar, the row an active slot gives its skills holds a quick-use button: one unit of the item and the same cooldown bar under it. A press spends one unit, and the button dims while a use would be refused. A press on the slot itself still opens the modal. The modal follows its stack by item id, so it closes when the last unit is spent. The client changes no state: the snapshot brings the spent unit and the restored life, and only a rejected use shows a toast.
+One bar under the row shows the cooldown of the row. For a tap skill it is the shared action cooldown from `self.actionReadyInMs`: it fills while the cooldown runs and turns green when the next tap fires skills. A green bar does not promise a summon: the server still rolls each skill's chance. For a held skill it is the consume cooldown from `self.consumeReadyInMs`. The row takes no input and hides while the player is in stasis.
+
+A consumable has no Use button. Its held skill, `zero-waste-auto-consume-heal`, consumes one unit by itself once the missing life takes the whole heal. Over a consumable slot the preview shows the item itself with the units left. The inventory modal follows its stack by item id, so it closes when the last unit is consumed.
 
 The server sends six values in canonical order. The client displays these values and uses the supplied movement speed.
 

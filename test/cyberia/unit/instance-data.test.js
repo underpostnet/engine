@@ -222,6 +222,13 @@ describe('instance config', () => {
     ).toMatchObject([{ entityType: 'bot', liveItemIds: ['x'], deadItemIds: [] }]);
   });
 
+  it('gives a skill whose logic summons its trigger item that item, whatever the document stores', () => {
+    const dose = { logicEventId: 'zero-waste-auto-consume-heal', summonedEntityItemId: '' };
+    expect(skillDocsToConfig([{ triggerItemId: 'med-gel', skills: [dose] }])[0].skills[0].summonedEntityItemId).toBe(
+      'med-gel',
+    );
+  });
+
   it.skipIf(!contentBuilt)(
     'completes a partial set of entity defaults with the canonical types it does not cover',
     () => {

@@ -277,11 +277,8 @@ message DefaultObjectLayerState {
   // deliberate 0: a payload from before this field existed must read as "always drops", while an
   // operator who authors 0 means "never". See OverrideItemStateSchema.dropChance.
   optional double drop_chance = 4;
-  // Fraction of its target's max life this id restores when it is consumed. See
-  // OverrideItemStateSchema.buffFactor.
-  optional double buff_factor = 5;
-  reserved 6;
-  reserved "spawn_interval_ms";
+  reserved 5, 6;
+  reserved "buff_factor", "spawn_interval_ms";
 }
 
 message SkillDetail {

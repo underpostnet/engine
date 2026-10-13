@@ -25,8 +25,6 @@ const toEntityDefault = (source) => ({
       ...('boolean' === typeof rule.active ? { active: rule.active } : {}),
       ...(Number.isFinite(rule.quantity) ? { quantity: rule.quantity } : {}),
       ...(Number.isFinite(rule.dropChance) ? { dropChance: rule.dropChance } : {}),
-      ...(Number.isFinite(rule.buffFactor) ? { buffFactor: rule.buffFactor } : {}),
-      ...(Number.isFinite(rule.debuffFactor) ? { debuffFactor: rule.debuffFactor } : {}),
     })),
   behavior: source.behavior || '',
 });

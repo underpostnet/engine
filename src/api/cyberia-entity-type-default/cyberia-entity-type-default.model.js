@@ -49,11 +49,6 @@ const OverrideItemStateSchema = new Schema(
     // the drop always happens, which is what every world did before this existed. Only meaningful
     // for an id the build carries in `dropItemIds`; on any other row it is inert.
     dropChance: { type: Number, min: 0, max: 1 },
-    // Fraction of its target's max life this id restores as a buff; a consumed item heals by it.
-    // Absent: BUFF_FACTOR_DEFAULT.
-    buffFactor: { type: Number, min: 0, max: 1 },
-    // Fraction of its target's max life this id removes as a debuff. No runtime effect reads it yet.
-    debuffFactor: { type: Number, min: 0, max: 1 },
   },
   { _id: false },
 );

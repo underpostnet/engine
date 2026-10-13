@@ -230,7 +230,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `src/`; the 
 | `src/instance_loader.go`                                                                          | World reconstruction from gRPC payload                                                                  |
 | `src/collision.go`                                                                                | Grid collision, portal transitions, death handling                                                      |
 | `src/pathfinding.go`                                                                              | A\* pathfinding for bot and player navigation                                                           |
-| `src/skill.go`, `src/skill_dispatcher.go`, `src/skill_projectile.go`, `src/skill_doppelganger.go` | Skill registry and per-skill handlers                                                                   |
+| `src/skill.go`, `src/skill_dispatcher.go`, `src/skill_projectile.go`, `src/skill_doppelganger.go` | Tap and held skill registries and per-skill handlers                                                    |
 | `src/economy.go`                                                                                  | Fountain & Sink coin economy                                                                            |
 | `src/life_regen.go`                                                                               | HP regeneration                                                                                         |
 | `src/ai.go`                                                                                       | Bot AI                                                                                                  |

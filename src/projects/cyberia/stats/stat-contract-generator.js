@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import {
-  BUFF_FACTOR_DEFAULT,
   CASTER_SKIN_PLACEHOLDER,
   ENTITY_TYPE_TO_ITEM_TYPES,
   ENTITY_TYPES,
@@ -46,8 +45,6 @@ var statEffectiveFloors = [StatCount]float64{${values(STAT_EFFECTIVE_FLOORS)}}
 // statScales is what one point of each stat is worth in the simulation.
 var statScales = ComputedStats{${STAT_TYPES.map((key) => `${field(key)}: ${STAT_SCALES[key]}`).join(', ')}}
 const statRegenPerResistance = ${STAT_REGEN_PER_RESISTANCE}
-// buffFactorDefault is the fraction of max life a consumed item restores when its build names none.
-const buffFactorDefault = ${BUFF_FACTOR_DEFAULT}
 // respawnDurationDefaultMs is the respawn time of a player, and of a map entity that names none.
 const respawnDurationDefaultMs = ${RESPAWN_DURATION_MS_DEFAULT}
 type Stats struct {
@@ -142,7 +139,7 @@ export function buildContentContractArtifacts() {
       max: STAT_MODIFIER_MAX,
       bounds: Object.fromEntries(Object.values(ITEM_TYPES).map((type) => [type, statBoundsForType(type)])),
     },
-    skillLogic: SKILL_LOGIC_IDS.map(({ id, summons }) => ({ id, summons })),
+    skillLogic: SKILL_LOGIC_IDS.map(({ id, summons, summonsTrigger = false }) => ({ id, summons, summonsTrigger })),
     questStepTypes: QUEST_STEPS_TYPES,
     portalModes: PORTAL_MODES,
     casterSkinPlaceholder: CASTER_SKIN_PLACEHOLDER,

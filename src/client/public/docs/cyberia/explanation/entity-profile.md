@@ -272,43 +272,45 @@ Alive (blocks its cells, sends life and maxLife)
 
 ## World Loot and Consumables
 
-A consumed item restores the `buffFactor` of its loot default as a part of `maxLife` (default `0.1`),
-never past `maxLife`. The green "+N" shows the life it restored. Two paths consume one, and both apply
-the same server effect:
+A consumable heals its `resistance` stat as life, never past `maxLife`. The green "+N" shows the life
+it restored. Two paths consume one, and both apply the same server effect:
 
-| Path          | Trigger                                                        | Unit spent                                 |
-| ------------- | -------------------------------------------------------------- | ------------------------------------------ |
-| World loot    | A collector reaches a token that consumes on pickup            | The token; nothing enters an inventory     |
-| Inventory use | `item_use { itemId }` from the inventory modal or a bar button | One unit of the stack, only after it heals |
+| Path           | Trigger                                                              | Unit spent                             |
+| -------------- | -------------------------------------------------------------------- | -------------------------------------- |
+| World loot     | A collector that misses life reaches a token that consumes on pickup | The token; nothing enters an inventory |
+| Zero-waste use | The missing life of a holder takes the whole heal of a held unit     | One unit of the stack                  |
 
 A world loot token shows one item, bound or not; an item without a render draws the `LOOT` colour. It
 is collectable at once, blocks nothing and goes to the first living, unfrozen player or loot-collecting
-bot it changes something for. The `loot` entity-type default its item matches decides what collecting
-it does: `consume-on-pickup-heal` consumes it, no behavior grants it to the inventory.
+bot on it. The `loot` entity-type default its item matches decides what collecting it does:
+`consume-on-pickup-heal` consumes it, no behavior grants it to the inventory. A collector at full life
+keeps the item of a consuming token, with the same pickup animation as any granted loot.
+
+A skill document links a consumable to the `zero-waste-auto-consume-heal` logic, the way the coin
+links to `coin_drop_or_transaction`. The skill summons the consumable itself. It is a held skill: the
+server runs it every tick on each stack a player or loot-collecting bot holds, active or not, and a
+tap never fires it.
 
 ```
 World build (every map, every build)
   → each `loot` entity the map places becomes a token on its cell; a map holds no other world loot
-Consumed token
+Collected consuming token
   → back on its cell after the respawnDurationMs of its map entity
+Held unit (each tick)
+  → consumed once maxLife − life ≥ its heal and the consume cooldown is over
 Any consumption
   → item_consume { entityId, itemId, behavior } goes to every viewer;
     consume-on-pickup-heal plays the green heal aura on the consumer
 ```
 
-- An override row of the loot default states the item's `buffFactor` and `debuffFactor` (no effect
-  reads it yet). An empty value keeps the default.
 - A map places loot as a `loot` entity in the Paint tab of the map editor: one item, one cell, and
   its respawn time.
 - The foundation baseline supplies the loot default of `consumable.med-gel`, which consumes on
   pickup, to a world that references no loot default.
-- A granted token does not come back. A token that shows more than one item is skipped and logged.
-- A full-life collector leaves a consuming token on the map; a full-life player cannot use a consumable.
-- Only an item of the `consumable` type can be used from the inventory. It carries no stats.
-- `item_use` answers with `item_use_ack { itemId, ok, reason }`. Reasons: `dead`, `not_owned`,
-  `not_consumable`, `cooldown`, `full_life`. A rejection spends nothing.
-- A use starts the item-use cooldown, timed by the action cooldown rule and sent as
-  `self.itemReadyInMs`. A repeated request inside it is rejected, so one press applies once.
+- A granted token of an item that never consumes does not come back. A token that shows more than one
+  item is skipped and logged.
+- A consumption starts the consume cooldown, timed by the action cooldown rule and sent as
+  `self.consumeReadyInMs`.
 - Death drops keep their rules: only damage contributors collect them, after the launch window, and
   they expire after 45 seconds.
 

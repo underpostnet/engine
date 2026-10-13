@@ -97,8 +97,9 @@ export const CASTER_SKIN_PLACEHOLDER = '$active_skin';
  * offers ONLY these ids, and content abilities draw their `logicEventId` from here.
  *
  * `summons` is the item type of the entity the handler spawns; null spawns the caster's skin.
+ * `summonsTrigger` marks a handler whose entity is its trigger item itself.
  *
- * @type {ReadonlyArray<{id:string,name:string,description:string,summons:string|null}>}
+ * @type {ReadonlyArray<{id:string,name:string,description:string,summons:string|null,summonsTrigger?:boolean}>}
  */
 export const SKILL_LOGIC_IDS = Object.freeze([
   Object.freeze({
@@ -119,6 +120,14 @@ export const SKILL_LOGIC_IDS = Object.freeze([
     description: 'Summons a passive clone that wanders nearby. Spawn chance scales with Intelligence.',
     summons: null,
   }),
+  Object.freeze({
+    id: 'zero-waste-auto-consume-heal',
+    name: 'Zero-Waste Heal',
+    description:
+      'Consumes one held unit by itself when the missing life takes the whole heal. The item heals its Resistance as life.',
+    summons: ITEM_TYPES.consumable,
+    summonsTrigger: true,
+  }),
 ]);
 
 /** Ordered list of canonical skill LogicId values. */
@@ -126,6 +135,10 @@ export const SKILL_LOGIC_ID_VALUES = Object.freeze(SKILL_LOGIC_IDS.map((l) => l.
 
 /** True when `logicEventId` is a known canonical skill LogicId. */
 export const isCanonicalSkillLogicId = (logicEventId) => SKILL_LOGIC_ID_VALUES.includes(logicEventId);
+
+/** The entity a skill summons: the trigger item when its logic summons the trigger, else the authored entity. */
+export const skillSummonedItemId = ({ logicEventId, summonedEntityItemId = '' }, triggerItemId) =>
+  SKILL_LOGIC_IDS.find(({ id }) => id === logicEventId)?.summonsTrigger ? triggerItemId : summonedEntityItemId;
 
 /**
  * The two audio routes: a held music bed, and one-shot effects over it.
@@ -358,10 +371,6 @@ export const STAT_TYPES = Object.freeze(STAT_DEFINITIONS.map(({ key }) => key));
 export const STAT_SCALES = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, scale }) => [key, scale])));
 /** Life regenerated per trigger for each point of resistance, on top of the entity's base regeneration. */
 export const STAT_REGEN_PER_RESISTANCE = 0.1;
-/** Fraction of its target's max life a buff restores, where the item's override names no `buffFactor`. */
-export const BUFF_FACTOR_DEFAULT = 0.1;
-/** Fraction of its target's max life a debuff removes, where the item's override names no `debuffFactor`. */
-export const DEBUFF_FACTOR_DEFAULT = 0.1;
 export const STAT_MODIFIER_MIN = -100;
 export const STAT_MODIFIER_MAX = 100;
 export const STAT_DEFAULT = 0;
@@ -406,7 +415,8 @@ export function validateStats(stats = {}) {
  * Semantic stat bounds per item type, inclusive, as `[min, max]` per stat.
  *
  * What a type may carry: a weapon deals its effect and can cost resistance, a skin and a
- * breastplate defend, a skill reaches, and world content and consumables carry nothing. A type
+ * breastplate defend, a skill reaches, a consumable heals its resistance, and world content carries
+ * nothing. A type
  * absent here, or a stat a type leaves out, keeps the contract bounds.
  */
 export const STAT_TYPE_BOUNDS = Object.freeze({
@@ -421,7 +431,7 @@ export const STAT_TYPE_BOUNDS = Object.freeze({
   portal:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
   foreground:  { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
   static:      { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
-  consumable:  { effect: [0, 0], resistance: [0, 0], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
+  consumable:  { effect: [0, 0], resistance: [0, 50], agility: [0, 0], range: [0, 0], intelligence: [0, 0], utility: [0, 0] },
 });
 
 for (const [type, bounds] of Object.entries(STAT_TYPE_BOUNDS)) {

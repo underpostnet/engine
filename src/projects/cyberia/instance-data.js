@@ -30,6 +30,7 @@ import {
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import {
+  skillSummonedItemId,
   validateStats,
   validateEntityLevel,
   validateRespawnDuration,
@@ -67,7 +68,8 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}, itemTypes) {
 
 // Map CyberiaSkill documents to the proto skillConfig shape. The collection is the authoritative
 // source and carries the full metadata (summonedEntityItemId, name, description); the wire message
-// is built from the subset this instance runs, which nothing persists.
+// is built from the subset this instance runs, which nothing persists. A logic that summons its
+// trigger item stores no summon, so the summon is resolved here.
 function skillDocsToConfig(skillDocs = []) {
   return skillDocs
     .filter((d) => d && d.triggerItemId)
@@ -77,7 +79,7 @@ function skillDocsToConfig(skillDocs = []) {
         logicEventId: sk.logicEventId || '',
         name: sk.name || '',
         description: sk.description || '',
-        summonedEntityItemId: sk.summonedEntityItemId || '',
+        summonedEntityItemId: skillSummonedItemId(sk, d.triggerItemId) || '',
       })),
     }));
 }

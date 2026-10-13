@@ -13,7 +13,6 @@
 
 // Shared vocabulary lives under src/client/ so the browser bundler resolves it.
 import {
-  BUFF_FACTOR_DEFAULT,
   ITEM_TYPES,
   STAT_TYPES,
   STAT_MODIFIER_MAX,
@@ -142,8 +141,7 @@ export function resolveEntityDefaultBuild({ entityType, itemIds = [] }, defaults
  * state — a skin the equipment rules would otherwise leave inactive — and `quantity` sizes a
  * stack, which is how a drop bundle declares how many it scatters. It never adds an id: the union
  * decides membership, an override only what a member starts as, so a rule naming an id no list
- * carries does nothing at all. Every row also states the `buffFactor` the id heals by when it is
- * consumed.
+ * carries does nothing at all.
  *
  * Activating one item can deactivate another. `EQUIPMENT_RULES_DEFAULTS` allows one active item
  * per type, so an override that activates a skin is a decision about which skin the entity wears:
@@ -154,8 +152,8 @@ export function resolveEntityDefaultBuild({ entityType, itemIds = [] }, defaults
  * @param {{liveItemIds?:string[],deadItemIds?:string[],dropItemIds?:string[],inventoryItemsIds?:string[],
  *   overrideItemsIdsState?:Array<{itemId:string,active?:boolean,quantity?:number}>}} entityDefault
  * @param {{itemTypes?:Object<string,string>|Map<string,string>}} [context] - itemId → item type, where known.
- * @returns {Array<{itemId:string,active:boolean,quantity:number,dropChance:number,buffFactor:number}>}
- *   Inventory rows, as the wire carries them.
+ * @returns {Array<{itemId:string,active:boolean,quantity:number,dropChance:number}>} Inventory rows,
+ *   as the wire carries them.
  */
 export function resolveEntityInventory(entityDefault = {}, { itemTypes } = {}) {
   const live = new Set(entityDefault.liveItemIds || []);
@@ -185,10 +183,7 @@ export function resolveEntityInventory(entityDefault = {}, { itemTypes } = {}) {
       drops.has(itemId) && Number.isFinite(override?.dropChance)
         ? Math.min(1, Math.max(0, override.dropChance))
         : 1;
-    const buffFactor = Number.isFinite(override?.buffFactor)
-      ? Math.min(1, Math.max(0, override.buffFactor))
-      : BUFF_FACTOR_DEFAULT;
-    return { itemId, active, quantity, dropChance, buffFactor };
+    return { itemId, active, quantity, dropChance };
   });
   return applyEquipmentRules(rows, { itemTypes, overrides });
 }
