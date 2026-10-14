@@ -61,13 +61,40 @@ Cyberia only, not to the rest of the repo.
 
 ### Architecture boundaries
 
-Three processes:
+Three processes. Each one has one job.
 
-| process | role | talks to |
-|---|---|---|
-| **cyberia-client** | game client, game canvas | game server (WebSocket), engine (REST) |
-| **cyberia-server** | authoritative simulation | client (WebSocket), engine (gRPC + REST) |
-| **engine-cyberia** | external content authority (assets, config data, asset data) | serves both; triggers server hot-reload (gRPC control, REST fallback) |
+**engine-cyberia — content.** It holds what exists and how it works: object
+layers, atlases, maps, instances, quests, actions, dialogue and stat rules. It
+holds no simulation state. When content changes, it tells the server to
+hot-reload (gRPC control, REST fallback).
+
+**cyberia-server — authority.** It owns the state of the world and of every
+entity, and it has the final word. It loads content from the engine at boot
+and on hot-reload. One fixed tick runs the phases in order: input, lifecycle,
+skills, AI, movement, loot, portals, then replication.
+
+**cyberia-client — view and prediction.** It holds a full copy of the state
+and writes only the entity it owns: the own player. It draws, plays audio and
+runs the UI. The UI is local: it reads local state and never waits for the
+socket.
+
+#### Communication
+
+**Content — engine to both.** The client reads content over HTTPS REST
+(`cyberia-client/src/data/engine_client.c`). The server reads it over gRPC,
+with REST as fallback (`cyberia-server/engine_client/`). The game server never
+serves content, and the engine never sees simulation state.
+
+**Game link — client and server only.** One WebSocket, `/ws`, JSON envelope.
+The client pushes events: what the player did, never what it has. Each event
+carries frame, sequence and time. The server applies them in sequence order,
+replays item ops against its own items, and sends whole states. Each snapshot
+carries `inputConsumedThrough`, the highest sequence it consumed. The client
+applies its own events at once. At each tick it takes the newest snapshot,
+drops consumed events and replays the rest. There is no other correction.
+
+The engine is not on the game link. A change to content reaches players only
+through a server hot-reload and the client's next REST read.
 
 - Keep authoritative simulation out of the cyberia-client.
 - Keep content-authority and persistence concerns out of cyberia-server.
