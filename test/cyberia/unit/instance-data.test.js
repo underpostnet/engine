@@ -192,7 +192,7 @@ describe('instance config', () => {
   it.skipIf(!contentBuilt)('keeps every field a conf sets and fills the rest from the defaults', () => {
     const config = toInstanceConfig({
       tickRate: 5,
-      economyRules: { portalFee: 9 },
+      economyRules: { coinKillMinAmount: 9 },
       skillRules: { projectileWidth: 3, doppelgangerSpawnChance: 0.2 },
       equipmentRules: { requireSkin: false },
       lifeRegenChance: 7,
@@ -200,7 +200,7 @@ describe('instance config', () => {
     const fb = CYBERIA_INSTANCE_CONF_DEFAULTS;
     expect(config.tickRate).toBe(5);
     expect(config.aoiRadius).toBe(fb.aoiRadius);
-    expect(config.economyRules).toEqual({ ...fb.economyRules, portalFee: 9 });
+    expect(config.economyRules).toEqual({ ...fb.economyRules, coinKillMinAmount: 9 });
     expect(config.skillRules).toEqual({ ...fb.skillRules, projectileWidth: 3, doppelgangerSpawnChance: 0.2 });
     expect(config.equipmentRules).toEqual({ ...fb.equipmentRules, requireSkin: false });
     expect(config.lifeRegenChance).toBe(fb.lifeRegenChance);

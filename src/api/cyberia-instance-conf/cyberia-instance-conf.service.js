@@ -6,6 +6,7 @@ import { hintsCache } from '../cyberia-client-hints/cyberia-client-hints.service
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   fillInstanceConfDefaults,
+  resolveEconomyRules,
   resolveProgressionRules,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
@@ -80,6 +81,7 @@ class CyberiaInstanceConfService {
 
   static post = async (req, res, options) => {
     if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
+    if (Object.hasOwn(req.body, 'economyRules')) req.body.economyRules = resolveEconomyRules(req.body.economyRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
@@ -106,6 +108,7 @@ class CyberiaInstanceConfService {
   };
   static put = async (req, res, options) => {
     if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
+    if (Object.hasOwn(req.body, 'economyRules')) req.body.economyRules = resolveEconomyRules(req.body.economyRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);

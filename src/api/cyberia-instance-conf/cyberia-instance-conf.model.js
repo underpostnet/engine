@@ -1,6 +1,12 @@
 import { STAT_TYPES, STAT_MODIFIER_MAX } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { Schema, model } from 'mongoose';
-import { CYBERIA_INSTANCE_CONF_DEFAULTS as D, resolveProgressionRules, PROGRESSION_RULE_LIMITS } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import {
+  CYBERIA_INSTANCE_CONF_DEFAULTS as D,
+  ECONOMY_RULE_LIMITS,
+  resolveEconomyRules,
+  resolveProgressionRules,
+  PROGRESSION_RULE_LIMITS,
+} from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 const BaseStatsSchema = new Schema(Object.fromEntries(STAT_TYPES.map((key) => [key, {
   type: Number, min: 0, max: STAT_MODIFIER_MAX, validate: Number.isInteger,
@@ -26,23 +32,14 @@ const StatusIconEntrySchema = new Schema(
 // ── EconomyRulesSchema ───────────────────────────────────────────────────────
 // The EconomyRules message shape. Every field defaults from
 // cyberia-server-defaults.js, so a new document is playable at once.
-// See OFF_CHAIN_ECONOMY.md for the Fountain & Sink architecture.
+// See docs/cyberia/explanation/off-chain-economy.md for the coin model.
 const EconomyRulesSchema = new Schema(
-  {
-    // ── Fountains ───────────────────────────────────────────────────────────
-    botSpawnCoins: { type: Number, default: D.economyRules.botSpawnCoins },
-    playerSpawnCoins: { type: Number, default: D.economyRules.playerSpawnCoins },
-    // ── Kill Transfer ───────────────────────────────────────────────────────
-    coinKillPercentVsBot: { type: Number, default: D.economyRules.coinKillPercentVsBot },
-    coinKillPercentVsPlayer: { type: Number, default: D.economyRules.coinKillPercentVsPlayer },
-    coinKillMinAmount: { type: Number, default: D.economyRules.coinKillMinAmount },
-    // ── Sinks ───────────────────────────────────────────────────────────────
-    respawnCostPercent: { type: Number, default: D.economyRules.respawnCostPercent },
-    portalFee: { type: Number, default: D.economyRules.portalFee },
-    craftingFeePercent: { type: Number, default: D.economyRules.craftingFeePercent },
-  },
+  Object.fromEntries(Object.entries(ECONOMY_RULE_LIMITS).map(([key, [min, max]]) => [key, {
+    type: Number, min, max, default: D.economyRules[key],
+  }])),
   { _id: false },
 );
+EconomyRulesSchema.pre('validate', function () { resolveEconomyRules(this.toObject()); });
 
 // ── EquipmentRulesSchema ─────────────────────────────────────────────────────
 // Governs which ObjectLayer item types can be simultaneously active on a

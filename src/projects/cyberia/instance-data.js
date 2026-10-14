@@ -26,6 +26,7 @@ import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver
 import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './catalog/object-layer-catalog.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
+  resolveEconomyRules,
   resolveProgressionRules,
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
@@ -390,17 +391,7 @@ function toInstanceConfig(gc, baseline) {
     maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
-    // Economy — Fountain & Sink (nested EconomyRules message).
-    economyRules: {
-      botSpawnCoins: gc.economyRules?.botSpawnCoins ?? fb.economyRules.botSpawnCoins,
-      playerSpawnCoins: gc.economyRules?.playerSpawnCoins ?? fb.economyRules.playerSpawnCoins,
-      coinKillPercentVsBot: gc.economyRules?.coinKillPercentVsBot ?? fb.economyRules.coinKillPercentVsBot,
-      coinKillPercentVsPlayer: gc.economyRules?.coinKillPercentVsPlayer ?? fb.economyRules.coinKillPercentVsPlayer,
-      coinKillMinAmount: gc.economyRules?.coinKillMinAmount ?? fb.economyRules.coinKillMinAmount,
-      respawnCostPercent: gc.economyRules?.respawnCostPercent ?? fb.economyRules.respawnCostPercent,
-      portalFee: gc.economyRules?.portalFee ?? fb.economyRules.portalFee,
-      craftingFeePercent: gc.economyRules?.craftingFeePercent ?? fb.economyRules.craftingFeePercent,
-    },
+    economyRules: resolveEconomyRules(gc.economyRules ?? {}),
     lifeRegenChance: chanceOf(gc.lifeRegenChance, fb.lifeRegenChance),
     maxChance: chanceOf(gc.maxChance, fb.maxChance),
     entityDefaults,

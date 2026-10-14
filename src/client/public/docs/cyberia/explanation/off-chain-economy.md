@@ -1,305 +1,133 @@
-# Off-Chain Economy: Fountain & Sink Architecture
+# Off-chain economy
 
-**Module:** `cyberia-server/src/economy.go` · `src/api/cyberia-instance-conf`
-
-> **Status:** Alpha (sinks disabled by default; all values reset on reconnect).
-> **On-chain bridge:** CKY ERC-1155 token (ID 0) on Hyperledger Besu.
-> The bridge protocol stays aligned with the project's CKY tokenomics model.
+Coins are an off-chain wallet that `cyberia-server` owns. The instance config sets the rules, the
+server applies them, and the client only shows the balance. This page states who makes, moves and
+destroys coins, the drop rule, the configuration, the feedback, and what stays planned.
 
 ---
 
-## 1. Model Overview
+## Wallet
 
-Cyberia Online uses the **Fountain & Sink** economy — the industry standard for sustainable in-game economies, pioneered by _Ultima Online_ and refined in _EVE Online_ and _World of Warcraft_.
-
-```
-                    ┌──────────────────────┐
-                    │      FOUNTAINS       │
-                    │   Supply Creation ↑  │
-                    │                      │
-                    │ • botSpawnCoins      │
-                    │ • playerSpawnCoins   │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │  CIRCULATING SUPPLY  │
-                    │  Active Coin Supply  │
-                    └──────────┬───────────┘
-                               │
-                  ┌────────────┴────────────┐
-                  │                         │
-                  ▼                         ▼
-       ┌─────────────────────┐   ┌─────────────────────┐
-       │  TRANSFERS & LOOT   │   │        SINKS        │
-       │                     │   │                     │
-       │   Supply moves ↔    │   │   Supply destroyed ↓│
-       │                     │   │                     │
-       │ • PvP / PvE loot    │   │ • respawn cost      │
-       │ • kill rewards      │   │ • portal fee        │
-       │ • minimum loot      │   │ • crafting fee      │
-       └─────────────────────┘   └─────────────────────┘
-                  │                         │
-                  │                         ▼
-                  │                Circulating Supply ↓
-                  │
-                  └──────────────► Wallet Redistribution
-```
-
-### Core Rules
-
-| Rule                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Bots are infinite mint**     | Every bot respawn resets wallet to `botSpawnCoins`. Supply bounded by player kill rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **Players are zero-sum**       | A player kill scatters the victim's coins as a grid drop but creates no new ones — redistribution only. A player who dies to bots still drops coins (per `coinKillPercentVsPlayer`); the contributing bots may reclaim them.                                                                                                                                                                                                                                                                                                                    |
-| **Loot is a contributor race** | Every kill scatters the victim's configured `dropItemIds` (plus coins where the entity carries them); only damage contributors may collect, and the first eligible collider wins. Damage amount is irrelevant — only contribution counts. The contributor set is tracked uniformly for **any** victim (player, bot, resource) and includes both players and the bots that dealt damage: a contributing player collects on collision, a contributing bot has the loot transferred to it on collision. A death with no contributor drops nothing. |
-| **Kill floor**                 | `coinKillMinAmount` guarantees every successful kill pays out even against a near-empty wallet.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| **Sinks scale with activity**  | Fees burn a fraction — more activity = more burn, preventing indefinite inflation.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+- `Session.Coins` of a player and `Brain.Coins` of a bot are the balance, an unsigned 32-bit
+  integer. `AddCoins` clamps every change to `[0, 4294967295]`.
+- The coin Object Layer stack only shows the balance. `SyncCoinOL` sets its quantity on every change
+  and keeps it inactive. Item activation never reaches it, and the bar pins it outside the
+  [capacity](inventory-capacity.md#model).
+- A wallet is session state. It ends with the session, and a reconnect starts a new one at
+  `playerSpawnCoins` ([player identity](player-identity-and-profile.md#session-identity)).
 
 ---
 
-## 2. Configuration Structure
+## Coin flows
 
-Economy parameters live in `CyberiaInstanceConf.economyRules`. A document without an `economyRules` sub-document receives canonical defaults automatically.
+| Event                                   | Coins                                                               | Code                                     |
+| --------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| A session starts                        | The wallet is set to `playerSpawnCoins`: new coins                  | `FountainInitPlayer`                     |
+| A session ends                          | The wallet is discarded                                             | `detachClient`                           |
+| A bot spawns or respawns                | The wallet is set to `botSpawnCoins`; collected coins are discarded | `FountainInitBot`                        |
+| A bot dies                              | A coin token of new coins; the wallet stays until the respawn       | `BotCoinDropAmount`, `killEntity`        |
+| A player dies with damage contributors  | The drop leaves the wallet into a coin token                        | `PvpCoinDropAmount`, `handlePlayerDeath` |
+| A player dies with no contributor       | Nothing drops                                                       | `handlePlayerDeath`                      |
+| A contributor collects a coin token     | The player or bot gains its coins                                   | `game/content/loot.go`                   |
+| A coin token expires                    | Its coins are destroyed                                             | `ExpiresAt` of the token                 |
+| A player dies, `respawnCostPercent > 0` | That share of the wallet is destroyed before the drop               | `SinkRespawnCost`                        |
+| A price or a cost in coins              | The coins leave the economy                                         | `ExchangeItems`                          |
+| A reward in coins                       | New coins                                                           | `ExchangeItems`                          |
+| A vault deposit or withdrawal           | Coins move between the wallet and the vault                         | `game/content/storage.go`                |
 
-### 2.1 JavaScript Defaults (`cyberia-server-defaults.js`)
-
-```javascript
-economyRules: {
-  // ── Fountains ──────────────────────────────────────────
-  botSpawnCoins:    50,   // coins on bot spawn/respawn (infinite mint)
-  playerSpawnCoins: 50,   // guest starting wallet (resets on reconnect)
-
-  // ── Kill Transfer ───────────────────────────────────────
-  coinKillPercentVsBot:    0.40, // 40% of bot wallet → killer on PvE kill
-  coinKillPercentVsPlayer: 0.15, // 15% of player wallet → killer on PvP kill
-  coinKillMinAmount:       10,   // minimum coins per kill (hard floor)
-
-  // ── Sinks (alpha: all 0 = disabled) ────────────────────
-  respawnCostPercent:  0.0,  // fraction burned on player death
-  portalFee:           0,    // flat coins burned per portal use
-  craftingFeePercent:  0.0,  // fraction burned per crafting action
-}
-```
-
-### 2.2 Protobuf Message (`proto/cyberia.proto`)
-
-```proto
-message EconomyRules {
-  int32  bot_spawn_coins             = 1;
-  int32  player_spawn_coins          = 2;
-  double coin_kill_percent_vs_bot    = 3;
-  double coin_kill_percent_vs_player = 4;
-  int32  coin_kill_min_amount        = 5;
-  double respawn_cost_percent        = 6;
-  int32  portal_fee                  = 7;
-  double crafting_fee_percent        = 8;
-}
-```
-
-### 2.3 Go Server (`server.go → ApplyInstanceConfig`)
-
-```go
-er := cfg.GetEconomyRules()
-if er == nil { er = &pb.EconomyRules{} }
-
-s.botSpawnCoins           = int(er.GetBotSpawnCoins())
-s.playerSpawnCoins        = int(er.GetPlayerSpawnCoins())
-s.coinKillPercentVsBot    = er.GetCoinKillPercentVsBot()
-s.coinKillPercentVsPlayer = er.GetCoinKillPercentVsPlayer()
-s.coinKillMinAmount       = int(er.GetCoinKillMinAmount())
-s.respawnCostPercent      = er.GetRespawnCostPercent()
-s.portalFee               = int(er.GetPortalFee())
-s.craftingFeePercent      = er.GetCraftingFeePercent()
-```
+- `ExchangeItems` changes everything or nothing. A refused purchase or assembly leaves the wallet as
+  it was.
+- [Personal storage](player-storage.md#two-containers) refuses coins.
+- Nothing caps the total supply. Bot deaths, new sessions and coin rewards add coins. Expired tokens,
+  prices, the respawn cost, bot respawns and ended sessions remove them.
 
 ---
 
-## 3. Runtime Economy API (`game/content/economy.go`)
+## Drop rule
 
-All economy logic is encapsulated in a single file enforcing the single-source principle. Callers (`game/net/handlers.go`, `game/sim/collision.go`, `game/sim/skill.go`) call named methods and never manipulate coin wallets directly.
+A death drops `min(balance, max(floor(balance × rate), coinKillMinAmount))` coins, and nothing when
+the balance is 0.
 
-### Method Reference
+- The type of the victim sets the rate, whoever made the kill: `coinKillPercentVsBot` for a bot,
+  `coinKillPercentVsPlayer` for a player. A bot that kills a player uses `coinKillPercentVsPlayer`.
+- The balance of a bot is its wallet, but never less than `botSpawnCoins`.
+- `coinKillMinAmount` is a minimum inside the balance. A victim with fewer coins drops all it holds.
+  A victim with no coins drops none.
+- Only damage contributors, players and bots, can collect the token.
 
-| Method                          | Caller                                       | Description                                          |
-| ------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
-| `FountainInitPlayer(player)`    | `handlers.go` on WebSocket connect           | Credits `playerSpawnCoins` to new player             |
-| `FountainInitBot(id, ms)`       | `instance_loader.go`; `collision.go` respawn | Resets bot wallet to `botSpawnCoins` (infinite mint) |
-| `BotCoinDropAmount(id, ms)`     | `collision.go handleBotDeath`                | Coin stake a dead bot scatters as a grid drop        |
-| `PvpCoinDropAmount(player)`     | `collision.go handlePlayerDeath`             | Coin stake a dead player scatters as a grid drop     |
-| `SinkRespawnCost(player)`       | `collision.go handlePlayerDeath`             | Burns `respawnCostPercent`% of player coins          |
+With the default rules:
 
-### Kill Loot Logic
-
-Every kill scatters the victim's configured `dropItemIds` (resolved per entity
-via the entity-type default build) plus its coin stake — where the entity carries
-coins — as grid drop tokens (`SpawnDrops`, `game/content/loot.go`). Contribution is tracked
-uniformly for **any** victim (player, bot, resource, destructible obstacle): players and the bots that
-dealt damage all join the set. Only contributors may collect — the amount of
-damage does not matter, only that the entity contributed — and collection is a
-race: the first eligible collider with the settled token wins it. A contributing
-player collects on collision; a contributing bot has the loot transferred to it
-on collision. A death with no contributor drops nothing.
-
-```
-OnDeath(victim):
-  contributors = players who damaged victim
-                 + bots who damaged victim    // uniform for any victim type
-  if empty(contributors): return             // no contributor → no drop
-
-  // Item drops (all victim types): the victim's configured dropItemIds.
-  for itemID in victim.dropItemIds:
-    spawnDropToken(itemID × 1, contributors)
-
-  // Coin drop (only entities that carry coins: players, bots — resources = 0).
-  rate = coinKillPercentVsBot     if victim is bot     (PvE)
-         coinKillPercentVsPlayer  if victim is player  (PvP or bot-kills-player)
-
-  amount = max(floor(victim.coins × rate), coinKillMinAmount)
-  amount = min(amount, victim.coins)          // can't drop more than available
-                                              // (bots mint up to botSpawnCoins)
-
-  victim.coins -= amount                      // bots re-mint on respawn
-  if amount > 0: spawnDropToken(coin × amount, contributors)
-  // No coin FCT — the victim's balance change surfaces in the inventory-bar
-  // quantity FX, and the gain side in the collector's loot grid.
-```
+| Victim | Balance | Drop |
+| ------ | ------: | ---: |
+| Player |       0 |    0 |
+| Player |       4 |    4 |
+| Player |      50 |   10 |
+| Player |     200 |   30 |
+| Bot    |       0 |   20 |
+| Bot    |      50 |   20 |
 
 ---
 
-## 4. Coin Balance Architecture
+## Configuration
 
-Coins use a **flat + display split** design:
+`economyRules` of the `CyberiaInstanceConf` holds the rules. `ECONOMY_RULES_DEFAULTS` and
+`ECONOMY_RULE_LIMITS` in `src/api/cyberia-server-defaults/cyberia-server-defaults.js` define the
+defaults and the bounds.
 
-| Field                         | Type                                                  | Role                                                              |
-| ----------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| `entity.Coins`                | `uint32`                                              | **Single source of truth** — O(1) read/write for all economy math |
-| `coinItemId` ObjectLayer slot | `ObjectLayerState { Active: false, Quantity: Coins }` | **Display only** — synced by `syncCoinOL()` on every mutation     |
+| Field                     | Default | Bounds        | Meaning                                      |
+| ------------------------- | ------: | ------------- | -------------------------------------------- |
+| `botSpawnCoins`           |      50 | integer, 0–1M | The wallet of a bot at each spawn            |
+| `playerSpawnCoins`        |      50 | integer, 0–1M | The wallet of a new session                  |
+| `coinKillPercentVsBot`    |     0.4 | 0–1           | The share of its balance a dead bot drops    |
+| `coinKillPercentVsPlayer` |    0.15 | 0–1           | The share of its balance a dead player drops |
+| `coinKillMinAmount`       |      10 | integer, 0–1M | The least a death drops, inside the balance  |
+| `respawnCostPercent`      |       0 | 0–1           | The share a dead player burns; 0 disables it |
 
-**Why split:**
+**One resolution.** `resolveEconomyRules` fills each unset field from the defaults and refuses a
+value out of bounds. The conf model and the conf API use it, and `toInstanceConfig` sends its result
+to the game server as the `EconomyRules` message. An explicit 0 stays 0.
 
-- Economy math uses `Coins` directly (O(1)); no OL iteration.
-- Coin slot is always `Active: false` — the inventory UI automatically renders it with a lock indicator (non-activable).
-- No risk of coin OL being activated by the `item_activation` handler.
+**Validation at boot and reload.** `node bin/cyberia stat-contract` generates the same bounds into
+the Go server. `ApplyInstanceConfig` validates the progression and economy rules before it takes the
+world lock, so an invalid config changes nothing: the rules in force stay, and the reload retries
+with the next payload.
 
----
-
-## 5. Floating Combat Text (FCT) Wire Protocol
-
-Economy events trigger client-side visual feedback via the binary AOI protocol.
-
-**Coin FCT (14 bytes, fixed):**
-
-```
-MsgTypeFCT = 0x04
-
-Offset  Size  Field
-──────  ────  ─────────────────────────────
-  0      u8   message type (0x04)
-  1      u8   fct_type (see table)
-  2      f32  world_x (entity position)
-  6      f32  world_y
- 10      u32  value (always positive; sign implied by type)
-```
-
-**Item FCT (variable length):**
-
-```
-MsgTypeItemFCT = 0x05
-
-Offset  Size  Field
-──────  ────  ─────────────────────────────
-  0      u8   message type (0x05)
-  1      u8   fct_type (FCTTypeItemGain or FCTTypeItemLoss)
-  2      f32  world_x
-  6      f32  world_y
- 10      u32  quantity
- 14      u8   itemId length
- 15      str  itemId bytes
-```
-
-| `fct_type` | Constant          | Color  | Display        | Status  |
-| ---------- | ----------------- | ------ | -------------- | ------- |
-| `0x00`     | `FCTTypeDamage`   | Red    | `-N` HP lost   | active  |
-| `0x01`     | `FCTTypeRegen`    | Green  | `+N` HP gained | active  |
-| `0x02`     | `FCTTypeCoinGain` | Yellow | `+N` coins     | retired |
-| `0x03`     | `FCTTypeCoinLoss` | Yellow | `-N` coins     | retired |
-| `0x04`     | `FCTTypeItemGain` | Cyan   | `+N ItemID`    | retired |
-| `0x05`     | `FCTTypeItemLoss` | Purple | `-N ItemID`    | retired |
-
-One uniform visibility rule: **every combat FCT (damage and regen, on any
-entity — player, bot, or resource) is broadcast with its exact amount to every
-player whose AOI covers the event. All viewers see the identical message.**
-
-Coin and item quantity changes emit no FCT: gains surface in the loot grid and
-balance changes in the inventory-bar quantity FX (`fx_inventory_bar_qty`),
-which plays a `+N`/`-N` popup on the affected slot. The retired wire values
-are never reused.
+**Sinks.** The respawn cost is the one configurable sink, and 0 disables it. No portal fee or
+crafting fee exists. The `EconomyRules` message reserves their former fields 7 and 8.
 
 ---
 
-## 6. MongoDB Document Example
+## Feedback
 
-```json
-{
-  "instanceCode": "alpha-01",
-  "economyRules": {
-    "botSpawnCoins": 50,
-    "playerSpawnCoins": 50,
-    "coinKillPercentVsBot": 0.4,
-    "coinKillPercentVsPlayer": 0.15,
-    "coinKillMinAmount": 10,
-    "respawnCostPercent": 0.0,
-    "portalFee": 0,
-    "craftingFeePercent": 0.0
-  }
-}
-```
+- The game link carries one JSON envelope, `{type, payload}`. Combat text is the `combat_text`
+  message, `{kind, worldX, worldY, value}`:
+
+  | `kind`   | Shows           | Reaches                        |
+  | -------- | --------------- | ------------------------------ |
+  | `damage` | Red `-N` life   | Every player whose view has it |
+  | `regen`  | Green `+N` life | Every player whose view has it |
+  | `xp`     | Gold `+N XP`    | The earner only                |
+
+- No combat text kind exists for coins or items. A balance change plays the quantity effect on the
+  coin slot of the bar (`fx_inventory_bar_qty`). A pickup shows in the loot grid. A refused purchase
+  shows its reason on the shop card.
 
 ---
 
-## 7. gRPC Config Builder
+## CKY bridge: planned
 
-The `toInstanceConfig()` function in `grpc-server.js` resolves `economyRules` with a two-tier fallback:
-
-```
-priority:  gc.economyRules.field    (instance document in MongoDB)
-         → fb.economyRules.field    (CYBERIA_INSTANCE_CONF_DEFAULTS — always set)
-```
+No code converts coins to the CKY token or back. No deposit, withdrawal, conversion rate, mint,
+burn, escrow or bridge fee exists. In Phase 1 coins never leave `cyberia-server`. Persistent wallets
+are planned for [Phase 2](roadmap.md#phase-2--alpha-centralized-off-chain-persistent-sessions), and
+on-chain ownership for [Phase 3](roadmap.md#phase-3--beta-on-chain-ownership).
 
 ---
 
-## 8. On-Chain Bridge
+## Tests
 
-The off-chain `coin` balance maps to the on-chain **CKY token (ERC-1155 Token ID 0)** on Hyperledger Besu:
-
-```
-Off-chain Coins (uint32)
-    ↕  conversion (via cryptokoyn.net withdrawal protocol)
-On-chain CKY (ERC-1155, Token ID 0, 18-decimal precision)
-```
-
-**Bridge mechanics:**
-
-- **Withdrawal:** Player requests conversion of off-chain coins to on-chain CKY via cryptokoyn.net.
-- **Deposit:** Player deposits on-chain CKY to top up off-chain balance.
-- **CKY Minting Fee:** Converting off-chain items to ERC-1155 tokens requires a CKY fee — the primary on-chain sink mechanism.
-
----
-
-## 9. Enabling Sinks (Alpha → Beta)
-
-To activate economy pressure:
-
-```javascript
-// Update CyberiaInstanceConf in MongoDB for the target instance
-{
-  "economyRules": {
-    "respawnCostPercent":  0.05,  // 5% burned on death
-    "portalFee":           5,     // 5 coins burned per portal use
-    "craftingFeePercent":  0.03   // 3% burned on each crafting action
-  }
-}
-```
-
-The Go server picks up updated config via gRPC hot-reload (`GetFullInstance` polling at `ENGINE_GRPC_RELOAD_INTERVAL_SEC`).
+| Test                                           | What it proves                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `cyberia-server/game/content/economy_test.go`  | The wallet clamp, the drop rule for both victim types, an explicit 0 rate, the bounds |
+| `cyberia-server/game/net/progression_test.go`  | A config with an invalid economy rule changes nothing                                 |
+| `cyberia-server/game/content/capacity_test.go` | A refused purchase charges nothing                                                    |
+| `test/cyberia/unit/stats.test.js`              | The engine resolution keeps an explicit 0 and refuses values out of bounds            |

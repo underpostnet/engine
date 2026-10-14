@@ -12,7 +12,7 @@ import {
   validateStats,
   generateRandomStats,
 } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { resolveProgressionRules } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { resolveEconomyRules, resolveProgressionRules } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { ObjectLayerModel } from '../../../src/api/object-layer/object-layer.model.js';
 import { CyberiaMapModel } from '../../../src/api/cyberia-map/cyberia-map.model.js';
 import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
@@ -110,6 +110,24 @@ describe('Cyberia signed stat contract', () => {
     ])
       expect(() => resolveProgressionRules(input)).toThrow();
     for (const level of [0, -1, 65536, 1.5, null, '2']) expect(() => toEntityMsg({ level })).toThrow();
+  });
+
+  it('resolves economy rules within bounds and keeps an explicit zero', async () => {
+    expect(resolveEconomyRules({ coinKillPercentVsPlayer: 0 }).coinKillPercentVsPlayer).toBe(0);
+    expect(toInstanceConfig({ economyRules: { coinKillPercentVsPlayer: 0 } }, []).economyRules.coinKillPercentVsPlayer).toBe(0);
+    for (const input of [
+      { coinKillPercentVsBot: 1.5 },
+      { coinKillPercentVsPlayer: -0.1 },
+      { respawnCostPercent: Number.NaN },
+      { botSpawnCoins: 2.5 },
+      { coinKillMinAmount: -1 },
+      { playerSpawnCoins: '50' },
+      null,
+    ])
+      expect(() => resolveEconomyRules(input)).toThrow();
+    await expect(
+      new CyberiaInstanceConfModel({ instanceCode: 'test', economyRules: { coinKillPercentVsBot: 2 } }).validate(),
+    ).rejects.toThrow();
   });
 
   it('rejects invalid map levels before file cleanup', async () => {

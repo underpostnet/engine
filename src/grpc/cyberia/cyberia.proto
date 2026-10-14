@@ -295,46 +295,20 @@ message SkillConfigEntry {
   repeated SkillDetail skills   = 7;     // per-logic-event skill definitions
 }
 
-// EconomyRules groups all Fountain & Sink economy parameters for one instance.
-//
-// Design: Fountain & Sink (EVE Online / WoW model)
-//   Fountains   — inject new coins into the economy on every bot/player spawn.
-//   Kill Transfer — zero-sum redistribution between participants on a kill event.
-//   Sinks       — permanently destroy coins (alpha: all 0 / disabled by default).
-//
-// Off-chain fall-back: when a player has no on-chain session the server operates
-// a purely in-memory wallet that resets on reconnect.  All balances map 1-to-1
-// with the CKY ERC-1155 token (token ID 0) once the on-chain bridge is live.
+// EconomyRules is the coin model of one instance. The wallet is session state:
+// it starts at player_spawn_coins and ends with the session. A death drops a
+// share of the victim's coins as a loot token for its damage contributors. The
+// rate follows the type of the victim, whoever made the kill. A drop is at
+// least coin_kill_min_amount and never more than the victim holds.
 message EconomyRules {
-  // ── Fountains ──────────────────────────────────────────────────────────────
-  // Coins bots carry at spawn and on every respawn (infinite mint source).
-  // Guarantees PvE reward loops are never blocked by an empty bot wallet.
-  int32  bot_spawn_coins               = 1;
-  // Player starting wallet on connect (no persistence — resets on reconnect).
-  // In guest mode this is the only coin source; persists only with on-chain auth.
-  int32  player_spawn_coins            = 2;
-
-  // ── Kill Transfer (zero-sum redistribution) ────────────────────────────────
-  // Fraction [0,1] of the victim's coins transferred to the killer on a PvE kill
-  // (player kills bot, or bot kills bot).  Higher than PvP rate to reward grinding.
-  double coin_kill_percent_vs_bot      = 3;
-  // Fraction [0,1] transferred on a PvP kill.  Intentionally lower to reduce
-  // griefing frustration while still making PvP economically meaningful.
-  double coin_kill_percent_vs_player   = 4;
-  // Hard floor per kill: guarantees every successful kill pays at least this many
-  // coins regardless of the victim's wallet size or the percent rate.
-  int32  coin_kill_min_amount          = 5;
-
-  // ── Sinks (alpha stubs — set to 0 to disable) ─────────────────────────────
-  // Fraction [0,1] of the dying player's coins permanently burned on respawn.
-  // Incentivises caution; 0 = disabled (recommended for alpha).
-  double respawn_cost_percent          = 6;
-  // Flat coins burned each time a player uses a portal (travel tax).
-  // Drains coin hoarding; 0 = disabled.
-  int32  portal_fee                    = 7;
-  // Fraction [0,1] of item value burned on any crafting action (production tax).
-  // 0 = disabled until the crafting system is implemented.
-  double crafting_fee_percent          = 8;
+  int32  bot_spawn_coins             = 1; // the wallet of a bot at each spawn; a bot drop is new coins
+  int32  player_spawn_coins          = 2; // the wallet of a new session
+  double coin_kill_percent_vs_bot    = 3; // fraction [0,1] of its coins a dead bot drops
+  double coin_kill_percent_vs_player = 4; // fraction [0,1] of its coins a dead player drops
+  int32  coin_kill_min_amount        = 5; // least coins a death drops, capped at what the victim holds
+  double respawn_cost_percent        = 6; // fraction [0,1] of its coins a dead player burns; 0 disables
+  reserved 7, 8;
+  reserved "portal_fee", "crafting_fee_percent";
 }
 
 // SkillRules groups the numeric tuning parameters for each skill archetype.

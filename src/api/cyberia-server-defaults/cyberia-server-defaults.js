@@ -408,6 +408,38 @@ export function resolveProgressionRules(input = {}) {
   return rules;
 }
 
+// The coin model. A rate is the fraction of the victim's coins that a death drops, by the type of
+// the victim. A kill drops at least coinKillMinAmount, never more than the victim holds.
+export const ECONOMY_RULES_DEFAULTS = Object.freeze({
+  botSpawnCoins: 50,
+  playerSpawnCoins: 50,
+  coinKillPercentVsBot: 0.4,
+  coinKillPercentVsPlayer: 0.15,
+  coinKillMinAmount: 10,
+  respawnCostPercent: 0,
+});
+
+// Coin amounts are integers; rates are fractions of 1.
+export const ECONOMY_RULE_LIMITS = Object.freeze(Object.fromEntries(Object.entries({
+  botSpawnCoins: [0, 1000000], playerSpawnCoins: [0, 1000000], coinKillMinAmount: [0, 1000000],
+  coinKillPercentVsBot: [0, 1], coinKillPercentVsPlayer: [0, 1], respawnCostPercent: [0, 1],
+}).map(([key, bounds]) => [key, Object.freeze(bounds)])));
+
+const ECONOMY_RATES = new Set(['coinKillPercentVsBot', 'coinKillPercentVsPlayer', 'respawnCostPercent']);
+
+/** The economy rules of a conf: every known field, from the defaults when unset. Throws on a value out of bounds. */
+export function resolveEconomyRules(input = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Economy rules must be an object.');
+  const rules = {};
+  for (const [key, [min, max]] of Object.entries(ECONOMY_RULE_LIMITS)) {
+    const value = input[key] ?? ECONOMY_RULES_DEFAULTS[key];
+    const valid = ECONOMY_RATES.has(key) ? Number.isFinite(value) : Number.isInteger(value);
+    if (!valid || value < min || value > max) throw new RangeError('Invalid economy rule: ' + key);
+    rules[key] = value;
+  }
+  return rules;
+}
+
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Tick model ─────────────────────────────────────────────────────
   tickRate: 60,
@@ -443,16 +475,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   collisionLifeLoss: 10,
 
   // ── Economy — Fountain & Sink model ────────────────────────────────
-  economyRules: {
-    botSpawnCoins: 50,
-    playerSpawnCoins: 50,
-    coinKillPercentVsBot: 0.4,
-    coinKillPercentVsPlayer: 0.15,
-    coinKillMinAmount: 10,
-    respawnCostPercent: 0.0,
-    portalFee: 0,
-    craftingFeePercent: 0.0,
-  },
+  economyRules: { ...ECONOMY_RULES_DEFAULTS },
 
   // ── Chances, as fractions of 1 ───────────────────────────────────
   // A tap has lifeRegenChance to regenerate life; utility raises it. No chance the

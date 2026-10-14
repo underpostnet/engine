@@ -62,7 +62,6 @@ describe('fillInstanceConfDefaults', () => {
     const out = fillInstanceConfDefaults({
       tickRate: 30,
       collisionLifeLoss: 0,
-      portalFee: 0,
     });
     expect(out.tickRate).to.equal(30);
     expect(out.collisionLifeLoss).to.equal(0);
@@ -83,7 +82,7 @@ describe('fillInstanceConfDefaults', () => {
     expect(out.economyRules.playerSpawnCoins).to.equal(
       CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules.playerSpawnCoins,
     );
-    expect(out.economyRules.portalFee).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules.portalFee);
+    expect(out.economyRules.coinKillMinAmount).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules.coinKillMinAmount);
   });
 
   it('keeps a present non-empty array and does not merge defaults into it', () => {
