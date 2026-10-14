@@ -391,6 +391,18 @@ export function validateRespawnDuration(ms) {
   }
   return ms;
 }
+// A player container slot holds one stack: one item id at any quantity. Coins take no slot.
+// A container opens `base` slots at level 1, then `step` more every `every` levels, up to `max`.
+export const CONTAINER_CAPACITY = Object.freeze({
+  inventory: Object.freeze({ base: 8, step: 1, every: 3, max: 24 }),
+  storage: Object.freeze({ base: 16, step: 2, every: 5, max: 40 }),
+});
+export const PARTY_MAX_MEMBERS = 5;
+// Pending party invites one player can hold.
+export const PARTY_INVITES_MAX = 5;
+// A party member shares a bot kill when its centre is this many cells or less from the centre of the bot.
+export const PARTY_XP_SHARE_RADIUS = 10;
+export const CHAT_TEXT_MAX_RUNES = 160;
 export const STAT_CONTRACT_VERSION = 2;
 export const STAT_DEFAULTS = Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, STAT_DEFAULT])));
 export const STAT_EFFECTIVE_FLOORS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, floor }) => [key, floor])));
