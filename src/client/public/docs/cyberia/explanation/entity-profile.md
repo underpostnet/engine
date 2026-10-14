@@ -70,7 +70,7 @@ Server-only side tables, keyed by `EntityID`, hold what never goes on the wire:
 | Side table | Holds                                                                                                     |
 | ---------- | --------------------------------------------------------------------------------------------------------- |
 | `Mortal`   | `BaseMaxLife`, `LifeRegen`, `RespawnDuration`, pre-death layers, damage ledger                            |
-| `Session`  | a connected player: map, path, AOI, `Coins` (single source of truth), frozen state, `InputQueue`, `InputConsumedThrough` |
+| `Session`  | a connected player: `PlayerID`, display name, map, path, AOI, `Coins` (single source of truth), frozen state, `InputQueue`, `InputConsumedThrough` |
 | `Brain`    | a bot: path, spawn center and radius, aggro range, pursuit target, lifetime, `Coins`, drop item           |
 
 Level, XP and progression freeze sit in a progression side table in `game/content`. The client mirrors the same table: its `game_state` has one array per component.
@@ -332,4 +332,5 @@ Coins use a **flat + display split** design to avoid O(N) inventory traversal:
 | `entity.Coins`                | `uint32`           | **Single source of truth** — all economy operations read/write this field O(1)                     |
 | `coinItemId ObjectLayer slot` | `ObjectLayerState` | **Display only** — `Active: false`, `Quantity = Coins`, synced by `syncCoinOL()` on every mutation |
 
-The `coin` item type is never activable. The inventory UI automatically renders it with a lock indicator.
+The `coin` item type is never activable. The inventory UI renders it with the non-activable badge,
+pinned outside the bag. Coins take no inventory slot ([inventory capacity](inventory-capacity.md#model)).

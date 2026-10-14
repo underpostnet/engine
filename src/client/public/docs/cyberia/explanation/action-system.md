@@ -50,7 +50,7 @@ CyberiaAction {
     ingredients: [{ itemId: String, qty: Number }]
   }]
 
-  storageSlots: Number  // vault capacity in slots; 0 disables the capability
+  storageSlots: Number  // NPC vault capacity in slots; 0 disables the capability
 }
 ```
 
@@ -82,7 +82,7 @@ quest-talk giver at once.
 | `talk`       | always — satisfies `talk` quest objectives                     | `dialogCode`, `questDialogueCodes`                       |
 | `shop`       | `shopItems[]` is non-empty — player buys items with a currency | `shopItems[]`                                            |
 | `craft`      | `craftRecipes[]` is non-empty — player assembles outputs       | `craftRecipes[]`                                         |
-| `storage`    | `storageSlots > 0` — player banks items in a personal vault    | `storageSlots`                                           |
+| `storage`    | `storageSlots > 0` — player banks items in an NPC vault        | `storageSlots`                                           |
 
 ---
 
@@ -164,6 +164,15 @@ Rejection reasons on `shop_ack`: `no_vendor`, `not_for_sale`, `out_of_range`,
 `shop_ack` is notify-only, and only a rejection is surfaced (as a toast). The
 inventory itself always arrives through the AOI self-player block, so a dropped
 ack costs the player nothing.
+
+---
+
+## NPC Vault
+
+An action with `storageSlots > 0` makes its NPC a vault terminal. Each player owns its own vault at
+each terminal, with the fixed `storageSlots` capacity. The player's [personal
+storage](player-storage.md) is a separate container that opens from the own profile. Both share the
+transfer rules, and every withdrawal needs a free bag slot ([inventory capacity](inventory-capacity.md#grant-paths)).
 
 ---
 

@@ -112,6 +112,9 @@ Only resolved simulation events can award XP:
 A combat contributor must supply at least 10% of recorded positive damage.
 Self kills, summoned targets, item drops, providers, ghosts, and frozen players cannot produce eligible defeat rewards.
 Bots and NPCs cannot gain XP.
+A party earns a bot kill once, and its near members split it ([party combat](social.md#party-combat)).
+
+The anti-farming rules below count for each earner: its award interval, its window and its repeats.
 
 Low-value outcomes share an award interval and a window limit.
 Repeated rewards for the same event kind and target divide by `1`, `2`, `3`, then `4`.

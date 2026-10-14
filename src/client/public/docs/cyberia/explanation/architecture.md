@@ -112,6 +112,10 @@ The tick-based authoritative simulation. Owns world state and the gameplay rules
 What it owns:
 
 - Authoritative world state.
+- The session state of every player: its `PlayerID` and display name, inventory, coins, quests,
+  personal storage and NPC vaults, and its party and chat
+  ([player identity](player-identity-and-profile.md), [chat and parties](social.md)). All of it ends
+  with the connection.
 - The tick: a `uint32` advanced once per simulation step at a fixed `tickRate`.
 - Simulation phases — the only allowed mutators of world state.
 - AOI replication: per-player interest filtering and snapshot emission.
@@ -120,7 +124,8 @@ What it owns:
 
 What it does NOT own:
 
-- Persistence (loaded once at boot from engine-cyberia).
+- Persistence. Content comes once at boot from engine-cyberia; the server writes only the
+  best-effort quest progress mirror back.
 - Client presentation. The server holds no palette, no camera knobs, no dev-overlay flag, no status-icon visuals.
 
 ### cyberia-client (C / WebAssembly) — presentation runtime
@@ -258,7 +263,7 @@ The client sends its new events once per frame as one `events` message. The simu
                        authoritative world state
 ```
 
-`InputCommand.Sequence` is monotonic per client. Every snapshot carries `inputConsumedThrough`, the highest sequence a tick has applied. The client keeps each event until that cursor passes it, and replays it on top of each new state.
+`InputCommand.Sequence` is monotonic per client. Every snapshot carries `inputConsumedThrough`, the highest sequence a tick has applied. The client keeps each event until that cursor passes it, and replays it on top of each new state. The server drops a command at or below the cursor, so each event applies once.
 
 **Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A\* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned. That coalescing is the only bound on pathfinder cost.
 

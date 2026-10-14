@@ -178,6 +178,10 @@ game server drain.
 - Go server metrics REST API (`/api/v1/metrics*`)
 - Procedural content pipeline: floor, skin and resource generators
 - CLI toolchain: `cyberia ol`, `cyberia instance`, `cyberia run-workflow`
+- Session player identity: a `PlayerID` and a guest name per connection ([player identity](player-identity-and-profile.md))
+- Level-based bag capacity on every grant path, and personal storage beside the NPC vaults
+  ([inventory capacity](inventory-capacity.md), [personal storage](player-storage.md))
+- World, party and direct chat, and parties of up to 5 players ([chat and parties](social.md))
 
 ### Remaining work for the Pre-Alpha checkpoint
 
@@ -200,12 +204,16 @@ on disconnect.
 ### Pre-Alpha data contract
 
 ```
-Player session (in-memory Go struct only):
-  PlayerState {
-    ID:            string              // ephemeral UUID per connect
-    ObjectLayers:  []ObjectLayerState  // equipped labels + resolved cid + active flags
-    CoinBalance:   uint32              // Fountain and Sink coin wallet
-    QuestProgress: []QuestProgress     // ephemeral; no persistence
+Player session (in-memory Go state only):
+  Session {
+    PlayerID:      string              // UUID per connect; owns the containers and the party seat
+    DisplayName:   string              // "Guest-" and a short code, unique among online players
+    ObjectLayers:  []ObjectLayerState  // the inventory: stacks, worn or not
+    Coins:         uint32              // Fountain and Sink coin wallet
+    QuestProgress: []QuestProgress     // best-effort mirror to the engine; no reload
+    Storage:       []Stack             // personal storage
+    Vaults:        map[action][]Stack  // NPC vaults
+    Party:         seat in one party   // up to 5 players
     Frozen:        bool
     MapCode:       string
     Pos:           Vec2
@@ -213,7 +221,9 @@ Player session (in-memory Go struct only):
   }
 ```
 
-No account, no persistent identity, no carry-over between sessions.
+No account, no persistent identity, no carry-over between sessions. The containers end with the
+inventory and the wallet, so a reconnect cannot bank assets. Phase 2 keeps the owner keys and
+changes where the `PlayerID` comes from.
 
 ---
 

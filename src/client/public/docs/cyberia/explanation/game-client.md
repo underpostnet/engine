@@ -72,8 +72,9 @@ src/
     game_state.{c,h}                world mirror: entity table + component arrays
     replication.{c,h}               session counters, prediction, interpolation
     self_motion.{c,h}               the one motion function of the own player
-    local_player.{c,h}              own player state outside motion
-    vault_ops.{c,h}                 vault moves sent as item_ops events
+    local_player.{c,h}              own player state outside motion: inventory,
+                                    containers, party, capacity helpers
+    container_ops.{c,h}             item moves of the bag and the containers, sent as item_move
   net/
     client_event.{c,h}              the one uplink: stamp, keep, send, trim
     message.{c,h}                   JSON message decoder (snapshot, combat_text, ...)
@@ -86,7 +87,8 @@ src/
   data/                             REST caches: actions, dialogues, quests, instance map
   input/                            raw OS input → client events
   view/                             camera, viewport, render pipeline, entity render
-  ui/                               modals, HUD, inventory bar, FCT, nameplates
+  ui/                               modals, HUD, inventory bar, FCT, nameplates,
+                                    chat log and panes, profile and party views
   fx/, audio/                       effects and sound
   js/                               small JS bridges (assets, fullscreen, text input)
 ```
@@ -236,7 +238,7 @@ The server sends one `snapshot` per tick. Its payload carries:
 
 The decoder hands the self block, `frame` and `inputConsumedThrough` to `prediction_on_snapshot()`. `prediction_reconcile()` applies it at the start of the next tick.
 
-The other server messages — `init_data`, `metadata`, `combat_text`, `audio_event`, `drop_spawn`, `drop_collect`, `chat`, `dialog_ack`, `shop_ack` — are not part of the per-tick replication stream.
+The other server messages — `init_data`, `metadata`, `combat_text`, `audio_event`, `drop_spawn`, `drop_collect`, `chat`, `chat_ack`, `party_ack`, `dialog_ack`, `shop_ack` — are not part of the per-tick replication stream.
 
 The client sends one `events` message per frame with new events. Its payload is `{ "events": [ ... ] }`; each event is an envelope whose payload carries `seq`, `frame` and `timestamp`.
 
@@ -302,6 +304,43 @@ At normal zoom, POIs render only their authored presence-status icon. At inspect
 
 ---
 
+## Player systems
+
+The own player holds the first bubble of the interaction column. A tap opens the own profile; a
+tap on another player opens its public profile; an NPC keeps its capability tabs
+([player identity and profile](player-identity-and-profile.md#profile-views)).
+
+| Module                  | Owns                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `ui/player_panel`       | The Profile tab of any player and the own Party tab                                           |
+| `ui/container_panel`    | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells |
+| `ui/stack_move`         | How a dropped stack lands in the bar and the containers, with the quantity picker            |
+| `sim/container_ops`     | The item move rules, applied at once and replayed after each snapshot                         |
+| `ui/chat_log`           | The chat history by conversation, and the unread counts                                       |
+| `ui/chat_pane`          | One conversation in a content rect; every pane shares the one DOM text input                  |
+| `ui/chat_panel`         | The HUD chat: World and Party channels at the bottom of the right-hand column                 |
+
+- The inventory bar shows every cell the capacity rule can open: stacks, open slots, then locked
+  slots with the `lock` icon and their level ([inventory capacity](inventory-capacity.md#locked-slots)).
+  Each cell is a bag slot, and reorder mode moves stacks between cells ([reorder mode](inventory-capacity.md#reorder-mode)).
+  The item card equips and unequips the stack it shows.
+- The toolbar row reads `[audio][chat][quest][map][fullscreen]`. The chat button carries the unread
+  count of the World and Party channels and opens the HUD chat, which opens no modal.
+- A pending party invite never blocks play: the own bubble counts invites and the inviter's bubble
+  carries the party mark ([chat and parties](social.md#parties)).
+- The shop and the assembler show "Bag full" on a card whose result has no free slot.
+
+To check a change, use a desktop browser and a phone (or touch emulation):
+
+1. Tap the own bubble. The own profile opens on Profile, with Storage, Party and Stats. No dialogue opens.
+2. Open Storage. Drag a stack from the bar into an open cell and back. A locked cell turns the drop
+   back and, on a tap, names its level.
+3. Tap a locked bag slot. A toast names the level that opens it.
+4. With two clients, open the other player's profile and invite it. Accept from the other client's
+   own Party tab. Both Party tabs list two members.
+5. Open the HUD chat. Send on World and on Party; type WASD into the input: the player does not move.
+6. Close the other client. The party ends on the first client.
+
 ## Stats and progression
 
 Every living entity's overhead HUD shows `[stats] lv.<level>` and `[stack] <stats sum>` above its nameplate, and a gold XP bar under its HP bar. The local player's bar fills with its progress through the current level and carries an `XP n / m` label in a smaller font; entities whose XP the client cannot read show an empty, unlabeled bar.
@@ -326,11 +365,11 @@ The cues are visual only. Their sounds arrive as `audio_event` messages the serv
 
 Item slots badge an object layer with the `stack` icon and its signed stat sum, red when negative.
 
-An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
+An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity; a slot that summons its own item counts the units of that stack alone. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
 
 One bar under the row shows the cooldown of the row. For a tap skill it is the shared action cooldown from `self.actionReadyInMs`: it fills while the cooldown runs and turns green when the next tap fires skills. A green bar does not promise a summon: the server still rolls each skill's chance. For a held skill it is the consume cooldown from `self.consumeReadyInMs`. The row takes no input and hides while the player is in stasis.
 
-A consumable has no Use button. Its held skill, `zero-waste-auto-consume-heal`, consumes one unit by itself once the missing life takes the whole heal. Over a consumable slot the preview shows the item itself with the units left. The inventory modal follows its stack by item id, so it closes when the last unit is consumed.
+A consumable has no Use button. Its held skill, `zero-waste-auto-consume-heal`, consumes one unit by itself once the missing life takes the whole heal. Over a consumable slot the preview shows the item itself with the units left in that stack. The server spends one stack at a time, in slot order, so the counts drop on one stack, then on the next. The inventory modal follows its stack by slot, then by item id, so it closes when the last unit is consumed.
 
 The server sends six values in canonical order. The client displays these values and uses the supplied movement speed.
 

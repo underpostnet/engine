@@ -151,11 +151,16 @@ Each `CyberiaQuest` can declare `sourceMapCode + sourceCellX + sourceCellY`, lin
 
 ## Reward Delivery
 
-On quest completion, the Engine grants each `rewards[].{itemId, quantity}` to the player's inventory:
+On quest completion, `cyberia-server` grants every `rewards[].{itemId, quantity}` as one exchange
+([inventory capacity](inventory-capacity.md#fit-rule)). Coins go to the flat wallet; items land on
+their inventory stacks.
 
-- Off-chain items are added to the player's `ObjectLayers` array in the Go server.
-- If the item has an on-chain ERC-1155 token, the server relayer calls `mint(playerAddress, tokenId, quantity)` on the `ObjectLayerToken` contract.
-- FCT `ItemGain` events (`MsgTypeItemFCT`, `FCTTypeItemGain`) are broadcast to the client for visual feedback.
+- Rewards that do not fit the bag wait. The quest stays `active` with every step done, and its
+  snapshot entry carries `rewardsHeld`. The client shows a toast and a journal line that ask for a
+  free slot.
+- Each tick the server completes every held quest whose rewards now fit, then sends the update.
+- The client shows a granted reward in the reward notification and the loot flight. No item FCT
+  plays.
 
 ---
 
