@@ -13,7 +13,7 @@ import {
   hashPassword,
   verifyPassword,
   verifyJWT,
-  createSessionAndUserToken,
+  signSessionToken,
   createUserAndSession,
   refreshSessionAndToken,
   logoutSession,
@@ -26,7 +26,7 @@ import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
-import { UserDto } from './user.model.js';
+import { UserDto, uniqueConflict } from './user.model.js';
 import { isValidUsername, timer } from '../../client/components/core/CommonJs.js';
 import { GuestService } from './guest.service.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
@@ -191,14 +191,7 @@ class UserService {
                   },
                 );
 
-                const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
-                return {
-                  token: jwtSign(
-                    UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
-                    options,
-                  ),
-                  user,
-                };
+                return { token: await signSessionToken(user, User, req, res, options), user };
               } else throw new Error(accountLocketMessage());
             }
           } else {
@@ -558,6 +551,8 @@ class UserService {
           case 'admin': {
             return await User.findByIdAndUpdate(req.params.id, req.body, {
               runValidators: true,
+            }).catch((error) => {
+              throw uniqueConflict(error);
             });
           }
           default: {
@@ -570,7 +565,9 @@ class UserService {
             };
             if (req.body.publicProfile !== undefined) updateData.publicProfile = req.body.publicProfile;
             if (req.body.briefDescription !== undefined) updateData.briefDescription = req.body.briefDescription;
-            await User.findByIdAndUpdate(_id, updateData, { runValidators: true });
+            await User.findByIdAndUpdate(_id, updateData, { runValidators: true }).catch((error) => {
+              throw uniqueConflict(error);
+            });
             return await User.findOne({
               _id,
             }).select(UserDto.select.get());

@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import { loggerFactory } from '../ops/logger.js';
 import crypto from 'crypto';
 import { promisify } from 'util';
-import { UserDto } from '../../api/user/user.model.js';
+import { UserDto, uniqueConflict } from '../../api/user/user.model.js';
 import {
   commonAdminGuard,
   commonModeratorGuard,
@@ -473,6 +473,26 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
 }
 
 /**
+ * Opens a session for a user and signs its access token.
+ * @param {object} user The user object.
+ * @param {import('mongoose').Model} User The Mongoose User model.
+ * @param {import('express').Request} req The Express request object.
+ * @param {import('express').Response} res The Express response object.
+ * @param {object} options Additional options.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
+ * @returns {Promise<string>} The access token.
+ * @memberof Auth
+ */
+async function signSessionToken(user, User, req, res, options = { host: '', path: '' }) {
+  const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
+  return jwtSign(
+    UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
+    options,
+  );
+}
+
+/**
  * Removes a session by its ID for a given user.
  * @param {import('mongoose').Model} User The Mongoose User model.
  * @param {string} userId The ID of the user.
@@ -527,21 +547,20 @@ async function logoutSession(User, req, res) {
  * @memberof Auth
  */
 async function createUserAndSession(req, res, User, options = { host: '', path: '' }) {
+  // The schema admits a provider-only account; a local account always has a password.
+  if (typeof req.body.password !== 'string') throw new Error('Password is required');
   const pwdCheck = validatePasswordMiddleware(req);
   if (pwdCheck.status === 'error') throw new Error(pwdCheck.message);
 
   req.body.password = await hashPassword(req.body.password);
   req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
 
-  const saved = await new User(req.body).save();
+  const saved = await new User(req.body).save().catch((error) => {
+    throw uniqueConflict(error);
+  });
   const user = await User.findOne({ _id: saved._id }).select(UserDto.select.get());
 
-  const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
-  const token = jwtSign(
-    UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
-    options,
-  );
-  return { token, user };
+  return { token: await signSessionToken(user, User, req, res, options), user };
 }
 
 /**
@@ -757,9 +776,12 @@ export {
   assertOwnerOrAdmin,
   validatePasswordMiddleware,
   getBearerToken,
+  generateRandomHex,
   isServiceKey,
   servicePrincipal,
+  cookieOptionsFactory,
   createSessionAndUserToken,
+  signSessionToken,
   createUserAndSession,
   refreshSessionAndToken,
   logoutSession,

@@ -19,6 +19,8 @@ class UserRouter {
     (async () => {
       try {
         const User = DataBaseProviderService.getModel('user', options);
+        // Production connections build no index on their own; the unique email and username indexes are the authority.
+        await User.createIndexes().catch((error) => logger.error('User index build failed', { error: error.message }));
         const adminUser = await User.findOne({ role: 'admin' });
         if (!adminUser) {
           const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';

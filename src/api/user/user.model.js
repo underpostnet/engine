@@ -23,7 +23,8 @@ const UserSchema = new Schema(
     recoverTimeOut: { type: Date },
     lastLoginDate: { type: Date },
     failedLoginAttempts: { type: Number, default: 0 },
-    password: { type: String, trim: true, required: 'Password is required' },
+    // Absent on an account that signs in only with a provider, such as Google.
+    password: { type: String, trim: true },
     username: {
       type: String,
       trim: true,
@@ -140,4 +141,14 @@ class UserDto {
     },
   };
 }
-export { UserSchema, UserModel, userRoleEnum, ProviderSchema, UserDto };
+/**
+ * A duplicate email or username as the conflict it is, without database details.
+ * @param {Error} error - Error of a user write.
+ * @returns {Error} A 409 `duplicate email` or `duplicate username`, else the error itself.
+ */
+const uniqueConflict = (error) => {
+  const field = ['email', 'username'].find((key) => error?.code === 11000 && error.keyPattern?.[key]);
+  return field ? Object.assign(new Error(`duplicate ${field}`), { status: 409 }) : error;
+};
+
+export { UserSchema, UserModel, userRoleEnum, ProviderSchema, UserDto, uniqueConflict };
