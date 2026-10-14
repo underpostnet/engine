@@ -126,9 +126,11 @@ class Account {
             }
           }
           const result = await UserService.put({ id: currentUser._id, body });
+          const duplicate = result.message?.match(/^duplicate (email|username)$/)?.[1];
           NotificationManager.Push({
-            html:
-              result.status === 'error' && result.message
+            html: duplicate
+              ? Translate.instance(`error-${duplicate}-taken`)
+              : result.status === 'error' && result.message
                 ? result.message
                 : Translate.instance(`${result.status}-update-user`),
             status: result.status,

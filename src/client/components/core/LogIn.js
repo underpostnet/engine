@@ -114,7 +114,7 @@ class LogIn {
       );
     }
   }
-  static async instance() {
+  static async instance(options = {}) {
     setTimeout(async () => {
       const formData = [
         { model: 'email', id: `log-in-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
@@ -161,6 +161,7 @@ class LogIn {
           type: 'button',
         })}
       </div>
+      ${options.providerRender ? await options.providerRender({ view: 'log-in' }) : ''}
       <form class="in">
         <div class="in">
           ${await Input.instance({

@@ -97,6 +97,7 @@ class SignUp {
           )}`,
         type: 'button',
       })}
+      ${options?.providerRender ? await options.providerRender({ view: 'sign-up' }) : ''}
       <form class="in">
         <div class="in">
           ${await Input.instance({

@@ -24,7 +24,7 @@ class NotificationManager {
             color: #7a7a7a !important;
           }
         </style>
-        <div class="fix notification-board-container"></div>
+        <div class="fix notification-board-container" role="status" aria-live="polite"></div>
       `,
     );
   }

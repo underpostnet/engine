@@ -1,4 +1,5 @@
 import { Auth } from '../core/Auth.js';
+import { GoogleSignIn } from '../core/GoogleSignIn.js';
 import { LogIn } from '../core/LogIn.js';
 import { StudioCyberia } from '../cyberia/StudioCyberia.js';
 import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
@@ -11,7 +12,7 @@ class LogInCyberiaPortal {
     AppStoreCyberiaPortal.Data.user.main.model.user = user;
     if (changed) await StudioCyberia.reload();
   }, { key: 'LogInCyberiaPortal' });
-  const { user } = await Auth.sessionIn();
+  const { user } = (await GoogleSignIn.resume()) ?? (await Auth.sessionIn());
   AppStoreCyberiaPortal.Data.user.main.model.user = user;
   }
 }

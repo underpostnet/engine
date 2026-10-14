@@ -3,6 +3,7 @@ import { newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { Docs } from '../core/Docs.js';
 import { deployPackageReleaseUrl } from '../core/Repository.js';
+import { GoogleSignIn } from '../core/GoogleSignIn.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
@@ -87,11 +88,18 @@ class AppShellCyberiaPortal {
           image: 'map.png',
           view: () => ({ html: async () => await InstanceSelectionView.render({ appStore }) }),
         },
-        { id: 'log-in', image: 'log-in.png', view: () => ({ html: async () => await LogIn.instance() }) },
+        {
+          id: 'log-in',
+          image: 'log-in.png',
+          view: () => ({ html: async () => await LogIn.instance({ providerRender: GoogleSignIn.instance }) }),
+        },
         {
           id: 'sign-up',
           image: 'sign-up.png',
-          view: () => ({ html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }) }),
+          view: () => ({
+            html: async () =>
+              await SignUp.instance({ idModal: 'modal-sign-up', providerRender: GoogleSignIn.instance }),
+          }),
         },
         {
           id: 'log-out',
