@@ -180,6 +180,7 @@ const TEST_PROJECTS = [
       'src/client-builder/build-manifest.js',
       'src/client-builder/client-build-docs.js',
       'src/client/components/core/BuildManifest.js',
+      'src/client/components/core/GoogleSignIn.js',
       'src/client/components/core/ShellLayout.js',
       'src/client/components/core/ShellNavigation.js',
       'src/projects/underpost/*.js',
@@ -334,7 +335,7 @@ const TEST_PROJECTS = [
     groupOrder: 9,
     // Non-recursive: the ordered areas underneath are projects of their own.
     recursive: false,
-    sources: ['src/api/test/*.js'],
+    sources: ['src/api/google-auth/*.js', 'src/api/test/*.js'],
     description: 'Platform APIs served over a real server and a real database, and the test runner on real processes.',
   },
   {
