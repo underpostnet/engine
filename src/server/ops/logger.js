@@ -129,6 +129,8 @@ const redactSensitiveText = (value = '') =>
         )
         .replace(/([a-z][a-z0-9+.-]*\\?:(?:\\?\/){2})(?:(?:\\.)|[^/\\\s@])+(\\?@)/gi, '$1***$2')
         .replace(/\b(x-access-token\\?:)[^\s"']+?(?=\\?@github\.com\b)/gi, '$1***')
+        // OAuth 2.0 redirect parameters: the authorization code and the request state.
+        .replace(/([?&](?:code|state)=)[^&#\s"']+/g, `$1${REDACTED}`)
         .replace(
           /((?:"|')?(?:authorization|proxy-authorization)(?:"|')?\s*:\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+\S+|\S+)/gi,
           `$1"${REDACTED}"`,

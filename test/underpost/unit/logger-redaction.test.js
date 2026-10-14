@@ -108,6 +108,15 @@ describe('central logger redaction', () => {
     expect(output).to.include('[REDACTED]');
   });
 
+  it('filters the authorization code and state of an OAuth redirect from a request line', () => {
+    const line =
+      '127.0.0.1 GET www.cyberiaonline.com/api/v1/google-auth/callback?state=9f2c41d7&code=4/0AeanS0aXyZ&scope=email 302';
+    const output = renderLog(line);
+    expect(output).to.not.include('9f2c41d7');
+    expect(output).to.not.include('4/0AeanS0aXyZ');
+    expect(output).to.include('/google-auth/callback?state=[REDACTED]&code=[REDACTED]&scope=email');
+  });
+
   it('leaves ordinary operational context readable', () => {
     expect(redactSensitiveText('ssh operator@example.test :: uptime')).to.equal('ssh operator@example.test :: uptime');
   });
