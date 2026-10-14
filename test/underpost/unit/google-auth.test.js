@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'fs-extra';
 import { isValidUsername } from '../../../src/client/components/core/CommonJs.js';
-import {
-  GOOGLE_AUTH_SCOPES,
-  googleAuthConfig,
-  googleClaims,
-  returnPath,
-  usernameCandidates,
-} from '../../../src/api/google-auth/google-auth.service.js';
+
+// A sliced tree ships only the APIs of its default conf.
+const googleAuthApi = fs.existsSync('./src/api/google-auth');
+const describeGoogleAuth = describe.skipIf(!googleAuthApi);
+const { GOOGLE_AUTH_SCOPES, googleAuthConfig, googleClaims, returnPath, usernameCandidates } = googleAuthApi
+  ? await import('../../../src/api/google-auth/google-auth.service.js')
+  : {};
 
 const options = { host: 'www.cyberiaonline.com', path: '/', apiPath: '/api/v1' };
 const GOOGLE_ENV = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL'];
@@ -21,7 +22,7 @@ const setEnv = (values) => {
 
 afterEach(() => setEnv(saved));
 
-describe('Google sign-in configuration', () => {
+describeGoogleAuth('Google sign-in configuration', () => {
   it('is off without a client id or a client secret', () => {
     setEnv({ GOOGLE_CLIENT_SECRET: 'secret' });
     expect(googleAuthConfig(options)).toBeNull();
@@ -69,7 +70,7 @@ describe('Google sign-in configuration', () => {
   });
 });
 
-describe('Google email authority', () => {
+describeGoogleAuth('Google email authority', () => {
   const profile = (email, { verified = true, hd } = {}) => ({
     id: '1',
     emails: [{ value: email, verified }],
@@ -91,7 +92,7 @@ describe('Google email authority', () => {
   });
 });
 
-describe('Google sign-in usernames', () => {
+describeGoogleAuth('Google sign-in usernames', () => {
   it('derives a valid username from the Google name', () => {
     expect(usernameCandidates('José Pérez')[0]).toBe('jose-perez');
     expect(usernameCandidates("Ana  O'Neil!")[0]).toBe('ana-o-neil');

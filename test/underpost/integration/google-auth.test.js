@@ -3,10 +3,12 @@
  * stubs of its token and userinfo endpoints. The authorization request, the state cookie, PKCE,
  * the account resolution and linking, the one-time ticket and the session it opens all run for real.
  *
- * Needs a `mongod` binary: `UNDERPOST_MONGOD_BIN`, or one on PATH. Skipped otherwise.
+ * Needs the `google-auth` API, which a sliced tree drops, and a `mongod` binary: `UNDERPOST_MONGOD_BIN`,
+ * or one on PATH. Skipped otherwise.
  */
 import crypto from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import fs from 'fs-extra';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { OAuth2 } from 'oauth';
@@ -15,9 +17,11 @@ import { authMiddlewareFactory } from '../../../src/server/security/auth.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 import { UserDto } from '../../../src/api/user/user.model.js';
 import { UserRouter } from '../../../src/api/user/user.router.js';
-import { GoogleAuthRouter } from '../../../src/api/google-auth/google-auth.router.js';
-import { GoogleAuthService } from '../../../src/api/google-auth/google-auth.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
+
+const googleAuthApi = fs.existsSync('./src/api/google-auth');
+const { GoogleAuthRouter } = googleAuthApi ? await import('../../../src/api/google-auth/google-auth.router.js') : {};
+const { GoogleAuthService } = googleAuthApi ? await import('../../../src/api/google-auth/google-auth.service.js') : {};
 
 const A = { host: 'a.test', path: '/' };
 const B = { host: 'b.test', path: '/' };
@@ -142,7 +146,7 @@ const logIn = async (client, email) => {
   return (await res.json()).data.token;
 };
 
-describe.skipIf(!mongodBinary)('Google sign-in', () => {
+describe.skipIf(!googleAuthApi || !mongodBinary)('Google sign-in', () => {
   let mongod;
   let originA;
   let originB;
