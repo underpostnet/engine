@@ -17,12 +17,9 @@ import { EventsUI } from '../core/EventsUI.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { getProxyPath } from '../core/Router.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import {
-  defaultInstanceProvider,
-  placeholderThumbnail,
-  DEFAULT_CLIENT_BASE_URL,
-  STATUS_META,
-} from '../cyberia/InstanceSelectionView.js';
+import { defaultInstanceProvider, placeholderThumbnail, STATUS_META } from '../cyberia/InstanceSelectionView.js';
+import { launchWorld } from '../cyberia/GameLaunchCyberia.js';
+import { DEFAULT_INSTANCE_CODE } from '../cyberia/SharedDefaultsCyberia.js';
 
 const LANDING_WORLD_LIMIT = 3;
 
@@ -140,7 +137,7 @@ class MainBodyCyberiaPortal {
 
     const launch = () => {
       const world = selectedWorld();
-      if (!world) return (location.href = `${DEFAULT_CLIENT_BASE_URL}/`);
+      if (!world) return launchWorld(DEFAULT_INSTANCE_CODE);
       if (!world.playable) {
         NotificationManager.Push({
           html: `${world.name} is ${statusMeta(world.status).label}.`,
@@ -148,7 +145,7 @@ class MainBodyCyberiaPortal {
         });
         return;
       }
-      location.href = world.playUrl || `${DEFAULT_CLIENT_BASE_URL}/`;
+      launchWorld(world.code);
     };
 
     const load = async () => {

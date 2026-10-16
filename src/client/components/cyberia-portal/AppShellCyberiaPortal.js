@@ -23,6 +23,8 @@ import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
+import { gameClientUrl } from '../cyberia/GameLaunchCyberia.js';
+import { DEFAULT_INSTANCE_CODE } from '../cyberia/SharedDefaultsCyberia.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
 import { ProceduralEngineCyberia } from '../cyberia/ProceduralEngineCyberia.js';
@@ -141,7 +143,7 @@ class AppShellCyberiaPortal {
               await Docs.instance({
                 idModal: 'modal-docs',
                 ...Docs.uiIcons({ iconClass: 'cyberia-menu-icon' }),
-                demoUrl: () => `https://client.cyberiaonline.com/`,
+                demoUrl: () => gameClientUrl(DEFAULT_INSTANCE_CODE),
                 lastReleaseUrl: deployPackageReleaseUrl,
               }),
           }),

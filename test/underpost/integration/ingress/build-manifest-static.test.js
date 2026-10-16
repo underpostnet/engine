@@ -4,13 +4,19 @@ import http from 'node:http';
 import fs from 'fs-extra';
 import os from 'os';
 import nodePath from 'path';
-import { staticFileHeaders } from '../../../../src/server/network/middlewares.js';
+import { ssrViewHeaderRoutes, staticFileHeaders } from '../../../../src/server/network/middlewares.js';
 import { buildManifestFactory, writeBuildManifest } from '../../../../src/client-builder/build-manifest.js';
 import { BUILD_MANIFEST_REL } from '../../../../src/client/components/core/BuildManifest.js';
 
 /** The relation specification: a page of the underpost client, at the path of the relation URI. */
 const RELATION_PATH = new URL(BUILD_MANIFEST_REL).pathname;
 const SPECIFICATION = `./src/client/public/underpost${RELATION_PATH}`;
+
+/** SSR views of a client: one declares the headers of a document never cached. */
+const VIEWS = [
+  { path: '/launch', headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } },
+  { path: '/offline' },
+];
 
 /** A raw GET: fetch adds `Cache-Control: no-cache` to a conditional request, which always reloads. */
 const rawGet = (url, headers) =>
@@ -32,7 +38,10 @@ describe('the served build manifest', () => {
     writeBuildManifest(`${root}/test`, subPathManifest);
     if (fs.existsSync(SPECIFICATION)) fs.copySync(SPECIFICATION, `${root}${RELATION_PATH}`);
     fs.outputFileSync(`${root}/assets/icon.png`, 'png');
+    fs.outputFileSync(`${root}/launch/index.html`, '<!doctype html>');
+    fs.outputFileSync(`${root}/offline/index.html`, '<!doctype html>');
     const app = express();
+    for (const [route, setHeaders] of ssrViewHeaderRoutes(VIEWS, '/')) app.use(route, setHeaders);
     app.use('/', express.static(root, { setHeaders: staticFileHeaders }));
     server = await new Promise((resolve) => {
       const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
@@ -55,6 +64,15 @@ describe('the served build manifest', () => {
     const body = await response.text();
     expect(body).toBe(fs.readFileSync(`${root}${base}/underpost.manifest`, 'utf8'));
     expect(JSON.parse(body)).toEqual(expected());
+  });
+
+  it('serves a view with the headers it declares, and no other view with them', async () => {
+    const launch = await fetch(`${origin}/launch/`);
+    expect(launch.status).toBe(200);
+    expect(launch.headers.get('cache-control')).toBe('no-store');
+    expect(launch.headers.get('referrer-policy')).toBe('no-referrer');
+    expect((await fetch(`${origin}/offline/`)).headers.get('referrer-policy')).toBeNull();
+    expect(ssrViewHeaderRoutes(VIEWS, '/test').map(([route]) => route)).toEqual(['/test/launch']);
   });
 
   it('revalidates the stable URL on every use instead of caching it for good', async () => {

@@ -10,6 +10,14 @@
 export const DEFAULT_INSTANCE_CODE = 'amethyst-strata-expansion';
 
 /**
+ * The path of a world on its game client and server: the default world at the root, any other
+ * under its code.
+ * @param {string} code
+ * @returns {string}
+ */
+export const worldPathOf = (code) => (code && code !== DEFAULT_INSTANCE_CODE ? `/${encodeURIComponent(code)}` : '');
+
+/**
  * Canonical set of ObjectLayer item type names. Used as the
  * `data.item.type` discriminator and as the asset directory name on disk.
  *

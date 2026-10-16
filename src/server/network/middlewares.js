@@ -173,6 +173,26 @@ const staticFileHeaders = (res, filePath) => {
 };
 
 /**
+ * The routes that set the response headers SSR views declare, such as a document never cached:
+ * one `[path, middleware]` pair per view with `headers`, under the proxy path of the application.
+ * @method ssrViewHeaderRoutes
+ * @param {Array<{path: string, headers?: Object<string, string>}>} views - The SSR views of the client.
+ * @param {string} path - The proxy path of the application.
+ * @returns {Array<[string, import('express').RequestHandler]>}
+ * @memberof Middlewares
+ */
+const ssrViewHeaderRoutes = (views, path) =>
+  views
+    .filter((view) => view.headers)
+    .map((view) => [
+      `${path === '/' ? '' : path}${view.path}`,
+      (req, res, next) => {
+        res.set(view.headers);
+        next();
+      },
+    ]);
+
+/**
  * Binary response with cross-origin and content headers. With an `etag`, a client that already
  * holds that entity gets `304` and no body.
  * @method sendBlob
@@ -307,6 +327,7 @@ export {
   sendError,
   keepRawBody,
   staticFileHeaders,
+  ssrViewHeaderRoutes,
   sendBlob,
   controllerHandler,
   serviceHandler,

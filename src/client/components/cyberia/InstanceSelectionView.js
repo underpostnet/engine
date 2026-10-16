@@ -17,9 +17,10 @@
 //
 // NormalizedInstance:
 //   { id, code, name, description, thumbnailUrl, status, players, capacity,
-//     tags[], playUrl, playable }
+//     tags[], playable }
 // `status` ∈ STATUS_ORDER. `playable` is derived from status but may be
-// overridden by the provider.
+// overridden by the provider. Play enters the world through the launch bridge
+// (GameLaunchCyberia).
 
 import { ThemeEvents, darkTheme } from '../core/Css.js';
 import { Translate } from '../core/Translate.js';
@@ -29,16 +30,7 @@ import { getProxyPath } from '../core/Router.js';
 import { ListPager } from '../core/ListPager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
-import { DEFAULT_INSTANCE_CODE } from './SharedDefaultsCyberia.js';
-
-// Client deployment that actually hosts the playable worlds. Matches the portal
-// landing CTA (MainBodyCyberiaPortal); override per-instance via `onPlay`.
-const DEFAULT_CLIENT_BASE_URL = 'https://client.cyberiaonline.com';
-
-// Authoritative simulation host and the default instance's code, mirroring the
-// mmo-server multiInstance block in conf.instances.json. The default variant is
-// served at `/`; other variants use their literal `/<CODE>` path.
-const DEFAULT_SERVER_BASE_URL = 'https://server.cyberiaonline.com';
+import { gameServerUrl, launchWorld } from './GameLaunchCyberia.js';
 
 const placeholderThumbnail = () => `${getProxyPath()}assets/ui-icons/world-default-forest-city.png`;
 
@@ -83,7 +75,7 @@ const resolveStatus = (doc) => {
   return 'online';
 };
 
-const normalizeInstance = (doc, { clientBaseUrl }) => {
+const normalizeInstance = (doc) => {
   const code = doc.code || '';
   const status = resolveStatus(doc);
   const players = Number(doc.players ?? doc.onlinePlayers);
@@ -98,22 +90,13 @@ const normalizeInstance = (doc, { clientBaseUrl }) => {
     players: Number.isFinite(players) ? players : null,
     capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
     tags: Array.isArray(doc.tags) ? doc.tags.filter(Boolean) : [],
-    playUrl: `${clientBaseUrl}${code && code !== DEFAULT_INSTANCE_CODE ? `/${encodeURIComponent(code)}` : ''}`,
     playable: statusMeta(status).playable,
   };
 };
 
 // ── Live status via the cyberia-server metrics API ───────────────────────────
-// The default is served at `/`; other variants use the compact `/<CODE>` paths
-// from conf.instances.json. The proxy strips non-root prefixes, so each world's
-// own /api/v1/metrics reports its health + capacity.
-// Cross-origin, so the metrics CORS allow-list (CYBERIA_CORS_ALLOWED_ORIGINS)
-// must include this portal.
-
-const metricsUrlFor = (code, { serverBaseUrl, defaultInstanceCode }) => {
-  const path = code && code !== defaultInstanceCode ? `/${encodeURIComponent(code)}` : '';
-  return `${serverBaseUrl}${path}/api/v1/metrics`;
-};
+// Each world's own /api/v1/metrics reports its health and capacity. Cross-origin,
+// so the metrics CORS allow-list (CYBERIA_CORS_ALLOWED_ORIGINS) includes this portal.
 
 // Map a metrics snapshot onto the card status vocabulary. Both sides are closed
 // sets (metrics.go HealthStatus / WorkloadLevel); a null snapshot means the
@@ -144,10 +127,10 @@ const fetchInstanceMetrics = async (url, timeoutMs = 3500) => {
 
 // Best-effort live overlay: replaces each instance's status + population from its
 // metrics endpoint (parallel; unreachable reads as offline). Mutates in place.
-const enrichWithLiveStatus = async (instances, opts) => {
+const enrichWithLiveStatus = async (instances) => {
   await Promise.all(
     instances.map(async (inst) => {
-      const m = await fetchInstanceMetrics(metricsUrlFor(inst.code, opts));
+      const m = await fetchInstanceMetrics(`${gameServerUrl(inst.code)}/api/v1/metrics`);
       inst.status = statusFromMetrics(m);
       if (m) {
         const players = Number(m.entities?.total_entities);
@@ -166,21 +149,13 @@ const enrichWithLiveStatus = async (instances, opts) => {
 // `liveStatus`) overlays real Online/Busy/Full/Maintenance/Offline from the
 // metrics API of each world on the page. Swap the whole thing via
 // `render({ fetchInstances })` to source instances from anywhere.
-const defaultInstanceProvider = async ({
-  clientBaseUrl = DEFAULT_CLIENT_BASE_URL,
-  serverBaseUrl = DEFAULT_SERVER_BASE_URL,
-  defaultInstanceCode = DEFAULT_INSTANCE_CODE,
-  liveStatus = true,
-  page = 1,
-  limit = 12,
-  search = '',
-} = {}) => {
+const defaultInstanceProvider = async ({ liveStatus = true, page = 1, limit = 12, search = '' } = {}) => {
   const filterModel = { status: { filterType: 'text', type: 'notEqual', filter: 'archived' } };
   if (search) filterModel.name = { filterType: 'text', type: 'contains', filter: search };
   const res = await CyberiaInstanceService.get({ sort: 'createdAt', order: 'asc', page, limit, filterModel });
   if (res?.status !== 'success') throw new Error(res?.message || 'Could not load instances');
-  const instances = res.data.data.map((doc) => normalizeInstance(doc, { clientBaseUrl }));
-  if (liveStatus && instances.length > 0) await enrichWithLiveStatus(instances, { serverBaseUrl, defaultInstanceCode });
+  const instances = res.data.data.map(normalizeInstance);
+  if (liveStatus && instances.length > 0) await enrichWithLiveStatus(instances);
   return { data: instances, total: res.data.total };
 };
 
@@ -282,14 +257,7 @@ const errorState = (message) => html`
 
 class InstanceSelectionView {
   static async render(options = {}) {
-    const {
-      fetchInstances = (o) => defaultInstanceProvider(o),
-      onPlay,
-      clientBaseUrl = DEFAULT_CLIENT_BASE_URL,
-      serverBaseUrl = DEFAULT_SERVER_BASE_URL,
-      defaultInstanceCode = DEFAULT_INSTANCE_CODE,
-      liveStatus = true,
-    } = options;
+    const { fetchInstances = (o) => defaultInstanceProvider(o), liveStatus = true } = options;
 
     const id = 'instance-selection';
     // Per-render UI state (closure-scoped; the view owns no persistent data): the shown page.
@@ -310,11 +278,7 @@ class InstanceSelectionView {
         });
         return;
       }
-      const defaultSuffix = `/${encodeURIComponent(DEFAULT_INSTANCE_CODE)}`;
-      if (instance.playUrl?.endsWith(defaultSuffix))
-        instance.playUrl = instance.playUrl.slice(0, -defaultSuffix.length);
-      if (typeof onPlay === 'function') return onPlay(instance);
-      if (instance.playUrl) location.href = instance.playUrl;
+      launchWorld(instance.code);
     };
 
     const renderGrid = () => {
@@ -348,9 +312,6 @@ class InstanceSelectionView {
       if (s(gridSel)) htmls(gridSel, skeletonGrid());
       try {
         return await fetchInstances({
-          clientBaseUrl,
-          serverBaseUrl,
-          defaultInstanceCode,
           liveStatus,
           page,
           limit,
@@ -892,7 +853,6 @@ export {
   InstanceSelectionView,
   defaultInstanceProvider,
   placeholderThumbnail,
-  DEFAULT_CLIENT_BASE_URL,
   normalizeInstance,
   resolveStatus,
   statusFromMetrics,

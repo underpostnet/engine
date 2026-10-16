@@ -25,7 +25,12 @@ import { shellExec } from '../../server/runtime/process.js';
 import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
 import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
-import { keepRawBody, publicRouteFallbackFactory, staticFileHeaders } from '../../server/network/middlewares.js';
+import {
+  keepRawBody,
+  publicRouteFallbackFactory,
+  ssrViewHeaderRoutes,
+  staticFileHeaders,
+} from '../../server/network/middlewares.js';
 import { publicRouteRenderersFactory } from '../../server/network/public-route-renderers.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
@@ -151,6 +156,12 @@ class ExpressService {
       req.lang = typeof lang === 'string' && lang.toLowerCase().match('es') ? 'es' : 'en';
       return next();
     });
+
+    for (const [route, setHeaders] of ssrViewHeaderRoutes(
+      (client && confSSR[getCapVariableName(client)]?.views) || [],
+      path,
+    ))
+      app.use(route, setHeaders);
 
     // Static file serving
     app.use('/', express.static(directory ? directory : `.${rootHostPath}`, { setHeaders: staticFileHeaders }));
