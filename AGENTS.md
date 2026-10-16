@@ -128,7 +128,7 @@ records the deployed artifact in `content-lock.json`.
 - `cyberia-content` is not a package dependency of the product. Never add it to
   `catalog-cyberia.js`.
 - `src/projects/cyberia` has one directory per capability: `catalog`, `content`, `instance`,
-  `object-layer`, `procedural`, `runtime`, `saga`, `stack`, `stats`. Its root holds only the
+  `object-layer`, `player`, `procedural`, `runtime`, `saga`, `stack`, `stats`. Its root holds only the
   modules the platform loads by name: `catalog-cyberia.js`, `compose-stack.js`,
   `instance-data.js` and the `<api>.extension.js` modules.
 - Add no content, prompts or semantic generator code here.

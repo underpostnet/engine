@@ -1,6 +1,8 @@
-import { buildCrudController } from '../../server/network/middlewares.js';
+import { serviceHandler } from '../../server/network/middlewares.js';
 import { CyberiaQuestProgressService } from './cyberia-quest-progress.service.js';
 
-const CyberiaQuestProgressController = buildCrudController(CyberiaQuestProgressService);
+class CyberiaQuestProgressController {
+  static get = serviceHandler(CyberiaQuestProgressService.get, { pagination: true });
+}
 
 export { CyberiaQuestProgressController };

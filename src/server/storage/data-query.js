@@ -32,6 +32,22 @@ class DataQuery {
   }
 
   /**
+   * One page of a model, read with the parameters `parse` takes.
+   * @param {import('mongoose').Model} Model
+   * @param {Object} params - The request query parameters (req.query).
+   * @memberof DataQuery
+   * @returns {Promise<{data: Object[], total: number, page: number, totalPages: number}>}
+   */
+  static async findPage(Model, params = {}) {
+    const { query, sort, skip, limit, page } = DataQuery.parse(params);
+    const [data, total] = await Promise.all([
+      Model.find(query).sort(sort).limit(limit).skip(skip).lean(),
+      Model.countDocuments(query),
+    ]);
+    return { data, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
    * Parse request query parameters into Mongoose query options
    * @param {Object} params - The request query parameters (req.query)
    * @param {string|Object} [params.filterModel] - AG Grid filterModel as JSON string or object

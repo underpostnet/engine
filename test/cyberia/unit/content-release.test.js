@@ -729,6 +729,8 @@ describe('deploy pipeline', () => {
   it('starts the pod on the served release, and builds the candidate in a Release Job', () => {
     const podCmd = script.slice(script.indexOf('pod_cmd="$(pod_bootstrap_cmd'), script.indexOf('underpost start'));
     expect(podCmd).not.toContain('content-release');
+    // Removing player data is an operator step, never a deploy side effect.
+    expect(script).not.toContain('prune-quest-progress');
     const candidate = script.slice(
       script.indexOf('stage_content_candidate() {'),
       script.indexOf('stage_promotion() {'),

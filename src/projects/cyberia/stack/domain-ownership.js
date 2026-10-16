@@ -31,9 +31,18 @@ export const DOMAIN_APIS = Object.freeze({
   ]),
 });
 
+/** Cyberia records of accounts and their players: profiles, sessions, tickets, friendships, quest progress. */
+export const CYBERIA_PLAYER_APIS = Object.freeze([
+  'cyberia-player',
+  'cyberia-game-session',
+  'cyberia-game-ticket',
+  'cyberia-friendship',
+  'cyberia-quest-progress',
+]);
+
 /** Cyberia records that are runtime state or Studio workflow: never inside a content release. */
 export const CYBERIA_RUNTIME_APIS = Object.freeze([
-  'cyberia-quest-progress',
+  ...CYBERIA_PLAYER_APIS,
   'cyberia-server-registry',
   'cyberia-global-map-code-registry',
   'cyberia-content-release',

@@ -67,6 +67,9 @@ const CONTENT_APIS = [
   'cyberia-instance-conf',
 ];
 const RUNTIME_APIS = ['cyberia-content-release', 'cyberia-quest-progress', 'cyberia-server-registry', 'file', 'user'];
+/** Two player profiles whose quest progress no content operation may touch. */
+const PLAYER_1 = '64a000000000000000000001';
+const PLAYER_2 = '64a000000000000000000002';
 const WORKSPACE = 'cyberia-content';
 const releaseDb = (id) => `${WORKSPACE}-${id}`;
 
@@ -331,11 +334,11 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
     // Player state that no content operation may touch.
     await model('CyberiaQuestProgress').create([
       {
-        playerId: 'p1',
+        player: PLAYER_1,
         questCode: 'q1',
         stepProgress: [{ stepId: 's1', objectiveProgress: [{ current: 1, required: 1 }] }],
       },
-      { playerId: 'p2', questCode: 'q1', status: 'completed' },
+      { player: PLAYER_2, questCode: 'q1', status: 'completed' },
     ]);
   });
 
@@ -724,10 +727,10 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
     });
 
     it('never rewrites player state', async () => {
-      const progress = await model('CyberiaQuestProgress').find({}).sort({ playerId: 1 }).lean();
-      expect(progress.map((row) => [row.playerId, row.status])).toEqual([
-        ['p1', 'active'],
-        ['p2', 'completed'],
+      const progress = await model('CyberiaQuestProgress').find({}).sort({ player: 1 }).lean();
+      expect(progress.map((row) => [String(row.player), row.status])).toEqual([
+        [PLAYER_1, 'active'],
+        [PLAYER_2, 'completed'],
       ]);
       expect(progress[0].stepProgress[0].objectiveProgress[0].current).toBe(1);
     });

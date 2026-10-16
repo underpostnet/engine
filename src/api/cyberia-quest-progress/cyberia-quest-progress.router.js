@@ -1,7 +1,5 @@
 import express from 'express';
-import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { moderatorGuard } from '../../server/security/auth.js';
-import { serverKeyGuard } from '../../projects/cyberia/runtime/server-key.js';
 import { CyberiaQuestProgressController } from './cyberia-quest-progress.controller.js';
 
 class CyberiaQuestProgressRouter {
@@ -10,11 +8,12 @@ class CyberiaQuestProgressRouter {
    * @returns {import('express').Router}
    */
   static router(options) {
-    // Player progress: the game server writes it with the server key; moderators read it.
-    return registerCrudRoutes(express.Router(), CyberiaQuestProgressController, options, {
-      readGuards: [options.authMiddleware, moderatorGuard],
-      writeGuards: [serverKeyGuard],
-    });
+    // The game server writes progress over gRPC; moderators read it here.
+    const router = express.Router();
+    const guards = [options.authMiddleware, moderatorGuard];
+    router.get('/:id', ...guards, async (req, res) => CyberiaQuestProgressController.get(req, res, options));
+    router.get('/', ...guards, async (req, res) => CyberiaQuestProgressController.get(req, res, options));
+    return router;
   }
 }
 

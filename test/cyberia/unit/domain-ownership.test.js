@@ -281,7 +281,7 @@ describe('API ownership of one host', () => {
 });
 
 // The live deploy configuration, when this checkout carries it.
-const confDir = new URL('../../../engine-private/conf/dd-cyberia', import.meta.url);
+const confDir = new URL('../../../engine-private/conf/dd-cyberia/', import.meta.url);
 describe.skipIf(!fs.existsSync(new URL('conf.server.json', confDir)))('dd-cyberia configuration', () => {
   it('is consistent', async () => {
     const { default: dotenv } = await import('dotenv');

@@ -1,32 +1,26 @@
 import { Schema, model } from 'mongoose';
 
-// https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
+const QUEST_STATUSES = Object.freeze(['active', 'completed']);
 
 const CyberiaQuestProgressSchema = new Schema(
   {
-    // Matches the simulation server's player UUID
-    playerId: { type: String, required: true, trim: true },
+    // The profile that owns the progress. The profile names the world.
+    player: { type: Schema.Types.ObjectId, ref: 'CyberiaPlayer', required: true },
     // References CyberiaQuest.code
     questCode: { type: String, required: true, trim: true },
-    // active | completed
-    // Quests do not fail — they stay active until completed or abandoned by the player.
-    status: {
-      type: String,
-      required: true,
-      enum: ['active', 'completed'],
-      default: 'active',
-    },
+    // An abandoned quest has no record, so it can be accepted again.
+    status: { type: String, required: true, enum: QUEST_STATUSES, default: 'active' },
     // One entry per step in the corresponding CyberiaQuest.steps[].
     // A step is complete when all its objectiveProgress entries satisfy current >= required.
-    // The active step is the first step where not all objectives are done.
-    // done flags are intentionally omitted — completeness is always computed, never stored.
     stepProgress: [
       {
+        _id: false,
         stepId: { type: String, required: true },
-        // One entry per objective in CyberiaQuest.steps[i].objectives[].
-        // `required` is denormalized from the quest definition for efficient server checks.
+        // One entry per objective in CyberiaQuest.steps[i].objectives[]; `required` is copied from
+        // the quest definition when the quest starts.
         objectiveProgress: [
           {
+            _id: false,
             current: { type: Number, default: 0, min: 0 },
             required: { type: Number, default: 1, min: 1 },
           },
@@ -39,11 +33,10 @@ const CyberiaQuestProgressSchema = new Schema(
   { timestamps: true },
 );
 
-CyberiaQuestProgressSchema.index({ playerId: 1, questCode: 1 }, { unique: true });
-CyberiaQuestProgressSchema.index({ playerId: 1, status: 1 });
+CyberiaQuestProgressSchema.index({ player: 1, questCode: 1 }, { unique: true });
 
 const CyberiaQuestProgressModel = model('CyberiaQuestProgress', CyberiaQuestProgressSchema);
 
 const ProviderSchema = CyberiaQuestProgressSchema;
 
-export { CyberiaQuestProgressSchema, CyberiaQuestProgressModel, ProviderSchema };
+export { CyberiaQuestProgressSchema, CyberiaQuestProgressModel, ProviderSchema, QUEST_STATUSES };
