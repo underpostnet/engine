@@ -27,7 +27,6 @@ import {
   typedocOptionsFactory,
 } from '../server/build/docs.js';
 import { documentationHref } from '../client/components/core/CommonJs.js';
-import { ssrFactory } from './ssr.js';
 import { API_BASE_PATH } from '../server/domain/api-contract.js';
 
 /**
@@ -636,18 +635,4 @@ const buildDocs = async ({
   });
 };
 
-/**
- * Builds Swagger UI customization options by rendering the SwaggerDarkMode SSR body component.
- * Returns the customCss and customJsStr strings required by swagger-ui-express to enable
- * a dark/light mode toggle button with a black/gray gradient dark theme.
- * @function buildSwaggerUiOptions
- * @memberof clientBuildDocs
- * @returns {Promise<{customCss: string, customJsStr: string}>} Swagger UI setup options
- */
-const buildSwaggerUiOptions = async () => {
-  const swaggerDarkMode = await ssrFactory('./src/client/ssr/body/SwaggerDarkMode.js');
-  const { css, js } = swaggerDarkMode();
-  return { customCss: css, customJsStr: js };
-};
-
-export { buildCoverage, buildDocs, buildDocsReferences, buildSwaggerUiOptions };
+export { buildCoverage, buildDocs, buildDocsReferences };

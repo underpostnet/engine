@@ -1,23 +1,32 @@
-SSRComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, buildManifestHead }) => html`
+SSRComponent = ({
+  title,
+  ssrPath,
+  buildId,
+  ssrHeadComponents,
+  ssrBodyComponents,
+  buildManifestHead = '',
+  sessionState,
+  theme,
+}) => html`
   <!DOCTYPE html>
-  <html dir="ltr" lang="en">
+  <html
+    dir="ltr"
+    lang="en"
+    data-session="${sessionState === 'log-in' ? 'log-in' : 'log-out'}"
+    data-theme="${theme === 'light' ? 'light' : 'dark'}"
+  >
     <head>
       <title>${title}</title>
       <link rel="icon" type="image/x-icon" href="${ssrPath}favicon.ico" />
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-      ${buildManifestHead}
-      ${ssrHeadComponents}
-    </head>
-    <body>
-      <style>
+      ${buildManifestHead} ${ssrHeadComponents}
+      <style class="root-style">
         html {
           scroll-behavior: smooth;
         }
 
         body {
-          /* overscroll-behavior: contain; */
-          /* box-sizing: border-box; */
           padding: 0px;
           margin: 0px;
         }
@@ -64,7 +73,6 @@ SSRComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents,
 
         .stq {
           position: sticky;
-          /* require defined at least top, bottom, left o right */
         }
 
         .wfa {
@@ -142,12 +150,6 @@ SSRComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents,
         .hide {
           display: none !important;
         }
-        /*
-
-placeholder
-
-*/
-
         ::placeholder {
           color: black;
           opacity: 1;
@@ -166,12 +168,6 @@ placeholder
           color: black;
           background: none;
         }
-
-        /*
-
-selection
-
-*/
 
         ::-moz-selection {
           /* Code for Firefox */
@@ -205,30 +201,35 @@ selection
         .gray {
           filter: grayscale(1);
         }
+
+        /* Every state except log-in shows the log-out UI. */
+        :root:not([data-session='log-in']) .session-in-log-in,
+        :root:not([data-session='log-in']) .session-inl-log-in,
+        :root:not([data-session='log-in']) .session-fl-log-in,
+        :root[data-session='log-in'] .session-in-log-out,
+        :root[data-session='log-in'] .session-inl-log-out,
+        :root[data-session='log-in'] .session-fl-log-out {
+          display: none;
+        }
+
+        :root:not([data-session='log-in']) .session-in-log-out,
+        :root[data-session='log-in'] .session-in-log-in {
+          display: block;
+        }
+
+        :root:not([data-session='log-in']) .session-inl-log-out,
+        :root[data-session='log-in'] .session-inl-log-in {
+          display: inline-table;
+        }
+
+        :root:not([data-session='log-in']) .session-fl-log-out,
+        :root[data-session='log-in'] .session-fl-log-in {
+          display: flow-root;
+        }
       </style>
-      <div class="session">
-        <style>
-          .session-in-log-out {
-            display: block;
-          }
-          .session-inl-log-out {
-            display: inline-table;
-          }
-          .session-fl-log-out {
-            display: flow-root;
-          }
-          .session-in-log-in {
-            display: none;
-          }
-          .session-inl-log-in {
-            display: none;
-          }
-          .session-fl-log-in {
-            display: none;
-          }
-        </style>
-      </div>
-      <div class="theme"></div>
+      <style class="theme-style"></style>
+    </head>
+    <body>
       ${ssrBodyComponents} ${buildId ? html`<script async type="module" src="./${buildId}.js"></script>` : ''}
     </body>
   </html>

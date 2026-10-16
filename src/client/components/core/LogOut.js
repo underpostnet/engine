@@ -3,7 +3,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { AuthEventType, authLogoutEvents } from './ClientEvents.js';
 import { LogIn } from './LogIn.js';
 import { Translate } from './Translate.js';
-import { htmls, s } from './VanillaJs.js';
+import { s } from './VanillaJs.js';
 import { WebhookProvider } from './Webhook.js';
 import { NotificationManager } from './NotificationManager.js';
 class LogOut {
@@ -21,30 +21,7 @@ class LogOut {
     await WebhookProvider.unregister();
     await authLogoutEvents.emit(AuthEventType.logout, options);
     for (const eventKey of Object.keys(LogOut.Event)) await LogOut.Event[eventKey](options);
-    if (s(`.session`))
-      htmls(
-        `.session`,
-        html`<style>
-          .session-in-log-out {
-            display: block;
-          }
-          .session-inl-log-out {
-            display: inline-table;
-          }
-          .session-fl-log-out {
-            display: flow-root;
-          }
-          .session-in-log-in {
-            display: none;
-          }
-          .session-inl-log-in {
-            display: none;
-          }
-          .session-fl-log-in {
-            display: none;
-          }
-        </style>`,
-      );
+    document.documentElement.dataset.session = 'log-out';
   }
   static async instance() {
     setTimeout(() => {

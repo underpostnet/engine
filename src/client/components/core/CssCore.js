@@ -14,7 +14,7 @@ const CssCommonCore = async () => {
         href="${getProxyPath()}dist/fontawesome/css/all.min.css"
       />`,
     );
-  await AgGrid.RenderStyle();
+  const agGridStyle = await AgGrid.RenderStyle();
   return html`<style>
       .top-bar {
         transition: 0.3s;
@@ -234,8 +234,7 @@ const CssCommonCore = async () => {
         width: 275px;
       }
     </style>
-    ${boxShadow({ selector: '.account-profile-image' })}
-    <div class="ag-grid-style"></div>`;
+    ${boxShadow({ selector: '.account-profile-image' })} ${agGridStyle}`;
 };
 class CssCoreDark {
   static theme = 'core-dark';

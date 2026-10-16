@@ -25,7 +25,11 @@ const ssrFactory = async (componentPath = `./src/client/ssr/RootDocument.js`) =>
   const context = { SSRComponent: () => {}, npm_package_version: Underpost.version };
   vm.createContext(context);
   vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
-  return context.SSRComponent;
+  return (...args) => {
+    const markup = context.SSRComponent(...args);
+    if (typeof markup !== 'string') throw new TypeError(`SSR component must return HTML: ${componentPath}`);
+    return markup;
+  };
 };
 
 /**
@@ -40,9 +44,12 @@ const ssrFactory = async (componentPath = `./src/client/ssr/RootDocument.js`) =>
 const sanitizeHtml = (res, req, html) => {
   const nonce = res.locals.nonce;
 
-  return html
-    .replace(/<script(?=\s|>)/gi, `<script nonce="${nonce}"`)
-    .replace(/<style(?=\s|>)/gi, `<style nonce="${nonce}"`);
+  return html.replace(/<(script|style)(?=\s|>)((?:[^>"']|"[^"]*"|'[^']*')*)>/gi, (_, tag, attributes) => {
+    const cleanAttributes = (attributes.match(/[^\s=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s]+))?/g) || [])
+      .filter((attribute) => !/^nonce(?:\s*=|$)/i.test(attribute))
+      .join(' ');
+    return `<${tag} nonce="${nonce}"${cleanAttributes ? ` ${cleanAttributes}` : ''}>`;
+  });
 };
 
 /**

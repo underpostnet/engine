@@ -68,7 +68,7 @@ class Css {
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = Css.menuButtonContainer();
-      document.head.appendChild(style);
+      append('head', style.outerHTML);
     }
     return await Themes[theme](options);
   }
@@ -175,11 +175,10 @@ const TriggerThemeEvents = () => {
   localStorage.setItem('_theme', Css.currentTheme);
   Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
-// The splash paints the theme it reads from storage under `html.ssr-theme-<dark|light>`, and its
-// rules stay in the document. Keeping the class on the live theme keeps them in agreement with it.
-const syncDocumentTheme = () => {
-  document.documentElement.classList.toggle('ssr-theme-dark', darkTheme);
-  document.documentElement.classList.toggle('ssr-theme-light', !darkTheme);
+const styleText = (markup) => {
+  const template = document.createElement('template');
+  template.innerHTML = markup;
+  return [...template.content.querySelectorAll('style')].map((style) => style.textContent).join('\n');
 };
 const Themes = {};
 const addTheme = (options) => {
@@ -196,8 +195,8 @@ const addTheme = (options) => {
         render += darkTheme ? await CssCoreDark.render() : await CssCoreLight.render();
       render += await options.render();
       render += await subThemeManager.render();
-      htmls('.theme', render);
-      syncDocumentTheme();
+      s('.theme-style').textContent = styleText(render);
+      document.documentElement.dataset.theme = darkTheme ? 'dark' : 'light';
       TriggerThemeEvents();
     }
     return {

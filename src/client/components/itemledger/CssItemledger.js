@@ -13,8 +13,7 @@ const CssCommonItemledger = async () => {
   subThemeManager.setDarkTheme('#24FBFFFF');
   subThemeManager.setLightTheme('#24FBFFFF');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
-  await AgGrid.RenderStyle({
-    eventThemeId: 'CssCommonItemledger',
+  const agGridStyle = await AgGrid.RenderStyle({
     style: {
       'font-family': `retro-font-sensitive`,
       'font-size': '24px',
@@ -173,8 +172,7 @@ const CssCommonItemledger = async () => {
       }
     </style>
 
-    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-    <div class="ag-grid-style"></div>`;
+    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])} ${agGridStyle}`;
 };
 
 class CssItemledgerDark {

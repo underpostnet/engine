@@ -15,6 +15,27 @@ Everything else is generated from those inputs during the client build. Do not h
 
 Every generated `index.html` inlines the [Underpost Build Manifest](../reference/build-manifest.md) of its build and links the `underpost.manifest` written beside it.
 
+## Root state
+
+`src/client/ssr/RootDocument.js` validates `sessionState` and `theme` inputs.
+The root attributes use `log-in` or `log-out`, and `dark` or `light`.
+Unknown inputs select `log-out` and `dark`.
+Static builds have no request session. They contain public shells with the safe defaults.
+
+The login and logout controllers update `data-session` after session resolution.
+All six session classes retain their display values. `.hide` keeps elements hidden.
+These classes control presentation. Server authorization protects private data.
+
+The root stylesheet and the theme stylesheet live in `<head>`.
+The DOM `append` helper inserts head components before the root stylesheet to preserve their order.
+The theme controller updates one stylesheet and `data-theme`.
+The splash reads the same `_theme` storage entry before its first paint.
+No consumer needs a `.session` or `.theme` marker container.
+
+SSR components must return HTML strings. The factory rejects other values before document assembly.
+The CSP sanitizer assigns one response nonce to each script and style tag.
+Swagger uses its native theme controls. The API Docs frame follows the PWA theme on load and theme changes.
+
 ---
 
 ## SSR config shape
@@ -25,7 +46,7 @@ Each deploy's `conf.ssr.json` (or the public `ssr` block in `underpost.config.dd
 ssr: {
   Default: {
     head: ['Seo', 'PwaDefault', 'Css', 'DefaultScripts', 'Production'],
-    body: ['CacheControl', 'DefaultSplashScreen', '404', '500', 'SwaggerDarkMode'],
+    body: ['CacheControl', 'DefaultSplashScreen', '404', '500'],
     mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
     views: [
       {

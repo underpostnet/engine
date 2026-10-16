@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import shell from 'shelljs';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../../../src/server/build/coverage.js';
-import { buildCoverage, buildDocs, buildSwaggerUiOptions } from '../../../src/client-builder/client-build-docs.js';
+import { buildCoverage, buildDocs } from '../../../src/client-builder/client-build-docs.js';
 
 // swagger-autogen is a code generator that walks a router file and writes what it read. The
 // doc it is handed and the document composed from its output are what this module is
@@ -403,13 +403,5 @@ describe('docs build', () => {
     staged.parts.user = { paths: {} };
     await runBuildDocs();
     expect(fs.existsSync(`./public/${HOST}/swagger-output.json`)).to.equal(true);
-  });
-});
-
-describe('swagger UI options', () => {
-  it('renders the dark mode toggle css and script from the SSR component', async () => {
-    const { customCss, customJsStr } = await buildSwaggerUiOptions();
-    expect(customCss).to.be.a('string').and.not.equal('');
-    expect(customJsStr).to.be.a('string').and.not.equal('');
   });
 });

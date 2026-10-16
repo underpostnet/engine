@@ -35,7 +35,12 @@ const htmls = (el, html) => (s(el).innerHTML = html);
  * existing content.
  * @memberof VanillaJS
  */
-const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
+const append = (el, html) => {
+  const target = s(el);
+  const rootStyle = target === document.head ? target.querySelector('.root-style') : null;
+  if (rootStyle) return rootStyle.insertAdjacentHTML('beforebegin', html);
+  return target.insertAdjacentHTML('beforeend', html);
+};
 /**
  * The `prepend` function inserts the specified HTML content at the beginning of the selected element.
  * @param el - The `el` parameter in the `prepend` function is the element to which the HTML content

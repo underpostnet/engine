@@ -20,7 +20,6 @@ import { createPeerServer } from '../../server/network/peer.js';
 import { createValkeyConnection } from '../../db/valkey/Valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
-import { buildSwaggerUiOptions } from '../../client-builder/client-build-docs.js';
 
 import { shellExec } from '../../server/runtime/process.js';
 import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
@@ -304,8 +303,7 @@ class ExpressService {
     // Swagger UI setup (after security middleware so responses carry correct CSP headers)
     if (swaggerEnabled) {
       const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-      const swaggerUiOptions = await buildSwaggerUiOptions();
-      app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
+      app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc));
     }
 
     // SSR middleware loading

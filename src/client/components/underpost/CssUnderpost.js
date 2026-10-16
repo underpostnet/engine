@@ -13,8 +13,7 @@ const CssCommonUnderpost = async () => {
   subThemeManager.setDarkTheme('#f70808');
   subThemeManager.setLightTheme('#aa0000');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
-  await AgGrid.RenderStyle({
-    eventThemeId: 'CssCommonUnderpost',
+  const agGridStyle = await AgGrid.RenderStyle({
     style: {
       'font-family': `retro-font-sensitive`,
       'font-size': '24px',
@@ -175,8 +174,7 @@ const CssCommonUnderpost = async () => {
       }
     </style>
 
-    <div class="ag-grid-style"></div>
-    ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])} `;
+    ${agGridStyle} ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])} `;
 };
 
 class CssUnderpostDark {

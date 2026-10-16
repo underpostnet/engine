@@ -1,7 +1,7 @@
 // https://www.ag-grid.com/javascript-data-grid/getting-started/
 // https://www.ag-grid.com/javascript-data-grid/themes/
 import { ThemeEvents, darkTheme } from './Css.js';
-import { append, htmls, s } from './VanillaJs.js';
+import { append, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import './Pagination.js';
 import { Modal } from './Modal.js';
@@ -192,7 +192,6 @@ class AgGrid {
   }
   static async RenderStyle(
     options = {
-      eventThemeId: 'AgGrid',
       style: {
         'font-family': '',
         'font-size': '',
@@ -225,78 +224,73 @@ class AgGrid {
             href="${getProxyPath()}styles/ag-grid-community/${AgGrid.theme}.min.css"
           />`,
       );
-    ThemeEvents[options.eventThemeId] = () => {
-      htmls(
-        `.ag-grid-style`,
-        html` ${options.style['font-family']
-            ? html`<style>
-                .ag-theme-alpine,
-                .ag-theme-alpine-dark {
-                  --ag-font-family: '{{ag-font-family}}';
-                }
-              </style>`.replaceAll('{{ag-font-family}}', options.style['font-family'])
-            : ''}
-          ${options.style['font-size']
-            ? html`<style>
-                .ag-theme-alpine,
-                .ag-theme-alpine-dark {
-                  --ag-font-size: '{{ag-font-size}}';
-                }
-              </style>`.replaceAll('{{ag-font-size}}', options.style['font-size'])
-            : ''}
-          ${options.style['no-cell-focus-style']
-            ? html`<style>
-                .ag-has-focus .ag-cell-focus {
-                  border: none !important;
-                }
-              </style>`
-            : ''}
-          ${options.style['row-cursor']
-            ? html`<style>
-                .ag-row {
-                  cursor: '{{ag-row-cursor}}';
-                }
-              </style>`.replaceAll(`'{{ag-row-cursor}}'`, options.style['row-cursor'])
-            : ''}
-
-          <style>
-            .ag-btn-renderer {
-              font-size: 16px;
-              min-width: 90px;
-              min-height: 90px;
+    return html` ${options.style['font-family']
+        ? html`<style>
+            .ag-theme-alpine,
+            .ag-theme-alpine-dark {
+              --ag-font-family: '{{ag-font-family}}';
             }
-          </style>
-          ${darkTheme
-            ? html`
-                <style>
-                  .row-new-highlight,
-                  .ag-row.row-new-highlight {
-                    background-color: #6d68ff !important;
-                    transition: background-color 1s ease-out;
-                  }
-                  .ag-cell-data-changed,
-                  .ag-cell-data-changed-animation {
-                    background-color: #6d68ff !important;
-                    background: #6d68ff !important;
-                    color: #e4e4e4 !important;
-                  }
-                </style>
-              `
-            : html`<style>
-                .row-new-highlight,
-                .ag-row.row-new-highlight {
-                  background-color: #d0eaf8 !important;
-                  transition: background-color 1s ease-out;
-                }
-                .ag-cell-data-changed,
-                .ag-cell-data-changed-animation {
-                  background-color: #d1d1d1 !important;
-                  background: #d1d1d1 !important;
-                  color: #2e2e2e !important;
-                }
-              </style>`}`,
-      );
-    };
+          </style>`.replaceAll('{{ag-font-family}}', options.style['font-family'])
+        : ''}
+      ${options.style['font-size']
+        ? html`<style>
+            .ag-theme-alpine,
+            .ag-theme-alpine-dark {
+              --ag-font-size: '{{ag-font-size}}';
+            }
+          </style>`.replaceAll('{{ag-font-size}}', options.style['font-size'])
+        : ''}
+      ${options.style['no-cell-focus-style']
+        ? html`<style>
+            .ag-has-focus .ag-cell-focus {
+              border: none !important;
+            }
+          </style>`
+        : ''}
+      ${options.style['row-cursor']
+        ? html`<style>
+            .ag-row {
+              cursor: '{{ag-row-cursor}}';
+            }
+          </style>`.replaceAll(`'{{ag-row-cursor}}'`, options.style['row-cursor'])
+        : ''}
+
+      <style>
+        .ag-btn-renderer {
+          font-size: 16px;
+          min-width: 90px;
+          min-height: 90px;
+        }
+      </style>
+      ${darkTheme
+        ? html`
+            <style>
+              .row-new-highlight,
+              .ag-row.row-new-highlight {
+                background-color: #6d68ff !important;
+                transition: background-color 1s ease-out;
+              }
+              .ag-cell-data-changed,
+              .ag-cell-data-changed-animation {
+                background-color: #6d68ff !important;
+                background: #6d68ff !important;
+                color: #e4e4e4 !important;
+              }
+            </style>
+          `
+        : html`<style>
+            .row-new-highlight,
+            .ag-row.row-new-highlight {
+              background-color: #d0eaf8 !important;
+              transition: background-color 1s ease-out;
+            }
+            .ag-cell-data-changed,
+            .ag-cell-data-changed-animation {
+              background-color: #d1d1d1 !important;
+              background: #d1d1d1 !important;
+              color: #2e2e2e !important;
+            }
+          </style>`}`;
   }
 }
 export { AgGrid, ValueListFilter };

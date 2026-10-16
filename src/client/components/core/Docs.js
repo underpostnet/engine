@@ -11,7 +11,7 @@ import {
   getProxyPath,
   getQueryParams,
 } from './Router.js';
-import { s, sIframe } from './VanillaJs.js';
+import { s } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 class Docs {
   static async RenderModal(type, parentModalId = 'modal-docs') {
@@ -52,7 +52,8 @@ class Docs {
       RouterInstance: parentModal.options.RouterInstance,
     });
     const iframeEl = s(`.iframe-${ModalId}`);
-    let swaggerThemeEventKey = null;
+    let themeEventKey = null;
+    let themeObserver = null;
     let unbindIframeLayoutSync = null;
     if (iframeEl) {
       const scheduleViewLayoutSync = () => {
@@ -116,49 +117,44 @@ class Docs {
         }
         scheduleViewLayoutSync();
       });
-      if (type === 'src') {
-        swaggerThemeEventKey = `jsdocs-iframe-${ModalId}`;
-        const applyJsDocsTheme = (isDark) => {
+      if (type === 'src' || type === 'api') {
+        themeEventKey = `docs-iframe-${ModalId}`;
+        const applyDocsTheme = () => {
           try {
             const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
-            if (!iframeDoc || !iframeDoc.documentElement) return;
-            // TypeDoc built-in theme: data-theme on <html>, stored as 'tsd-theme' in localStorage
-            iframeDoc.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-            iframeEl.contentWindow?.localStorage?.setItem('tsd-theme', isDark ? 'dark' : 'light');
-          } catch (e) {
-            // cross-origin or security restriction — safe to ignore
-          }
-        };
-        // Apply current theme as soon as the iframe content is ready
-        iframeEl.addEventListener('load', () => applyJsDocsTheme(darkTheme));
-        // Keep in sync whenever the parent page theme changes
-        ThemeEvents[swaggerThemeEventKey] = () => {
-          if (s(`.iframe-${ModalId}`)) applyJsDocsTheme(darkTheme);
-        };
-      }
-      if (type === 'api') {
-        swaggerThemeEventKey = `swagger-iframe-${ModalId}`;
-        const applySwaggerTheme = (isDark) => {
-          try {
-            const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
-            if (!iframeDoc || !iframeDoc.body) return;
-            if (isDark) {
-              iframeDoc.body.classList.add('swagger-dark');
+            if (!iframeDoc?.documentElement) return false;
+            if (type === 'api') {
+              const toggle = iframeDoc.querySelector('.dark-mode-toggle button');
+              if (!toggle) return false;
+              if (iframeDoc.documentElement.classList.contains('dark-mode') !== darkTheme) toggle.click();
             } else {
-              iframeDoc.body.classList.remove('swagger-dark');
+              iframeDoc.documentElement.setAttribute('data-theme', darkTheme ? 'dark' : 'light');
+              iframeEl.contentWindow?.localStorage?.setItem('tsd-theme', darkTheme ? 'dark' : 'light');
             }
-            iframeEl.contentWindow?.localStorage?.setItem('swagger-theme', isDark ? 'dark' : 'light');
-            const toggleBtn = sIframe(iframeEl, '#swagger-theme-toggle');
-            if (toggleBtn) toggleBtn.textContent = isDark ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
+            return true;
           } catch (e) {
-            // cross-origin or security restriction — safe to ignore
+            return false;
           }
         };
-        // Apply current theme as soon as the iframe content is ready
-        iframeEl.addEventListener('load', () => applySwaggerTheme(darkTheme));
-        // Keep in sync whenever the parent page theme changes
-        ThemeEvents[swaggerThemeEventKey] = () => {
-          if (s(`.iframe-${ModalId}`)) applySwaggerTheme(darkTheme);
+        const syncDocsTheme = () => {
+          if (applyDocsTheme()) {
+            themeObserver?.disconnect();
+            themeObserver = null;
+          }
+        };
+        iframeEl.addEventListener('load', () => {
+          themeObserver?.disconnect();
+          themeObserver = null;
+          if (applyDocsTheme() || type !== 'api') return;
+          try {
+            const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+            if (!iframeDoc) return;
+            themeObserver = new MutationObserver(syncDocsTheme);
+            themeObserver.observe(iframeDoc, { childList: true, subtree: true });
+          } catch (e) {}
+        });
+        ThemeEvents[themeEventKey] = () => {
+          if (s(`.iframe-${ModalId}`)) syncDocsTheme();
         };
       }
     }
@@ -185,7 +181,8 @@ class Docs {
     Modal.Data[ModalId].onCloseListener[ModalId] = () => {
       Responsive.offChanged(ModalId);
       if (unbindIframeLayoutSync) unbindIframeLayoutSync();
-      if (swaggerThemeEventKey) delete ThemeEvents[swaggerThemeEventKey];
+      themeObserver?.disconnect();
+      if (themeEventKey) delete ThemeEvents[themeEventKey];
       closeModalRouteChangeEvent({ closedId: ModalId });
     };
   }

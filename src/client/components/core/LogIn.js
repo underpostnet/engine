@@ -38,32 +38,12 @@ class LogIn {
     if (user) LogIn.Scope.user.main.model.user = { ...LogIn.Scope.user.main.model.user, ...user };
     await authLoginEvents.emit(AuthEventType.login, options);
     for (const eventKey of Object.keys(LogIn.Event)) await LogIn.Event[eventKey](options);
-    if (!user || user.role === 'guest') return;
+    if (!user || user.role === 'guest') {
+      document.documentElement.dataset.session = 'log-out';
+      return;
+    }
     await WebhookProvider.register({ user });
-    if (s(`.session`))
-      htmls(
-        `.session`,
-        html`<style>
-          .session-in-log-in {
-            display: block;
-          }
-          .session-inl-log-in {
-            display: inline-table;
-          }
-          .session-fl-log-in {
-            display: flow-root;
-          }
-          .session-in-log-out {
-            display: none;
-          }
-          .session-inl-log-out {
-            display: none;
-          }
-          .session-fl-log-out {
-            display: none;
-          }
-        </style>`,
-      );
+    document.documentElement.dataset.session = 'log-in';
     if (!LogIn.Scope.user.main.model.user.profileImage) {
       // Try to load profile image only if profileImageId exists
       if (!LogIn.Scope.user.main.model.user.profileImage && user?.profileImageId) {

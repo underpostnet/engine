@@ -13,8 +13,7 @@ const CssCommonCyberia = async () => {
   subThemeManager.setDarkTheme('#ffcc00');
   subThemeManager.setLightTheme('#ffcc00');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
-  await AgGrid.RenderStyle({
-    eventThemeId: 'CssCommonCyberia',
+  const agGridStyle = await AgGrid.RenderStyle({
     style: {
       'font-family': 'retro-font-sensitive',
       'font-size': '24px',
@@ -245,8 +244,7 @@ const CssCommonCyberia = async () => {
       '.saga-badge',
       '.ol-context-badge',
     ])}
-
-    <div class="ag-grid-style"></div>`;
+    ${agGridStyle}`;
 };
 
 class CssCyberiaDark {

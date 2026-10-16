@@ -180,6 +180,7 @@ const TEST_PROJECTS = [
       'src/client-builder/build-manifest.js',
       'src/client-builder/client-build-docs.js',
       'src/client/components/core/BuildManifest.js',
+      'src/client/components/core/Docs.js',
       'src/client/components/core/GoogleSignIn.js',
       'src/client/components/core/ShellLayout.js',
       'src/client/components/core/ShellNavigation.js',

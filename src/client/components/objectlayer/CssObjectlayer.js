@@ -13,8 +13,7 @@ const CssCommonObjectlayer = async () => {
   subThemeManager.setDarkTheme('#68ec89');
   subThemeManager.setLightTheme('#68ec89');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
-  await AgGrid.RenderStyle({
-    eventThemeId: 'CssCommonObjectlayer',
+  const agGridStyle = await AgGrid.RenderStyle({
     style: {
       'font-family': `retro-font-sensitive`,
       'font-size': '24px',
@@ -177,8 +176,7 @@ const CssCommonObjectlayer = async () => {
       }
     </style>
 
-    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
-    <div class="ag-grid-style"></div>`;
+    ${borderChar(1, `black`, ['.default-slide-menu-top-bar-fix-title-container-text'])} ${agGridStyle}`;
 };
 
 class CssObjectlayerDark {

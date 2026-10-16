@@ -1,20 +1,12 @@
-// Skeleton of a `split` app shell (`ShellLayout`) as it first paints, with its left drawer closed:
-// a 50px top bar (navigation toggle, app icon, search box, profile, search toggle) and a 50px
-// bottom bar (hide-bars toggle on the left, navigator on the right). Keep every box on the 50px
-// grid the live bars use so nothing jumps when the shell replaces this.
-//
-// Painted in the theme the app will load — `_theme` in localStorage, the key `Css.loadThemes`
-// reads — so a light-theme user does not see a dark skeleton flash. Dark is the default, as it is
-// for the app. The script runs before the skeleton markup is parsed, so the class is on <html>
-// before anything below it paints.
+// The splash uses the shell's 50px bars and the stored theme.
 SSRComponent = ({ backgroundImage }) => html`
   <script>
     (() => {
-      let theme = 'dark';
+      let theme = document.documentElement.dataset.theme;
       try {
         if (/light/.test(localStorage.getItem('_theme') || '')) theme = 'light';
       } catch (error) {}
-      document.documentElement.classList.add('ssr-theme-' + theme);
+      document.documentElement.dataset.theme = theme;
     })();
   </script>
   ${
@@ -27,9 +19,7 @@ SSRComponent = ({ backgroundImage }) => html`
       : html`<style class="style-ssr-background-image"></style>`
   }
   <style>
-    /* The body backgrounds the core themes paint (CssCore), keyed on the theme class so a theme
-       the app switches to later is never overruled by this earlier paint. */
-    html.ssr-theme-dark body {
+    html[data-theme='dark'] body {
       background: #191919;
     }
     .ssr-top-bar,
@@ -40,18 +30,18 @@ SSRComponent = ({ backgroundImage }) => html`
       left: 0px;
     }
     /* Light theme: the app's #e8e8e8 body under white bars, with the light shimmer band. */
-    html.ssr-theme-light body {
+    html[data-theme='light'] body {
       background: #e8e8e8;
     }
-    html.ssr-theme-light .ssr-top-bar,
-    html.ssr-theme-light .ssr-bottom-bar {
+    html[data-theme='light'] .ssr-top-bar,
+    html[data-theme='light'] .ssr-bottom-bar {
       background: #ffffff;
     }
-    html.ssr-theme-light .ssr-shimmer-dark,
-    html.ssr-theme-light .ssr-shimmer-dark-search-box {
+    html[data-theme='light'] .ssr-shimmer-dark,
+    html[data-theme='light'] .ssr-shimmer-dark-search-box {
       background-image: var(--ssr-shimmer-light);
     }
-    html.ssr-theme-light .loader {
+    html[data-theme='light'] .loader {
       --c: no-repeat linear-gradient(#9a9a9a 0 0);
       background: var(--c), var(--c), #c9c9c9;
     }
