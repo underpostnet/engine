@@ -1,9 +1,11 @@
 /**
- * gRPC transport for the Cyberia Engine data pipeline.
+ * gRPC transport of the Cyberia Engine.
  *
- * Runs beside Express on its own port (default 50051). Thin adapter over
- * src/projects/cyberia/instance-data.js, the same assembly the REST fallback
- * at /api/v1/cyberia-instance/boot/* serves, so both transports stay equivalent.
+ * Runs beside Express on its own port (default 50051) and serves two services:
+ *   CyberiaDataService   — thin adapter over src/projects/cyberia/instance-data.js, the same
+ *                          assembly the REST fallback at /api/v1/cyberia-instance/boot/* serves.
+ *   CyberiaPlayerService — thin adapter over src/projects/cyberia/player. Every call must carry the
+ *                          server key; the service runs only on a host that loads the player APIs.
  *
  * @module src/grpc/cyberia/grpc-server.js
  */
@@ -12,6 +14,7 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { activateContentRelease, watchContentRelease } from '../../projects/cyberia/content/content-release.js';
 import {
@@ -24,6 +27,17 @@ import {
   getInstanceModels,
   pingData,
 } from '../../projects/cyberia/instance-data.js';
+import { SERVER_API_KEY_HEADER, isServerApiKey } from '../../projects/cyberia/runtime/server-key.js';
+import { commitState } from '../../projects/cyberia/player/player-state.js';
+import {
+  acquireSession,
+  checkpointSessions,
+  consumeLaunch,
+  issueResume,
+  releaseSession,
+} from '../../projects/cyberia/player/player-session.js';
+import { listFriends, updateFriendship } from '../../projects/cyberia/player/friendship.js';
+import { counter, histogram } from '../../server/ops/metrics.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -106,6 +120,79 @@ function buildHandlers(dbKey) {
   };
 }
 
+const playerCalls = counter({
+  name: 'cyberia_player_rpc_total',
+  help: 'Player service calls by method and outcome: ok, duplicate, a refusal reason, or error',
+  labelNames: ['method', 'outcome'],
+});
+const playerSeconds = histogram({
+  name: 'cyberia_player_rpc_seconds',
+  help: 'Time a player service call takes',
+  labelNames: ['method'],
+});
+
+// The models the player service writes. A host without them serves content only.
+const PLAYER_MODELS = [
+  'CyberiaPlayer',
+  'CyberiaGameSession',
+  'CyberiaGameTicket',
+  'CyberiaFriendship',
+  'CyberiaQuestProgress',
+  'User',
+];
+
+const servesPlayers = (dbKey) => {
+  const models = DataBaseProviderService.servedModels(dbKey);
+  return PLAYER_MODELS.every((name) => models[name]);
+};
+
+/**
+ * One unary player method: checks the server key, times the call, counts its outcome and maps
+ * an exception to INTERNAL, which the game server retries.
+ */
+const playerMethod = (method, run) => async (call, callback) => {
+  const [key] = call.metadata.get(SERVER_API_KEY_HEADER);
+  if (!isServerApiKey(key)) {
+    playerCalls.inc({ method, outcome: 'unauthenticated' });
+    return callback({ code: grpc.status.UNAUTHENTICATED, message: 'server key required' });
+  }
+  const done = playerSeconds.startTimer({ method });
+  try {
+    const response = await run(call.request);
+    const outcome = response?.refusal || (response?.duplicate ? 'duplicate' : 'ok');
+    playerCalls.inc({ method, outcome });
+    if (response?.refusal)
+      logger.info(`${method} refused: ${response.refusal}${response.defect ? ` (${response.defect})` : ''}`);
+    callback(null, response ?? {});
+  } catch (err) {
+    playerCalls.inc({ method, outcome: 'error' });
+    logger.error(`${method}:`, err);
+    callback({ code: grpc.status.INTERNAL, message: err.message });
+  } finally {
+    done();
+  }
+};
+
+/**
+ * The player service of one host: the host that holds the player APIs and its Valkey instance.
+ * @param {{host: string, path: string}} context
+ */
+function buildPlayerHandlers(context) {
+  return {
+    consumeGameLaunchTicket: playerMethod('ConsumeGameLaunchTicket', (req) => consumeLaunch(req, context)),
+    issueResumeTicket: playerMethod('IssueResumeTicket', (req) => issueResume(req, context)),
+    acquirePlayerSession: playerMethod('AcquirePlayerSession', (req) => acquireSession(req, context)),
+    commitPlayerState: playerMethod('CommitPlayerState', (req) => commitState(req, context)),
+    checkpointPlayerSessions: playerMethod('CheckpointPlayerSessions', (req) => checkpointSessions(req, context)),
+    releasePlayerSession: playerMethod('ReleasePlayerSession', async (req) => {
+      await releaseSession(req, context);
+      return {};
+    }),
+    listFriends: playerMethod('ListFriends', (req) => listFriends(req, context)),
+    updateFriendship: playerMethod('UpdateFriendship', (req) => updateFriendship(req, context)),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Server lifecycle
 // ═══════════════════════════════════════════════════════════════════
@@ -136,6 +223,9 @@ class GrpcServer {
     });
 
     server.addService(proto.CyberiaDataService.service, buildHandlers(dbKey));
+    if (servesPlayers(dbKey))
+      server.addService(proto.CyberiaPlayerService.service, buildPlayerHandlers({ host, path: dbPath }));
+    else logger.info(`Player service off: ${dbKey} does not load ${PLAYER_MODELS.join(', ')}`);
 
     // gRPC stays on the cluster-internal network, so credentials are insecure.
     const creds = grpc.ServerCredentials.createInsecure();
@@ -167,4 +257,4 @@ class GrpcServer {
   }
 }
 
-export { GrpcServer, buildFallbackConfig };
+export { GrpcServer, buildFallbackConfig, buildPlayerHandlers, proto as cyberiaProto };

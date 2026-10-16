@@ -23,6 +23,8 @@ const TAP_FREQUENCY = Number(process.env.CYBERIA_LOAD_TAP_FREQUENCY ?? 5);
 const DURATION_MS = Number(process.env.CYBERIA_LOAD_DURATION_MS ?? 3000);
 
 const CONNECT_TIMEOUT_MS = 30000;
+// The client steps at this rate; each event names the step it was made on.
+const FRAME_RATE = 60;
 // Time to keep reading after the last tap, so the final acks arrive before the
 // run is judged. Two snapshot periods at the slowest sane rate.
 const SETTLE_MS = 1500;
@@ -33,8 +35,8 @@ const TAP_STEP_CELLS = 4;
 // Fraction of the nominal tap count a client must reach for the run to count as
 // sustained load rather than a stalled connection.
 const TAP_YIELD_FLOOR = 0.8;
-// Taps that may still be in flight when the run ends. The ack in a snapshot is
-// the highest sequence the server queued at the moment that snapshot was built.
+// Taps that may still be in flight when the run ends. `inputConsumedThrough` in a
+// snapshot is the highest sequence a tick applied before that snapshot was built.
 const ACK_LAG_TOLERANCE = 3;
 
 const TAP_PERIOD_MS = 1000 / TAP_FREQUENCY;
@@ -168,10 +170,7 @@ function startSimulatedClient(url, index, total) {
     taps: 0,
     snapshots: 0,
     sequence: 0, // highest sequence sent
-    lastAck: 0, // highest sequence the server reported back
-    serverTick: 0, // tick of the newest snapshot
-    tickRate: 60,
-    tickAt: 0, // wall clock when that snapshot arrived
+    lastAck: 0, // highest sequence the server consumed
     gridW: 0,
     gridH: 0,
     posX: 0,
@@ -180,7 +179,7 @@ function startSimulatedClient(url, index, total) {
     deadSamples: 0, // ... of which the player was a ghost awaiting respawn
     closeCode: null,
     failure: null,
-    handshakeFailed: false,
+    refused: false,
   };
 
   let tapTimer = null;
@@ -211,12 +210,12 @@ function startSimulatedClient(url, index, total) {
     if (ws.readyState === WebSocket.OPEN) ws.send(pack(type, payload));
   };
 
-  // Mirrors session_server_tick_estimate: extrapolate from the newest snapshot
-  // so the tick stamped on a tap is the client's best guess at the server tick.
-  const clientTick = () => {
-    if (stats.serverTick === 0) return 0;
-    const elapsedMs = Date.now() - stats.tickAt;
-    return stats.serverTick + Math.max(0, Math.floor((elapsedMs * stats.tickRate) / 1000));
+  // One event in its own batch, stamped as the real client stamps it.
+  const openedAt = Date.now();
+  const sendEvent = (type, payload) => {
+    const now = Date.now();
+    const frame = 1 + Math.floor(((now - openedAt) * FRAME_RATE) / 1000);
+    send('events', { events: [{ type, payload: { ...payload, seq: ++stats.sequence, frame, timestamp: now } }] });
   };
 
   // Walk toward this client's region until it arrives, then wander inside it.
@@ -236,11 +235,9 @@ function startSimulatedClient(url, index, total) {
 
   const tap = () => {
     const [dx, dy] = tapDirection();
-    send('player_action', {
+    sendEvent('player_action', {
       x: clamp(Math.round(stats.posX) + dx * TAP_STEP_CELLS, stats.gridW - 1),
       y: clamp(Math.round(stats.posY) + dy * TAP_STEP_CELLS, stats.gridH - 1),
-      tick: clientTick(),
-      seq: ++stats.sequence,
     });
     stats.taps++;
     stats.tapping = true;
@@ -259,10 +256,9 @@ function startSimulatedClient(url, index, total) {
     console.log(`[cyberia-load] ${label} joined`);
     stats.gridW = payload.gridW;
     stats.gridH = payload.gridH;
-    if (payload.tickRate > 0) stats.tickRate = payload.tickRate;
-    // Every join spawns frozen under the server's "loading" protection; taps are
-    // dropped by phaseInput until the matching freeze_end releases it.
-    send('freeze_end', { reason: 'loading' });
+    // Every join spawns frozen, as behind the client's loading overlay; taps do
+    // nothing until the player leaves stasis.
+    sendEvent('player_stasis', { stasis: false });
     stats.joined = true;
     clearTimeout(connectTimer);
     settleReady();
@@ -280,14 +276,10 @@ function startSimulatedClient(url, index, total) {
 
   const onSnapshot = (payload) => {
     stats.snapshots++;
-    if (payload.tick !== undefined) {
-      stats.serverTick = payload.tick;
-      stats.tickAt = Date.now();
-    }
-    if (payload.ack !== undefined && payload.ack > stats.lastAck) stats.lastAck = payload.ack;
-    if (payload.self) {
-      stats.posX = payload.self.posX;
-      stats.posY = payload.self.posY;
+    if (payload.inputConsumedThrough > stats.lastAck) stats.lastAck = payload.inputConsumedThrough;
+    if (payload.self?.pos) {
+      stats.posX = payload.self.pos.x;
+      stats.posY = payload.self.pos.y;
       // The spawn cell is only knowable from the server. Learn it once, then
       // pick the region this client walks to.
       if (!spawn) {
@@ -299,20 +291,22 @@ function startSimulatedClient(url, index, total) {
     }
   };
 
-  ws.addEventListener('open', () => send('handshake', { name: 'cyberia-load', version: '1.0.0' }));
+  // A guest: the load runs against a server in anonymous mode.
+  ws.addEventListener('open', () => send('auth', {}));
 
   ws.addEventListener('message', (event) => {
     const msg = unpack(event.data);
     if (!msg) return;
     if (msg.type === 'init_data') onInitData(msg.payload);
     else if (msg.type === 'snapshot') onSnapshot(msg.payload);
+    else if (msg.type === 'session_end') stats.failure ??= `session_end ${msg.payload?.reason}`;
   });
 
   ws.addEventListener('error', () => {
     // The event carries no status code. Whether this was an admission refusal
     // or an unreachable server is settled by the preflight probe.
     if (!stats.joined && stats.snapshots === 0) {
-      stats.handshakeFailed = true;
+      stats.refused = true;
       console.log(`[cyberia-load] ${label} REFUSED by the server`);
     }
     stats.failure ??= 'socket error';
@@ -381,12 +375,12 @@ describe.skipIf(!WS_URL)(
         // Stop as soon as the server refuses one. The concurrent per-address cap
         // cannot clear while the run holds its connections, so every later join
         // would be refused too — dialing them out just delays the diagnosis.
-        if (clients.some((client) => client.stats.handshakeFailed)) break;
+        if (clients.some((client) => client.stats.refused)) break;
       }
       await Promise.all(clients.map((client) => client.ready));
 
       const joinedCount = clients.filter((client) => client.stats.joined).length;
-      const refusedCount = clients.filter((client) => client.stats.handshakeFailed).length;
+      const refusedCount = clients.filter((client) => client.stats.refused).length;
       if (refusedCount > 0) {
         // A partial success is decisive on its own: the server accepted some and
         // turned the rest away, which only an admission limit does. Probing again
@@ -439,7 +433,7 @@ describe.skipIf(!WS_URL)(
       const starved = clients.filter((client) => client.stats.snapshots === 0);
       expect(starved.length, 'clients that received no AOI snapshot').to.equal(0);
 
-      // The ack is the highest input sequence the server took for this player —
+      // inputConsumedThrough is the highest input sequence the server applied —
       // the same header field the real cyberia-client reconciles against. It must
       // have caught up with what each client sent, not merely be non-zero.
       const behind = clients.filter((client) => client.stats.lastAck < client.stats.sequence - ACK_LAG_TOLERANCE);

@@ -1,14 +1,13 @@
-// Protocol Buffers schema for Cyberia Online gRPC data pipeline.
+// Protocol Buffers schema of the Cyberia Engine gRPC services.
 //
-// This service runs on the Engine-Cyberia (Node.js) side.
-// The Cyberia-Server (Go) acts as the gRPC **client**, calling
-// these RPCs to fetch game data for world reconstruction.
+// Engine-Cyberia (Node.js) serves both services. Cyberia-Server (Go) is the
+// only client.
 //
-// Design rules:
-//   1. Read-only — no create / update / delete.
-//   2. Batch-friendly — large collections streamed or paginated.
-//   3. Live-reload aware — version fields let the Go server detect
-//      stale data and perform surgical in-memory replacement.
+//   CyberiaDataService   — content for world reconstruction. Read-only,
+//                          batch-friendly, version fields for hot reload.
+//   CyberiaPlayerService — launch tickets, gameplay sessions, player state
+//                          and friendships. Every call carries the server key
+//                          in the `x-cyberia-server-api-key` metadata.
 
 syntax = "proto3";
 
@@ -46,6 +45,37 @@ service CyberiaDataService {
   // its bound definition, so the Go server re-fetches only the labels whose
   // definition changed (incremental hot-reload).
   rpc GetObjectLayerManifest(GetObjectLayerManifestRequest) returns (GetObjectLayerManifestResponse);
+}
+
+// Launch tickets, gameplay sessions, player state and friendships. A refusal
+// is an answer, not an error: only a transport error is worth a retry.
+service CyberiaPlayerService {
+  // Consumes a launch ticket once and names its principal: an account or a
+  // guest. A retry with the same connection id answers the first result.
+  rpc ConsumeGameLaunchTicket(ConsumeGameLaunchTicketRequest) returns (ConsumeGameLaunchTicketResponse);
+
+  // Issues the next resume ticket of a live account session: a launch ticket
+  // bound to its account session, its world and its epoch.
+  rpc IssueResumeTicket(IssueResumeTicketRequest) returns (IssueResumeTicketResponse);
+
+  // Makes the connection of a consumed ticket the one writer of its profile
+  // in this world, and loads the saved state. Idempotent per connection.
+  rpc AcquirePlayerSession(AcquirePlayerSessionRequest) returns (AcquirePlayerSessionResponse);
+
+  // Commits the whole durable state of one player at one sequence number.
+  rpc CommitPlayerState(CommitPlayerStateRequest) returns (CommitPlayerStateResponse);
+
+  // Renews the leases of one server and writes their dirty positions.
+  rpc CheckpointPlayerSessions(CheckpointPlayerSessionsRequest) returns (CheckpointPlayerSessionsResponse);
+
+  // Ends a lease after the final commit of its session.
+  rpc ReleasePlayerSession(ReleasePlayerSessionRequest) returns (ReleasePlayerSessionResponse);
+
+  // Friendships and requests of an account, with the presence of friends.
+  rpc ListFriends(ListFriendsRequest) returns (ListFriendsResponse);
+
+  // Requests, accepts, declines or removes one friendship.
+  rpc UpdateFriendship(UpdateFriendshipRequest) returns (UpdateFriendshipResponse);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -587,4 +617,193 @@ message GetObjectLayerManifestRequest {}
 
 message GetObjectLayerManifestResponse {
   repeated ObjectLayerManifestEntry entries = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Player service messages
+// ═══════════════════════════════════════════════════════════════════
+
+message ConsumeGameLaunchTicketRequest {
+  string ticket        = 1; // the opaque ticket the client sent
+  string instance_code = 2; // the world this server runs
+  string connection_id = 3; // one id per WebSocket connection
+  string server_id     = 4;
+}
+
+message ConsumeGameLaunchTicketResponse {
+  reserved 4;
+  reserved "avatar_file_id";
+  // Empty when accepted; else unknown | expired | replayed | wrong_instance |
+  // revoked | signed_in_elsewhere | busy (a resume whose session still holds
+  // its lease: try again).
+  string refusal      = 1;
+  string account_id   = 2; // account only
+  string display_name = 3; // account only: the account username
+  string principal    = 5; // account | guest
+}
+
+message IssueResumeTicketRequest {
+  string player_id     = 1;
+  string account_id    = 2;
+  uint64 epoch         = 3;
+  string instance_code = 4;
+}
+
+message IssueResumeTicketResponse {
+  string refusal       = 1; // empty, or signed_in_elsewhere | revoked
+  string ticket        = 2;
+  int64  expires_at_ms = 3;
+}
+
+message AcquirePlayerSessionRequest {
+  string connection_id = 1; // the connection that consumed the ticket
+  string instance_code = 2;
+  string server_id     = 3;
+}
+
+message AcquirePlayerSessionResponse {
+  string      refusal       = 1; // empty, or unknown | revoked
+  string      player_id     = 2; // the profile id
+  uint64      epoch         = 3; // every write of this session carries it
+  PlayerState state         = 4;
+  bool        created       = 5; // the first session of the account in this world
+  uint32      lease_seconds = 6; // a checkpoint renews the lease before it ends
+}
+
+message PlayerStack {
+  string item_id  = 1;
+  string ol_cid   = 2; // the definition the stack was granted with
+  uint32 quantity = 3;
+  int32  slot     = 4;
+  bool   active   = 5; // bag only
+}
+
+message PlayerVault {
+  string               action_code = 1; // the stable identity of the vault
+  repeated PlayerStack stacks      = 2;
+}
+
+// An owned stack the world cannot load now.
+message HeldStack {
+  PlayerStack stack       = 1;
+  string      container   = 2; // bag | storage | vault
+  string      action_code = 3; // vault only
+  string      reason      = 4; // rebound | unknown | no_room
+}
+
+message PlayerPosition {
+  string map_code = 1; // empty: never placed
+  double x        = 2;
+  double y        = 3;
+  uint64 seq      = 4; // orders the position writes of one epoch
+}
+
+message QuestObjectiveState {
+  uint32 current  = 1;
+  uint32 required = 2;
+}
+
+message QuestStepState {
+  string                       step_id    = 1;
+  repeated QuestObjectiveState objectives = 2;
+}
+
+message PlayerQuest {
+  string                  quest_code      = 1;
+  string                  status          = 2; // active | completed
+  repeated QuestStepState steps           = 3;
+  int64                   started_at_ms   = 4;
+  int64                   completed_at_ms = 5; // 0 while active
+}
+
+message PlayerState {
+  uint32               coins    = 1;
+  uint64               xp       = 2; // total; the level derives from it
+  repeated PlayerStack bag      = 3;
+  repeated PlayerStack storage  = 4;
+  repeated PlayerVault vaults   = 5;
+  repeated HeldStack   held     = 6;
+  PlayerPosition       position = 7;
+  repeated PlayerQuest quests   = 8;
+  uint64               revision = 9; // load only: the count of applied commits
+}
+
+message CommitPlayerStateRequest {
+  string      player_id        = 1;
+  uint64      epoch            = 2;
+  uint64      seq              = 3; // rises with each new state of the session
+  PlayerState state            = 4;
+  bool        quests_changed   = 5; // state.quests is the whole quest set
+  bool        position_changed = 6; // state.position is newer than the saved one
+}
+
+message CommitPlayerStateResponse {
+  string refusal   = 1; // empty, or stale_session | unknown | invalid
+  bool   duplicate = 2; // this seq was already applied
+  uint64 revision  = 3;
+}
+
+message SessionCheckpoint {
+  string         player_id  = 1;
+  string         account_id = 2;
+  uint64         epoch      = 3;
+  string         map_code   = 4; // presence
+  PlayerPosition position   = 5; // set only when it changed
+}
+
+message CheckpointPlayerSessionsRequest {
+  string                     server_id     = 1;
+  string                     instance_code = 2;
+  repeated SessionCheckpoint sessions      = 3;
+}
+
+message EndedSession {
+  string player_id = 1;
+  string reason    = 2; // signed_in_elsewhere | revoked
+}
+
+message CheckpointPlayerSessionsResponse {
+  repeated EndedSession ended = 1;
+}
+
+message ReleasePlayerSessionRequest {
+  string player_id  = 1;
+  string account_id = 2;
+  uint64 epoch      = 3;
+}
+
+message ReleasePlayerSessionResponse {}
+
+message Friend {
+  reserved 4;
+  reserved "avatar_file_id";
+  string friendship_id  = 1;
+  string account_id     = 2; // for the game server only; never sent to a client
+  string name           = 3;
+  string status         = 5; // friend | incoming | outgoing
+  bool   online         = 6; // friends only
+  string instance_code  = 7; // friends only, while online
+  string map_code       = 8; // friends only, while online
+  int64  expires_at_ms  = 9; // requests only
+}
+
+message ListFriendsRequest {
+  string account_id = 1;
+}
+
+message ListFriendsResponse {
+  repeated Friend friends = 1;
+}
+
+message UpdateFriendshipRequest {
+  string account_id        = 1; // the actor, from the server session
+  string action            = 2; // request | accept | decline | remove
+  string target_account_id = 3; // request: the player the server resolved
+  string friendship_id     = 4; // accept | decline | remove
+}
+
+message UpdateFriendshipResponse {
+  // Empty, or self | exists | limit | not_found | unknown.
+  string refusal = 1;
+  Friend friend  = 2; // the friendship as the actor sees it now
 }
