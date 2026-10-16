@@ -91,10 +91,14 @@ What it owns:
 - Maps, portals, object layers, atlas/sprite-sheet metadata.
 - World configuration: AOI radius, economy rules, skill rules, equipment rules, entity gameplay defaults.
 - Persisted character/quest/dialogue/action data.
-- gRPC `CyberiaDataService` for world load and content streaming.
+- Player records: profiles, session leases, launch tickets, friendships and quest progress
+  ([accounts and persistent players](accounts-and-persistence.md)). It stores the state the game
+  server commits and computes no gameplay outcome.
+- gRPC `CyberiaDataService` for world load and content streaming, and `CyberiaPlayerService` for
+  launch tickets, sessions, state commits and friendships.
 - REST boot fallback (`/api/v1/cyberia-instance/boot/*`): the same world-load / hot-reload payloads as the gRPC service, served over REST for deploys where the engine gRPC server is not enabled.
 - REST APIs for assets and the optional client-hints overrides.
-- Instance Map REST (`/api/v1/cyberia-instance/instance-map/:code/{static,dynamic}`): static map topology plus authored presence POIs, and capability membership; the dynamic response supplies only per-player capability activity. Never live positions or simulation stats — those stay client-side.
+- Instance Map REST (`/api/v1/cyberia-instance/instance-map/:code/static`): static map topology, authored presence POIs with their quest and action codes, and capability membership. The client derives per-player activity from its own quest store. Never live positions or simulation stats.
 - Static content distribution + Cloudinary-backed asset flow.
 - Editor and CLI integration for content workflows.
 
@@ -112,10 +116,11 @@ The tick-based authoritative simulation. Owns world state and the gameplay rules
 What it owns:
 
 - Authoritative world state.
-- The session state of every player: its `PlayerID` and display name, inventory, coins, quests,
+- The live state of every player: its `PlayerID` and display name, inventory, coins, XP, quests,
   personal storage and NPC vaults, and its party and chat
-  ([player identity](player-identity-and-profile.md), [chat and parties](social.md)). All of it ends
-  with the connection.
+  ([player identity](player-identity-and-profile.md), [chat and parties](social.md)). A guest's
+  state ends with the connection. An account player's durable state loads from its profile and
+  commits back to the engine.
 - The tick: a `uint32` advanced once per simulation step at a fixed `tickRate`.
 - Simulation phases — the only allowed mutators of world state.
 - AOI replication: per-player interest filtering and snapshot emission.
@@ -124,8 +129,8 @@ What it owns:
 
 What it does NOT own:
 
-- Persistence. Content comes once at boot from engine-cyberia; the server writes only the
-  best-effort quest progress mirror back.
+- Persistence. Content comes at boot and at hot reload from engine-cyberia. Player state goes back
+  only through `CyberiaPlayerService`; the server never touches MongoDB.
 - Client presentation. The server holds no palette, no camera knobs, no dev-overlay flag, no status-icon visuals.
 
 ### cyberia-client (C / WebAssembly) — presentation runtime
@@ -192,12 +197,12 @@ Per-instance hosts follow the same layout under their own sub-path — `client.c
 
 The server counts ticks; the client counts frames (its own completed fixed steps). Every client event carries its frame. Every snapshot carries the client frame it stands for.
 
-| Concept           | Value             | Notes                                                                                                   |
-| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **tick**          | `uint32`          | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                    |
-| **tick rate**     | `30` Hz           | Simulation frequency, fixed at compile time on both sides. One snapshot per player goes out every tick. |
-| **tick duration** | `1 / tick_rate`   | The dt used by every simulation phase.                                                                  |
-| **frame**         | `uint32`          | Completed client fixed steps in one session. Not a server tick.                                         |
+| Concept           | Value           | Notes                                                                                                   |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------- |
+| **tick**          | `uint32`        | Monotonic simulation step counter on `cyberia-server`. Resets only on world rebuild.                    |
+| **tick rate**     | `30` Hz         | Simulation frequency, fixed at compile time on both sides. One snapshot per player goes out every tick. |
+| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase.                                                                  |
+| **frame**         | `uint32`        | Completed client fixed steps in one session. Not a server tick.                                         |
 
 The server dates each tick in client frames from the newest consumed event: an event pushed in frame F and applied in tick T makes tick T stand for frame F + 1.
 
@@ -298,28 +303,28 @@ The cyberia-client carries **no** compile-time palette. `content/presentation_ru
 
 Every Cyberia document uses the same terms. Aliases are not permitted.
 
-| Term                      | Definition                                                                                                                                                                                                                                                                                |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **tick**                  | Monotonic simulation step counter.                                                                                                                                                                                                                                                        |
-| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                                        |
-| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                                       |
-| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                                    |
-| **reconciliation**        | Replace the own state with the newest snapshot, then replay the unconsumed client events from the snapshot `frame` to the current frame, with the same motion function and `dt` as the live step.                                                                                       |
-| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost.                                                                                                                                                                            |
-| **display smoothing**     | Per-render-frame lerp of the own player between the last two fixed steps. View-only; it never writes simulation state.                                                                                                                                                                    |
-| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                                  |
-| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                                          |
-| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                                            |
-| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                                                                                                                                                                                 |
-| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                                                                                                                                                                                            |
-| **presentation metadata** | Render-only data. Client-owned.                                                                                                                                                                                                                                                           |
-| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                                                                                                                                                                                       |
-| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                                                                                                                                                                                |
-| **Instance Map**          | Client strategic overlay of packed map tiles and authored presence POIs. The static REST response supplies topology, presence, and capability membership; the dynamic response supplies per-player capability activity. Live player presence and stats remain client-side.                |
-| **replication**           | Production and delivery of snapshots from server to clients.                                                                                                                                                                                                                              |
-| **simulation phase**      | A named step inside one simulation tick.                                                                                                                                                                                                                                                  |
-| **healthy**               | All three Cyberia services up and connected; game is playable.                                                                                                                                                                                                                            |
-| **standby**               | Game paused because at least one of the three services is not healthy.                                                                                                                                                                                                                    |
+| Term                      | Definition                                                                                                                                                                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **tick**                  | Monotonic simulation step counter.                                                                                                                                                                                                                                         |
+| **tick rate**             | Simulation Hz on `cyberia-server`.                                                                                                                                                                                                                                         |
+| **snapshot**              | AOI-filtered world view at one tick for one player.                                                                                                                                                                                                                        |
+| **prediction**            | Optimistic local apply of input commands to the predicted self entity.                                                                                                                                                                                                     |
+| **reconciliation**        | Replace the own state with the newest snapshot, then replay the unconsumed client events from the snapshot `frame` to the current frame, with the same motion function and `dt` as the live step.                                                                          |
+| **move coalescing**       | One movement re-plan per player per tick, from the newest tap of that tick. The only bound on pathfinder cost.                                                                                                                                                             |
+| **display smoothing**     | Per-render-frame lerp of the own player between the last two fixed steps. View-only; it never writes simulation state.                                                                                                                                                     |
+| **interpolation**         | Render-time smoothing of remote entities, sampled from snapshot history.                                                                                                                                                                                                   |
+| **authoritative server**  | `cyberia-server`. Sole authority on world state.                                                                                                                                                                                                                           |
+| **content authority**     | `engine-cyberia`. Sole authority on persisted content and world configuration.                                                                                                                                                                                             |
+| **client hints**          | Optional presentation overrides served by engine-cyberia.                                                                                                                                                                                                                  |
+| **world configuration**   | Gameplay parameters loaded at server boot from engine-cyberia.                                                                                                                                                                                                             |
+| **presentation metadata** | Render-only data. Client-owned.                                                                                                                                                                                                                                            |
+| **input command**         | Typed client→server frame with kind, clientTick, sequence, payload.                                                                                                                                                                                                        |
+| **AOI**                   | Area of interest — the spatial filter that defines which entities a given player receives.                                                                                                                                                                                 |
+| **Instance Map**          | Client strategic overlay of packed map tiles and authored presence POIs. The static REST response supplies topology, presence, and capability membership; the dynamic response supplies per-player capability activity. Live player presence and stats remain client-side. |
+| **replication**           | Production and delivery of snapshots from server to clients.                                                                                                                                                                                                               |
+| **simulation phase**      | A named step inside one simulation tick.                                                                                                                                                                                                                                   |
+| **healthy**               | All three Cyberia services up and connected; game is playable.                                                                                                                                                                                                             |
+| **standby**               | Game paused because at least one of the three services is not healthy.                                                                                                                                                                                                     |
 
 Forbidden usages:
 

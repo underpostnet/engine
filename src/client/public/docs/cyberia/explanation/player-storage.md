@@ -17,7 +17,7 @@ capacity and access differ.
 | Client event | `item_move` with the box `storage`                                                                                 | `item_move` with the box `vault` and its terminal            |
 | Snapshot     | `self.storage`                                                                                                     | `self.vaults`                                                |
 | Coins        | Refused: the wallet stays with the player                                                                          | Accepted                                                     |
-| Lifetime     | The session                                                                                                        | The session                                                  |
+| Lifetime     | The profile in account mode; the session for a guest                                                               | The same, at the action code                                 |
 
 A move of one container never reaches the other: the server keys personal storage by `PlayerID`
 alone and every vault by `PlayerID` and action code.
@@ -55,7 +55,7 @@ rules.
   skin).
 - A stack in a locked slot can only leave. This happens when a progression reload lowers the
   level, or a content reload lowers the capacity of a vault.
-- In [reorder mode](inventory-capacity.md#reorder-mode) a bar stack drags onto the container too.
+- A bar stack drags onto the container the same way ([moving stacks](inventory-capacity.md#moving-stacks)).
 
 ---
 
@@ -85,10 +85,17 @@ first.
 
 ## Persistence
 
-In this release both containers are session state in `cyberia-server`. `ForgetPlayer` drops them
-when the connection ends, together with the inventory and the wallet they belong to. Persistent
-containers belong to account-linked sessions and come with a saved inventory and wallet
-([roadmap](roadmap.md#phase-2--alpha-centralized-off-chain-persistent-sessions)).
+Both containers live in `cyberia-server` while the player plays. `ForgetPlayer` drops them when
+the session ends, together with the inventory and the wallet they belong to.
+
+- An account session commits them with the bag and the wallet to its profile, and loads them at
+  the next session. A vault is saved by the action code of its terminal, so it survives a map
+  reload that gives the terminal a new entity id.
+- A guest session saves nothing. The storage hint of a guest says that the storage empties when
+  the guest leaves.
+
+A saved stack that no longer fits its container, or whose definition the world no longer runs, is
+held, never dropped ([item identity](accounts-and-persistence.md#item-identity)).
 
 ---
 
@@ -99,6 +106,7 @@ containers belong to account-linked sessions and come with a saved inventory and
 | `cyberia-server/game/content/storage_test.go`   | Splits, stacks and swaps in the bag; moves to and from the storage; closed slots and misplaced coins; a full bag; worn stacks; vault coins; the level opens storage slots; a finished session leaves nothing |
 | `cyberia-server/game/net/social_ws_test.go`     | A deposit shows in `self.storage`; a new session starts empty                                                                                                                                                |
 | `cyberia-server/game/net/storage_test.go`       | `item_move` is a bounded trust boundary                                                                                                                                                                      |
+| `cyberia-server/game/content/durable_test.go`   | The saved containers load back to their slots; a changed or unknown definition, or no room, holds the stack until it can load                                                                                |
 | `cyberia-server/game/sim/movement_test.go`      | A resent storage event moves nothing more                                                                                                                                                                    |
 | `cyberia-client/tests/player_containers_test.c` | Client moves split, stack and swap under the server rules, cross with the storage and a vault, and replay the same way                                                                                       |
 | `cyberia-client/tests/item_slot_grid_test.c`    | A drop from the bar reaches the host over an open cell; a locked cell keeps its stack, and the stack can leave                                                                                               |

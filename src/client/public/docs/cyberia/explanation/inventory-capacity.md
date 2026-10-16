@@ -61,20 +61,19 @@ rule on every grant.
 
 ---
 
-## Reorder mode
+## Moving stacks
 
-The button right of the bag toggle turns reorder mode on and off. Escape also ends it, and so does
-hiding the bar.
+The bar tells a tap from a drag, as the storage grids do.
 
-- A drag moves a stack to the strip cell under the release, under the [move rules](player-storage.md#moves):
-  an empty open slot takes it or a split of it, the same item stacks it, another stack swaps with
-  it. A locked slot and the space off the strip refuse it, and the stack stays.
-- The stacks show an amber outline, and the button and a hint say that the mode is on. The target
-  cell shows green or red before the release.
-- With a personal storage or a vault open, a lifted stack also drops onto a cell of the container,
-  and a stack of the container still drops onto the bar.
-- Nothing activates or opens while the mode is on. The strip still scrolls, and
-  it follows a stack held at its edge.
+- A tap on a stack opens it. A press that travels lifts the stack, and the release drops it on the
+  cell under it under the [move rules](player-storage.md#moves): an empty open slot takes it or a
+  split of it, the same item stacks it, another stack swaps with it. A locked slot and the space
+  off the strip refuse it, and the stack stays.
+- With a personal storage or a vault open, a lifted stack also drops onto a cell of the container.
+  A drag from the coin slot moves coins into a vault.
+- The target cell shows green or red before the release, and the stack slides into its cell.
+- A drag from an empty or locked cell, or the wheel over the bar, scrolls the strip. A lifted stack
+  held at an edge of the strip scrolls it too.
 - A move is an `item_move` inside the bag, so the server keeps the slots.
 
 ---
@@ -122,6 +121,6 @@ Bots carry no capacity.
 | `cyberia-server/game/sim/movement_test.go`      | Equip wears the stack in its slot                                                                                                                                                                                                                                   |
 | `cyberia-server/game/sim/consumable_test.go`    | A held skill runs once per item across its stacks                                                                                                                                                                                                                   |
 | `cyberia-client/tests/player_containers_test.c` | The client rule, the unlock levels with a level cap, and the bag room check                                                                                                                                                                                         |
-| `cyberia-client/tests/inventory_bar_test.c`     | Bar cells are bag slots; reorder mode drops on the cell under the release, of the bar or of the open container, activates nothing, ends with Escape and with the bar                                                                                                |
+| `cyberia-client/tests/inventory_bar_test.c`     | Bar cells are bag slots; a tap opens a stack, a drag drops it on a cell of the bar or of the open container, the coin slot drags coins; a drag from an empty cell and the wheel scroll                                                                              |
 | `cyberia-content/test/foundation.test.js`       | The spawn kit fits the level-1 bag                                                                                                                                                                                                                                  |
 | `node bin/cyberia stat-contract --check`        | The generated Go, C and content contracts match the source                                                                                                                                                                                                          |

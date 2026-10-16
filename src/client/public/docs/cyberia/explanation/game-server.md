@@ -57,12 +57,12 @@ There is no per-tick traffic between `cyberia-server` and `engine-cyberia`, and 
 
 The tick is the universal coordinate of the simulation.
 
-| Concept           | Default         | Notes                                                                                                   |
-| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------- |
-| **tick**          | `uint32`        | Monotonic, advanced once per simulation step. Resets only on world rebuild.                             |
+| Concept           | Default         | Notes                                                                                                                                                  |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **tick**          | `uint32`        | Monotonic, advanced once per simulation step. Resets only on world rebuild.                                                                            |
 | **tick rate**     | `30` Hz         | Simulation Hz. `sim.DefaultTickRate`, fixed at compile time; equals the client `TICK_RATE_HZ`. **The string `fps` is not used to describe this rate.** |
-| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase.                                                                  |
-| **current tick**  | `uint32`        | The simulation step about to run (or just produced).                                                    |
+| **tick duration** | `1 / tick_rate` | The dt used by every simulation phase.                                                                                                                 |
+| **current tick**  | `uint32`        | The simulation step about to run (or just produced).                                                                                                   |
 
 One ticker at `tickRate` Hz. Each tick advances the world by exactly one step, runs the phases in fixed order, then sends one AOI snapshot per player.
 
@@ -107,37 +107,54 @@ The client sends one `events` message per frame with new events. The simulation 
                          authoritative world state
 ```
 
-| Property                          | Detail                                                                                                                                             |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One queue per player              | drained exactly once per simulation tick                                                                                                           |
-| One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput`                                                                                       |
-| One source of truth               | `phase_input_handlers.go` is the only file that translates an input command into world state                                                       |
+| Property                          | Detail                                                                                                                                                                                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One queue per player              | drained exactly once per simulation tick                                                                                                                                                                                                                          |
+| One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput`                                                                                                                                                                                                      |
+| One source of truth               | `phase_input_handlers.go` is the only file that translates an input command into world state                                                                                                                                                                      |
 | Sequence numbering                | `InputCommand.Sequence` is monotonic per client; the server tracks the highest applied sequence per player in `Session.InputConsumedThrough` and echoes it in every snapshot. A command at or below that cursor is dropped, so a resent event never applies twice |
 
 The batch is validated and enqueued whole. An event that fails validation becomes `InputKindUnknown`: consumed, never applied. No synchronous game-state mutation runs on the WebSocket read goroutine.
 
 ### Input kinds
 
-| Kind             | Wire type       | Effect                                                                         |
-| ---------------- | --------------- | ------------------------------------------------------------------------------ |
-| `PlayerAction`   | `player_action` | TAP — movement intent + skill trigger                                          |
-| `ItemActivation` | `item_active`   | Equip/unequip the stack in a bag slot; validated against equipment rules       |
-| `PlayerStasis`   | `player_stasis` | Client modal count > 0 freezes the player (FrozenInteractionState), else thaws |
-| `Chat`           | `chat`          | One line to the world, the party or one player ([chat and parties](social.md)) |
-| `TalkDone`       | `talk_done`     | Dialogue read to the end; advances talk objectives                             |
-| `QuestAccept`    | `quest_accept`  | Accept the quest an NPC offers                                                 |
-| `QuestAbandon`   | `quest_abandon` | Drop an active quest                                                           |
-| `ShopBuy`        | `shop_buy`      | Buy one catalog item from a vendor action                                      |
-| `CraftItem`      | `craft_item`    | Assemble one recipe at an assembler action                                     |
-| `CraftCancel`    | `craft_cancel`  | Abort the running assembly and refund it                                       |
-| `ItemMove`       | `item_move`     | Move units of one stack to a slot of the bag, the storage or a vault           |
-| `PartyInvite`    | `party_invite`  | Invite a player in view to the party                                           |
-| `PartyReply`     | `party_reply`   | Accept or decline a pending invite                                             |
-| `PartyLeave`     | `party_leave`   | Leave the party                                                                |
-| `PartyKick`      | `party_kick`    | The leader removes a member                                                    |
-| `PartyDisband`   | `party_disband` | The leader ends the party                                                      |
+| Kind             | Wire type        | Effect                                                                         |
+| ---------------- | ---------------- | ------------------------------------------------------------------------------ |
+| `PlayerAction`   | `player_action`  | TAP — movement intent + skill trigger                                          |
+| `ItemActivation` | `item_active`    | Equip/unequip the stack in a bag slot; validated against equipment rules       |
+| `PlayerStasis`   | `player_stasis`  | Client modal count > 0 freezes the player (FrozenInteractionState), else thaws |
+| `Chat`           | `chat`           | One line to the world, the party or one player ([chat and parties](social.md)) |
+| `TalkDone`       | `talk_done`      | Dialogue read to the end; advances talk objectives                             |
+| `QuestAccept`    | `quest_accept`   | Accept the quest an NPC offers                                                 |
+| `QuestAbandon`   | `quest_abandon`  | Drop an active quest                                                           |
+| `ShopBuy`        | `shop_buy`       | Buy one catalog item from a vendor action                                      |
+| `CraftItem`      | `craft_item`     | Assemble one recipe at an assembler action                                     |
+| `CraftCancel`    | `craft_cancel`   | Abort the running assembly and refund it                                       |
+| `ItemMove`       | `item_move`      | Move units of one stack to a slot of the bag, the storage or a vault           |
+| `PartyInvite`    | `party_invite`   | Invite a player in view, or a friend on any map of this server, to the party   |
+| `PartyReply`     | `party_reply`    | Accept or decline a pending invite                                             |
+| `PartyLeave`     | `party_leave`    | Leave the party                                                                |
+| `PartyKick`      | `party_kick`     | The leader removes a member                                                    |
+| `PartyDisband`   | `party_disband`  | The leader ends the party                                                      |
+| `FriendList`     | `friends_list`   | Ask for the friend list                                                        |
+| `FriendRequest`  | `friend_request` | Ask an account player in view to be friends                                    |
+| `FriendReply`    | `friend_reply`   | Accept, decline or withdraw a friend request                                   |
+| `FriendRemove`   | `friend_remove`  | End a friendship                                                               |
 
-`handshake` is the one message outside the batch; it opens the connection and has no gameplay effect.
+`auth` is the one message outside the batch. It is the first message of every connection, and the
+server reads no input before it admits the player
+([accounts and persistent players](accounts-and-persistence.md#launch-flow)). `session_leave` travels
+in the batch, but `game/net` takes it before the simulation: it ends the session with its final
+commit ([leaving](accounts-and-persistence.md#leaving)).
+
+## Player persistence
+
+In account mode the server loads each account player from its profile and commits its durable state
+back through `CyberiaPlayerService`; a guest stays in memory. `game/persist` owns the pipeline: the tick captures the state of
+each account player every 6 ticks under the world lock, and a background loop sends at most one
+commit per player, with retries, checkpoints and the final commit at session end. `game/net`
+owns admission, takeover, the resume tickets and session end. See
+[accounts and persistent players](accounts-and-persistence.md#write-guarantees).
 
 ---
 
@@ -154,12 +171,13 @@ Per player:
 
 The `snapshot` payload carries `frame` (the client frame the state stands for), `inputConsumedThrough` (the highest client event sequence a tick has applied), the AOI `entities` and the `self` block. The client replaces its own state, drops the consumed events and replays the rest. See [the input command pipeline](architecture.md#input-command-pipeline).
 
-A player entity carries its display `name`. The `self` block adds what only the owner may read: the
-inventory, the NPC `vaults`, the personal `storage`, the `party` and the `partyInvites`, and one
+A player entity carries its display `name`. The `self` block adds what only the owner may read:
+the inventory, the NPC `vaults`, the personal `storage`, the `party`, the `partyInvites` and the
+`partyInvitesSent`, the `held` stack count, the `unsaved` flag, and one
 `interaction` row per bot or player in view that offers something
 ([player identity](player-identity-and-profile.md#public-and-private-data)).
 
-The other message types (`init_data`, `combat_text`, `audio_event`, `drop_spawn`, `chat`, `chat_ack`, `party_ack`, ...) are not part of the per-tick replication stream.
+The other message types (`init_data`, `session_end`, `resume`, `combat_text`, `audio_event`, `drop_spawn`, `chat`, `chat_ack`, `party_ack`, `friends`, `friend_ack`, ...) are not part of the per-tick replication stream.
 
 ---
 
@@ -200,19 +218,20 @@ These live in the client runtime's compile-time defaults. Per-instance presentat
 
 ## Source layout
 
-Paths are relative to `cyberia-server/`. Gameplay logic lives under `game/`, in five packages. The dependency points one way: `net` → `sim` → `social` → `content` → `world`.
+Paths are relative to `cyberia-server/`. Gameplay logic lives under `game/`, in six packages. The dependency points one way: `net` → `sim` → `social` → `content` → `world` → `persist`.
 
-| Path                      | Responsibility                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `cmd/cyberia-server/`     | Entry point — loads `.env`, dials engine-cyberia gRPC, mounts WS and `/api` router, starts listener                                  |
-| `game/world/`             | Entity table and component arrays (`types.go`, `entity_table.go`), `Session`, `InputCommand` and `InputKind`, A\* pathfinding        |
+| Path                      | Responsibility                                                                                                                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cmd/cyberia-server/`     | Entry point — loads `.env`, dials engine-cyberia gRPC, mounts WS and `/api` router, starts listener                                                                                                                                         |
+| `game/world/`             | Entity table and component arrays (`types.go`, `entity_table.go`), `Session`, `InputCommand` and `InputKind`, A\* pathfinding                                                                                                               |
 | `game/content/`           | Rules loaded from the instance config: stats, progression, economy, loot, quests, shop, craft, entity defaults, ESI status IDs; the container capacity and the player containers (`capacity.go`, `storage.go`); the generated stat contract |
-| `game/social/`            | Chat channels and parties of the players on this server                                                                              |
-| `game/sim/`               | Tick phases (`simulation_phases.go`), typed input dispatch (`phase_input_handlers.go`), movement, AI, tap and held skills, collision and death, world reconstruction (`instance_loader.go`) |
-| `game/net/`               | `GameServer`: the tick loop, WebSocket lifecycle and the `events` uplink (`handlers.go`), snapshot build (`snapshot.go`), metrics    |
-| `engine_client/`          | engine-cyberia transport clients (gRPC, REST fallback, dispatcher) + world builder                                                   |
-| `api/`                    | chi router; `/api/v1/*` endpoints                                                                                                    |
-| `gen/proto/cyberia.proto` | gRPC service contract, generated from engine-cyberia (do not edit)                                                                   |
+| `game/persist/`           | The durable player state and the commit pipeline: capture, retries, checkpoints, fencing and the final commit                                                                                                                               |
+| `game/social/`            | Chat channels, parties and the friend cache of the players on this server                                                                                                                                                                   |
+| `game/sim/`               | Tick phases (`simulation_phases.go`), typed input dispatch (`phase_input_handlers.go`), movement, AI, tap and held skills, collision and death, world reconstruction (`instance_loader.go`)                                                 |
+| `game/net/`               | `GameServer`: the tick loop, WebSocket lifecycle and the `events` uplink (`handlers.go`), admission and session end (`sessions.go`), the friend broker (`friends.go`), snapshot build (`snapshot.go`), metrics                              |
+| `engine_client/`          | engine-cyberia transport clients (gRPC, REST fallback, dispatcher), the player service client (`player_client.go`) + world builder                                                                                                          |
+| `api/`                    | chi router; `/api/v1/*` endpoints                                                                                                                                                                                                           |
+| `gen/proto/cyberia.proto` | gRPC service contract, generated from engine-cyberia (do not edit)                                                                                                                                                                          |
 
 ---
 

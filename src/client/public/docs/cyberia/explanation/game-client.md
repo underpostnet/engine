@@ -93,16 +93,16 @@ src/
   js/                               small JS bridges (assets, fullscreen, text input)
 ```
 
-| Owner                           | Owns                                                                                                                                                             | Reads                                             | Writes                                                                                          |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `content/presentation_runtime`  | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/v1/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
-| `net/client_event`              | the client event list                                                                                                                                            | session for frame + sequence                      | the socket                                                                                      |
-| `sim/replication` (prediction)  | the own player: last two fixed steps, newest server state                                                                                                        | snapshot self block + client event list           | own player state                                                                                |
-| `sim/replication` (interpolation) | remote entity `interp_pos`                                                                                                                                     | snapshot history                                  | remote `interp_pos` only                                                                        |
-| `sim/replication` (session)     | frame counter, next sequence                                                                                                                                     | —                                                 | session counters                                                                                |
-| `net/message`                   | wire parser                                                                                                                                                      | JSON messages                                     | `game_state` + prediction (via `prediction_on_snapshot`)                                        |
-| `sim/game_state`                | gameplay world mirror                                                                                                                                            | —                                                 | —                                                                                               |
-| `view/`, `ui/`                  | rendering                                                                                                                                                        | view models                                       | screen                                                                                          |
+| Owner                             | Owns                                                                                                                                                              | Reads                                             | Writes                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `content/presentation_runtime`    | the entire presentation surface (palette, entity colour keys, status icons, camera, cell, interpolation). Inline bootstrap fallback while the fetch is in flight. | JSON response from `/api/v1/cyberia-client-hints` | own table + one-shot hydration of `g_game_state.cell_size`, `.interpolation_ms`, `.camera.zoom` |
+| `net/client_event`                | the client event list                                                                                                                                             | session for frame + sequence                      | the socket                                                                                      |
+| `sim/replication` (prediction)    | the own player: last two fixed steps, newest server state                                                                                                         | snapshot self block + client event list           | own player state                                                                                |
+| `sim/replication` (interpolation) | remote entity `interp_pos`                                                                                                                                        | snapshot history                                  | remote `interp_pos` only                                                                        |
+| `sim/replication` (session)       | frame counter, next sequence                                                                                                                                      | —                                                 | session counters                                                                                |
+| `net/message`                     | wire parser                                                                                                                                                       | JSON messages                                     | `game_state` + prediction (via `prediction_on_snapshot`)                                        |
+| `sim/game_state`                  | gameplay world mirror                                                                                                                                             | —                                                 | —                                                                                               |
+| `view/`, `ui/`                    | rendering                                                                                                                                                         | view models                                       | screen                                                                                          |
 
 `game_state` holds only the gameplay subset of world state, in an entity table with one array per component (data, transform, appearance, vitals, progress, motion, agent, portal). It does not carry palette state, status-icon visuals, or any other presentation field.
 
@@ -238,7 +238,9 @@ The server sends one `snapshot` per tick. Its payload carries:
 
 The decoder hands the self block, `frame` and `inputConsumedThrough` to `prediction_on_snapshot()`. `prediction_reconcile()` applies it at the start of the next tick.
 
-The other server messages — `init_data`, `metadata`, `combat_text`, `audio_event`, `drop_spawn`, `drop_collect`, `chat`, `chat_ack`, `party_ack`, `dialog_ack`, `shop_ack` — are not part of the per-tick replication stream.
+The other server messages — `init_data`, `session_end`, `resume`, `metadata`, `combat_text`, `audio_event`, `drop_spawn`, `drop_collect`, `chat`, `chat_ack`, `party_ack`, `friends`, `friend_ack`, `dialog_ack`, `shop_ack` — are not part of the per-tick replication stream.
+
+The first message of every connection is `auth`: `{ticket}` with the launch ticket the page took from its address fragment, `{}` without one. A refusal shows the session card, whose ways open the launch bridge of the portal: **Continue as guest** or **Sign in** ([accounts and persistent players](accounts-and-persistence.md#launch-flow)). An account session keeps the resume ticket of `resume {ticket}` in memory; after a lost connection or a server restart it reconnects with it and comes back without the portal ([resume](accounts-and-persistence.md#resume-after-a-dropped-connection)). A guest card opens a new connection after a lost connection or a restart. The menu button opens the same card as the session menu: World select, Play as guest, Sign out, or Sign in to keep progress ([leaving](accounts-and-persistence.md#leaving)).
 
 The client sends one `events` message per frame with new events. Its payload is `{ "events": [ ... ] }`; each event is an envelope whose payload carries `seq`, `frame` and `timestamp`.
 
@@ -256,17 +258,16 @@ frame scaled to fill 300 px, with no margin. The interact overlay and every engi
 picture, and the editors share one loaded copy per item. `cyberia ol --sync` derives both again from the primary render of stored items, then draws again the preview of each map that shows them and reloads the object layers of the game servers ([`ol --sync`](../reference/cyberia-cli.md#cyberia-ol--object-layer)).
 The [render contract](../../object-layer/explanation/render-contract.md) defines these terms.
 
-| Endpoint                                                          | Purpose                                     |
-| ----------------------------------------------------------------- | ------------------------------------------- |
-| `GET /api/v1/atlas-sprite-sheet/metadata/:itemKey`                | Frame layout JSON for a sprite atlas        |
-| `GET /api/v1/atlas-sprite-sheet/blob/:itemKey`                    | Primary render PNG, one pixel per cell      |
-| `GET /api/v1/atlas-sprite-sheet/idle-preview/:itemKey`            | 300 px idle preview PNG, the item's picture |
-| `GET /api/v1/object-layer/:itemId`                                | ObjectLayer JSON metadata                   |
-| `GET /api/v1/cyberia-dialogue/code/default-:itemId`               | Dialogue lines for an NPC                   |
-| `GET /assets/ui-icons/:iconId.png`                                | Status-bar icons                            |
-| `GET /api/v1/cyberia-client-hints/:instanceCode`                  | Optional presentation overrides             |
-| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/static`  | Instance Map graph (nodes, edges, POIs)     |
-| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/dynamic` | Instance Map provider activity (~1/s poll)  |
+| Endpoint                                                         | Purpose                                     |
+| ---------------------------------------------------------------- | ------------------------------------------- |
+| `GET /api/v1/atlas-sprite-sheet/metadata/:itemKey`               | Frame layout JSON for a sprite atlas        |
+| `GET /api/v1/atlas-sprite-sheet/blob/:itemKey`                   | Primary render PNG, one pixel per cell      |
+| `GET /api/v1/atlas-sprite-sheet/idle-preview/:itemKey`           | 300 px idle preview PNG, the item's picture |
+| `GET /api/v1/object-layer/:itemId`                               | ObjectLayer JSON metadata                   |
+| `GET /api/v1/cyberia-dialogue/code/default-:itemId`              | Dialogue lines for an NPC                   |
+| `GET /assets/ui-icons/:iconId.png`                               | Status-bar icons                            |
+| `GET /api/v1/cyberia-client-hints/:instanceCode`                 | Optional presentation overrides             |
+| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/static` | Instance Map graph (nodes, edges, POIs)     |
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
 
@@ -294,13 +295,13 @@ Strict independence from the gameplay renderer:
 
 Data lifecycle:
 
-1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status and static action/quest capability membership. The instance code arrives in the simulation server's `metadata` message.
-2. While open, the client polls the **dynamic** endpoint (~1/s, `?playerId=`) only for per-player capability activity: `acceptable` / `active` quests and active actions.
-3. Closing the overlay stops polling immediately; late responses are discarded.
+1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status, their quests with `prerequisiteCodes`, and their actions with the quests that use them. The instance code arrives in the simulation server's `metadata` message.
+2. The client marks a quest POI active while its quest is acceptable or active in the local quest store, and an action POI active when it stands alone or one of its quests is. It marks them again at each quest store change; no request names the player.
+3. Closing the overlay discards a late static response.
 
 Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
 
-At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear; dynamic activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
+At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear; quest activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
 
 ---
 
@@ -310,29 +311,34 @@ The own player holds the first bubble of the interaction column. A tap opens the
 tap on another player opens its public profile; an NPC keeps its capability tabs
 ([player identity and profile](player-identity-and-profile.md#profile-views)).
 
-| Module                  | Owns                                                                                          |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `ui/player_panel`       | The Profile tab of any player and the own Party tab                                           |
-| `ui/container_panel`    | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells |
-| `ui/stack_move`         | How a dropped stack lands in the bar and the containers, with the quantity picker            |
-| `sim/container_ops`     | The item move rules, applied at once and replayed after each snapshot                         |
-| `ui/chat_log`           | The chat history by conversation, and the unread counts                                       |
-| `ui/chat_pane`          | One conversation in a content rect; every pane shares the one DOM text input                  |
-| `ui/chat_panel`         | The HUD chat: World and Party channels at the bottom of the right-hand column                 |
+| Module               | Owns                                                                                                  |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| `ui/player_panel`    | The Profile tab of any player, and the own Party and Friends tabs                                     |
+| `ui/container_panel` | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells |
+| `ui/stack_move`      | How a dropped stack lands in the bar and the containers, with the quantity picker                     |
+| `sim/container_ops`  | The item move rules, applied at once and replayed after each snapshot                                 |
+| `ui/chat_log`        | The chat history by conversation, and the unread counts                                               |
+| `ui/chat_pane`       | One conversation in a content rect; every pane shares the one DOM text input                          |
+| `ui/chat_panel`      | The HUD chat: World, Party and Direct at the bottom of the right-hand column, with the unread badges  |
+| `ui/emoji`           | Emoji tokens in a chat line: the icon of each token, wrapped with the words                           |
+| `ui/identity_icon`   | The icon of a player in social views: its active skin, or the default icon                            |
+| `ui/session_gate`    | The session card and menu: why a session ended or was refused, and each way on                        |
 
 - The inventory bar shows every cell the capacity rule can open: stacks, open slots, then locked
   slots with the `lock` icon and their level ([inventory capacity](inventory-capacity.md#locked-slots)).
-  Each cell is a bag slot, and reorder mode moves stacks between cells ([reorder mode](inventory-capacity.md#reorder-mode)).
+  Each cell is a bag slot; a tap opens a stack and a drag moves it ([moving stacks](inventory-capacity.md#moving-stacks)).
   The item card equips and unequips the stack it shows.
-- The toolbar row reads `[audio][chat][quest][map][fullscreen]`. The chat button carries the unread
-  count of the World and Party channels and opens the HUD chat, which opens no modal.
+- The toolbar row reads `[menu][audio][social][chat][quest][map][fullscreen]`. The chat button
+  carries the unread count of every conversation and opens the HUD chat, which opens no modal. The
+  social button carries the friend requests and party invites to answer and opens the own Friends
+  or Party tab ([chat and parties](social.md#chat-channels)).
 - A pending party invite never blocks play: the own bubble counts invites and the inviter's bubble
   carries the party mark ([chat and parties](social.md#parties)).
 - The shop and the assembler show "Bag full" on a card whose result has no free slot.
 
 To check a change, use a desktop browser and a phone (or touch emulation):
 
-1. Tap the own bubble. The own profile opens on Profile, with Storage, Party and Stats. No dialogue opens.
+1. Tap the own bubble. The own profile opens on Profile, with Storage, Party, Friends and Stats. No dialogue opens.
 2. Open Storage. Drag a stack from the bar into an open cell and back. A locked cell turns the drop
    back and, on a tap, names its level.
 3. Tap a locked bag slot. A toast names the level that opens it.
@@ -340,6 +346,9 @@ To check a change, use a desktop browser and a phone (or touch emulation):
    own Party tab. Both Party tabs list two members.
 5. Open the HUD chat. Send on World and on Party; type WASD into the input: the player does not move.
 6. Close the other client. The party ends on the first client.
+7. On an account world, add the other player as a friend and accept. Both nameplates show a heart;
+   a direct line with `:smile:` shows the icon in the chat and in the bubble preview.
+8. Open the world in a second tab. The first tab shows the session card with PLAY HERE.
 
 ## Stats and progression
 
@@ -378,17 +387,19 @@ The server sends six values in canonical order. The client displays these values
 ```bash
 cd cyberia-client
 
-# Development build (BUILD_MODE=DEBUG, localhost websocket URL)
+# Development build (BUILD_MODE=DEBUG)
 make -f Web.mk clean && make -f Web.mk all
 
 # Release build
 make -f Web.mk clean && make -f Web.mk all BUILD_MODE=RELEASE
+
+# Serve it against a local engine and game server
+CYBERIA_WS_ORIGIN=ws://localhost:8083 python3 wasm-driver.py --port=8082 --directory=bin \
+  --data-server-url=http://localhost:4008
 ```
 
-`BUILD_MODE` picks the websocket URL baked into the WASM — see
-[Compile-time configuration](#compile-time-configuration). The Data Server URL
-is not a build argument: the client reads it from its own command line at
-startup.
+`BUILD_MODE` picks debug or release code only. No server URL is a build argument — see
+[Compile-time configuration](#compile-time-configuration).
 
 The build is part of the Underpost Platform static + PWA pipeline; production deploys go through `underpost client` and `underpost deploy`.
 
@@ -408,10 +419,11 @@ bin/
 
 ### Server URLs
 
-`WS_URL` in `src/config.h` holds both websocket endpoints. `BUILD_MODE` picks
-one: DEBUG takes `ws://localhost:8081/ws`, RELEASE takes
-`wss://server.cyberiaonline.com/ws`. `window.CYBERIA_WS_ORIGIN`, injected by
-`wasm-driver.py`, overrides it at runtime.
+No server URL is compiled in. The websocket origin has one source:
+`CYBERIA_WS_ORIGIN`, which `wasm-driver.py` injects as `window.CYBERIA_WS_ORIGIN`.
+The client dials `<origin>/ws` for the default world and `<origin>/<instance>/ws`
+for any other. `instance-build-manifest` writes the value of each environment to
+the instance env ([origins](accounts-and-persistence.md#origins)).
 
 The Data Server URL is a command line argument, not a build argument:
 
@@ -420,9 +432,10 @@ wasm-driver.py --data-server-url=<origin>
   -> window.CYBERIA_ARGV -> Module.arguments -> main(argc, argv)
 ```
 
-`config_init()` reads `--data-server-url=<origin>` from `argv`. The argument is
-required: the client asserts and stops if it is absent. There is no environment
-fallback, no config file and no runtime override.
+`config_init()` reads `--data-server-url=<origin>` from `argv`. Both values are
+required: `wasm-driver.py` refuses to start without them, and the client stops
+with a log line if one is absent. There is no fallback, no config file and no
+runtime override.
 
 `wasm-driver.py` appends any other flag to the client argv. `fetch_init()` reads
 two stream diagnostics:

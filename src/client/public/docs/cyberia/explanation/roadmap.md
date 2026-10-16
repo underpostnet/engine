@@ -164,7 +164,8 @@ game server drain.
 
 ## Phase 1 — Pre-Alpha: Anonymous Off-Chain (Ephemeral Sessions)
 
-**Status:** In progress — the core loop runs; action and quest systems are pending.
+**Status:** In progress — the core loop, the action and quest systems and portals run; the capacity
+queue is pending.
 
 ### What works today
 
@@ -182,24 +183,15 @@ game server drain.
 - Level-based bag capacity on every grant path, and personal storage beside the NPC vaults
   ([inventory capacity](inventory-capacity.md), [personal storage](player-storage.md))
 - World, party and direct chat, and parties of up to 5 players ([chat and parties](social.md))
+- NPC actions over gRPC: dialogue, shops and crafting ([action system](action-system.md))
+- Quests: talk, collect and kill objectives, with rewards ([quest system](quest-system.md))
+- Portal transitions between maps
 
 ### Remaining work for the Pre-Alpha checkpoint
 
-Every task below targets selected-user testing with **ephemeral, in-memory sessions**. State resets
-on disconnect.
-
-| Task                                | Component                           | Notes                                                                             |
-| ----------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------- |
-| NPC action routing in the Go server | `cyberia-server`                    | Tap an NPC → look up the `CyberiaAction` from gRPC data → dispatch to the handler |
-| Dialogue system integration         | `cyberia-server` + `cyberia-client` | `freeze_start` opens the dialogue modal; the server validates talk objectives     |
-| Shop transaction handler            | `cyberia-server`                    | Deduct the coin balance, grant the item to the in-memory inventory                |
-| Craft transaction handler           | `cyberia-server`                    | Consume ingredients from the in-memory inventory, grant the outputs               |
-| Quest tracking (in-memory)          | `cyberia-server`                    | `CyberiaQuestProgress` lives in the session struct; no persistence                |
-| Quest objective evaluation          | `cyberia-server`                    | Intercept kill, collect and talk events; update in-memory progress                |
-| Quest reward delivery               | `cyberia-server`                    | On step or quest completion, grant items and coins through FCT                    |
-| Action and quest data over gRPC     | `proto + engine + go`               | Extend `GetFullInstanceResponse` with `CyberiaAction[]` and `CyberiaQuest[]`      |
-| Portal transitions                  | `cyberia-server`                    | Inter-map traversal on `portal` entity collision                                  |
-| Player capacity queue               | `cyberia-server`                    | FIFO queue with `/api/v1/queue-status` SSE; refuse connect at capacity            |
+| Task                  | Component        | Notes                                                                  |
+| --------------------- | ---------------- | ---------------------------------------------------------------------- |
+| Player capacity queue | `cyberia-server` | FIFO queue with `/api/v1/queue-status` SSE; refuse connect at capacity |
 
 ### Pre-Alpha data contract
 
@@ -210,7 +202,7 @@ Player session (in-memory Go state only):
     DisplayName:   string              // "Guest-" and a short code, unique among online players
     ObjectLayers:  []ObjectLayerState  // the inventory: stacks, worn or not
     Coins:         uint32              // Fountain and Sink coin wallet
-    QuestProgress: []QuestProgress     // best-effort mirror to the engine; no reload
+    QuestProgress: []QuestProgress     // in memory; a guest's ends with the session
     Storage:       []Stack             // personal storage
     Vaults:        map[action][]Stack  // NPC vaults
     Party:         seat in one party   // up to 5 players
@@ -221,64 +213,88 @@ Player session (in-memory Go state only):
   }
 ```
 
-No account, no persistent identity, no carry-over between sessions. The containers end with the
-inventory and the wallet, so a reconnect cannot bank assets. Phase 2 keeps the owner keys and
-changes where the `PlayerID` comes from.
+A guest session has no account and no carry-over between sessions. The containers end with the
+inventory and the wallet, so a reconnect cannot bank assets. Account sessions keep the same owner
+keys: the `PlayerID` is the profile id ([Phase 2](#phase-2--alpha-centralized-off-chain-persistent-sessions)).
 
 ---
 
 ## Phase 2 — Alpha: Centralized Off-Chain (Persistent Sessions)
 
-**Target:** persistent account, inventory and progress in MongoDB, reached over gRPC.
+**Status:** In progress — account sessions, persistent player state and friends run in account mode
+(`CYBERIA_SESSION_MODE=account`), beside guest sessions. Anonymous mode stays the default.
 
-A player signs in with a password or with SIWE. Both paths produce the same server-issued session
-token, and both bind to the same `PlayerState`. Wallet sign-in in this phase proves the address; it
-reads no chain state.
+A player signs in at the portal with a password or Google, or continues as a guest, and the launch
+bridge of the portal opens the world with a single-use ticket. The game server stays the authority and commits the durable state of each player
+to the engine over gRPC. A wallet stays an optional linked identity: it is never a profile key, and
+Phase 2 gameplay never needs it.
 
 ### Architecture additions
 
 ```
+cyberia-portal (browser)
+  → /launch?world=… → POST /api/v1/cyberia-game-ticket (account or guest) → client#ticket=…
+  → auth {ticket} on /ws
 cyberia-server (Go)
-  ↕ gRPC (GetPlayerState, SavePlayerState, CreateSession)
+  ↕ gRPC CyberiaPlayerService (tickets, resume tickets, sessions, commits, checkpoints, friendships)
 engine-cyberia (Node.js)
-  ↕ MongoDB
-    User          (src/api/user)           — account, sessions, wallet.accountId
-    WalletAccount (src/api/wallet-account) — CAIP-10 public account metadata
-    PlayerState   (new model)              — inventory, coin balance, quest progress
+  ↕ MongoDB replica set (host database, beside users)
+    CyberiaPlayer        — one profile per account and world: coins, XP, bag, storage, vaults, held, position
+    CyberiaGameSession   — the lease of the one live session of an account: epoch, presence
+    CyberiaGameTicket    — launch and resume tickets of accounts and guests, hash only
+    CyberiaQuestProgress — quest progress by profile
+    CyberiaFriendship    — friendships and requests by account
 ```
+
+[Accounts and persistent players](accounts-and-persistence.md) holds the model and the guarantees,
+and [the player service reference](../reference/player-service.md) the contracts.
 
 ### Milestone goals
 
-| Task                       | Component        | Notes                                                               |
-| -------------------------- | ---------------- | ------------------------------------------------------------------- |
-| `GetPlayerState` gRPC RPC  | `proto + engine` | Return inventory, coin balance and quest progress for a userId      |
-| `SavePlayerState` gRPC RPC | `proto + engine` | Persist state on clean disconnect or on a periodic checkpoint       |
-| Player state model         | `engine-cyberia` | New `src/api/player-state` model linked to `User`                   |
-| Wallet account binding     | `engine-cyberia` | Bind `User.wallet.accountId` after a SIWE sign-in                   |
-| Go server session auth     | `cyberia-server` | On connect, verify the session token with the engine and load state |
-| Go server checkpoint       | `cyberia-server` | Periodic and on-disconnect `SavePlayerState`                        |
-| Alpha gRPC contract        | `proto`          | New RPCs inside `CyberiaDataService`, with reserved numbers kept    |
+"Tested" names automated tests; "browser" names a manual run of the real portal, client and server
+in a browser.
+
+| Task                               | Component              | State                                                                                           |
+| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| Launch ticket and socket admission | `engine + go + client` | Done, tested, browser: single-use hashed ticket in the fragment, `auth` first                   |
+| Guest sessions in account worlds   | `engine + go + client` | Done, tested, browser: a guest identity, guest tickets, no profile reads or writes              |
+| Launch bridge and origins          | `engine + client`      | Done, tested, browser in development: `/launch`, one origin source per deploy                   |
+| One session per account, takeover  | `engine + go`          | Done, tested: lease with epoch fencing, `signed_in_elsewhere`, `revoked`                        |
+| Persistent player state            | `proto + engine + go`  | Done, tested, browser: coins, XP, bag, storage, vaults, quests, position                        |
+| Item identity across releases      | `go + engine`          | Done, tested: each stack keeps its `olCid`; held stacks, operator rebind                        |
+| Outage behaviour                   | `go + client`          | Done, tested: retries, unsaved notice, trades wait, coin drop lock                              |
+| Session menu                       | `go + client`          | Done, tested, browser: world select, play as guest, sign out, the final commit first            |
+| Reconnect without the portal       | `engine + go + client` | Done, tested, browser: a resume ticket bound to the epoch; dropped link and server restart      |
+| Friends, presence, direct chat     | `engine + go + client` | Done, tested, browser: persistent friendships, lease presence, DM across maps, badges           |
+| Party invites across maps          | `go + client`          | Done, tested, browser: an accepted friend on any map of one server                              |
+| Identity icons and emoji           | `client`               | Done, tested: the active skin Object Layer icon, `CHAT_EMOJI` tokens                            |
+| Quest progress cleanup             | `engine`               | Done, tested: an operator archive with a report, and a restore                                  |
+| Load baseline                      | `go + engine`          | Measured locally: 100 guests; 100 accounts at 50 commits/s. Open: mixed load at capacity        |
+| Portal session cookies             | `engine`               | Open: the access token lives in `localStorage`; an HttpOnly cookie model needs a migration plan |
+| Valkey for guest identities        | `engine`               | Open: guest identities share the evicting cache Valkey                                          |
+| Wallet account binding             | `engine-cyberia`       | Open: bind `User.wallet.accountId` after a SIWE sign-in                                         |
+| Direct chat across worlds          | `go`                   | Open: friends in another world show presence only                                               |
 
 ### Data contract (alpha)
 
 ```
-User (MongoDB):
-  email, username, passwordHash, role, activeSessions[],
-  wallet: { accountId, address }        // CAIP-10 binding; no secret material
-
-WalletAccount (MongoDB):
-  accountId, address, chainNamespace, chainId,
-  walletType, providerType, derivationPath, userId, lastSeenAt
-
-PlayerState (MongoDB):
-  userId: ObjectId → User
+CyberiaPlayer (MongoDB), unique {user, instanceCode}:
+  user: ObjectId → User
   instanceCode: string
-  coinBalance: uint32
-  inventory:     [{ itemId, objectLayerCid, active, quantity }]
-  questProgress: [{ questCode, stepId, objectives: [...] }]
+  schemaVersion, epoch, commitSeq, positionSeq, revision
+  coins: uint32
+  xp: uint64                                  // the level derives from it
+  bag, storage: [{ itemId, olCid, quantity, slot, active }]
+  vaults: [{ actionCode, stacks: [...] }]
+  held: [{ stack, container, actionCode, reason }]
+  position: { mapCode, x, y, at }
+
+CyberiaQuestProgress (MongoDB), unique {player, questCode}:
+  player: ObjectId → CyberiaPlayer
+  questCode, status, stepProgress: [{ stepId, objectiveProgress: [...] }]
 ```
 
-Inventory entries carry the pinned `objectLayerCid` beside the label, so a rebound label never
+Every stack carries the `olCid` it was granted with beside its label, so a rebound label never
 changes what a saved item is.
 
 ---
@@ -324,9 +340,9 @@ Hyperledger Besu (IBFT2 / QBFT, chainId 777771, gasPrice 0)
 
 | State                             | Owner        | Store                            | Authority    |
 | --------------------------------- | ------------ | -------------------------------- | ------------ |
-| Quest progress, objectives, steps | Cyberia      | MongoDB (`PlayerState`)          | Game server  |
-| Coin balance (Fountain and Sink)  | Cyberia      | MongoDB (`PlayerState`)          | Game server  |
-| Equipment activation              | Cyberia      | Session, checkpointed to MongoDB | Game server  |
+| Quest progress, objectives, steps | Cyberia      | MongoDB (`CyberiaQuestProgress`) | Game server  |
+| Coin balance (Fountain and Sink)  | Cyberia      | MongoDB (`CyberiaPlayer`)        | Game server  |
+| Equipment activation              | Cyberia      | MongoDB (`CyberiaPlayer`)        | Game server  |
 | Item ownership                    | ItemLedger   | ERC-1155 balances                | Chain        |
 | CKY balance                       | CryptoKoyn   | ERC-1155 token 0                 | Chain        |
 | Definition identity               | Object Layer | Canonical bytes                  | Content hash |
@@ -340,7 +356,7 @@ truth. A chain outage stops transfers; it does not stop play.
 | -------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
 | SIWE sign-in in the client       | `cyberia-client`                    | JS bridge calls the wallet provider; no key reaches C                 |
 | On-chain ownership read          | `engine-cyberia`                    | `balanceOf` per token type for the player address                     |
-| Ownership over gRPC              | `proto + engine + go`               | `GetPlayerState` returns indexed balances as inventory                |
+| Ownership over gRPC              | `proto + engine + go`               | `AcquirePlayerSession` returns indexed balances as inventory          |
 | CKY transfer through the relayer | `cyberia-server` + `engine-cyberia` | A kill transfer submits `safeTransferFrom` after EIP-712 verification |
 | Relayer key management           | `engine-cyberia`                    | Kubernetes Secret first, then Vault or KMS; never in the repo         |
 | Item registration pipeline       | `cyberia chain` CLI                 | `cyberia chain register` and `batch-register` publish definitions     |

@@ -117,7 +117,7 @@ The same module checks the release content and applies it:
 - `cyberia release build` writes the paths into `multiInstance.variants` of `mmo-server` and
   `mmo-client` in `conf.instances.json`.
 - Each game instance env file gets `INSTANCE_CODE` or `CYBERIA_INSTANCE_CODE` from its path, and
-  `CYBERIA_DEFAULT_INSTANCE` from the `/` world. Every manifest build writes both env files.
+  the origins of its environment. Every manifest build writes both env files.
 - The compose stack runs one game server and one game client for each instance.
 - A content release and `run-workflow import-content` import the release sagas, then these
   instances, and no other saga or instance of the artifact.

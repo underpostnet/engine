@@ -181,12 +181,15 @@ The server broadcasts the `level-up` audio event to every viewer in reach when a
 
 ## Progression lifetime
 
-The guest runtime assigns a new UUID for each WebSocket session.
-Progression survives death, respawn, portal travel, and world reload within that session.
-A disconnect or server restart ends that progression state.
+Progression survives death, respawn, portal travel, and world reload within a session.
 
-Persistent account progression requires an authenticated, stable account binding and an engine-owned persistence contract.
-The simulation server exposes no XP mutation API and stores no progression.
+- A guest session ends its progression at a disconnect or a server restart.
+- An account session commits its total XP with the rest of the player state and loads it at the next session.
+  The level is the level of that XP under the current progression rules, capped at the world `maxLevel`.
+  A rule change never resets XP.
+
+The server computes every XP award. The engine stores the total and computes no level or reward.
+See [accounts and persistent players](accounts-and-persistence.md#load-rules).
 
 ## Generation and verification
 

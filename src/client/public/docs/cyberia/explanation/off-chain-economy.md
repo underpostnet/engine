@@ -117,9 +117,22 @@ crafting fee exists. The `EconomyRules` message reserves their former fields 7 a
 ## CKY bridge: planned
 
 No code converts coins to the CKY token or back. No deposit, withdrawal, conversion rate, mint,
-burn, escrow or bridge fee exists. In Phase 1 coins never leave `cyberia-server`. Persistent wallets
-are planned for [Phase 2](roadmap.md#phase-2--alpha-centralized-off-chain-persistent-sessions), and
-on-chain ownership for [Phase 3](roadmap.md#phase-3--beta-on-chain-ownership).
+burn, escrow or bridge fee exists. On-chain ownership is planned for
+[Phase 3](roadmap.md#phase-3--beta-on-chain-ownership).
+
+---
+
+## Persistent coins
+
+`cyberia-server` stays the only place a balance changes. In account mode it commits the balance of
+each player with its items to the profile, and a new profile starts with the spawn coins of the
+world. A guest balance ends with its session. See
+[accounts and persistent players](accounts-and-persistence.md#write-guarantees).
+
+- Coins a player drops at death stay locked on the ground until the commit that took them from the
+  player is saved. A crash never leaves the same coins with two players.
+- While the commits of a player fail for 15 s, the server applies no shop purchase, craft or
+  container move of that player.
 
 ---
 

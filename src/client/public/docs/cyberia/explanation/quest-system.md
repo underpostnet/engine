@@ -10,7 +10,7 @@ The Quest System is a **chain/tree-structured progression framework** linking NP
 
 Quests are defined server-side as MongoDB documents and delivered to the client through the Engine REST API. Progress is tracked per-player in `CyberiaQuestProgress` documents.
 
-> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. Quest progress is authoritative **per Go session** (in-memory) and best-effort mirrored to `POST /api/v1/cyberia-quest-progress`; it resets on reconnect. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/v1/cyberia-quest/code/:code`.
+> **Implementation status — Alpha (talk / collect / kill):** The Quest and QuestProgress MongoDB schemas and Engine REST API (`src/api/cyberia-quest`, `src/api/cyberia-quest-progress`) are defined and seeded. The Go server fetches quest definitions at instance init and evaluates **all three** objective types authoritatively: `talk` (on `dlg_complete`), `kill` (on victim death, matched by the victim's active skin), and `collect` (idempotent inventory reconcile on item/coin gain). It grants quests — gated by `prerequisiteCodes` (AND logic) — advances steps, delivers rewards via FCT, and unlocks successors on completion. Live progress is pushed to the client over the `dlg_ack` envelope outside the dialogue flow. The game server stays the authority for quest progress. In account mode it commits the active and completed quests of the profile with the rest of the player state and loads them at the next session ([accounts and persistent players](accounts-and-persistence.md#write-guarantees)); a guest's quests end with its session. The C client surfaces it through the **Quest Journal** and the **action tab** (offer + reward item slots), populated from the engine REST metadata endpoint `GET /api/v1/cyberia-quest/code/:code`.
 
 ---
 
@@ -56,9 +56,9 @@ CyberiaQuest {
 
 ```
 CyberiaQuestProgress {
-  playerId:   String   // Go server player UUID
+  player:     ObjectId // the CyberiaPlayer profile; the profile names the world
   questCode:  String   // references CyberiaQuest.code
-  status:     String   // 'active' | 'completed'
+  status:     String   // 'active' | 'completed'; an abandoned quest has no record
 
   stepProgress: [{
     stepId: String
@@ -120,22 +120,21 @@ sequenceDiagram
     participant DB as MongoDB
 
     P->>G: Tap NPC + Take Quest (quest_accept) — quest bound to the NPC's cell
-    G->>E: POST /api/v1/cyberia-quest-progress (grant quest)
-    E->>DB: Create CyberiaQuestProgress { status: 'active' }
-    E-->>G: Progress document
+    G->>G: Grant the quest in memory
+    G-->>P: dlg_ack { quests }
 
     loop For each game event (kill / collect / talk)
-        G->>E: PATCH /api/v1/cyberia-quest-progress (increment objective)
-        E->>DB: objectiveProgress[i].current++
-        E-->>G: Updated progress
+        G->>G: Advance the objective in memory
+        G-->>P: dlg_ack { quests }
     end
 
-    Note over G,E: All steps complete
-    G->>E: PATCH status → 'completed'
-    E->>DB: completedAt = now
-    G->>E: GET unlocksQuestCodes → activate successor quests
-    E->>DB: Create CyberiaQuestProgress for each unlocked quest
-    G-->>P: Deliver reward items (inventory grant + FCT ItemGain events)
+    Note over G: All steps complete
+    G->>G: Complete the quest, grant the rewards, offer the successors
+    G-->>P: Reward items (inventory grant + reward notification)
+
+    Note over G,E: Account mode only
+    G->>E: CommitPlayerState { state, quests_changed } (gRPC)
+    E->>DB: Replace the CyberiaQuestProgress records of the profile in one transaction
 ```
 
 ---
@@ -203,8 +202,7 @@ without re-fetching the quest definition.
 { sourceMapCode: 1, sourceCellX: 1, sourceCellY: 1 }
 
 // CyberiaQuestProgress
-{ playerId: 1, questCode: 1 }  // unique
-{ playerId: 1, status: 1 }
+{ player: 1, questCode: 1 }  // unique
 ```
 
 ---

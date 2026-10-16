@@ -20,6 +20,7 @@ cyberia <command> [subcommand] [options]
 | `client-hints` | per-instance presentation hints (palette, camera, status icons)     |
 | `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle    |
 | `release`      | product repositories: build, lock and publish them                  |
+| `player`       | player profiles: quest progress no profile owns, held stacks        |
 | `run-workflow` | named operational scripts (seed defaults, dashboard, status pages)  |
 
 Most data commands resolve the target DB from `DEFAULT_DEPLOY_ID` / `DEFAULT_DEPLOY_HOST` /
@@ -620,6 +621,26 @@ The bindings themselves change in the **Cyberia Item Catalog** view or over REST
 state. See
 [Manage runtime bindings](../how-to/manage-runtime-bindings.md).
 
+## `cyberia player` — player profiles
+
+```
+cyberia player prune-quest-progress [--apply] --dev
+cyberia player restore-quest-progress [--apply] --dev
+cyberia player held [--instance <code>] --dev
+cyberia player rebind-held <item-id> [--instance <code>] [--apply] --dev
+```
+
+| Command                  | Does                                                                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `prune-quest-progress`   | Moves the quest progress no profile owns to `cyberiaquestprogressarchives`, then makes its indexes match the schema. No deploy runs it |
+| `restore-quest-progress` | Returns archived quest progress whose profile exists again                                                                             |
+| `held`                   | Lists the held stacks of every profile: world, label, definition, reason, and the stack, unit and profile counts                       |
+| `rebind-held`            | Gives the held stacks of a label the definition the catalog binds now. Skips every profile in a live session                           |
+
+Each command only reports without `--apply`. See
+[the player service reference](player-service.md#operator-commands) and
+[Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
+
 ## `cyberia ipfs` — IPFS storage
 
 ```
@@ -677,7 +698,7 @@ Named scripts from the `scripts/` directory for seeding and build maintenance.
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `import-content`         | Import the release content of the artifact: its foundation, the release sagas, then the release instance backups; `--clean --confirm <deploy-id>` drops instead |
 | `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                                                              |
-| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`                                                                                     |
+| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`; `--include-runtime` also drops the player records                                  |
 | `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                                                             |
 | `dev-env [images...]`    | Reset the Docker stack, build its images from `--source local` or `clone`, then run it; `--test`, `--reset`, `--no-build`                                       |
 | `docker:<action>`        | The compose action on the Cyberia stack: `generate`, `up`, `down`, `restart`, `logs`, `status`, `reset` and more                                                |

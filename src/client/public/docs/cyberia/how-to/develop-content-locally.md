@@ -109,17 +109,28 @@ is fast development mode.
 
 ```bash
 cd cyberia-server && go build -o cyberia-server ./cmd/cyberia-server
-CYBERIA_SERVER_API_KEY=<the key of .env.development> \
-ENGINE_GRPC_RELOAD_INTERVAL_SEC=10 INSTANCE_CODE=amethyst-strata-expansion SERVER_PORT=8081 \
+CYBERIA_SERVER_API_KEY=<the key of .env.development> CYBERIA_SESSION_MODE=account \
+CYBERIA_CORS_ALLOWED_ORIGINS=http://localhost:4008,http://localhost:8082 \
+ENGINE_GRPC_RELOAD_INTERVAL_SEC=10 INSTANCE_CODE=amethyst-strata-expansion SERVER_PORT=8083 \
 ./cyberia-server --data-server-url http://localhost:4008 --data-server-grpc localhost:50051 \
-  --game-server-public-url http://localhost:8081
+  --game-server-public-url http://localhost:8083
+
+cd cyberia-client
+CYBERIA_WS_ORIGIN=ws://localhost:8083 python3 wasm-driver.py --port=8082 --directory=bin \
+  --data-server-url=http://localhost:4008
 ```
 
 The server loads the instance over gRPC from what the engine serves, reports itself to the server
 registry, and accepts the engine's hot-reload trigger. `ENGINE_GRPC_RELOAD_INTERVAL_SEC` makes it
 poll the Object Layer manifest, so a definition changed in the workspace reaches the running world
-without a restart. The WASM client runs with `wasm-driver.py --data-server-url=http://localhost:4008`
-([Cyberia client](../explanation/game-client.md)).
+without a restart ([Cyberia client](../explanation/game-client.md)).
+
+Open the portal at `http://localhost:4008` and press Play: the launch bridge opens
+`http://localhost:8082` with a ticket. A direct visit to `http://localhost:8082` offers Continue as
+guest and Sign in. The ports are the development ports of `conf.instances.json`, the same values
+`instance-build-manifest` writes to the instance env
+([origins](../explanation/accounts-and-persistence.md#origins)). Only the world of the local game
+server answers; the portal shows any other world as unreachable.
 
 ## Daily development
 
@@ -227,13 +238,13 @@ from either source channel. A local id such as `local-1` never collides with it.
 Each reset is a separate command, needs `--confirm dd-cyberia`, and is never part of startup or of
 a deploy.
 
-| Command                                                            | Removes                                                                |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `node bin/cyberia instance test --drop --confirm dd-cyberia --dev` | Every workspace document of that instance                              |
-| `node bin/cyberia run-workflow drop-db --confirm dd-cyberia --dev` | Every content collection of the workspace and the files they reference |
-| `… drop-db --include-runtime …`                                    | Also player quest progress. Off by default                             |
-| `node bin/cyberia ol --drop --confirm dd-cyberia --dev`            | Object Layer documents and their atlas assets                          |
-| `node bin/cyberia content-release prune --keep 0 --dev`            | Old release databases, except the protected ones                       |
+| Command                                                            | Removes                                                                                           |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `node bin/cyberia instance test --drop --confirm dd-cyberia --dev` | Every workspace document of that instance                                                         |
+| `node bin/cyberia run-workflow drop-db --confirm dd-cyberia --dev` | Every content collection of the workspace and the files they reference                            |
+| `… drop-db --include-runtime …`                                    | Also the player records: profiles, sessions, tickets, friendships, quest progress. Off by default |
+| `node bin/cyberia ol --drop --confirm dd-cyberia --dev`            | Object Layer documents and their atlas assets                                                     |
+| `node bin/cyberia content-release prune --keep 0 --dev`            | Old release databases, except the protected ones                                                  |
 
 Reimport after a reset with the same import command. A canonical definition at the authority is
 never removed by a Cyberia reset: the next import finds it there and keeps its `olCid`.
@@ -262,7 +273,9 @@ node bin/cyberia cache clear --dev
 
 It removes every cached value of this host in this environment and touches no database. The
 Valkey server runs with `--maxmemory 256mb --maxmemory-policy allkeys-lru` (compose and the
-Kubernetes StatefulSet): every key is a cache entry or a TTL-bound session, so eviction is safe.
+Kubernetes StatefulSet): every key is a cache entry or a TTL-bound guest identity. An evicted cache
+entry loads again; an evicted guest identity acts as an expired one
+([guest identities](../explanation/accounts-and-persistence.md#guest-identities)).
 
 ## Dependency failures
 

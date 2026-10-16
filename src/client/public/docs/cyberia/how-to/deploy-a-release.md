@@ -10,7 +10,7 @@ through, the game server topology it lands on, and how to verify the result.
 | Create databases, indexes      | yes                                                  | idempotent only                  |
 | Seed or import content         | yes                                                  | into a new release database only |
 | `cyberia ol --drop`            | yes                                                  | never                            |
-| `cyberia run-workflow drop-db` | yes; keeps quest progress unless `--include-runtime` | never                            |
+| `cyberia run-workflow drop-db` | yes; keeps player records unless `--include-runtime` | never                            |
 | `cyberia instance --drop`      | yes                                                  | never                            |
 | Touch player or runtime state  | only with `--include-runtime`                        | never                            |
 
@@ -24,15 +24,15 @@ held before the layout stay where they are and are no longer read.
 The deploy runs no tests: CI tests the source, and the source carries its coverage reports in `docs/coverage/`.
 Nothing before Stage E changes what players see: a candidate that fails stops the deploy before it.
 
-| Stage | Name                   | Content                                                                                                                                  |
-| ----- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins |
-| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                  |
-| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                   |
+| Stage | Name                   | Content                                                                                                                                                         |
+| ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                        |
+| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                         |
+| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                          |
 | D     | Content candidate      | The host prepares the locked revision; a Release Job builds it, imports the foundation then each instance, and validates it, with the data-release Secret alone |
-| E     | Application rollout    | Idempotent migrations in the new pod; blue/green: the new colour takes traffic once Ready and serves the release already active          |
-| F     | Readiness              | Engine API, Object Layer authority                                                                                                       |
-| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store       |
+| E     | Application rollout    | The idempotent stable slug migration in the new pod; blue/green: the new colour takes traffic once Ready and serves the release already active                  |
+| F     | Readiness              | Engine API, Object Layer authority                                                                                                                              |
+| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                              |
 
 Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
@@ -107,13 +107,16 @@ one Deployment per [release instance](./run-the-docker-stack-locally.md#release-
 | Replacement (`SIGTERM`) | The server refuses new sessions, reports `draining`, readiness turns 503, connected players get `CYBERIA_DRAIN_TIMEOUT_SEC` (25 s, inside the 30 s grace period), then it shuts down |
 | Registry                | Offers only servers that report and do not drain; a silent server expires after 180 s                                                                                                |
 
-A player on a draining server reconnects through the registry to the new one. The portal and the
-engine API are stateless and follow the blue/green rollout of Stage E.
+A guest on a draining server reconnects through the registry to the new one. An account player gets
+`session_end {reason: "server_restart"}`, and the drain commits its final state and releases the
+lease. The client then resumes on the new server with its resume ticket, without the portal
+([resume](../explanation/accounts-and-persistence.md#resume-after-a-dropped-connection)).
+The portal and the engine API are stateless and follow the blue/green rollout of Stage E.
 
 ## Verification
 
-| Tier            | Command                                  | Covers                                                                                                                                                                        |
-| --------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tier                  | Command                                        | Covers                                                                                                                                                                        |
+| --------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `underpost:audit`     | `npx vitest run --project underpost:audit`     | Runtime dependency closure. It runs alone, and it tells host saturation from an application defect                                                                            |
 | `cyberia:unit`        | `npx vitest run --project cyberia:unit`        | Validation checks, publication, pruning, deploy script order                                                                                                                  |
 | `ecosystem:contract`  | `npx vitest run --project ecosystem:contract`  | Single writer, API extensions, local domain addresses, module boundaries                                                                                                      |
