@@ -136,7 +136,6 @@ function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
     return {
       ...env,
       CYBERIA_INSTANCE_CODE: releaseInstanceCode(instance.path),
-      CYBERIA_DEFAULT_INSTANCE: RELEASE_CONTENT.instances[0].instanceCode,
       CYBERIA_BASE_PATH: instance.path,
     };
   return { ...env };

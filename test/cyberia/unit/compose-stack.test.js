@@ -46,8 +46,6 @@ describe('the dd-cyberia compose stack', () => {
       CYBERIA_BASE_PATH: '/test',
       CYBERIA_PUBLIC_URL: '${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/test',
     });
-    for (const client of ['cyberia-client-runtime', 'cyberia-client-test'])
-      expect(services[client].environment.CYBERIA_DEFAULT_INSTANCE, client).toBe(main.instanceCode);
     expect(services['cyberia-client-test'].environment.CYBERIA_INSTANCE_CODE).toBe(test.instanceCode);
     expect(services['cyberia-server-test'].container_name).toBe('dd-fixture-server-test');
     expect(services['cyberia-server-test'].healthcheck.test[1]).toContain(':8081/test/api/v1/health/ready');

@@ -37,6 +37,8 @@ const STACK_IMAGES = Object.freeze({
 
 /** The tuning variables a game server reads, passed through unset. */
 const SERVER_PASSTHROUGH = [
+  'CYBERIA_SESSION_MODE',
+  'CYBERIA_AUTH_TIMEOUT_SEC',
   'CYBERIA_DISABLE_CONNECTION_LIMITS',
   'CYBERIA_MAX_CONNECTIONS',
   'CYBERIA_MAX_CONNECTIONS_PER_IP',

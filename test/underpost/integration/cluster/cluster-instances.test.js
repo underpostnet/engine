@@ -139,7 +139,7 @@ describe('cluster custom instances', () => {
       if (cyberiaContext)
         expect(await loadProjectInstanceEnvBuilder('dd-cyberia'))
           .to.be.a('function')
-          .and.have.property('name', 'buildCyberiaMmoInstanceEnv');
+          .and.have.property('name', 'buildInstanceEnv');
       expect(await loadProjectInstanceEnvBuilder('dd-fixture-a')).to.equal(null);
     });
 

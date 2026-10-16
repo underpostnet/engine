@@ -131,7 +131,6 @@ describe('instance env', () => {
     ).toEqual({ PORT: '4001', INSTANCE_CODE: 'test', CYBERIA_BASE_PATH: '/test' });
     expect(buildCyberiaMmoInstanceEnv({ instance: { runtime: 'cyberia-client', path: '/test' } })).toEqual({
       CYBERIA_INSTANCE_CODE: 'test',
-      CYBERIA_DEFAULT_INSTANCE: DEFAULT_INSTANCE_CODE,
       CYBERIA_BASE_PATH: '/test',
     });
   });
@@ -139,10 +138,9 @@ describe('instance env', () => {
   it('overrides a stale code with the release one', () => {
     const env = buildCyberiaMmoInstanceEnv({
       instance: { runtime: 'cyberia-client', path: '/', instanceCode: '' },
-      env: { CYBERIA_INSTANCE_CODE: 'old', CYBERIA_DEFAULT_INSTANCE: 'old' },
+      env: { CYBERIA_INSTANCE_CODE: 'old' },
     });
     expect(env.CYBERIA_INSTANCE_CODE).toBe(DEFAULT_INSTANCE_CODE);
-    expect(env.CYBERIA_DEFAULT_INSTANCE).toBe(DEFAULT_INSTANCE_CODE);
   });
 
   it('refuses a path no release instance serves', () => {
@@ -158,7 +156,28 @@ describe('instance env', () => {
     expect(buildCyberiaMmoInstanceEnv({})).toEqual({});
   });
 
-  it('is the builder the instance runner loads by convention', () => {
-    expect(buildInstanceEnv).toBe(buildCyberiaMmoInstanceEnv);
-  });
+  it.skipIf(!fs.existsSync('./engine-private/conf/dd-cyberia/conf.instances.json'))(
+    'links each instance the runner builds to the origins of its environment',
+    () => {
+      const build = (runtime, environment) =>
+        buildInstanceEnv({ deployId: 'dd-cyberia', instance: { runtime, path: '/' }, environment, env: {} });
+      expect(build('cyberia-client', 'development')).toMatchObject({
+        CYBERIA_INSTANCE_CODE: DEFAULT_INSTANCE_CODE,
+        CYBERIA_DATA_SERVER_URL: 'http://localhost:4008',
+        CYBERIA_WS_ORIGIN: 'ws://localhost:8083',
+      });
+      expect(build('cyberia-client', 'production')).toMatchObject({
+        CYBERIA_DATA_SERVER_URL: 'https://www.cyberiaonline.com',
+        CYBERIA_WS_ORIGIN: 'wss://server.cyberiaonline.com',
+      });
+      expect(build('cyberia-server', 'development')).toMatchObject({
+        CYBERIA_DATA_SERVER_URL: 'http://dd-cyberia-development-traffic-service:4008',
+        CYBERIA_CORS_ALLOWED_ORIGINS: 'http://localhost:4008,http://localhost:8082',
+      });
+      expect(build('cyberia-server', 'production')).toMatchObject({
+        CYBERIA_DATA_SERVER_URL: 'https://www.cyberiaonline.com',
+        CYBERIA_CORS_ALLOWED_ORIGINS: 'https://www.cyberiaonline.com,https://client.cyberiaonline.com',
+      });
+    },
+  );
 });

@@ -310,13 +310,13 @@ and operator-owned secrets, with no templating annotations:
 INSTANCE_CODE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
 CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
+CYBERIA_CORS_ALLOWED_ORIGINS=https://www.cyberiaonline.com,https://client.cyberiaonline.com
 CYBERIA_SERVER_API_KEY=<operator-owned-secret>
 ```
 
 ```dotenv
 # mmo-client/env/production.env
 CYBERIA_INSTANCE_CODE=amethyst-strata-expansion
-CYBERIA_DEFAULT_INSTANCE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
 CYBERIA_WS_ORIGIN=wss://server.cyberiaonline.com
 CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
@@ -325,11 +325,11 @@ CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
 The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
 builder by deploy id: the `buildInstanceEnv` export of `src/projects/<project>/instance-data.js`.
 Cyberia takes each code from its release content, `src/projects/cyberia/content/release-content.js`:
-the code of the world the variant path serves, and `CYBERIA_DEFAULT_INSTANCE` from the `/` world.
+the code of the world the variant path serves. It takes the origins of each environment from
+`conf.server.json` and `conf.instances.json`, `src/projects/cyberia/runtime/game-origins.js`.
 `cyberia release build` writes the same paths into the `variants` of `mmo-server` and `mmo-client`.
-Origins, API keys, and other operator values remain unchanged, and separate canonical files
-continue to provide environment-specific values. Every build writes both env files of each
-instance.
+API keys and other operator values remain unchanged, and separate canonical files continue to
+provide environment-specific values. Every build writes both env files of each instance.
 
 Do not add an `env` object to `multiInstance`. It is rejected so configuration
 and secrets cannot drift into topology JSON. Add application-specific derived
@@ -404,13 +404,14 @@ to the project root, so the repo keeps one canonical `Dockerfile` /
 
 ### Client-side instance resolution
 
-The client ships **one** WASM binary for every variant. `runtime_config_init()`
-reads the first path segment of `window.location.pathname`, falling back to
-`window.CYBERIA_DEFAULT_INSTANCE`, and composes
-`<CYBERIA_WS_ORIGIN>/<instance>/ws`. `docker-driver.py` injects those globals
-into `index.html` from the deployment env and strips the leading instance
-segment when resolving files, so the flat bundle is served under every path
-while the browser URL — the source of the instance code — is preserved.
+The client ships **one** WASM binary for every variant. `config_init()` reads
+the first path segment of `window.location.pathname`: the root is the default
+world and dials `<CYBERIA_WS_ORIGIN>/ws`, any other segment dials
+`<CYBERIA_WS_ORIGIN>/<instance>/ws`. `wasm-driver.py` injects
+`CYBERIA_WS_ORIGIN` into `index.html` from the deployment env and strips the
+leading instance segment when resolving files, so the flat bundle is served
+under every path while the browser URL — the source of the instance code — is
+preserved.
 
 ## Core Commands
 

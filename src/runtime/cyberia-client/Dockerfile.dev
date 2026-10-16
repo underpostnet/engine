@@ -75,9 +75,7 @@ COPY --from=builder /cyberia-client/wasm-driver.py ./wasm-driver.py
 COPY --from=builder /cyberia-client/bin              ./bin/
 
 ENV CYBERIA_PORT=8082
-# Mirrors the --data-server-url default in wasm-driver.py: the CMD below always passes the flag,
-# so leaving this unset would hand the client an empty origin rather than that default.
-ENV CYBERIA_DATA_SERVER_URL=https://cyberiaonline.com
+# CYBERIA_DATA_SERVER_URL and CYBERIA_WS_ORIGIN come from the instance env; the driver refuses to start without them.
 
 EXPOSE 8081 8082
 

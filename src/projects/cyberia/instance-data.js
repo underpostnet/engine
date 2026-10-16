@@ -38,6 +38,7 @@ import {
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { contentArtifact } from './content/content-artifact.js';
 import { buildCyberiaMmoInstanceEnv } from './content/release-content.js';
+import { gameOriginEnv } from './runtime/game-origins.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -604,6 +605,17 @@ async function fetchFullInstance(models, instanceCode) {
 }
 
 /**
+ * The env of one game instance of a deploy: its world, and the origins it links to in its
+ * environment. `instance-build-manifest` writes it for every instance and both environments.
+ * @param {{deployId: string, instance: Object, environment: string, env: Object}} params
+ * @returns {Object<string, string>}
+ */
+const buildInstanceEnv = ({ deployId, instance, environment, env }) => ({
+  ...buildCyberiaMmoInstanceEnv({ instance, env }),
+  ...gameOriginEnv({ deployId, instance, environment }),
+});
+
+/**
  * Every ObjectLayer item id one instance runs on, as stored documents.
  *
  * Reads the world the same way the runtime does, so a tool never disagrees with the
@@ -621,7 +633,7 @@ async function fetchInstanceObjectLayerItemIds(models, instanceCode) {
 }
 
 export {
-  buildCyberiaMmoInstanceEnv as buildInstanceEnv,
+  buildInstanceEnv,
   fetchInstanceObjectLayerItemIds,
   getInstanceModels,
   itemTypesOf,
