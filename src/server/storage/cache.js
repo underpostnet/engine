@@ -16,10 +16,10 @@
  * @namespace CacheService
  */
 import crypto from 'crypto';
-import * as promClient from 'prom-client';
 import { ValkeyAPI } from '../../db/valkey/Valkey.js';
 import { contentDataKey } from '../../db/served-databases.js';
 import { loggerFactory } from '../ops/logger.js';
+import { counter, histogram } from '../ops/metrics.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -43,18 +43,17 @@ const VERSION_TTL_MS = 30 * 24 * 60 * MINUTE;
 
 const environment = () => process.env.NODE_ENV || 'development';
 
-const metric = (Type, config) => promClient.register.getSingleMetric(config.name) ?? new Type(config);
-const operations = metric(promClient.Counter, {
+const operations = counter({
   name: 'underpost_cache_operations_total',
   help: 'Cache reads by outcome, writes, invalidations and provider errors',
   labelNames: ['namespace', 'result'],
 });
-const loadSeconds = metric(promClient.Histogram, {
+const loadSeconds = histogram({
   name: 'underpost_cache_load_seconds',
   help: 'Time the loader takes on a cache miss',
   labelNames: ['namespace'],
 });
-const writeSeconds = metric(promClient.Histogram, {
+const writeSeconds = histogram({
   name: 'underpost_cache_write_seconds',
   help: 'Time a cache write takes',
   labelNames: ['namespace'],
