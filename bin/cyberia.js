@@ -59,6 +59,12 @@ import {
   reviseItemDefinition,
   seedItemCatalog,
 } from '../src/projects/cyberia/catalog/object-layer-catalog.js';
+import {
+  heldReport,
+  pruneQuestProgress,
+  rebindHeld,
+  restoreQuestProgress,
+} from '../src/projects/cyberia/player/player-maintenance.js';
 import { objectLayerTokenId, ownershipRecord } from '../src/api/item-ledger/item-ledger.model.js';
 import { sha256HexFromCid } from '../src/api/object-layer/object-layer.identity.js';
 import { ItemLedgerIndexer } from '../src/api/item-ledger/item-ledger.indexer.js';
@@ -127,7 +133,7 @@ import { dropConsumerCanonicalPins, isObjectLayerAuthority } from '../src/api/ob
 import { purgeObjectLayers } from '../src/api/object-layer/object-layer.purge.js';
 import * as cyberiaStudio from '../src/projects/cyberia/object-layer.extension.js';
 import { consumedApisOf, ownsApi } from '../src/server/domain/consumed-api.js';
-import { validateDomainConf } from '../src/projects/cyberia/stack/domain-ownership.js';
+import { CYBERIA_PLAYER_APIS, validateDomainConf } from '../src/projects/cyberia/stack/domain-ownership.js';
 import { ValkeyAPI, closeValkeyConnection, createValkeyConnection } from '../src/db/valkey/Valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
@@ -4285,6 +4291,75 @@ try {
     process.exit(report.failed.length > 0 ? 1 : 0);
   });
 
+  // ─── Player records ─────────────────────────────────────────────────────────
+  const player = program.command('player').description('Cyberia player profiles: quest progress and held stacks');
+
+  const openPlayers = async (options) => {
+    const { host, path, db } = resolveDeployDb(options);
+    await DataBaseProviderService.load({ apis: [...CYBERIA_PLAYER_APIS, 'cyberia-item-catalog'], host, path, db });
+    return (name) => DataBaseProviderService.getModel(name, { host, path });
+  };
+
+  releaseEnvOptions(
+    player
+      .command('prune-quest-progress')
+      .description(
+        'Archive the quest progress no profile owns, then make its indexes match the schema. Reports only without --apply',
+      )
+      .option('--apply', 'Archive and remove'),
+  ).action(async (options = {}) => {
+    const model = await openPlayers(options);
+    const models = { QuestProgress: model('CyberiaQuestProgress'), Player: model('CyberiaPlayer') };
+    console.log(JSON.stringify(await pruneQuestProgress(models, { apply: !!options.apply }), null, 2));
+    process.exit(0);
+  });
+
+  releaseEnvOptions(
+    player
+      .command('restore-quest-progress')
+      .description('Return archived quest progress whose profile exists again. Reports only without --apply')
+      .option('--apply', 'Write the restore'),
+  ).action(async (options = {}) => {
+    const model = await openPlayers(options);
+    const models = { QuestProgress: model('CyberiaQuestProgress'), Player: model('CyberiaPlayer') };
+    console.log(JSON.stringify(await restoreQuestProgress(models, { apply: !!options.apply }), null, 2));
+    process.exit(0);
+  });
+
+  releaseEnvOptions(
+    player
+      .command('held')
+      .description('List the held stacks of every profile: world, label, definition and reason')
+      .option('--instance <instance-code>', 'One world only'),
+  ).action(async (options = {}) => {
+    const model = await openPlayers(options);
+    console.log(JSON.stringify(await heldReport(model('CyberiaPlayer'), { instanceCode: options.instance }), null, 2));
+    process.exit(0);
+  });
+
+  releaseEnvOptions(
+    player
+      .command('rebind-held <item-id>')
+      .description(
+        'Give the held stacks of a label the definition the catalog binds now, so they load at the next session. Skips profiles in a live session. Reports only without --apply',
+      )
+      .option('--instance <instance-code>', 'One world only')
+      .option('--apply', 'Write the rebind'),
+  ).action(async (itemId, options = {}) => {
+    const model = await openPlayers(options);
+    const olCid = await findBoundCid({ CyberiaItemCatalog: model('CyberiaItemCatalog') }, itemId);
+    if (!olCid) {
+      logger.error(`${itemId} has no binding`);
+      process.exit(1);
+    }
+    const report = await rebindHeld(
+      { Player: model('CyberiaPlayer'), GameSession: model('CyberiaGameSession') },
+      { itemId, olCid, instanceCode: options.instance, apply: !!options.apply },
+    );
+    console.log(JSON.stringify({ itemId, olCid, ...report }, null, 2));
+    process.exit(0);
+  });
+
   // ─── Content artifact ───────────────────────────────────────────────────────
   // The content artifact is the only content source. These commands show its identity, audit
   // serialized content against it, and import it.
@@ -4759,7 +4834,7 @@ try {
     .option('--dev', 'Force development environment')
     .option('--confirm <deploy-id>', 'Confirm the drop against this deploy id')
     .option('--release <release-id>', 'Drop the content of one release database instead of the workspace')
-    .option('--include-runtime', 'Also drop player progress. Off by default: content resets never touch runtime state')
+    .option('--include-runtime', 'Also drop player records. Off by default: content resets never touch runtime state')
     .description(
       'Bootstrap only: drop the Cyberia content collections and the File documents they reference. Needs --confirm <deploy-id>; never part of a deploy',
     )
@@ -4783,7 +4858,7 @@ try {
         'cyberia-saga',
         'cyberia-audio',
         'cyberia-map-audio-conf',
-        ...(options.includeRuntime ? ['cyberia-quest-progress'] : []),
+        ...(options.includeRuntime ? CYBERIA_PLAYER_APIS : []),
       ];
 
       // Every File _id a Cyberia document owns: instance and map thumbnails and previews, and the
