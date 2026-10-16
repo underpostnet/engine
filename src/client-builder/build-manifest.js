@@ -51,6 +51,8 @@ const serviceWorkerManifest = ({ basePath, views }) => {
  * @param {string} [params.apiBaseProxyPath] - The proxy path of the API host, when it differs.
  * @param {string} [params.apiBaseHost] - The API host, when it differs.
  * @param {Object<string, string>} [params.apiHosts] - Endpoint to host, for services another domain owns.
+ * @param {Object<string, string>} [params.instanceOrigins] - Runtime to origin, for the custom
+ *   instances of the deploy this build links to.
  * @param {string} [params.siteName] - The name page titles end with.
  * @param {{repository: Object, coverage: Array<{id: string, label: string}>}} [params.documentation] -
  *   The public repository identity and the coverage reports the documentation UI links.
@@ -65,6 +67,7 @@ const buildManifestFactory = ({
   apiBaseProxyPath,
   apiBaseHost,
   apiHosts,
+  instanceOrigins,
   siteName,
   documentation,
   serviceWorker,
@@ -80,6 +83,9 @@ const buildManifestFactory = ({
       ...(apiBaseProxyPath ? { apiBaseProxyPath } : undefined),
       ...(apiBaseHost ? { apiBaseHost } : undefined),
       ...(apiHosts && Object.keys(apiHosts).length ? { apiHosts: { ...apiHosts } } : undefined),
+      ...(instanceOrigins && Object.keys(instanceOrigins).length
+        ? { instanceOrigins: { ...instanceOrigins } }
+        : undefined),
       ...(siteName ? { siteName } : undefined),
     },
   };

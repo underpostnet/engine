@@ -17,7 +17,7 @@ import {
 } from './build-manifest.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName, orderArrayFromAttrInt, uniqueArray } from '../client/components/core/CommonJs.js';
-import { publicClientIdFactory, readConfJson } from '../server/runtime/conf.js';
+import { publicClientIdFactory, readConfInstances, readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
 import { extractZipTo, findZipEntry, isZipBuffer, loadZip, zipFromLocalFiles } from '../server/storage/zip.js';
 import * as dir from 'path';
@@ -31,7 +31,7 @@ import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
-import { hostPortsFactory, localHostAddress } from '../server/network/router.js';
+import { hostPortsFactory, instanceOriginsFactory, localHostAddress } from '../server/network/router.js';
 
 // Static Site Generation (SSG)
 
@@ -674,6 +674,11 @@ const buildClient = async (
   const enableLiveRebuild =
     options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
   const isDevelopment = process.env.NODE_ENV === 'development';
+  // The custom instances every client of the deploy links to, on the origins of this build mode.
+  const instanceOrigins = instanceOriginsFactory(
+    fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`) ? readConfInstances(deployId) : [],
+    isDevelopment,
+  );
   const ports = hostPortsFactory(confServer);
 
   for (const host of Object.keys(confServer)) {
@@ -843,6 +848,7 @@ const buildClient = async (
           apiBaseProxyPath,
           apiBaseHost,
           apiHosts: endpointHosts,
+          instanceOrigins,
           // The name page titles end with (`<view> | <site>`), the same one the server ends an
           // entry's rendered title with.
           siteName: metadata?.siteName || metadata?.title,

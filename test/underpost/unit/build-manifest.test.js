@@ -20,6 +20,7 @@ import {
   assertBuildManifest,
 } from '../../../src/client/components/core/BuildManifest.js';
 import { ssrFactory } from '../../../src/client-builder/ssr.js';
+import { instanceOriginsFactory } from '../../../src/server/network/router.js';
 
 const INLINE = new RegExp(`<script id="${BUILD_MANIFEST_ELEMENT_ID}" type="application/json">([\\s\\S]*?)</script>`);
 const inlineTextOf = (html) => html.match(INLINE)[1];
@@ -93,6 +94,28 @@ describe('the build manifest producer', () => {
     expect(Object.isFrozen(manifest.runtime.apiHosts)).toBe(true);
     expect(Object.isFrozen(apiHosts)).toBe(false);
     expect(assertBuildManifest(structuredClone(manifest), 'test')).toEqual(manifest);
+  });
+
+  it('carries the origin of each instance runtime the build links to, for its build mode', () => {
+    const instances = [
+      { id: 'game', runtime: 'game-client', host: 'client.example', fromDebugPort: 8082 },
+      { id: 'game-test', runtime: 'game-client', host: 'client.example', fromDebugPort: 8082, path: '/test' },
+      { id: 'sim', runtime: 'game-server', host: 'server.example', fromDebugPort: 8083 },
+    ];
+    expect(instanceOriginsFactory(instances, false)).toEqual({
+      'game-client': 'https://client.example',
+      'game-server': 'https://server.example',
+    });
+    const development = instanceOriginsFactory(instances, true);
+    expect(development).toEqual({ 'game-client': 'http://localhost:8082', 'game-server': 'http://localhost:8083' });
+    expect(manifestOf({ instanceOrigins: development }).runtime.instanceOrigins).toEqual(development);
+    expect(manifestOf({ instanceOrigins: {} }).runtime).not.toHaveProperty('instanceOrigins');
+    expect(() =>
+      instanceOriginsFactory(
+        [...instances, { runtime: 'game-client', host: 'other.example', fromDebugPort: 9 }],
+        false,
+      ),
+    ).toThrow('game-client');
   });
 
   it('configures the service worker from the SSR views of the application', () => {

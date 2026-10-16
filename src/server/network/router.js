@@ -146,6 +146,29 @@ const localHostAddress = (confServer, host, path = '/') => {
 };
 
 /**
+ * @method instanceOriginsFactory
+ * @description The public origin of each custom instance runtime of a deploy: `https://<host>`, or
+ * in development `http://localhost:<fromDebugPort>`. The variants of an instance share its origin
+ * and differ by path.
+ * @param {Array<object>} instances - The entries of `conf.instances.json`.
+ * @param {boolean} development
+ * @returns {Object<string, string>} Runtime → origin.
+ * @throws {Error} When two instances of one runtime answer on two origins.
+ * @memberof ServerRouter
+ */
+const instanceOriginsFactory = (instances, development) => {
+  const origins = {};
+  for (const { runtime, host, fromDebugPort } of instances) {
+    if (!runtime) continue;
+    const origin = development ? `http://localhost:${fromDebugPort}` : `https://${host}`;
+    if (origins[runtime] && origins[runtime] !== origin)
+      throw new Error(`instanceOriginsFactory: ${runtime} answers on ${origins[runtime]} and ${origin}`);
+    origins[runtime] = origin;
+  }
+  return origins;
+};
+
+/**
  * @method developmentOrigins
  * @description The origins a host accepts in development: each configured origin, the same
  * host over plain HTTP through the dev proxy, and the local port that host answers on.
@@ -414,6 +437,7 @@ export {
   buildProxyRouter,
   developmentOrigins,
   hostPortsFactory,
+  instanceOriginsFactory,
   localHostAddress,
   deployRangePortFactory,
   deployRoutesExists,
