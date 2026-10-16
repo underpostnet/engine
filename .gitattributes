@@ -1,0 +1,6 @@
+# LF in repo and in the working tree, on every platform
+* text=auto eol=lf
+
+# enforce CRLF for windows specific
+*.bat text eol=crlf
+*.cmd text eol=crlf
