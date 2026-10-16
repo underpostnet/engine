@@ -131,6 +131,8 @@ const buildPresencePois = ({
       cellY,
       presenceStatus,
       capabilities: [],
+      quests: [],
+      actions: [],
       sourcePriority,
     };
     const priority = sourcePriority + (PRESENCE_PRIORITY[presenceStatus] || 0);
@@ -171,14 +173,23 @@ const buildPresencePois = ({
     getPoi(portal.targetMapCode, portal.targetCellX ?? -1, portal.targetCellY ?? -1, PRESENCE_STATUS.portal);
   }
 
+  // The client marks a quest or action POI active from its own quest state: a quest is actionable
+  // while active, or acceptable once its prerequisites are complete; an action while it carries a
+  // standalone payload or fronts an actionable quest.
   for (const quest of quests) {
     const poi = getPoi(quest.sourceMapCode, quest.sourceCellX ?? 0, quest.sourceCellY ?? 0, PRESENCE_STATUS.passive);
     addCapability(poi, CAPABILITY_QUEST);
+    poi?.quests.push({ code: quest.code, prerequisiteCodes: [...(quest.prerequisiteCodes || [])] });
   }
 
   for (const action of actions) {
     const poi = getPoi(action.sourceMapCode, action.sourceCellX ?? 0, action.sourceCellY ?? 0, PRESENCE_STATUS.passive);
     addCapability(poi, CAPABILITY_ACTION);
+    poi?.actions.push({
+      code: action.code,
+      questCodes: (action.questDialogueCodes || []).map((qd) => qd.questCode),
+      standalone: actionHasStandalonePayload(action),
+    });
   }
 
   return [...pois.values()]
@@ -244,53 +255,6 @@ const buildStaticPayload = ({
       entityDefaults,
     }),
   };
-};
-
-/**
- * Provider state per quest: 'active' (in progress / turn-in target) or
- * 'acceptable' (prerequisites completed, never started). Locked and completed
- * quests are omitted — the map shows only actionable POIs.
- */
-const classifyQuestProviders = (quests, progress) => {
-  const completed = new Set(progress.filter((p) => p.status === 'completed').map((p) => p.questCode));
-  const active = new Set(progress.filter((p) => p.status === 'active').map((p) => p.questCode));
-
-  const questProviders = [];
-  for (const q of quests) {
-    let state = '';
-    if (active.has(q.code)) state = 'active';
-    else if (!completed.has(q.code) && (q.prerequisiteCodes || []).every((c) => completed.has(c))) state = 'acceptable';
-    if (!state) continue;
-    questProviders.push({
-      questCode: q.code,
-      mapCode: q.sourceMapCode,
-      cellX: q.sourceCellX ?? 0,
-      cellY: q.sourceCellY ?? 0,
-      state,
-    });
-  }
-  return questProviders;
-};
-
-/**
- * An action provider is active when it fronts an actionable quest or carries
- * a standalone payload (shop, craft, storage) that is always usable.
- */
-const classifyActionProviders = (actions, questProviders) => {
-  const actionableQuestCodes = new Set(questProviders.map((qp) => qp.questCode));
-  const actionProviders = [];
-  for (const a of actions) {
-    const questBound = (a.questDialogueCodes || []).some((qd) => actionableQuestCodes.has(qd.questCode));
-    if (!questBound && !actionHasStandalonePayload(a)) continue;
-    actionProviders.push({
-      actionCode: a.code,
-      mapCode: a.sourceMapCode,
-      cellX: a.sourceCellX ?? 0,
-      cellY: a.sourceCellY ?? 0,
-      active: true,
-    });
-  }
-  return actionProviders;
 };
 
 /**
@@ -363,28 +327,6 @@ class CyberiaInstanceMapService {
     logger.info(`map preview persisted for "${mapCode}"`);
     return rendered;
   };
-
-  static getDynamic = async (req, res, options) => {
-    const { instanceCode } = req.params;
-    if (!instanceCode) throw new Error('instanceCode parameter is required');
-    const playerId = typeof req.query?.playerId === 'string' ? req.query.playerId.trim() : '';
-
-    const CyberiaQuestProgress = DataBaseProviderService.getModel('CyberiaQuestProgress', options);
-    const { quests, actions } = await resolveInstanceWorld(instanceCode, options);
-
-    const progress = playerId ? await CyberiaQuestProgress.find({ playerId }).select('questCode status').lean() : [];
-
-    const questProviders = classifyQuestProviders(quests, progress);
-    const actionProviders = classifyActionProviders(actions, questProviders);
-
-    return {
-      instanceCode,
-      playerId,
-      questProviders,
-      actionProviders,
-      updatedAt: Date.now(),
-    };
-  };
 }
 
-export { CyberiaInstanceMapService, buildStaticPayload, classifyQuestProviders, classifyActionProviders };
+export { CyberiaInstanceMapService, buildStaticPayload };

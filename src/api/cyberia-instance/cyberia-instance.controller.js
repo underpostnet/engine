@@ -12,7 +12,6 @@ import { CyberiaInstanceBootService } from './cyberia-instance-boot.service.js';
 const CyberiaInstanceController = buildCrudController(CyberiaInstanceService, {
   // The game client fetches the instance map cross-origin, as it does quests.
   instanceMapStatic: serviceHandler(CyberiaInstanceMapService.getStatic, { crossOrigin: true, errorStatus: 404 }),
-  instanceMapDynamic: serviceHandler(CyberiaInstanceMapService.getDynamic, { crossOrigin: true, errorStatus: 404 }),
   // Node background of one map, rendered server-side and stored as its preview.
   instanceMapPreview: controllerHandler(
     async (req, res, options) => {

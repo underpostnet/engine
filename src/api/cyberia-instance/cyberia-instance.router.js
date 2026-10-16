@@ -37,14 +37,10 @@ class CyberiaInstanceRouter {
       `/boot/full-instance`,
       async (req, res) => await CyberiaInstanceController.bootFullInstance(req, res, options),
     );
-    // Instance Map — static topology/presence plus dynamic player capability activity.
+    // Instance Map — authored topology, presence and capabilities. The client marks active POIs.
     router.get(
       `/instance-map/:instanceCode/static`,
       async (req, res) => await CyberiaInstanceController.instanceMapStatic(req, res, options),
-    );
-    router.get(
-      `/instance-map/:instanceCode/dynamic`,
-      async (req, res) => await CyberiaInstanceController.instanceMapDynamic(req, res, options),
     );
     // Node-background capture of one map (PNG).
     router.get(
