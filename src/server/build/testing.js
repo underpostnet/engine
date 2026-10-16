@@ -153,10 +153,10 @@ const TEST_LEVELS = Object.freeze({
  * `sources` are the modules the project's suites drive directly, and they are
  * what coverage is measured over when the project is selected. A module reached
  * only as a collaborator — everything the `src/index.js` barrel pulls in behind
- * one CLI call, everything a suite spawns into its own process — belongs to
- * whichever project asserts against it, or to none: counting it here reports a
- * floor no test in the selection can move. A delegated project declares none,
- * because its runner reports its own coverage.
+ * one CLI call, everything a suite runs in its own process, a browser or a `vm`
+ * sandbox — belongs to whichever project asserts against it, or to none:
+ * counting it here reports a floor no test in the selection can move. A
+ * delegated project declares none, because its runner reports its own coverage.
  * @memberof UnderpostTesting
  */
 const TEST_PROJECTS = [
@@ -188,7 +188,6 @@ const TEST_PROJECTS = [
       'src/client/components/core/LogOut.js',
       'src/client/components/core/ShellLayout.js',
       'src/client/components/core/ShellNavigation.js',
-      'src/client/ssr/**/*.js',
       'src/projects/underpost/*.js',
       'src/runtime/nginx/Nginx.js',
       'src/server/build/docs.js',
@@ -248,7 +247,6 @@ const TEST_PROJECTS = [
       'src/projects/cyberia/instance/map-preview-generator.js',
       'src/projects/cyberia/catalog/object-layer-catalog.js',
       'src/projects/cyberia/content/release-content.js',
-      'src/projects/cyberia/runtime/game-origins.js',
       'src/projects/cyberia/runtime/server-key.js',
       'src/projects/cyberia/object-layer/shape-generator.js',
       'src/projects/cyberia/stats/stat-balance.js',
@@ -360,11 +358,12 @@ const TEST_PROJECTS = [
     directory: 'test/cyberia/integration',
     groupOrder: 9,
     sources: [
-      'src/api/cyberia-friendship/*.js',
-      'src/api/cyberia-game-session/*.js',
-      'src/api/cyberia-game-ticket/*.js',
-      'src/api/cyberia-player/*.js',
-      'src/api/cyberia-quest-progress/*.js',
+      'src/api/cyberia-friendship/cyberia-friendship.model.js',
+      'src/api/cyberia-game-session/cyberia-game-session.model.js',
+      'src/api/cyberia-game-ticket/cyberia-game-ticket.model.js',
+      'src/api/cyberia-game-ticket/cyberia-game-ticket.service.js',
+      'src/api/cyberia-player/cyberia-player.model.js',
+      'src/api/cyberia-quest-progress/cyberia-quest-progress.model.js',
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/served-databases.js',
@@ -405,14 +404,7 @@ const TEST_PROJECTS = [
     name: 'underpost:e2e',
     directory: 'test/underpost/e2e',
     groupOrder: 10,
-    sources: [
-      'src/server/network/middlewares.js',
-      'src/client/ssr/RootDocument.js',
-      'src/client/ssr/body/DefaultSplashScreen.js',
-      'src/client/components/core/Css.js',
-      'src/client/components/core/VanillaJs.js',
-      'src/runtime/express/Express.js',
-    ],
+    sources: ['src/server/network/middlewares.js'],
     description:
       'Public routes driven in a real browser against a real database: direct navigation, refresh, ' +
       'in-app navigation, history, share links, the sanitizer and the root document state. Needs puppeteer-core, a Firefox ' +

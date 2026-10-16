@@ -276,6 +276,12 @@ describe('coverage scope', () => {
       for (const glob of sources) expect(fs.globSync(glob), `${name}: ${glob}`).to.not.be.empty;
   });
 
+  it('measures no SSR component', () => {
+    // `ssrFactory` runs each one in a `vm` sandbox, and V8 coverage does not report it.
+    for (const { name, sources } of vitestProjects)
+      for (const glob of sources) expect(glob, name).to.not.match(/^src\/client\/ssr\//);
+  });
+
   it('measures every project when the run selects none', () => {
     const everySource = new Set(vitestProjects.flatMap(({ sources }) => sources));
     expect(coverageIncludeFactory([])).to.have.members([...everySource]);

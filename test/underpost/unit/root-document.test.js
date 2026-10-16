@@ -117,14 +117,12 @@ describe('root document', () => {
     }
   });
 
-  it('renders the configured body list without object text', async () => {
-    const components = await Promise.all(
-      DefaultConf.ssr.Default.body.map((name) => ssrFactory(`./src/client/ssr/body/${name}.js`)),
-    );
+  it.each(Object.entries(DefaultConf.ssr))('%s renders its body list without object text', async (client, { body }) => {
+    const components = await Promise.all(body.map((name) => ssrFactory(`./src/client/ssr/body/${name}.js`)));
     const ssrBodyComponents = components.map((component) => component({ ssrPath: '/', ttiLoadTimeLimit: 1 })).join('');
     const document = await render({ ssrBodyComponents });
     expect(document).not.toContain('[object Object]');
-    expect(document).toContain('ssr-loader');
+    expect(document).toContain(ssrBodyComponents);
   });
 });
 
