@@ -1,57 +1,52 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { UserDto } from './user.model.js';
 import { ValkeyAPI } from '../../db/valkey/Valkey.js';
-import { hashPassword, getBearerToken, jwtSign } from '../../server/security/auth.js';
-
-// ─── TTL ──────────────────────────────────────────────────────────────────────
-
-const _guestTtlMs = () => {
-  const minutes = Number.parseInt(process.env.REFRESH_EXPIRE_MINUTES || '60', 10);
-  return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 60 * 60 * 1000;
-};
-
-// ─── Domain helpers ───────────────────────────────────────────────────────────
+import { jwtSign } from '../../server/security/auth.js';
+import { counter } from '../../server/ops/metrics.js';
 
 /**
- * Constructs a new ephemeral guest user object.
- * This is domain logic specific to the guest lifecycle; it does not belong
- * in the Valkey database adapter.
- *
- * @param {{ host?: string }} options
+ * Minutes a guest identity and its token live without use: `GUEST_SESSION_MINUTES`, default 60.
+ * Each use renews both.
+ * @returns {number}
+ */
+const guestMinutes = () => {
+  const minutes = Number.parseInt(process.env.GUEST_SESSION_MINUTES, 10);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : 60;
+};
+
+/** The Valkey key of a guest: its own namespace, by its unique id. */
+const guestKey = (id) => `guest:${id}`;
+
+const guestSessions = counter({
+  name: 'underpost_guest_sessions_total',
+  help: 'Guest identities by event: created, renewed, expired, or unavailable when Valkey refused',
+  labelNames: ['event'],
+});
+
+/**
+ * A new ephemeral guest. The id is an ObjectId; the name carries 40 random bits.
  * @returns {object}
  */
-const buildGuestUser = (options) => {
+const buildGuestUser = () => {
   const now = new Date().toISOString();
-  const objectId = new mongoose.Types.ObjectId().toString();
-  const role = 'guest';
-  const username = `${role}${objectId.slice(-5)}`;
   return {
-    _id: `${role}${objectId}`,
-    username,
-    email: `${username}@${options.host || 'localhost'}`,
-    password: hashPassword(process.env.JWT_SECRET),
-    role,
+    _id: `guest${new mongoose.Types.ObjectId().toString()}`,
+    username: `guest${crypto.randomBytes(5).toString('hex')}`,
+    role: 'guest',
     emailConfirmed: false,
     profileImageId: null,
-    phoneNumbers: [],
-    activeSessions: [],
-    failedLoginAttempts: 0,
-    recoverTimeOut: null,
-    lastLoginDate: null,
     createdAt: now,
     updatedAt: now,
-    guestSessionExpiresAt: Date.now() + _guestTtlMs(),
   };
 };
 
 /**
- * Projects a user object to the public-safe fields defined by UserDto.select.get().
- * Keeps this logic next to the guest domain instead of in a generic utility.
- *
+ * Projects a guest to the public-safe fields of UserDto.select.get().
  * @param {object} user
  * @returns {object}
  */
-const _toPublicUser = (user) => {
+const toPublicUser = (user) => {
   const select = UserDto.select.get();
   return Object.fromEntries(
     Object.keys(select)
@@ -60,39 +55,52 @@ const _toPublicUser = (user) => {
   );
 };
 
-const _withRefreshedExpiry = (user) => ({ ...user, guestSessionExpiresAt: Date.now() + _guestTtlMs() });
-
-// ─── Service ──────────────────────────────────────────────────────────────────
+/** Stores a guest for one lifetime and signs a token of the same lifetime. */
+const renew = async (req, user, options) => {
+  const minutes = guestMinutes();
+  try {
+    await ValkeyAPI.set(options, guestKey(user._id), user, minutes * 60 * 1000);
+  } catch (error) {
+    guestSessions.inc({ event: 'unavailable' });
+    throw error;
+  }
+  return jwtSign(
+    UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'], options.host, options.path),
+    options,
+    minutes,
+    minutes,
+  );
+};
 
 class GuestService {
+  /** A new guest identity and its token. */
   static async create(req, options) {
-    const user = buildGuestUser(options);
-
-    await ValkeyAPI.set(options, user.email, user, _guestTtlMs());
-
-    return {
-      token: jwtSign(
-        UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'], options.host, options.path),
-        options,
-      ),
-      user: _toPublicUser(user),
-    };
+    const user = buildGuestUser();
+    const token = await renew(req, user, options);
+    guestSessions.inc({ event: 'created' });
+    return { token, user: toPublicUser(user) };
   }
 
+  /** The guest of a token, renewed with a fresh token. */
   static async auth(req, options) {
-    const user = await ValkeyAPI.get(options, req.auth.user.email);
-    if (!user) throw new Error('guest user expired');
+    const user = await GuestService.find(req.auth.user._id, options);
+    if (!user) {
+      guestSessions.inc({ event: 'expired' });
+      throw new Error('guest user expired');
+    }
+    const token = await renew(req, user, options);
+    guestSessions.inc({ event: 'renewed' });
+    return { user: toPublicUser(user), token };
+  }
 
-    const expiresAt = Number(user.guestSessionExpiresAt || 0);
-    if (expiresAt && expiresAt <= Date.now()) throw new Error('guest user expired');
-
-    const refreshed = _withRefreshedExpiry(user);
-    await ValkeyAPI.set(options, refreshed.email, refreshed, _guestTtlMs());
-
-    return {
-      user: _toPublicUser(refreshed),
-      token: getBearerToken(req),
-    };
+  /**
+   * The stored guest of an id, or null once it expired.
+   * @param {string} id
+   * @param {{host: string, path: string}} options
+   * @returns {Promise<object|null>}
+   */
+  static async find(id, options) {
+    return typeof id === 'string' && id.startsWith('guest') ? await ValkeyAPI.get(options, guestKey(id)) : null;
   }
 }
 

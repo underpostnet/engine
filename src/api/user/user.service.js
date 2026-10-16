@@ -529,11 +529,17 @@ class UserService {
         user.recoverTimeOut = new Date(+new Date() + 1000 * 60 * 15);
       }
       if (user && new Date().getTime() < new Date(user.recoverTimeOut).getTime()) {
-        const validatePassword = validatePasswordMiddleware(req.body.password);
+        const validatePassword = validatePasswordMiddleware(req);
         if (validatePassword.status === 'error') throw new Error(validatePassword.message);
+        // A new password ends every session of the account.
         await User.findByIdAndUpdate(
           user._id,
-          { password: await hashPassword(req.body.password), recoverTimeOut: new Date(), failedLoginAttempts: 0 },
+          {
+            password: await hashPassword(req.body.password),
+            recoverTimeOut: new Date(),
+            failedLoginAttempts: 0,
+            activeSessions: [],
+          },
           { runValidators: true },
         );
         return await User.findOne({

@@ -7,7 +7,7 @@
  */
 
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { getBearerToken, jwtVerify } from '../../server/security/auth.js';
+import { findCookieSession, getBearerToken, jwtVerify } from '../../server/security/auth.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import crypto from 'crypto';
 import { Types, isObjectIdOrHexString } from 'mongoose';
@@ -413,20 +413,14 @@ class FileService {
           }
         }
 
-        // Fallback: check cookie-based session (refreshToken cookie)
-        const refreshToken = req.cookies?.refreshToken;
-        if (refreshToken) {
-          try {
-            const user = await User.findOne({ 'activeSessions.tokenHash': refreshToken }).lean();
-            if (user) {
-              const session = user.activeSessions.find((s) => s.tokenHash === refreshToken);
-              if (session && (!session.expiresAt || session.expiresAt >= new Date())) {
-                return String(doc.userId) === String(user._id);
-              }
-            }
-          } catch (cookieErr) {
-            logger.warn('Cookie session verification failed:', cookieErr.message);
+        // Fallback: the cookie session (refreshToken cookie)
+        try {
+          const found = await findCookieSession(User, req);
+          if (found && (!found.session.expiresAt || found.session.expiresAt >= new Date())) {
+            return String(doc.userId) === String(found.user._id);
           }
+        } catch (cookieErr) {
+          logger.warn('Cookie session verification failed:', cookieErr.message);
         }
 
         return false;

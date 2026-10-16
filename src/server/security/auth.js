@@ -36,7 +36,22 @@ const config = {
   digest: process.env.PBKDF2_DIGEST || 'sha512',
   refreshTokenBytes: Number(process.env.REFRESH_TOKEN_BYTES) || 48,
   jwtAlgorithm: process.env.JWT_ALGORITHM || 'HS512', // consider RS256 with keys
+  // Sessions one user keeps; a new sign-in drops the oldest beyond it.
+  maxActiveSessions: Number(process.env.MAX_ACTIVE_SESSIONS) || 10,
 };
+
+const minutes = (name) => parseInt(process.env[name]) * 60 * 1000;
+
+/**
+ * Milliseconds a session lives without a refresh: the life of its refresh cookie. A session
+ * whose last refresh is older is expired, whatever cookie a client still presents.
+ * @returns {number}
+ * @memberof Auth
+ */
+const sessionIdleLimit = () => minutes('ACCESS_EXPIRE_MINUTES');
+
+/** The time of the last refresh of a session: its expiry minus the refresh window. */
+const lastRefreshOf = (session) => new Date(session.expiresAt).getTime() - minutes('REFRESH_EXPIRE_MINUTES');
 
 // ---------- Password hashing (async) ----------
 /**
@@ -142,7 +157,7 @@ function jwtSign(
   const now = Date.now();
   payload.refreshExpiresAt = now + refreshExpireMinutes * 60 * 1000;
 
-  logger.info('JWT signed', { payload, signOptions, accessExpireMinutes, refreshExpireMinutes });
+  logger.info('JWT signed', { user: payload._id, role: payload.role, accessExpireMinutes, refreshExpireMinutes });
 
   return jwt.sign(payload, process.env.JWT_SECRET, signOptions);
 }
@@ -443,12 +458,12 @@ const cookieOptionsFactory = (req, host) => {
  * @memberof Auth
  */
 async function createSessionAndUserToken(user, User, req, res, options = { host: '', path: '' }) {
-  const refreshToken = hashToken(generateRandomHex());
+  const refreshToken = generateRandomHex();
   const now = Date.now();
-  const expiresAt = new Date(now + parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000);
+  const expiresAt = new Date(now + minutes('REFRESH_EXPIRE_MINUTES'));
 
   const newSession = {
-    tokenHash: refreshToken,
+    tokenHash: hashToken(refreshToken),
     ip: req.ip,
     userAgent: req.headers['user-agent'],
     host: options.host,
@@ -457,10 +472,18 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
     expiresAt,
   };
 
-  // push session
+  // Drop the sessions idle past their cookie life, then keep the newest maxActiveSessions.
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $pull: {
+        activeSessions: { expiresAt: { $lt: new Date(now - sessionIdleLimit() + minutes('REFRESH_EXPIRE_MINUTES')) } },
+      },
+    },
+  );
   const updatedUser = await User.findByIdAndUpdate(
     user._id,
-    { $push: { activeSessions: newSession } },
+    { $push: { activeSessions: { $each: [newSession], $slice: -config.maxActiveSessions } } },
     { returnDocument: 'after' },
   );
   const session = updatedUser.activeSessions[updatedUser.activeSessions.length - 1];
@@ -493,6 +516,23 @@ async function signSessionToken(user, User, req, res, options = { host: '', path
 }
 
 /**
+ * The user and the session of the refresh cookie of a request, or null. Only the hash of a refresh
+ * token is stored.
+ * @param {import('mongoose').Model} User The Mongoose User model.
+ * @param {import('express').Request} req The Express request object.
+ * @returns {Promise<{user: object, session: object}|null>}
+ * @memberof Auth
+ */
+async function findCookieSession(User, req) {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) return null;
+  const tokenHash = hashToken(refreshToken);
+  const user = await User.findOne({ 'activeSessions.tokenHash': tokenHash });
+  const session = user?.activeSessions.find((s) => s.tokenHash === tokenHash);
+  return session ? { user, session } : null;
+}
+
+/**
  * Removes a session by its ID for a given user.
  * @param {import('mongoose').Model} User The Mongoose User model.
  * @param {string} userId The ID of the user.
@@ -513,24 +553,10 @@ async function removeSession(User, userId, sessionId) {
  * @memberof Auth
  */
 async function logoutSession(User, req, res) {
-  const refreshToken = req.cookies?.refreshToken;
-
-  if (!refreshToken) {
-    return false;
-  }
-
-  const user = await User.findOne({ 'activeSessions.tokenHash': refreshToken });
-
-  if (!user) {
-    return false;
-  }
-
-  const session = user.activeSessions.find((s) => s.tokenHash === refreshToken);
-
-  const result = await removeSession(User, user._id, session._id);
-
+  const found = await findCookieSession(User, req);
+  if (!found) return false;
+  const result = await removeSession(User, found.user._id, found.session._id);
   res.clearCookie('refreshToken', { path: '/' });
-
   return result.modifiedCount > 0;
 }
 
@@ -578,45 +604,33 @@ async function createUserAndSession(req, res, User, options = { host: '', path: 
  * @memberof Auth
  */
 async function refreshSessionAndToken(req, res, User, options = { host: '', path: '' }) {
-  const currentRefreshToken = req.cookies.refreshToken;
-  if (!currentRefreshToken) throw new Error('Refresh token missing');
+  if (!req.cookies?.refreshToken) throw new Error('Refresh token missing');
 
-  // Find user owning that token
-  const user = await User.findOne({ 'activeSessions.tokenHash': currentRefreshToken });
-
-  if (!user) {
-    // Possible token reuse: look up user by some other signals? If not possible, log and throw.
+  const found = await findCookieSession(User, req);
+  if (!found) {
     // TODO: on cors requests, this will throw an error, because the cookie is not sent.
     logger.warn('Refresh token reuse or invalid token detected');
-    // Optional: revoke by clearing cookie and returning unauthorized
     res.clearCookie('refreshToken', { path: '/' });
     throw new Error('Invalid refresh token');
   }
+  const { user, session } = found;
 
-  // Locate session
-  const session = user.activeSessions.find((s) => s.tokenHash === currentRefreshToken);
-  if (!session) {
-    // Shouldn't happen, but safe-guard
+  // A session idle past the life of its cookie is over, whatever cookie a client still presents.
+  if (Date.now() - lastRefreshOf(session) > sessionIdleLimit()) {
+    await removeSession(User, user._id, session._id);
     res.clearCookie('refreshToken', { path: '/' });
-    throw new Error('Session not found');
+    throw new Error('Refresh token expired');
   }
 
-  // Check expiry
-  if (!isRefreshTokenReq(req) && session.expiresAt && session.expiresAt < new Date()) {
-    const result = await removeSession(User, user._id, session._id);
-    if (result) throw new Error('Refresh token expired');
-    else throw new Error('Session not found');
-  }
-
-  // Rotate: generate new token, update stored hash and metadata
-  const refreshToken = hashToken(generateRandomHex());
-  session.tokenHash = refreshToken;
-  session.expiresAt = new Date(Date.now() + parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000);
+  // Rotate: a new token, of which only the hash is stored.
+  const refreshToken = generateRandomHex();
+  session.tokenHash = hashToken(refreshToken);
+  session.expiresAt = new Date(Date.now() + minutes('REFRESH_EXPIRE_MINUTES'));
   session.ip = req.ip;
   session.userAgent = req.headers['user-agent'];
   await user.save({ validateBeforeSave: false });
 
-  logger.warn('Refreshed session for user ' + user.email);
+  logger.info(`Refreshed session ${session._id} of user ${user._id}`);
 
   res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req, options.host));
 
@@ -781,6 +795,7 @@ export {
   servicePrincipal,
   cookieOptionsFactory,
   createSessionAndUserToken,
+  findCookieSession,
   signSessionToken,
   createUserAndSession,
   refreshSessionAndToken,
