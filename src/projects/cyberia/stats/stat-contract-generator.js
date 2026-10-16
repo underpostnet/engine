@@ -9,10 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import {
   CASTER_SKIN_PLACEHOLDER,
+  CHAT_EMOJI,
   CHAT_TEXT_MAX_RUNES,
   CONTAINER_CAPACITY,
   ENTITY_TYPE_TO_ITEM_TYPES,
   ENTITY_TYPES,
+  FRIEND_REQUESTS_MAX,
+  FRIENDS_MAX,
   ITEM_DIALOGUE_PREFIX,
   ITEM_TYPES,
   PARTY_INVITES_MAX,
@@ -119,6 +122,10 @@ static inline int cyberia_capacity_unlock_level(CyberiaCapacityRule rule, int sl
 #define CYBERIA_PARTY_MAX_MEMBERS ${PARTY_MAX_MEMBERS}
 #define CYBERIA_PARTY_INVITES_MAX ${PARTY_INVITES_MAX}
 #define CYBERIA_CHAT_TEXT_MAX_RUNES ${CHAT_TEXT_MAX_RUNES}
+#define CYBERIA_FRIENDS_MAX ${FRIENDS_MAX}
+#define CYBERIA_FRIEND_REQUESTS_MAX ${FRIEND_REQUESTS_MAX}
+#define CYBERIA_CHAT_EMOJI_COUNT ${CHAT_EMOJI.length}
+static const char* const CYBERIA_CHAT_EMOJI[CYBERIA_CHAT_EMOJI_COUNT] = {${CHAT_EMOJI.map((name) => JSON.stringify(name)).join(', ')}};
 #endif
 `;
   const temporary = mkdtempSync(join(tmpdir(), 'cyberia-stat-contract-'));
