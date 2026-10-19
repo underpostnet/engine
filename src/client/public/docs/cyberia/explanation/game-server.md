@@ -147,10 +147,76 @@ server reads no input before it admits the player
 in the batch, but `game/net` takes it before the simulation: it ends the session with its final
 commit ([leaving](accounts-and-persistence.md#leaving)).
 
+## Content a player brings
+
+At boot and at each world rebuild the server warms the content its world names: the
+`object_layers` of `GetFullInstance` and the skills of the items the world owns
+(`config.skill_config`). That warm set is the baseline of the world; the server never preloads the
+catalog of the release or the content of another world.
+
+An account can arrive from another world of its universe with stacks this world does not name.
+Before placement, outside the world lock, the server asks `GetItemContent` for each saved label it
+does not hold. The engine answers from the release it serves: the definition the catalog binds to
+the label, the skill document of the label, and the definitions that skill summons, transitively.
+The engine reads each label once, so a summon cycle ends, and it carries at most 3 summon levels,
+16 labels and 512 KiB for one label; a label past a bound is listed as unavailable with the reason.
+
+The world runs that content whole, or holds the stacks of the label:
+
+| Item content                                                     | Result                                                                                       |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Runnable, and its definition is the one of the stack             | Cached with its skill and summons, and the stack loads                                       |
+| Runnable, with another definition of the label                   | Cached, and the stack stays held (`rebound`)                                                 |
+| The label has no binding                                         | The stack stays held (`unknown`)                                                             |
+| A summon the engine cannot carry, or a defective skill           | Nothing is cached; the stack stays held (`unknown`)                                          |
+| A definition for another label, with no CID, or bad stats        | Nothing is cached; the stack stays held (`unknown`)                                          |
+| A skill handler this server binary does not run                  | Nothing is cached; the stack stays held (`unsupported`)                                      |
+| Content of another release than the release of the world         | Nothing is cached; the stack stays held (`incompatible`)                                     |
+| No answer within 5 seconds after one retry, or a transport error | The placement fails with `unavailable`; the lease is released and the profile stays as saved |
+
+A held stack is never replaced by a same-named definition: it stays in the profile and loads in a
+world that runs its content. The self snapshot sends each held stack to its owner (`itemId`, `cid`,
+`quantity`, `reason`), and the client draws it by its own `cid`. One fetch per label runs at a
+time; every placement that needs the label waits on it. The resolved content joins the world under
+the world lock, with the placement.
+
+A skill document is metadata: its `logicEventId` only selects a handler this binary implements
+(`game/sim/skill_dispatcher.go`). The warm skill of a label wins over a resolved one, so a world
+keeps the skills it names. The destination keeps its own rules: its equipment rules decide which
+item types a player can activate, and its skill rules tune each handler.
+
+Every client holds the definitions of the cache and their skills. The join sends the definitions in
+`metadata` and the skills in `init_data.skillMap`. Each change of a definition or of its skills (a
+definition resolved for a traveler, a label a reload binds anew) counts a revision, and before a
+snapshot the server sends a client the definitions changed since the revision it holds, in a
+`metadata` message with `objectLayers` and the `skillMap` of those labels. So a player already in
+the world draws the stacks a traveler brings and sees their skills.
+
+A reload compares the cached labels with the engine catalog: a rebound label is fetched again and an
+unbound one leaves the cache; a label the world does not hold is never fetched. Then the server asks
+the content of every resolved label again, from the release the world serves now: content of
+another release, or content that no longer runs here, loses its skill, so no skill of an earlier
+release stays. Every 30 seconds and after each reload the server evicts every resolved definition
+outside the warm set that no entity, personal storage or vault holds, nor the skill of a held label
+summons, with its skill. The sweep marks what the world holds now, so content another player still
+holds never leaves, and nothing counts references that could leak.
+`GET /api/v1/metrics/runtime` reports the residency under `content`: the saved labels by outcome
+(`resident`, `resolved`, `unbound`, `mismatch`, `unavailable`, `unsupported`, `incompatible`,
+`error`, and `refreshed` or `dropped` after a reload), the resolved definitions cached now, and the
+definitions shared with clients and evicted.
+
+| Reload        | Does                                                                         | Triggered by                                                    |
+| ------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `full`        | Refreshes the cached labels, and rebuilds the world when its version changed | A promotion, Studio, the `ENGINE_GRPC_RELOAD_INTERVAL_SEC` loop |
+| `incremental` | Refreshes the cached labels only                                             | A catalog bind, a procedural promotion, Studio                  |
+
+---
+
 ## Player persistence
 
 In account mode the server loads each account player from its profile and commits its durable state
-back through `CyberiaPlayerService`; a guest stays in memory. `game/persist` owns the pipeline: the tick captures the state of
+back through `CyberiaPlayerService`; a guest stays in memory. The engine keeps one profile per
+[universe](universe.md); the server sends and receives the state of its own world. `game/persist` owns the pipeline: the tick captures the state of
 each account player every 6 ticks under the world lock, and a background loop sends at most one
 commit per player, with retries, checkpoints and the final commit at session end. `game/net`
 owns admission, takeover, the resume tickets and session end. See
@@ -246,7 +312,17 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `game/`, in 
 | `/api/v1/metrics/health`    | GET    | Detailed health with entity/player counts |
 | `/api/v1/metrics/entities`  | GET    | Entity-type breakdown                     |
 | `/api/v1/metrics/websocket` | GET    | Active connections, message rates         |
-| `/api/v1/metrics/workload`  | GET    | Per-map entity workload                   |
+| `/api/v1/metrics/workload`  | GET    | Measured tick workload                   |
+
+Workload measures tick processing time, including simulation, replication, and lock waits.
+It averages the latest 30 ticks, one second at the configured 30 Hz rate.
+Load is that average divided by the tick budget: moderate at 40%, high at 70%, critical at 90%.
+Entity and object-layer counts describe content; they do not determine health or player capacity.
+
+The portal reads player population from `websocket.active_connections`.
+`websocket.max_connections` is the configured `CYBERIA_MAX_CONNECTIONS` admission limit; zero disables that limit.
+The world selector shows Full only when connections reach that limit.
+Tick pressure remains operational information and does not prevent a player from selecting a world.
 
 All content data (ObjectLayer metadata, asset blobs, optional client hints, the Instance Map graph) is served directly by engine-cyberia REST. `cyberia-server` does not proxy content; it only forwards `instanceCode` (alongside `apiBaseUrl`) in the WebSocket `metadata` message so the client can key its engine-cyberia fetches.
 
@@ -262,12 +338,19 @@ each is const for the life of the process.
 | `--data-server-url`  | `https://www.cyberiaonline.com` | Data Server REST origin   |
 | `--data-server-grpc` | `localhost:50051`               | Data Server gRPC endpoint |
 
-| Variable                          | Default      | Description                             |
-| --------------------------------- | ------------ | --------------------------------------- |
-| `INSTANCE_CODE`                   | `default`    | Instance code to load on startup        |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_ | ObjectLayer hot-reload polling interval |
-| `SERVER_PORT`                     | `8081`       | WebSocket + HTTP listen port            |
-| `STATIC_DIR`                      | `./public`   | Directory for static WASM client files  |
+| Variable                          | Default      | Description                                                                                                                        |
+| --------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTANCE_CODE`                   | _(required)_ | Instance code to load on startup                                                                                                   |
+| `CYBERIA_PUBLIC_URL`              | _(none)_     | Public origin and base path players dial; reported to the [registry](server-registry.md). Unset keeps the process off the registry |
+| `CYBERIA_SERVER_API_KEY`          | _(none)_     | Server key of the player service, the registry and the hot-reload trigger                                                          |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_ | ObjectLayer hot-reload polling interval                                                                                            |
+| `SERVER_PORT`                     | `8081`       | WebSocket + HTTP listen port                                                                                                       |
+| `STATIC_DIR`                      | `./public`   | Directory for static WASM client files                                                                                             |
+
+`instance-build-manifest` writes `INSTANCE_CODE`, `CYBERIA_BASE_PATH`, `CYBERIA_DATA_SERVER_URL`,
+`CYBERIA_CORS_ALLOWED_ORIGINS` and `CYBERIA_PUBLIC_URL` to the env file of each world from the deploy
+conf. Each process reports to the registry every 20 seconds, and reports `draining` on SIGTERM
+before its players leave.
 
 ---
 

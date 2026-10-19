@@ -1,4 +1,4 @@
-# Chat and parties
+# Social, chat and parties
 
 Players talk on three chat channels, group in parties and keep friends. `cyberia-server` owns chat
 and parties: it names every sender, decides who receives a line, and keeps every party. Both end
@@ -19,19 +19,20 @@ One game server process runs one instance, so World is the population of that in
 crosses to another server.
 
 **Server lines only.** The client sends `chat {channel, toId, text}`. The server names the sender
-from its session and sends `chat {channel, fromId, fromName, fromSkin, toId, text}` to every
-recipient, the sender too. The client draws only lines the server sent, so the history shows what
+from its session and sends `chat {channel, fromId, fromName, fromAvatar, toId, text, atMs}` to
+every recipient, the sender too. The client draws only lines the server sent, so the history shows what
 was delivered.
 
 **Emoji.** A word `:name:` is an emoji token when `name` is in `CHAT_EMOJI` of the stat contract:
 `smile`, `laugh`, `wink`, `cool`, `sad`, `angry`, `heart` and `thumbsup`. The line stays plain text
 on the wire, so the server cleans and limits it like any other. The client draws each token as the
-`emoji-<name>` UI icon in the chat panel and in the chat preview of a bubble. A row of emoji buttons
-under the quick replies sends one token.
+`emoji-<name>` UI icon in the chat panel and in the chat preview of a bubble. The emoji button beside
+Send opens a menu of the emoji; a choice adds its token to the typed line.
 
-**Identity icons.** A chat line carries `fromSkin`, the item id of the sender's active skin. A
-friend row carries `skin` while the friend plays on this server. The client draws the icon of that
-Object Layer, and a default icon without one. See
+**Identity icons.** A chat line carries `fromAvatar` and a friend row `avatar`: the identity preview
+reference of what the player wears. A friend on this server has the reference of its live layers; a
+friend elsewhere, the one the engine reads from its last played profile. The client draws the
+preview, and a default icon without one. See
 [player identity](player-identity-and-profile.md#identity-icon).
 
 **Refusals.** A refused line answers with `chat_ack {ok: false, reason, channel, toId}`. The client
@@ -52,20 +53,47 @@ id and the channel and no text. The generic input limiter of the socket still bo
 them at a reconnect. No chat history persists.
 
 **Panel.** The HUD chat panel is the one place chat shows and is written. Its tabs are World, Party
-and Direct. Direct lists the conversations, each with the identity icon, the last line and its
-unread count, and opens one of them. A conversation stays open when its peer leaves view, and a line
+and Direct. It takes the whole right-hand column, as the [social panel](#social-panel) does. Each
+line shows the identity icon and the name of its sender, and the server time `atMs`: the hour for a
+line of today, the date and the hour for an older one. Direct lists the conversations, each with the
+identity icon, the last line and its unread count, and opens one of them. The back arrow returns to
+the list. A conversation stays open when its peer leaves view, and a line
 from a friend on another map reaches it the same way. The panel opens no modal: the player keeps
 playing beside it. Its text input shows only while no modal covers the world, and keys typed into it
 never reach the game.
 
 **Badges.** The chat button of the toolbar counts the unread lines of every conversation, and each
 tab counts its own. The panel opens on the shown tab when it holds unread lines, else on the first
-tab that does. Reading a conversation clears its count. The social button counts the friend
-requests to answer and the party invites; the friend requests load when the session starts. Counts
-cover this session only: no line waits for a player who is offline.
+tab that does. Reading a conversation clears its count. The chat button counts chat lines only; the
+social button counts the friend requests to answer and the party invites (see
+[the social panel](#social-panel)). The friend requests load when the session starts. Counts cover
+this session only: no line waits for a player who is offline.
 
 `deliver` in `chat.go` is the one place a line reaches a recipient. A future mute or ignore list
 filters there.
+
+---
+
+## Social panel
+
+The social button of the toolbar, beside the chat button, opens the social panel. It is the one
+place for friends, friend requests and the party. The panel opens no modal: the player keeps
+moving and fighting beside it.
+
+The panel takes the whole right-hand column. The minimap, the quest journal and the chat give way
+while it shows, and come back when it closes. The
+panel has the chrome of the chat panel: one header row of tabs with the close button.
+
+| Tab      | Shows                                                                                    |
+| -------- | ---------------------------------------------------------------------------------------- |
+| Friends  | The own note, then the friends, online first, each with presence and note                |
+| Requests | Received requests with Accept and Decline, then sent requests with Cancel, and days left |
+| Party    | The invites with Accept and Decline, then the members with Leave, Remove and Disband     |
+
+The panel opens on its news: the Requests tab when a request waits, else the Party tab when an
+invite waits. A guest opens on the Party tab. Each tab counts its own news. Escape, the close
+button and the social button close the panel. The chat and quest buttons close it and show their
+panel. Chat on a friend row closes it and opens the direct conversation.
 
 ---
 
@@ -100,10 +128,10 @@ action}`, which the client shows as a toast. The state travels in every snapshot
 | `self.interaction` rows of players | `flags` bit 3: the viewer may invite now                                       |
 
 **Interface.** An invite never blocks play. The social button and the own bubble count the pending
-invites, and the inviter's bubble carries the party mark. The player answers from the own Party tab
-or from the inviter's profile. Invite on a profile or a friend row turns into "Invite sent" while
-the invite waits. The Party tab lists the members with their level, life and map, marks the leader
-with a star, and offers Remove, Leave and Disband to whom they apply.
+invites, and the inviter's bubble carries the party mark. The player answers from the Party tab of
+the social panel or from the inviter's profile. Invite on a profile or a friend row turns into
+"Invite sent" or "Invited" while the invite waits. The Party tab lists the members with their level,
+life and map, marks the leader with a star, and offers Remove, Leave and Disband to whom they apply.
 
 **Markers.** Each player interaction row tells the viewer what the other player is to it: `flags`
 bit 5 marks a member of its party, bit 6 a player in another party, bit 7 a friend. The nameplate
@@ -136,10 +164,43 @@ sends a fresh list to each of its friends on this server.
 session lease. A request shows the name and the days left. No row carries an account id or an
 email.
 
-**Interface.** The own Friends tab lists the requests to answer, the friends (online first, with
-their world and map) and the requests sent. A friend online on this server offers Chat and, when the
-player may invite, Invite; Remove asks for a second tap. A public profile offers Add friend, Accept friend or shows "Friend request sent".
-The nameplate of a friend carries a heart.
+**Interface.** The Friends tab of the social panel lists the friends, online first. Each row shows
+the identity icon with a presence dot, the name, where the friend is in words ("Online in <map>",
+"Online in another world", "Offline") and its note. A tap on a row shows its actions: Chat and,
+when the player may invite, Invite while the friend plays on this server, and Remove, which asks
+for a second tap. The Requests tab shows received and sent requests apart, each with the days left.
+A public profile offers Add friend, Accept friend or shows "Friend request sent". The nameplate of a
+friend carries a heart.
+
+---
+
+## Account profiles and status notes
+
+`cyberia-social` is the public relationship capability. `CyberiaSocial` owns pairs in `cyberiasocials`.
+`CyberiaSocialProfile` owns one note per `User._id` in `cyberiasocialprofiles`.
+The REST readers require a moderator. Gameplay writes use the authenticated player gRPC service.
+Private account IDs stay inside the engine and trusted game server.
+
+`identityPreviews` projects names, appearance references, authorized notes, and lease-based presence in bounded queries.
+A failed appearance read leaves the reference empty and keeps the list.
+The C identity icon keeps one reference per player name for Friends, requests, chat lines and direct chat.
+Chat history stores public identity only. Direct chat headers read friend notes from the current authorized friend list.
+
+A note allows 80 Unicode scalar values. Each combining mark, regional indicator, and joiner counts separately.
+A supplementary emoji counts once. The family emoji `👩‍👩‍👧‍👦` counts seven times.
+Controls and format characters are removed, except joiners. Whitespace becomes single spaces.
+The authoritative contract is `src/api/cyberia-social/social-contract.js`.
+Generated Go and C constants share its limit. The Go broker forwards notes without truncation.
+
+Only the owner and accepted friends receive a note. Pending requests and unrelated accounts receive no note or presence.
+Presence comes from session leases. Lease expiry leaves notes and relationships intact.
+The Friends tab of the social panel shows the own note and offers Edit, Save, Clear, and Cancel.
+Empty notes clear the value.
+
+A MongoDB conditional update and unique account index allow one accepted change per ten seconds across replicas.
+MongoDB supplies the update time and throttle clock. `too_soon` includes `nextUpdateAtMs` over gRPC.
+The friend-list response supplies the remaining wait to the client. Client limits only assist text entry.
+A successful note action receives `friend_ack` after the refreshed list. Refusals preserve the draft.
 
 ---
 

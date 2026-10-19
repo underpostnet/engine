@@ -240,7 +240,7 @@ The decoder hands the self block, `frame` and `inputConsumedThrough` to `predict
 
 The other server messages — `init_data`, `session_end`, `resume`, `metadata`, `combat_text`, `audio_event`, `drop_spawn`, `drop_collect`, `chat`, `chat_ack`, `party_ack`, `friends`, `friend_ack`, `dialog_ack`, `shop_ack` — are not part of the per-tick replication stream.
 
-The first message of every connection is `auth`: `{ticket}` with the launch ticket the page took from its address fragment, `{}` without one. A refusal shows the session card, whose ways open the launch bridge of the portal: **Continue as guest** or **Sign in** ([accounts and persistent players](accounts-and-persistence.md#launch-flow)). An account session keeps the resume ticket of `resume {ticket}` in memory; after a lost connection or a server restart it reconnects with it and comes back without the portal ([resume](accounts-and-persistence.md#resume-after-a-dropped-connection)). A guest card opens a new connection after a lost connection or a restart. The menu button opens the same card as the session menu: World select, Play as guest, Sign out, or Sign in to keep progress ([leaving](accounts-and-persistence.md#leaving)).
+The first message of every connection is `auth`: `{ticket}` with the launch ticket the page took from its address fragment, `{}` without one. A refusal shows the session card, whose ways open the launch bridge of the portal: **Continue as guest** or **Sign in** ([accounts and persistent players](accounts-and-persistence.md#launch-flow)). An account session keeps the resume ticket of `resume {ticket}` in memory; after a lost connection or a server restart it reconnects with it and comes back without the portal ([resume](accounts-and-persistence.md#resume-after-a-dropped-connection)). A guest card opens a new connection after a lost connection or a restart. The settings button opens the same card as the settings menu: the sound and full-screen toggles, then World select, Play as guest, Sign out, or Sign in to keep progress ([leaving](accounts-and-persistence.md#leaving)).
 
 The client sends one `events` message per frame with new events. Its payload is `{ "events": [ ... ] }`; each event is an envelope whose payload carries `seq`, `frame` and `timestamp`.
 
@@ -250,24 +250,24 @@ The client sends one `events` message per frame with new events. Its payload is 
 
 The client speaks REST directly to engine-cyberia for content. None of these calls go through cyberia-server.
 
-The engine resolves an item label to the definition the catalog binds, then to that definition's
-atlas. The atlas blob is the primary render: the bytes the canonical render CID addresses, at one
-pixel per cell. The atlas metadata describes that same render. The engine also keeps an upscaled
-derived render for viewing; the client never downloads it. The idle preview is the first down-idle
-frame scaled to fill 300 px, with no margin. The interact overlay and every engine editor show it as an item's
-picture, and the editors share one loaded copy per item. `cyberia ol --sync` derives both again from the primary render of stored items, then draws again the preview of each map that shows them and reloads the object layers of the game servers ([`ol --sync`](../reference/cyberia-cli.md#cyberia-ol--object-layer)).
+The client draws a render by the cid of its definition, never by a label. A label stands for the cid
+of the definition the world binds it to: the `metadata` message sends that definition. A held stack
+keeps the cid it was granted with. Renders are cached by cid, so two labels of one definition share
+one download. The engine reads a definition from its cache, else from the Object Layer authority, so
+a definition no served release holds keeps its render. The primary render is the bytes the
+canonical render CID addresses, at one pixel per cell, and the layout describes that same render.
+The engine also keeps an upscaled derived render for viewing; the client never downloads it.
 The [render contract](../../object-layer/explanation/render-contract.md) defines these terms.
 
-| Endpoint                                                         | Purpose                                     |
-| ---------------------------------------------------------------- | ------------------------------------------- |
-| `GET /api/v1/atlas-sprite-sheet/metadata/:itemKey`               | Frame layout JSON for a sprite atlas        |
-| `GET /api/v1/atlas-sprite-sheet/blob/:itemKey`                   | Primary render PNG, one pixel per cell      |
-| `GET /api/v1/atlas-sprite-sheet/idle-preview/:itemKey`           | 300 px idle preview PNG, the item's picture |
-| `GET /api/v1/object-layer/:itemId`                               | ObjectLayer JSON metadata                   |
-| `GET /api/v1/cyberia-dialogue/code/default-:itemId`              | Dialogue lines for an NPC                   |
-| `GET /assets/ui-icons/:iconId.png`                               | Status-bar icons                            |
-| `GET /api/v1/cyberia-client-hints/:instanceCode`                 | Optional presentation overrides             |
-| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/static` | Instance Map graph (nodes, edges, POIs)     |
+| Endpoint                                                         | Purpose                                       |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| `GET /api/v1/atlas-sprite-sheet/layout/:cid`                     | Frame layout JSON of a definition's render    |
+| `GET /api/v1/atlas-sprite-sheet/render/:cid`                     | Primary render PNG, one pixel per cell        |
+| `GET /api/v1/cyberia-dialogue/code/default-:itemId`              | Dialogue lines for an NPC                     |
+| `GET /assets/ui-icons/:iconId.png`                               | Status-bar icons                              |
+| `GET /api/v1/cyberia-client-hints/:instanceCode`                 | Optional presentation overrides               |
+| `GET /api/v1/cyberia-instance/instance-map/:instanceCode/static` | Instance Map graph (nodes, edges, POIs)       |
+| `GET /api/v1/cyberia-universe/instance/:instanceCode`            | The universe of this world, with availability |
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
 
@@ -275,33 +275,41 @@ All requests are CORS-simple GETs (no preflight) and cacheable. None require cre
 
 ## Instance Map
 
-The Instance Map is a strategic overlay, not a minimap. It visualises the instance as a packed, gapless grid of map cards with animated portal edges, for navigation and planning. It never reproduces the gameplay viewport.
+The Instance Map is a strategic overlay, not a minimap. It has two views. **WORLD** shows the maps of this instance as map cards on the cells of its authored layout, with animated portal edges. A map card has the proportions of its map: the static payload gives each node its size in its cell (`w`, `h`, in cells), one scale for every map of the world, so the longest map side takes 88 % of a cell and a map sits at the centre of its cell. The cards keep these proportions at every zoom. The view drops the empty rows and columns of the layout, so the maps nearly touch and read as one continuous world ([graph views](universe.md#selection-and-freshness)). A card has no frame: the map picture is the card. A name strip spans its card and cuts a long name with an ellipsis. Two maps of one name add their codes. Every picture is contained in its card at its own aspect ratio, centred and never stretched.
+
+A map with a world origin sits at its place in its world, at the same scale ([map registry](map-registry.md#ownership)). Two placed maps share an edge when their places meet along the whole edge: the same length, side by side. Their cards meet on whole pixels, with no gap, no line, no name strip and no portal edge between them; a placed map shows its name as a tag inside its card. The hover and selection marks, and the ring of the current map, draw only on the open sides. Maps without a world origin sit on their layout cells beside the placed maps.
+
+**UNIVERSE** shows the worlds of its [universe](universe.md) on their cells, the routes between them, and what serves each world now. A world card has the proportions of its world preview (`w`, `h` of the view). Both views are for navigation and planning; neither reproduces the gameplay viewport.
 
 One integrated widget with two modes, split across two modules:
 
-- **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[quest][map][fullscreen]`. The quest button shows/hides the Quest Journal and the map button shows/hides the minimap; both are hidden by default and stay open together. The coordinate readout opens the expanded Instance Map, which morphs to the full screen with an eased transition and retracts the same way on close.
-- **Side stack** (`ui/hud_side_stack`) — the right-hand column both panels live in: the minimap on top, the Quest Journal beneath, between the toolbar and the inventory bar. The column sizes to the room the bar leaves. When both are open the minimap gives way to at most half of the column so the journal keeps room, and the journal takes only what its content needs. Each panel keeps its own state across toggles: the journal its scroll, sections and pages, the minimap its zoom.
+- **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[chat][social][quest][map][settings]`. The quest button shows/hides the Quest Journal and the map button shows/hides the minimap; both are hidden by default and stay open together. A tap on either closes the chat and the social panel. The coordinate readout opens the expanded Instance Map, which morphs to the full screen with an eased transition and retracts the same way on close.
+- **Side stack** (`ui/hud_side_stack`) — the right-hand column the HUD panels live in, between the toolbar and the inventory bar: the minimap on top and the Quest Journal beneath. The chat or the [social panel](social.md#social-panel) takes the whole column while it shows, over the minimap and the journal, and the social panel covers the chat. The column sizes to the room the bar leaves. When the journal is open the minimap gives way to at most half of the column, and the journal takes only what its content needs; a map slot under 100 px gives way. Each panel keeps its own state across toggles for the session: the journal its scroll, sections and pages, the minimap its zoom and its texture toggle.
+- **Minimap** (`ui/hud_minimap_overlay`) — the current map only: its map preview at 55 % over a see-through backdrop, with its border, fitted to the slot at zoom 1, and following the player at a closer zoom up to the map edges. Over it, in this order: the authored presence as hollow squares, the live players, bots and resources as filled squares, each portal as a gate where it stands, and the own player with its facing. An exit to another map has an arrow toward that map and a tag with its name; a link inside the map has a ring. A tag takes the first side of its gate that is clear of the controls, the markers and the other tags, and the pointer over a gate names its exit in full. The controls stand in the top right corner of the map: the texture toggle above zoom in and zoom out, in a row when the map is short. With the texture off, a grid on a see-through fill marks the map and every marker stays. The world shows through the map in both modes; the header, the controls and the markers stay opaque. No other map is drawn.
 - **Container** (`ui/modal_map`) — compact mode is the always-on readout (map code, position, fps) hosted inside the toolbar; expanded mode is the full-screen morph target.
 - **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it).
 
 Strict independence from the gameplay renderer:
 
-| Concern    | Owner                                                                                  |
-| ---------- | -------------------------------------------------------------------------------------- |
-| Graph data | `ui/instance_map_data` — engine-cyberia REST only, never the AOI stream                |
-| Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)  |
-| Layout     | deterministic row-major map-card grid with quarter-turn rotation, computed client-side |
-| Selection  | tap a node → contextual panel (name, quest/action provider counts, portal links)       |
+| Concern    | Owner                                                                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Graph data | `data/instance_map_data` and `data/universe_map_data` — engine-cyberia REST only, never the AOI stream                                                   |
+| Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)                                                                    |
+| Layout     | the authored cells the engine resolves, without their empty rows and columns; the view never turns or joins them                                         |
+| Selection  | tap a node → contextual panel: a map's providers and portals, or a world's thumbnail, status, route and TRAVEL; the camera moves a node its panel covers |
 
 Data lifecycle:
 
-1. Opening the overlay fetches the **static** payload once: graph nodes, portal edges, and authored `presencePois` carrying map-cell presence status, their quests with `prerequisiteCodes`, and their actions with the quests that use them. The instance code arrives in the simulation server's `metadata` message.
+1. Opening the overlay fetches the **static** payload once: graph nodes with their cells, portal edges, and authored `presencePois` carrying map-cell presence status, their quests with `prerequisiteCodes`, and their actions with the quests that use them. The instance code arrives in the simulation server's `metadata` message.
 2. The client marks a quest POI active while its quest is acceptable or active in the local quest store, and an action POI active when it stands alone or one of its quests is. It marks them again at each quest store change; no request names the player.
-3. Closing the overlay discards a late static response.
+3. The UNIVERSE view reads `/cyberia-universe/instance/:instanceCode` the first time it shows, and again every 20 seconds while open, past the response cache (`fetch_forget`). It loads a world picture only when its card is drawn.
+4. Closing the overlay discards a late response.
+
+The UNIVERSE view draws each world with its world preview ([world pictures](universe.md#world-pictures)), on a card of the proportions of that preview, and a dotted tile with its initials while the picture loads or when it has none. It outlines this world in green, marks each world with its status (ONLINE, CLOSING, OFFLINE), and each route with travelling pulses; a one-way route ends in an arrow. A selected world shows the thumbnail its author set (none when there is no thumbnail: the card already shows the preview), its name, its status and whether a route leads there; it never shows a server address. A world the served release lacks shows dimmed. A selected world offers **TRAVEL** only when a route leads there from this world and a server of it takes new sessions; otherwise the button names the reason (NO ROUTE FROM HERE, WORLD OFFLINE, WORLD CLOSING, NOT IN THIS RELEASE). TRAVEL closes the overlay and leaves through the session gate, which names each step: the final save of this world, then the entry of the target. An account whose target runs the server build it plays on enters the target in the page; otherwise, or when that fails, the launch bridge of that world opens with the same principal ([travel in the page](accounts-and-persistence.md#travel-in-the-page)). A route never proves that a server is up; a world stays on the graph while it is offline.
 
 Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
 
-At normal zoom, POIs render only their authored presence-status icon. At inspection zoom, static action and quest capability icons appear; quest activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
+At normal zoom, POIs render only their authored presence-status icon, sized with the card. Once a map cell spans 9 px on screen, static action and quest capability icons appear; quest activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
 
 ---
 
@@ -311,39 +319,44 @@ The own player holds the first bubble of the interaction column. A tap opens the
 tap on another player opens its public profile; an NPC keeps its capability tabs
 ([player identity and profile](player-identity-and-profile.md#profile-views)).
 
-| Module               | Owns                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| `ui/player_panel`    | The Profile tab of any player, and the own Party and Friends tabs                                     |
-| `ui/container_panel` | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells |
-| `ui/stack_move`      | How a dropped stack lands in the bar and the containers, with the quantity picker                     |
-| `sim/container_ops`  | The item move rules, applied at once and replayed after each snapshot                                 |
-| `ui/chat_log`        | The chat history by conversation, and the unread counts                                               |
-| `ui/chat_pane`       | One conversation in a content rect; every pane shares the one DOM text input                          |
-| `ui/chat_panel`      | The HUD chat: World, Party and Direct at the bottom of the right-hand column, with the unread badges  |
-| `ui/emoji`           | Emoji tokens in a chat line: the icon of each token, wrapped with the words                           |
-| `ui/identity_icon`   | The icon of a player in social views: its active skin, or the default icon                            |
-| `ui/session_gate`    | The session card and menu: why a session ended or was refused, and each way on                        |
+| Module               | Owns                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `ui/player_panel`    | The Profile tab of any player, and the Friends, Requests and Party views of the social panel                                    |
+| `ui/container_panel` | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells                           |
+| `ui/stack_move`      | How a dropped stack lands in the bar and the containers, with the quantity picker                                               |
+| `sim/container_ops`  | The item move rules, applied at once and replayed after each snapshot                                                           |
+| `ui/chat_log`        | The chat history by conversation, and the unread counts                                                                         |
+| `ui/chat_pane`       | One conversation in a content rect: its lines, the emoji menu and Send; every pane shares the one DOM text input                |
+| `ui/chat_panel`      | The HUD chat: World, Party and Direct in the whole right-hand column, with the unread badges                                    |
+| `ui/social_panel`    | The social panel: Friends, Requests and Party in the whole right-hand column, opened by the social button                       |
+| `ui/hud_panel`       | The chrome of the column panels: fill, border, the header row of tabs and the close button                                      |
+| `ui/emoji`           | Emoji tokens in a chat line: the icon of each token, wrapped with the words                                                     |
+| `ui/identity_icon`   | The icon of a player in social views: the latest identity preview of its name, else the default icon                            |
+| `ui/session_gate`    | The session card and the settings card: why a session ended or was refused, the portal, sound and full-screen rows, each way on |
 
 - The inventory bar shows every cell the capacity rule can open: stacks, open slots, then locked
   slots with the `lock` icon and their level ([inventory capacity](inventory-capacity.md#locked-slots)).
   Each cell is a bag slot; a tap opens a stack and a drag moves it ([moving stacks](inventory-capacity.md#moving-stacks)).
   The item card equips and unequips the stack it shows.
-- The toolbar row reads `[menu][audio][social][chat][quest][map][fullscreen]`. The chat button
-  carries the unread count of every conversation and opens the HUD chat, which opens no modal. The
-  social button carries the friend requests and party invites to answer and opens the own Friends
-  or Party tab ([chat and parties](social.md#chat-channels)).
+- The toolbar row reads `[chat][social][quest][map][settings]`; settings (the `engine` icon) is the
+  rightmost button. It opens the settings card: CYBERIA PORTAL leaves for the portal, SOUND ON or
+  OFF and FULL SCREEN ON or OFF act at once, then the other ways out of the session. The chat button carries the unread count of every
+  conversation and opens the HUD chat. The social button (`friends` icon) carries the friend
+  requests and party invites to answer and opens the [social panel](social.md#social-panel). Neither
+  opens a modal. Party shows the `party` icon everywhere: the chat tab, the profile row, the invite
+  buttons, the mark over a party member and the invite on a bubble.
 - A pending party invite never blocks play: the own bubble counts invites and the inviter's bubble
   carries the party mark ([chat and parties](social.md#parties)).
 - The shop and the assembler show "Bag full" on a card whose result has no free slot.
 
 To check a change, use a desktop browser and a phone (or touch emulation):
 
-1. Tap the own bubble. The own profile opens on Profile, with Storage, Party, Friends and Stats. No dialogue opens.
+1. Tap the own bubble. The own profile opens on Profile, with Storage and Stats. No dialogue opens.
 2. Open Storage. Drag a stack from the bar into an open cell and back. A locked cell turns the drop
    back and, on a tap, names its level.
 3. Tap a locked bag slot. A toast names the level that opens it.
-4. With two clients, open the other player's profile and invite it. Accept from the other client's
-   own Party tab. Both Party tabs list two members.
+4. With two clients, open the other player's profile and invite it. Accept from the Party tab of the
+   other client's social panel. Both Party tabs list two members.
 5. Open the HUD chat. Send on World and on Party; type WASD into the input: the player does not move.
 6. Close the other client. The party ends on the first client.
 7. On an account world, add the other player as a friend and accept. Both nameplates show a heart;
@@ -374,7 +387,7 @@ The cues are visual only. Their sounds arrive as `audio_event` messages the serv
 
 Item slots badge an object layer with the `stack` icon and its signed stat sum, red when negative.
 
-An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity; a slot that summons its own item counts the units of that stack alone. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
+An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and each `metadata` delta replaces the skills of the definitions it carries, and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity; a slot that summons its own item counts the units of that stack alone. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
 
 One bar under the row shows the cooldown of the row. For a tap skill it is the shared action cooldown from `self.actionReadyInMs`: it fills while the cooldown runs and turns green when the next tap fires skills. A green bar does not promise a summon: the server still rolls each skill's chance. For a held skill it is the consume cooldown from `self.consumeReadyInMs`. The row takes no input and hides while the player is in stasis.
 

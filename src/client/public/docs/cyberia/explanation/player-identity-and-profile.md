@@ -54,11 +54,11 @@ The snapshot carries the name of each player as `name`. The rest travels as desc
 The interaction bubble column on the left always shows the own player first. A tap on a bubble
 opens `modal_interact`, and the entity decides the view:
 
-| Bubble         | View            | Tabs                                    | Bottom bar |
-| -------------- | --------------- | --------------------------------------- | ---------- |
-| The own player | Own profile     | Profile, Storage, Party, Friends, Stats | —          |
-| Another player | Public profile  | Profile, Stats, Stack                   | Chat       |
-| An NPC         | NPC interaction | Its capability tabs, then Stack, Stats  | Dialog     |
+| Bubble         | View            | Tabs                                   | Bottom bar |
+| -------------- | --------------- | -------------------------------------- | ---------- |
+| The own player | Own profile     | Profile, Storage, Stats                | —          |
+| Another player | Public profile  | Profile, Stats, Stack                  | Chat       |
+| An NPC         | NPC interaction | Its capability tabs, then Stack, Stats | Dialog     |
 
 The route follows the entity id: the own id opens the own profile, any other player the public
 profile. A player view sends no NPC request: no dialogue fetch, no action fetch, no quest event.
@@ -68,8 +68,8 @@ the bag and storage slots with the level of the next slot, the party status and 
 account player also sees its held item count and, while the engine is out of reach, that its
 progress is not being saved. A last note states what persists: everything listed in
 [what persists](accounts-and-persistence.md#what-persists) for an account, nothing for a guest. The
-Storage tab is the [personal storage](player-storage.md). The Party and Friends tabs are described
-in [chat and parties](social.md).
+Storage tab is the [personal storage](player-storage.md). Friends, requests, the party and the
+own note live in the [social panel](social.md#social-panel).
 
 **Public profile.** The Profile tab shows the portrait, the name, the level, the stats sum and the
 relation to the viewer ("In your party", "In a party", "Your friend", "Your invite waits for an
@@ -84,11 +84,49 @@ player in the [chat panel](social.md#chat-channels).
 
 ### Identity icon
 
-Social views draw a player by the icon of its active skin: the Object Layer that defines its look.
-Chat lines carry it as `fromSkin` and friend rows as `skin`; both are item ids, which the client
-resolves through the same Object Layer cache as the world. A guest, a friend on another server, or
-a skin that is not loaded yet shows the default icon. The portal profile image never reaches the
-game: the game draws game state only.
+Social views draw a player by its identity preview: one static PNG of every visual layer it wears,
+in its idle frame. Chat lines carry it as `fromAvatar` and friend rows as `avatar`. Both are
+references: `/api/v1/cyberia-player/appearance/v1/<cids>`, the Object Layer CIDs of the active
+layers in layer order, each on the definition the world binds its label to. A layer whose
+definition names no render is not in the reference. A ghost keeps the reference of its own loadout.
+
+| Source of the reference | Who builds it                                                             |
+| ----------------------- | ------------------------------------------------------------------------- |
+| A chat line             | The game server, from the live layers of the sender                       |
+| A friend here           | The game server, from the live layers of the friend                       |
+| A friend elsewhere      | The engine, from the bag of the last played profile, bound by the catalog |
+| A profile in view       | The client, from the layers it sees, when it opens a direct conversation  |
+
+The engine composes a preview from what each host already stores: the idle preview of each
+layer, `AtlasSpriteSheet.idlePreviewFileId`, the first frame of `down_idle` (else `none_idle`, else
+`default_idle`) on a 300 px square. It overlays them, centred, in draw order: `VISUAL_LAYER_PRIORITY`,
+skin, weapon, then the other types, layers of one priority in their order. The client, the server
+and the engine read the route and the priorities from the stat contract. A layer whose atlas holds
+no idle preview on this host is left out, so the image is the closest one the host can draw.
+
+**Fingerprint.** The ordered File ids of the idle previews it overlays. A File id derives from its
+bytes, so a change of stats, labels, position, life or presence draws nothing new, and two
+references that draw the same pixels share one image.
+
+**Generation and memory.** A request draws a missing preview on demand. The render cache keeps it
+in Valkey under its fingerprint, and Valkey drops the least recently used values first
+(`allkeys-lru`), so the cache holds the previews in use and never grows past its memory limit. A
+dropped preview is drawn again on the next request. Concurrent requests of one fingerprint share one
+drawing. A process draws at most two previews at a time and keeps at most 32 waiting; past that it
+answers 503. A failed drawing is never cached. The game never waits for a preview: chat, friend rows
+and the world draw at once.
+
+**Delivery.** A preview answers with `Cache-Control: public, max-age=31536000, immutable` and its
+fingerprint as the ETag, because a reference never names other pixels. An error answers with
+`no-store`. The client fetches each reference once, keeps the last image that drew for each player
+name, and draws it while a newer reference loads. A player without one, or a reference that fails,
+shows the default icon, and the client retries after five seconds. The client decodes a preview at
+half size, 150 px, and keeps at most 128 players in its table.
+
+**External use.** `GET /api/v1/cyberia-player/identity/:name` answers a `302` to the current
+reference of an account, with `no-cache`, so a page outside the game always shows what the account
+wears now. It names no database ID, and a guest has none. The portal profile image never reaches
+the game: the game draws game state only.
 
 ---
 
@@ -100,3 +138,5 @@ game: the game draws game state only.
 | `cyberia-server/game/social/social_test.go`           | Guest names stay unique among online players                                                |
 | `cyberia-server/game/net/accounts_ws_test.go`         | An account session takes the profile id and the account name; refusals leave nothing behind |
 | `test/cyberia/integration/player-persistence.test.js` | Tickets, sessions, commits, leases and friendships against a MongoDB replica set            |
+| `test/cyberia/unit/appearance-preview.test.js`        | Idle previews overlaid in draw order, the fingerprint, one drawing per fingerprint, bounds  |
+| `cyberia-server/game/content/durable_test.go`         | The avatar names the bound definition of each worn visual layer; a ghost keeps its own      |

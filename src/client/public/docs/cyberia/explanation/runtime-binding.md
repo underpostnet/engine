@@ -57,6 +57,31 @@ After a bind, the engine asks every registered game server to reload its object 
 promotion publishes first: a definition is immutable, so a bind that a later step refuses leaves
 nothing to undo.
 
+## What a world runs
+
+A content database holds one catalog, so one binding per item serves every world of the release.
+No world binds an item on its own. Four layers decide what a player gets for an item:
+
+| Layer     | Source                                                 | Decides                                     |
+| --------- | ------------------------------------------------------ | ------------------------------------------- |
+| Canonical | The Object Layer authority, by CID                     | What a definition is, for good              |
+| Release   | The catalog of the served release                      | Which definition each item runs now         |
+| World     | The warm set of the world, and what placement resolves | Which definitions the game server holds     |
+| Stack     | The `olCid` a stack was granted with                   | What the player owns; a bind never moves it |
+
+A stack is usable in a world only when its `olCid` is the definition the world runs for its item.
+Otherwise it stays held, untouched, until a world runs its definition. Clients draw every
+definition by its CID, so a held stack, or one no served release holds, still shows as itself. See
+[Content a player brings](game-server.md#content-a-player-brings).
+
+The skill of an item is the `CyberiaSkill` document of its label in the served release. A release
+holds one skill document per label (`triggerItemId` is unique) and one binding per label, so the
+label names one definition and one skill there. A stack runs that skill only where it runs its
+definition. The warm content of a world wins: its skill of a label is the one that runs, and a skill
+resolved for a player only adds a label the world does not warm. `logicEventIds` lists exactly the
+distinct handlers of `skills[]`, in order; release validation (`skills`) and the engine refuse a
+document where they disagree, or where a handler is no skill logic.
+
 ## Snapshots
 
 A complete instance snapshot (`instances/<code>/` of the content artifact, with `object-layers/`)

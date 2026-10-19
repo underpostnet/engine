@@ -21,6 +21,8 @@ cyberia <command> [subcommand] [options]
 | `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle    |
 | `release`      | product repositories: build, lock and publish them                  |
 | `player`       | player profiles: quest progress no profile owns, held stacks        |
+| `universe`     | universes: the move of player records to universe profiles          |
+| `debug`        | one process of the development topology in this terminal            |
 | `run-workflow` | named operational scripts (seed defaults, dashboard, status pages)  |
 
 Most data commands resolve the target DB from `DEFAULT_DEPLOY_ID` / `DEFAULT_DEPLOY_HOST` /
@@ -140,6 +142,8 @@ Every flow that writes (`--import`, `--import-types`, `--sync`, `--to-atlas-spri
 - It draws again the preview of each map that places a written label. A new picture replaces the
   preview File and a replaced File no map names is deleted; an unchanged picture keeps its File,
   so a rerun writes nothing.
+- It brings the stored world preview of each world that holds one of those maps in line
+  ([world pictures](../explanation/universe.md#world-pictures)).
 - It asks each registered game server to reload its object layers (`incremental`), when the
   runtime serves the content database the write went to. A workspace write behind an active
   release reaches no reader: the runtime serves the release.
@@ -171,7 +175,8 @@ cyberia instance <instance-code> [options]
 
 The command works on the one instance it names. The default export writes into the instance
 sources of the `cyberia-content` checkout; the command fails when the content root is a packed
-artifact and no path is given.
+artifact and no path is given. An import or a drop ends with a reconciliation of the map registry
+of the catalog it wrote ([`cyberia map-registry`](#cyberia-map-registry--map-owners)).
 
 ```bash
 cyberia instance FOREST --import
@@ -534,11 +539,12 @@ into its own database, validates it, and promotes it by pointer.
 | `prepare <release-id> --channel <channel>` | On the host: fetch the revision the deployment lock pins, from the channel's repository, into a read-only workspace (`--store`)                                                      |
 | `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance) and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace` |
 | `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                              |
-| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers                                                                                                        |
+| `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                 |
+| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                    |
 | `rollback`                                 | Serve the release that was active before the current one                                                                                                                             |
 | `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                               |
 | `status`                                   | List the ledger and the active release                                                                                                                                               |
-| `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, or the rollback target                                                         |
+| `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, the rollback target, or a render a player owns                                 |
 | `activate`                                 | Bind this process to the active release                                                                                                                                              |
 
 ```bash
@@ -548,6 +554,7 @@ cyberia content-release build local-1 --from backups --instances test --dev
 cyberia content-release build local-2 --from workspace --dev
 cyberia content-release validate                      # the workspace, before any build
 cyberia content-release retire                        # back to the workspace after a local rehearsal
+cyberia content-release live-changes                  # what the next promotion stops serving
 cyberia content-release promote v3-4-5-8b4d643-04f978b0
 cyberia content-release rollback
 ```
@@ -556,7 +563,8 @@ cyberia content-release rollback
 the workspace, with no Secret in their environment, then checks that the artifact has the locked
 digest and revision. A release carries the worlds the deploy serves: one instance per variant of
 `conf.instances.json`. `/` serves `amethyst-strata-expansion`, and `/test` serves `test`. A
-production runtime promotes only a release built from an exact source revision.
+production runtime promotes only a release built from an exact source revision. `build --promote`
+takes `--discard-live-changes` as `promote` does.
 
 ## `cyberia release` — product repositories
 
@@ -624,22 +632,32 @@ state. See
 ## `cyberia player` — player profiles
 
 ```
-cyberia player prune-quest-progress [--apply] --dev
-cyberia player restore-quest-progress [--apply] --dev
-cyberia player held [--instance <code>] --dev
-cyberia player rebind-held <item-id> [--instance <code>] [--apply] --dev
+cyberia player held [--universe <code>] --dev
+cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
 ```
 
 | Command                  | Does                                                                                                                                   |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `prune-quest-progress`   | Moves the quest progress no profile owns to `cyberiaquestprogressarchives`, then makes its indexes match the schema. No deploy runs it |
-| `restore-quest-progress` | Returns archived quest progress whose profile exists again                                                                             |
-| `held`                   | Lists the held stacks of every profile: world, label, definition, reason, and the stack, unit and profile counts                       |
-| `rebind-held`            | Gives the held stacks of a label the definition the catalog binds now. Skips every profile in a live session                           |
+| `held`                   | Lists the held stacks of every profile: universe, world, label, definition, reason, and the stack, unit and profile counts             |
+| `rebind-held`            | Gives the held stacks of a label the definition the catalog binds now, in the profile and its worlds. Skips every profile in a session |
 
-Each command only reports without `--apply`. See
+`rebind-held` reports without `--apply`. See
 [the player service reference](player-service.md#operator-commands) and
 [Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
+
+## `cyberia map-registry` — map owners
+
+```
+cyberia map-registry [--release <release-id>] [--apply] --dev
+cyberia map-registry --indexes [--apply] --dev
+```
+
+Compares the map owners of the [map registry](../explanation/map-registry.md) with the maps and
+instances of the catalog the host serves: the active release, else the workspace. `--release` takes
+the catalog of one release. Prints the changes and the defects as JSON, and exits 1 on a defect. It
+writes only with `--apply`, in one transaction; a run without a change writes nothing.
+`--indexes` lists the registry indexes and the obsolete ones; with `--apply` it builds the schema
+index and drops the obsolete ones, and refuses while a row names no catalog.
 
 ## `cyberia ipfs` — IPFS storage
 
@@ -679,7 +697,8 @@ maps, quests, dialogues and actions, in that order. An Object Layer item is plan
 against the definition its label is bound to: absent, in sync, or differs. A label or a document
 that differs is reported and kept; `--rebind` moves it to the artifact, and a rebound label gets a
 new definition beside the earlier one. Render, quest and action sources, and placed maps stay as
-Studio set them. `--dry-run` plans only.
+Studio set them. `--dry-run` plans only. An import ends with a reconciliation of the map registry of
+the catalog it wrote, and logs each defect.
 
 ## `cyberia cache` — platform cache
 
@@ -689,6 +708,29 @@ cyberia cache clear --dev
 
 Removes every cached value of this host in this environment from Valkey. MongoDB is untouched.
 See [the development cache](../how-to/develop-content-locally.md#cache).
+
+## `cyberia debug` — debug run
+
+```
+cyberia debug
+cyberia debug engine-cyberia
+cyberia debug gateway
+cyberia debug cyberia-server [path]
+cyberia debug cyberia-client [path] [--build]
+```
+
+Runs one process of the dd-cyberia development topology in this terminal, on this host. `[path]`
+is the world path of a game process, `/` by default. Without a target, it lists every process, the
+port it listens on and the origin it serves.
+
+| Target           | Runs                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine-cyberia` | `npm run dev dd-cyberia`                                                                                                                                |
+| `gateway`        | The game server and client origins of `conf.instances.json`, routed by world path (HTTP and WebSocket)                                                  |
+| `cyberia-server` | The world server of `[path]` with its development env, on its local port, against the local engine                                                      |
+| `cyberia-client` | The world client of `[path]` with its development env, on its local port; `--build` builds the bundle first with the SDK that `EMSDK` of that env names |
+
+See [the debug run](../how-to/develop-content-locally.md#debug-run).
 
 ## `cyberia run-workflow` — operational scripts
 

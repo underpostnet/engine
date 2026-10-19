@@ -144,8 +144,14 @@ The drawing tools of the Object Layer editor stay above its tabs.
    step.
    To exchange two entities, type their indexes in **Swap two entities by index** and click
    **Swap Entities**: each index keeps its place and holds the other entity. A swap is one undo step.
-6. Save. A save names the map revision it loaded; another save first answers 409.
-7. To place the quests and actions of a saga at the entities you placed, synchronize the saga
+6. To place the map in its world, set **World X** and **World Y** under the grid: the cell of the
+   world where its top left corner sits. Two maps whose places meet along a whole edge join there in
+   the Instance Map. Leave both empty for a map with no place; a clone starts with none. The save
+   refuses an origin that is not two integer cells, and a world whose maps overlap
+   ([map registry](../explanation/map-registry.md#writes)).
+7. Save. A save names the map revision it loaded; another save first answers 409. The code of a map
+   never changes: clone the map to copy it under a new code.
+8. To place the quests and actions of a saga at the entities you placed, synchronize the saga
    ([Synchronize a saga](synchronize-a-saga.md)).
 
 ## Drafts

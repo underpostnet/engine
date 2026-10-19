@@ -71,7 +71,7 @@ The replica set is required: content promotion runs in a transaction.
 ### Development engine
 
 ```bash
-npm run dev dd-cyberia
+node bin/cyberia debug engine-cyberia    # npm run dev dd-cyberia
 ```
 
 The engine builds the clients, then starts one runtime per host of `conf.server.json`. The
@@ -105,37 +105,50 @@ node bin/cyberia content-release status --dev                    # the release l
 `/active` answers `"serving": false` and the workspace database while no release is active. That
 is fast development mode.
 
-### Game server and client
+### Debug run
 
-```bash
-cd cyberia-server && go build -o cyberia-server ./cmd/cyberia-server
-CYBERIA_SERVER_API_KEY=<the key of .env.development> CYBERIA_SESSION_MODE=account \
-CYBERIA_CORS_ALLOWED_ORIGINS=http://localhost:4008,http://localhost:8082 \
-ENGINE_GRPC_RELOAD_INTERVAL_SEC=10 INSTANCE_CODE=amethyst-strata-expansion SERVER_PORT=8083 \
-./cyberia-server --data-server-url http://localhost:4008 --data-server-grpc localhost:50051 \
-  --game-server-public-url http://localhost:8083
+`node bin/cyberia debug` runs each process of the development topology in its own terminal, on
+this host. Without a target, it lists the processes:
 
-cd cyberia-client
-CYBERIA_WS_ORIGIN=ws://localhost:8083 python3 wasm-driver.py --port=8082 --directory=bin \
-  --data-server-url=http://localhost:4008
-```
+| Terminal                                          | Listens on                               | Serves                       |
+| ------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| `node bin/cyberia debug engine-cyberia`           | `localhost:4008`, gRPC `localhost:50051` | The engine                   |
+| `node bin/cyberia debug gateway`                  | `localhost:8083`, `localhost:8082`       | The game origins             |
+| `node bin/cyberia debug cyberia-server /`         | `localhost:8093`                         | `http://localhost:8083`      |
+| `node bin/cyberia debug cyberia-server /test`     | `localhost:8103`                         | `http://localhost:8083/test` |
+| `node bin/cyberia debug cyberia-client / --build` | `localhost:8092`                         | `http://localhost:8082`      |
+| `node bin/cyberia debug cyberia-client /test`     | `localhost:8102`                         | `http://localhost:8082/test` |
 
-The server loads the instance over gRPC from what the engine serves, reports itself to the server
-registry, and accepts the engine's hot-reload trigger. `ENGINE_GRPC_RELOAD_INTERVAL_SEC` makes it
-poll the Object Layer manifest, so a definition changed in the workspace reaches the running world
-without a restart ([Cyberia client](../explanation/game-client.md)).
+Each game process runs the development env that `instance-build-manifest` writes for its world:
+`engine-private/conf/dd-cyberia/instances/<id>/env/development.env`. The command changes only
+what this host changes: the local engine address, the port, and no container status reports. The
+first world of a runtime listens on the development port of the runtime plus 10, the second plus 20.
+
+The gateway answers the development origins of `conf.instances.json` and sends each world path to
+its process, over HTTP and WebSocket, as the cluster gateway does. The client of `/test` opens
+`ws://localhost:8083/test/ws`. The engine sends the hot-reload gRPC trigger (`:50052`) to the world
+at `/` only. A world under a path gets the REST trigger through the gateway. A world path whose
+process does not run answers 504 with the command that starts it.
+
+`--build` builds the client bundle (`make -f Web.mk clean all`) before it serves it. It puts on
+`PATH` the Emscripten SDK that `EMSDK` names in the development env of the client, as the client
+`Dockerfile.dev` does. Set `EMSDK_PYTHON` there too when the system Python is too old for the SDK.
+Build once, then start the other client worlds.
+
+Each server loads its world over gRPC from what the engine serves and reports itself to the
+[server registry](../explanation/server-registry.md). An account launch needs a
+[universe](../explanation/universe.md) of the world.
+Create it in the Studio universe editor and select its worlds.
 
 Open the portal at `http://localhost:4008` and press Play: the launch bridge opens
 `http://localhost:8082` with a ticket. A direct visit to `http://localhost:8082` offers Continue as
-guest and Sign in. The ports are the development ports of `conf.instances.json`, the same values
-`instance-build-manifest` writes to the instance env
-([origins](../explanation/accounts-and-persistence.md#origins)). Only the world of the local game
-server answers; the portal shows any other world as unreachable.
+guest and Sign in. **TRAVEL** in the universe map opens `http://localhost:8082/test`. A world
+whose server does not run shows as offline.
 
 ## Daily development
 
 1. Start the local infrastructure.
-2. Start the engine: `npm run dev dd-cyberia`.
+2. Start the engine: `node bin/cyberia debug engine-cyberia`.
 3. Verify the local domain services (above).
 4. Import the release content:
 
@@ -175,8 +188,10 @@ server answers; the portal shows any other world as unreachable.
    The catalog is the one runtime authority: quests and actions name items by item id. See
    [Manage runtime bindings](manage-runtime-bindings.md).
 
-7. Load the instance. The runtime serves the workspace, so a game server started as shown above
-   runs the content as it is. With the poll interval set, it follows each change.
+7. Load the instance. The runtime serves the workspace, so a game server of the
+   [debug run](#debug-run) runs the content as it is. It reloads every
+   `ENGINE_GRPC_RELOAD_INTERVAL_SEC` of its env; a hot reload from the Studio applies a change at
+   once.
 8. Validate:
 
    ```bash
@@ -208,17 +223,19 @@ node bin/cyberia content-release retire --dev                           # the wo
 node bin/cyberia content-release prune --keep 0 --dev                   # drop retired databases
 ```
 
-| Command                       | Effect                                                                                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build <id> --from workspace` | Copies the workspace into `<DB_NAME_CYBERIA_CONTENT>-<id>`, drafts left out; publishes what is not yet at the authority; validates                |
-| `promote <id>`                | One transaction: the active release retires, `<id>` turns active. The running engine follows within 15 s and reloads every registered game server |
-| `rollback`                    | Promotes the release that was active before the current one                                                                                       |
-| `retire`                      | Retires the active release with no successor. The runtime serves the workspace again; `rollback` re-promotes the release                          |
-| `prune --keep <n>`            | Drops old releases beyond `n`: database and ledger entry. A building, validated or active release and the rollback target always stay             |
+| Command                       | Effect                                                                                                                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build <id> --from workspace` | Copies the workspace into `<DB_NAME_CYBERIA_CONTENT>-<id>`, drafts left out; publishes what is not yet at the authority; validates                                                                                                    |
+| `live-changes`                | Names the Studio edits on the active release that its build does not hold                                                                                                                                                             |
+| `promote <id>`                | One transaction: the active release retires, `<id>` turns active. The running engine follows within 15 s and reloads every registered game server. Refuses while the active release has live changes, unless `--discard-live-changes` |
+| `rollback`                    | Promotes the release that was active before the current one                                                                                                                                                                           |
+| `retire`                      | Retires the active release with no successor. The runtime serves the workspace again; `rollback` re-promotes the release                                                                                                              |
+| `prune --keep <n>`            | Drops old releases beyond `n`: database and ledger entry. A building, validated or active release, the rollback target and the renders players own always stay                                                                        |
 
 While a release is active, Studio edits change that release live, as in production. The workspace
 keeps what it held, and `retire` serves it again. A Studio edit made on the release stays in the
-release database: `cyberia instance <code> --export <dir> --release <id>` carries it out.
+release database: `cyberia instance <code> --export <dir> --release <id>` carries it out. The next
+`promote` refuses until it is exported, or until `--discard-live-changes` stops serving it.
 
 A local release serves development only: a production runtime promotes only a release built from
 an exact source revision. To rehearse a deploy release, prepare the locked revision into a local

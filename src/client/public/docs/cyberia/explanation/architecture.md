@@ -91,9 +91,13 @@ What it owns:
 - Maps, portals, object layers, atlas/sprite-sheet metadata.
 - World configuration: AOI radius, economy rules, skill rules, equipment rules, entity gameplay defaults.
 - Persisted character/quest/dialogue/action data.
-- Player records: profiles, session leases, launch tickets, friendships and quest progress
+- Player records: universe profiles, session leases, launch tickets, friendships and quest progress
   ([accounts and persistent players](accounts-and-persistence.md)). It stores the state the game
   server commits and computes no gameplay outcome.
+- Universes: the worlds that share profiles, their graph layout and their routes
+  ([universes](universe.md)).
+- The server registry: the live game server processes and the logical endpoint of each world
+  ([server registry](server-registry.md)). It names what serves a world, never what a world holds.
 - gRPC `CyberiaDataService` for world load and content streaming, and `CyberiaPlayerService` for
   launch tickets, sessions, state commits and friendships.
 - REST boot fallback (`/api/v1/cyberia-instance/boot/*`): the same world-load / hot-reload payloads as the gRPC service, served over REST for deploys where the engine gRPC server is not enabled.
@@ -342,6 +346,11 @@ A `CyberiaInstance` (persisted in MongoDB, served by engine-cyberia) is a direct
 
 - **Vertices** — `CyberiaMap` documents (grid-based maps).
 - **Edges** — `PortalEdge` records connecting source cell → target map/cell.
+- **Layout** — `mapLayout`, one integer cell per map for the graph views. It moves no portal and no
+  entity, and the simulation never reads it.
+
+A `CyberiaUniverse` groups instances the same way: each member on a cell, with routes between
+members. See [universes and the spatial graph](universe.md).
 
 Portal modes:
 

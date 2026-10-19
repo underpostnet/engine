@@ -9,6 +9,8 @@ messages are in [the player service reference](../reference/player-service.md).
 
 - MongoDB runs as a replica set. Every profile commit is a transaction.
 - `engine-cyberia` and every game server share one `CYBERIA_SERVER_API_KEY`.
+- The world belongs to a [universe](../explanation/universe.md): a profile belongs to an account in
+  a universe. Use the Studio universe editor to create it and select its worlds.
 - The client and the game server come from the same release. Both modes start a connection with
   `auth`, and a server refuses a client that does not send it.
 
@@ -16,24 +18,12 @@ messages are in [the player service reference](../reference/player-service.md).
 
 1. Add the player APIs to the host that holds `users` (`www.cyberiaonline.com/`) in the deploy
    `conf.server.json`, after `cyberia-quest-progress`: `cyberia-player`, `cyberia-game-session`,
-   `cyberia-game-ticket` and `cyberia-friendship`. The engine serves `CyberiaPlayerService` only on
+   `cyberia-game-ticket` and `cyberia-social` and `cyberia-social-profile`. The engine serves `CyberiaPlayerService` only on
    that host.
 2. Give the `cyberia-portal` client the launch bridge. In `conf.ssr.json`, add the view
    `{"path": "/launch", "client": "CyberiaLaunch", "headers": {"Cache-Control": "no-store",
 "Referrer-Policy": "no-referrer"}}`. In `conf.client.json`, add the `GameLaunchCyberia` component.
 3. Deploy.
-4. Read the quest progress no profile owns, then archive it when the report is what you expect:
-
-   ```bash
-   node bin/cyberia player prune-quest-progress --dev           # report: counts and sample ids
-   node bin/cyberia player prune-quest-progress --apply --dev   # archive, then sync the indexes
-   ```
-
-   No deploy stage runs it. The records move to `cyberiaquestprogressarchives`;
-   `restore-quest-progress` returns the ones whose profile exists again.
-
-Refresh tokens are stored as hashes from this release on. Every portal user signs in once more after
-the first engine deploy that carries it.
 
 ## 2. Switch the game server
 
@@ -61,7 +51,7 @@ sessions and writes nothing.
 2. Sign in at the portal and press Play. The bridge opens the world, and the address bar shows no
    `#ticket`.
 3. Move an item, wait a second and read `persistence.commits_total`: it rises.
-4. Open the menu and pick World select, then Play again. The item stays where you put it.
+4. Open the menu and pick Cyberia Portal, then Play again. The item stays where you put it.
 5. Open the world in a second tab. The first one shows "Your account is playing in another window."
 6. In a private window, open the client directly and pick Continue as guest. The guest plays, and
    `cyberiaplayers` gains no document.
@@ -73,9 +63,9 @@ sessions and writes nothing.
 A saved stack whose definition the world no longer runs is held. It never loads and is never lost.
 
 ```bash
-node bin/cyberia player held --instance FOREST --dev
-node bin/cyberia player rebind-held lamp --instance FOREST --dev          # plan
-node bin/cyberia player rebind-held lamp --instance FOREST --apply --dev  # write
+node bin/cyberia player held --universe cyberia --dev
+node bin/cyberia player rebind-held lamp --universe cyberia --dev          # plan
+node bin/cyberia player rebind-held lamp --universe cyberia --apply --dev  # write
 ```
 
 `rebind-held` gives the held stacks of a label the definition the catalog binds now. They load at

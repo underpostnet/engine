@@ -12,14 +12,14 @@ launch flow, what persists and the guarantees of each write. The wire contract i
 
 ## Identities
 
-| Identity         | Key                                                | Owner                                               | Lives                                                  | Used for                                                              |
-| ---------------- | -------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
-| Account          | `User._id`                                         | `engine-cyberia`                                    | Always                                                 | Sign-in, friendships, the one gameplay session                        |
-| Guest identity   | `guest<ObjectId>`, Valkey key `guest:<id>`         | `engine-cyberia`                                    | `GUEST_SESSION_MINUTES` after its last use, default 60 | A guest launch from the portal                                        |
-| Player profile   | `CyberiaPlayer._id`, unique `{user, instanceCode}` | `engine-cyberia`                                    | Always                                                 | The bag, coins, XP, storage, vaults, quests and position in one world |
-| Gameplay session | `CyberiaGameSession`, unique `user`; an `epoch`    | `engine-cyberia` lease, `cyberia-server` live state | While connected, then the lease                        | The single writer of a profile, presence, routing                     |
-| `PlayerID`       | The profile id; a UUID for a guest                 | `cyberia-server`                                    | One session                                            | The in-memory owner key of the containers and the party seat          |
-| `EntityID`       | A number per session                               | `cyberia-server`                                    | One session                                            | The wire: snapshots, chat lines, party rows                           |
+| Identity         | Key                                                | Owner                                               | Lives                                                  | Used for                                                                                   |
+| ---------------- | -------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Account          | `User._id`                                         | `engine-cyberia`                                    | Always                                                 | Sign-in, friendships, the one gameplay session                                             |
+| Guest identity   | `guest<ObjectId>`, Valkey key `guest:<id>`         | `engine-cyberia`                                    | `GUEST_SESSION_MINUTES` after its last use, default 60 | A guest launch from the portal                                                             |
+| Player profile   | `CyberiaPlayer._id`, unique `{user, universeCode}` | `engine-cyberia`                                    | Always                                                 | The bag, coins, XP and storage in one universe; per world, the position, vaults and quests |
+| Gameplay session | `CyberiaGameSession`, unique `user`; an `epoch`    | `engine-cyberia` lease, `cyberia-server` live state | While connected, then the lease                        | The single writer of a profile, presence, routing                                          |
+| `PlayerID`       | The profile id; a UUID for a guest                 | `cyberia-server`                                    | One session                                            | The in-memory owner key of the containers and the party seat                               |
+| `EntityID`       | A number per session                               | `cyberia-server`                                    | One session                                            | The wire: snapshots, chat lines, party rows                                                |
 
 - The server takes every identity from the engine. It never reads a user id, player id, principal,
   role, level or wallet from a client.
@@ -30,12 +30,29 @@ launch flow, what persists and the guarantees of each write. The wire contract i
 - The display name of an account is its `username`. It is unique, so no two online players share a
   name. The game server names a guest `Guest-` and a code that is unique among online players.
 
-### One profile per world
+### One profile per universe
 
 `instanceCode` names a world. Each world has its own maps, quests, items, progression rules and
-economy rules (`CyberiaInstanceConf`), and one game server process runs it. A profile therefore
-belongs to one account in one world. A map change keeps the profile; a world change uses the
-profile of the other world.
+economy rules (`CyberiaInstanceConf`), and its game servers run it. A
+[universe](universe.md) groups worlds, and a profile belongs to one account in one universe. The
+engine resolves the universe of the world each session plays; the client never names it.
+
+The profile holds what the player carries from world to world. Each world keeps its own part of the
+profile under `worlds`, so a world never sees the position, the vaults or the quests of another:
+
+| State                             | Scope        | Why                                                          |
+| --------------------------------- | ------------ | ------------------------------------------------------------ |
+| Coins, total XP                   | The universe | What the player owns and has learned. A world caps the level |
+| Bag and personal storage          | The universe | The player carries them                                      |
+| Held bag and storage stacks       | The universe | They wait for a world that runs their definition             |
+| Position                          | The world    | A cell of a map of that world                                |
+| NPC vaults, and their held stacks | The world    | A vault belongs to an NPC action of that world               |
+| Quest progress                    | The world    | A quest is content of that world                             |
+
+A world the profile never played starts empty: no position (spawn rules apply), no vault, no quest.
+The game server sends and receives the state of one world; the engine splits each commit by this
+table. An account cannot play a world that belongs to no universe: the ticket endpoint answers
+`409` and the session acquisition `unavailable`. A guest plays any world.
 
 ### Guest identities
 
@@ -72,7 +89,9 @@ a connection without a ticket (`auth_required`). The engine names the principal 
    as guest** and **Sign in**. `&as=guest` and `&as=account` make the choice at once.
 2. A guest launch uses the guest identity of this browser, or makes a new one.
 3. The bridge sends `POST /api/v1/cyberia-game-ticket {instanceCode}` with the portal token of the
-   account or of the guest.
+   account or of the guest. The engine issues a ticket only for a world with a live server that
+   takes sessions in the [server registry](server-registry.md) (`503` otherwise), and an account
+   ticket only for a world of a universe (`409` otherwise).
 4. The engine makes 32 random bytes and stores only their SHA-256 hash, with the principal (the
    account and its portal session, or the guest), the world and an expiry
    (`CYBERIA_GAME_TICKET_TTL_SECONDS`, default 60 s). It returns the ticket once, with the path of
@@ -88,8 +107,10 @@ a connection without a ticket (`auth_required`). The engine names the principal 
    update and answers with the principal, or with a refusal. A guest ticket is valid only while its
    guest identity lives.
 9. For an account, the game server ends any older session of the account on this server, then calls
-   `AcquirePlayerSession`. The engine raises the profile `epoch`, writes the lease and returns the
-   saved state. A guest gets a new `PlayerID` and a guest name, and nothing loads.
+   `AcquirePlayerSession`. The engine raises the `epoch` of the universe profile, writes the lease
+   with the world, and returns the saved state of that world. The game server resolves the labels
+   of that state its world does not hold (see [the game server](game-server.md#content-a-player-brings)).
+   A guest gets a new `PlayerID` and a guest name, and nothing loads.
 10. The game server places the player and sends `init_data`. Only now does it read gameplay input.
 
 | Refusal               | Cause                                                                     |
@@ -175,13 +196,36 @@ guest.
 
 ### Leaving
 
-The menu button of the toolbar opens the session menu. A way out of an account session sends
+The settings button of the toolbar opens the settings card. A way out of an account session sends
 `session_leave`; the server commits the final state, releases the lease and answers
 `session_end {reason: "left"}`. Then the client opens the portal.
 
+### Travel in the page
+
+A travel from the Universe view stays in the page when the servers of the target world run the
+build of the server the client plays on: the universe view names the `build` of each world, and
+`init_data` names the build of this server. The same binary speaks one protocol, so the running
+client speaks it to the target too. Else the travel takes the launch bridge.
+
+1. The client sends `session_leave {travel: <target>}` and shows the save.
+2. While the lease still holds, the server asks the engine for `IssueTravelTicket`. The engine
+   checks the lease and its epoch, the portal session, a route of the universe from this world to
+   the target, and a server of the target that takes sessions. It issues a launch ticket of the
+   account for the target world: single-use, short-lived, scoped to that world.
+3. The server commits the final state and releases the lease. Only then, and only when the save
+   succeeded, `session_end {reason: "left", travel: {instanceCode, ticket}}` carries the ticket.
+4. The client clears the state of the world it left, sets the address bar to the path of the
+   target (`history.replaceState`), opens the socket of the target and authenticates with the
+   ticket. The card shows "Entering <world>..." until `init_data` arrives.
+5. The target acquires the profile with a new epoch, so a late write of the world left is refused.
+
+A refusal, a lost connection or a save still on its way (`left_saving`) never fakes an arrival: the
+client opens the launch bridge of the target, which asks for a ticket of its own.
+
 | Way                      | Session | Then                                                                                 |
 | ------------------------ | ------- | ------------------------------------------------------------------------------------ |
-| World select             | Both    | The portal world selection; the portal stays signed in                               |
+| Travel                   | Both    | Another world of the universe, in the page or through its launch bridge (above)      |
+| Cyberia Portal           | Both    | The portal world selection; the portal stays signed in                               |
 | Play as guest            | Account | A new guest session from the bridge; it starts empty, and the profile stays as saved |
 | Sign out                 | Account | The portal at `/?signout`, which ends the portal session                             |
 | Sign in to keep progress | Guest   | The bridge as the account: the signed-in account, or the sign-in                     |
@@ -194,18 +238,18 @@ that state and retries it as for a disconnect. A guest leaves at once, and its s
 
 ## What persists
 
-| State                        | Persists | Notes                                                                       |
-| ---------------------------- | -------- | --------------------------------------------------------------------------- |
-| Coins                        | Yes      | The wallet balance                                                          |
-| Bag stacks                   | Yes      | `itemId`, `olCid`, quantity, slot and `active`                              |
-| Personal storage             | Yes      | Same stack shape                                                            |
-| NPC vaults                   | Yes      | By action code, the stable identity of the vault, never by `EntityID`       |
-| Total XP                     | Yes      | The level is derived from it by the instance progression rules              |
-| Quest progress               | Yes      | `CyberiaQuestProgress`, unique `{player, questCode}`                        |
-| Last valid position          | Yes      | `mapCode`, cell, checkpoint time                                            |
-| Held stacks                  | Yes      | Owned stacks the world cannot load now; see [item identity](#item-identity) |
-| Life, effects, running craft | No       | A session starts alive; a running craft is refunded when the session ends   |
-| Party, invites, chat lines   | No       | They end with the session                                                   |
+| State                        | Persists     | Notes                                                                       |
+| ---------------------------- | ------------ | --------------------------------------------------------------------------- |
+| Coins                        | Per universe | The wallet balance                                                          |
+| Bag stacks                   | Per universe | `itemId`, `olCid`, quantity, slot and `active`                              |
+| Personal storage             | Per universe | Same stack shape                                                            |
+| NPC vaults                   | Per world    | By action code, the stable identity of the vault, never by `EntityID`       |
+| Total XP                     | Per universe | The level is derived from it by the progression rules of the world          |
+| Quest progress               | Per world    | `CyberiaQuestProgress`, unique `{player, instanceCode, questCode}`          |
+| Last valid position          | Per world    | `mapCode`, cell, checkpoint time                                            |
+| Held stacks                  | By container | Owned stacks the world cannot load now; see [item identity](#item-identity) |
+| Life, effects, running craft | No           | A session starts alive; a running craft is refunded when the session ends   |
+| Party, invites, chat lines   | No           | They end with the session                                                   |
 
 A guest session persists none of them.
 
@@ -216,10 +260,18 @@ with, and stacks merge only when both match. At load the server compares each sa
 binding of the world:
 
 - Same `olCid`: the stack loads where it was.
-- Another `olCid`, or a label the world no longer has: the stack becomes a **held** stack. It stays
-  in the profile untouched and never loads into the world. The own profile shows the held count.
+- Another `olCid`, or a label the world cannot run: the stack becomes a **held** stack. It stays
+  in the profile untouched and never loads into the world. The own profile shows each held stack
+  with its own picture, its count and why it waits; none of it can be used in that world. The
+  reasons are `rebound` (another definition), `unknown` (the world cannot get its content),
+  `no_room`, `unsupported` (the server runs no handler of its skill) and `incompatible` (its content
+  comes from another release than the world's) ([content a player brings](game-server.md#content-a-player-brings)).
 - A held stack whose `olCid` matches the world again loads into its container at the next session,
   when the container has a free slot.
+
+Worlds of one universe can run different releases. A stack from another world loads only when this
+world binds its label to the same `olCid`; else it stays held, and loads again in a world that runs
+its definition. A label is never replaced by a same-named item of another release.
 
 A release never rebinds a held stack. An operator does it on purpose with `cyberia player
 rebind-held`, which skips every profile in a live session.
@@ -254,8 +306,12 @@ transaction with the changed quest records. A repeated commit answers `duplicate
 nothing. A commit is the whole state, so a newer one supersedes a failed older one. One commit per
 player is in flight at a time.
 
-**Positions.** A checkpoint writes only the position fields, guarded by its own sequence. A late
-checkpoint never overwrites coins, items, XP or quests.
+**Positions.** A checkpoint writes only the position of the world of its lease, guarded by the
+sequence of that world. A late checkpoint never overwrites coins, items, XP or quests.
+
+**Worlds.** The engine takes the world of a commit from the lease of its epoch, never from the
+request. A world change raises the epoch, so a late commit or checkpoint of the world a player left
+answers `stale_session`: no value exists in two worlds.
 
 **Consistent prefix.** The saved profile is always one complete state the server held. A crash loses
 the changes after the last commit, all of them together, never a part of one. In normal operation
@@ -339,14 +395,17 @@ The next step is one key per world, bound by the engine to the `instance_code` o
 
 ## Data model
 
-| Collection                     | Unique key             | Other indexes                                          | Notes                                                                 |
-| ------------------------------ | ---------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
-| `cyberiaplayers`               | `{user, instanceCode}` | —                                                      | `schemaVersion`, `epoch`, `revision`                                  |
-| `cyberiagamesessions`          | `user`                 | —                                                      | Lease and presence; never on `users`                                  |
-| `cyberiagametickets`           | `tokenHash`            | `user`, `connection` once set, TTL `expiresAt` + 5 min | Hash only; `principal`, `user` or `guest`; `epoch` on a resume ticket |
-| `cyberiaquestprogresses`       | `{player, questCode}`  | —                                                      | `player` is the profile id                                            |
-| `cyberiaquestprogressarchives` | —                      | —                                                      | Quest progress `prune-quest-progress` moved out                       |
-| `cyberiafriendships`           | `{low, high}`          | `{low, status}`, `{high, status}`, TTL `expiresAt`     | One document per pair; accepting removes `expiresAt`                  |
+| Collection                     | Unique key                          | Other indexes                                          | Notes                                                                 |
+| ------------------------------ | ----------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `cyberiauniverses`             | `code`, `instances.instanceCode`    | —                                                      | Members, cells, links, `revision`; see [universes](universe.md)       |
+| `cyberiaplayers`               | `{user, universeCode}`              | —                                                      | `schemaVersion` 2, `epoch`, `revision`; per world under `worlds`      |
+| `cyberiagamesessions`          | `user`                              | —                                                      | Lease and presence, with the world it plays; never on `users`         |
+| `cyberiagametickets`           | `tokenHash`                         | `user`, `connection` once set, TTL `expiresAt` + 5 min | Hash only; `principal`, `user` or `guest`; `epoch` on a resume ticket |
+| `cyberiaquestprogresses`       | `{player, instanceCode, questCode}` | —                                                      | `player` is the profile id                                            |
+| `cyberiasocials`           | `{low, high}`                       | `{low, status}`, `{high, status}`, TTL `expiresAt`     | One document per pair; accepting removes `expiresAt`                  |
+
+`cyberiasocialprofiles` has one record per account, with a unique `user` index.
+It stores the note and its last accepted update time.
 
 A lease stays as a document after it expires: presence counts it only while `expiresAt` is in the
 future, and the next session of the account replaces it. No TTL index deletes a lease or an account

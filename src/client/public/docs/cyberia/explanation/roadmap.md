@@ -243,7 +243,8 @@ engine-cyberia (Node.js)
     CyberiaGameSession   — the lease of the one live session of an account: epoch, presence
     CyberiaGameTicket    — launch and resume tickets of accounts and guests, hash only
     CyberiaQuestProgress — quest progress by profile
-    CyberiaFriendship    — friendships and requests by account
+    CyberiaSocial        — friendships and requests by account
+    CyberiaSocialProfile — account status note
 ```
 
 [Accounts and persistent players](accounts-and-persistence.md) holds the model and the guarantees,
@@ -254,44 +255,53 @@ and [the player service reference](../reference/player-service.md) the contracts
 "Tested" names automated tests; "browser" names a manual run of the real portal, client and server
 in a browser.
 
-| Task                               | Component              | State                                                                                           |
-| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| Launch ticket and socket admission | `engine + go + client` | Done, tested, browser: single-use hashed ticket in the fragment, `auth` first                   |
-| Guest sessions in account worlds   | `engine + go + client` | Done, tested, browser: a guest identity, guest tickets, no profile reads or writes              |
-| Launch bridge and origins          | `engine + client`      | Done, tested, browser in development: `/launch`, one origin source per deploy                   |
-| One session per account, takeover  | `engine + go`          | Done, tested: lease with epoch fencing, `signed_in_elsewhere`, `revoked`                        |
-| Persistent player state            | `proto + engine + go`  | Done, tested, browser: coins, XP, bag, storage, vaults, quests, position                        |
-| Item identity across releases      | `go + engine`          | Done, tested: each stack keeps its `olCid`; held stacks, operator rebind                        |
-| Outage behaviour                   | `go + client`          | Done, tested: retries, unsaved notice, trades wait, coin drop lock                              |
-| Session menu                       | `go + client`          | Done, tested, browser: world select, play as guest, sign out, the final commit first            |
-| Reconnect without the portal       | `engine + go + client` | Done, tested, browser: a resume ticket bound to the epoch; dropped link and server restart      |
-| Friends, presence, direct chat     | `engine + go + client` | Done, tested, browser: persistent friendships, lease presence, DM across maps, badges           |
-| Party invites across maps          | `go + client`          | Done, tested, browser: an accepted friend on any map of one server                              |
-| Identity icons and emoji           | `client`               | Done, tested: the active skin Object Layer icon, `CHAT_EMOJI` tokens                            |
-| Quest progress cleanup             | `engine`               | Done, tested: an operator archive with a report, and a restore                                  |
-| Load baseline                      | `go + engine`          | Measured locally: 100 guests; 100 accounts at 50 commits/s. Open: mixed load at capacity        |
-| Portal session cookies             | `engine`               | Open: the access token lives in `localStorage`; an HttpOnly cookie model needs a migration plan |
-| Valkey for guest identities        | `engine`               | Open: guest identities share the evicting cache Valkey                                          |
-| Wallet account binding             | `engine-cyberia`       | Open: bind `User.wallet.accountId` after a SIWE sign-in                                         |
-| Direct chat across worlds          | `go`                   | Open: friends in another world show presence only                                               |
+| Task                               | Component              | State                                                                                                |
+| ---------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| Launch ticket and socket admission | `engine + go + client` | Done, tested, browser: single-use hashed ticket in the fragment, `auth` first                        |
+| Guest sessions in account worlds   | `engine + go + client` | Done, tested, browser: a guest identity, guest tickets, no profile reads or writes                   |
+| Launch bridge and origins          | `engine + client`      | Done, tested, browser in development: `/launch`, one origin source per deploy                        |
+| One session per account, takeover  | `engine + go`          | Done, tested: lease with epoch fencing, `signed_in_elsewhere`, `revoked`                             |
+| Persistent player state            | `proto + engine + go`  | Done, tested, browser: coins, XP, bag, storage, vaults, quests, position                             |
+| Item identity across releases      | `go + engine`          | Done, tested: each stack keeps its `olCid`; held stacks, operator rebind                             |
+| Outage behaviour                   | `go + client`          | Done, tested: retries, unsaved notice, trades wait, coin drop lock                                   |
+| Session menu                       | `go + client`          | Done, tested, browser: Cyberia Portal, play as guest, sign out, the final commit first               |
+| Reconnect without the portal       | `engine + go + client` | Done, tested, browser: a resume ticket bound to the epoch; dropped link and server restart           |
+| Friends, presence, direct chat     | `engine + go + client` | Done, tested, browser: persistent friendships, lease presence, DM across maps, badges                |
+| Party invites across maps          | `go + client`          | Done, tested, browser: an accepted friend on any map of one server                                   |
+| Identity icons and emoji           | `client`               | Done, tested: the active skin Object Layer icon, `CHAT_EMOJI` tokens                                 |
+| Quest progress cleanup             | `engine`               | Done, tested: an operator archive with a report, and a restore                                       |
+| Load baseline                      | `go + engine`          | Measured locally: 100 guests; 100 accounts at 50 commits/s. Open: mixed load at capacity             |
+| Portal session cookies             | `engine`               | Open: the access token lives in `localStorage`; an HttpOnly cookie model needs a migration plan      |
+| Valkey for guest identities        | `engine`               | Open: guest identities share the evicting cache Valkey                                               |
+| Wallet account binding             | `engine-cyberia`       | Open: bind `User.wallet.accountId` after a SIWE sign-in                                              |
+| Direct chat across worlds          | `go`                   | Open: friends in another world show presence only                                                    |
+| Universe profiles                  | `engine + go`          | Done, tested: one profile per universe, with per-world position, vaults and quests |
+| Universe graph and travel          | `engine + client`      | Done, tested: authored cells and routes, the UNIVERSE view, TRAVEL through the launch bridge         |
+| Server registry                    | `engine + go`          | Done, tested: one report per process, logical endpoints over replicas, ordered reports, TTL          |
+| Content across worlds              | `go`                   | Done, tested: labels resolved at placement, held on another definition, unused ones evicted          |
+| Hot reload of every replica        | `engine + go`          | Open: a trigger reaches one replica per endpoint; the others follow with their reload loop           |
 
 ### Data contract (alpha)
 
 ```
-CyberiaPlayer (MongoDB), unique {user, instanceCode}:
+CyberiaPlayer (MongoDB), unique {user, universeCode}:
   user: ObjectId → User
-  instanceCode: string
-  schemaVersion, epoch, commitSeq, positionSeq, revision
+  universeCode: string                        // CyberiaUniverse.code
+  schemaVersion: 2, epoch, commitSeq, revision
   coins: uint32
   xp: uint64                                  // the level derives from it
   bag, storage: [{ itemId, olCid, quantity, slot, active }]
-  vaults: [{ actionCode, stacks: [...] }]
-  held: [{ stack, container, actionCode, reason }]
-  position: { mapCode, x, y, at }
+  held: [{ stack, container: bag|storage, actionCode, reason }]
+  worlds: [{
+    instanceCode,
+    position: { mapCode, x, y, at }, positionSeq,
+    vaults: [{ actionCode, stacks: [...] }],
+    held: [{ stack, container: vault, actionCode, reason }],
+  }]
 
-CyberiaQuestProgress (MongoDB), unique {player, questCode}:
+CyberiaQuestProgress (MongoDB), unique {player, instanceCode, questCode}:
   player: ObjectId → CyberiaPlayer
-  questCode, status, stepProgress: [{ stepId, objectiveProgress: [...] }]
+  instanceCode, questCode, status, stepProgress: [{ stepId, objectiveProgress: [...] }]
 ```
 
 Every stack carries the `olCid` it was granted with beside its label, so a rebound label never
