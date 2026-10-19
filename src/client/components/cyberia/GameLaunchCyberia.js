@@ -82,8 +82,11 @@ const dropParam = (params, name) => {
 const resumeLaunch = async () => {
   const params = new URLSearchParams(location.search);
   if (params.has('signout')) {
+    params.delete('play');
     dropParam(params, 'signout');
+    pendingPlay.set(null);
     if (Auth.getToken()) await Auth.sessionOut();
+    return;
   }
   let code = pendingPlay.get();
   if (params.has('play')) {
