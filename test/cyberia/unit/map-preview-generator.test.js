@@ -158,11 +158,17 @@ describe('map previews', () => {
   it('draws the maps that place a written label, or every map, and goes on past a failure', async () => {
     stored();
     stored({ _id: 'map-2', code: 'forest-2', entities: [{ ...map.entities[0], objectLayerItemIds: ['sword'] }] });
-    expect(await refreshMapPreviews({ itemIds: ['hatchet'], options: {} })).toEqual({ drawn: 1, empty: 0, failed: [] });
+    expect(await refreshMapPreviews({ itemIds: ['hatchet'], options: {} })).toEqual({
+      codes: ['forest-1'],
+      drawn: 1,
+      empty: 0,
+      failed: [],
+    });
 
     store.previews['cid-hatchet'] = 'f-blue';
     store.models.CyberiaMap.updateOne.mockRejectedValueOnce(new Error('connection lost'));
     expect(await refreshMapPreviews({ itemIds: null, options: {} })).toEqual({
+      codes: ['forest-1', 'forest-2'],
       drawn: 0,
       empty: 1,
       failed: ['forest-1'],

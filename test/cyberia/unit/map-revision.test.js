@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const models = {};
+vi.mock('../../../src/projects/cyberia/instance/map-registry.js', () => ({
+  registryModels: () => models,
+  registryTransaction: async (models, write) => ({ value: await write({}) }),
+}));
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));

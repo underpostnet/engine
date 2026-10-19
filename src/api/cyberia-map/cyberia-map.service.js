@@ -7,6 +7,8 @@ import { CyberiaMapDto } from './cyberia-map.model.js';
 import { mapContext } from '../../projects/cyberia/content/foundation-context.js';
 import { loadSagaAssociations, withSagaFilter } from '../../projects/cyberia/saga/saga-associations.js';
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
+import { mapSpatialDefect } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { registryModels, registryTransaction } from '../../projects/cyberia/instance/map-registry.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -45,7 +47,11 @@ class CyberiaMapService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
-    const map = await new CyberiaMap({ ...req.body, creator: req.auth.user._id }).save();
+    const defect = mapSpatialDefect(req.body);
+    if (defect) throw Object.assign(new Error(defect), { status: 400 });
+    const { value: map } = await registryTransaction(registryModels(options), (session) =>
+      new CyberiaMap({ ...req.body, creator: req.auth.user._id }).save({ session }),
+    );
     await CacheService.invalidate(mapCache(options));
     await linkPlacedDefaults(map.code, options);
     return map;
@@ -113,22 +119,34 @@ class CyberiaMapService {
         new Error(`Map ${map.code} is at revision ${map.revision}, not ${revision}: reload it before saving`),
         { status: 409 },
       );
+    // The registry and every instance name a map by its code: a copy takes a new one.
+    if (changes.code !== undefined && changes.code !== map.code)
+      throw Object.assign(new Error(`The code of map ${map.code} never changes; clone the map instead`), {
+        status: 400,
+      });
     const candidate = new CyberiaMap({ ...map.toObject(), ...changes });
+    const defect = mapSpatialDefect(candidate);
+    if (defect) throw Object.assign(new Error(defect), { status: 400 });
     await candidate.validate();
     const File = DataBaseProviderService.getModel("File", options);
+    const { value: updated } = await registryTransaction(registryModels(options), async (session) => {
+      const saved = await CyberiaMap.findOneAndUpdate(
+        { _id: req.params.id, updatedAt: map.updatedAt },
+        { $set: changes, $inc: { revision: 1 } },
+        { returnDocument: 'after', runValidators: true, session },
+      );
+      if (!saved)
+        throw Object.assign(new Error(`Map ${map.code} changed while saving: reload it before saving`), {
+          status: 409,
+        });
+      return saved;
+    });
     if (changes.thumbnail && map.thumbnail && String(changes.thumbnail) !== String(map.thumbnail)) {
       await File.findByIdAndDelete(map.thumbnail);
     }
     if (changes.preview && map.preview && String(changes.preview) !== String(map.preview)) {
       await File.findByIdAndDelete(map.preview);
     }
-    const updated = await CyberiaMap.findOneAndUpdate(
-      { _id: req.params.id, updatedAt: map.updatedAt },
-      { $set: changes, $inc: { revision: 1 } },
-      { returnDocument: 'after', runValidators: true },
-    );
-    if (!updated)
-      throw Object.assign(new Error(`Map ${map.code} changed while saving: reload it before saving`), { status: 409 });
     await CacheService.invalidate(mapCache(options));
     await linkPlacedDefaults(updated.code, options);
     return updated;
@@ -142,10 +160,15 @@ class CyberiaMapService {
       if (!map) throw new Error('map not found');
       assertOwnerOrAdmin(req.auth.user, map.creator);
       const File = DataBaseProviderService.getModel("File", options);
+      ({ value: removed } = await registryTransaction(registryModels(options), (session) =>
+        CyberiaMap.findByIdAndDelete(req.params.id, { session }),
+      ));
       if (map.thumbnail) await File.findByIdAndDelete(map.thumbnail);
       if (map.preview) await File.findByIdAndDelete(map.preview);
-      removed = await CyberiaMap.findByIdAndDelete(req.params.id);
-    } else removed = await CyberiaMap.deleteMany();
+    } else
+      ({ value: removed } = await registryTransaction(registryModels(options), (session) =>
+        CyberiaMap.deleteMany({}, { session }),
+      ));
     await CacheService.invalidate(mapCache(options));
     return removed;
   };

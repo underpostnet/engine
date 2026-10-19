@@ -720,6 +720,8 @@ class MapEngineCyberia {
     const idY = 'map-engine-input-y';
     const idCellW = 'map-engine-input-cell-w';
     const idCellH = 'map-engine-input-cell-h';
+    const idWorldX = 'map-engine-input-world-x';
+    const idWorldY = 'map-engine-input-world-y';
     const canvasId = 'map-engine-canvas';
 
     const idEntityType = MapEngineCyberia.entityTypeDropdownId;
@@ -996,6 +998,12 @@ class MapEngineCyberia {
       });
     };
 
+    // An empty world cell leaves the map without a place in its world.
+    const worldCell = (id) => {
+      const value = s(`.${id}`)?.value.trim();
+      return value ? Number(value) : null;
+    };
+
     const getMapPayload = () => {
       const tagsRaw = s(`.${idTags}`)?.value || '';
       const tags = tagsRaw
@@ -1014,6 +1022,8 @@ class MapEngineCyberia {
         gridY: rows,
         cellWidth: cellW,
         cellHeight: cellH,
+        worldX: worldCell(idWorldX),
+        worldY: worldCell(idWorldY),
       };
       if (MapEngineCyberia.currentThumbnailId) payload.thumbnail = MapEngineCyberia.currentThumbnailId;
       return payload;
@@ -1143,12 +1153,15 @@ class MapEngineCyberia {
       // The clone always gets its own automatic Object Layer preview capture.
       const clonePreviewId = await captureObjectLayerUpload('map-preview.png');
 
-      const source = getMapPayload();
+      // A clone is a new map: it has no place in a world until one is set.
+      const source = { ...getMapPayload(), worldX: null, worldY: null };
       if (cloneThumbnailId) source.thumbnail = cloneThumbnailId;
       if (clonePreviewId) source.preview = clonePreviewId;
       const { result, body } = await EditorCrud.clone(CyberiaMapService, source, 'code');
       if (result.status === 'success') {
         if (s(`.${idCode}`)) s(`.${idCode}`).value = body.code;
+        if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = '';
+        if (s(`.${idWorldY}`)) s(`.${idWorldY}`).value = '';
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
         MapEngineCyberia.currentRevision = result.data?.revision ?? 1;
         MapEngineCyberia.currentMapCode = body.code || null;
@@ -1170,6 +1183,9 @@ class MapEngineCyberia {
       if (s(`.${idName}`)) s(`.${idName}`).value = mapData.name || '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = mapData.description || '';
       if (s(`.${idTags}`)) s(`.${idTags}`).value = (mapData.tags || []).join(', ');
+
+      if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = mapData.worldX ?? '';
+      if (s(`.${idWorldY}`)) s(`.${idWorldY}`).value = mapData.worldY ?? '';
 
       // Restore grid dimensions
       if (s(`.${idX}`)) s(`.${idX}`).value = mapData.gridX || DEFAULT_MAP_DIMENSIONS.gridX;
@@ -1280,6 +1296,8 @@ class MapEngineCyberia {
       MapEngineCyberia.currentPreviewId = null;
       MapEngineCyberia.thumbnailDirty = false;
       if (s(`.${idCode}`)) s(`.${idCode}`).value = '';
+      if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = '';
+      if (s(`.${idWorldY}`)) s(`.${idWorldY}`).value = '';
       if (s(`.${idName}`)) s(`.${idName}`).value = '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = '';
       if (s(`.${idTags}`)) s(`.${idTags}`).value = '';
@@ -1615,6 +1633,7 @@ class MapEngineCyberia {
     const dcMetaFields = 'map-engine-dc-meta';
     const dcGridSize = 'map-engine-dc-grid-size';
     const dcCellSize = 'map-engine-dc-cell-size';
+    const dcWorldOrigin = 'map-engine-dc-world-origin';
     const dcEntityType = 'map-engine-dc-entity-type';
     const dcAlpha = 'map-engine-dc-alpha';
     const dcCellPos = 'map-engine-dc-cell-pos';
@@ -1839,6 +1858,29 @@ class MapEngineCyberia {
                         type: 'number',
                         min: 1,
                         value: DEFAULT_MAP_DIMENSIONS.cellHeight,
+                      })}
+                    </div>
+                  </div>
+                  ${dynamicCol({ containerSelector: 'map-engine-tools', id: dcWorldOrigin, type: 'a-50-b-50' })}
+                  <div class="fl">
+                    <div class="in fll ${dcWorldOrigin}-col-a">
+                      ${await Input.instance({
+                        id: idWorldX,
+                        label: html`World X (cells)`,
+                        containerClass: 'inl',
+                        type: 'number',
+                        step: 1,
+                        placeholder: 'No place',
+                      })}
+                    </div>
+                    <div class="in fll ${dcWorldOrigin}-col-b">
+                      ${await Input.instance({
+                        id: idWorldY,
+                        label: html`World Y (cells)`,
+                        containerClass: 'inl',
+                        type: 'number',
+                        step: 1,
+                        placeholder: 'No place',
                       })}
                     </div>
                   </div>

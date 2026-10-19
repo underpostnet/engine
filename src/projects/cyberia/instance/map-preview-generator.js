@@ -232,15 +232,15 @@ async function refreshMapPreview(map, options) {
  * @param {Object} params
  * @param {string[]|null} params.itemIds - The labels whose pictures changed; null draws every map.
  * @param {Object} params.options - Router options ({ host, path }).
- * @returns {Promise<{drawn:number,empty:number,failed:string[]}>} Maps drawn, maps left without a
- *   picture, and the codes of the maps that failed.
+ * @returns {Promise<{codes:string[],drawn:number,empty:number,failed:string[]}>} The codes of the
+ *   maps taken, maps drawn, maps left without a picture, and the codes of the maps that failed.
  */
 async function refreshMapPreviews({ itemIds, options }) {
   const maps = await DataBaseProviderService.getModel('CyberiaMap', options)
     .find(itemIds ? { 'entities.objectLayerItemIds': { $in: itemIds } } : {})
     .select('code gridX gridY preview entities')
     .lean();
-  const tally = { drawn: 0, empty: 0, failed: [] };
+  const tally = { codes: maps.map(({ code }) => code), drawn: 0, empty: 0, failed: [] };
   for (const map of maps) {
     try {
       if (await refreshMapPreview(map, options)) tally.drawn++;
