@@ -63,8 +63,8 @@ describe('the versioned API contract', () => {
     expect(read('cyberia-server/engineapi/engineapi.go')).toContain(`const Base = "/${API_BASE_PATH}"`);
   });
 
-  it.skipIf(!exists('cyberia-client/src/network/data/engine_client.h'))('gives the C client the same path', () => {
-    expect(read('cyberia-client/src/network/data/engine_client.h')).toContain(
+  it.skipIf(!exists('cyberia-client/src/data/engine_client.h'))('gives the C client the same path', () => {
+    expect(read('cyberia-client/src/data/engine_client.h')).toContain(
       `#define ENGINE_API_BASE "/${API_BASE_PATH}"`,
     );
   });
