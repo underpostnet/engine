@@ -40,6 +40,7 @@ const { CyberiaObjectLayerProfile } =
   await import('../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js');
 const { AtlasSpriteSheetStore } = await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js');
 const { selectReleaseContent } = await import('../../../src/projects/cyberia/content/release-content.js');
+const { IpfsClient } = await import('../../../src/api/ipfs/ipfs.client.js');
 
 // ── In-memory collections ────────────────────────────────────────────────────────────────
 
@@ -204,7 +205,11 @@ const content = () => {
       CyberiaSkill: new FakeModel([
         {
           triggerItemId: 'hatchet',
-          skills: [{ summonedEntityItemId: 'hatchet' }, { summonedEntityItemId: '$active_skin' }],
+          logicEventIds: ['projectile', 'doppelganger'],
+          skills: [
+            { logicEventId: 'projectile', summonedEntityItemId: 'hatchet' },
+            { logicEventId: 'doppelganger', summonedEntityItemId: '$active_skin' },
+          ],
         },
       ]),
       CyberiaInstance: new FakeModel([{ code: 'FOREST', conf: confId, cyberiaMapCodes: ['forest-1'] }]),
@@ -250,12 +255,30 @@ describe('candidate validation', () => {
       'canonical',
       'legacy-pins',
       'labels',
+      'skills',
       'render',
       'instances',
       'schema',
     ]);
     expect(validation.manifest).toEqual({ instances: ['FOREST'], maps: 1, bindings: 2, quests: 1, actions: 1 });
     expect(validation.dependencies).toEqual([hatchet.cid, sword.cid].sort());
+  });
+
+  it('fails on a skill document whose handlers disagree or that names a handler no simulation runs', async () => {
+    const { models, hatchet, sword } = content();
+    models.CyberiaSkill.docs[0].logicEventIds = ['projectile'];
+    models.CyberiaSkill.docs.push({
+      triggerItemId: 'sword',
+      logicEventIds: ['teleport'],
+      skills: [{ logicEventId: 'teleport' }],
+    });
+    const validation = await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) });
+    expect(failing(validation)).toEqual({
+      skills: [
+        'skill hatchet: logicEventIds [projectile] are not the handlers of its skills [projectile, doppelganger]',
+        'skill sword: "teleport" is no skill handler',
+      ],
+    });
   });
 
   it('fails on a draft, or on a definition under another profile', async () => {
@@ -390,7 +413,7 @@ describe('candidate validation', () => {
     models.CyberiaInstanceConf.docs = [];
     models.CyberiaInstance.docs[0].cyberiaMapCodes.push('forest-2');
     const errors = failing(await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) }));
-    expect(errors.instances).toEqual(['instance FOREST: conf missing', 'instance FOREST: map "forest-2" missing']);
+    expect(errors.instances).toEqual(['instance FOREST: conf missing', 'Instance FOREST lists missing map forest-2']);
   });
 
   it('fails a release that holds no content artifact, or another one, and skips the workspace', async () => {
@@ -478,6 +501,57 @@ describe('pruning', () => {
     expect(dropped.sort()).toEqual(['c-bad', 'c-r2']);
     expect(ledger.docs.map((doc) => doc.releaseId).sort()).toEqual(['b1', 'next', 'r3', 'r4', 'r5', 'run']);
   });
+
+  it('keeps every render a player owns, read from a release before it drops', async () => {
+    const at = (minute) => new Date(Date.UTC(2026, 8, 20, 10, minute));
+    const ledger = releases([
+      { releaseId: 'r3', database: 'c-r3', status: 'active', promotedAt: at(3) },
+      { releaseId: 'r2', database: 'c-r2', status: 'retired', promotedAt: at(2), retiredAt: at(3) },
+      { releaseId: 'r1', database: 'c-r1', status: 'retired', promotedAt: at(1), retiredAt: at(2) },
+    ]);
+    const definitionOf = (name) => ({ cid: `bafkrei-${name}`, data: { render: { cid: `render-${name}` } } });
+    const stores = {
+      'c-r1': { 'object-layer': new FakeModel([definitionOf('sword')]), ipfs: new FakeModel() },
+      'c-r2': { 'object-layer': new FakeModel(), ipfs: new FakeModel() },
+      'c-r3': {
+        'object-layer': new FakeModel(),
+        ipfs: new FakeModel(['render-sword', 'render-axe', 'render-gone'].map((cid) => ({ cid, resourceType: 'r' }))),
+      },
+    };
+    const dropped = [];
+    const connection = { useDb: (name) => ({ name, dropDatabase: async () => dropped.push(name) }) };
+    vi.spyOn(MongooseDB, 'bindModel').mockImplementation(
+      async (store, api) => stores[store.name]?.[api] ?? new FakeModel(),
+    );
+    vi.spyOn(AtlasSpriteSheetStore, 'pruneOrphanRenders').mockResolvedValue(0);
+    // The authority holds every definition, whatever release dropped it.
+    models.ObjectLayer = {
+      findByCid: (cid) => ({ lean: async () => (cid === 'bafkrei-axe' ? definitionOf('axe') : null) }),
+    };
+    const unpinned = [];
+    Object.assign(IpfsClient, {
+      unpinCid: async (cid) => unpinned.push(cid),
+      listMfsDirectory: async () => [],
+      removeMfsPath: async () => true,
+    });
+    const players = { ownedDefinitionCids: async () => ['bafkrei-sword', 'bafkrei-axe'] };
+
+    await expect(
+      pruneContentReleases({ CyberiaContentRelease: ledger, connection, context: {}, keep: 0 }),
+    ).rejects.toThrow(/needs the player profiles/);
+    const removed = await pruneContentReleases({
+      CyberiaContentRelease: ledger,
+      CyberiaPlayer: players,
+      connection,
+      context: {},
+      keep: 0,
+    });
+    expect(removed).toEqual(['r1']);
+    expect(dropped).toEqual(['c-r1']);
+    expect(unpinned).toEqual(['render-gone']);
+    vi.restoreAllMocks();
+    delete models.ObjectLayer;
+  });
 });
 
 describe('atlas renders shared across releases', () => {
@@ -563,23 +637,37 @@ describe('served content', () => {
     delete models.CyberiaContentRelease;
   });
 
-  it('reloads every registered server in the mode asked, and counts the servers reached', async () => {
+  it('reloads each live endpoint once in the mode asked, and reports each outcome', async () => {
+    const pipelines = [];
     models.CyberiaServerRegistry = {
-      find: () => ({
-        lean: async () => [
-          { serverUrl: 'http://forest', instanceCode: 'FOREST' },
-          { serverUrl: 'http://gone', instanceCode: 'TEST' },
-        ],
-      }),
+      aggregate: async (pipeline) => {
+        pipelines.push(pipeline);
+        return [
+          { instanceCode: 'FOREST', url: 'https://server.example.com', status: 'available', ready: 2, draining: 0 },
+          { instanceCode: 'TEST', url: 'https://server.example.com/test', status: 'draining', ready: 0, draining: 1 },
+        ];
+      },
     };
     triggerHotReload.mockReset();
-    triggerHotReload.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('unreachable'));
-    expect(await reloadContentServers({}, { mode: 'incremental' })).toBe(1);
-    expect(triggerHotReload.mock.calls.map(([call]) => call)).toEqual([
-      { serverUrl: 'http://forest', instanceCode: 'FOREST', mode: 'incremental' },
-      { serverUrl: 'http://gone', instanceCode: 'TEST', mode: 'incremental' },
+    triggerHotReload
+      .mockResolvedValueOnce({ transport: 'grpc', result: { message: 'rebuilt' } })
+      .mockRejectedValueOnce(new Error('unreachable'));
+    expect(await reloadContentServers({}, { mode: 'incremental' })).toEqual([
+      { instanceCode: 'FOREST', url: 'https://server.example.com', transport: 'grpc', message: 'rebuilt' },
+      { instanceCode: 'TEST', url: 'https://server.example.com/test', error: 'unreachable' },
     ]);
+    expect(triggerHotReload.mock.calls.map(([call]) => call)).toEqual([
+      { serverUrl: 'https://server.example.com', instanceCode: 'FOREST', mode: 'incremental' },
+      { serverUrl: 'https://server.example.com/test', instanceCode: 'TEST', mode: 'incremental' },
+    ]);
+    triggerHotReload.mockResolvedValue({ transport: 'rest', result: { message: 'rebuilt' } });
+    await reloadContentServers({}, { instanceCode: 'TEST' });
+    expect(pipelines[1][0].$match.instanceCode).toEqual({ $in: ['TEST'] });
     delete models.CyberiaServerRegistry;
+  });
+
+  it('reaches no server on a host without the registry', async () => {
+    expect(await reloadContentServers({})).toEqual([]);
   });
 });
 
@@ -729,8 +817,6 @@ describe('deploy pipeline', () => {
   it('starts the pod on the served release, and builds the candidate in a Release Job', () => {
     const podCmd = script.slice(script.indexOf('pod_cmd="$(pod_bootstrap_cmd'), script.indexOf('underpost start'));
     expect(podCmd).not.toContain('content-release');
-    // Removing player data is an operator step, never a deploy side effect.
-    expect(script).not.toContain('prune-quest-progress');
     const candidate = script.slice(
       script.indexOf('stage_content_candidate() {'),
       script.indexOf('stage_promotion() {'),
@@ -756,6 +842,49 @@ describe('deploy pipeline', () => {
       'content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID"',
     );
     for (const deploy of [script, lib]) expect(deploy).not.toMatch(/git push|source-release mirror/);
+  });
+
+  it('stops on live changes before the rollout, and stops serving them only when asked', () => {
+    const helper = script.slice(script.indexOf('content_release_skipped() {'), script.indexOf('# ── Stage D'));
+    const candidate = script.slice(script.indexOf('stage_content_candidate() {'), script.indexOf('# ── Stage E'));
+    const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Revert'));
+    const run = (discard) =>
+      spawnSync(
+        'bash',
+        [
+          '-c',
+          `set -euo pipefail
+          RUN_QUIET_NODE_TAG=[tag] SKIP_CONTENT_RELEASE=0 DISCARD_LIVE_CHANGES=${discard}
+          CONTENT_RELEASE_ID=v2 DEPLOY_IMAGE=engine:1 CONTENT_RELEASES_KEEP=2 ENGINE_ROOT=/engine
+          CYBERIA_SOURCE_CHANNEL=public CYBERIA_API_ORIGIN=https://api ENGINE_API_PATH=api/v1
+          CYBERIA_SERVER_ORIGIN=https://server READINESS_TIMEOUT=1
+          deploy_step() { shift; "$@"; }
+          content_release_job() { echo "job: $*"; }
+          sudo() { :; }
+          apply_release_secret() { :; }
+          served_content_release() { echo v1; }
+          wait_for_http() { :; }
+          wait_for_content_release() { :; }
+          ${helper}
+          ${candidate}
+          ${promotion}
+          stage_content_candidate
+          stage_promotion`,
+        ],
+        { encoding: 'utf8' },
+      );
+    const guarded = run(0);
+    expect(guarded.status).toBe(0);
+    const jobs = guarded.stdout.split('\n').filter((line) => line.startsWith('job: '));
+    expect(jobs.slice(0, 3)).toEqual([
+      'job: v2 engine:1 build v2 --from source',
+      'job: content-release-live-changes engine:1 live-changes',
+      'job: content-release-promote engine:1 promote v2',
+    ]);
+    const discarded = run(1);
+    expect(discarded.stdout).not.toContain('content-release-live-changes');
+    expect(discarded.stdout).toContain('DISCARD_LIVE_CHANGES=1');
+    expect(discarded.stdout).toContain('job: content-release-promote engine:1 promote v2 --discard-live-changes');
   });
 
   it('prunes after the commit: the databases in a Release Job, then the release store on the host', () => {

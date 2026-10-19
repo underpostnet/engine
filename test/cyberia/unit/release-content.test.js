@@ -65,6 +65,14 @@ describe('release content', () => {
       ],
       'names one instance code twice',
     ],
+    [[{ path: '/', instanceCode: 'a' }], 'Release instance a serves /; launch and travel reach it at /a'],
+    [
+      [
+        { path: '/', instanceCode: DEFAULT_INSTANCE_CODE },
+        { path: '/forest', instanceCode: 'test' },
+      ],
+      'Release instance test serves /forest; launch and travel reach it at /test',
+    ],
   ])('refuses an invalid instance list (%#)', (instances, message) => {
     expect(() => validateReleaseContent(withInstances(instances))).toThrow(message);
   });
@@ -159,8 +167,8 @@ describe('instance env', () => {
   it.skipIf(!fs.existsSync('./engine-private/conf/dd-cyberia/conf.instances.json'))(
     'links each instance the runner builds to the origins of its environment',
     () => {
-      const build = (runtime, environment) =>
-        buildInstanceEnv({ deployId: 'dd-cyberia', instance: { runtime, path: '/' }, environment, env: {} });
+      const build = (runtime, environment, path = '/') =>
+        buildInstanceEnv({ deployId: 'dd-cyberia', instance: { runtime, path }, environment, env: {} });
       expect(build('cyberia-client', 'development')).toMatchObject({
         CYBERIA_INSTANCE_CODE: DEFAULT_INSTANCE_CODE,
         CYBERIA_DATA_SERVER_URL: 'http://localhost:4008',
@@ -173,10 +181,16 @@ describe('instance env', () => {
       expect(build('cyberia-server', 'development')).toMatchObject({
         CYBERIA_DATA_SERVER_URL: 'http://dd-cyberia-development-traffic-service:4008',
         CYBERIA_CORS_ALLOWED_ORIGINS: 'http://localhost:4008,http://localhost:8082',
+        CYBERIA_PUBLIC_URL: 'http://localhost:8083',
       });
       expect(build('cyberia-server', 'production')).toMatchObject({
         CYBERIA_DATA_SERVER_URL: 'https://www.cyberiaonline.com',
         CYBERIA_CORS_ALLOWED_ORIGINS: 'https://www.cyberiaonline.com,https://client.cyberiaonline.com',
+        CYBERIA_PUBLIC_URL: 'https://server.cyberiaonline.com',
+      });
+      expect(build('cyberia-server', 'production', '/test')).toMatchObject({
+        INSTANCE_CODE: 'test',
+        CYBERIA_PUBLIC_URL: 'https://server.cyberiaonline.com/test',
       });
     },
   );

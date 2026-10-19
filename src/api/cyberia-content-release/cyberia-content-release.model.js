@@ -48,6 +48,7 @@ const SourceSchema = new Schema(
  * @property {{engineVersion:string,engineCommit:string,job:string,builtAt:Date,builtBy:string}} provenance - Who built it
  * @property {{instances:string[],maps:number,bindings:number,quests:number,actions:number}} manifest - What the release carries
  * @property {string[]} dependencies - Every Object Layer cid the release binds or pins
+ * @property {Object<string,string>} fingerprint - The digest per content API of the release as it was built
  * @property {{ok:boolean,checkedAt:Date,checks:Array}} validation - Last validation report
  * @property {{holder:string,heartbeatAt:Date}} lease - The execution building the release
  * @property {Date} promotedAt - When the release became active
@@ -91,6 +92,7 @@ const CyberiaContentReleaseSchema = new Schema(
       actions: { type: Number, default: 0 },
     },
     dependencies: { type: [String], default: [] },
+    fingerprint: { type: Map, of: String, default: undefined },
     validation: {
       ok: { type: Boolean, default: false },
       checkedAt: { type: Date },
@@ -154,6 +156,7 @@ class CyberiaContentReleaseDto {
       provenance: 1,
       manifest: 1,
       dependencies: 1,
+      fingerprint: 1,
       validation: 1,
       promotedAt: 1,
       retiredAt: 1,

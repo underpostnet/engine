@@ -24,19 +24,25 @@ held before the layout stay where they are and are no longer read.
 The deploy runs no tests: CI tests the source, and the source carries its coverage reports in `docs/coverage/`.
 Nothing before Stage E changes what players see: a candidate that fails stops the deploy before it.
 
-| Stage | Name                   | Content                                                                                                                                                         |
-| ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                        |
-| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                         |
-| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                          |
-| D     | Content candidate      | The host prepares the locked revision; a Release Job builds it, imports the foundation then each instance, and validates it, with the data-release Secret alone |
-| E     | Application rollout    | The idempotent stable slug migration in the new pod; blue/green: the new colour takes traffic once Ready and serves the release already active                  |
-| F     | Readiness              | Engine API, Object Layer authority                                                                                                                              |
-| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                              |
+| Stage | Name                   | Content                                                                                                                                                                                                                                 |
+| ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                                                                                                |
+| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                                                                                                 |
+| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                                                                                                  |
+| D     | Content candidate      | The host prepares the locked revision; a Release Job builds it, imports the foundation then each instance, and validates it, with the data-release Secret alone. A second Job stops the deploy when the active release has live changes |
+| E     | Application rollout    | Loads deployment configuration and starts the new pod; blue/green traffic switches when it is Ready                                                                                          |
+| F     | Readiness              | Engine API, Object Layer authority                                                                                                                                                                                                      |
+| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                                                                                                      |
 
 Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
 Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. Stages D and G do not run. The new pod serves the release that is already active.
+
+A live change is a change to the active release that its build does not hold
+([Live changes](../explanation/content-releases.md#live-changes)). The promotion stops serving it, so
+Stage D stops the deploy before the rollout and names the changed content. Export each changed world
+with `cyberia instance <code> --export <dir> --release <active-id>`, commit it to `cyberia-content`,
+and deploy that revision. Set `DISCARD_LIVE_CHANGES=1` to promote and stop serving the changes.
 
 `REPLICAS` sets the pod count of each colour (default `1`). Stage E and a switch back render this count.
 
@@ -80,9 +86,16 @@ The CD workflow `engine-cyberia.cd.yml` takes the channel and `REPLICAS` as inpu
 
 ## Release commands on the live deployment
 
-`deploy/dd-cyberia/content-release.sh <status | validate <id> | promote <id> | rollback | retire | prune>`
+`deploy/dd-cyberia/content-release.sh <status | validate <id> | live-changes | promote <id> [--discard-live-changes] | rollback | retire | prune>`
 runs one release command in a Release Job, on the image the live colour serves, with the
 data-release Secret alone. Kubernetes removes the Job a day after it ends.
+
+## Player commands on the live deployment
+
+`deploy/dd-cyberia/player.sh player <command> [args]` runs a player command in a Release Job.
+It uses the live engine image and the data-release Secret.
+Use `held` to inspect held stacks and `rebind-held` to update their definition bindings.
+The Job log streams to the terminal.
 
 ## Game server and client images
 
@@ -96,18 +109,20 @@ topology below.
 
 ## Game server topology
 
-`cyberia-server` holds the authoritative world in memory, so it scales by world, not by replica:
-one Deployment per [release instance](./run-the-docker-stack-locally.md#release-instances)
-(`/`, `/test`), each reporting itself to the `cyberia-server-registry`.
+`cyberia-server` holds the authoritative world in memory: one Deployment per
+[release instance](./run-the-docker-stack-locally.md#release-instances) (`/`, `/test`). Each replica
+runs its own copy of the world, and each process reports itself to the
+[server registry](../explanation/server-registry.md) under its own id. The registry groups the
+replicas of one Deployment into one logical endpoint, so `/` and `/test` show as two worlds.
 
 | Event                   | Behaviour                                                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Start                   | Readiness answers 503 until the world is loaded; the server then reports to the registry                                                                                             |
-| Content promotion       | The engine hot-reloads every registered server; players stay connected                                                                                                               |
+| Content promotion       | The engine hot-reloads one replica of each logical endpoint; the other replicas follow with their reload loop; players stay connected                                                |
 | Replacement (`SIGTERM`) | The server refuses new sessions, reports `draining`, readiness turns 503, connected players get `CYBERIA_DRAIN_TIMEOUT_SEC` (25 s, inside the 30 s grace period), then it shuts down |
-| Registry                | Offers only servers that report and do not drain; a silent server expires after 180 s                                                                                                |
+| Registry                | A world takes new sessions while one of its replicas is ready; a process that stops reporting expires after 60 s                                                                     |
 
-A guest on a draining server reconnects through the registry to the new one. An account player gets
+A guest on a draining server reconnects to a ready replica of the same public URL. An account player gets
 `session_end {reason: "server_restart"}`, and the drain commits its final state and releases the
 lease. The client then resumes on the new server with its resume ticket, without the portal
 ([resume](../explanation/accounts-and-persistence.md#resume-after-a-dropped-connection)).

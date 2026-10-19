@@ -10,12 +10,12 @@ DEPLOY_ID=dd-cyberia
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 TARGET_NODE="${TARGET_NODE:-$HOST_NODE}"
 
-# Operator entry point for the live content release: status, validate <id>, promote <id>,
-# rollback, retire, prune [--keep n]. Each runs in a Release Job on the image the live colour
+# Operator entry point for the live content release: status, validate <id>, live-changes,
+# promote <id> [--discard-live-changes], rollback, retire, prune [--keep n]. Each runs in a Release Job on the image the live colour
 # serves. Nothing here drops a served database.
 main() {
     if [ $# -eq 0 ]; then
-        echo "usage: $0 <status | validate <id> | promote <id> | rollback | retire | prune [--keep n]>" >&2
+        echo "usage: $0 <status | validate <id> | live-changes | promote <id> [--discard-live-changes] | rollback | retire | prune [--keep n]>" >&2
         exit 2
     fi
     deploy_start "Content release $*"

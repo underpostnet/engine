@@ -12,7 +12,7 @@ import { publishDefinition } from '../../../src/api/object-layer/object-layer.pu
 import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
 import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
 import { CyberiaMapRouter } from '../../../src/api/cyberia-map/cyberia-map.router.js';
-import { fetchMapData, getInstanceModels } from '../../../src/projects/cyberia/instance-data.js';
+import { fetchItemContent, fetchMapData, getInstanceModels } from '../../../src/projects/cyberia/instance-data.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
@@ -33,7 +33,9 @@ import {
   materializeWorkspace,
   advanceContentRelease,
   beginContentRelease,
+  contentFingerprint,
   failContentRelease,
+  liveChanges,
   promoteContentRelease,
   pruneContentReleases,
   retireContentRelease,
@@ -66,7 +68,14 @@ const CONTENT_APIS = [
   'cyberia-instance',
   'cyberia-instance-conf',
 ];
-const RUNTIME_APIS = ['cyberia-content-release', 'cyberia-quest-progress', 'cyberia-server-registry', 'file', 'user'];
+const RUNTIME_APIS = [
+  'cyberia-global-map-code-registry',
+  'cyberia-content-release',
+  'cyberia-quest-progress',
+  'cyberia-server-registry',
+  'file',
+  'user',
+];
 /** Two player profiles whose quest progress no content operation may touch. */
 const PLAYER_1 = '64a000000000000000000001';
 const PLAYER_2 = '64a000000000000000000002';
@@ -297,7 +306,10 @@ const buildRelease = async (releaseId) => {
   );
   const { manifest, dependencies, ...report } = validation;
   await ledger.updateOne({ releaseId }, { $set: { validation: report, manifest, dependencies } });
-  if (validation.ok) await advanceContentRelease(ledger, releaseId, 'validated');
+  if (validation.ok)
+    await advanceContentRelease(ledger, releaseId, 'validated', {
+      fingerprint: await contentFingerprint(connection().useDb(database, { useCache: true })),
+    });
   else await failContentRelease(ledger, releaseId, 'validate', 'Content validation failed');
   return validation;
 };
@@ -335,10 +347,11 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
     await model('CyberiaQuestProgress').create([
       {
         player: PLAYER_1,
+        instanceCode: 'FOREST',
         questCode: 'q1',
         stepProgress: [{ stepId: 's1', objectiveProgress: [{ current: 1, required: 1 }] }],
       },
-      { player: PLAYER_2, questCode: 'q1', status: 'completed' },
+      { player: PLAYER_2, instanceCode: 'FOREST', questCode: 'q1', status: 'completed' },
     ]);
   });
 
@@ -511,6 +524,8 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(validation.checks.filter((entry) => !entry.ok)).toEqual([]);
       expect(validation.manifest).toMatchObject({ instances: ['FOREST'], maps: 1 });
       expect(validation.dependencies.length).toBeGreaterThanOrEqual(2);
+      const { fingerprint } = await model('CyberiaContentRelease').findOne({ releaseId: 'r1' }).lean();
+      expect(fingerprint).toEqual(await contentFingerprint(connection().useDb(WORKSPACE, { useCache: true })));
 
       // Nothing promoted: the runtime serves the workspace until a release is active.
       await activateContentRelease(runtime);
@@ -788,6 +803,18 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       for (const role of roles) expect(await listed(role)).toEqual(codes);
     });
 
+    const changes = () =>
+      liveChanges({ CyberiaContentRelease: model('CyberiaContentRelease'), connection: connection() });
+
+    it('counts no generated field as a live change', async () => {
+      const { CyberiaMap } = await releaseModels((await model('CyberiaContentRelease').active()).database);
+      await CyberiaMap.updateOne(
+        { code: 'forest-1' },
+        { $set: { preview: new Types.ObjectId(), updatedAt: new Date() }, $inc: { revision: 1 } },
+      );
+      expect(await changes()).toMatchObject({ known: true, changed: [] });
+    });
+
     it('refuses a change from a guest and a user, and lets a moderator and an admin change the active release', async () => {
       const map = { code: 'live-1', name: 'Live' };
       expect((await call(undefined, '', { method: 'POST', body: map })).status).toBe(401);
@@ -807,10 +834,43 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(await model('CyberiaMap').exists({ code: 'live-1' })).toBeNull();
     });
 
+    it('serves the content an item brings from the active release, never from the workspace', async () => {
+      const active = await model('CyberiaContentRelease').active();
+      const shot = (name) => ({
+        triggerItemId: 'sword',
+        logicEventIds: ['projectile'],
+        skills: [{ logicEventId: 'projectile', name, summonedEntityItemId: 'hatchet' }],
+      });
+      const { CyberiaSkill } = await releaseModels(active.database);
+      await CyberiaSkill.create(shot('Release shot'));
+      await model('CyberiaSkill').create(shot('Workspace shot'));
+      const content = await fetchItemContent(getInstanceModels(runtime), 'sword');
+      expect(content.releaseId).toBe(active.releaseId);
+      expect(content.objectLayers.map(({ item }) => item.id)).toEqual(['sword', 'hatchet']);
+      expect(content.skills).toEqual([
+        {
+          triggerItemId: 'sword',
+          skills: [
+            { logicEventId: 'projectile', name: 'Release shot', description: '', summonedEntityItemId: 'hatchet' },
+          ],
+        },
+      ]);
+      expect(content.unavailable).toEqual([]);
+      await CyberiaSkill.deleteMany({});
+      await model('CyberiaSkill').deleteMany({});
+    });
+
     it('rebuilds a game server world from the live data', async () => {
       const models = getInstanceModels(runtime);
       expect(models.CyberiaMap.db.name).toBe((await model('CyberiaContentRelease').active()).database);
       expect((await fetchMapData(models, { mapCode: 'live-1' })).map.code).toBe('live-1');
+    });
+
+    it('names the live changes the next promotion stops serving', async () => {
+      const { release, known, changed } = await changes();
+      expect(release.releaseId).toBe((await model('CyberiaContentRelease').active()).releaseId);
+      expect(known).toBe(true);
+      expect(changed).toEqual(['cyberia-map']);
     });
 
     it('replaces the live data with the baseline of the next release', async () => {

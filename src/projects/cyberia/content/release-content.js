@@ -7,9 +7,11 @@
  */
 
 import { normalizeInstanceTopology } from '../../../server/runtime/conf.js';
-import { DEFAULT_INSTANCE_CODE } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
-
-const CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+import {
+  CONTENT_CODE_PATTERN,
+  DEFAULT_INSTANCE_CODE,
+  worldPathOf,
+} from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 /**
  * The content set of a release. `/` serves the default world, which the portal reads too.
@@ -29,7 +31,7 @@ const RELEASE_CONTENT = Object.freeze({
 
 /**
  * Checks a release content set: the foundation, valid saga codes, and instances with `/` first,
- * a valid path and a valid code each, none twice.
+ * a valid path and a valid code each, none twice, each at the path launch and travel reach it by.
  * @param {Object} [content=RELEASE_CONTENT]
  * @returns {Object} The same content set.
  * @throws {Error} On the first defect.
@@ -38,7 +40,7 @@ const RELEASE_CONTENT = Object.freeze({
 const validateReleaseContent = (content = RELEASE_CONTENT) => {
   if (content.foundation !== true) throw new Error('A release carries the foundation');
   const assertCodes = (kind, codes) => {
-    const invalid = codes.find((code) => !CODE_PATTERN.test(`${code ?? ''}`));
+    const invalid = codes.find((code) => !CONTENT_CODE_PATTERN.test(`${code ?? ''}`));
     if (invalid !== undefined) throw new Error(`Invalid release ${kind} code "${invalid}"`);
     if (new Set(codes).size !== codes.length) throw new Error(`The release names one ${kind} code twice`);
   };
@@ -49,6 +51,11 @@ const validateReleaseContent = (content = RELEASE_CONTENT) => {
     'instance',
     content.instances.map(({ instanceCode }) => instanceCode),
   );
+  for (const { path, instanceCode } of content.instances) {
+    const reached = worldPathOf(instanceCode) || '/';
+    if (path !== reached)
+      throw new Error(`Release instance ${instanceCode} serves ${path}; launch and travel reach it at ${reached}`);
+  }
   return content;
 };
 

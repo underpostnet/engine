@@ -40,6 +40,9 @@ CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
 # Set SKIP_CONTENT_RELEASE=1 to deploy the runtimes only: no content candidate, no promotion.
 # The new pod serves the release that is already active.
 SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"
+# Live changes of the active release that its build does not hold stop the deploy before the
+# rollout. Export them to cyberia-content first, or set DISCARD_LIVE_CHANGES=1 to stop serving them.
+DISCARD_LIVE_CHANGES="${DISCARD_LIVE_CHANGES:-0}"
 
 # The routing a traffic switch applies: the sync and a switch back render the same routes.
 ROUTING_FLAGS="--replicas $REPLICAS --timeout-response 10000ms --gateway-api"
@@ -155,26 +158,27 @@ stage_content_candidate() {
     deploy_step "Build content release $CONTENT_RELEASE_ID" \
         content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE" \
         build "$CONTENT_RELEASE_ID" --from source ${CONTENT_INSTANCES:+--instances "$CONTENT_INSTANCES"}
+    if [ "$DISCARD_LIVE_CHANGES" = "1" ]; then
+        echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=1: the promotion stops serving the live changes of the active release"
+    else
+        deploy_step "No live change the promotion stops serving" \
+            content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes
+    fi
 }
 
-# ── Stage E — Migrations and application rollout ─────────────────────────────────────────
-#
-# The pod bootstrap runs only idempotent migrations before the application starts. The new
-# colour takes traffic once Ready and serves the release that is already active: application
-# and content change separately, and nothing here drops a database.
+# ── Stage E — Application rollout ──────────────────────────────────────────────────────
+
 stage_rollout() {
     local pod_cmd
     local start_flags="--build --run --skip-pull-repo-base --skip-pull-private-repo"
     if [ "$BUNDLE_MODE" = "1" ]; then
         start_flags="$start_flags --pull-bundle"
     fi
-    # `db --migrate-stable-slugs` is idempotent: a document that has a slug keeps it.
     pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
         underpost clone ${POD_SRC_PRIVATE_REPO}, \
         sudo rm -rf ./engine-private, \
         sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private, \
         underpost app load --env $DEPLOY_ENV --args deploy-id=$DEPLOY_ID, \
-        underpost db $DEPLOY_ID --migrate-stable-slugs, \
         underpost start $DEPLOY_ID $DEPLOY_ENV $start_flags"
 
     deploy_step "Sync $DEPLOY_ID cluster" \
@@ -206,10 +210,12 @@ stage_promotion() {
         RELEASE_STATE=committed
         return 0
     fi
+    local discard=""
+    [ "$DISCARD_LIVE_CHANGES" != "1" ] || discard="--discard-live-changes"
     PREVIOUS_RELEASE="$(served_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH")"
     RELEASE_STATE=promoting
     deploy_step "Promote content release $CONTENT_RELEASE_ID" \
-        content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID"
+        content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID" $discard
     deploy_step "Runtime serves $CONTENT_RELEASE_ID" \
         wait_for_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH" "$CONTENT_RELEASE_ID" "$READINESS_TIMEOUT"
     deploy_step "Cyberia server ready" \

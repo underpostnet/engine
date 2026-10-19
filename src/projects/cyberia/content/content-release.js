@@ -10,6 +10,8 @@
  * @module src/projects/cyberia/content/content-release.js
  * @namespace CyberiaContentRelease
  */
+import crypto from 'crypto';
+import canonicalize from 'canonicalize';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { domainOrigin } from '../../../server/domain/domain-client.js';
@@ -21,14 +23,17 @@ import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   isMaterialItemId,
+  skillDefect,
 } from '../../../api/cyberia-instance/cyberia-instance-items.js';
 import { triggerHotReload } from '../runtime/hot-reload-trigger.js';
+import { liveEndpoints } from '../../../api/cyberia-server-registry/cyberia-server-registry.service.js';
 import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { pruneUnreferencedContent } from '../../../api/object-layer/object-layer.ipfs.js';
 import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
 import { assertReleaseId } from '../../../server/release/source-release.js';
 import { loadContentArtifact, serveContentArtifact, servedContentArtifact } from './content-artifact.js';
+import { catalogRegistryModels, reconcileMapRegistry, registryDefects } from '../instance/map-registry.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -153,6 +158,7 @@ const identityDefect = (doc) => {
  *   Skipped, and said so, when this deployment is the authority.
  * - `legacy-pins`: no quest or action pins a definition: the catalog alone binds each item.
  * - `labels`: every label a map entity or entity default uses is bound in the catalog.
+ * - `skills`: every skill document can run: see `skillDefect`.
  * - `render`: the atlas each bound definition points at holds the render it names: its primary
  *   render and its layout address `data.render`.
  * - `instances`: every instance has its conf and every map it lists.
@@ -253,12 +259,21 @@ export async function validateContentRelease(models, { options, resolveCanonical
     name(`action ${action.code}`, collectInstanceItemIds({ actions: [action] }));
   for (const quest of await models.CyberiaQuest.find({}).lean())
     name(`quest ${quest.code}`, collectInstanceItemIds({ quests: [quest] }));
-  for (const skill of await models.CyberiaSkill.find({}).lean())
+  const skills = await models.CyberiaSkill.find({}).lean();
+  for (const skill of skills)
     name(`skill ${skill.triggerItemId}`, [skill.triggerItemId, ...collectSummonedItemIds([skill])]);
   labelsCheck.count = used.size;
   for (const [itemId, where] of used)
     if (!bound.has(itemId)) fail(labelsCheck, `${where}: label "${itemId}" is not bound`);
   checks.push(labelsCheck);
+
+  const skillsCheck = check('skills');
+  skillsCheck.count = skills.length;
+  for (const skill of skills) {
+    const defect = skillDefect(skill);
+    if (defect) fail(skillsCheck, `skill ${skill.triggerItemId || skill._id}: ${defect}`);
+  }
+  checks.push(skillsCheck);
 
   // The runtime fetches the primary render of the atlas a bound definition points at
   // (`/atlas-sprite-sheet/blob/<label>`): its bytes and its layout must address `data.render`.
@@ -290,17 +305,16 @@ export async function validateContentRelease(models, { options, resolveCanonical
   const instancesCheck = check('instances');
   const instances = await models.CyberiaInstance.find({}, { code: 1, conf: 1, cyberiaMapCodes: 1 }).lean();
   instancesCheck.count = instances.length;
-  const mapCodes = new Set((await models.CyberiaMap.find({}, { code: 1 }).lean()).map((map) => map.code));
+  const maps = await models.CyberiaMap.find({}, { code: 1, worldX: 1, worldY: 1, gridX: 1, gridY: 1 }).lean();
   const confIds = new Set(
     (await models.CyberiaInstanceConf.find({}, { _id: 1 }).lean()).map((conf) => String(conf._id)),
   );
   for (const instance of instances) {
     if (!instance.conf || !confIds.has(String(instance.conf)))
       fail(instancesCheck, `instance ${instance.code}: conf missing`);
-    for (const code of instance.cyberiaMapCodes ?? []) {
-      if (!mapCodes.has(code)) fail(instancesCheck, `instance ${instance.code}: map "${code}" missing`);
-    }
   }
+  // Map ownership and world placement: the defects the map registry of the release would refuse.
+  for (const defect of registryDefects(maps, instances)) fail(instancesCheck, defect);
   checks.push(instancesCheck);
 
   const schemaCheck = check('schema');
@@ -329,12 +343,69 @@ export async function validateContentRelease(models, { options, resolveCanonical
   const dependencies = [...boundCids].sort();
   const manifest = {
     instances: instances.map((instance) => instance.code).sort(),
-    maps: mapCodes.size,
+    maps: maps.length,
     bindings: catalog.length,
     quests: await models.CyberiaQuest.countDocuments(),
     actions: await models.CyberiaAction.countDocuments(),
   };
   return { ok: checks.every((entry) => entry.ok), checkedAt: new Date(), checks, manifest, dependencies };
+}
+
+/** The content a live change can alter: the worlds and their item bindings, which `instance --export` writes out. */
+const LIVE_CONTENT_APIS = Object.freeze([
+  'cyberia-instance',
+  'cyberia-instance-conf',
+  'cyberia-map',
+  'cyberia-quest',
+  'cyberia-action',
+  'cyberia-dialogue',
+  'cyberia-skill',
+  'cyberia-entity-type-default',
+  'cyberia-item-catalog',
+]);
+
+/** Fields a write sets on its own: timestamps, version keys, save revisions and generated pictures. */
+const GENERATED_FIELDS = Object.freeze(['createdAt', 'updatedAt', '__v', 'revision', 'preview', 'previewKey']);
+
+/**
+ * A digest per content API of what a content database holds, generated fields left out. Two
+ * databases with the same documents have the same fingerprint.
+ * @param {import('mongoose').Connection} store - The content database.
+ * @returns {Promise<Object<string,string>>} API → sha256 hex.
+ * @memberof CyberiaContentRelease
+ */
+export async function contentFingerprint(store) {
+  const projection = Object.fromEntries(GENERATED_FIELDS.map((field) => [field, 0]));
+  const fingerprint = {};
+  for (const api of LIVE_CONTENT_APIS) {
+    const Model = await MongooseDB.bindModel(store, api);
+    const hash = crypto.createHash('sha256');
+    for await (const doc of Model.find({}, projection).sort({ _id: 1 }).lean().cursor())
+      hash.update(canonicalize(JSON.parse(JSON.stringify(doc)))).update('\n');
+    fingerprint[api] = hash.digest('hex');
+  }
+  return fingerprint;
+}
+
+/**
+ * The content APIs the active release changed after its build: the live changes a promotion
+ * stops serving. They stay in the release database until a prune drops it.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.CyberiaContentRelease
+ * @param {import('mongoose').Connection} params.connection - A connection on the content server.
+ * @returns {Promise<{release:Object|null,known:boolean,changed:string[]}>} The active release, whether it
+ *   records the fingerprint of its build, and the APIs it changed since.
+ * @memberof CyberiaContentRelease
+ */
+export async function liveChanges({ CyberiaContentRelease, connection }) {
+  const release = await CyberiaContentRelease.active();
+  if (!release?.fingerprint) return { release, known: !release, changed: [] };
+  const current = await contentFingerprint(connection.useDb(release.database, { useCache: true }));
+  return {
+    release,
+    known: true,
+    changed: LIVE_CONTENT_APIS.filter((api) => current[api] !== release.fingerprint[api]),
+  };
 }
 
 /**
@@ -528,6 +599,11 @@ export async function promoteContentRelease(
       throw new Error(`Release "${id}" is ${release.status}; only a validated release can be promoted`);
     if (production && release.status === 'validated' && release.source?.from !== 'source')
       throw new Error(`Release "${id}" has no exact source revision; a production runtime serves only one that has`);
+    // The map owners of the release take effect with it, in this transaction.
+    await reconcileMapRegistry(await catalogRegistryModels(CyberiaContentRelease.db, release.database), {
+      apply: true,
+      session,
+    });
     const now = new Date();
     const retired = await CyberiaContentRelease.findOneAndUpdate(
       { status: 'active' },
@@ -609,12 +685,42 @@ export async function materializeWorkspace({ connection, workspace, database, ap
 }
 
 /**
+ * The definitions players own, read from the content databases, else from the Object Layer
+ * authority. Read before a prune drops a database, so the renders they name stay.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.CyberiaPlayer
+ * @param {import('mongoose').Connection} params.connection - A connection on the content server.
+ * @param {string[]} params.databases - Every content database, dropped or kept.
+ * @param {{host:string,path:string}} params.context - Host context, for the authority.
+ * @returns {Promise<Array<{cid:string,data:Object}>>}
+ * @throws {Error} When the authority does not answer, so nothing is dropped.
+ */
+const ownedDefinitions = async ({ CyberiaPlayer, connection, databases, context }) => {
+  const missing = new Set(await CyberiaPlayer.ownedDefinitionCids());
+  const owned = [];
+  for (const database of databases) {
+    if (!missing.size) break;
+    const ObjectLayer = await MongooseDB.bindModel(connection.useDb(database, { useCache: true }), 'object-layer');
+    for (const doc of await ObjectLayer.find({ cid: { $in: [...missing] } }, { cid: 1, 'data.render': 1 }).lean()) {
+      owned.push(doc);
+      missing.delete(doc.cid);
+    }
+  }
+  for (const cid of missing) {
+    const doc = await resolveObjectLayer(cid, context);
+    if (doc) owned.push(doc);
+  }
+  return owned;
+};
+
+/**
  * Drops the releases beyond the newest `keep`: their database, then their ledger entry, then the
  * atlas renders no kept release points at, and the IPFS render content and MFS listings no kept
- * store references. Never a building, validated or active release, the rollback target, or a
- * release whose execution lease is live. The host prunes the release store.
+ * store references and no player owns. Never a building, validated or active release, the
+ * rollback target, or a release whose execution lease is live. The host prunes the release store.
  * @param {Object} params
  * @param {import('mongoose').Model} params.CyberiaContentRelease
+ * @param {import('mongoose').Model} [params.CyberiaPlayer] - Needed with `context`: the profiles whose definitions stay.
  * @param {import('mongoose').Connection} params.connection - A connection on the content server.
  * @param {{host:string,path:string}} [params.context] - Host context; when given, orphaned atlas renders and IPFS content are removed.
  * @param {string} [params.baseDatabase] - The partition's base database, kept like a release.
@@ -624,11 +730,13 @@ export async function materializeWorkspace({ connection, workspace, database, ap
  */
 export async function pruneContentReleases({
   CyberiaContentRelease,
+  CyberiaPlayer,
   connection,
   context,
   baseDatabase = '',
   keep = 2,
 }) {
+  if (context && !CyberiaPlayer) throw new Error('A content prune needs the player profiles to keep what they own');
   const rollbackTarget = await CyberiaContentRelease.previousActive();
   const removable = (
     await CyberiaContentRelease.find({ status: { $nin: ['building', 'validated', 'active'] } })
@@ -637,6 +745,18 @@ export async function pruneContentReleases({
   )
     .filter((release) => release.releaseId !== rollbackTarget?.releaseId && !leaseLive(release, RELEASE_LEASE_MS))
     .slice(Math.max(0, keep));
+  /** The base database and the database of every release the ledger holds. */
+  const contentDatabases = async () => [
+    ...new Set(
+      [
+        baseDatabase,
+        ...(await CyberiaContentRelease.find({}, { database: 1 }).lean()).map(({ database }) => database),
+      ].filter(Boolean),
+    ),
+  ];
+  const owned = context
+    ? await ownedDefinitions({ CyberiaPlayer, connection, context, databases: await contentDatabases() })
+    : [];
   const removed = [];
   for (const release of removable) {
     if (release.database) await connection.useDb(release.database, { useCache: true }).dropDatabase();
@@ -645,10 +765,9 @@ export async function pruneContentReleases({
   }
   if (removed.length) logger.info(`Content releases pruned: ${removed.join(', ')}`);
   if (context) {
-    const kept = (await CyberiaContentRelease.find({}, { database: 1 }).lean()).map((release) => release.database);
     const owners = [];
     const stores = [];
-    for (const database of new Set([baseDatabase, ...kept].filter(Boolean))) {
+    for (const database of await contentDatabases()) {
       const store = connection.useDb(database, { useCache: true });
       owners.push(await MongooseDB.bindModel(store, 'atlas-sprite-sheet'));
       stores.push({
@@ -657,7 +776,7 @@ export async function pruneContentReleases({
       });
     }
     await AtlasSpriteSheetStore.pruneOrphanRenders({ options: context, owners });
-    const content = await pruneUnreferencedContent({ stores });
+    const content = await pruneUnreferencedContent({ stores, owned });
     logger.info('IPFS render content no kept store references pruned', content);
   }
   return removed;
@@ -709,26 +828,33 @@ export async function activateContentRelease(context) {
 }
 
 /**
- * Asks every registered Cyberia server to rebuild from the content now served: its whole world,
- * or only its object layers with `incremental`.
+ * Asks the live game servers to rebuild from the content now served: their whole world, or only
+ * their object layers with `incremental`. One trigger per logical endpoint, which reaches one
+ * replica; the other replicas follow with their reload loop.
  * @param {{host:string,path:string}} context
- * @param {{mode?:'full'|'incremental'}} [params]
- * @returns {Promise<number>} Servers reached.
+ * @param {{mode?:'full'|'incremental', instanceCode?: string}} [params] - `instanceCode` names one world.
+ * @returns {Promise<{instanceCode:string, url:string, transport?:string, message?:string, error?:string}[]>}
  * @memberof CyberiaContentRelease
  */
-export async function reloadContentServers(context, { mode = 'full' } = {}) {
-  const Registry = DataBaseProviderService.getProvider(context, 'mongoose').models.CyberiaServerRegistry;
-  if (!Registry) return 0;
-  let reached = 0;
-  for (const server of await Registry.find({}, { serverUrl: 1, instanceCode: 1 }).lean()) {
+export async function reloadContentServers(context, { mode = 'full', instanceCode } = {}) {
+  if (!DataBaseProviderService.getProvider(context, 'mongoose').models.CyberiaServerRegistry) return [];
+  const endpoints = await liveEndpoints(context, instanceCode ? { instanceCodes: [instanceCode] } : {});
+  const results = [];
+  for (const endpoint of endpoints) {
+    const target = { instanceCode: endpoint.instanceCode, url: endpoint.url };
     try {
-      await triggerHotReload({ serverUrl: server.serverUrl, instanceCode: server.instanceCode, mode });
-      reached++;
+      const { transport, result } = await triggerHotReload({
+        serverUrl: endpoint.url,
+        instanceCode: endpoint.instanceCode,
+        mode,
+      });
+      results.push({ ...target, transport, message: result?.message ?? '' });
     } catch (error) {
-      logger.warn(`Hot reload of ${server.serverUrl} failed: ${error.message}`);
+      logger.warn(`Hot reload of ${endpoint.url} failed: ${error.message}`);
+      results.push({ ...target, error: error.message });
     }
   }
-  return reached;
+  return results;
 }
 
 /**
