@@ -1,0 +1,196 @@
+# Universes and the spatial graph
+
+Cyberia places its content on three levels: a **universe** holds worlds, a **world** (an instance)
+holds maps, and a **map** holds entities. One account plays one profile in a universe, and keeps
+part of it in each world. This page states the owner of each level, the layout contract of the
+two graph views, the routes between worlds and how a player travels them.
+
+---
+
+## Ownership
+
+| What                         | Owner                                      | Stored in                     | Changes by                            |
+| ---------------------------- | ------------------------------------------ | ----------------------------- | ------------------------------------- |
+| Entity cells on a map        | The map (`CyberiaMap.entities`)            | The content release database  | The map editor, a content release     |
+| Portals between maps         | The instance (`CyberiaInstance.portals`)   | The content release database  | The instance editor                   |
+| Map cells of the world graph | The instance (`CyberiaInstance.mapLayout`) | The content release database  | The Layout tab of the instance editor |
+| Members of a universe        | The universe (`CyberiaUniverse.instances`) | The host database             | The universe editor                   |
+| World cells of the universe  | The universe (`CyberiaUniverse.instances`) | The host database             | The universe editor                   |
+| Routes between worlds        | The universe (`CyberiaUniverse.links`)     | The host database             | The universe editor                   |
+| Live servers of a world      | The [server registry](server-registry.md)  | The host database, with a TTL | Each game server process              |
+
+Each position has one owner. A map cell of the world graph is never an entity cell, and a world cell
+of the universe is never a map cell. A content release, a promotion or a rollback swaps the content
+release database: it never changes a universe, its routes or a player profile.
+
+An instance belongs to one universe at most. A universe names its members by code and holds none of
+their content, so a member stays in its universe while a release lacks it or its servers are
+offline. Deleting an instance in Studio removes it from its universe with its routes. The code of an
+instance never changes, because profiles, quest progress and leases name it.
+
+---
+
+## Graph layout contract
+
+Both graph views, the maps of a world and the worlds of a universe, use one contract from
+`SharedDefaultsCyberia.js`:
+
+| Rule         | Value                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| Unit         | One integer cell per node. A cell is view data, not a map size or a world coordinate                    |
+| Axes         | `x` grows right, `y` grows down; the origin is free                                                     |
+| Bounds       | `-LAYOUT_CELL_LIMIT` to `LAYOUT_CELL_LIMIT` (64) on each axis                                           |
+| One node     | One cell per node; two nodes never share a cell                                                         |
+| Default cell | A node without a saved cell takes the first free cell of a square grid of ⌈√n⌉ columns, in code order   |
+| Validation   | A save fails on a cell of an unknown node, a node with two cells, a cell out of bounds or a shared cell |
+
+`resolveGraphLayout` gives the cells, and `graphLayoutDefect` names the first defect. The engine,
+the instance map payload and both Studio editors call them, so a layout reads the same everywhere. A
+default cell is not saved: it stays the default until an author moves the node. **Arrange** in
+Studio puts every node back on its default cell; it changes only the draft until Save.
+
+Moving a node changes its cell and nothing else. A portal keeps its source and target cells on the
+maps, and its mode; an entity keeps its cell. The game server never reads a layout: the world
+version it compares at hot reload covers the instance message it receives, so a layout edit never
+rebuilds a world.
+
+---
+
+## Saves and conflicts
+
+A universe and an instance each carry a `revision`. A save names the revision it read, and the
+engine applies it only to that revision, then raises it. A save from an older read answers `409`
+and changes nothing; the editor keeps the draft and Reset loads the newer one. A universe or an
+instance changes only by its creator or an admin.
+
+---
+
+## Routes and travel
+
+A link is a route between two members: one way (`source → target`) or both ways
+(`bidirectional`). A pair of members has one link at most. A route is authored topology. It never
+proves that a server is up: the registry says that.
+
+A player in the Universe view of the in-game map can travel to a world when all of these hold:
+
+1. A route leads there from the current world: a link from it, or a bidirectional link.
+2. The served content holds the target world.
+3. The registry has a live server of the target world that takes new sessions.
+
+**TRAVEL** leaves through the leave flow of the settings card: the session ends with its final commit and releases
+its lease, then the target world opens with the same principal. When the servers of the target run
+the build of the server the client plays on, the account enters the target in the page with the
+ticket the end of its session carries ([travel in the page](accounts-and-persistence.md#travel-in-the-page)).
+Otherwise, and whenever that fails, the client opens the launch bridge of the target world: the
+bridge asks for a ticket, and the engine issues one only while a server of that world takes
+sessions. Either way the target server acquires the same universe profile with a new epoch and
+loads the state of the target world.
+
+A transition never doubles value. The epoch fences every write of the profile in every world: once
+the target world acquires it, the engine refuses each later commit and position of the world the
+player left (`stale_session`). One account holds one lease, so two servers never write one
+profile. A transition that fails leaves the last saved state, and the player launches again.
+
+---
+
+## Content across worlds
+
+Each world warms the content it names at boot. A player brings items from another world of the
+universe; at placement the game server resolves each label its world does not hold through the
+engine data service. See [the game server](game-server.md#content-a-player-brings).
+
+The universe view of the client reads the universe of its world in one small request, and reads it
+again every 20 seconds while the view is open. It loads the picture of a world only when its card
+shows, and never loads the content of another world.
+
+### World pictures
+
+There are three pictures, one per level:
+
+| Picture       | Shows                                                                  | Source                                                                             |
+| ------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Map preview   | One map: the stills of its entities on its grid                        | `CyberiaMap.preview`, drawn by `map-preview-generator.js` or the Studio map editor |
+| World preview | One world: its maps at their places or layout cells, and their portals | `CyberiaInstance.preview`, drawn by `world-preview.js`                             |
+| Universe view | The worlds of a universe, their routes and their state                 | The client and Studio draw it, each world by its world preview                     |
+
+Each member of the universe view carries `previewUrl`, its world preview:
+`GET /api/v1/cyberia-instance/instance-map/:instanceCode/world-preview`. A member whose author set a
+thumbnail in the Studio instance editor also carries `thumbnailUrl`. The thumbnail is the picture of
+the world card in the portal world list and of the selected-world panel, in game and in Studio; the
+graph node shows the preview. A world with no thumbnail shows no picture in its panel, never the
+preview twice.
+
+The world preview draws each map in its layout cell at the real proportions of its grid
+(`mapNodeExtents` in `SharedDefaultsCyberia.js`): one scale holds for every map of the world, the
+longest map side takes 88 % of a cell, and a map sits at the centre of its cell. The empty rows and
+columns of the layout are dropped, as in the in-game views. A map with a world origin sits at its
+place instead, with no frame, so maps that share an edge meet; the maps on layout cells sit right of
+the placed maps. The map preview is
+contained in that rectangle, never stretched; a map with no picture yet is drawn once and stored
+first, and a map that shows nothing is a plain frame of its real shape. The portals between maps of
+the world are lines from cell to cell; a random end ends at the centre of its map; a portal inside
+one map has its own colour. The longest side stays within 768 px however wide the layout is. The
+static payload of the client gives each map node the same size (`w`, `h`), so the in-game WORLD
+view and the picture show one geometry.
+
+The world stores the preview as a File (`preview`) with `previewKey`: a hash of the generator
+version, the world code, every map with its grid, world origin, picture and cell, and every portal. A request
+serves the stored File while its key is the key of the world now, with that key as `ETag`; else it
+draws the world once, stores it, and the File it replaced goes once nothing names it. A changed map
+set, grid, picture, cell or portal, or a new generator, so draws a new preview, and a stale one is
+never served. `cyberia ol --sync` and every other `ol` write draw the map previews of the written
+labels, then bring the world previews of those maps in line. `instance --export` carries the
+preview as `files/preview-instance-<code>.json`, and a drop takes it with the world. A world with
+no map answers `404`. The in-game map, the Studio instance and universe editors show the same
+picture, contained in its card; while it loads, or when there is none, the in-game map draws a
+dotted tile with the initials of the world.
+
+---
+
+## Tests
+
+| Test                                                  | What it proves                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `test/cyberia/unit/graph-layout.test.js`              | Default cells, validation, and a layout that never moves a portal                          |
+| `test/cyberia/unit/world-preview.test.js`             | Real map proportions, joined placed maps, card sizes, the stored preview and its key, 404s |
+| `test/cyberia/unit/universe-topology.test.js`         | Member codes, cells and links of a universe                                                |
+| `test/cyberia/integration/universe-registry.test.js`  | Revision guard, membership, the view with availability, instance cells                     |
+| `test/cyberia/integration/player-persistence.test.js` | One profile across worlds, per-world state, refused late writes                            |
+| `cyberia-client/tests/universe_map_data_test.c`       | The universe view data, its preview and thumbnail, and the travel rules                    |
+| `cyberia-client/tests/graph_layout_test.c`            | Packed rows and columns keep the cell order and never overlap                              |
+| `cyberia-client/tests/instance_map_geometry_test.c`   | Card proportions, the minimap fit, exit directions, shared edges of placed maps, labels    |
+
+## Selection and freshness
+
+Studio shows the selected world description, thumbnail, map codes, routes, and registered endpoints.
+Content availability and runtime availability are separate facts.
+A failed refresh keeps the draft and marks runtime availability as unknown.
+Late responses cannot replace a newer universe selection. Closing the editor releases its graph and query listeners.
+
+The in-game universe keeps selection by world code when a response changes node order.
+It refreshes availability every 20 seconds. A failed refresh disables travel until a successful response.
+Data older than two refresh intervals also disables travel.
+The server still validates each travel request.
+
+The in-game WORLD and UNIVERSE views drop the empty rows and columns of the layout. A column is as
+wide as its widest node and a row as tall as its tallest, in the order of the cells. The maps of a
+world nearly touch, so they read as one continuous world; the worlds of a universe keep room for
+their routes. The read-only Studio graph drops empty rows and columns the same way. The authored
+cells never change.
+
+The in-game views show the arrangement of the editor: they never turn it and never join its rows or
+columns. The camera fits the whole graph on the screen. A world card has the proportions of its
+world preview, so a wide world takes a short row. Maps with a world origin keep their places, and
+the other maps sit on their layout cells beside them.
+
+The minimap shows the current map only: its map preview fitted to the minimap, with live markers
+over it. At zoom 1 the whole map fits; a closer zoom follows the player and stops at the map edges.
+Each portal of the map shows where it stands, as a gate. An exit points to the map it leads to and
+carries a tag with its name; a link inside the map has a ring. A toggle above the zoom controls
+hides the map preview; the markers stay. No other map, and no marker of another map, is drawn.
+
+Layout coordinates never define traversal. Authored graph edges remain authoritative.
+Default placement uses code order, so a response order change cannot move unchanged nodes.
+
+Registry list responses contain at most 1,000 rows. Universe member queries filter by their instance codes.
+Expired leases count as unavailable, even before TTL cleanup removes their records.

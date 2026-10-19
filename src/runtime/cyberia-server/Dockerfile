@@ -54,4 +54,4 @@ ENV CYBERIA_DATA_SERVER_URL=http://engine-cyberia
 ENV CYBERIA_DATA_SERVER_GRPC=engine-cyberia-runtime:50051
 ENV CYBERIA_PUBLIC_URL=
 
-CMD ["sh", "-c", "exec /home/dd/engine/cyberia-server/server --data-server-url=${CYBERIA_DATA_SERVER_URL} --data-server-grpc=${CYBERIA_DATA_SERVER_GRPC} --game-server-public-url=${CYBERIA_PUBLIC_URL}"]
+CMD ["sh", "-c", "exec /home/dd/engine/cyberia-server/server --data-server-url=${CYBERIA_DATA_SERVER_URL} --data-server-grpc=${CYBERIA_DATA_SERVER_GRPC}"]
