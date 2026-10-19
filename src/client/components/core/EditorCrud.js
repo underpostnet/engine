@@ -145,9 +145,10 @@ class EditorCrud {
    * @returns {{refresh: () => void}}
    */
   static bind(root, state) {
-    new ResizeObserver(() =>
-      root.parentElement.style.setProperty('--editor-crud-height', `${root.offsetHeight}px`),
-    ).observe(root);
+    const resize = new ResizeObserver(() =>
+      root.parentElement?.style.setProperty('--editor-crud-height', `${root.offsetHeight}px`),
+    );
+    resize.observe(root);
     const status = root.querySelector('.editor-crud-status');
     const buttons = [...root.querySelectorAll('[data-crud]')].map((button) => ({
       button,
@@ -179,7 +180,13 @@ class EditorCrud {
         }
       };
     refresh();
-    return { refresh };
+    return {
+      refresh,
+      destroy: () => {
+        resize.disconnect();
+        for (const { button } of buttons) button.onclick = null;
+      },
+    };
   }
 
   /** Asks the author `question`. Resolves to true on a confirmation. */

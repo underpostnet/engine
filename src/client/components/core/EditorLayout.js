@@ -161,6 +161,9 @@ class EditorLayout {
     };
     apply();
     ThemeEvents[key] = apply;
+    return () => {
+      if (ThemeEvents[key] === apply) delete ThemeEvents[key];
+    };
   }
 }
 

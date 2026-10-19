@@ -54,11 +54,12 @@ class ListPager {
     if (!pager) return;
     const read = ++pager.read;
     const result = await pager.fetch({ page, limit: pager.limit });
-    if (!result || read !== pager.read) return;
+    if (!result || ListPager.Tokens[id] !== pager || read !== pager.read) return;
     const pages = Math.max(1, Math.ceil(result.total / pager.limit));
     if (page > pages) return ListPager.load(id, pages);
     pager.page = page;
     await pager.render(result.data);
+    if (ListPager.Tokens[id] !== pager || read !== pager.read) return;
     htmls(`.list-pager-${id}-info`, `${page} / ${pages} (${result.total}${pager.unit ? ` ${pager.unit}` : ''})`);
     for (const [action, step, off] of [
       ['prev', -1, page <= 1],
@@ -71,6 +72,10 @@ class ListPager {
       button.style.cursor = off ? 'not-allowed' : '';
       button.onclick = () => ListPager.load(id, page + step);
     }
+  }
+
+  static dispose(id, pager) {
+    if (ListPager.Tokens[id] === pager) delete ListPager.Tokens[id];
   }
 
   /** Reads a list again from its first page each time the text of `input` changes and the typing pauses. */
