@@ -338,9 +338,9 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
           build: '',
           previewUrl: expect.stringMatching(/\/cyberia-instance\/instance-map\/root\/world-preview$/),
           thumbnailUrl: expect.stringMatching(new RegExp(`/file/blob/${thumbnail}$`)),
-          // Two wide maps side by side: the card is twice as wide as it is tall.
+          // Two wide maps side by side, inside their outline: the card is about four times as wide as it is tall.
           w: 1,
-          h: 0.5,
+          h: expect.closeTo(132 / 516, 6),
         }),
         expect.objectContaining({
           instanceCode: 'test',

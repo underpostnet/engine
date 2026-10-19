@@ -80,12 +80,13 @@ const pixelAt = async (png, x, y) => {
 };
 const FRAME = [18, 28, 48];
 const BACKGROUND = [7, 11, 20];
+const OUTLINE = [36, 81, 101];
 const wide = { code: 'wide', gridX: 32, gridY: 16 };
 const tall = { code: 'tall', gridX: 16, gridY: 32 };
 const center = (rect) => [rect.left + rect.width / 2, rect.top + rect.height / 2];
 
 describe('world preview geometry', () => {
-  it('gives every map the proportions of its grid at one scale, centred in its cell', () => {
+  it('keeps map proportions at one scale and joins maps of different sizes on neighbour cells', () => {
     const { width, height, rects } = worldPreviewGeometry(
       [wide, tall],
       [
@@ -93,13 +94,13 @@ describe('world preview geometry', () => {
         { x: 1, y: 0 },
       ],
     );
-    expect(width).toBe(2 * height);
+    expect(width).toBeLessThan(2 * height);
     expect(rects[0].width / rects[0].height).toBeCloseTo(2, 1);
     expect(rects[1].height / rects[1].width).toBeCloseTo(2, 1);
     expect(rects[0].width).toBe(rects[1].height);
-    const near = ([x, y], [ex, ey]) => Math.abs(x - ex) <= 0.5 && Math.abs(y - ey) <= 0.5;
-    expect(near(center(rects[0]), [height / 2, height / 2])).toBe(true);
-    expect(near(center(rects[1]), [height * 1.5, height / 2])).toBe(true);
+    expect(rects[0].left + rects[0].width).toBe(rects[1].left);
+    expect(rects[0].top).toBe(rects[1].top);
+    expect(rects[0].joinedTo).toEqual([1]);
   });
 
   it('joins maps whose places share an edge, and sets the other maps beside them', () => {
@@ -122,30 +123,38 @@ describe('world preview geometry', () => {
     expect(c.top + c.height).toBeLessThanOrEqual(height);
   });
 
-  it('drops the empty rows and columns of the layout, as the in-game views do', () => {
+  it('keeps one gap for a run of empty rows and columns of the layout', () => {
     const square = (code) => ({ code, gridX: 16, gridY: 16 });
-    const sparse = worldPreviewGeometry(
-      [square('a'), square('b')],
-      [
+    const geometry = (cells) => worldPreviewGeometry([square('a'), square('b')], cells);
+    const sparse = geometry([
+      { x: 0, y: 0 },
+      { x: 3, y: 2 },
+    ]);
+    expect(sparse).toEqual(
+      geometry([
         { x: 0, y: 0 },
-        { x: 3, y: 2 },
-      ],
+        { x: 2, y: 2 },
+      ]),
     );
-    const dense = worldPreviewGeometry(
-      [square('a'), square('b')],
-      [
-        { x: 0, y: 0 },
-        { x: 1, y: 1 },
-      ],
-    );
-    expect(sparse).toEqual(dense);
-    expect(sparse.width).toBe(sparse.height);
+    const [a, b] = sparse.rects;
+    expect(b.left - a.left - a.width).toBe(a.width);
+    expect(b.top - a.top - a.height).toBe(a.height);
+    expect(a.joinedTo).toEqual([]);
   });
 
   it('gives a world card the proportions of its preview', () => {
     const instance = { cyberiaMapCodes: ['wide', 'tall', 'gone'] };
-    expect(worldPreviewSize(instance, [tall, wide])).toEqual({ w: 1, h: 0.5 });
-    expect(worldPreviewSize({ cyberiaMapCodes: ['wide'] }, [wide])).toEqual({ w: 1, h: 1 });
+    const geometry = worldPreviewGeometry(
+      [wide, tall],
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+    );
+    expect(worldPreviewSize(instance, [tall, wide])).toEqual({ w: 1, h: geometry.height / geometry.width });
+    const wideSize = worldPreviewSize({ cyberiaMapCodes: ['wide'] }, [wide]);
+    expect(wideSize.w).toBe(1);
+    expect(wideSize.h).toBeCloseTo(0.5, 1);
     expect(worldPreviewSize({ cyberiaMapCodes: [] }, [])).toEqual({ w: 1, h: 1 });
     const row = { ...wide, worldX: 0, worldY: 0 };
     const placedSize = worldPreviewSize({ cyberiaMapCodes: ['wide'] }, [row]);
@@ -153,13 +162,31 @@ describe('world preview geometry', () => {
     expect(placedSize.h).toBeCloseTo(0.5, 1);
   });
 
-  it('keeps every preview inside the longest side, however wide the layout', () => {
+  it('keeps every preview inside the longest side, at most the scale of a map preview', () => {
     const maps = Array.from({ length: 40 }, (_, i) => ({ code: `m${i}`, gridX: 16, gridY: 16 }));
     const { width } = worldPreviewGeometry(
       maps,
       maps.map((_, x) => ({ x, y: 0 })),
     );
     expect(width).toBeLessThanOrEqual(768);
+    const [single] = worldPreviewGeometry([maps[0]], [{ x: 0, y: 0 }]).rects;
+    expect(single.width).toBe(16 * 8);
+  });
+
+  it('keeps subpixel maps inside the preview at distant world origins', () => {
+    const maps = [
+      { code: 'a', gridX: 16, gridY: 16, worldX: -1000000, worldY: 0 },
+      { code: 'b', gridX: 16, gridY: 16, worldX: 1000000, worldY: 0 },
+    ];
+    const { width, height, rects } = worldPreviewGeometry(maps, [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ]);
+    expect(width).toBeLessThanOrEqual(768);
+    for (const rect of rects) {
+      expect(rect.left + rect.width).toBeLessThanOrEqual(width);
+      expect(rect.top + rect.height).toBeLessThanOrEqual(height);
+    }
   });
 });
 
@@ -169,7 +196,57 @@ describe('world preview drawing', () => {
     { x: 1, y: 0 },
   ];
 
-  it('contains each picture in its map, a frame where a map shows nothing, and draws the portals between maps', async () => {
+  it.each([
+    [16, 16],
+    [32, 16],
+    [16, 32],
+  ])('draws adjacent %sx%s maps without seams or portal lines', async (gridX, gridY) => {
+    const maps = [
+      { code: 'a', gridX, gridY },
+      { code: 'b', gridX, gridY },
+    ];
+    const pictures = [await square('#ff0000', gridX, gridY), await square('#00ff00', gridX, gridY)];
+    const png = await composeWorldPreview({
+      maps,
+      cells,
+      pictures,
+      portals: [
+        { sourceMapCode: 'a', targetMapCode: 'b', sourceCellX: 8, sourceCellY: 8, targetCellX: 8, targetCellY: 8 },
+      ],
+    });
+    const [a, b] = worldPreviewGeometry(maps, cells).rects;
+    expect(a.left + a.width).toBe(b.left);
+    for (const y of [4, Math.floor(a.height / 2), a.height - 5]) {
+      expect(await pixelAt(png, b.left - 1, y)).toEqual([255, 0, 0]);
+      expect(await pixelAt(png, b.left, y)).toEqual([0, 255, 0]);
+    }
+  });
+
+  it('keeps a visible gap when the layout has an empty cell', async () => {
+    const maps = [
+      { code: 'a', gridX: 16, gridY: 16 },
+      { code: 'b', gridX: 16, gridY: 16 },
+    ];
+    const sparse = [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+    ];
+    const png = await composeWorldPreview({
+      maps,
+      cells: sparse,
+      portals: [],
+      pictures: [await square('#ff0000'), await square('#00ff00')],
+    });
+    const [a, b] = worldPreviewGeometry(maps, sparse).rects;
+    expect(b.left).toBeGreaterThan(a.left + a.width);
+    expect(await pixelAt(png, (a.left + a.width + b.left) / 2, a.height / 2)).toEqual(BACKGROUND);
+  });
+
+  it('contains each picture in its map, a frame where a map shows nothing, and draws the portals between maps apart', async () => {
+    const apart = [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+    ];
     const portals = [
       {
         sourceMapCode: 'wide',
@@ -190,18 +267,47 @@ describe('world preview drawing', () => {
     ];
     const png = await composeWorldPreview({
       maps: [wide, tall],
-      cells,
+      cells: apart,
       portals,
       pictures: [await square('#ff0000', 64, 32), null],
     });
-    const { rects } = worldPreviewGeometry([wide, tall], cells);
+    const { rects } = worldPreviewGeometry([wide, tall], apart);
     expect(await pixelAt(png, rects[0].left + 4, rects[0].top + 4)).toEqual([255, 0, 0]);
     expect(await pixelAt(png, rects[1].left + 4, rects[1].top + rects[1].height - 6)).toEqual(FRAME);
-    const [, y] = center(rects[0]);
-    const between = await pixelAt(png, (rects[0].left + rects[0].width + rects[1].left) / 2, y);
+    const [ax, ay] = center(rects[0]),
+      [bx, by] = center(rects[1]);
+    const x = (rects[0].left + rects[0].width + rects[1].left) / 2;
+    const between = await pixelAt(png, x, ay + ((by - ay) * (x - ax)) / (bx - ax));
     expect(between[2]).toBeGreaterThan(100);
     expect(between[0]).toBeLessThan(100);
-    expect(await pixelAt(png, 2, 2)).toEqual(BACKGROUND);
+    expect(await pixelAt(png, rects[0].left + 2, rects[0].top + rects[0].height + 6)).toEqual(BACKGROUND);
+  });
+
+  it('draws one outline around maps that touch, and no portal line across their edge', async () => {
+    const maps = [
+      { code: 'a', gridX: 16, gridY: 16 },
+      { code: 'b', gridX: 32, gridY: 8 },
+    ];
+    const stacked = [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+    ];
+    const png = await composeWorldPreview({
+      maps,
+      cells: stacked,
+      portals: [
+        { sourceMapCode: 'a', targetMapCode: 'b', sourceCellX: 8, sourceCellY: 8, targetCellX: 8, targetCellY: 4 },
+      ],
+      pictures: [await square('#ff0000'), await square('#00ff00', 32, 8)],
+    });
+    const [a, b] = worldPreviewGeometry(maps, stacked).rects;
+    expect(a.top + a.height).toBe(b.top);
+    expect(await pixelAt(png, a.left + 4, b.top - 1)).toEqual([255, 0, 0]);
+    expect(await pixelAt(png, a.left + 4, b.top)).toEqual([0, 255, 0]);
+    expect(await pixelAt(png, a.left + a.width / 2, b.top - 2)).toEqual([255, 0, 0]);
+    expect(await pixelAt(png, a.left + a.width + 4, b.top - 1)).toEqual(OUTLINE);
+    expect(await pixelAt(png, a.left + a.width + 6, b.top - 6)).toEqual(BACKGROUND);
+    expect(await pixelAt(png, a.left - 1, a.top + 4)).toEqual(OUTLINE);
   });
 
   it('never stretches a picture: one of another shape sits centred in its map', async () => {

@@ -120,18 +120,20 @@ the world card in the portal world list and of the selected-world panel, in game
 graph node shows the preview. A world with no thumbnail shows no picture in its panel, never the
 preview twice.
 
-The world preview draws each map in its layout cell at the real proportions of its grid
-(`mapNodeExtents` in `SharedDefaultsCyberia.js`): one scale holds for every map of the world, the
-longest map side takes 88 % of a cell, and a map sits at the centre of its cell. The empty rows and
-columns of the layout are dropped, as in the in-game views. A map with a world origin sits at its
-place instead, with no frame, so maps that share an edge meet; the maps on layout cells sit right of
-the placed maps. The map preview is
-contained in that rectangle, never stretched; a map with no picture yet is drawn once and stored
-first, and a map that shows nothing is a plain frame of its real shape. The portals between maps of
-the world are lines from cell to cell; a random end ends at the centre of its map; a portal inside
-one map has its own colour. The longest side stays within 768 px however wide the layout is. The
-static payload of the client gives each map node the same size (`w`, `h`), so the in-game WORLD
-view and the picture show one geometry.
+The world preview and the client share the geometry of `src/projects/cyberia/instance/instance-map-layout.js`.
+It works in map cells. Each map keeps the size of its grid.
+A map with a world origin takes its place in the world. The other maps keep the arrangement of their layout cells, right of the placed maps.
+A column starts where the maps of the column before it end, and a row starts where the maps above it end.
+So maps on neighbour cells touch, whatever their sizes.
+A run of empty columns or rows between two maps leaves one gap: as wide as the narrowest map, or as tall as the shortest.
+Two maps join when they share an edge of positive length. A corner or an overlap is not a shared edge.
+The static payload sends each map centre (`position`) and size (`w`, `h`) in layout units: the longest map side of the world is 1.
+Matching images fill their maps. Images with other proportions stay centred within their maps.
+The preview draws missing pictures first and stores them. Empty maps show a plain frame.
+One outline goes around maps that touch. A shared edge has no border.
+Portals between maps that do not touch draw cell-to-cell lines.
+A random portal end uses the map centre. A portal inside one map has its own colour.
+A preview takes at most 8 pixels per map cell, the scale of a map preview, and its longest side stays within 768 pixels.
 
 The world stores the preview as a File (`preview`) with `previewKey`: a hash of the generator
 version, the world code, every map with its grid, world origin, picture and cell, and every portal. A request
@@ -152,13 +154,15 @@ dotted tile with the initials of the world.
 | Test                                                  | What it proves                                                                             |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `test/cyberia/unit/graph-layout.test.js`              | Default cells, validation, and a layout that never moves a portal                          |
-| `test/cyberia/unit/world-preview.test.js`             | Real map proportions, joined placed maps, card sizes, the stored preview and its key, 404s |
+| `test/cyberia/unit/instance-map-layout.test.js`       | Maps of any size join on neighbour cells; gaps, corners, overlaps, islands; the authored `test` and `amethyst-strata-expansion` layouts; shared preview positions |
+| `test/cyberia/unit/world-preview.test.js`             | Real map proportions, one outline around maps that touch, card sizes, the stored preview and its key, 404s |
 | `test/cyberia/unit/universe-topology.test.js`         | Member codes, cells and links of a universe                                                |
 | `test/cyberia/integration/universe-registry.test.js`  | Revision guard, membership, the view with availability, instance cells                     |
 | `test/cyberia/integration/player-persistence.test.js` | One profile across worlds, per-world state, refused late writes                            |
 | `cyberia-client/tests/universe_map_data_test.c`       | The universe view data, its preview and thumbnail, and the travel rules                    |
-| `cyberia-client/tests/graph_layout_test.c`            | Packed rows and columns keep the cell order and never overlap                              |
-| `cyberia-client/tests/instance_map_geometry_test.c`   | Card proportions, the minimap fit, exit directions, shared edges of placed maps, labels    |
+| `cyberia-client/tests/graph_layout_test.c`            | Packed rows and columns keep the cell order and never overlap; a run of empty lines leaves one gap |
+| `cyberia-client/tests/instance_map_geometry_test.c`   | Shared edges of any size within the tolerance, corners, gaps and overlaps; the `test` and `amethyst-strata-expansion` payloads; the minimap fit, exit directions, labels |
+| `cyberia-client/tests/modal_instance_map_test.c`      | No seam and separate click areas at any zoom, pan and panel size; links across a shared edge; image fitting; centred name plates |
 
 ## Selection and freshness
 
@@ -172,16 +176,16 @@ It refreshes availability every 20 seconds. A failed refresh disables travel unt
 Data older than two refresh intervals also disables travel.
 The server still validates each travel request.
 
-The in-game WORLD and UNIVERSE views drop the empty rows and columns of the layout. A column is as
-wide as its widest node and a row as tall as its tallest, in the order of the cells. The maps of a
-world nearly touch, so they read as one continuous world; the worlds of a universe keep room for
-their routes. The read-only Studio graph drops empty rows and columns the same way. The authored
-cells never change.
+The in-game WORLD view shows the maps at the geometry of the world preview: maps on neighbour cells
+form one surface, and a run of empty columns or rows stays as one gap. The UNIVERSE view packs the
+world cards: a column is as wide as its widest card and a row as tall as its tallest, in the order of
+the cells, with room for the routes. A run of empty columns or rows leaves the room of the smallest
+card. The read-only Studio graph drops empty rows and columns. The authored cells never change.
 
-The in-game views show the arrangement of the editor: they never turn it and never join its rows or
+The in-game views show the arrangement of the editor: they never turn it and never merge its rows or
 columns. The camera fits the whole graph on the screen. A world card has the proportions of its
-world preview, so a wide world takes a short row. Maps with a world origin keep their places, and
-the other maps sit on their layout cells beside them.
+world preview, so a wide world takes a short row. The universe layout gives cells, not sizes: each
+card fits one cell, so the cards do not compare the sizes of their worlds.
 
 The minimap shows the current map only: its map preview fitted to the minimap, with live markers
 over it. At zoom 1 the whole map fits; a closer zoom follows the player and stops at the map edges.

@@ -275,9 +275,26 @@ All requests are CORS-simple GETs (no preflight) and cacheable. None require cre
 
 ## Instance Map
 
-The Instance Map is a strategic overlay, not a minimap. It has two views. **WORLD** shows the maps of this instance as map cards on the cells of its authored layout, with animated portal edges. A map card has the proportions of its map: the static payload gives each node its size in its cell (`w`, `h`, in cells), one scale for every map of the world, so the longest map side takes 88 % of a cell and a map sits at the centre of its cell. The cards keep these proportions at every zoom. The view drops the empty rows and columns of the layout, so the maps nearly touch and read as one continuous world ([graph views](universe.md#selection-and-freshness)). A card has no frame: the map picture is the card. A name strip spans its card and cuts a long name with an ellipsis. Two maps of one name add their codes. Every picture is contained in its card at its own aspect ratio, centred and never stretched.
+The Instance Map has two views. **WORLD** shows the maps of this instance and their portal links.
+The engine places the maps in `src/projects/cyberia/instance/instance-map-layout.js`, the geometry of the [world preview](universe.md#world-pictures).
+The static payload gives each node its centre (`position`) and size (`w`, `h`), in layout units: the longest map side of the world is 1.
+The client requires `position`; deploy the engine update before the client update.
+Every map uses the same scale and keeps its grid proportions.
 
-A map with a world origin sits at its place in its world, at the same scale ([map registry](map-registry.md#ownership)). Two placed maps share an edge when their places meet along the whole edge: the same length, side by side. Their cards meet on whole pixels, with no gap, no line, no name strip and no portal edge between them; a placed map shows its name as a tag inside its card. The hover and selection marks, and the ring of the current map, draw only on the open sides. Maps without a world origin sit on their layout cells beside the placed maps.
+Maps on neighbour layout cells touch, whatever their sizes. A run of empty cells stays as one gap.
+A map with a [world origin](map-registry.md#ownership) keeps its physical place.
+The client gives each map its bounds once per static payload. Edges closer than 1/100 of a map cell take one value, so maps that touch meet on one pixel at every zoom.
+Two maps join when they share an edge of positive length. A corner or an overlap does not join.
+Maps that join form one surface: one rim goes around it, and a shared edge has no gap or border.
+A portal link across a shared edge shows only while one of its maps is selected. A link between maps apart always shows.
+Each map keeps its own click area. The right and bottom edges belong to the next map when maps meet.
+The own map, the selected map and the hovered map take their marks inside their bounds, so a mark never opens a gap.
+The view opens with the whole world as large as the frame allows, until one map cell spans 8 px.
+
+A name plate sits at the centre of each map and each world card. It is blue, so it stands out from the markers, and gold on the selected node.
+Its text size follows the card, from 10 to 20 px. A long name takes a smaller text first, then ends with an ellipsis.
+Maps with the same name include their codes. A plate hides when the card is too small to hold it.
+Matching preview images fill their map bounds. Images with different proportions stay centred within the map.
 
 **UNIVERSE** shows the worlds of its [universe](universe.md) on their cells, the routes between them, and what serves each world now. A world card has the proportions of its world preview (`w`, `h` of the view). Both views are for navigation and planning; neither reproduces the gameplay viewport.
 
@@ -295,7 +312,7 @@ Strict independence from the gameplay renderer:
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Graph data | `data/instance_map_data` and `data/universe_map_data` — engine-cyberia REST only, never the AOI stream                                                   |
 | Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)                                                                    |
-| Layout     | the authored cells the engine resolves, without their empty rows and columns; the view never turns or joins them                                         |
+| Layout     | WORLD: the map geometry of the engine; UNIVERSE: the world cards packed on their cells; a view never turns the authored arrangement                      |
 | Selection  | tap a node → contextual panel: a map's providers and portals, or a world's thumbnail, status, route and TRAVEL; the camera moves a node its panel covers |
 
 Data lifecycle:

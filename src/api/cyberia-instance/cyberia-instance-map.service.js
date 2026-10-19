@@ -4,16 +4,13 @@ import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { refreshMapPreview } from '../../projects/cyberia/instance/map-preview-generator.js';
 import { worldPreview } from '../../projects/cyberia/instance/world-preview.js';
+import { instanceMapLayout } from '../../projects/cyberia/instance/instance-map-layout.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/catalog/object-layer-catalog.js';
 import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
-import {
-  mapNodeExtents,
-  mapWorldCenter,
-  resolveGraphLayout,
-} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { resolveGraphLayout } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -58,7 +55,6 @@ const entityPresenceStatus = (entity, objectLayerMetadata, behavior) => {
       return '';
   }
 };
-
 
 const mergeEntityDefaults = (entityDefaults = []) => {
   const merged = entityDefaults.map((entityDefault) => ({
@@ -232,17 +228,18 @@ const buildStaticPayload = ({
     instance.mapLayout || [],
     'mapCode',
   );
-  const extents = mapNodeExtents(ordered);
+  const { nodes: positions } = instanceMapLayout(ordered, layout);
   const nodes = ordered.map((m, i) => ({
     mapCode: m.code,
     name: m.name || m.code,
     x: layout[i].x,
     y: layout[i].y,
-    // The size of the map in its cell, in cells: one scale for every map of the world.
-    w: extents[i].w,
-    h: extents[i].h,
-    // The centre of a map with a world origin, in cells at the scale of `w`, `h`; null without one.
-    world: mapWorldCenter(m, extents[i]),
+    // The size of the map: one scale for every map of the world, its longest map side 1.
+    w: positions[i].w,
+    h: positions[i].h,
+    // The centre of a map with a world origin, at the scale of `w`, `h`; null without one.
+    world: positions[i].world,
+    position: { x: positions[i].x, y: positions[i].y },
     gridX: m.gridX,
     gridY: m.gridY,
     // File id of the map's auto-captured Object Layer render (persisted maps).

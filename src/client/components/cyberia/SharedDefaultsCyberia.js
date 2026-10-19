@@ -176,22 +176,6 @@ export const graphLayoutDefect = (codes, cells, key) => {
   return '';
 };
 
-/** The share of a layout cell the longest map side of an instance takes; the rest is the gap between maps. */
-export const MAP_NODE_FILL = 0.88;
-
-/**
- * The size of each map of an instance in its layout cell, in cells. One scale holds for every map,
- * so the grid of a map sets its proportions, and the longest map side of the instance takes
- * MAP_NODE_FILL of a cell. A map sits at the centre of its cell.
- * @param {Array<{gridX?: number, gridY?: number}>} maps
- * @returns {{w: number, h: number}[]}
- */
-export const mapNodeExtents = (maps) => {
-  const longest = Math.max(1, ...maps.flatMap(({ gridX = 0, gridY = 0 }) => [gridX, gridY]));
-  const side = (cells) => (MAP_NODE_FILL * (cells > 0 ? cells : longest)) / longest;
-  return maps.map(({ gridX = 0, gridY = 0 }) => ({ w: side(gridX), h: side(gridY) }));
-};
-
 /** The largest distance of a map world origin from 0, in map cells. */
 export const MAP_WORLD_LIMIT = 1_000_000;
 
@@ -237,18 +221,6 @@ export const worldPlacementDefects = (maps) => {
         defects.push(`Maps ${a.code} and ${b.code} overlap in their world`);
   return defects;
 };
-
-/**
- * The centre of a placed map in layout cells, at the scale of its {@link mapNodeExtents} size, or
- * null for a map without a world origin.
- * @param {{worldX?: number|null, worldY?: number|null, gridX: number, gridY: number}} map
- * @param {{w: number, h: number}} extent
- * @returns {{x: number, y: number}|null}
- */
-export const mapWorldCenter = (map, { w, h }) =>
-  hasWorldOrigin(map)
-    ? { x: ((map.worldX + map.gridX / 2) * w) / map.gridX, y: ((map.worldY + map.gridY / 2) * h) / map.gridY }
-    : null;
 
 /** Prefix of an item's dialogue code: its flavor text, and an NPC's greeting when the item is its skin. */
 export const ITEM_DIALOGUE_PREFIX = 'default-';

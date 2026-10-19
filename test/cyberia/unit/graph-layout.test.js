@@ -5,11 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   LAYOUT_CELL_LIMIT,
-  MAP_NODE_FILL,
   graphLayoutDefect,
-  mapNodeExtents,
   mapSpatialDefect,
-  mapWorldCenter,
   resolveGraphLayout,
 } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { buildStaticPayload } from '../../../src/api/cyberia-instance/cyberia-instance-map.service.js';
@@ -119,11 +116,10 @@ describe('the instance map payload', () => {
       ],
     });
     expect(payload.nodes.map(({ mapCode, w, h }) => [mapCode, w, h])).toEqual([
-      ['m1', MAP_NODE_FILL, MAP_NODE_FILL / 2],
-      ['m2', MAP_NODE_FILL, MAP_NODE_FILL],
-      ['m3', MAP_NODE_FILL / 2, MAP_NODE_FILL],
+      ['m1', 1, 0.5],
+      ['m2', 1, 1],
+      ['m3', 0.5, 1],
     ]);
-    expect(mapNodeExtents([])).toEqual([]);
   });
 
   it('places a map with a world origin at its centre there, at the scale of its size', () => {
@@ -141,7 +137,6 @@ describe('the instance map payload', () => {
     expect(m3.world.x - m1.world.x).toBeCloseTo(m1.w);
     expect(m3.world.y).toBeCloseTo(m1.world.y);
     expect(m2.world).toBeNull();
-    expect(mapWorldCenter({ gridX: 8, gridY: 8, worldX: null, worldY: 4 }, { w: 1, h: 1 })).toBeNull();
   });
 
   it('takes a world origin of two integer cells, or none', () => {

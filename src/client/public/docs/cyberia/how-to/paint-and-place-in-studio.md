@@ -51,16 +51,17 @@ Layer editors. The bar names the document the form holds, or shows **New** and t
 stays in view while the tools scroll. In the action editor, the bar acts on the document of the
 open tab. The **Saga integration** tab has no bar.
 
-| button     | action                                                                                        |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| **New**    | Clears the form for a new document.                                                           |
-| **Save**   | Stores the form: it updates the loaded document, or creates a new one.                        |
-| **Clone**  | Stores the form as a new document. A map, quest or action copy takes the code `<code>-clone`. |
-| **Reset**  | Discards the unsaved changes: the form shows the stored document again.                       |
-| **Delete** | Removes the loaded document.                                                                  |
+| button     | action                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------- |
+| **New**    | Clears the form for a new document.                                                    |
+| **Save**   | Stores the form: it updates the loaded document, or creates a new one.                 |
+| **Clone**  | Stores the form as a new document with the entered code. An existing code is rejected. |
+| **Reset**  | Discards the unsaved changes: the form shows the stored document again.                |
+| **Delete** | Removes the loaded document.                                                           |
 
 New, Reset and Delete ask first. Clone, Reset and Delete need a loaded document. Save, Clone and
 Delete need a moderator; a log-in or a log-out renders the open editors again for the new role.
+For a map, quest or action clone, enter a code that does not exist before you select Clone.
 The table under an editor pages on its own: the loaded document stays loaded on any page. An
 editor shows only the buttons it has: the instance editor has no Clone and no Delete, dialogue
 lines and skills have no Clone, and the Object Layer editor has no Delete (the viewer removes an

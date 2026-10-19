@@ -1157,9 +1157,8 @@ class MapEngineCyberia {
       const source = { ...getMapPayload(), worldX: null, worldY: null };
       if (cloneThumbnailId) source.thumbnail = cloneThumbnailId;
       if (clonePreviewId) source.preview = clonePreviewId;
-      const { result, body } = await EditorCrud.clone(CyberiaMapService, source, 'code');
+      const { result, body } = await EditorCrud.clone(CyberiaMapService, source);
       if (result.status === 'success') {
-        if (s(`.${idCode}`)) s(`.${idCode}`).value = body.code;
         if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = '';
         if (s(`.${idWorldY}`)) s(`.${idWorldY}`).value = '';
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
