@@ -687,15 +687,12 @@ class ActionEngineCyberia {
     return status === 'success' ? data : null;
   }
 
-  // The document each tab edits: its service, how its form reads, checks, clears and loads, and what
-  // a change refreshes. A kind with a `cloneKey` offers Clone under a fresh value of that field. `field`
-  // holds the code the sagas, the saga report and the search box name it by, `sagas` is the bucket of
-  // the saga sources and `render` shows a page of its list.
+  // Each tab defines its document service, form operations, search field and clone support.
   static KINDS = {
     quest: {
       subject: 'quest',
       service: CyberiaQuestService,
-      cloneKey: 'code',
+      canClone: true,
       name: (doc) => doc.code,
       field: 'code',
       sagas: 'quests',
@@ -709,7 +706,7 @@ class ActionEngineCyberia {
     action: {
       subject: 'action',
       service: CyberiaActionService,
-      cloneKey: 'code',
+      canClone: true,
       name: (doc) => doc.code,
       field: 'code',
       sagas: 'actions',
@@ -795,10 +792,8 @@ class ActionEngineCyberia {
 
   static async clone(kind) {
     const spec = ActionEngineCyberia.KINDS[kind];
-    const { result, body } = await EditorCrud.clone(spec.service, spec.payload(), spec.cloneKey);
+    const { result, body } = await EditorCrud.clone(spec.service, spec.payload());
     if (result.status !== 'success') return;
-    const codeInput = s(`.action-engine-${kind}-${spec.cloneKey}`);
-    if (codeInput) codeInput.value = body[spec.cloneKey];
     ActionEngineCyberia.setCurrent(kind, { ...body, _id: result.data?._id });
     await spec.refresh();
   }
@@ -1211,7 +1206,7 @@ class ActionEngineCyberia {
           reset: () => ActionEngineCyberia.open(kind, ActionEngineCyberia.current[kind].id),
           ...(ActionEngineCyberia.canMutate && {
             save: () => ActionEngineCyberia.save(kind),
-            ...(spec.cloneKey && { clone: () => ActionEngineCyberia.clone(kind) }),
+            ...(spec.canClone && { clone: () => ActionEngineCyberia.clone(kind) }),
             delete: () => ActionEngineCyberia.remove(kind),
           }),
         };

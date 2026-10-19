@@ -5,7 +5,7 @@
  * `bind` reads a state function after every action and on `refresh`: the subject, the loaded
  * document and one handler per action. The bar hides an action without a handler; Clone, Reset and
  * Delete need a loaded document. New starts a blank document and Reset reloads the stored one:
- * both drop unsaved changes, so both ask first, as Delete does. A clone takes a fresh code. The bar
+ * both drop unsaved changes, so both ask first, as Delete does. A clone keeps the form values. The bar
  * pins at `--editor-tools-top` while the tools scroll, and keeps its height in
  * `--editor-crud-height` on its parent, where the tab list below it pins.
  *
@@ -213,15 +213,11 @@ class EditorCrud {
     return result;
   }
 
-  /**
-   * Posts a copy of `body`. With `codeKey`, the copy takes the code `<code>-clone`.
-   * @returns {Promise<{result: object, body: object}>} The result and the copy it posted.
-   */
-  static async clone(service, body, codeKey) {
-    const copy = codeKey ? { ...body, [codeKey]: `${body[codeKey]}-clone` } : body;
-    const result = await service.post({ body: copy });
+  /** Posts the form values as a new document. */
+  static async clone(service, body) {
+    const result = await service.post({ body });
     EditorCrud.notify(result, 'success-create-item');
-    return { result, body: copy };
+    return { result, body };
   }
 
   /** Deletes the document `id` once the author confirms. Resolves to null without an id or a confirmation. */

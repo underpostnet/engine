@@ -49,9 +49,18 @@ class CyberiaMapService {
     const CyberiaMap = DataBaseProviderService.getModel("CyberiaMap", options);
     const defect = mapSpatialDefect(req.body);
     if (defect) throw Object.assign(new Error(defect), { status: 400 });
-    const { value: map } = await registryTransaction(registryModels(options), (session) =>
-      new CyberiaMap({ ...req.body, creator: req.auth.user._id }).save({ session }),
-    );
+    let map;
+    try {
+      ({ value: map } = await registryTransaction(registryModels(options), (session) =>
+        new CyberiaMap({ ...req.body, creator: req.auth.user._id }).save({ session }),
+      ));
+    } catch (error) {
+      if (error.code === 11000 && (error.keyPattern?.code || error.keyValue?.code !== undefined))
+        throw Object.assign(new Error(`Map code "${req.body.code}" already exists. Enter a different code.`), {
+          status: 409,
+        });
+      throw error;
+    }
     await CacheService.invalidate(mapCache(options));
     await linkPlacedDefaults(map.code, options);
     return map;

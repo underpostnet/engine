@@ -138,14 +138,32 @@ describe('editor CRUD requests', () => {
     expect(push.mock.calls.map(([{ html }]) => html)).toEqual(['success-update-item', 'success-create-item']);
   });
 
-  it('posts a clone under a fresh code, and keeps a body without a code key', async () => {
+  it('posts a clone with the exact form code and metadata', async () => {
     const docs = service();
-    const source = { code: 'forest', name: 'Forest' };
-    const { body } = await EditorCrud.clone(docs, source, 'code');
-    expect(body).toEqual({ code: 'forest-clone', name: 'Forest' });
-    expect(source.code).toBe('forest');
+    const source = { code: 'forest-b', name: 'Forest B', description: 'Edited map', tags: ['new'] };
+    const { result, body } = await EditorCrud.clone(docs, source);
+    expect(docs.post).toHaveBeenCalledExactlyOnceWith({ body: source });
+    expect(body).toEqual(source);
+    expect(result.data).toEqual({ _id: 'new-id', ...source });
+    expect(docs.put).not.toHaveBeenCalled();
+  });
+
+  it('clones a document without a code field', async () => {
+    const docs = service();
     await EditorCrud.clone(docs, { entityType: 'skin' });
     expect(docs.post).toHaveBeenLastCalledWith({ body: { entityType: 'skin' } });
+  });
+
+  it('reports a duplicate clone code without changing the form values', async () => {
+    const docs = service();
+    const error = { status: 'error', message: 'Map code "forest" already exists.' };
+    docs.post.mockResolvedValueOnce(error);
+    const source = { code: 'forest', name: 'Edited forest' };
+    const { result, body } = await EditorCrud.clone(docs, source);
+    expect(result).toEqual(error);
+    expect(body).toEqual({ code: 'forest', name: 'Edited forest' });
+    expect(push).toHaveBeenCalledExactlyOnceWith({ html: error.message, status: 'error' });
+    expect(docs.post).toHaveBeenCalledOnce();
   });
 
   it('deletes only a loaded document the author confirms', async () => {
