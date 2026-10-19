@@ -97,9 +97,11 @@ describe('the instance map payload', () => {
     { code: 'm1', gridX: 8, gridY: 8, entities: [] },
     { code: 'm2', gridX: 8, gridY: 8, entities: [] },
   ];
+  // Empty entity defaults keep the payload in memory: no content artifact.
+  const payloadOf = (world) => buildStaticPayload({ quests: [], actions: [], entityDefaults: [], ...world });
 
   it('places each map on its saved or default cell, in the instance order', () => {
-    const payload = buildStaticPayload({ instance, maps, quests: [], actions: [] });
+    const payload = payloadOf({ instance, maps });
     expect(payload.nodes.map(({ mapCode, x, y }) => [mapCode, x, y])).toEqual([
       ['m1', 0, 0],
       ['m2', 1, 0],
@@ -108,15 +110,13 @@ describe('the instance map payload', () => {
   });
 
   it('sizes each map by its grid at one scale for the whole world', () => {
-    const payload = buildStaticPayload({
+    const payload = payloadOf({
       instance,
       maps: [
         { ...maps[0], gridX: 16, gridY: 32 },
         { ...maps[1], gridX: 32, gridY: 16 },
         { ...maps[2], gridX: 0, gridY: 0 },
       ],
-      quests: [],
-      actions: [],
     });
     expect(payload.nodes.map(({ mapCode, w, h }) => [mapCode, w, h])).toEqual([
       ['m1', MAP_NODE_FILL, MAP_NODE_FILL / 2],
@@ -127,15 +127,13 @@ describe('the instance map payload', () => {
   });
 
   it('places a map with a world origin at its centre there, at the scale of its size', () => {
-    const payload = buildStaticPayload({
+    const payload = payloadOf({
       instance,
       maps: [
         { ...maps[0], gridX: 16, gridY: 8, worldX: 32, worldY: 0 },
         { ...maps[1], gridX: 16, gridY: 8, worldX: 16, worldY: 0 },
         maps[2],
       ],
-      quests: [],
-      actions: [],
     });
     const [m1, m2, m3] = payload.nodes;
     expect(m1.world).toEqual({ x: (16 + 8) * (m1.w / 16), y: 4 * (m1.h / 8) });
@@ -156,8 +154,8 @@ describe('the instance map payload', () => {
   });
 
   it('keeps the portal edges as authored, whatever the cells', () => {
-    const moved = buildStaticPayload({ instance: { ...instance, mapLayout: [] }, maps, quests: [], actions: [] });
-    const saved = buildStaticPayload({ instance, maps, quests: [], actions: [] });
+    const moved = payloadOf({ instance: { ...instance, mapLayout: [] }, maps });
+    const saved = payloadOf({ instance, maps });
     expect(saved.edges).toEqual(moved.edges);
     expect(saved.edges).toEqual([
       {
