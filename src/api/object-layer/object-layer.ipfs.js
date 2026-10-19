@@ -171,23 +171,26 @@ export async function objectLayerIpfsState({ definition, options }) {
 /**
  * Collects the render content no kept store references: a render CID stays pinned while any kept
  * store holds a definition that names it, and a definition's MFS listing stays while any kept
- * store holds the definition. Reachability decides, never an item id. The canonical bytes and
- * `object-layer.json` are the Object Layer authority's: they stay.
+ * store holds the definition. A definition a player owns counts as kept. Reachability decides,
+ * never an item id. The canonical bytes and `object-layer.json` are the Object Layer authority's:
+ * they stay.
  * @param {Object} params
  * @param {Array<{ObjectLayer:import('mongoose').Model,Ipfs:import('mongoose').Model}>} params.stores - Every kept store.
+ * @param {Array<{cid:string,data:Object}>} [params.owned=[]] - The definitions players own.
  * @returns {Promise<{records:number,unpinned:number,listings:number}>} Registry records removed,
  *   CIDs the node unpinned, and MFS files removed.
  * @memberof ObjectLayerIpfs
  */
-export async function pruneUnreferencedContent({ stores }) {
+export async function pruneUnreferencedContent({ stores, owned = [] }) {
   const defined = new Set();
   const referenced = new Set();
-  for (const { ObjectLayer } of stores)
-    for (const { cid, data } of await ObjectLayer.find({}, { cid: 1, 'data.render': 1 }).lean()) {
-      defined.add(cid);
-      if (data?.render?.cid) referenced.add(data.render.cid);
-      if (data?.render?.metadataCid) referenced.add(data.render.metadataCid);
-    }
+  const keep = ({ cid, data }) => {
+    defined.add(cid);
+    if (data?.render?.cid) referenced.add(data.render.cid);
+    if (data?.render?.metadataCid) referenced.add(data.render.metadataCid);
+  };
+  for (const { ObjectLayer } of stores) (await ObjectLayer.find({}, { cid: 1, 'data.render': 1 }).lean()).forEach(keep);
+  owned.forEach(keep);
   const report = { records: 0, unpinned: 0, listings: 0 };
   const unreferenced = new Set();
   for (const { Ipfs } of stores) {

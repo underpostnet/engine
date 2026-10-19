@@ -227,6 +227,27 @@ describe('pruning content no kept store references', () => {
     expect(a.Ipfs.registry.map(({ cid }) => cid)).toEqual(['render-shared', 'bafkrei-ol-gone']);
     expect(node.removed).toEqual(['/object-layer/cid/bafkrei-ol-gone/atlas.png']);
   });
+
+  it('keeps the render and the listing of a definition a player owns, though no kept store holds it', async () => {
+    const owned = { cid: 'bafkrei-ol-owned', data: { render: { cid: 'render-owned', metadataCid: 'layout-owned' } } };
+    const a = store(
+      [],
+      [
+        ['render-owned', 'atlas-sprite-sheet'],
+        ['layout-owned', 'atlas-metadata'],
+      ],
+    );
+    node.directories = {
+      '/object-layer/cid': ['bafkrei-ol-owned'],
+      '/object-layer/cid/bafkrei-ol-owned': ['object-layer.json', 'atlas.png', 'atlas.json'],
+    };
+    expect(await pruneUnreferencedContent({ stores: [a], owned: [owned] })).toEqual({
+      records: 0,
+      unpinned: 0,
+      listings: 0,
+    });
+    expect(node.unpinned).toEqual([]);
+  });
 });
 
 describe('migrating to the CID-first layout', () => {

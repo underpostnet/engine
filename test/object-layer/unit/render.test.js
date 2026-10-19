@@ -12,6 +12,12 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
 vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
   IpfsClient: { getFromIpfs: async (cid) => ipfs.get(cid) ?? null },
 }));
+// The definitions the Object Layer authority holds beyond this host's cache.
+const authority = new Map();
+vi.mock(import('../../../src/server/domain/object-layer-resolver.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  resolveObjectLayer: async (cid) => authority.get(cid) ?? null,
+}));
 
 // The real atlas generator draws through the Cyberia catalog packages.
 const { AtlasSpriteSheetService } = cyberiaContext
@@ -215,6 +221,18 @@ describe.skipIf(!cyberiaContext)('the render of a definition', () => {
     await expect(AtlasSpriteSheetService.definitionRender(bare.req, bare.res, {})).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('serves the render of a definition no served release holds, from the Object Layer authority', async () => {
+    const retired = `bafkrei${'c'.repeat(52)}`;
+    authority.set(retired, { cid: retired, data: { render: { cid: RENDER, metadataCid: LAYOUT } } });
+    const { req, res, headers } = request({ cid: retired });
+    expect(await AtlasSpriteSheetService.layout(req, res, {})).toEqual({
+      renderCid: RENDER,
+      metadataCid: LAYOUT,
+      layout,
+    });
+    expect(headers['Cache-Control']).toMatch(/immutable/);
   });
 
   it('answers 404 for an unknown definition and 503 when IPFS does not answer', async () => {

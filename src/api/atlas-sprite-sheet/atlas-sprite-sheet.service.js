@@ -16,6 +16,7 @@ import {
 } from '../object-layer/object-layer.identity.js';
 import { objectLayerCache } from '../object-layer/object-layer.publication.js';
 import { CACHE_POLICY, CacheService } from '../../server/storage/cache.js';
+import { resolveObjectLayer } from '../../server/domain/object-layer-resolver.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -144,7 +145,8 @@ class AtlasSpriteSheetService {
 
   /**
    * The render cids a definition names, `data.render`, or null when it names none yet, which is
-   * valid content.
+   * valid content. The definition comes from this host's cache, else from the Object Layer
+   * authority, so a definition no served release holds keeps its render.
    * @param {string} cid - Canonical Object Layer cid.
    * @param {Object} options - Router options.
    * @returns {Promise<{renderCid: string, metadataCid: string}|null>}
@@ -152,7 +154,9 @@ class AtlasSpriteSheetService {
    */
   static renderRefsOf = async (cid, options) => {
     const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
-    const definition = await ObjectLayer.findByCid(cid).select({ 'data.render': 1 }).lean();
+    const definition =
+      (await ObjectLayer.findByCid(cid).select({ 'data.render': 1 }).lean()) ??
+      (await resolveObjectLayer(cid, options));
     if (!definition) throw failure(404, `No object layer for cid: ${cid}`);
     const { cid: renderCid, metadataCid } = definition.data?.render ?? {};
     return renderCid && metadataCid ? { renderCid, metadataCid } : null;
