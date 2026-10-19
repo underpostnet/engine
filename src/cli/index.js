@@ -1,8 +1,7 @@
-import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
 import { Command } from 'commander';
-import { deployEnvFactory, getNpmRootPath, getUnderpostRootPath } from '../server/runtime/environment.js';
+import { deployEnvFactory, getNpmRootPath, loadCliEnv } from '../server/runtime/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { registerDomainCommand } from './domains.js';
 import { TEST_FOOTPRINTS, TEST_PROJECTS, testDomainNames } from '../server/build/testing.js';
@@ -11,10 +10,7 @@ import { SEVERITIES } from '../server/security/socketsecurity.js';
 
 import Underpost from '../index.js';
 
-const underpostGlobalEnv = `${getUnderpostRootPath()}/.env`;
-
-if (fs.existsSync(underpostGlobalEnv)) dotenv.config({ path: underpostGlobalEnv, override: true, quiet: true });
-else dotenv.config({ quiet: true });
+loadCliEnv();
 
 const program = new Command();
 

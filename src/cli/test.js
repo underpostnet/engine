@@ -17,7 +17,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { performance } from 'node:perf_hooks';
 import { timer } from '../client/components/core/CommonJs.js';
-import { getUnderpostRootPath } from '../server/runtime/environment.js';
+import { getUnderpostRootPath, shellEnvFactory } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/ops/logger.js';
 import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { loadProductContexts } from '../server/build/catalog.js';
@@ -395,7 +395,7 @@ class UnderpostTest {
         const args = vitestArgsFactory({ projects: plan.projects, grep, watch, coverage });
         shellExec([process.execPath, vitestEntry(root), ...args].map(shellArgumentFactory).join(' '), {
           cwd: root,
-          env: vitestEnvFactory({ env: process.env, footprint: plan.footprint, allureResultsDirectory }),
+          env: vitestEnvFactory({ env: shellEnvFactory(), footprint: plan.footprint, allureResultsDirectory }),
         });
         return;
       }
@@ -512,7 +512,7 @@ class UnderpostTest {
           cwd: root,
           env: {
             ...vitestEnvFactory({
-              env: process.env,
+              env: shellEnvFactory(),
               footprint: plan.footprint,
               report,
               results: nodePath.join(runDirectory, batch.results),
@@ -567,7 +567,10 @@ class UnderpostTest {
                 ...vitestArgsFactory({ projects: plan.projects, coverage, mergeReports: reportsDirectory }),
               ],
               cwd: root,
-              env: { ...vitestEnvFactory({ env: process.env, footprint: plan.footprint, diagnose }), ...colorEnv },
+              env: {
+                ...vitestEnvFactory({ env: shellEnvFactory(), footprint: plan.footprint, diagnose }),
+                ...colorEnv,
+              },
               timeoutMs,
               diagnose,
               budget,

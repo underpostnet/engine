@@ -53,6 +53,40 @@ const getUnderpostRootPath = () => {
   return npmRoot ? `${npmRoot}/underpost` : `${packageRoot}/.underpost`;
 };
 
+/** The keys the CLI env file set in this process, and the shell value each one replaced. */
+const fileEnv = { keys: new Set(), shell: {} };
+
+/**
+ * Loads the CLI env file into `process.env`: the store of the global install, whose keys override
+ * the shell, else `./.env`, whose keys do not. Records every key the file set.
+ * @method loadCliEnv
+ * @returns {void}
+ * @memberof ServerEnvironment
+ */
+const loadCliEnv = () => {
+  const globalEnv = `${getUnderpostRootPath()}/.env`;
+  const override = fs.existsSync(globalEnv);
+  const shell = { ...process.env };
+  const { parsed = {} } = dotenv.config({ ...(override ? { path: globalEnv, override } : {}), quiet: true });
+  for (const key of Object.keys(parsed)) {
+    if (!override && key in shell) continue;
+    fileEnv.keys.add(key);
+    if (key in shell) fileEnv.shell[key] = shell[key];
+  }
+};
+
+/**
+ * An environment without what the CLI env file set: the values the shell gave.
+ * @method shellEnvFactory
+ * @param {Object<string, string>} [env=process.env] - Environment to start from.
+ * @returns {Object<string, string>}
+ * @memberof ServerEnvironment
+ */
+const shellEnvFactory = (env = process.env) => ({
+  ...Object.fromEntries(Object.entries(env).filter(([key]) => !fileEnv.keys.has(key))),
+  ...fileEnv.shell,
+});
+
 const readEnvFile = (path) => {
   if (envFileCache.has(path)) return envFileCache.get(path);
   let values = {};
@@ -144,6 +178,8 @@ export {
   getUnderpostRootPath,
   HOST_VOLUME_ROOT,
   isOciRuntime,
+  loadCliEnv,
   renderEnv,
+  shellEnvFactory,
   writeEnv,
 };
