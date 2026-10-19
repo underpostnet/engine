@@ -1,6 +1,6 @@
-# Data releases of $DEPLOY_ID — content releases run in Release Jobs — and the readiness probes the
-# deploy stages share. Sourced; the caller sets DEPLOY_ID and DEPLOY_ENV. Cluster calls run
-# through `sudo -n`, as every other deploy step does.
+# Data releases of $DEPLOY_ID — content releases and player records change in Release Jobs — and the
+# readiness probes the deploy stages share. Sourced; the caller sets DEPLOY_ID and DEPLOY_ENV.
+# Cluster calls run through `sudo -n`, as every other deploy step does.
 
 CONTENT_NAMESPACE="${CONTENT_NAMESPACE:-default}"
 # The Object Layer authority a release publishes its definitions to.
@@ -32,19 +32,29 @@ apply_release_secret() {
         "cd $ENGINE_ROOT && node bin app apply --env $DEPLOY_ENV --args deploy-id=$DEPLOY_ID,scope=data-release"
 }
 
-# One content-release command in a Release Job, on the engine this host deploys. The image's own
-# `.env` is removed, so the data-release Secret is the only source of credentials.
+# One command line in a Release Job, on the engine this host deploys. The image's own `.env` is
+# removed, so the data-release Secret is the only source of credentials.
+#
+# Usage: release_job <job-id> <image> <command line>
+release_job() {
+    local job_id="$1"
+    local image="$2"
+    local command="$3"
+    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin source-release job $job_id \
+        --deploy-id $DEPLOY_ID --env $DEPLOY_ENV --scope data-release --namespace $CONTENT_NAMESPACE \
+        --image '$image' --set-env NODE_ENV=$DEPLOY_ENV,OBJECT_LAYER_API_ORIGIN=$OBJECT_LAYER_API_ORIGIN \
+        ${TARGET_NODE:+--node-name $TARGET_NODE} \
+        --cmd 'rm -f .env && $command'"
+}
+
+# One content-release command in a Release Job.
 #
 # Usage: content_release_job <job-id> <image> <content-release args...>
 content_release_job() {
     local job_id="$1"
     local image="$2"
     shift 2
-    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin source-release job $job_id \
-        --deploy-id $DEPLOY_ID --env $DEPLOY_ENV --scope data-release --namespace $CONTENT_NAMESPACE \
-        --image '$image' --set-env NODE_ENV=$DEPLOY_ENV,OBJECT_LAYER_API_ORIGIN=$OBJECT_LAYER_API_ORIGIN \
-        ${TARGET_NODE:+--node-name $TARGET_NODE} \
-        --cmd 'rm -f .env && node bin/cyberia content-release $*'"
+    release_job "$job_id" "$image" "node bin/cyberia content-release $*"
 }
 
 # The release id the runtime serves, from the engine API; empty while none is active.
