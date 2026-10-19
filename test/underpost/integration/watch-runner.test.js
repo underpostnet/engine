@@ -245,7 +245,7 @@ describe('development watch runner', () => {
     expect(watchers[0].close).toHaveBeenCalled();
   });
 
-  // `src/dev` watches every source but the client, which the client dev server rebuilds instead.
+  // The API watcher excludes client sources.
   it('ignores a path prefix but not a directory of the same name elsewhere', async () => {
     fs.removeSync(context.root);
     context = fixture('src');
@@ -282,6 +282,74 @@ describe('development watch runner', () => {
     context.write('components/core/App.js');
     await vi.waitFor(() => expect(context.starts()).to.have.length(2), WAIT);
     await vi.waitFor(() => expect(alive(context.starts()[0].pid)).to.equal(false), WAIT);
+  });
+});
+
+describe.each(['src/server', 'src/api'])('development entry %s', (script) => {
+  let context;
+  let host;
+  let exited;
+  const settle = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  beforeEach(async () => {
+    context = fixture('src');
+    fs.writeFileSync(path.join(context.root, `${script}.js`), CHILD_SCRIPT);
+    fs.writeJsonSync(path.join(context.root, 'package.json'), { type: 'module' });
+    host = spawn(
+      process.execPath,
+      [
+        path.resolve('src/dev.js'),
+        script,
+        path.join(context.root, 'starts.log'),
+        path.join(context.root, 'mode'),
+        ...ARGS,
+      ],
+      { cwd: context.root, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    let output = '';
+    for (const stream of [host.stdout, host.stderr]) stream.on('data', (data) => (output += data));
+    exited = new Promise((resolve) => host.once('exit', resolve));
+    await vi.waitFor(() => expect(context.starts(), output).to.have.length(1), { ...WAIT, timeout: 15000 });
+  });
+
+  afterEach(async () => {
+    host.kill('SIGINT');
+    await exited;
+    for (const start of context.starts())
+      for (const pid of [start.pid, start.grandchild])
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch (_) {}
+    fs.removeSync(context.root);
+  });
+
+  it('restarts for API and shared sources with the same arguments', async () => {
+    context.write('api/user/user.service.js');
+    await vi.waitFor(() => expect(context.starts()).to.have.length(2), WAIT);
+    context.write('server/runtime/conf.js');
+    await vi.waitFor(() => expect(context.starts()).to.have.length(3), WAIT);
+    for (const start of context.starts()) expect(start.args).to.deep.equal(ARGS);
+  });
+
+  it('watches client components only when the runtime builds the client', async () => {
+    context.write('client/components/cyberia/InstanceSelectionView.js');
+    if (script === 'src/server') {
+      await vi.waitFor(() => expect(context.starts()).to.have.length(2), WAIT);
+      const [first] = context.starts();
+      await vi.waitFor(() => {
+        expect(alive(first.pid)).to.equal(false);
+        expect(alive(first.grandchild)).to.equal(false);
+      }, WAIT);
+      context.write('api/user/user.service.js');
+      await vi.waitFor(() => expect(context.starts()).to.have.length(3), WAIT);
+    } else {
+      await settle();
+      expect(context.starts()).to.have.length(1);
+      context.write('api/user/user.service.js');
+      await vi.waitFor(() => expect(context.starts()).to.have.length(2), WAIT);
+    }
+    await settle();
+    expect(context.starts()).to.have.length(script === 'src/server' ? 3 : 2);
   });
 });
 

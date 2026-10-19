@@ -212,7 +212,11 @@ the node's own configuration, which `node bin host load` owns.
 
 **Command:** `npm run dev [deploy-id] [sub-conf]`
 
-Starts the server in development mode through `src/dev.js`. The server restarts when a `.js`, `.mjs`, `.cjs` or `.json` file under `src/` changes, except under `src/client/`, which the client dev server rebuilds. A configuration file outside `src/`, such as a `conf.server.json`, needs a manual restart.
+Starts the server in development mode through `src/dev.js`.
+The server restarts when a `.js`, `.mjs`, `.cjs` or `.json` file under `src/` changes.
+This includes client components and API sources. Each restart rebuilds the client before the runtime starts.
+Separate API mode (`npm run dev:api`) excludes `src/client/`; use `npm run dev:client` for client rebuilds.
+Configuration files outside `src/`, such as `conf.server.json`, need a manual restart.
 
 ```bash
 npm run dev dd-core

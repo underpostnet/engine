@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Runs a runtime entry for development and restarts it when a server source changes.
+ * Runs a runtime entry for development and restarts it when a source changes.
  * Usage: `node src/dev <src/api|src/server> [args...]`.
  * @module src/dev.js
  */
@@ -13,8 +13,8 @@ const logger = loggerFactory(import.meta);
 const [script, ...args] = process.argv.slice(2);
 if (!script) throw new Error('Usage: node src/dev <src/api|src/server> [args...]');
 
-// The client sources are rebuilt by the client dev server, not by a runtime restart.
-const watch = { directory: 'src', ignoredPaths: ['client'] };
+// The combined server rebuilds the client at startup.
+const watch = { directory: 'src', ignoredPaths: script === 'src/api' ? ['client'] : [] };
 const runner = watchRunnerFactory({ script, args, ...watch });
 logger.info('Development watcher', { script, args, ...watch });
 runner.start();
