@@ -8,6 +8,8 @@
  * differently, and a skill would export but not boot, or boot but not export.
  */
 
+import { isCanonicalSkillLogicId } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+
 /** A '$'-prefixed id is a runtime placeholder the simulation resolves, never a document. */
 const isMaterialItemId = (itemId) => typeof itemId === 'string' && itemId.length > 0 && !itemId.startsWith('$');
 
@@ -95,4 +97,25 @@ function collectSummonedItemIds(skills = []) {
   return itemIds;
 }
 
-export { collectInstanceItemIds, collectSummonedItemIds, isMaterialItemId, selectInstanceSkills };
+/**
+ * Why a skill document cannot run, or '' when it can. It names its trigger item and at least one
+ * skill, each skill names a handler the simulation knows, and `logicEventIds` lists exactly the
+ * distinct handlers of its skills, in their order.
+ *
+ * @param {{triggerItemId?: string, logicEventIds?: string[], skills?: Array<{logicEventId?: string}>}} skill
+ * @returns {string}
+ */
+function skillDefect(skill) {
+  if (!isMaterialItemId(skill?.triggerItemId)) return 'it names no trigger item';
+  const handlers = (skill.skills || []).map((entry) => entry?.logicEventId);
+  if (handlers.length === 0) return 'it holds no skill';
+  const unknown = handlers.find((handler) => !isCanonicalSkillLogicId(handler));
+  if (unknown !== undefined) return `"${unknown}" is no skill handler`;
+  const expected = [...new Set(handlers)];
+  const listed = skill.logicEventIds || [];
+  if (listed.length !== expected.length || listed.some((handler, index) => handler !== expected[index]))
+    return `logicEventIds [${listed.join(', ')}] are not the handlers of its skills [${expected.join(', ')}]`;
+  return '';
+}
+
+export { collectInstanceItemIds, collectSummonedItemIds, isMaterialItemId, selectInstanceSkills, skillDefect };

@@ -36,9 +36,14 @@ const VIEWS = Object.freeze([
     description: 'Place the entities of a map and track its foundation composition',
   },
   {
+    route: 'cyberia-universe-engine',
+    icon: 'star.png',
+    description: 'Gather worlds into a universe: their graph, routes and live servers',
+  },
+  {
     route: 'cyberia-instance-engine',
     icon: 'grid.png',
-    description: 'Connect maps into a world: portals, spawn and instance settings',
+    description: 'Connect maps into a world: portals, layout, spawn and instance settings',
   },
   {
     route: 'cyberia-action-engine',

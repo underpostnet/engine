@@ -1,6 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input, InputFile, getFileFromBlobEndpoint } from '../core/Input.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
@@ -17,15 +17,101 @@ import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.servic
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
+import { getProxyPath, getQueryParams, listenQueryParamsChange, setPath, setQueryParams } from '../core/Router.js';
+import { GraphLayoutCyberia } from './GraphLayoutCyberia.js';
+import { resolveGraphLayout, worldPreviewPicture } from './SharedDefaultsCyberia.js';
+
+const ROUTE = 'cyberia-instance-engine';
 
 class InstanceEngineCyberia {
   static currentInstanceId = null;
   static currentInstanceCode = null;
+  // The revision of the stored instance the editor loaded; a save names it.
+  static currentRevision = 1;
   static crud = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static portals = [];
+  // The saved cells of the graph view; a map without one takes the default cell.
+  static mapLayout = [];
+  static layoutGraph = null;
+  // Name and preview of each map, from the instance map payload.
+  static mapCards = new Map();
+
+  /**
+   * Opens the editor on an instance.
+   * @param {{instanceCode: string}} params
+   * @returns {boolean} Whether the host offers the editor.
+   */
+  static open({ instanceCode }) {
+    const entry = s(`.main-btn-${ROUTE}`);
+    if (!entry) return false;
+    setPath(`${getProxyPath()}${ROUTE}`);
+    setQueryParams({ instanceCode }, { replace: true });
+    entry.click();
+    return true;
+  }
+
+  /** The maps of the instance on their cells, with the portals between them. */
+  /** The world preview the engine draws from the saved maps, cells and portals: what the universe shows. */
+  static renderWorldPreview() {
+    const slot = s('.instance-engine-world-preview');
+    if (!slot) return;
+    const code = InstanceEngineCyberia.currentInstanceCode;
+    const src = code ? `${getApiBaseUrl(worldPreviewPicture(code))}?revision=${InstanceEngineCyberia.currentRevision}` : '';
+    if (slot.dataset.src === src) return;
+    slot.dataset.src = src;
+    slot.innerHTML = src
+      ? html`<img
+          src="${src}"
+          alt="World preview of ${code}"
+          style="max-width:100%;max-height:220px;image-rendering:pixelated;border:1px solid var(--studio-subtle-border);"
+          onerror="this.style.display='none';"
+        />`
+      : html`<span>Save the instance to draw its world preview.</span>`;
+  }
+  static renderLayout() {
+    InstanceEngineCyberia.renderWorldPreview();
+    const graph = InstanceEngineCyberia.layoutGraph;
+    if (!graph) return;
+    const mapCodes = DropDown.Tokens['instance-engine-map-codes-dropdown']?.value ?? [];
+    const cells = resolveGraphLayout([...mapCodes], InstanceEngineCyberia.mapLayout, 'mapCode');
+    const loops = new Map();
+    const pairs = new Map();
+    for (const { sourceMapCode: source, targetMapCode: target } of InstanceEngineCyberia.portals) {
+      if (source === target) {
+        loops.set(source, (loops.get(source) ?? 0) + 1);
+        continue;
+      }
+      const key = [source, target].sort().join('\u0000');
+      const pair = pairs.get(key) ?? { source, target, forward: 0, back: 0 };
+      if (pair.source === source) pair.forward++;
+      else pair.back++;
+      pairs.set(key, pair);
+    }
+    graph.update({
+      nodes: cells.map(({ mapCode, x, y }) => {
+        const card = InstanceEngineCyberia.mapCards.get(mapCode);
+        return {
+          code: mapCode,
+          label: card?.name || mapCode,
+          sublabel: card?.name && card.name !== mapCode ? mapCode : '',
+          x,
+          y,
+          image: card?.previewUrl ?? '',
+          loops: loops.get(mapCode) ?? 0,
+        };
+      }),
+      edges: [...pairs.values()].map(({ source, target, forward, back }) => ({
+        source: forward > 0 ? source : target,
+        target: forward > 0 ? target : source,
+        bidirectional: forward > 0 && back > 0,
+        label: forward + back > 1 ? `${forward + back} portals` : '',
+      })),
+      empty: 'Add maps in the Maps tab to lay out the instance.',
+      hint: 'Drag a map to a free cell. The layout moves no portal and no entity.',
+    });
+  }
   static renderPortalList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
@@ -88,6 +174,7 @@ class InstanceEngineCyberia {
         InstanceEngineCyberia.renderPortalList(containerId);
       };
     });
+    InstanceEngineCyberia.renderLayout();
 
     container.querySelectorAll('.btn-instance-engine-load-portal').forEach((btn) => {
       btn.onclick = () => {
@@ -115,7 +202,6 @@ class InstanceEngineCyberia {
     const idDescription = 'instance-engine-input-description';
     const idTags = 'instance-engine-input-tags';
     const idStatus = 'instance-engine-input-status';
-    const idHotReloadUrl = 'instance-engine-input-hot-reload-url';
     const idThumbnail = 'instance-engine-input-thumbnail';
     const idMapCodesDropdown = 'instance-engine-map-codes-dropdown';
     const managementId = 'modal-cyberia-instance-engine';
@@ -157,6 +243,7 @@ class InstanceEngineCyberia {
         status: DropDown.Tokens[idStatus]?.value || 'unlisted',
         cyberiaMapCodes,
         portals: InstanceEngineCyberia.portals,
+        mapLayout: InstanceEngineCyberia.mapLayout.filter((cell) => cyberiaMapCodes.includes(cell.mapCode)),
         playerSpawn: {
           sourceMapCode: s(`.${idSpawnMapCode}`)?.value?.trim() || '',
           sourceCellX: parseInt(s(`.${idSpawnCellX}`)?.value) || 0,
@@ -217,6 +304,7 @@ class InstanceEngineCyberia {
       const isUpdate = !!InstanceEngineCyberia.currentInstanceId;
       let result;
       if (isUpdate) {
+        body.revision = InstanceEngineCyberia.currentRevision;
         result = await CyberiaInstanceService.put({ id: InstanceEngineCyberia.currentInstanceId, body });
       } else {
         result = await CyberiaInstanceService.post({ body });
@@ -224,8 +312,11 @@ class InstanceEngineCyberia {
       if (notify) EditorCrud.notify(result, isUpdate ? 'success-update-item' : 'success-create-item');
       if (result.status === 'success') {
         if (result.data?._id) InstanceEngineCyberia.currentInstanceId = result.data._id;
+        InstanceEngineCyberia.currentRevision = result.data?.revision ?? InstanceEngineCyberia.currentRevision;
+        if (s(`.${idCode}`)) s(`.${idCode}`).disabled = true;
         // A newly saved instance becomes the one the URL points at.
         InstanceEngineCyberia.currentInstanceCode = body.code || null;
+        InstanceEngineCyberia.renderWorldPreview();
         InstanceEngineCyberia.crud?.refresh();
         setQueryParams({ instanceCode: body.code || null }, { replace: true });
         // The conf is auto-upserted on instance save; persist the AOI radius onto
@@ -240,12 +331,26 @@ class InstanceEngineCyberia {
       await persistInstance({ notify: true });
     };
 
+    /** Reads the name and the preview of each map of the instance, for the layout cards. */
+    const loadMapCards = async (instanceCode) => {
+      InstanceEngineCyberia.mapCards = new Map();
+      const result = instanceCode ? await CyberiaInstanceService.instanceMap({ code: instanceCode }) : null;
+      if (result?.status === 'success')
+        for (const node of result.data.nodes) InstanceEngineCyberia.mapCards.set(node.mapCode, node);
+      InstanceEngineCyberia.renderLayout();
+      InstanceEngineCyberia.layoutGraph?.fit();
+    };
+
     const loadInstance = async (instanceData) => {
       InstanceEngineCyberia.currentInstanceId = instanceData._id || null;
       InstanceEngineCyberia.currentInstanceCode = instanceData.code || null;
+      InstanceEngineCyberia.currentRevision = instanceData.revision ?? 1;
       InstanceEngineCyberia.crud?.refresh();
       setQueryParams({ instanceCode: instanceData.code || null }, { replace: true });
-      if (s(`.${idCode}`)) s(`.${idCode}`).value = instanceData.code || '';
+      if (s(`.${idCode}`)) {
+        s(`.${idCode}`).value = instanceData.code || '';
+        s(`.${idCode}`).disabled = !!instanceData._id;
+      }
       if (s(`.${idName}`)) s(`.${idName}`).value = instanceData.name || '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = instanceData.description || '';
       if (s(`.${idTags}`)) s(`.${idTags}`).value = (instanceData.tags || []).join(', ');
@@ -324,6 +429,8 @@ class InstanceEngineCyberia {
       }
 
 
+      InstanceEngineCyberia.mapLayout = (instanceData.mapLayout || []).map(({ mapCode, x, y }) => ({ mapCode, x, y }));
+
       // Load portals
       InstanceEngineCyberia.portals = (instanceData.portals || []).map((p) => ({
         sourceMapCode: p.sourceMapCode || '',
@@ -335,6 +442,7 @@ class InstanceEngineCyberia {
         portalMode: p.portalMode || 'inter-portal',
       }));
       InstanceEngineCyberia.renderPortalList(portalListId);
+      void loadMapCards(instanceData.code);
 
       // Player spawn (instance-level).
       const spawn = instanceData.playerSpawn || {};
@@ -351,6 +459,10 @@ class InstanceEngineCyberia {
     const newInstance = () => {
       InstanceEngineCyberia.currentInstanceId = null;
       InstanceEngineCyberia.currentInstanceCode = null;
+      InstanceEngineCyberia.currentRevision = 1;
+      InstanceEngineCyberia.mapLayout = [];
+      InstanceEngineCyberia.mapCards = new Map();
+      if (s(`.${idCode}`)) s(`.${idCode}`).disabled = false;
       InstanceEngineCyberia.crud?.refresh();
       setQueryParams({ instanceCode: null }, { replace: true });
       InstanceEngineCyberia.currentThumbnailId = null;
@@ -379,6 +491,7 @@ class InstanceEngineCyberia {
       }
       InstanceEngineCyberia.portals = [];
       InstanceEngineCyberia.renderPortalList(portalListId);
+      InstanceEngineCyberia.renderLayout();
       if (s(`.${idSpawnMapCode}`)) s(`.${idSpawnMapCode}`).value = '';
       if (s(`.${idSpawnCellX}`)) s(`.${idSpawnCellX}`).value = 0;
       if (s(`.${idSpawnCellY}`)) s(`.${idSpawnCellY}`).value = 0;
@@ -418,7 +531,23 @@ class InstanceEngineCyberia {
 
     setTimeout(async () => {
       EditorLayout.pin(s('.instance-engine-container'), 'instance-engine-stage');
-      Tabs.bind(s('.instance-engine-tabs'));
+      Tabs.bind(s('.instance-engine-tabs'), {
+        onChange: (tab) => {
+          if (tab !== 'layout') return;
+          InstanceEngineCyberia.renderLayout();
+          InstanceEngineCyberia.layoutGraph?.fit();
+        },
+      });
+      InstanceEngineCyberia.layoutGraph = GraphLayoutCyberia.bind(s('.instance-engine-layout'), {
+        editable: () => canMutate,
+        onMove: (mapCode, x, y) => {
+          InstanceEngineCyberia.mapLayout = [
+            ...InstanceEngineCyberia.mapLayout.filter((cell) => cell.mapCode !== mapCode),
+            { mapCode, x, y },
+          ];
+          InstanceEngineCyberia.renderLayout();
+        },
+      });
       InstanceEngineCyberia.crud = EditorCrud.bind(s('.instance-engine-crud'), () => ({
         subject: 'instance',
         id: InstanceEngineCyberia.currentInstanceId,
@@ -458,13 +587,7 @@ class InstanceEngineCyberia {
       const triggerHotReload = async (mode) => {
         const buttons = [s(`.btn-instance-engine-hot-reload`), s(`.btn-instance-engine-hot-reload-incremental`)];
         const statusSelector = `.instance-engine-hot-reload-status`;
-        const serverUrl = s(`.${idHotReloadUrl}`)?.value?.trim();
-        if (!serverUrl) {
-          NotificationManager.Push({ html: 'Set the cyberia-server URL first.', status: 'warning' });
-          return;
-        }
-        // The server rejects a trigger aimed at a different instance, so the
-        // instance must exist before it can be named.
+        // The registry finds the servers of a saved instance only.
         const persistResult = await persistInstance({ notify: false });
         if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
           NotificationManager.Push({
@@ -480,21 +603,31 @@ class InstanceEngineCyberia {
         try {
           const result = await CyberiaInstanceService.hotReload({
             id: InstanceEngineCyberia.currentInstanceId,
-            body: { serverUrl, mode },
+            body: { mode },
           });
           if (result.status === 'error') {
             NotificationManager.Push({ html: result.message, status: 'error' });
             if (s(statusSelector)) htmls(statusSelector, html`<span style="color:#d66;">${result.message}</span>`);
             return;
           }
-          const { transport, durationMs, message, grpcError } = result.data || {};
-          NotificationManager.Push({ html: `Hot reload via ${transport}: ${message}`, status: 'success' });
+          const { endpoints = [] } = result.data || {};
+          const failed = endpoints.filter((endpoint) => endpoint.error);
+          NotificationManager.Push({
+            html: `Hot reload reached ${endpoints.length - failed.length} of ${endpoints.length} server endpoint(s)`,
+            status: failed.length ? 'warning' : 'success',
+          });
           if (s(statusSelector))
             htmls(
               statusSelector,
-              html`<span style="color:#6b6;">via <b>${transport}</b> · ${durationMs}ms · ${message}</span>${grpcError
-                  ? html`<div style="color:#a80;">gRPC unavailable: ${grpcError}</div>`
-                  : ''}`,
+              endpoints
+                .map((endpoint) =>
+                  endpoint.error
+                    ? html`<div style="color:#d66;">${escapeHtml(endpoint.url)} · ${escapeHtml(endpoint.error)}</div>`
+                    : html`<div style="color:#6b6;">
+                        ${escapeHtml(endpoint.url)} · via <b>${endpoint.transport}</b> · ${escapeHtml(endpoint.message)}
+                      </div>`,
+                )
+                .join(''),
             );
         } catch (error) {
           NotificationManager.Push({ html: error.message, status: 'error' });
@@ -589,6 +722,13 @@ class InstanceEngineCyberia {
         s(`.btn-instance-engine-hot-reload`).onclick = () => triggerHotReload('full');
       if (s(`.btn-instance-engine-hot-reload-incremental`))
         s(`.btn-instance-engine-hot-reload-incremental`).onclick = () => triggerHotReload('incremental');
+
+      if (s(`.btn-instance-engine-arrange`))
+        s(`.btn-instance-engine-arrange`).onclick = () => {
+          InstanceEngineCyberia.mapLayout = [];
+          InstanceEngineCyberia.renderLayout();
+          InstanceEngineCyberia.layoutGraph?.fit();
+        };
 
       // Portal management
       if (s(`.btn-instance-engine-portal-connect`))
@@ -956,6 +1096,32 @@ class InstanceEngineCyberia {
             `,
           },
           {
+            id: 'layout',
+            label: 'Layout',
+            icon: 'fa-solid fa-circle-nodes',
+            content: html`<div class="in section-mp" style="margin-top: 10px;">
+              <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
+                Where each map sits on the instance map players open. A cell is view data only: it moves no portal,
+                no portal cell and no entity. Save keeps it.
+              </div>
+              ${canMutate
+                ? await BtnIcon.instance({
+                    class: 'wfa btn-instance-engine-arrange',
+                    label: html`<i class="fa-solid fa-table-cells"></i> Arrange on the default cells`,
+                  })
+                : ''}
+              <div class="in instance-engine-layout" style="margin-top: 6px;">
+                ${GraphLayoutCyberia.render({ id: 'instance-engine-layout-graph', label: 'Instance map layout' })}
+              </div>
+              <div class="in input-label" style="font-size:14px;margin:10px 0 5px;">World preview</div>
+              <div class="in" style="font-size:12px;color:#888;margin-bottom:6px;">
+                The picture of each map on its saved cell. The universe and the world list show it, unless a
+                thumbnail is set. A save draws it again.
+              </div>
+              <div class="in instance-engine-world-preview" style="font-size:12px;color:#888;"></div>
+            </div>`,
+          },
+          {
             id: 'world',
             label: 'World',
             icon: 'fa-solid fa-earth-americas',
@@ -1041,19 +1207,10 @@ class InstanceEngineCyberia {
                       })}
                       <div class="in instance-engine-hot-reload-body hide">
                         <div class="in" style="color:#888;font-size:12px;margin:5px 0;">
-                          Rebuilds the world of a running cyberia-server for this instance now, instead of waiting for
-                          its polling interval. Tries the gRPC control service first and falls back to the REST
-                          endpoint. For a multi-instance deployment, append the variant sub-path so the trigger reaches
-                          the right world (e.g.
-                          <code>https://server.cyberiaonline.com/FOREST</code>); the default world uses the bare origin.
+                          Rebuilds the world of the live servers of this instance now, instead of waiting for their
+                          polling interval. The server registry names the endpoints; a trigger reaches one replica of
+                          each, and the other replicas follow with their reload loop.
                         </div>
-                        ${await Input.instance({
-                          id: idHotReloadUrl,
-                          label: html`<i class="fa-solid fa-server"></i> Cyberia Server URL`,
-                          containerClass: 'in',
-                          placeholder: 'https://server.cyberiaonline.com/FOREST',
-                          type: 'text',
-                        })}
                         <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
                           ${await BtnIcon.instance({
                             class: 'wfa btn-instance-engine-hot-reload',

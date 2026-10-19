@@ -1,6 +1,11 @@
 /**
  * The durable state of a player profile: its wire form and the commit that stores it.
  *
+ * The wire state is the state of one world: the profile of its universe, and what the profile keeps
+ * in that world. A commit splits it the same way: coins, XP, the bag, the storage and their held
+ * stacks go to the profile; the position, the vaults, their held stacks and the quests go to the
+ * world the session lease names.
+ *
  * The game server computes every value; the engine checks the shape and the bounds, then stores
  * the whole state in one transaction with the changed quest records.
  *
@@ -10,7 +15,7 @@
 import mongoose from 'mongoose';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { CONTAINER_CAPACITY } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { CONTAINERS, HELD_REASONS } from '../../../api/cyberia-player/cyberia-player.model.js';
+import { CONTAINERS, HELD_REASONS, PROFILE_CONTAINERS } from '../../../api/cyberia-player/cyberia-player.model.js';
 import { QUEST_STATUSES } from '../../../api/cyberia-quest-progress/cyberia-quest-progress.model.js';
 
 /** Sanity bounds of a commit. Content defines the real limits; these stop a malformed write. */
@@ -101,8 +106,9 @@ const stateDefect = (state, { questsChanged, positionChanged }) => {
 
 const stackOf = ({ itemId, olCid, quantity, slot, active }) => ({ itemId, olCid, quantity, slot, active: !!active });
 
-const questRecord = (player, quest) => ({
+const questRecord = (player, instanceCode, quest) => ({
   player,
+  instanceCode,
   questCode: quest.questCode,
   status: quest.status,
   stepProgress: quest.steps.map((step) => ({
@@ -124,45 +130,75 @@ const wireQuest = (record) => ({
   completedAtMs: record.completedAt ? record.completedAt.getTime() : 0,
 });
 
+const heldOf = ({ stack, container, actionCode, reason }) => ({
+  stack: stackOf(stack),
+  container,
+  actionCode: actionCode ?? '',
+  reason,
+});
+
+const vaultOf = ({ actionCode, stacks }) => ({ actionCode, stacks: stacks.map(stackOf) });
+
 /**
- * The wire `PlayerState` of a profile and its quest records.
+ * What a profile keeps in one world; empty for a world it never played.
  * @param {Object} player - Lean `CyberiaPlayer`.
- * @param {Object[]} quests - Lean `CyberiaQuestProgress` records.
+ * @param {string} instanceCode
+ * @returns {{position: Object, positionSeq: number, vaults: Object[], held: Object[]}}
+ * @memberof CyberiaPlayerState
+ */
+const worldOf = (player, instanceCode) =>
+  player.worlds?.find((world) => world.instanceCode === instanceCode) ?? {
+    position: {},
+    positionSeq: 0,
+    vaults: [],
+    held: [],
+  };
+
+/**
+ * The wire `PlayerState` of a profile in one world, with the quest records of that world.
+ * @param {Object} player - Lean `CyberiaPlayer`.
+ * @param {string} instanceCode
+ * @param {Object[]} quests - Lean `CyberiaQuestProgress` records of the world.
  * @returns {Object}
  * @memberof CyberiaPlayerState
  */
-const wireState = (player, quests) => ({
-  coins: player.coins,
-  xp: player.xp,
-  bag: player.bag.map(stackOf),
-  storage: player.storage.map(stackOf),
-  vaults: player.vaults.map(({ actionCode, stacks }) => ({ actionCode, stacks: stacks.map(stackOf) })),
-  held: player.held.map(({ stack, container, actionCode, reason }) => ({
-    stack: stackOf(stack),
-    container,
-    actionCode,
-    reason,
-  })),
-  position: { mapCode: player.position?.mapCode ?? '', x: player.position?.x ?? 0, y: player.position?.y ?? 0, seq: 0 },
-  quests: quests.map(wireQuest),
-  revision: player.revision,
-});
+const wireState = (player, instanceCode, quests) => {
+  const world = worldOf(player, instanceCode);
+  return {
+    coins: player.coins,
+    xp: player.xp,
+    bag: player.bag.map(stackOf),
+    storage: player.storage.map(stackOf),
+    vaults: world.vaults.map(vaultOf),
+    held: [...player.held, ...world.held].map(heldOf),
+    position: {
+      mapCode: world.position?.mapCode ?? '',
+      x: world.position?.x ?? 0,
+      y: world.position?.y ?? 0,
+      seq: 0,
+    },
+    quests: quests.map(wireQuest),
+    revision: player.revision,
+  };
+};
 
 /**
- * Loads the wire state of one profile.
+ * Loads the wire state of one profile in one world.
  * @param {Object} player - Lean `CyberiaPlayer`.
+ * @param {string} instanceCode
  * @param {{host: string, path: string}|string} context
  * @param {import('mongoose').ClientSession} [session]
  * @memberof CyberiaPlayerState
  */
-const loadState = async (player, context, session) => {
+const loadState = async (player, instanceCode, context, session) => {
   const QuestProgress = DataBaseProviderService.getModel('CyberiaQuestProgress', context);
-  return wireState(player, await QuestProgress.find({ player: player._id }, null, { session }).lean());
+  const quests = await QuestProgress.find({ player: player._id, instanceCode }, null, { session }).lean();
+  return wireState(player, instanceCode, quests);
 };
 
 /**
- * Commits the whole state of one player. Applies only the epoch of the profile and a sequence
- * above the last applied one; a repeated sequence answers `duplicate`.
+ * Commits the whole state of one player in the world its lease names. Applies only the epoch of the
+ * profile and a sequence above the last applied one; a repeated sequence answers `duplicate`.
  * @param {{playerId: string, epoch: number, seq: number, state: Object, questsChanged: boolean, positionChanged: boolean}} request
  * @param {{host: string, path: string}|string} context
  * @returns {Promise<{refusal: string, duplicate: boolean, revision: number, defect?: string}>}
@@ -175,50 +211,61 @@ const commitState = async ({ playerId, epoch, seq, state, questsChanged, positio
   if (defect) return { refusal: 'invalid', duplicate: false, revision: 0, defect };
 
   const Player = DataBaseProviderService.getModel('CyberiaPlayer', context);
+  const GameSession = DataBaseProviderService.getModel('CyberiaGameSession', context);
   const QuestProgress = DataBaseProviderService.getModel('CyberiaQuestProgress', context);
   const session = await Player.db.startSession();
   try {
     let result;
     await session.withTransaction(async () => {
-      const doc = await Player.findById(playerId, 'epoch commitSeq positionSeq revision', { session }).lean();
+      const doc = await Player.findById(
+        playerId,
+        'user epoch commitSeq revision worlds.instanceCode worlds.positionSeq',
+        {
+          session,
+        },
+      ).lean();
       if (!doc) return (result = { refusal: 'unknown', duplicate: false, revision: 0 });
       if (doc.epoch !== epoch) return (result = { refusal: 'stale_session', duplicate: false, revision: doc.revision });
       if (doc.commitSeq >= seq) return (result = { refusal: '', duplicate: true, revision: doc.revision });
+      const lease = await GameSession.findOne({ user: doc.user }, 'player epoch instanceCode', { session }).lean();
+      if (!lease || String(lease.player) !== playerId || lease.epoch !== epoch)
+        return (result = { refusal: 'stale_session', duplicate: false, revision: doc.revision });
+      const { instanceCode } = lease;
 
+      const held = state.held.map(heldOf);
       const set = {
         coins: state.coins,
         xp: state.xp,
         bag: state.bag.map(stackOf),
         storage: state.storage.map(stackOf),
-        vaults: state.vaults.map(({ actionCode, stacks }) => ({ actionCode, stacks: stacks.map(stackOf) })),
-        held: state.held.map(({ stack, container, actionCode, reason }) => ({
-          stack: stackOf(stack),
-          container,
-          actionCode: actionCode ?? '',
-          reason,
-        })),
+        held: held.filter(({ container }) => PROFILE_CONTAINERS.includes(container)),
         commitSeq: seq,
+        'worlds.$[world].vaults': state.vaults.map(vaultOf),
+        'worlds.$[world].held': held.filter(({ container }) => !PROFILE_CONTAINERS.includes(container)),
       };
-      if (positionChanged && state.position.seq > doc.positionSeq) {
+      if (positionChanged && state.position.seq > worldOf(doc, instanceCode).positionSeq) {
         const { mapCode, x, y } = state.position;
-        Object.assign(set, { position: { mapCode, x, y, at: new Date() }, positionSeq: state.position.seq });
+        Object.assign(set, {
+          'worlds.$[world].position': { mapCode, x, y, at: new Date() },
+          'worlds.$[world].positionSeq': state.position.seq,
+        });
       }
       await Player.updateOne(
         { _id: playerId, epoch, commitSeq: doc.commitSeq },
         { $set: set, $inc: { revision: 1 } },
-        { session },
+        { arrayFilters: [{ 'world.instanceCode': instanceCode }], session },
       );
       if (questsChanged) {
         await QuestProgress.deleteMany(
-          { player: playerId, questCode: { $nin: state.quests.map((q) => q.questCode) } },
+          { player: playerId, instanceCode, questCode: { $nin: state.quests.map((q) => q.questCode) } },
           { session },
         );
         if (state.quests.length > 0)
           await QuestProgress.bulkWrite(
             state.quests.map((quest) => ({
               replaceOne: {
-                filter: { player: playerId, questCode: quest.questCode },
-                replacement: questRecord(playerId, quest),
+                filter: { player: playerId, instanceCode, questCode: quest.questCode },
+                replacement: questRecord(playerId, instanceCode, quest),
                 upsert: true,
               },
             })),
@@ -234,9 +281,10 @@ const commitState = async ({ playerId, epoch, seq, state, questsChanged, positio
 };
 
 /**
- * Writes the dirty positions of a checkpoint. A position applies only to the epoch of the profile
- * and above the last applied position sequence, so it never overwrites a newer write.
- * @param {{playerId: string, epoch: number, position: Object}[]} entries
+ * Writes the dirty positions of a checkpoint, each in the world of its lease. A position applies
+ * only to the epoch of the profile and above the last applied position sequence of that world, so
+ * it never overwrites a newer write.
+ * @param {{playerId: string, epoch: number, instanceCode: string, position: Object}[]} entries
  * @param {{host: string, path: string}|string} context
  * @memberof CyberiaPlayerState
  */
@@ -247,14 +295,14 @@ const writePositions = async (entries, context) => {
   if (valid.length === 0) return;
   const now = new Date();
   await DataBaseProviderService.getModel('CyberiaPlayer', context).bulkWrite(
-    valid.map(({ playerId, epoch, position: { mapCode, x, y, seq } }) => ({
+    valid.map(({ playerId, epoch, instanceCode, position: { mapCode, x, y, seq } }) => ({
       updateOne: {
-        filter: { _id: playerId, epoch, positionSeq: { $lt: seq } },
-        update: { $set: { position: { mapCode, x, y, at: now }, positionSeq: seq } },
+        filter: { _id: playerId, epoch, worlds: { $elemMatch: { instanceCode, positionSeq: { $lt: seq } } } },
+        update: { $set: { 'worlds.$.position': { mapCode, x, y, at: now }, 'worlds.$.positionSeq': seq } },
       },
     })),
     { ordered: false },
   );
 };
 
-export { commitState, loadState, stateDefect, wireState, writePositions };
+export { commitState, loadState, stateDefect, wireState, worldOf, writePositions };

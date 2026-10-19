@@ -28,6 +28,10 @@ class CyberiaInstanceRouter {
       `/boot/object-layer/:itemId`,
       async (req, res) => await CyberiaInstanceController.bootObjectLayer(req, res, options),
     );
+    router.get(
+      `/boot/item-content/:itemId`,
+      async (req, res) => await CyberiaInstanceController.bootItemContent(req, res, options),
+    );
     router.get(`/boot/map/:mapCode`, async (req, res) => await CyberiaInstanceController.bootMapData(req, res, options));
     router.get(
       `/boot/full-instance/:instanceCode`,
@@ -46,6 +50,11 @@ class CyberiaInstanceRouter {
     router.get(
       `/instance-map/:instanceCode/preview/:mapCode`,
       async (req, res) => await CyberiaInstanceController.instanceMapPreview(req, res, options),
+    );
+    // The preview of a world: its maps on their cells (PNG).
+    router.get(
+      `/instance-map/:instanceCode/world-preview`,
+      async (req, res) => await CyberiaInstanceController.instanceMapWorldPreview(req, res, options),
     );
     // Hot reload — engine-cyberia -> cyberia-server control trigger. Elevated
     // privilege only; the internal API key stays server-side.

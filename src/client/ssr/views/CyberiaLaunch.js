@@ -115,7 +115,9 @@ const enter = ({ ticket, path }) => {
 const explain = (status) =>
   ({
     404: 'This world does not exist.',
+    409: 'This world keeps no account progress yet. Play it as a guest.',
     429: 'Too many launches in a short time. Wait a minute and try again.',
+    503: 'This world has no server open now. Try again in a moment, or pick another world.',
   })[status] ?? 'The world cannot open now. Try again in a moment.';
 
 const signIn = (world) => location.assign(`${portalPath()}?play=${encodeURIComponent(world)}`);

@@ -21,6 +21,7 @@ import {
   buildFallbackConfig,
   fetchFullInstance,
   fetchMapData,
+  fetchItemContent,
   fetchObjectLayer,
   fetchObjectLayerManifest,
   fetchObjectLayerBatch,
@@ -34,9 +35,10 @@ import {
   checkpointSessions,
   consumeLaunch,
   issueResume,
+  issueTravel,
   releaseSession,
 } from '../../projects/cyberia/player/player-session.js';
-import { listFriends, updateFriendship } from '../../projects/cyberia/player/friendship.js';
+import { listFriends, updateFriendship, updateStatusNote } from '../../projects/cyberia/player/social.js';
 import { counter, histogram } from '../../server/ops/metrics.js';
 
 const logger = loggerFactory(import.meta);
@@ -88,6 +90,15 @@ function buildHandlers(dbKey) {
       }
     },
 
+    async getItemContent(call, callback) {
+      try {
+        callback(null, await fetchItemContent(getInstanceModels(dbKey), call.request.itemId));
+      } catch (err) {
+        logger.error('getItemContent:', err);
+        callback({ code: grpc.status.INTERNAL, message: err.message });
+      }
+    },
+
     async getMapData(call, callback) {
       try {
         const result = await fetchMapData(getInstanceModels(dbKey), call.request);
@@ -133,10 +144,12 @@ const playerSeconds = histogram({
 
 // The models the player service writes. A host without them serves content only.
 const PLAYER_MODELS = [
+  'CyberiaUniverse',
   'CyberiaPlayer',
   'CyberiaGameSession',
   'CyberiaGameTicket',
-  'CyberiaFriendship',
+  'CyberiaSocial',
+  'CyberiaSocialProfile',
   'CyberiaQuestProgress',
   'User',
 ];
@@ -181,6 +194,7 @@ function buildPlayerHandlers(context) {
   return {
     consumeGameLaunchTicket: playerMethod('ConsumeGameLaunchTicket', (req) => consumeLaunch(req, context)),
     issueResumeTicket: playerMethod('IssueResumeTicket', (req) => issueResume(req, context)),
+    issueTravelTicket: playerMethod('IssueTravelTicket', (req) => issueTravel(req, context)),
     acquirePlayerSession: playerMethod('AcquirePlayerSession', (req) => acquireSession(req, context)),
     commitPlayerState: playerMethod('CommitPlayerState', (req) => commitState(req, context)),
     checkpointPlayerSessions: playerMethod('CheckpointPlayerSessions', (req) => checkpointSessions(req, context)),
@@ -190,6 +204,7 @@ function buildPlayerHandlers(context) {
     }),
     listFriends: playerMethod('ListFriends', (req) => listFriends(req, context)),
     updateFriendship: playerMethod('UpdateFriendship', (req) => updateFriendship(req, context)),
+    updateStatusNote: playerMethod('UpdateStatusNote', (req) => updateStatusNote(req, context)),
   };
 }
 

@@ -31,12 +31,17 @@ export const DOMAIN_APIS = Object.freeze({
   ]),
 });
 
-/** Cyberia records of accounts and their players: profiles, sessions, tickets, friendships, quest progress. */
+/**
+ * Cyberia records of accounts and their players: the universes that scope the profiles, profiles,
+ * sessions, tickets, social links and profiles, quest progress.
+ */
 export const CYBERIA_PLAYER_APIS = Object.freeze([
+  'cyberia-universe',
   'cyberia-player',
   'cyberia-game-session',
   'cyberia-game-ticket',
-  'cyberia-friendship',
+  'cyberia-social',
+  'cyberia-social-profile',
   'cyberia-quest-progress',
 ]);
 

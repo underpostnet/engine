@@ -244,16 +244,26 @@ const TEST_PROJECTS = [
       'src/projects/cyberia/instance/instance-backup.js',
       'src/projects/cyberia/instance-data.js',
       'src/projects/cyberia/stack/local-stack.js',
+      'src/projects/cyberia/stack/debug-stack.js',
       'src/projects/cyberia/instance/map-preview-generator.js',
+      'src/projects/cyberia/instance/world-preview.js',
       'src/projects/cyberia/catalog/object-layer-catalog.js',
       'src/projects/cyberia/content/release-content.js',
       'src/projects/cyberia/runtime/server-key.js',
       'src/projects/cyberia/object-layer/shape-generator.js',
       'src/projects/cyberia/stats/stat-balance.js',
+      'src/api/cyberia-instance/cyberia-instance-map.service.js',
+      'src/api/cyberia-social/social-contract.js',
+      'src/api/cyberia-social/cyberia-social.model.js',
+      'src/api/cyberia-social-profile/cyberia-social-profile.model.js',
+      'src/client/components/cyberia/SharedDefaultsCyberia.js',
+      'src/client/components/cyberia/GraphLayoutCyberia.js',
+      'src/client/components/cyberia/InstanceSelectionView.js',
+      'src/client/components/cyberia/UniverseEngineCyberia.js',
     ],
     description:
-      'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, stats ' +
-      'and shape generation. The suites that run a world need a built cyberia-content artifact ' +
+      'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, the graph ' +
+      'layout contract, registry endpoints and universe topologies, the debug run, stats and shape generation. The suites that run a world need a built cyberia-content artifact ' +
       '(CYBERIA_CONTENT_ROOT or ./cyberia-content) and skip without one.',
   },
   {
@@ -358,12 +368,15 @@ const TEST_PROJECTS = [
     directory: 'test/cyberia/integration',
     groupOrder: 9,
     sources: [
-      'src/api/cyberia-friendship/cyberia-friendship.model.js',
       'src/api/cyberia-game-session/cyberia-game-session.model.js',
       'src/api/cyberia-game-ticket/cyberia-game-ticket.model.js',
       'src/api/cyberia-game-ticket/cyberia-game-ticket.service.js',
       'src/api/cyberia-player/cyberia-player.model.js',
       'src/api/cyberia-quest-progress/cyberia-quest-progress.model.js',
+      'src/api/cyberia-server-registry/*.js',
+      'src/api/cyberia-social-profile/*.js',
+      'src/api/cyberia-social/*.js',
+      'src/api/cyberia-universe/*.js',
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/served-databases.js',
@@ -385,8 +398,9 @@ const TEST_PROJECTS = [
       'promote, roll back, prune, restart, concurrent promotion, runtime isolation and one data source ' +
       'for every role — the content ' +
       'artifact materialization and saga import, the Procedural Engine — the two generation modes, jobs, the background worker, ' +
-      'leases, human review and promotion — accounts, launch tickets, gameplay leases, player state ' +
-      'commits and friendships over the player gRPC service — the product CLI, the audio seed and the map ' +
+      'leases, human review and promotion — accounts, launch tickets, gameplay leases, universe profiles across worlds, ' +
+      'player state commits, friendships and status notes over the player gRPC service, the server registry ' +
+      'and universes — the product CLI, the audio seed and the map ' +
       'preview refresh. The database suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites ' +
       'a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its ' +
       'requirement.',

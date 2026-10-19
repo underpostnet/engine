@@ -34,8 +34,15 @@ service CyberiaDataService {
   // Useful for initial cache warm-up on the Go server.
   rpc GetObjectLayerBatch(GetObjectLayerBatchRequest) returns (stream ObjectLayerMessage);
 
-  // Returns a single ObjectLayer by item ID.
+  // Returns the definition the catalog binds to one item label. A hot reload
+  // refreshes a label with it. NOT_FOUND when the label has no binding.
   rpc GetObjectLayer(GetObjectLayerRequest) returns (ObjectLayerMessage);
+
+  // Returns the content one item label needs in a world that does not warm
+  // it: its definition, its skill and what the skill summons, transitively
+  // and bounded. A placement resolves the labels a player brings from another
+  // world with it.
+  rpc GetItemContent(GetItemContentRequest) returns (GetItemContentResponse);
 
   // ── Reload / Health ─────────────────────────────────────────────
   // Lightweight ping to check Engine liveness before hot-reload.
@@ -58,8 +65,14 @@ service CyberiaPlayerService {
   // bound to its account session, its world and its epoch.
   rpc IssueResumeTicket(IssueResumeTicketRequest) returns (IssueResumeTicketResponse);
 
+  // Issues the ticket of a travel of a live account session: a launch ticket
+  // of its account session for another world of its universe that a route
+  // reaches and a server takes. The session saves and leaves next.
+  rpc IssueTravelTicket(IssueTravelTicketRequest) returns (IssueTravelTicketResponse);
+
   // Makes the connection of a consumed ticket the one writer of its profile
-  // in this world, and loads the saved state. Idempotent per connection.
+  // in the universe of this world, and loads the saved state of this world.
+  // Idempotent per connection.
   rpc AcquirePlayerSession(AcquirePlayerSessionRequest) returns (AcquirePlayerSessionResponse);
 
   // Commits the whole durable state of one player at one sequence number.
@@ -76,6 +89,9 @@ service CyberiaPlayerService {
 
   // Requests, accepts, declines or removes one friendship.
   rpc UpdateFriendship(UpdateFriendshipRequest) returns (UpdateFriendshipResponse);
+
+  // Sets or clears the status note of an account.
+  rpc UpdateStatusNote(UpdateStatusNoteRequest) returns (UpdateStatusNoteResponse);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -150,6 +166,25 @@ message GetObjectLayerBatchRequest {
 
 message GetObjectLayerRequest {
   string item_id = 1;
+}
+
+message GetItemContentRequest {
+  string item_id = 1;
+}
+
+// A label the engine cannot carry, and why: unbound, malformed (its skill
+// document is defective), too_deep, too_many or too_large.
+message UnavailableItem {
+  string item_id = 1;
+  string reason  = 2;
+}
+
+message GetItemContentResponse {
+  // The content release the content comes from, empty for the workspace.
+  string                    release_id    = 1;
+  repeated ObjectLayerMessage object_layers = 2;
+  repeated SkillConfigEntry skills        = 3;
+  repeated UnavailableItem  unavailable   = 4;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -289,6 +324,10 @@ message GetFullInstanceResponse {
   // Mission content delivered with the world.
   repeated CyberiaActionMessage actions       = 6;
   repeated CyberiaQuestMessage  quests        = 7;
+  // The content release the engine serves, empty for the workspace. The
+  // server reports it to the registry, so the convergence of a promotion
+  // across replicas is visible.
+  string                        release_id    = 8;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -655,6 +694,20 @@ message IssueResumeTicketResponse {
   int64  expires_at_ms = 3;
 }
 
+message IssueTravelTicketRequest {
+  string player_id     = 1;
+  string account_id    = 2;
+  uint64 epoch         = 3;
+  string instance_code = 4; // the world the session plays
+  string target_code   = 5; // the world it travels to
+}
+
+message IssueTravelTicketResponse {
+  string refusal       = 1; // empty, or signed_in_elsewhere | revoked | no_route | unavailable
+  string ticket        = 2;
+  int64  expires_at_ms = 3;
+}
+
 message AcquirePlayerSessionRequest {
   string connection_id = 1; // the connection that consumed the ticket
   string instance_code = 2;
@@ -666,7 +719,7 @@ message AcquirePlayerSessionResponse {
   string      player_id     = 2; // the profile id
   uint64      epoch         = 3; // every write of this session carries it
   PlayerState state         = 4;
-  bool        created       = 5; // the first session of the account in this world
+  bool        created       = 5; // the first session of the account in this universe
   uint32      lease_seconds = 6; // a checkpoint renews the lease before it ends
 }
 
@@ -716,6 +769,9 @@ message PlayerQuest {
   int64                   completed_at_ms = 5; // 0 while active
 }
 
+// The state of a player in one world: the profile of its universe (coins, xp,
+// bag, storage and their held stacks) and what it keeps in this world
+// (vaults and their held stacks, position, quests).
 message PlayerState {
   uint32               coins    = 1;
   uint64               xp       = 2; // total; the level derives from it
@@ -785,6 +841,8 @@ message Friend {
   string instance_code  = 7; // friends only, while online
   string map_code       = 8; // friends only, while online
   int64  expires_at_ms  = 9; // requests only
+  string note           = 10; // friends only: the status note of the friend
+  string avatar         = 11; // the identity preview reference of what the account wears
 }
 
 message ListFriendsRequest {
@@ -793,6 +851,8 @@ message ListFriendsRequest {
 
 message ListFriendsResponse {
   repeated Friend friends = 1;
+  string          note    = 2; // the own status note
+  int64 note_next_update_at_ms = 3;
 }
 
 message UpdateFriendshipRequest {
@@ -806,4 +866,16 @@ message UpdateFriendshipResponse {
   // Empty, or self | exists | limit | not_found | unknown.
   string refusal = 1;
   Friend friend  = 2; // the friendship as the actor sees it now
+}
+
+message UpdateStatusNoteRequest {
+  string account_id = 1; // the actor, from the server session
+  string note       = 2; // empty clears the note
+}
+
+message UpdateStatusNoteResponse {
+  // Empty, or unknown | invalid | too_long | too_soon.
+  string refusal = 1;
+  string note    = 2; // the note as stored
+  int64 next_update_at_ms = 3;
 }

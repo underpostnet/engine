@@ -254,9 +254,9 @@ const renderRuntimePanel = (m) => {
     'Simulation',
     html`
       <div class="grid-2">
-        ${kv('Tick rate', `${r.tick_rate_hz || 0} Hz`)}
-        ${kv('Tick #', formatNumber(r.current_tick))}
-        ${kv('Tick duration', `${(r.tick_duration_ms || 0).toFixed(2)} ms`)}
+        ${kv('Tick rate', `${r.tick_rate_hz || 0} Hz`)} ${kv('Tick #', formatNumber(r.current_tick))}
+        ${kv('Tick budget', `${(r.tick_duration_ms || 0).toFixed(2)} ms`)}
+        ${kv('Average tick work', `${(r.tick_work_ms || 0).toFixed(2)} ms`)}
         ${kv('AOI radius', `${(r.aoi_radius || 0).toFixed(1)}`)} ${kv('GOMAXPROCS', r.gomaxprocs || r.num_cpu || 0)}
       </div>
     `,
@@ -290,8 +290,12 @@ const renderWorkloadPanel = (m) => {
         <div class="load-pct ${toneClass(tone)}">${formatPercent(w.load_percentage)}%</div>
         <div class="load-tag ${toneClass(tone)}">${(w.current_load || 'unknown').toUpperCase()}</div>
       </div>
-      ${meter('Entity capacity', m.entities?.total_entities || 0, w.max_entity_capacity || 0, 'entities')}
-      ${meter('Object layers', m.entities?.total_object_layers || 0, w.max_object_layers || 0, 'layers')}
+      ${meter('Tick budget', m.runtime?.tick_work_ms || 0, m.runtime?.tick_duration_ms || 0, 'ms')}
+      ${
+        m.websocket?.max_connections > 0
+          ? meter('Player connections', m.websocket.active_connections || 0, m.websocket.max_connections, 'connections')
+          : kv('Player connections', formatNumber(m.websocket?.active_connections))
+      }
     `,
   );
 };

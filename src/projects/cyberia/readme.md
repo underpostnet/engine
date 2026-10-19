@@ -259,17 +259,14 @@ cyberia run-workflow build-server-dashboard
 
 ### Run the MMO services
 
+One terminal per process, with the development env of each world:
+
 ```bash
-# engine-cyberia (Node.js data/content services)
-npm start                                          # node src/server
-
-# cyberia-server (Go authoritative simulation)
-cd cyberia-server && go run main.go                # dev
-cd cyberia-server && go build -o cyberia-server . && ./cyberia-server
-
-# cyberia-client (C / WASM presentation)
-cd cyberia-client && make -f Web.mk clean && make -f Web.mk web
-cd cyberia-client && make -f Web.mk serve-development     # serves on :8082
+cyberia debug                                  # list the processes
+cyberia debug engine-cyberia                   # Node.js data/content services
+cyberia debug gateway                          # the game origins, routed by world path
+cyberia debug cyberia-server /                 # Go authoritative simulation, one world
+cyberia debug cyberia-client / --build         # C / WASM presentation, built first
 ```
 
 ---

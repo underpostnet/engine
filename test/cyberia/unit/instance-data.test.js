@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { registryChecksum } from '../../../src/projects/cyberia/instance/map-registry.js';
 import {
   toObjectLayerMsgs,
   getInstanceModels,
@@ -15,6 +16,7 @@ import {
   objectLayerQueryFilter,
   fetchObjectLayerBatch,
   fetchObjectLayer,
+  fetchItemContent,
   fetchMapData,
   fetchObjectLayerManifest,
   fetchFullInstance,
@@ -277,6 +279,67 @@ describe('transport-agnostic fetchers', () => {
     expect(await fetchObjectLayer(models, 'ghost')).toBeNull();
   });
 
+  describe('the content an item brings', () => {
+    const shoots = (triggerItemId, summonedEntityItemId) => ({
+      triggerItemId,
+      logicEventIds: ['projectile'],
+      skills: [{ logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId }],
+    });
+    const world = (definitions, skills) => ({
+      ...catalog(definitions.map((id) => ol(id, 'weapon'))),
+      CyberiaSkill: {
+        findOne: ({ triggerItemId }) => lean(skills.find((s) => s.triggerItemId === triggerItemId) ?? null),
+      },
+    });
+    const labels = (content) => content.objectLayers.map(({ item }) => item.id);
+
+    it('carries the definition, the skill and what the skill summons', async () => {
+      const content = await fetchItemContent(world(['gun', 'bullet'], [shoots('gun', 'bullet')]), 'gun');
+      expect(labels(content)).toEqual(['gun', 'bullet']);
+      expect(content.skills).toEqual([
+        {
+          triggerItemId: 'gun',
+          skills: [{ logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId: 'bullet' }],
+        },
+      ]);
+      expect(content.unavailable).toEqual([]);
+      expect(typeof content.releaseId).toBe('string');
+    });
+
+    it('reads each label once, so a summon cycle ends', async () => {
+      const content = await fetchItemContent(world(['a', 'b'], [shoots('a', 'b'), shoots('b', 'a')]), 'a');
+      expect(labels(content)).toEqual(['a', 'b']);
+      expect(content.skills.map(({ triggerItemId }) => triggerItemId)).toEqual(['a', 'b']);
+    });
+
+    it('names each label it cannot carry and why', async () => {
+      const chain = ['a', 'b', 'c', 'd'];
+      const models = world(
+        chain,
+        chain.slice(0, 3).map((id, i) => shoots(id, chain[i + 1])),
+      );
+      expect((await fetchItemContent(models, 'a', { depth: 2, items: 16, bytes: 1e6 })).unavailable).toEqual([
+        { itemId: 'd', reason: 'too_deep' },
+      ]);
+      expect((await fetchItemContent(models, 'a', { depth: 9, items: 2, bytes: 1e6 })).unavailable).toEqual([
+        { itemId: 'c', reason: 'too_many' },
+      ]);
+      expect((await fetchItemContent(models, 'a', { depth: 9, items: 16, bytes: 1 })).unavailable).toEqual([
+        { itemId: 'a', reason: 'too_large' },
+      ]);
+      expect((await fetchItemContent(world(['gun'], [shoots('gun', 'bullet')]), 'gun')).unavailable).toEqual([
+        { itemId: 'bullet', reason: 'unbound' },
+      ]);
+      const defective = { ...shoots('gun', 'bullet'), logicEventIds: [] };
+      expect((await fetchItemContent(world(['gun', 'bullet'], [defective]), 'gun')).unavailable).toEqual([
+        { itemId: 'gun', reason: 'malformed' },
+      ]);
+      expect((await fetchItemContent(world([], []), 'ghost')).unavailable).toEqual([
+        { itemId: 'ghost', reason: 'unbound' },
+      ]);
+    });
+  });
+
   it('lists every bound label with the cid of its definition', async () => {
     const models = catalog([ol('anon'), ol('hatchet', 'weapon')]);
     expect(await fetchObjectLayerManifest(models)).toEqual({
@@ -287,26 +350,35 @@ describe('transport-agnostic fetchers', () => {
     });
   });
 
-  it('serves a map and records which instance serves it, surviving a registry failure', async () => {
-    const registry = [];
+  it('serves a map, and with an instance code only the map the registry names it the owner of', async () => {
+    const entry = {
+      catalog: 'release-a',
+      mapCode: 'forest-1',
+      instanceCode: 'FOREST',
+      instanceId: 'i1',
+      status: 'active',
+    };
+    entry.checksum = registryChecksum(entry);
+    const writes = [];
     const models = {
-      CyberiaMap: { findOne: ({ code }) => lean(code === 'forest-1' ? { _id: 'm1', code } : null) },
-      GlobalMapCodeRegistry: {
-        findOneAndUpdate: (filter, update) => {
-          registry.push({ filter, update });
-          return Promise.reject(new Error('registry down'));
-        },
+      CyberiaMap: {
+        db: { name: 'release-a' },
+        findOne: ({ code }) => lean(code === 'forest-1' ? { _id: 'm1', code } : null),
+      },
+      CyberiaInstance: { findOne: () => lean({ code: 'FOREST', name: 'Forest' }) },
+      CyberiaGlobalMapCodeRegistry: {
+        findOne: ({ catalog }) => lean(catalog === 'release-a' ? entry : null),
+        updateOne: async (...args) => writes.push(args),
       },
     };
     expect(await fetchMapData(models, { mapCode: 'ghost' })).toBeNull();
-    expect(await fetchMapData(models, { mapCode: 'forest-1' })).toMatchObject({ map: { code: 'forest-1' } });
-    expect(registry).toEqual([]);
-    const served = await fetchMapData(models, { mapCode: 'forest-1', instanceCode: 'FOREST' });
-    expect(served.map.mongoId).toBe('m1');
-    expect(registry).toEqual([
-      { filter: { mapCode: 'forest-1' }, update: { instanceCode: 'FOREST', status: 'active' } },
-    ]);
-    await new Promise((resolve) => setImmediate(resolve));
+    expect(await fetchMapData(models, { mapCode: 'forest-1', instanceCode: 'FOREST' })).toMatchObject({
+      map: { mongoId: 'm1' },
+    });
+    await expect(fetchMapData(models, { mapCode: 'forest-1', instanceCode: 'OTHER' })).rejects.toThrow(
+      'no navigable map',
+    );
+    expect(writes).toEqual([]);
   });
 });
 

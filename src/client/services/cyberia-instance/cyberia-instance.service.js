@@ -90,6 +90,24 @@ class CyberiaInstanceService {
           return reject(error);
         }),
     );
+  /** The instance map payload of one instance: its maps with their cells, names and previews. */
+  static instanceMap = (options = { code: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `instance-map/${encodeURIComponent(options.code)}/static`, endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   static portalConnect = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/portal-connect`, endpoint }), {

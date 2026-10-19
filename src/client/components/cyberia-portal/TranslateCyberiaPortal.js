@@ -26,6 +26,10 @@ class TranslateCyberiaPortal {
       en: 'Cyberia Map Engine',
       es: 'Cyberia Map Engine',
     };
+    Translate.Data['cyberia-universe-engine'] = {
+      en: 'Cyberia Universe Engine',
+      es: 'Cyberia Universe Engine',
+    };
     Translate.Data['cyberia-instance-engine'] = {
       en: 'Cyberia Instance Engine',
       es: 'Cyberia Instance Engine',

@@ -18,11 +18,32 @@ export const DEFAULT_INSTANCE_CODE = 'amethyst-strata-expansion';
 export const worldPathOf = (code) => (code && code !== DEFAULT_INSTANCE_CODE ? `/${encodeURIComponent(code)}` : '');
 
 /**
+ * The preview the engine draws of a world from its maps, as an API endpoint and id.
+ * @param {string} code
+ * @returns {{endpoint: string, id: string}}
+ */
+export const worldPreviewPicture = (code) => ({
+  endpoint: 'cyberia-instance/instance-map',
+  id: `${encodeURIComponent(code)}/world-preview`,
+});
+
+/**
+ * The picture of a world on its card, as an API endpoint and id: the thumbnail its author set, else
+ * its preview.
+ * @param {{code: string, thumbnail?: string|{_id: string}}} instance
+ * @returns {{endpoint: string, id: string}}
+ */
+export const worldPicture = ({ code, thumbnail }) => {
+  const fileId = thumbnail?._id ?? thumbnail;
+  return fileId ? { endpoint: 'file/blob', id: String(fileId) } : worldPreviewPicture(code);
+};
+
+/**
  * Canonical set of ObjectLayer item type names. Used as the
  * `data.item.type` discriminator and as the asset directory name on disk.
  *
  * Values intentionally equal their keys — this is a string enum, not a
- * z-order map. Render layer ordering lives in `entity_render.c`.
+ * z-order map. The draw order is {@link VISUAL_LAYER_PRIORITY}.
  *
  * @type {Readonly<Record<string,string>>}
  */
@@ -40,6 +61,15 @@ export const ITEM_TYPES = Object.freeze({
   static: 'static',
   consumable: 'consumable',
 });
+
+/**
+ * The draw order of the layers of an entity that faces down: a lower priority draws first, behind.
+ * Facing up, the skin and the weapon swap priorities. Equal priorities keep the order of the layers.
+ */
+export const VISUAL_LAYER_PRIORITY = Object.freeze({ skin: 10, weapon: 40, other: 50 });
+
+/** The draw priority of an item type when its entity faces down. */
+export const visualLayerPriority = (type) => VISUAL_LAYER_PRIORITY[type] ?? VISUAL_LAYER_PRIORITY.other;
 
 /**
  * Canonical set of entity category names used by the Go simulation,
@@ -86,6 +116,139 @@ export const SAGA_FILTER_KEY = 'sagaCode';
 
 /** How a portal connects: to a portal or a random cell, on another map or the same one. */
 export const PORTAL_MODES = Object.freeze(['inter-portal', 'inter-random', 'intra-random', 'intra-portal']);
+
+/** The code of a universe, an instance or a map. */
+export const CONTENT_CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * A graph layout places each node on one integer cell: x grows right, y grows down, the origin is
+ * free and both axes stay within ±LAYOUT_CELL_LIMIT. No two nodes share a cell. The layout is view
+ * data only: it never moves an edge, a portal cell or an entity.
+ */
+export const LAYOUT_CELL_LIMIT = 64;
+
+const layoutCellKey = (x, y) => `${x},${y}`;
+
+/**
+ * The layout of a graph: each node on its saved cell, and each other node on the first free cell
+ * of a square grid of ⌈√n⌉ columns, in code order.
+ * @param {string[]} codes - The node codes, in order.
+ * @param {Object[]} saved - The saved cells, `{[key]: code, x, y}`.
+ * @param {string} key - The field that names the node of a saved cell.
+ * @returns {{x: number, y: number}[]} One cell per code, `{[key]: code, x, y}`.
+ */
+export const resolveGraphLayout = (codes, saved, key) => {
+  const placed = new Map(saved.filter((cell) => codes.includes(cell[key])).map((cell) => [cell[key], cell]));
+  const taken = new Set([...placed.values()].map(({ x, y }) => layoutCellKey(x, y)));
+  const columns = Math.max(1, Math.ceil(Math.sqrt(codes.length)));
+  let next = 0;
+  for (const code of [...codes].sort()) {
+    if (placed.has(code)) continue;
+    while (taken.has(layoutCellKey(next % columns, Math.floor(next / columns)))) next++;
+    const free = { [key]: code, x: next % columns, y: Math.floor(next / columns) };
+    taken.add(layoutCellKey(free.x, free.y));
+    placed.set(code, free);
+  }
+  return codes.map((code) => ({ [key]: code, x: placed.get(code).x, y: placed.get(code).y }));
+};
+
+/**
+ * The first defect of a saved layout, or ''.
+ * @param {string[]} codes - The node codes of the graph.
+ * @param {Object[]} cells - The saved cells, `{[key]: code, x, y}`.
+ * @param {string} key - The field that names the node of a cell.
+ * @returns {string}
+ */
+export const graphLayoutDefect = (codes, cells, key) => {
+  const nodes = new Set();
+  const taken = new Set();
+  for (const cell of cells) {
+    const code = cell?.[key];
+    if (!codes.includes(code)) return `${code} is not a node of the graph`;
+    if (nodes.has(code)) return `${code} has two cells`;
+    const { x, y } = cell;
+    if (![x, y].every((v) => Number.isInteger(v) && Math.abs(v) <= LAYOUT_CELL_LIMIT))
+      return `${code} needs integer cells within ±${LAYOUT_CELL_LIMIT}`;
+    if (taken.has(layoutCellKey(x, y))) return `${code} shares the cell ${x},${y}`;
+    nodes.add(code);
+    taken.add(layoutCellKey(x, y));
+  }
+  return '';
+};
+
+/** The share of a layout cell the longest map side of an instance takes; the rest is the gap between maps. */
+export const MAP_NODE_FILL = 0.88;
+
+/**
+ * The size of each map of an instance in its layout cell, in cells. One scale holds for every map,
+ * so the grid of a map sets its proportions, and the longest map side of the instance takes
+ * MAP_NODE_FILL of a cell. A map sits at the centre of its cell.
+ * @param {Array<{gridX?: number, gridY?: number}>} maps
+ * @returns {{w: number, h: number}[]}
+ */
+export const mapNodeExtents = (maps) => {
+  const longest = Math.max(1, ...maps.flatMap(({ gridX = 0, gridY = 0 }) => [gridX, gridY]));
+  const side = (cells) => (MAP_NODE_FILL * (cells > 0 ? cells : longest)) / longest;
+  return maps.map(({ gridX = 0, gridY = 0 }) => ({ w: side(gridX), h: side(gridY) }));
+};
+
+/** The largest distance of a map world origin from 0, in map cells. */
+export const MAP_WORLD_LIMIT = 1_000_000;
+
+/**
+ * The world origin of a map places it in the cell space of its world: the map takes `gridX` ×
+ * `gridY` cells from (`worldX`, `worldY`). Two maps share an edge only where their cells meet. A map
+ * without an origin has no physical place and shows on its layout cell.
+ * @param {{worldX?: number|null, worldY?: number|null}} map
+ * @returns {boolean}
+ */
+export const hasWorldOrigin = ({ worldX, worldY }) => Number.isFinite(worldX) && Number.isFinite(worldY);
+
+/**
+ * The first defect of the world origin of a map, or ''.
+ * @param {{worldX?: number|null, worldY?: number|null, gridX?: number, gridY?: number}} map
+ * @returns {string}
+ */
+export const mapSpatialDefect = (map) => {
+  const { worldX, worldY, gridX, gridY } = map;
+  if (worldX == null && worldY == null) return '';
+  if (![worldX, worldY].every((n) => Number.isInteger(n) && Math.abs(n) <= MAP_WORLD_LIMIT))
+    return `The world origin needs two integer cells within ±${MAP_WORLD_LIMIT}`;
+  if (![gridX, gridY].every((n) => Number.isInteger(n) && n > 0)) return 'The map grid needs positive integer sides';
+  return '';
+};
+
+/**
+ * The maps of one world whose cells overlap, each pair as a defect.
+ * @param {Array<{code: string, worldX?: number|null, worldY?: number|null, gridX: number, gridY: number}>} maps
+ * @returns {string[]}
+ */
+export const worldPlacementDefects = (maps) => {
+  const placed = maps.filter(hasWorldOrigin);
+  const defects = [];
+  for (const [i, a] of placed.entries())
+    for (const b of placed.slice(i + 1))
+      if (
+        a.worldX < b.worldX + b.gridX &&
+        b.worldX < a.worldX + a.gridX &&
+        a.worldY < b.worldY + b.gridY &&
+        b.worldY < a.worldY + a.gridY
+      )
+        defects.push(`Maps ${a.code} and ${b.code} overlap in their world`);
+  return defects;
+};
+
+/**
+ * The centre of a placed map in layout cells, at the scale of its {@link mapNodeExtents} size, or
+ * null for a map without a world origin.
+ * @param {{worldX?: number|null, worldY?: number|null, gridX: number, gridY: number}} map
+ * @param {{w: number, h: number}} extent
+ * @returns {{x: number, y: number}|null}
+ */
+export const mapWorldCenter = (map, { w, h }) =>
+  hasWorldOrigin(map)
+    ? { x: ((map.worldX + map.gridX / 2) * w) / map.gridX, y: ((map.worldY + map.gridY / 2) * h) / map.gridY }
+    : null;
 
 /** Prefix of an item's dialogue code: its flavor text, and an NPC's greeting when the item is its skin. */
 export const ITEM_DIALOGUE_PREFIX = 'default-';
@@ -413,11 +576,6 @@ export const PARTY_XP_SHARE_RADIUS = 10;
 export const CHAT_TEXT_MAX_RUNES = 160;
 // Chat emoji: a line writes `:<name>:` and the client draws the ui-icon `emoji-<name>` in its place.
 export const CHAT_EMOJI = Object.freeze(['smile', 'laugh', 'wink', 'cool', 'sad', 'angry', 'heart', 'thumbsup']);
-// Accepted friends one account may have, and friend requests it may have open.
-export const FRIENDS_MAX = 200;
-export const FRIEND_REQUESTS_MAX = 20;
-// Days a friend request waits for its answer.
-export const FRIEND_REQUEST_DAYS = 30;
 export const STAT_CONTRACT_VERSION = 2;
 export const STAT_DEFAULTS = Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, STAT_DEFAULT])));
 export const STAT_EFFECTIVE_FLOORS = Object.freeze(Object.fromEntries(STAT_DEFINITIONS.map(({ key, floor }) => [key, floor])));
@@ -687,3 +845,17 @@ export function buildClientHints(overrides = {}) {
  * exist (or the engine endpoint is unreachable).
  */
 export const CYBERIA_CLIENT_HINTS_DEFAULTS = buildClientHints({});
+
+const IDENTITY_PREVIEW_VERSION = 1;
+
+/**
+ * The identity preview: one static PNG of the visual layers an entity wears, in its idle frame.
+ * The route names a preview by the ordered Object Layer CIDs of those layers, under the version of
+ * the drawing rules. `urlBytes` bounds a reference.
+ */
+export const IDENTITY_PREVIEW = Object.freeze({
+  version: IDENTITY_PREVIEW_VERSION,
+  route: `cyberia-player/appearance/v${IDENTITY_PREVIEW_VERSION}`,
+  maxLayers: 20,
+  urlBytes: 2048,
+});

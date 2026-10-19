@@ -48,11 +48,22 @@ const PlayerSpawnSchema = new Schema(
   { _id: false },
 );
 
+/** The cell of one map in the instance graph view. See LAYOUT_CELL_LIMIT. */
+const MapLayoutCellSchema = new Schema(
+  {
+    mapCode: { type: String, required: true, trim: true },
+    x: { type: Number, required: true },
+    y: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
 /**
  * Graph container / instance.
  * The instance stores:
  * - nodes: cyberiaMapCodes[]
  * - edges: portals[]
+ * - view: mapLayout[]
  */
 const CyberiaInstanceSchema = new Schema(
   {
@@ -72,6 +83,13 @@ const CyberiaInstanceSchema = new Schema(
     // Directed edge set of the graph
     portals: { type: [PortalEdgeSchema], default: [] },
 
+    // Saved cells of the graph view. A map without one takes the default cell.
+    mapLayout: { type: [MapLayoutCellSchema], default: [] },
+
+    // The preview the engine draws of the world, and the key of everything it shows (world-preview.js).
+    preview: { type: Schema.Types.ObjectId, ref: 'File' },
+    previewKey: { type: String, default: '' },
+
     // Authoritative initial spawn for new players (see PlayerSpawnSchema).
     playerSpawn: { type: PlayerSpawnSchema, default: () => ({}) },
 
@@ -86,6 +104,9 @@ const CyberiaInstanceSchema = new Schema(
     // Game server configuration (all tuning parameters live in a separate document).
     // Linked to CyberiaInstanceConf.instanceCode === this.code.
     conf: { type: Schema.Types.ObjectId, ref: 'CyberiaInstanceConf' },
+
+    // Writes of this instance. A save names the revision it read, so no save overwrites a newer one.
+    revision: { type: Number, default: 1, min: 1 },
   },
   { timestamps: true },
 );

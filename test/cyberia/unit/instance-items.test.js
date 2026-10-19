@@ -4,6 +4,7 @@ import {
   collectSummonedItemIds,
   isMaterialItemId,
   selectInstanceSkills,
+  skillDefect,
 } from '../../../src/api/cyberia-instance/cyberia-instance-items.js';
 
 const SKILLS = [
@@ -86,5 +87,27 @@ describe('which skills an instance runs', () => {
     // does not thereby acquire the weapon skill that fires it.
     const owned = new Set(['atlas_pistol_mk2_bullet']);
     expect(selectInstanceSkills(SKILLS, owned)).toEqual([]);
+  });
+});
+
+describe('a skill document that can run', () => {
+  const skill = (logicEventIds, handlers, triggerItemId = 'gun') => ({
+    triggerItemId,
+    logicEventIds,
+    skills: handlers.map((logicEventId) => ({ logicEventId })),
+  });
+
+  it('names its trigger, its skills and exactly their distinct handlers, in their order', () => {
+    expect(skillDefect(skill(['projectile', 'doppelganger'], ['projectile', 'doppelganger', 'projectile']))).toBe('');
+  });
+
+  it('says why it cannot run', () => {
+    expect(skillDefect(skill(['projectile'], ['projectile'], '$active_skin'))).toBe('it names no trigger item');
+    expect(skillDefect(skill([], []))).toBe('it holds no skill');
+    expect(skillDefect(skill(['teleport'], ['teleport']))).toBe('"teleport" is no skill handler');
+    expect(skillDefect(skill(['doppelganger', 'projectile'], ['projectile', 'doppelganger']))).toBe(
+      'logicEventIds [doppelganger, projectile] are not the handlers of its skills [projectile, doppelganger]',
+    );
+    expect(skillDefect(skill(['projectile'], ['projectile', 'doppelganger']))).toMatch(/are not the handlers/);
   });
 });

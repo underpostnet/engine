@@ -36,6 +36,13 @@ import {
 } from '../src/api/cyberia-instance/cyberia-instance-items.js';
 import { recordAudioBank, seedInstanceAudio } from '../src/projects/cyberia/instance/seed-audio.js';
 import { refreshMapPreviews } from '../src/projects/cyberia/instance/map-preview-generator.js';
+import { refreshWorldPreviews } from '../src/projects/cyberia/instance/world-preview.js';
+import {
+  catalogRegistryModels,
+  reconcileMapRegistry,
+  registryIndexes,
+  registryTransaction,
+} from '../src/projects/cyberia/instance/map-registry.js';
 import {
   CyberiaMapAudioConfService,
   parseEventAudioBinding,
@@ -59,18 +66,14 @@ import {
   reviseItemDefinition,
   seedItemCatalog,
 } from '../src/projects/cyberia/catalog/object-layer-catalog.js';
-import {
-  heldReport,
-  pruneQuestProgress,
-  rebindHeld,
-  restoreQuestProgress,
-} from '../src/projects/cyberia/player/player-maintenance.js';
+import { heldReport, rebindHeld } from '../src/projects/cyberia/player/player-maintenance.js';
 import { objectLayerTokenId, ownershipRecord } from '../src/api/item-ledger/item-ledger.model.js';
 import { sha256HexFromCid } from '../src/api/object-layer/object-layer.identity.js';
 import { ItemLedgerIndexer } from '../src/api/item-ledger/item-ledger.indexer.js';
 import { CyberiaObjectLayerProfile } from '../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { fetchInstanceObjectLayerItemIds, getInstanceModels } from '../src/projects/cyberia/instance-data.js';
 import {
+  RELEASE_CONTENT,
   releaseInstanceCodes,
   selectReleaseContent,
   withReleaseVariants,
@@ -89,6 +92,13 @@ import {
   stageLocalEngineSource,
 } from '../src/projects/cyberia/stack/local-stack.js';
 import {
+  DEBUG_TARGETS,
+  debugCommand,
+  debugInstance,
+  loadDebugTopology,
+  startDebugGateway,
+} from '../src/projects/cyberia/stack/debug-stack.js';
+import {
   atlasFileIdsOf,
   declaredDocument,
   exportObjectLayerBackup,
@@ -105,9 +115,11 @@ import {
   activateContentRelease,
   advanceContentRelease,
   beginContentRelease,
+  contentFingerprint,
   contentReleaseRowFactory,
   failContentRelease,
   importArtifactContent,
+  liveChanges,
   materializeWorkspace,
   promoteContentRelease,
   publishContentRelease,
@@ -375,6 +387,20 @@ async function connectEngineCache({ host, path, valkey }) {
   if (ValkeyAPI.isConnected({ host, path })) return;
   closeValkeyConnection({ host, path });
   logger.warn('Valkey is not reachable: the engine caches serve their values until they expire');
+}
+
+/**
+ * Brings the map registry of a catalog to its maps and instances, after a write that went around the
+ * API. A defect is logged and kept; the catalog stays as the write left it.
+ * @param {import('mongoose').Connection} connection - The runtime database connection.
+ * @param {string} catalog - The content database the write changed.
+ * @returns {Promise<Object>} The reconciliation report.
+ */
+async function reconcileCatalogRegistry(connection, catalog) {
+  const { report } = await registryTransaction(await catalogRegistryModels(connection, catalog));
+  for (const defect of report.defects) logger.error(`Map registry of ${catalog}: ${defect}`);
+  logger.info(`Map registry of ${catalog}: ${report.changes.length} change(s), ${report.defects.length} defect(s)`);
+  return report;
 }
 
 /**
@@ -872,7 +898,7 @@ try {
           ? ['cyberia-instance', 'cyberia-instance-conf', 'cyberia-map', 'cyberia-skill', 'cyberia-entity-type-default']
           : [];
         const writeApis = writes
-          ? ['cyberia-map', 'cyberia-content-release', 'cyberia-server-registry'].filter(owns)
+          ? ['cyberia-map', 'cyberia-instance', 'cyberia-content-release', 'cyberia-server-registry'].filter(owns)
           : [];
 
         await DataBaseProviderService.load({
@@ -1402,8 +1428,9 @@ try {
           );
         }
 
-        // A write reaches what draws and serves the written labels: the map previews of this host,
-        // then the game servers, when the runtime serves the content database the write went to.
+        // A write reaches what draws and serves the written labels: the map previews of this host
+        // and the world previews that hold those maps, then the game servers, when the runtime
+        // serves the content database the write went to.
         if (touched.all || touched.itemIds.size > 0) {
           if (owns('cyberia-map')) {
             const previews = await refreshMapPreviews({
@@ -1413,13 +1440,19 @@ try {
             logger.info(
               `Map previews: ${previews.drawn} drawn, ${previews.empty} without a picture, ${previews.failed.length} failed`,
             );
+            if (owns('cyberia-instance')) {
+              const worlds = await refreshWorldPreviews({ mapCodes: previews.codes, options: { host, path } });
+              logger.info(`World previews: ${worlds.current} current, ${worlds.failed.length} failed`);
+            }
           }
           const served = owns('cyberia-content-release')
             ? (await servedContent({ host, path }, workspaceDatabase)).database
             : workspaceDatabase;
           if (served === (releaseDatabase || workspaceDatabase)) {
-            const reached = await reloadContentServers({ host, path }, { mode: 'incremental' });
-            logger.info(`Object layers reloaded on ${reached} game server(s)`);
+            const reloads = await reloadContentServers({ host, path }, { mode: 'incremental' });
+            const failed = reloads.filter(({ error }) => error);
+            logger.info(`Object layers reloaded on ${reloads.length - failed.length} game server(s)`);
+            for (const { url, error } of failed) logger.warn(`The reload of ${url} failed: ${error}`);
           } else logger.info(`The runtime serves ${served}: the game servers see this write once it is promoted`);
         }
 
@@ -1624,10 +1657,13 @@ try {
           fs.outputJsonSync(`${backupDir}/files/${fileKey}.json`, fileBackup(file), { spaces: 2 });
         };
 
-        // 1. Save instance document + thumbnail
+        // 1. Save instance document, thumbnail and world preview
         fs.writeJsonSync(`${backupDir}/cyberia-instance.json`, instance, { spaces: 2 });
         if (!options.conf && instance.thumbnail) {
           await exportFileDoc(instance.thumbnail, `thumb-instance-${instanceCode}`);
+        }
+        if (!options.conf && instance.preview) {
+          await exportFileDoc(instance.preview, `preview-instance-${instanceCode}`);
         }
         logger.info('Exported CyberiaInstance', { code: instanceCode });
 
@@ -1940,11 +1976,15 @@ try {
 
             // Collect thumbnail File IDs to drop
             const thumbFileIds = [];
-            if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+            for (const fileId of [existingInstance.thumbnail, existingInstance.preview])
+              if (fileId) thumbFileIds.push(fileId);
             const dropOlItemIds = new Set();
 
             // Query other instances/maps for shared thumbnail exclusion
-            const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
+            const otherInstances = await CyberiaInstance.find(
+              { code: { $ne: instanceCode } },
+              { thumbnail: 1, preview: 1 },
+            ).lean();
 
             // Add the item ids the conf's referenced entity-type defaults name.
             const existingConf =
@@ -2045,7 +2085,9 @@ try {
             const otherMapThumbs = otherMaps
               .flatMap((m) => [m.thumbnail?.toString(), m.preview?.toString()])
               .filter(Boolean);
-            const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+            const otherInstThumbs = otherInstances
+              .flatMap((i) => [i.thumbnail?.toString(), i.preview?.toString()])
+              .filter(Boolean);
             const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
             for (let i = thumbFileIds.length - 1; i >= 0; i--) {
               if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
@@ -2453,11 +2495,15 @@ try {
 
           // Collect thumbnail File IDs to drop
           const thumbFileIds = [];
-          if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+          for (const fileId of [existingInstance.thumbnail, existingInstance.preview])
+            if (fileId) thumbFileIds.push(fileId);
           const dropOlItemIds = new Set();
 
           // Query other instances for shared thumbnail exclusion
-          const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
+          const otherInstances = await CyberiaInstance.find(
+            { code: { $ne: instanceCode } },
+            { thumbnail: 1, preview: 1 },
+          ).lean();
 
           // Add the item ids the conf's referenced entity-type defaults name.
           const existingConf =
@@ -2524,7 +2570,9 @@ try {
           const otherMapThumbs = otherMaps
             .flatMap((m) => [m.thumbnail?.toString(), m.preview?.toString()])
             .filter(Boolean);
-          const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+          const otherInstThumbs = otherInstances
+            .flatMap((i) => [i.thumbnail?.toString(), i.preview?.toString()])
+            .filter(Boolean);
           const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
           for (let i = thumbFileIds.length - 1; i >= 0; i--) {
             if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
@@ -2567,6 +2615,11 @@ try {
       if (options.export === undefined && options.import === undefined && !options.drop) {
         logger.error('Specify --export, --import, or --drop flag');
       }
+      if (options.import !== undefined || options.drop)
+        await reconcileCatalogRegistry(
+          DataBaseProviderService.getProvider({ host, path }, 'mongoose').connection,
+          CyberiaMap.db.name,
+        );
 
       closeValkeyConnection({ host, path });
       await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
@@ -3782,6 +3835,7 @@ try {
   const RELEASE_APIS = [
     'cyberia-content-release',
     'cyberia-server-registry',
+    'cyberia-player',
     'file',
     'cyberia-item-catalog',
     'object-layer',
@@ -3965,20 +4019,60 @@ try {
             .map((entry) => entry.name)
             .join(', ')}`,
         );
-      return await advanceContentRelease(Model, releaseId, 'validated');
+      return await advanceContentRelease(Model, releaseId, 'validated', {
+        fingerprint: await contentFingerprint(context.connection.useDb(context.releaseDatabase, { useCache: true })),
+      });
     } catch (error) {
       await failContentRelease(Model, releaseId, stage, error);
       throw new Error(`Release ${releaseId} failed at ${stage}: ${error.message}`);
     }
   };
 
+  const discardOption = (command) =>
+    command.option(
+      '--discard-live-changes',
+      'Promote although the active release serves live changes its build does not hold: they stop serving',
+    );
+
+  /** The live changes of the active release, in words; `notice` is empty when it serves none. */
+  const liveChangeNotice = async (context) => {
+    const { release, known, changed } = await liveChanges({
+      CyberiaContentRelease: context.models.CyberiaContentRelease,
+      connection: context.connection,
+    });
+    if (!release || (known && !changed.length)) return { release, notice: '' };
+    const what = known
+      ? `serves live changes its build does not hold: ${changed.join(', ')}`
+      : 'records no build fingerprint, so its live changes are unknown';
+    return { release, notice: `Release ${release.releaseId} ${what}` };
+  };
+
+  const exportHint = (releaseId) =>
+    `Export each changed world with \`cyberia instance <code> --export <dir> --release ${releaseId}\` and commit it to cyberia-content`;
+
+  /**
+   * Promotes a release. Live changes of the active release block it until they are exported, or
+   * until `--discard-live-changes` stops serving them.
+   */
+  const promoteRelease = async (context, releaseId, options) => {
+    const { release, notice } = await liveChangeNotice(context);
+    if (notice && release.releaseId !== releaseId) {
+      if (!options.discardLiveChanges)
+        throw new Error(
+          `${notice}. Promoting ${releaseId} stops serving them. ${exportHint(release.releaseId)}, or pass --discard-live-changes`,
+        );
+      logger.warn(`${notice}. They stay in ${release.database} until a prune drops it`);
+    }
+    const { active, retired } = await promoteContentRelease(context.models.CyberiaContentRelease, releaseId);
+    logger.info(
+      `Active release: ${active.releaseId} (${active.database})${retired ? `; rollback target: ${retired.releaseId}` : ''}`,
+    );
+  };
+
   /** Promotes when asked: always with `--promote`, with `--bootstrap` only while no release is active. */
   const promoteWhenAsked = async (context, releaseId, options) => {
-    const Model = context.models.CyberiaContentRelease;
-    if (options.promote || (options.bootstrap && !(await Model.active()))) {
-      const { active, retired } = await promoteContentRelease(Model, releaseId);
-      logger.info(`Active release: ${active.releaseId}${retired ? `; rollback target: ${retired.releaseId}` : ''}`);
-    }
+    if (options.promote || (options.bootstrap && !(await context.models.CyberiaContentRelease.active())))
+      await promoteRelease(context, releaseId, options);
   };
 
   /** Ends a content-release command: the provider closes and the exit code says whether it succeeded. */
@@ -4026,8 +4120,7 @@ try {
 
   storeOption(
     releaseEnvOptions(
-      contentRelease
-        .command('build <release-id>')
+      discardOption(contentRelease.command('build <release-id>'))
         .option(
           '--from <source>',
           'source (the prepared workspace), backups (the local content artifact) or workspace (what the portal authored)',
@@ -4170,16 +4263,30 @@ try {
   });
 
   releaseEnvOptions(
-    contentRelease
-      .command('promote <release-id>')
-      .description('Serve a validated release. Running engines rebind and reload the game servers'),
+    discardOption(contentRelease.command('promote <release-id>')).description(
+      'Serve a validated release. Running engines rebind and reload the game servers',
+    ),
   ).action(async (releaseId, options = {}) => {
     const context = await openReleases(options);
-    const { active, retired } = await promoteContentRelease(context.models.CyberiaContentRelease, releaseId);
-    logger.info(
-      `Active release: ${active.releaseId} (${active.database})${retired ? `; rollback target: ${retired.releaseId}` : ''}`,
-    );
-    await context.provider.close();
+    try {
+      await promoteRelease(context, assertReleaseId(releaseId), options);
+      await endRelease(context, true);
+    } catch (error) {
+      logger.error(error.message);
+      await endRelease(context, false);
+    }
+  });
+
+  releaseEnvOptions(
+    contentRelease
+      .command('live-changes')
+      .description('Name the live changes of the active release its build does not hold; exits 1 when there are any'),
+  ).action(async (options = {}) => {
+    const context = await openReleases(options);
+    const { release, notice } = await liveChangeNotice(context);
+    if (notice) logger.error(`${notice}. ${exportHint(release.releaseId)} before the next promotion`);
+    else logger.info(release ? `Release ${release.releaseId} serves no live change` : 'No release is active');
+    await endRelease(context, !notice);
   });
 
   releaseEnvOptions(
@@ -4222,14 +4329,15 @@ try {
       .command('prune')
       .option('--keep <n>', 'Releases to keep beyond the protected ones, newest first', parseInt, 2)
       .description(
-        'Drop old releases: their databases and ledger entries. Never a building, validated or active release, or the rollback target',
+        'Drop old releases: their databases and ledger entries. Never a building, validated or active release, the rollback target, or a render a player owns',
       ),
   ).action(async (options = {}) => {
     const context = await openReleases(options);
     const removed = await pruneContentReleases({
       CyberiaContentRelease: context.models.CyberiaContentRelease,
+      CyberiaPlayer: context.models.CyberiaPlayer,
       connection: context.connection,
-      context: { host: context.host, path: context.path },
+      context: { host: context.host, path: context.path, consumes: context.consumes },
       baseDatabase: context.db.partitions?.[CONTENT_PARTITION]?.name ?? '',
       keep: options.keep,
     });
@@ -4266,6 +4374,41 @@ try {
     process.exit(0);
   });
 
+  // ─── Map registry ───────────────────────────────────────────────────────────
+
+  releaseEnvOptions(
+    program
+      .command('map-registry')
+      .option('--release <release-id>', 'The catalog of this release instead of the one the host serves')
+      .option('--apply', 'Write the changes in one transaction')
+      .option(
+        '--indexes',
+        'Report the registry indexes; with --apply, build the schema indexes and drop the obsolete ones',
+      )
+      .description(
+        'Compare the map owners the registry holds with the maps and instances of a catalog. Prints the ' +
+          'changes and the defects, and exits 1 on a defect. Writes nothing without --apply',
+      ),
+  ).action(async (options = {}) => {
+    const context = await openReleases(options, options.release);
+    try {
+      const catalog =
+        context.releaseDatabase ||
+        (await context.models.CyberiaContentRelease.active())?.database ||
+        context.workspaceDatabase;
+      const models = await catalogRegistryModels(context.connection, catalog);
+      if (options.indexes) {
+        console.log(JSON.stringify(await registryIndexes(models.CyberiaGlobalMapCodeRegistry, options), null, 2));
+        return;
+      }
+      const report = options.apply ? (await registryTransaction(models)).report : await reconcileMapRegistry(models);
+      console.log(JSON.stringify(report, null, 2));
+      if (report.defects.length) process.exitCode = 1;
+    } finally {
+      await context.provider.close();
+    }
+  });
+
   // ─── IPFS storage ───────────────────────────────────────────────────────────
   const ipfs = program.command('ipfs').description('IPFS storage of Object Layer definitions, by CID');
 
@@ -4292,48 +4435,27 @@ try {
   });
 
   // ─── Player records ─────────────────────────────────────────────────────────
-  const player = program.command('player').description('Cyberia player profiles: quest progress and held stacks');
+  const player = program.command('player').description('Cyberia player profiles: held stacks');
 
   const openPlayers = async (options) => {
     const { host, path, db } = resolveDeployDb(options);
-    await DataBaseProviderService.load({ apis: [...CYBERIA_PLAYER_APIS, 'cyberia-item-catalog'], host, path, db });
+    await DataBaseProviderService.load({
+      apis: [...CYBERIA_PLAYER_APIS, 'cyberia-item-catalog'],
+      host,
+      path,
+      db,
+    });
     return (name) => DataBaseProviderService.getModel(name, { host, path });
   };
 
   releaseEnvOptions(
     player
-      .command('prune-quest-progress')
-      .description(
-        'Archive the quest progress no profile owns, then make its indexes match the schema. Reports only without --apply',
-      )
-      .option('--apply', 'Archive and remove'),
-  ).action(async (options = {}) => {
-    const model = await openPlayers(options);
-    const models = { QuestProgress: model('CyberiaQuestProgress'), Player: model('CyberiaPlayer') };
-    console.log(JSON.stringify(await pruneQuestProgress(models, { apply: !!options.apply }), null, 2));
-    process.exit(0);
-  });
-
-  releaseEnvOptions(
-    player
-      .command('restore-quest-progress')
-      .description('Return archived quest progress whose profile exists again. Reports only without --apply')
-      .option('--apply', 'Write the restore'),
-  ).action(async (options = {}) => {
-    const model = await openPlayers(options);
-    const models = { QuestProgress: model('CyberiaQuestProgress'), Player: model('CyberiaPlayer') };
-    console.log(JSON.stringify(await restoreQuestProgress(models, { apply: !!options.apply }), null, 2));
-    process.exit(0);
-  });
-
-  releaseEnvOptions(
-    player
       .command('held')
-      .description('List the held stacks of every profile: world, label, definition and reason')
-      .option('--instance <instance-code>', 'One world only'),
+      .description('List the held stacks of every profile: universe, world, label, definition and reason')
+      .option('--universe <universe-code>', 'One universe only'),
   ).action(async (options = {}) => {
     const model = await openPlayers(options);
-    console.log(JSON.stringify(await heldReport(model('CyberiaPlayer'), { instanceCode: options.instance }), null, 2));
+    console.log(JSON.stringify(await heldReport(model('CyberiaPlayer'), { universeCode: options.universe }), null, 2));
     process.exit(0);
   });
 
@@ -4343,7 +4465,7 @@ try {
       .description(
         'Give the held stacks of a label the definition the catalog binds now, so they load at the next session. Skips profiles in a live session. Reports only without --apply',
       )
-      .option('--instance <instance-code>', 'One world only')
+      .option('--universe <universe-code>', 'One universe only')
       .option('--apply', 'Write the rebind'),
   ).action(async (itemId, options = {}) => {
     const model = await openPlayers(options);
@@ -4354,7 +4476,7 @@ try {
     }
     const report = await rebindHeld(
       { Player: model('CyberiaPlayer'), GameSession: model('CyberiaGameSession') },
-      { itemId, olCid, instanceCode: options.instance, apply: !!options.apply },
+      { itemId, olCid, universeCode: options.universe, apply: !!options.apply },
     );
     console.log(JSON.stringify({ itemId, olCid, ...report }, null, 2));
     process.exit(0);
@@ -4540,6 +4662,7 @@ try {
       const result = saga
         ? await importSaga({ saga, models, context, rebind })
         : await importContent({ families, models, context, rebind });
+      await reconcileCatalogRegistry(provider.connection, models.CyberiaMap.db.name);
       printPlan(result.plan, rebind);
       logger.info(
         `Imported ${saga ? `saga ${options.saga}` : 'the foundation'}: ${result.objectLayers} object layer ` +
@@ -4566,6 +4689,52 @@ try {
     logger.info(`Removed ${removed} cached values of ${host}${path} (${process.env.NODE_ENV || 'development'})`);
     process.exit(0);
   });
+
+  // ─── Debug run ──────────────────────────────────────────────────────────────
+  program
+    .command('debug [target] [path]')
+    .description(
+      `Run one process of the development topology in this terminal: ${DEBUG_TARGETS.join(', ')}. ` +
+        'A game runtime runs the world at [path] (default /). Without a target, lists the processes',
+    )
+    .option('--build', 'Build the client bundle before serving it')
+    .action(async (target, path = '/', options = {}) => {
+      try {
+        if (target && !DEBUG_TARGETS.includes(target))
+          throw new Error(`${target} is no debug target; use ${DEBUG_TARGETS.join(', ')}`);
+        if (target === 'engine-cyberia') return shellExec('npm run dev dd-cyberia');
+        const topology = loadDebugTopology('dd-cyberia');
+        if (target === 'gateway') {
+          for (const { origin, router } of await startDebugGateway(topology)) logger.info(`Gateway ${origin}`, router);
+          return;
+        }
+        if (target) {
+          const instance = debugInstance(topology, target, path);
+          const { cwd, command, env } = debugCommand({
+            topology,
+            instance,
+            checkout: checkoutDir(target),
+            build: !!options.build,
+          });
+          return shellExec(command, { cwd, env: { ...process.env, ...env } });
+        }
+        console.table([
+          { process: 'debug engine-cyberia', listens: `${topology.engine.url}, gRPC ${topology.engine.grpc}` },
+          {
+            process: 'debug gateway',
+            listens: [...new Set(topology.instances.map(({ origin }) => origin))].join(', '),
+          },
+          ...topology.instances.map(({ runtime, path: world, port, origin }) => ({
+            process: `debug ${runtime} ${world}`,
+            listens: `http://localhost:${port}`,
+            serves: `${origin}${world === '/' ? '' : world}`,
+          })),
+        ]);
+      } catch (error) {
+        logger.error(error.message);
+        process.exit(1);
+      }
+    });
 
   const runner = program.command('run-workflow').description('Run a Cyberia script from the "scripts" directory');
 

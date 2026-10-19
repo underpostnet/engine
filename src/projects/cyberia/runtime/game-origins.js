@@ -40,9 +40,9 @@ const gameOrigins = (deployId, environment) => {
 
 /**
  * The origins a game instance links to, as its env: the client reads content from the portal and
- * plays on the server; the server reads content from the engine and accepts the browser origins of
- * the portal and the client.
- * @param {{deployId: string, instance: {runtime: string}, environment: string}} params
+ * plays on the server; the server reads content from the engine, accepts the browser origins of
+ * the portal and the client, and reports its public endpoint (origin and path) to the registry.
+ * @param {{deployId: string, instance: {runtime: string, path: string}, environment: string}} params
  * @returns {Object<string, string>}
  * @memberof CyberiaGameOrigins
  */
@@ -51,7 +51,11 @@ const gameOriginEnv = ({ deployId, instance, environment }) => {
   if (instance.runtime === 'cyberia-client')
     return { CYBERIA_DATA_SERVER_URL: portal, CYBERIA_WS_ORIGIN: server.replace(/^http/, 'ws') };
   if (instance.runtime === 'cyberia-server')
-    return { CYBERIA_DATA_SERVER_URL: engine, CYBERIA_CORS_ALLOWED_ORIGINS: `${portal},${client}` };
+    return {
+      CYBERIA_DATA_SERVER_URL: engine,
+      CYBERIA_CORS_ALLOWED_ORIGINS: `${portal},${client}`,
+      CYBERIA_PUBLIC_URL: `${server}${instance.path === '/' ? '' : instance.path}`,
+    };
   return {};
 };
 

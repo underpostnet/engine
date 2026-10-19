@@ -19,8 +19,10 @@ import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   selectInstanceSkills,
+  skillDefect,
 } from '../../api/cyberia-instance/cyberia-instance-items.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { resolveMapOwner } from './instance/map-registry.js';
 import { domainOrigin } from '../../server/domain/domain-client.js';
 import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
 import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './catalog/object-layer-catalog.js';
@@ -36,7 +38,7 @@ import {
   validateEntityLevel,
   validateRespawnDuration,
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { contentArtifact } from './content/content-artifact.js';
+import { contentArtifact, servedContentArtifact } from './content/content-artifact.js';
 import { buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 import { gameOriginEnv } from './runtime/game-origins.js';
 
@@ -92,6 +94,15 @@ function skillDocsToConfig(skillDocs = []) {
 async function loadSkillDocs(models) {
   if (!models.CyberiaSkill) return [];
   return await models.CyberiaSkill.find({}).lean();
+}
+
+// The skill documents that can run. A defective one is left out and reported, never sent.
+function runnableSkills(skillDocs) {
+  return skillDocs.filter((doc) => {
+    const defect = skillDefect(doc);
+    if (defect) logger.warn(`The skill of "${doc?.triggerItemId}" is left out: ${defect}`);
+    return !defect;
+  });
 }
 
 // Map CyberiaEntityTypeDefault docs to the wire entityDefaults shape. Lookup is
@@ -451,23 +462,72 @@ async function fetchObjectLayer(models, itemId) {
   return doc ? (await toObjectLayerMsgs(models, [doc]))[0] : null;
 }
 
+/** Bounds of one item content: how deep summons go, how many items and how many bytes it carries. */
+const ITEM_CONTENT_LIMITS = Object.freeze({ depth: 3, items: 16, bytes: 512 * 1024 });
+
 /**
- * Single map by code, null when absent (RPC: getMapData). When `instanceCode`
- * is provided, upserts the GlobalMapCodeRegistry entry tracking which instance
- * is serving the map (same side-effect on both transports).
+ * The content one item needs in a world that does not warm it, from the release the runtime
+ * serves: its bound definition, its skill, and what the skill summons, transitively and within
+ * `limits`. Each label is read once, so a summon cycle ends. A label it cannot carry is listed as
+ * unavailable with the reason, and the caller runs none of the item (RPC: getItemContent).
+ * @param {object} models - Instance models, see {@link getInstanceModels}.
+ * @param {string} itemId - The label a stack names.
+ * @param {{depth:number, items:number, bytes:number}} [limits=ITEM_CONTENT_LIMITS]
+ * @returns {Promise<{releaseId:string, objectLayers:Object[], skills:Object[], unavailable:Array<{itemId:string, reason:string}>}>}
+ */
+async function fetchItemContent(models, itemId, limits = ITEM_CONTENT_LIMITS) {
+  const content = { releaseId: servedContentArtifact().releaseId, objectLayers: [], skills: [], unavailable: [] };
+  const unavailable = (label, reason) => content.unavailable.push({ itemId: label, reason });
+  const seen = new Set([itemId]);
+  let bytes = 0;
+  let level = [itemId];
+  for (let depth = 0; level.length > 0; depth++) {
+    const next = [];
+    for (const label of level) {
+      const doc = await findBoundDefinition(models, label);
+      if (!doc) {
+        unavailable(label, 'unbound');
+        continue;
+      }
+      const [message] = await toObjectLayerMsgs(models, [doc]);
+      bytes += Buffer.byteLength(JSON.stringify(message));
+      if (bytes > limits.bytes) {
+        unavailable(label, 'too_large');
+        continue;
+      }
+      content.objectLayers.push(message);
+      const skill = models.CyberiaSkill ? await models.CyberiaSkill.findOne({ triggerItemId: label }).lean() : null;
+      if (!skill) continue;
+      const defect = skillDefect(skill);
+      if (defect) {
+        logger.warn(`The skill of "${label}" is not served: ${defect}`);
+        unavailable(label, 'malformed');
+        continue;
+      }
+      content.skills.push(skill);
+      for (const summoned of collectSummonedItemIds([skill])) {
+        if (seen.has(summoned)) continue;
+        seen.add(summoned);
+        if (depth + 1 > limits.depth) unavailable(summoned, 'too_deep');
+        else if (seen.size > limits.items) unavailable(summoned, 'too_many');
+        else next.push(summoned);
+      }
+    }
+    level = next;
+  }
+  content.skills = skillDocsToConfig(content.skills);
+  return content;
+}
+
+/**
+ * Single map by code, null when absent (RPC: getMapData). With `instanceCode`, the map registry
+ * must name that instance as the owner of the map. A read writes nothing.
  */
 async function fetchMapData(models, { mapCode, instanceCode } = {}) {
   const doc = await models.CyberiaMap.findOne({ code: mapCode }).lean();
   if (!doc) return null;
-
-  if (instanceCode) {
-    models.GlobalMapCodeRegistry.findOneAndUpdate(
-      { mapCode },
-      { instanceCode, status: 'active' },
-      { upsert: true, returnDocument: 'after', timestamps: true },
-    ).catch((err) => logger.warn('fetchMapData registry update failed:', err.message));
-  }
-
+  if (instanceCode && (await resolveMapOwner(models, mapCode))?.instanceCode !== instanceCode)
+    throw new Error(`The map registry names no navigable map ${mapCode} of ${instanceCode}`);
   return { map: toMapMsg(doc) };
 }
 
@@ -547,7 +607,7 @@ async function loadWorld(models, instanceCode) {
   // so those ids join the set before the ObjectLayer query.
   const storedSkills = await loadSkillDocs(models);
   const skillDocs = selectInstanceSkills(
-    storedSkills.length ? storedSkills : contentArtifact().foundation.skills,
+    runnableSkills(storedSkills.length ? storedSkills : contentArtifact().foundation.skills),
     owned,
   );
   for (const summoned of collectSummonedItemIds(skillDocs)) itemIds.add(summoned);
@@ -556,7 +616,7 @@ async function loadWorld(models, instanceCode) {
 
 /**
  * Full world-load payload for one instance (RPC: getFullInstance):
- * `{ instance, maps, objectLayers, config, version, actions, quests }`.
+ * `{ instance, maps, objectLayers, config, version, actions, quests, releaseId }`.
  * @throws {Error} When no CyberiaInstance holds that code.
  */
 async function fetchFullInstance(models, instanceCode) {
@@ -566,9 +626,9 @@ async function fetchFullInstance(models, instanceCode) {
   // The catalog is the one authority for the definition each item runs.
   const olDocs = await findBoundDefinitions(models, [...itemIds]);
 
-  // Opaque version over the updatedAt timestamps. The server compares it to
-  // skip a full world rebuild when nothing changed.
-  const versionParts = [String(inst.updatedAt || inst._id), JSON.stringify(toInstanceConfig(conf))];
+  // Opaque version over what the simulation reads. The server compares it to
+  // skip a full world rebuild when nothing changed; a layout edit changes nothing here.
+  const versionParts = [JSON.stringify(toInstanceMsg(inst)), JSON.stringify(toInstanceConfig(conf))];
   for (const m of mapDocs) versionParts.push(String(m.updatedAt || m._id));
   if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
   // Skill edits live in their own collection — fold them in so a skill
@@ -601,6 +661,7 @@ async function fetchFullInstance(models, instanceCode) {
     version,
     actions: actionDocs.map(toActionMsg),
     quests: questDocs.map(toQuestMsg),
+    releaseId: servedContentArtifact().releaseId,
   };
 }
 
@@ -656,6 +717,7 @@ export {
   objectLayerQueryFilter,
   fetchObjectLayerBatch,
   fetchObjectLayer,
+  fetchItemContent,
   fetchMapData,
   fetchObjectLayerManifest,
   fetchFullInstance,

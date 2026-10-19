@@ -11,6 +11,7 @@
  *   /boot/ping                         → { serverTimeMs }
  *   /boot/object-layers[?itemType=x]   → ObjectLayerMessage[]        (getObjectLayerBatch)
  *   /boot/object-layer/:itemId         → ObjectLayerMessage | 404    (getObjectLayer)
+ *   /boot/item-content/:itemId         → item content                 (getItemContent)
  *   /boot/map/:mapCode[?instanceCode=] → { map } | 404               (getMapData)
  *   /boot/full-instance[/:instanceCode]→ full world payload           (getFullInstance)
  *   /boot/object-layer-manifest        → { entries }                  (getObjectLayerManifest)
@@ -18,6 +19,7 @@
 
 import {
   fetchFullInstance,
+  fetchItemContent,
   fetchMapData,
   fetchObjectLayer,
   fetchObjectLayerBatch,
@@ -37,6 +39,9 @@ class CyberiaInstanceBootService {
     if (!msg) throw new Error(`ObjectLayer "${req.params.itemId}" not found`);
     return msg;
   };
+
+  static itemContent = async (req, res, options) =>
+    await fetchItemContent(getInstanceModels(options), req.params.itemId);
 
   static mapData = async (req, res, options) => {
     const result = await fetchMapData(getInstanceModels(options), {

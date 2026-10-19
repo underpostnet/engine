@@ -10,6 +10,8 @@ import crypto from 'crypto';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { hashToken } from '../../server/security/auth.js';
 import { DEFAULT_INSTANCE_CODE, worldPathOf } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { worldAvailable } from '../cyberia-server-registry/cyberia-server-registry.service.js';
+import { universeCodeOf } from '../cyberia-universe/cyberia-universe.service.js';
 
 /** Open tickets one account or one guest may hold at a time. */
 const OPEN_TICKETS_MAX = 5;
@@ -44,8 +46,9 @@ const insertTicket = async (Ticket, doc, seconds) => {
 
 /**
  * Makes a ticket for one world: for an account session (`user`, `session`) or for a guest (`guest`).
- * A request that names no world launches the default world. `path` is where the world lives on the
- * game client, for the launch to open.
+ * A request that names no world launches the default world. The world needs a live server that
+ * takes sessions, and an account needs the world in a universe. `path` is where the world lives on
+ * the game client, for the launch to open.
  * @param {{principal: 'account'|'guest', user?: string, session?: string, guest?: string, instanceCode?: string}} params
  * @param {{host: string, path: string}} context
  * @returns {Promise<{ticket: string, expiresAt: Date, path: string}>}
@@ -55,6 +58,9 @@ const createGameTicket = async ({ principal, user, session, guest, instanceCode 
   const code = (typeof instanceCode === 'string' && instanceCode.trim()) || DEFAULT_INSTANCE_CODE;
   if (!(await DataBaseProviderService.getModel('CyberiaInstance', context).exists({ code })))
     throw httpError(`unknown world "${code}"`, 404);
+  if (!(await worldAvailable(code, context))) throw httpError(`world "${code}" has no server taking sessions now`, 503);
+  if (principal === 'account' && !(await universeCodeOf(code, context)))
+    throw httpError(`world "${code}" belongs to no universe, so it keeps no account progress`, 409);
 
   const Ticket = DataBaseProviderService.getModel('CyberiaGameTicket', context);
   const holder = principal === 'guest' ? { guest } : { user };

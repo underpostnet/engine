@@ -4,8 +4,9 @@ const QUEST_STATUSES = Object.freeze(['active', 'completed']);
 
 const CyberiaQuestProgressSchema = new Schema(
   {
-    // The profile that owns the progress. The profile names the world.
+    // The profile that owns the progress, and the world the quest belongs to.
     player: { type: Schema.Types.ObjectId, ref: 'CyberiaPlayer', required: true },
+    instanceCode: { type: String, required: true, trim: true },
     // References CyberiaQuest.code
     questCode: { type: String, required: true, trim: true },
     // An abandoned quest has no record, so it can be accepted again.
@@ -33,7 +34,7 @@ const CyberiaQuestProgressSchema = new Schema(
   { timestamps: true },
 );
 
-CyberiaQuestProgressSchema.index({ player: 1, questCode: 1 }, { unique: true });
+CyberiaQuestProgressSchema.index({ player: 1, instanceCode: 1, questCode: 1 }, { unique: true });
 
 const CyberiaQuestProgressModel = model('CyberiaQuestProgress', CyberiaQuestProgressSchema);
 

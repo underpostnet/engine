@@ -3,6 +3,7 @@ import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/Ob
 import { profileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
 import {
+  skillDocsToConfig,
   toInstanceConfig,
   toMapMsg,
   toInstanceMsg,
@@ -74,6 +75,17 @@ export function buildBootContractArtifacts() {
     boot_full_instance: full,
     boot_object_layer: layer,
     boot_manifest: { entries: [{ itemId: 'sword', cid: SWORD.cid }] },
+    boot_item_content: {
+      releaseId: 'contract-release',
+      objectLayers: [layer],
+      skills: skillDocsToConfig([
+        {
+          triggerItemId: 'sword',
+          skills: [{ logicEventId: 'projectile', name: 'Contract Shot', summonedEntityItemId: 'sword-bullet' }],
+        },
+      ]),
+      unavailable: [{ itemId: 'sword-bullet', reason: 'unbound' }],
+    },
     boot_ping: { serverTimeMs: 1000 },
   };
   // The shape `game.OLMeta` marshals for the client: an unregistered ledger is absent.

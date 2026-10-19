@@ -2,8 +2,9 @@
  * Gameplay sessions: the launch, the lease that makes one connection the writer of a profile, the
  * checkpoints that renew it, and the release.
  *
- * One account holds one gameplay session. Each acquisition raises the epoch of the profile, so a
- * write of an older session is refused.
+ * One account holds one gameplay session, in any world. The profile belongs to the universe of the
+ * world, and the lease names the world the session plays. Each acquisition raises the epoch of the
+ * profile, so a write of an older session is refused in every world of the universe.
  *
  * @module src/projects/cyberia/player/player-session.js
  * @namespace CyberiaPlayerSession
@@ -12,13 +13,18 @@ import mongoose from 'mongoose';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import {
   consumeGameTicket,
+  createGameTicket,
   createResumeTicket,
   findGameTicket,
   ticketOfConnection,
 } from '../../../api/cyberia-game-ticket/cyberia-game-ticket.service.js';
 import { PLAYER_SCHEMA_VERSION } from '../../../api/cyberia-player/cyberia-player.model.js';
+import { routeLeads, universeCodeOf } from '../../../api/cyberia-universe/cyberia-universe.service.js';
 import { GuestService } from '../../../api/user/guest.service.js';
 import { loadState, writePositions } from './player-state.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 /**
  * Seconds a lease lives after its last checkpoint: `CYBERIA_GAME_SESSION_LEASE_SECONDS`, default
@@ -74,21 +80,25 @@ const consumeLaunch = async ({ ticket, instanceCode, connectionId }, context) =>
   const resumed = typeof consumed.epoch === 'number';
   if (
     resumed &&
-    !(await model('CyberiaPlayer', context).exists({ user: consumed.user, instanceCode, epoch: consumed.epoch }))
+    !(await model('CyberiaPlayer', context).exists({
+      user: consumed.user,
+      universeCode: await universeCodeOf(instanceCode, context),
+      epoch: consumed.epoch,
+    }))
   )
     return { refusal: 'signed_in_elsewhere' };
   return { refusal: '', principal: 'account', accountId: String(account._id), displayName: account.username };
 };
 
 /**
- * Issues the next resume ticket of a live account session. A session a newer launch took over, or
- * whose portal session ended, gets a refusal instead.
+ * The lease of a live account session: the one this server holds for the profile, at its epoch, in
+ * its world, with its portal session live. A session a newer launch took over, or whose portal
+ * session ended, gets a refusal instead.
  * @param {{playerId: string, accountId: string, epoch: number, instanceCode: string}} request
  * @param {{host: string, path: string}} context
- * @returns {Promise<{refusal: string, ticket?: string, expiresAtMs?: number}>}
- * @memberof CyberiaPlayerSession
+ * @returns {Promise<{refusal: string, lease?: Object}>}
  */
-const issueResume = async ({ playerId, accountId, epoch, instanceCode }, context) => {
+const liveLease = async ({ playerId, accountId, epoch, instanceCode }, context) => {
   if (!mongoose.isValidObjectId(accountId) || !mongoose.isValidObjectId(playerId)) return { refusal: 'revoked' };
   const lease = await model('CyberiaGameSession', context).findOne({ user: accountId }).lean();
   if (
@@ -99,16 +109,57 @@ const issueResume = async ({ playerId, accountId, epoch, instanceCode }, context
   )
     return { refusal: 'signed_in_elsewhere' };
   if (!(await liveAccount({ user: accountId, session: lease.accountSession }, context))) return { refusal: 'revoked' };
+  return { refusal: '', lease };
+};
+
+/**
+ * Issues the next resume ticket of a live account session.
+ * @param {{playerId: string, accountId: string, epoch: number, instanceCode: string}} request
+ * @param {{host: string, path: string}} context
+ * @returns {Promise<{refusal: string, ticket?: string, expiresAtMs?: number}>}
+ * @memberof CyberiaPlayerSession
+ */
+const issueResume = async (request, context) => {
+  const { refusal, lease } = await liveLease(request, context);
+  if (refusal) return { refusal };
   const { ticket, expiresAt } = await createResumeTicket(
-    { user: accountId, session: lease.accountSession, instanceCode, epoch: lease.epoch },
+    { user: lease.user, session: lease.accountSession, instanceCode: lease.instanceCode, epoch: lease.epoch },
     context,
   );
   return { refusal: '', ticket, expiresAtMs: expiresAt.getTime() };
 };
 
 /**
- * Makes the connection of a consumed ticket the writer of its profile in the ticket's world, and
- * loads the saved state. A retry of the same connection keeps the epoch it got.
+ * Issues the ticket of a travel of a live account session: a launch ticket of its portal session
+ * for another world of its universe that a route reaches and a server takes. The session saves and
+ * leaves next, and the target world acquires the profile with a new epoch.
+ * @param {{playerId: string, accountId: string, epoch: number, instanceCode: string, targetCode: string}} request
+ * @param {{host: string, path: string}} context
+ * @returns {Promise<{refusal: string, ticket?: string, expiresAtMs?: number}>} `refusal` also names
+ *   `no_route`, and `unavailable` for a world the engine does not launch now.
+ * @memberof CyberiaPlayerSession
+ */
+const issueTravel = async ({ targetCode, ...request }, context) => {
+  const { refusal, lease } = await liveLease(request, context);
+  if (refusal) return { refusal };
+  if (!(await routeLeads(lease.instanceCode, targetCode, context))) return { refusal: 'no_route' };
+  try {
+    const { ticket, expiresAt } = await createGameTicket(
+      { principal: 'account', user: lease.user, session: lease.accountSession, instanceCode: targetCode },
+      context,
+    );
+    return { refusal: '', ticket, expiresAtMs: expiresAt.getTime() };
+  } catch (error) {
+    if (!error.status) throw error;
+    logger.info(`Travel of ${request.playerId} to ${targetCode} refused: ${error.message}`);
+    return { refusal: 'unavailable' };
+  }
+};
+
+/**
+ * Makes the connection of a consumed ticket the writer of its profile in the universe of the
+ * ticket's world, and loads the saved state of that world. A retry of the same connection keeps the
+ * epoch it got. A world outside every universe has no profile to play.
  * @param {{connectionId: string, instanceCode: string, serverId: string}} request
  * @param {{host: string, path: string}|string} context
  * @memberof CyberiaPlayerSession
@@ -117,6 +168,11 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
   const ticket = await ticketOfConnection(connectionId, context);
   if (!ticket || ticket.instanceCode !== instanceCode || ticket.principal !== 'account') return { refusal: 'unknown' };
   if (!(await liveAccount(ticket, context))) return { refusal: 'revoked' };
+  const universeCode = await universeCodeOf(instanceCode, context);
+  if (!universeCode) {
+    logger.error(`World ${instanceCode} belongs to no universe: an account cannot play it`);
+    return { refusal: 'unavailable' };
+  }
 
   const Player = model('CyberiaPlayer', context);
   const GameSession = model('CyberiaGameSession', context);
@@ -130,14 +186,24 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
         player = await Player.findById(current.player, null, { session }).lean();
         return;
       }
-      player = await Player.findOneAndUpdate(
-        { user: ticket.user, instanceCode },
+      const profile = await Player.findOneAndUpdate(
+        { user: ticket.user, universeCode },
         {
           $inc: { epoch: 1 },
-          $set: { commitSeq: 0, positionSeq: 0, lastPlayedAt: now },
+          $set: { commitSeq: 0, lastPlayedAt: now },
           $setOnInsert: { schemaVersion: PLAYER_SCHEMA_VERSION },
         },
         { upsert: true, returnDocument: 'after', session },
+      ).lean();
+      await Player.updateOne(
+        { _id: profile._id, 'worlds.instanceCode': { $ne: instanceCode } },
+        { $push: { worlds: { instanceCode } } },
+        { session },
+      );
+      player = await Player.findOneAndUpdate(
+        { _id: profile._id },
+        { $set: { 'worlds.$[world].positionSeq': 0 } },
+        { arrayFilters: [{ 'world.instanceCode': instanceCode }], returnDocument: 'after', session },
       ).lean();
       await GameSession.updateOne(
         { user: ticket.user },
@@ -161,7 +227,7 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
       refusal: '',
       playerId: String(player._id),
       epoch: player.epoch,
-      state: await loadState(player, context),
+      state: await loadState(player, instanceCode, context),
       created: player.revision === 0,
       leaseSeconds: leaseSeconds(),
     };
@@ -216,7 +282,7 @@ const checkpointSessions = async ({ sessions = [] }, context) => {
         update: { $set: { expiresAt: leaseEnd(now), mapCode: String(entry.mapCode ?? '') } },
       },
     });
-    if (entry.position?.mapCode) positions.push(entry);
+    if (entry.position?.mapCode) positions.push({ ...entry, instanceCode: lease.instanceCode });
   }
   if (renewals.length > 0) await model('CyberiaGameSession', context).bulkWrite(renewals, { ordered: false });
   await writePositions(positions, context);
@@ -248,4 +314,13 @@ const presenceOf = async (users, context) => {
   return new Map(leases.map((l) => [String(l.user), { instanceCode: l.instanceCode, mapCode: l.mapCode }]));
 };
 
-export { acquireSession, checkpointSessions, consumeLaunch, issueResume, leaseSeconds, presenceOf, releaseSession };
+export {
+  acquireSession,
+  checkpointSessions,
+  consumeLaunch,
+  issueResume,
+  issueTravel,
+  leaseSeconds,
+  presenceOf,
+  releaseSession,
+};

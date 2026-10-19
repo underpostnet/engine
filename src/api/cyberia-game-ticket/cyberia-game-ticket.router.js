@@ -8,7 +8,8 @@
  *     header Authorization: Bearer <access token of an account session or a guest>
  *     body   { instanceCode }
  *     -> 200 { ticket, expiresAt } | 400 no world | 401 guest expired | 403 no session | 404 unknown world
- *        | 429 too many open tickets
+ *        | 409 account launch of a world outside every universe | 429 too many open tickets
+ *        | 503 no server of the world takes sessions
  *
  * The bearer header is not ambient, so a cross-site page cannot ask for a ticket. The game server
  * consumes the ticket over gRPC (`CyberiaPlayerService.ConsumeGameLaunchTicket`).

@@ -22,6 +22,7 @@ import { ObjectLayerManagement } from '../../services/object-layer/object-layer.
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
+import { UniverseEngineCyberia } from '../cyberia/UniverseEngineCyberia.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { gameClientUrl } from '../cyberia/GameLaunchCyberia.js';
 import { DEFAULT_INSTANCE_CODE } from '../cyberia/SharedDefaultsCyberia.js';
@@ -63,6 +64,10 @@ class AppShellCyberiaPortal {
         html: async () => await ProceduralEngineCyberia.render({ appStore }),
       }),
       'cyberia-map-engine': () => ({ observer: true, html: async () => await MapEngineCyberia.render({ appStore }) }),
+      'cyberia-universe-engine': () => ({
+        observer: true,
+        html: async () => await UniverseEngineCyberia.render({ appStore }),
+      }),
       'cyberia-instance-engine': () => ({
         observer: true,
         html: async () => await InstanceEngineCyberia.render({ appStore }),

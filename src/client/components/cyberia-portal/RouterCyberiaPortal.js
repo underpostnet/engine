@@ -54,6 +54,10 @@ class RouterCyberiaPortal {
         title: 'cyberia-map-engine',
         render: () => s(`.main-btn-cyberia-map-engine`).click(),
       },
+      '/cyberia-universe-engine': {
+        title: 'cyberia-universe-engine',
+        render: () => s(`.main-btn-cyberia-universe-engine`).click(),
+      },
       '/cyberia-instance-engine': {
         title: 'cyberia-instance-engine',
         render: () => s(`.main-btn-cyberia-instance-engine`).click(),

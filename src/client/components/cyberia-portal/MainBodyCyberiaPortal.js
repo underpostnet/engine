@@ -260,7 +260,6 @@ class MainBodyCyberiaPortal {
             };
             --world-glow: ${darkTheme ? 'rgba(187, 143, 206, 0.55)' : 'rgba(255, 204, 0, 0.55)'};
             --world-ok: ${darkTheme ? '#43d17a' : '#3ddc84'};
-            --world-warn: ${darkTheme ? '#f0b429' : '#ffc233'};
             --world-err: ${darkTheme ? '#ff5b5b' : '#ff6b6b'};
             --world-info: ${darkTheme ? '#c084fc' : '#c9a2ff'};
             --world-muted: ${darkTheme ? '#8a8a96' : '#b0b0bd'};
@@ -653,9 +652,6 @@ class MainBodyCyberiaPortal {
           }
           .hero-tone-ok {
             --tone: var(--world-ok);
-          }
-          .hero-tone-warn {
-            --tone: var(--world-warn);
           }
           .hero-tone-err {
             --tone: var(--world-err);

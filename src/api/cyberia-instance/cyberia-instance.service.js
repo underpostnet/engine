@@ -2,21 +2,51 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
-import { triggerHotReload } from '../../projects/cyberia/runtime/hot-reload-trigger.js';
+import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
+import { graphLayoutDefect } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { removeUniverseMember } from '../cyberia-universe/cyberia-universe.service.js';
+import { registryModels, registryTransaction } from '../../projects/cyberia/instance/map-registry.js';
 
 const logger = loggerFactory(import.meta);
 
 /** Instance lists and reads by code; every instance write invalidates them. */
 const instanceCache = (options) => CacheService.namespace(options, 'cyberia-instance');
 
+const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+/**
+ * A write that applies only at the revision it read, and the revision it leaves. A record without a
+ * revision is at revision 1, the schema default.
+ */
+const revisionGuard = ({ _id, revision = 1 }) => ({
+  filter: { _id, revision: revision === 1 ? { $in: [1, null] } : revision },
+  next: revision + 1,
+});
+
+/**
+ * The saved cells of the maps the instance keeps; a cell of a removed map goes with it.
+ * @throws {Error} 400 on an invalid layout.
+ */
+const keptMapLayout = ({ cyberiaMapCodes = [], mapLayout = [] }) => {
+  const kept = mapLayout.filter((cell) => cyberiaMapCodes.includes(cell?.mapCode));
+  const defect = graphLayoutDefect(cyberiaMapCodes, kept, 'mapCode');
+  if (defect) throw httpError(400, `Invalid map layout: ${defect}`);
+  return kept;
+};
+
 class CyberiaInstanceService {
   static post = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
-    const instance = await new CyberiaInstance({ ...req.body, creator: req.auth.user._id }).save();
+    const { revision, ...fields } = req.body;
+    const { value: instance } = await registryTransaction(registryModels(options), (session) =>
+      new CyberiaInstance({ ...fields, mapLayout: keptMapLayout(fields), creator: req.auth.user._id }).save({
+        session,
+      }),
+    );
     await CacheService.invalidate(instanceCache(options));
 
     // Auto-upsert a CyberiaInstanceConf for this instance using schema defaults.
@@ -75,36 +105,51 @@ class CyberiaInstanceService {
     const instance = await CyberiaInstance.findById(req.params.id);
     if (!instance) throw new Error('instance not found');
     assertOwnerOrAdmin(req.auth.user, instance.creator);
-    // The owner is set once, by the write that created the instance.
-    const { creator, ...changes } = req.body;
+    // The owner and the code are set once, by the write that created the instance; the revision only moves forward.
+    const { creator, revision, ...changes } = req.body;
+    if (changes.code !== undefined && changes.code !== instance.code)
+      throw httpError(400, `The code of instance ${instance.code} never changes`);
+    if (revision !== instance.revision)
+      throw httpError(
+        409,
+        `Instance ${instance.code} is at revision ${instance.revision}, not ${revision}: reload it before saving`,
+      );
+    changes.mapLayout = keptMapLayout({
+      cyberiaMapCodes: changes.cyberiaMapCodes ?? instance.cyberiaMapCodes,
+      mapLayout: changes.mapLayout ?? instance.mapLayout,
+    });
+    await new CyberiaInstance({ ...instance.toObject(), ...changes }).validate();
+    const { filter, next } = revisionGuard(instance);
+    const { value: updated } = await registryTransaction(registryModels(options), async (session) => {
+      const saved = await CyberiaInstance.findOneAndUpdate(
+        filter,
+        { $set: { ...changes, revision: next } },
+        { returnDocument: 'after', runValidators: true, session },
+      );
+      if (!saved) throw httpError(409, `Instance ${instance.code} changed while saving: reload it before saving`);
+      return saved;
+    });
     if (changes.thumbnail && instance.thumbnail && String(changes.thumbnail) !== String(instance.thumbnail)) {
       const File = DataBaseProviderService.getModel('File', options);
       await File.findByIdAndDelete(instance.thumbnail);
     }
-    const updated = await CyberiaInstance.findByIdAndUpdate(req.params.id, changes, { returnDocument: 'after' });
     await CacheService.invalidate(instanceCache(options));
     return updated;
   };
   /**
-   * Ask a running cyberia-server to rebuild its world now (gRPC control
-   * service, REST fallback). Moderator/admin only — the route guards the
-   * caller; the internal CYBERIA_SERVER_API_KEY never leaves the engine.
+   * Asks the live servers of this instance to rebuild its world now (gRPC control service, REST
+   * fallback). The registry names the servers; the internal CYBERIA_SERVER_API_KEY never leaves the engine.
    */
   static hotReload = async (req, res, options) => {
-    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
-    const { serverUrl, mode } = req.body || {};
-    if (!serverUrl) throw new Error('serverUrl is required');
-
-    // Resolve the instance the component is editing so the target server can
-    // reject a trigger aimed at a different world.
-    let instanceCode = req.body?.instanceCode || '';
-    if (!instanceCode && req.params.id) {
-      const instance = await CyberiaInstance.findById(req.params.id).select('code').lean();
-      instanceCode = instance?.code || '';
-    }
-
-    const { transport, result, grpcError } = await triggerHotReload({ serverUrl, instanceCode, mode });
-    return { transport, instanceCode, grpcError, ...result };
+    const instance = await DataBaseProviderService.getModel('CyberiaInstance', options)
+      .findById(req.params.id)
+      .select('code')
+      .lean();
+    if (!instance) throw httpError(404, 'instance not found');
+    const mode = req.body?.mode === 'incremental' ? 'incremental' : 'full';
+    const endpoints = await reloadContentServers(options, { mode, instanceCode: instance.code });
+    if (endpoints.length === 0) throw httpError(404, `No live server runs ${instance.code}`);
+    return { instanceCode: instance.code, mode, endpoints };
   };
 
   /**
@@ -146,7 +191,11 @@ class CyberiaInstanceService {
     const persist = req.query?.persist === 'true';
     if (persist) {
       assertOwnerOrAdmin(req.auth.user, instance.creator);
-      await CyberiaInstance.findByIdAndUpdate(req.params.id, { portals: result.portals });
+      const { filter, next } = revisionGuard(instance);
+      const { matchedCount } = await CyberiaInstance.updateOne(filter, {
+        $set: { portals: result.portals, revision: next },
+      });
+      if (!matchedCount) throw httpError(409, `Instance ${instance.code} changed while connecting: try again`);
       await CacheService.invalidate(instanceCache(options));
     }
 
@@ -164,12 +213,18 @@ class CyberiaInstanceService {
       const instance = await CyberiaInstance.findById(req.params.id);
       if (!instance) throw new Error('instance not found');
       assertOwnerOrAdmin(req.auth.user, instance.creator);
+      ({ value: removed } = await registryTransaction(registryModels(options), (session) =>
+        CyberiaInstance.findByIdAndDelete(req.params.id, { session }),
+      ));
       if (instance.thumbnail) {
         const File = DataBaseProviderService.getModel('File', options);
         await File.findByIdAndDelete(instance.thumbnail);
       }
-      removed = await CyberiaInstance.findByIdAndDelete(req.params.id);
-    } else removed = await CyberiaInstance.deleteMany();
+      await removeUniverseMember(instance.code, options);
+    } else
+      ({ value: removed } = await registryTransaction(registryModels(options), (session) =>
+        CyberiaInstance.deleteMany({}, { session }),
+      ));
     await CacheService.invalidate(instanceCache(options));
     return removed;
   };

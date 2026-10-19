@@ -1,27 +1,3 @@
-// InstanceSelectionView.js — Cyberia's World / Instance selection screen.
-//
-// A modern AAA-MMORPG world-select experience (WoW realm status, FFXIV world
-// congestion, New World population bars, Lost Ark status pills) adapted to
-// Cyberia's instance-based architecture and pixel-art RPG identity:
-//   - a fully responsive grid of Instance Cards (thumbnail, name, live status,
-//     population, tags, prominent PLAY button);
-//   - a server search and a pager that read one page of instances at a time, so
-//     it scales to any number of instances; status chips filter the shown page;
-//   - a play CTA that disables with a clear reason when a world is not joinable.
-//
-// The view is pure presentation and completely separated from the data layer.
-// It consumes an injected `fetchInstances({ page, limit, search })` provider that
-// returns one page `{ data, total }` of normalized, playable instances (see
-// NormalizedInstance below); a default provider adapting `CyberiaInstanceService`
-// is supplied for convenience.
-//
-// NormalizedInstance:
-//   { id, code, name, description, thumbnailUrl, status, players, capacity,
-//     tags[], playable }
-// `status` ∈ STATUS_ORDER. `playable` is derived from status but may be
-// overridden by the provider. Play enters the world through the launch bridge
-// (GameLaunchCyberia).
-
 import { ThemeEvents, darkTheme } from '../core/Css.js';
 import { Translate } from '../core/Translate.js';
 import { NotificationManager } from '../core/NotificationManager.js';
@@ -31,45 +7,21 @@ import { ListPager } from '../core/ListPager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { gameServerUrl, launchWorld } from './GameLaunchCyberia.js';
+import { worldPicture } from './SharedDefaultsCyberia.js';
 
 const placeholderThumbnail = () => `${getProxyPath()}assets/ui-icons/world-default-forest-city.png`;
 
-// Live status vocabulary. `playable` gates the PLAY button; `tone` selects the
-// pill colour (resolved to a CSS var so it stays theme-aware); `cta` is the
-// button label when the world is NOT joinable.
 const STATUS_META = {
   online: { label: 'Online', tone: 'ok', playable: true },
-  busy: { label: 'Busy', tone: 'warn', playable: true },
   full: { label: 'Full', tone: 'err', playable: false, cta: 'Full' },
   maintenance: { label: 'Maintenance', tone: 'info', playable: false, cta: 'Down' },
-  offline: { label: 'Offline', tone: 'muted', playable: false, cta: 'Offline' },
   'coming-soon': { label: 'Coming Soon', tone: 'accent', playable: false, cta: 'Soon' },
+  offline: { label: 'Offline', tone: 'muted', playable: false, cta: 'Offline' },
 };
-const STATUS_ORDER = ['online', 'busy', 'full', 'maintenance', 'coming-soon', 'offline'];
+const STATUS_ORDER = Object.keys(STATUS_META);
 const statusMeta = (status) => STATUS_META[status] || STATUS_META.offline;
 
-// ── Data layer (default provider) ────────────────────────────────────────────
-
-const thumbnailUrlOf = (thumbnail) => {
-  if (!thumbnail) return placeholderThumbnail();
-  const fileId = typeof thumbnail === 'object' ? thumbnail._id : thumbnail;
-  return fileId ? getApiBaseUrl({ id: fileId, endpoint: 'file/blob' }) : placeholderThumbnail();
-};
-
-// Map a raw instance document to a live status. A running-server enrichment can
-// set `runtimeStatus` or `players`/`capacity`; absent those we fall back to the
-// content lifecycle (`status`) so drafts read as maintenance and the rest as
-// online. This is the single seam where live telemetry would plug in.
 const resolveStatus = (doc) => {
-  if (STATUS_META[doc.runtimeStatus]) return doc.runtimeStatus;
-  const players = Number(doc.players ?? doc.onlinePlayers);
-  const capacity = Number(doc.capacity ?? doc.maxPlayers);
-  if (Number.isFinite(players) && Number.isFinite(capacity) && capacity > 0) {
-    const ratio = players / capacity;
-    if (ratio >= 1) return 'full';
-    if (ratio >= 0.75) return 'busy';
-    return 'online';
-  }
   if (doc.status === 'draft') return 'maintenance';
   if (doc.status === 'archived') return 'offline';
   return 'online';
@@ -78,37 +30,27 @@ const resolveStatus = (doc) => {
 const normalizeInstance = (doc) => {
   const code = doc.code || '';
   const status = resolveStatus(doc);
-  const players = Number(doc.players ?? doc.onlinePlayers);
-  const capacity = Number(doc.capacity ?? doc.maxPlayers);
   return {
     id: doc._id || code,
     code,
     name: doc.name || code || 'Unknown Instance',
     description: doc.description || 'A dynamic pixel-art sandbox world awaiting explorers.',
-    thumbnailUrl: thumbnailUrlOf(doc.thumbnail),
+    thumbnailUrl: code ? getApiBaseUrl(worldPicture(doc)) : placeholderThumbnail(),
     status,
-    players: Number.isFinite(players) ? players : null,
-    capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
+    players: null,
+    capacity: null,
     tags: Array.isArray(doc.tags) ? doc.tags.filter(Boolean) : [],
     playable: statusMeta(status).playable,
   };
 };
 
-// ── Live status via the cyberia-server metrics API ───────────────────────────
-// Each world's own /api/v1/metrics reports its health and capacity. Cross-origin,
-// so the metrics CORS allow-list (CYBERIA_CORS_ALLOWED_ORIGINS) includes this portal.
-
-// Map a metrics snapshot onto the card status vocabulary. Both sides are closed
-// sets (metrics.go HealthStatus / WorkloadLevel); a null snapshot means the
-// world was unreachable → offline.
-const statusFromMetrics = (m) => {
-  if (!m) return 'offline';
-  const players = Number(m.entities?.total_entities);
-  const capacity = Number(m.workload?.max_entity_capacity);
-  const load = m.workload?.current_load;
-  if (m.health === 'maintenance') return 'maintenance';
-  if (load === 'critical' || (capacity > 0 && players >= capacity)) return 'full';
-  if (m.health === 'critical' || m.health === 'degraded' || load === 'high') return 'busy';
+const statusFromMetrics = (metrics) => {
+  if (!metrics) return 'offline';
+  if (metrics.health === 'maintenance' || metrics.websocket?.status === 'stopping') return 'maintenance';
+  if (metrics.websocket?.status !== 'running') return 'offline';
+  const players = Number(metrics.websocket?.active_connections);
+  const capacity = Number(metrics.websocket?.max_connections);
+  if (capacity > 0 && players >= capacity) return 'full';
   return 'online';
 };
 
@@ -119,36 +61,27 @@ const fetchInstanceMetrics = async (url, timeoutMs = 3500) => {
     const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
     return res.ok ? await res.json() : null;
   } catch (_) {
-    return null; // unreachable / CORS-blocked / timed-out → treated as offline
+    return null;
   } finally {
     clearTimeout(timer);
   }
 };
 
-// Best-effort live overlay: replaces each instance's status + population from its
-// metrics endpoint (parallel; unreachable reads as offline). Mutates in place.
 const enrichWithLiveStatus = async (instances) => {
   await Promise.all(
     instances.map(async (inst) => {
       const m = await fetchInstanceMetrics(`${gameServerUrl(inst.code)}/api/v1/metrics`);
-      inst.status = statusFromMetrics(m);
-      if (m) {
-        const players = Number(m.entities?.total_entities);
-        const capacity = Number(m.workload?.max_entity_capacity);
-        if (Number.isFinite(players)) inst.players = players;
-        if (Number.isFinite(capacity) && capacity > 0) inst.capacity = capacity;
-      }
+      inst.status = inst.status === 'maintenance' ? 'maintenance' : statusFromMetrics(m);
+      const players = Number(m?.websocket?.active_connections);
+      const capacity = Number(m?.websocket?.max_connections);
+      inst.players = Number.isFinite(players) && players >= 0 ? players : null;
+      inst.capacity = Number.isFinite(capacity) && capacity > 0 ? capacity : null;
       inst.playable = statusMeta(inst.status).playable;
     }),
   );
   return instances;
 };
 
-// Default provider: the only place the view touches the instance service. Reads
-// one page of the instance catalogue whose name holds `search`, then (when
-// `liveStatus`) overlays real Online/Busy/Full/Maintenance/Offline from the
-// metrics API of each world on the page. Swap the whole thing via
-// `render({ fetchInstances })` to source instances from anywhere.
 const defaultInstanceProvider = async ({ liveStatus = true, page = 1, limit = 12, search = '' } = {}) => {
   const filterModel = { status: { filterType: 'text', type: 'notEqual', filter: 'archived' } };
   if (search) filterModel.name = { filterType: 'text', type: 'contains', filter: search };
@@ -159,8 +92,6 @@ const defaultInstanceProvider = async ({ liveStatus = true, page = 1, limit = 12
   return { data: instances, total: res.data.total };
 };
 
-// ── Presentation ─────────────────────────────────────────────────────────────
-
 const escapeHtml = (value = '') =>
   String(value).replace(
     /[&<>"']/g,
@@ -168,7 +99,9 @@ const escapeHtml = (value = '') =>
   );
 
 const populationLabel = (instance) => {
-  if (instance.capacity == null || instance.players == null) return '';
+  if (instance.players == null) return '';
+  if (instance.capacity == null)
+    return html`<div class="isv-pop"><span class="isv-pop-text">${instance.players} players</span></div>`;
   const pct = Math.min(100, Math.round((instance.players / instance.capacity) * 100));
   return html`
     <div class="isv-pop" title="${instance.players} / ${instance.capacity} players">
@@ -186,9 +119,7 @@ const instanceCard = (instance) => {
     .slice(0, 3)
     .map((t) => html`<span class="isv-tag">${escapeHtml(t)}</span>`)
     .join('');
-  // Trusted markup, inserted raw (not escaped): the playable branch is a
-  // Translate live-translation <span>; the other is a fixed STATUS_META label.
-  // Escaping here would render the <span> as literal text.
+  // Translate returns trusted markup for the Play label.
   const playLabel = meta.playable ? Translate.instance('play') : meta.cta || meta.label;
   return html`
     <article class="isv-card" data-instance-id="${escapeHtml(instance.id)}" data-status="${instance.status}">
@@ -206,7 +137,7 @@ const instanceCard = (instance) => {
       <div class="isv-card-body">
         <h3 class="isv-card-name" title="${escapeHtml(instance.name)}">${escapeHtml(instance.name)}</h3>
         <p class="isv-card-desc">${escapeHtml(instance.description)}</p>
-        ${populationLabel(instance)} ${tagsHtml ? html`<div class="isv-tags">${tagsHtml}</div>` : ''}
+        ${true ? '' : populationLabel(instance)} ${tagsHtml ? html`<div class="isv-tags">${tagsHtml}</div>` : ''}
       </div>
       <div class="isv-card-foot">
         <button
@@ -260,7 +191,6 @@ class InstanceSelectionView {
     const { fetchInstances = (o) => defaultInstanceProvider(o), liveStatus = true } = options;
 
     const id = 'instance-selection';
-    // Per-render UI state (closure-scoped; the view owns no persistent data): the shown page.
     const state = { shown: [], filter: 'all' };
 
     const gridSel = `.isv-grid`;
@@ -347,7 +277,6 @@ class InstanceSelectionView {
             --isv-accent: ${accent};
             --isv-accent-2: ${accent2};
             --isv-ok: ${darkTheme ? '#43d17a' : '#1f9d55'};
-            --isv-warn: ${darkTheme ? '#f0b429' : '#c77700'};
             --isv-err: ${darkTheme ? '#ff5b5b' : '#d63031'};
             --isv-info: ${darkTheme ? '#c084fc' : '#7c3aed'};
             --isv-grid-line: ${darkTheme ? 'rgba(155, 89, 182, 0.14)' : 'rgba(255, 204, 0, 0.22)'};
@@ -678,9 +607,6 @@ class InstanceSelectionView {
           .isv-tone-ok {
             color: var(--isv-ok);
           }
-          .isv-tone-warn {
-            color: var(--isv-warn);
-          }
           .isv-tone-err {
             color: var(--isv-err);
           }
@@ -695,9 +621,6 @@ class InstanceSelectionView {
           }
           .isv-pop-fill.isv-tone-ok {
             background: var(--isv-ok);
-          }
-          .isv-pop-fill.isv-tone-warn {
-            background: var(--isv-warn);
           }
           .isv-pop-fill.isv-tone-err {
             background: var(--isv-err);
@@ -795,7 +718,6 @@ class InstanceSelectionView {
 
       const container = s(`.${id}`);
       if (container) {
-        // Delegated events survive grid re-renders (filter/search/refresh/retry).
         container.addEventListener('click', (event) => {
           const playBtn = event.target.closest?.('.isv-play:not(.isv-play-disabled)');
           if (playBtn) {
