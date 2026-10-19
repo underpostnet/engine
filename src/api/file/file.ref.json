@@ -22,7 +22,8 @@
   {
     "api": "cyberia-instance",
     "model": {
-      "thumbnail": true
+      "thumbnail": true,
+      "preview": true
     }
   },
   {
