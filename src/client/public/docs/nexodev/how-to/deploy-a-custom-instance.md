@@ -351,7 +351,8 @@ Each per-instance env file is built from the canonical template file, so
 operator-owned keys (API keys, memory limits) are inherited and only fields owned
 by the project builder are rewritten. All instances keep pointing at the
 **shared** parent gRPC service — content is authored once and served to every
-variant.
+variant. Its name carries no colour: a parent traffic switch changes only its
+selector, so a running instance keeps its address.
 
 ### Routing
 

@@ -1997,7 +1997,7 @@ EOF
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
           namespace: options.namespace,
-          traffic: [parentTraffic],
+          traffic: parentTraffic,
         });
         if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
       }
@@ -2175,7 +2175,7 @@ EOF
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
           namespace: options.namespace,
-          traffic: [parentTraffic],
+          traffic: parentTraffic,
           host: _host,
         });
         if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
@@ -2183,7 +2183,7 @@ EOF
         const resolvedCmd = _cmd[env].map((c) =>
           c.replaceAll(
             '{{grpc-service-dns}}',
-            `${deployId}-grpc-service-${env}-${parentTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+            `${Underpost.deploy.grpcServiceNameFactory({ deployId, env })}.${options.namespace || 'default'}.svc.cluster.local:50051`,
           ),
         );
 
@@ -2447,11 +2447,10 @@ EOF
       }
 
       const targetTraffic = options.traffic || 'blue';
-      const parentTraffic = targetTraffic;
       const resolvedCmd = _cmd[env].map((c) =>
         c.replaceAll(
           '{{grpc-service-dns}}',
-          `${deployId}-grpc-service-${env}-${parentTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+          `${Underpost.deploy.grpcServiceNameFactory({ deployId, env })}.${options.namespace || 'default'}.svc.cluster.local:50051`,
         ),
       );
 
