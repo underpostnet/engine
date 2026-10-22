@@ -7,7 +7,9 @@ import {
 import { CyberiaPlayerService } from './cyberia-player.service.js';
 
 class CyberiaPlayerController {
-  static get = serviceHandler(CyberiaPlayerService.get, { pagination: true });
+  static get = serviceHandler(CyberiaPlayerService.get);
+
+  static endSession = serviceHandler(CyberiaPlayerService.endSession);
 
   // An answer that is no preview is never cached.
   static appearance = controllerHandler(async (req, res, options) => {

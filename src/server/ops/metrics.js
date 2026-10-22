@@ -23,4 +23,11 @@ const counter = (config) => registered(promClient.Counter, config);
  */
 const histogram = (config) => registered(promClient.Histogram, config);
 
-export { counter, histogram };
+/**
+ * @param {import('prom-client').GaugeConfiguration<string>} config
+ * @returns {import('prom-client').Gauge<string>}
+ * @memberof OpsMetrics
+ */
+const gauge = (config) => registered(promClient.Gauge, config);
+
+export { counter, gauge, histogram };

@@ -1,19 +1,30 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { DataQuery } from '../../server/storage/data-query.js';
 import {
   accountAppearances,
   appearanceCids,
   appearancePreview,
 } from '../../projects/cyberia/player/appearance-preview.js';
+import { endSession, listPlayers, playerDetail } from '../../projects/cyberia/player/player-admin.js';
 
 const failure = (status, message) => Object.assign(new Error(message), { status });
 
 class CyberiaPlayerService {
-  static get = async (req, res, options) => {
-    const CyberiaPlayer = DataBaseProviderService.getModel('CyberiaPlayer', options);
-    if (req.params.id) return await CyberiaPlayer.findById(req.params.id).lean();
-    return await DataQuery.findPage(CyberiaPlayer, req.query);
-  };
+  /** GET /:id — the detail of one profile; GET /?q&universeCode&status&after&limit — one page of profiles. */
+  static get = async (req, res, options) =>
+    req.params.id ? await playerDetail(req.params.id, options) : await listPlayers(req.query, options);
+
+  /** POST /:id/session/end {operationId, reason, epoch} — ends the live session of a profile. */
+  static endSession = async (req, res, options) =>
+    await endSession(
+      {
+        playerId: req.params.id,
+        operationId: req.body?.operationId,
+        reason: req.body?.reason,
+        epoch: req.body?.epoch,
+        actor: req.auth.user._id,
+      },
+      options,
+    );
 
   /** GET /appearance/v<version>/:cids — the identity preview a reference names, for good. */
   static appearance = async (req, res, options) => {

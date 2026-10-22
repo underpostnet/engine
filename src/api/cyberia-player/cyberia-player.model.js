@@ -99,6 +99,8 @@ const CyberiaPlayerSchema = new Schema(
 );
 
 CyberiaPlayerSchema.index({ user: 1, universeCode: 1 }, { unique: true });
+// The operator view pages profiles by their last play, newest first.
+CyberiaPlayerSchema.index({ lastPlayedAt: -1, _id: -1 });
 
 /** The definition path of every stack a profile keeps: bag, storage, world vaults and their held stacks. */
 const STACK_CID_PATHS = Object.freeze([
