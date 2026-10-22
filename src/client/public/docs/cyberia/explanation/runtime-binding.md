@@ -112,13 +112,9 @@ Without an export, the next release runs what its snapshot holds, and the bindin
 
 ## Consistency
 
-| Check                           | What it finds                                                                                                                                                               |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cyberia catalog check`         | Each world, as the game server receives it: items unbound, bound to a definition this host does not store, to a draft or an archived one, without an atlas, and legacy pins |
-| `catalog check --ipfs`          | How each bound definition is stored, by category: binding, content, MFS and pin                                                                                             |
-| `content-release` `legacy-pins` | A quest or an action that still pins a definition                                                                                                                           |
-| `cyberia catalog repair`        | The items that legacy pins make ambiguous, with every document; `--apply` removes the pins                                                                                  |
+| Check                   | What it finds                                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cyberia catalog check` | Each world, as the game server receives it: items unbound, bound to a definition this host does not store, to a draft or an archived one, and without an atlas |
+| `catalog check --ipfs`  | How each bound definition is stored, by category: binding, content, MFS and pin                                                                                |
 
-Documents stored before the catalog was the one authority can still hold `objectLayerCid` fields.
-The world load ignores them, and the repair reports them and removes them. See
-[Manage runtime bindings](../how-to/manage-runtime-bindings.md).
+See [Manage runtime bindings](../how-to/manage-runtime-bindings.md).

@@ -51,8 +51,23 @@ CyberiaAction {
   }]
 
   storageSlots: Number  // NPC vault capacity in slots; 0 disables the capability
+
+  buybackItems: [String]  // items this merchant buys back
+  burnItems:    [String]  // items this terminal burns
+
+  market: {
+    marketCode:   String    // the CyberiaMarket profile this terminal opens; '' opens none
+    selection:    String    // policy: every item its policy lets list | items: itemIds only
+    itemIds:      [String]  // the items of selection 'items'
+    listingModes: [String]  // fixed | auction: the modes a seller lists in here
+  }
+
+  revision: Number  // rises with each write; a save names the revision it read
 }
 ```
+
+The market profile holds the shared rules: scope, modes, durations, auction raise, fees and limits.
+The terminal holds only its local listing rules ([market](off-chain-economy.md#market)).
 
 ### CyberiaDialogue Schema
 
@@ -83,6 +98,29 @@ quest-talk giver at once.
 | `shop`       | `shopItems[]` is non-empty — player buys items with a currency | `shopItems[]`                                            |
 | `craft`      | `craftRecipes[]` is non-empty — player assembles outputs       | `craftRecipes[]`                                         |
 | `storage`    | `storageSlots > 0` — player banks items in an NPC vault        | `storageSlots`                                           |
+| `buyback`    | `buybackItems[]` is non-empty — the merchant pays coins        | `buybackItems[]`                                         |
+| `burn`       | `burnItems[]` is non-empty — the terminal burns for salvage    | `burnItems[]`                                            |
+| `market`     | `market.marketCode` is set — players list, buy and bid         | `market`                                                 |
+
+The item policy of the economy must allow `buyback`, `burn` and `market` too: a list never grants
+what the policy refuses ([off-chain economy](off-chain-economy.md#market)). The interact modal
+shows one tab for each capability. `GET /api/v1/cyberia-action/:id/diagnostics` tells for each
+world of the action map which item each capability can use there, and why the others are blocked
+([diagnostics](off-chain-economy.md#diagnostics)).
+
+### Editing an action
+
+A save names the `revision` it read. Another revision answers `409`: another editor or a saga sync
+changed the action, so the editor reloads it. After a save the editor reads the stored action
+again. The action editor groups the economy capabilities in three sections:
+
+- **Shared Market** — the profile the terminal opens, with its scope, modes, durations and fees, and
+  a link to the Market editor. It changes none of them.
+- **Local Terminal Rules** — the selection, the items and the listing modes of this terminal.
+- **Other Interaction Capabilities** — the vault slots, buyback and burn. The shop and the recipes
+  come from content; a save keeps them.
+
+**Effective Capabilities** under them shows the diagnostics of each world.
 
 ---
 
@@ -212,7 +250,8 @@ integration buttons (**Chat**, **Integration**) that open the JS overlay. The
 paired `modal_dialogue` (bottom half) carries the talk flow.
 
 Capability tabs lead the strip, and the leading one opens active — Shop for a
-vendor, else Quest. Because the catalog resolves through an async REST fetch
+vendor, else Quest. The strip wraps into rows of at most four tabs, and the rows
+share the tabs evenly, so no tab clips its icon or its label. Because the catalog resolves through an async REST fetch
 after the modal is already open, the active tab keeps tracking the leading
 capability until the player picks a tab themselves. Switching tabs plays a
 pop-in transition, during which content taps are ignored.
@@ -272,7 +311,7 @@ freeze, so there is never a thawed frame between them.
 
 > **Dialogue-code contract.** The C client fetches dialogue groups at
 > `/api/v1/cyberia-dialogue/code/default-<itemId>`, so the code it reports on
-> `dlg_complete` is `default-<provideItemId>`. For a `quest-talk` objective to
+> `dlg_complete` is `default-<skin>`, the NPC's active skin. For a `quest-talk` objective to
 > advance, the action's `questDialogueCodes` must contain that code.
 
 ### Freeze semantics

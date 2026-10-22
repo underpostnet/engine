@@ -188,9 +188,11 @@ bubble column on the left is collapsible by the same toggle pattern. Both panels
 default collapsed on screens narrower than 600 px. Collapse state is not
 persisted across sessions.
 
-Each server quest snapshot entry carries `{ code, title, description, status,
-activeStep, objectivesText }` so the journal can render rows and inline detail
-without re-fetching the quest definition.
+Each server quest snapshot entry carries `{ code, status, activeStep, stepId,
+objectives, rewardsHeld }`: the step the quest is on and the count of each of
+its objectives (`type`, `itemId`, `current`, `required`). The client takes the
+title and the step list from the quest metadata, and resolves where each
+objective leads in the world ([quest navigation](game-client.md#quest-navigation)).
 
 ---
 

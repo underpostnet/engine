@@ -190,7 +190,9 @@ client_event_push       stamps frame + sequence + time; keeps the event
 client_event_flush      after the fixed steps: sends each new event once
 ```
 
-`net/client_event` is the one uplink. A module pushes an action and touches no stamp, no sequence and no socket. The list keeps each event until a snapshot's `inputConsumedThrough` passes its sequence (`client_event_trim`), so the reconcile can replay it.
+`net/client_event` is the one uplink. A module pushes an action and touches no stamp, no sequence and no socket. The list keeps each event until a snapshot's `inputConsumedThrough` passes its sequence (`client_event_trim`), so the reconcile can replay it, and so it can send it again: `input_resend {from}` (`client_event_resend`) rewinds the flush to the first event at or past `from` when the server refused a batch past a gap ([the input command pipeline](architecture.md#input-command-pipeline)).
+
+The modal counter (`ui/modal`) owns the stasis of the player. Its first open sends `player_stasis true`; its last close sends `false`; `init_data` sends the count again. Each change is one sequenced event, so the server and the client agree once the server consumed it.
 
 ### Pointer controls
 
@@ -216,10 +218,10 @@ To check a change, use a phone or a browser with touch emulation, and a desktop 
 3. Drag from any point of the ground. The joystick shows under the first contact. The player walks in the drag direction, in eight headings.
 4. Move the thumb back to the base. The player stops. Lift the finger. The joystick hides.
 5. Drag, then put a second finger down and pinch. The camera zooms, the player stops, and no tap moves the player.
-6. Drag the Quest Journal list and the inventory bar. They scroll. No joystick shows.
+6. Drag the Quest Journal list and the thumb of the inventory bar track. They scroll. No joystick shows.
 7. Open the Instance Map. Drag and pinch it. No joystick shows.
 8. On a desktop, click the ground: the player walks there on release. Drag the mouse on the ground: the joystick shows and steers. Release: the player stops.
-9. On a desktop, click toolbar buttons and drag the inventory bar. They respond on the press, as before. Steer with WASD and zoom with the wheel.
+9. On a desktop, click toolbar buttons and drag the inventory bar track. They respond on the press, as before. Steer with WASD and zoom with the wheel.
 
 ---
 
@@ -271,6 +273,32 @@ The [render contract](../../object-layer/explanation/render-contract.md) defines
 
 All requests are CORS-simple GETs (no preflight) and cacheable. None require credentials.
 
+### Cache ownership
+
+`data/engine_client` is the one fetch layer and the one cache of bytes and GPU textures. Every other
+module asks it by URL and keeps only what it parsed.
+
+| Layer                            | Key                             | Owner of residency                        | Bound and end                                                                                        |
+| -------------------------------- | ------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Fetch slots, bytes, GPU textures | URL; renders and layouts by CID | The fetch layer; a draw touches its entry | `FETCH_QUEUE_CAP` slots; 64 MiB resident; least recently touched first, never one touched this frame |
+| Decode                           | URL                             | The fetch layer                           | 16 MiB loaded bodies; two image decodes, one kept for the own player                                 |
+| Shared bytes                     | Reference count                 | Each consumer until `fetch_data_release`  | Freed with the last reference                                                                        |
+| Instance and universe map        | World code, session stamp       | The open map view                         | One graph; a late answer of an older session or world is dropped                                     |
+| Action, quest, dialogue metadata | Content code                    | Its cache module                          | One entry per code of the engine release the client reads                                            |
+| UI icons, fonts                  | File stem                       | `ui/ui_icon`, `ui/text`                   | The bundled set                                                                                      |
+
+A request of a URL already queued or loaded joins it, so concurrent consumers cost one download. A
+failed URL waits 5 s before a new try. A map change lowers every queued request to background
+priority and keeps what is resident, so a world visited again draws at once. Each frame spends at
+most 2 ms (8 ms while the own player or the scene waits) on decode, upload and callbacks, never a
+blocking call. `--stream-profile` traces every load, decode, upload and eviction. The native test
+`asset_stream_test` travels through 40 worlds of 4 MiB textures and holds the resident bytes under
+the budget plus the textures in use.
+
+On the server, `game/net/content_resolve` fetches each label a traveler brings once at a time, from
+the release of the world, within 5 s, and a sweep every 30 s drops every resolved definition that
+nothing in the world holds. Content never caches player or live entity state.
+
 ---
 
 ## Instance Map
@@ -288,7 +316,7 @@ Two maps join when they share an edge of positive length. A corner or an overlap
 Maps that join form one surface: one rim goes around it, and a shared edge has no gap or border.
 A portal link across a shared edge shows only while one of its maps is selected. A link between maps apart always shows.
 Each map keeps its own click area. The right and bottom edges belong to the next map when maps meet.
-The own map, the selected map and the hovered map take their marks inside their bounds, so a mark never opens a gap.
+The own map, the selected map and the hovered map take their marks inside their bounds, so a mark never opens a gap. A mark is an outline: red on the own map, gold on the selected map, cyan on the hovered map. No mark tints the map picture.
 The view opens with the whole world as large as the frame allows, until one map cell spans 8 px.
 
 A name plate sits at the centre of each map and each world card. It is blue, so it stands out from the markers, and gold on the selected node.
@@ -302,31 +330,102 @@ One integrated widget with two modes, split across two modules:
 
 - **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[chat][social][quest][map][settings]`. The quest button shows/hides the Quest Journal and the map button shows/hides the minimap; both are hidden by default and stay open together. A tap on either closes the chat and the social panel. The coordinate readout opens the expanded Instance Map, which morphs to the full screen with an eased transition and retracts the same way on close.
 - **Side stack** (`ui/hud_side_stack`) — the right-hand column the HUD panels live in, between the toolbar and the inventory bar: the minimap on top and the Quest Journal beneath. The chat or the [social panel](social.md#social-panel) takes the whole column while it shows, over the minimap and the journal, and the social panel covers the chat. The column sizes to the room the bar leaves. When the journal is open the minimap gives way to at most half of the column, and the journal takes only what its content needs; a map slot under 100 px gives way. Each panel keeps its own state across toggles for the session: the journal its scroll, sections and pages, the minimap its zoom and its texture toggle.
-- **Minimap** (`ui/hud_minimap_overlay`) — the current map only: its map preview at 55 % over a see-through backdrop, with its border, fitted to the slot at zoom 1, and following the player at a closer zoom up to the map edges. Over it, in this order: the authored presence as hollow squares, the live players, bots and resources as filled squares, each portal as a gate where it stands, and the own player with its facing. An exit to another map has an arrow toward that map and a tag with its name; a link inside the map has a ring. A tag takes the first side of its gate that is clear of the controls, the markers and the other tags, and the pointer over a gate names its exit in full. The controls stand in the top right corner of the map: the texture toggle above zoom in and zoom out, in a row when the map is short. With the texture off, a grid on a see-through fill marks the map and every marker stays. The world shows through the map in both modes; the header, the controls and the markers stay opaque. No other map is drawn.
+- **Minimap** (`ui/hud_minimap_overlay`) — the current map only: its map preview at 55 % over a see-through backdrop, with its border, fitted to the slot at zoom 1, and following the player at a closer zoom up to the map edges. Over it, in this order: the authored bots and resources as faded marks, the entry spawn when it lies on this map, the live bots and resources in the class of their status, the other players as squares, the quest targets of this map in their gold brackets, each portal as a gate where it stands, and the own player with its facing. Every mark is the one of the Instance Map (`ui/map_marker`) at its smallest size. An exit to another map has an arrow toward that map and a tag with its destination, as the World view names it; a link inside the map has a ring. A tag takes the first side of its gate that is clear of the controls, the markers and the other tags, and the pointer over a gate names its exit in full. The controls stand in the top right corner of the map: the texture toggle above zoom in and zoom out, in a row when the map is short. With the texture off, a grid on a see-through fill marks the map and every marker stays. The world shows through the map in both modes; the header, the controls and the markers stay opaque. No other map is drawn.
 - **Container** (`ui/modal_map`) — compact mode is the always-on readout (map code, position, fps) hosted inside the toolbar; expanded mode is the full-screen morph target.
-- **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: a non-blocking translucent full-screen panel (the world keeps rendering behind it).
+- **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: an opaque full-screen canvas with the modal chrome. A header strip under the toolbar holds the WORLD and UNIVERSE tabs, the name of the view and the close button; the details of a selection show on a modal card. A press on the header or on the card never reaches the map under it.
 
 Strict independence from the gameplay renderer:
 
-| Concern    | Owner                                                                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Graph data | `data/instance_map_data` and `data/universe_map_data` — engine-cyberia REST only, never the AOI stream                                                   |
-| Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)                                                                    |
-| Layout     | WORLD: the map geometry of the engine; UNIVERSE: the world cards packed on their cells; a view never turns the authored arrangement                      |
-| Selection  | tap a node → contextual panel: a map's providers and portals, or a world's thumbnail, status, route and TRAVEL; the camera moves a node its panel covers |
+| Concern    | Owner                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Graph data | `data/instance_map_data` and `data/universe_map_data` — engine-cyberia REST only, never the AOI stream                                                                                                                   |
+| Camera     | own pan/zoom with smooth exponential interpolation (drag pan, wheel zoom, pinch zoom)                                                                                                                                    |
+| Layout     | WORLD: the map geometry of the engine; UNIVERSE: the world cards packed on their cells; a view never turns the authored arrangement                                                                                      |
+| Selection  | tap a mark or a node → detail card: a map, a portal, a place, a bot, a resource or the entry spawn, or a world's thumbnail, status, route and TRAVEL; a tap on a group zooms in; the camera moves a node its card covers |
 
 Data lifecycle:
 
-1. Opening the overlay fetches the **static** payload once: graph nodes with their cells, portal edges, and authored `presencePois` carrying map-cell presence status, their quests with `prerequisiteCodes`, and their actions with the quests that use them. The instance code arrives in the simulation server's `metadata` message.
+1. Opening the overlay fetches the **static** payload once: graph nodes with their cells and the bots and resources each map places (`placed`), portal edges, the `entrySpawn` of the world, and authored `presencePois` carrying map-cell presence status, their quests with their title and `prerequisiteCodes`, their actions with their label, the services they configure (`shop`, `craft`, `storage`, `market`, `buyback`, `burn`, `talk`) and the quests that use them, each bot placed there with its skin, whether a player can kill it and its stat sum as placed (`bots`), each resource placed there with its item and its stat sum (`resources`), and the items the cell gives (`yields`: dropped by what is placed there, sold or assembled by its action). The engine resolves a placement with the spawn rules of the server: the items it wears at spawn, its level, the progression rules and the layer cap of the world. A stat sum is the one the overhead HUD shows for that entity at spawn; it is never a live value. The minimap, the expanded map and the Quest Journal each hold the payload while they show; the last one to hide lets it go. A random portal mode sends no target cell, as the server drops it. The payload holds no content document: quest details load on selection from `quest_cache`. The instance code arrives in the simulation server's `metadata` message. A view switch asks for nothing; a reopen asks for the same URL, and the fetch layer answers with the response it holds. A `worldRevision` in `metadata` (at join and after each world rebuild) forgets that response; an open map fetches again at once.
 2. The client marks a quest POI active while its quest is acceptable or active in the local quest store, and an action POI active when it stands alone or one of its quests is. It marks them again at each quest store change; no request names the player.
 3. The UNIVERSE view reads `/cyberia-universe/instance/:instanceCode` the first time it shows, and again every 20 seconds while open, past the response cache (`fetch_forget`). It loads a world picture only when its card is drawn.
 4. Closing the overlay discards a late response.
+5. A view whose fetch failed offers RETRY, which forgets the failed response and fetches again at once.
+6. A refetched graph keeps the selection by the code of its map or world, never by its index.
 
-The UNIVERSE view draws each world with its world preview ([world pictures](universe.md#world-pictures)), on a card of the proportions of that preview, and a dotted tile with its initials while the picture loads or when it has none. It outlines this world in green, marks each world with its status (ONLINE, CLOSING, OFFLINE), and each route with travelling pulses; a one-way route ends in an arrow. A selected world shows the thumbnail its author set (none when there is no thumbnail: the card already shows the preview), its name, its status and whether a route leads there; it never shows a server address. A world the served release lacks shows dimmed. A selected world offers **TRAVEL** only when a route leads there from this world and a server of it takes new sessions; otherwise the button names the reason (NO ROUTE FROM HERE, WORLD OFFLINE, WORLD CLOSING, NOT IN THIS RELEASE). TRAVEL closes the overlay and leaves through the session gate, which names each step: the final save of this world, then the entry of the target. An account whose target runs the server build it plays on enters the target in the page; otherwise, or when that fails, the launch bridge of that world opens with the same principal ([travel in the page](accounts-and-persistence.md#travel-in-the-page)). A route never proves that a server is up; a world stays on the graph while it is offline.
+The UNIVERSE view draws each world with its world preview ([world pictures](universe.md#world-pictures)), on a card of the proportions of that preview, and a dotted tile with its initials while the picture loads or when it has none. It outlines this world in the player red and shows the own player mark on its card, marks each world with its status (ONLINE, CLOSING, OFFLINE), and each link between worlds; a one-way link ends in an arrow. A selected world shows the shortest known route from this world over those links, wide in the route colour with a pulse and an arrow the way it is travelled; the other links fade. Its card shows the thumbnail its author set (none when there is no thumbnail: the card already shows the preview), its name, its status, the route (`YOU ARE HERE`, `DIRECT ROUTE FROM YOUR WORLD`, `ROUTE: 2 JUMPS - FIRST TO <world>` or `NO KNOWN ROUTE FROM YOUR WORLD`) and its entry spawn; it never shows a server address. A world the served release lacks shows dimmed. A selected world offers **TRAVEL** only when a route leads there from this world and a server of it takes new sessions; otherwise the button names the reason (NO DIRECT LINK FROM HERE, WORLD OFFLINE, WORLD CLOSING, NOT IN THIS RELEASE). Travel goes one link at a time: a longer route names the first world to travel to. TRAVEL closes the overlay and leaves through the session gate, which names each step: the final save of this world, then the entry of the target. An account whose target runs the server build it plays on enters the target in the page; otherwise, or when that fails, the launch bridge of that world opens with the same principal ([travel in the page](accounts-and-persistence.md#travel-in-the-page)). A route never proves that a server is up; a world stays on the graph while it is offline.
 
 Live player position never travels through this API — engine-cyberia holds no simulation state. The overlay marks the player's node (and cell fraction within it) from the client's own predicted position, refreshed every frame.
 
-At normal zoom, POIs render only their authored presence-status icon, sized with the card. Once a map cell spans 9 px on screen, static action and quest capability icons appear; quest activity only changes capability emphasis. The local player's live presence and authoritative stats sum remain client-side. Decorative map content without a presence status is not rendered as a POI.
+The marks of the Instance Map and the minimap come from one module, `ui/map_marker`. Each role has its own shape, so a mark reads without its colour, and every icon keeps the colours of its PNG:
+
+| Mark          | Shape                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Own player    | a red disc with a white rim, a pulse ring and an arrow for its facing; drawn over every mark                                                 |
+| Portal        | a cyan diamond gate with a white core where the portal stands; purple for a link in one map                                                  |
+| Portal link   | a thin line from the gate to an arrow on the cell it leads to                                                                                |
+| Random portal | a dashed link to a ring that roams over the target map; the view names no cell                                                               |
+| Action        | a pin on its cell with the icon of its first service and a badge with the count of its services                                              |
+| Quest         | a gold badge with the icon of its state: available, in progress, locked or completed; locked and done fade; a quest the player can take bobs |
+| Talk target   | a round gold-rimmed badge with the chat icon on the corner of an NPC an active `talk` objective names                                        |
+| Entry spawn   | a green hexagon with a ring and the home icon on its cell; only the own player draws over it                                                 |
+| Passive bot   | a light circle                                                                                                                               |
+| Hostile bot   | a red triangle, over the other bots and resources                                                                                            |
+| Resource      | a green square                                                                                                                               |
+| Quest target  | gold corner brackets around the mark; the followed destination in focus adds a slow halo                                                     |
+| Route         | a wide amber line with a dark outline over each portal of the route, an arrow at each arrival and an amber ring around each gate it uses     |
+
+A place is a cell with actions or quests: it has one mark, an action pin with its quest badge on the corner, and the badge shows the count of its quests. A cell with neither is a placed bot or resource. Its class is the one of the server status icons: `hostile` for a bot whose bound behavior is hostile or, with none, that carries a weapon; `passive` for any other bot; `resource`. The action and quest capabilities never replace a class. The gate of a portal always shows; the line of a link across a shared map edge shows only while one of its maps is selected or the portal is in focus.
+
+Each mark takes its screen size from the screen size of one map cell (`map_marker_size`): its minimum while a cell is 2 px or less, its maximum from 12 px, and an even ramp between. Zoom moves a mark with its map; it never grows a mark past its maximum. A bot or a resource keeps 7 to 13 px, a gate a radius of 7 to 12 px, an action pin 16 to 28 px, a quest badge and a talk badge 20 to 28 px, the entry spawn 18 to 26 px and the own player a radius of 7 to 12 px. The minimap draws each mark at its minimum. Far out, bots and resources of one class that overlap on screen draw as one mark with a count beside it; a tap on a group zooms in on it. The selected mark never joins a group.
+
+A portal is in focus while it is selected or hovered. Its link turns bright with a pulse, its destination cell takes a frame and its destination map an outline; while a portal is selected, the other links fade. A touch shows no hover.
+
+A selected map shows the shortest known portal route to it from the player's map; with no selection, the route goes to the destination in focus of the followed objective. `data/map_route` searches the portal graph breadth first in portal order: the fewest portals win, and among equal routes the one whose portals come first in the world's portal list. A portal is travelled only the way it leads, and maps change only through portals. A random portal still leads to its map, so a route can pass it, but the view never names its arrival cell. The tree is built again only when the player's map or the world graph changes; the route marks only when its map or the tree changes. A map with no known route shows none, and its card says so; the player's own map needs none.
+
+Each gate in view takes a destination label: an arrow, the map and the cell it leads to (`East Market (1, 8)`), `This map (x, y)` inside one map, or `- random cell`. A fixed entry spawn in view takes the label `ENTRY SPAWN: Sap-Logic Array (35, 55)`. A quest giver takes the first quest the player can take there (`NEW QUEST: Strata Patrol`), and each quest target what the player does there (`DEFEAT elara-voss-kalu`, `TALK TO Jiro`, `BUY/ASSEMBLE potion`). Once the cells read (9 px a cell, where the player's tag shows), each NPC takes the label of its action, and each bot and resource its item and its stat sum as placed (`elara-voss-kalu [stack] 44`), in the colour of its class; a selected bot or resource takes it at any zoom. Labels take their places in this order:
+
+1. the destinations of the followed objective, the one in focus at any zoom;
+2. the quests the player can take, and the NPCs a `talk` objective names;
+3. the portal in focus and the portals of the route;
+4. the entry spawn and the selected bot or resource;
+5. the other quest targets;
+6. the NPCs, then the bots and the resources;
+7. the portals of the player's map and of the selected map, then the rest.
+
+A label takes the first free side of its mark and never covers a mark, a name plate, the player, the detail card, the OBJECTIVE button or another label; a placement takes one label. The followed destination in focus, the portals of the route and the entry spawn lead: when no side is free, they may cover bots and resources.
+
+A tap selects a map, a portal, a place, a bot, a resource or the entry spawn. The header shows where the player is (`YOU: map (x, y)`), apart from what the view inspects. The detail card shows the selection:
+
+- **Map:** the sector and its size, the route from the player's map (`ROUTE: 2 PORTALS - TAKE (35, 38)`: the portals and the cell of the first one, `ROUTE: YOU ARE HERE` or `NO KNOWN FIXED ROUTE FROM YOUR MAP`), the portals and the maps they link, where the portals lead, the services its actions configure, its quest givers, FOR YOU: the quests and services open to the player now, one line per class with the count of bots and resources it places, and the entry spawn: its cell on its own map, or on every map when it is random or unresolved.
+- **Portal:** FROM the map and the cell, TO the destination, its kind, and the return portal of the destination map when there is one.
+- **Place:** a row per quest, then per action; a row opens one, and a single item opens at once.
+- **Action:** its code and place, each configured service with its icon, the quests it fronts with their state, and FOR YOU when it is open now. A configured service is not an open one: the interaction modal and the server decide.
+- **Quest:** its code and place, the player's state, the prerequisites with the done ones marked, the description, the current step or the first one, the rewards, and the quests of this world it unlocks. The metadata comes from `quest_cache` on selection.
+- **Bot or resource:** its item as the title, its class, its stat sum as placed, its map and cell, and that the mark is its placement: a bot moves in play, a resource stays on its cell.
+- **Entry spawn:** its map and cell, or a random cell; that new players enter there, that saved players return to their last cell and that a defeat revives in place.
+- **Objective:** the followed quest objective with the count the server keeps and its step, how many places it has (`ALL 3 PLACES - NEAREST FIRST`, or `PLACES 7-12 OF 27 - NEAREST FIRST` for one page), then one row per destination of the page with its portal hops and its way (`1 PORTAL - LOOT (1, 2) Amethyst Foliage Expanse`); a row puts that destination in focus, `MORE: 13-18 OF 27` shows the next page and `BACK TO NEAREST` the first, and the last row stops following. A page holds as many rows as the card has room for, and the page that opens holds the destination in focus.
+
+A map card also counts the quest objectives it holds, and the card of a bot, a resource or an NPC names the objectives it serves.
+
+The placed counts and the marks are authored content, never live entities: the steady population of each map. The engine counts each placed entity once; the marks show one per cell, with the higher class where two share a cell.
+
+The entry spawn follows the server rule for a new player. The engine resolves the config of the world (`playerSpawn`) into one of three modes. **Fixed**: the config names a map of the world and a cell on its grid; the server uses that cell while it is walkable, else a random cell. **Random**: the config asks for it or names no map; the server uses a random walkable cell of a random map, and the view names no cell. **Unresolved**: the config names a map out of the world or a cell off its map; the server uses a random cell, and the card says so. A player with a saved position returns there. A defeat never moves a player: it revives where it fell, so the entry spawn is no revive point.
+
+The player's state of a quest follows the server rule: active or completed from the quest store; else available when every prerequisite is completed, else locked. A failed quest can be taken again. A detail card keeps 20 px from the canvas edges and stays under the header.
+
+### Quest navigation
+
+`data/quest_target` resolves where the player can advance each actionable objective: the objectives of the step an active quest is on whose count is under the required one. It reads the counts the server keeps (`stepId` and `objectives` of each quest snapshot) and the authored placements of the world payload; it never decides progress.
+
+| Objective | Its destinations: the cells of this world with                                           |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `kill`    | a mortal bot that wears the skin the objective names (an immortal provider never counts) |
+| `talk`    | a bot that wears that skin; the NPC takes the label of its action                        |
+| `collect` | a drop of what is placed there, or a shop that sells or an assembly that makes the item  |
+
+Destinations come nearest first: those a portal route from the player's map reaches, by portal hops, then in map and cell order. An objective is **found**, **unreachable** (its cells lie on maps no known portal route reaches), **absent** (no such bot in this world) or **without a source** (nothing in this world gives the item); it waits while the world map loads. The world payload names placements of this world only: a target in another world reads as absent.
+
+The Quest Journal lists, under the current step of each active quest, its code and world, and each objective with its count and where it leads (`2 places - nearest Gate (3, 4)`, `Not in this world`). An objective that leads somewhere has a LOCATE button: a 92 × 30 px button with the target icon and its word, centred in a tap band that is the full height of the objective and at least 44 px. LOCATE follows the objective and opens the WORLD view on its card and its nearest destination, centred close up (a map cell of 14 px); the route to a destination on another map shows. The followed objective reads FOLLOWING; its button opens the view on the destination in focus again, never on a nearer one. The objective card pages through every destination; a row puts its destination in focus, and a destination the player picks stays in focus while it serves the objective. On the card of a cell, the row of an objective follows it with that cell in focus. While the objective card is away, an OBJECTIVE button in the bottom right corner of the view brings it back. The followed quest keeps the focus on its next objective when one is done, and stops when the quest ends. A world rebuild resolves the destinations again from the new payload.
 
 ---
 
@@ -338,15 +437,21 @@ tap on another player opens its public profile; an NPC keeps its capability tabs
 
 | Module               | Owns                                                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `ui/save_status`     | The one line under the toolbar that says how far an account player's progress is saved, from the durability the server reports  |
 | `ui/player_panel`    | The Profile tab of any player, and the Friends, Requests and Party views of the social panel                                    |
 | `ui/container_panel` | The grid of the open container, an NPC vault or the personal storage: one cell per slot, locked cells                           |
 | `ui/stack_move`      | How a dropped stack lands in the bar and the containers, with the quantity picker                                               |
 | `sim/container_ops`  | The item move rules, applied at once and replayed after each snapshot                                                           |
+| `ui/trade_panel`     | The Trade tab of a player and the request prompt: both offers, the confirmations, Cancel and Confirm                            |
+| `ui/merchant_panel`  | The Buyback and Salvage tabs of a merchant: payout or fee per unit, salvage, units held                                         |
+| `ui/world_drop`      | A stack dropped on the ground: the target ring, the reach, the quantity prompt                                                  |
+| `world/economy`      | The economy the server sent: fees, wallet maximum and the policy of each item                                                   |
 | `ui/chat_log`        | The chat history by conversation, and the unread counts                                                                         |
 | `ui/chat_pane`       | One conversation in a content rect: its lines, the emoji menu and Send; every pane shares the one DOM text input                |
 | `ui/chat_panel`      | The HUD chat: World, Party and Direct in the whole right-hand column, with the unread badges                                    |
 | `ui/social_panel`    | The social panel: Friends, Requests and Party in the whole right-hand column, opened by the social button                       |
 | `ui/hud_panel`       | The chrome of the column panels: fill, border, the header row of tabs and the close button                                      |
+| `ui/ui_tabs`         | The tab group of every panel: equal tabs in rows of at most four, shared evenly; icons show only while every tab fits them      |
 | `ui/emoji`           | Emoji tokens in a chat line: the icon of each token, wrapped with the words                                                     |
 | `ui/identity_icon`   | The icon of a player in social views: the latest identity preview of its name, else the default icon                            |
 | `ui/session_gate`    | The session card and the settings card: why a session ended or was refused, the portal, sound and full-screen rows, each way on |
@@ -354,7 +459,9 @@ tap on another player opens its public profile; an NPC keeps its capability tabs
 - The inventory bar shows every cell the capacity rule can open: stacks, open slots, then locked
   slots with the `lock` icon and their level ([inventory capacity](inventory-capacity.md#locked-slots)).
   Each cell is a bag slot; a tap opens a stack and a drag moves it ([moving stacks](inventory-capacity.md#moving-stacks)).
-  The item card equips and unequips the stack it shows.
+  A drag onto the own offer of an open trade offers it; a drag onto the world drops it on the ground
+  ([off-chain economy](off-chain-economy.md#world-drops)). The item card equips and unequips the
+  stack it shows, and drops it, or offers it while a trade is open.
 - The toolbar row reads `[chat][social][quest][map][settings]`; settings (the `engine` icon) is the
   rightmost button. It opens the settings card: CYBERIA PORTAL leaves for the portal, SOUND ON or
   OFF and FULL SCREEN ON or OFF act at once, then the other ways out of the session. The chat button carries the unread count of every

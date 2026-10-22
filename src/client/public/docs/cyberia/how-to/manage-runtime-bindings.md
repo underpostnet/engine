@@ -76,16 +76,5 @@ node bin/cyberia catalog check --instance FOREST --dev
 node bin/cyberia catalog check --ipfs --dev          # also binding, content, MFS and pin
 ```
 
-An error stops the item from running: `unbound`, `missing`, `draft`, `archived`, `no-atlas` or
-`legacy-pin`. `unrendered` is a warning. The command exits with 1 on any error.
-
-## Repair legacy pins
-
-```bash
-node bin/cyberia catalog repair --dev > repair-report.json          # report only
-node bin/cyberia catalog repair --apply --dev > repair-report.json  # remove the pins
-```
-
-The report lists each document that still pins a definition, and each item the pins make
-ambiguous: its active CID and every pinned CID with the documents that pin it. Bind the item to
-the definition it must run first, then apply. The report is the audit of the run.
+An error stops the item from running: `unbound`, `missing`, `draft`, `archived` or `no-atlas`.
+`unrendered` is a warning. The command exits with 1 on any error.

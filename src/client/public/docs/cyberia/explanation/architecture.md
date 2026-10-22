@@ -274,9 +274,11 @@ The client sends its new events once per frame as one `events` message. The simu
 
 `InputCommand.Sequence` is monotonic per client. Every snapshot carries `inputConsumedThrough`, the highest sequence a tick has applied. The client keeps each event until that cursor passes it, and replays it on top of each new state. The server drops a command at or below the cursor, so each event applies once.
 
+**The sequence never skips.** Each batch must continue the last sequence the server queued. A batch that starts past it means an earlier batch never arrived, which only the rate limiter causes: the server refuses that batch and sends `input_resend {from}`, and the client sends every event from `from` again with its next flush. Applying the later events instead would lose the missing ones for good; a lost `player_stasis false` once left a player frozen on the server while its client drew it free, and every later tap and shot was refused. A gap that no dropped message explains is a protocol violation and costs a strike. A gap that no resend fills within 1 s is skipped and counted (`input_gap_skipped_total`), so a client that cannot send again loses the gap, never the stream.
+
 **Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A\* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned. That coalescing is the only bound on pathfinder cost.
 
-Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter (`DefaultMessageRate`, 30/s) is what bounds the stream.
+Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter is what bounds the stream: 30 messages per second (`DefaultMessageRate`), with a burst of 150 (`DefaultMessageBurst`). The client sends at most one batch per 30 Hz step, and a network stall delivers the batches it queued at once, so the burst absorbs a 5 s stall. Each second of excess (30 dropped messages) costs one strike, and 20 strikes evict: a burst after a stall costs a few, a flood is evicted within a second.
 
 The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; key steering paces its _refresh_ by it, while a change of heading emits at once.
 

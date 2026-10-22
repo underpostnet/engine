@@ -200,7 +200,7 @@ Cyberia consumes CryptoKoyn. CryptoKoyn computes nothing of the game simulation.
   market order (`MarketOrder.priceTokenId`).
 - The coin balance of a Cyberia world is progress state in the Cyberia database. The
   [off-chain economy](../../cyberia/explanation/off-chain-economy.md) defines it, and its
-  `economyRules` belong to each world, not to a CKY vote.
+  economy profiles belong to Cyberia content, not to a CKY vote.
 - A chain outage stops transfers. It does not stop play.
 
 ```mermaid

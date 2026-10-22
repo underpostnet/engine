@@ -199,7 +199,7 @@ whose server does not run shows as offline.
    ```
 
    With no release named, every check runs on the workspace: catalog bindings, canonical CIDs at
-   the authority, legacy pins, map labels, atlas renders, instance conf and maps, schemas.
+   the authority, map labels, atlas renders, instance conf and maps, economies, schemas.
    `node bin/cyberia catalog check --dev` checks each world as the game server receives it.
    Each finding names the missing or invalid dependency.
 

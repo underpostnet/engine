@@ -96,17 +96,17 @@ to a map that it does not load, and the Instance Map and the minimap draw no suc
 
 ## Indexes
 
-The schema has one index, `{ catalog, mapCode }`, unique. `node bin/cyberia map-registry --indexes`
-lists the indexes of the collection and the obsolete ones: those without a catalog key, from an
-older schema. `--indexes --apply` builds the schema index and drops the obsolete ones. It refuses
-while a row has no catalog. Remove those rows; a reconciliation of each catalog builds its rows again.
+The schema has one index, `{ catalog, mapCode }`, unique. The registry is a runtime record: the
+deploy makes its indexes the declared one with
+[`runtime-indexes`](../reference/cyberia-cli.md#cyberia-runtime-indexes--runtime-record-indexes) and
+drops any other.
 
 ## Tests
 
 | Test                                            | What it proves                                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `test/cyberia/unit/map-registry.test.js`        | Statuses, checksum inputs, defects, each type of change, a claimed code keeps its owner   |
-| `test/cyberia/integration/map-registry.test.js` | Transactions, refused defects, versions, repair, separate catalogs, the index migration   |
+| `test/cyberia/integration/map-registry.test.js` | Transactions, refused defects, versions, repair, separate catalogs                        |
 | `test/cyberia/unit/instance-data.test.js`       | `GetMapData` serves a map only for the owner that the registry names                      |
 | `test/cyberia/unit/content-release.test.js`     | A release that lists a missing map fails validation                                       |
 | `test/cyberia/unit/graph-layout.test.js`        | A world origin of two integer cells, and the centre of a placed map in the static payload |

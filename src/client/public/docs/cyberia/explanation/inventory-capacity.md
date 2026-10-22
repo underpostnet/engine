@@ -72,7 +72,8 @@ The bar tells a tap from a drag, as the storage grids do.
 - With a personal storage or a vault open, a lifted stack also drops onto a cell of the container.
   A drag from the coin slot moves coins into a vault.
 - The target cell shows green or red before the release, and the stack slides into its cell.
-- A drag from an empty or locked cell, or the wheel over the bar, scrolls the strip. A lifted stack
+- When the cells overrun the strip, a scroll track runs over it. A drag of its thumb, a press on the
+  track or the wheel over the bar scrolls the strip; a drag from a cell never does. A lifted stack
   held at an edge of the strip scrolls it too.
 - A move is an `item_move` inside the bag, so the server keeps the slots.
 
@@ -121,6 +122,6 @@ Bots carry no capacity.
 | `cyberia-server/game/sim/movement_test.go`      | Equip wears the stack in its slot                                                                                                                                                                                                                                   |
 | `cyberia-server/game/sim/consumable_test.go`    | A held skill runs once per item across its stacks                                                                                                                                                                                                                   |
 | `cyberia-client/tests/player_containers_test.c` | The client rule, the unlock levels with a level cap, and the bag room check                                                                                                                                                                                         |
-| `cyberia-client/tests/inventory_bar_test.c`     | Bar cells are bag slots; a tap opens a stack, a drag drops it on a cell of the bar or of the open container, the coin slot drags coins; a drag from an empty cell and the wheel scroll                                                                              |
+| `cyberia-client/tests/inventory_bar_test.c`     | Bar cells are bag slots; a tap opens a stack, a drag drops it on a cell of the bar or of the open container, the coin slot drags coins; only the track and the wheel scroll                                                                                         |
 | `cyberia-content/test/foundation.test.js`       | The spawn kit fits the level-1 bag                                                                                                                                                                                                                                  |
 | `node bin/cyberia stat-contract --check`        | The generated Go, C and content contracts match the source                                                                                                                                                                                                          |

@@ -159,7 +159,9 @@ the families in `CONTENT_FAMILIES`, in import order: a family names only what an
 | `maps`                 | `CyberiaMap`                  | Each map: name, description and biome tags; no entities |
 | `quests`               | `CyberiaQuest`                | Steps, objectives and rewards, with no source           |
 | `dialogues`            | `CyberiaDialogue`             | Item flavor text, character greetings and quest talk    |
-| `actions`              | `CyberiaAction`               | Shop, recipes, storage and quest talk, with no source   |
+| `markets`              | `CyberiaMarket`               | The shared rules of each market profile                 |
+| `actions`              | `CyberiaAction`               | Shop, recipes, storage, market and talk; no source      |
+| `economies`            | `CyberiaEconomy` and its rows | Each economy profile with its item policies             |
 
 The engine also reads two foundation families without a database. The baseline completes the
 entity-type defaults of every world. The skills and dialogues answer for a world that stores none.

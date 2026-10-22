@@ -20,7 +20,8 @@ cyberia <command> [subcommand] [options]
 | `client-hints` | per-instance presentation hints (palette, camera, status icons)     |
 | `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle    |
 | `release`      | product repositories: build, lock and publish them                  |
-| `player`       | player profiles: quest progress no profile owns, held stacks        |
+| `player`       | player profiles: held stacks                                        |
+| `economy`      | economy profiles: the move of conf coin rules to profiles           |
 | `universe`     | universes: the move of player records to universe profiles          |
 | `debug`        | one process of the development topology in this terminal            |
 | `run-workflow` | named operational scripts (seed defaults, dashboard, status pages)  |
@@ -613,14 +614,12 @@ other checkout it publishes. The lock format is the platform
 ```
 cyberia catalog reconcile --dev
 cyberia catalog check [--instance <codes>] [--ipfs] --dev
-cyberia catalog repair [--apply] --dev
 ```
 
 | Command     | Does                                                                                                                                                                                                                    |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `reconcile` | Asks the Object Layer authority about every binding and unbinds an item whose definition it no longer offers: archived, a draft, or unknown. Idempotent. Also `POST /api/v1/cyberia-item-catalog/reconcile` (moderator) |
 | `check`     | Reads each world as the game server receives it and reports every item that cannot run. `--ipfs` also checks how each bound definition is stored: binding, content, MFS and pin. Exits 1 on an error                    |
-| `repair`    | Prints, as JSON, the documents that still pin a definition and the items the pins make ambiguous. `--apply` removes every legacy pin                                                                                    |
 
 The bindings themselves change in the **Cyberia Item Catalog** view or over REST: `POST
 /api/v1/cyberia-item-catalog { itemId, objectLayerCid, expectedCid }` binds while the item runs
@@ -629,35 +628,59 @@ The bindings themselves change in the **Cyberia Item Catalog** view or over REST
 state. See
 [Manage runtime bindings](../how-to/manage-runtime-bindings.md).
 
-## `cyberia player` — player profiles
+## `cyberia player` — player records
 
 ```
 cyberia player held [--universe <code>] --dev
 cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
 ```
 
-| Command                  | Does                                                                                                                                   |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `held`                   | Lists the held stacks of every profile: universe, world, label, definition, reason, and the stack, unit and profile counts             |
-| `rebind-held`            | Gives the held stacks of a label the definition the catalog binds now, in the profile and its worlds. Skips every profile in a session |
+| Command       | Does                                                                                                                                   |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `held`        | Lists the held stacks of every profile: universe, world, label, definition, reason, and the stack, unit and profile counts             |
+| `rebind-held` | Gives the held stacks of a label the definition the catalog binds now, in the profile and its worlds. Skips every profile in a session |
 
 `rebind-held` reports without `--apply`. See
 [the player service reference](player-service.md#operator-commands) and
 [Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
 
+## `cyberia runtime-indexes` — runtime record indexes
+
+```
+cyberia runtime-indexes [--apply] --dev
+```
+
+Compares the indexes of the runtime records with the ones their models declare: players, sessions,
+tickets, social links, quest progress, world drops, market listings and claims, the operator trail,
+the server and map registries, the content release ledger and the Procedural Engine records
+(`CYBERIA_RUNTIME_APIS`). Each model lists `toDelete`, the count of unkeyed records, `toDrop`, the
+stored indexes no model declares, and `toCreate`, the declared keys not stored. An unkeyed record
+has no value in a required field of a unique key that covers every record, such as a profile
+without `universeCode` or quest progress without `player`. No read reaches it, and the index keys
+all of them under `null`, so two of them stop its build.
+
+`--apply` deletes the unkeyed records and gives their count in `deleted`. Then it syncs each model
+with Mongoose `syncIndexes`: it drops `toDrop`, then builds `toCreate`, unique, compound and TTL
+alike. Two records that share a complete unique key stop that model, and `error` holds the MongoDB
+message with the key: the sync deletes no record that a read reaches. Prints JSON, and exits 1
+while something differs or an error remains. A second run changes nothing.
+
+These collections hold no index that a model does not declare, so the sync owns all of their
+indexes but `_id_`. Platform collections such as `users` build their own indexes and stay out. A
+content release database syncs its indexes when it is built. The deploy runs
+`runtime-indexes --apply` in Stage D, on the deployed image, before the rollout
+([deploy a release](../how-to/deploy-a-release.md)).
+
 ## `cyberia map-registry` — map owners
 
 ```
 cyberia map-registry [--release <release-id>] [--apply] --dev
-cyberia map-registry --indexes [--apply] --dev
 ```
 
 Compares the map owners of the [map registry](../explanation/map-registry.md) with the maps and
 instances of the catalog the host serves: the active release, else the workspace. `--release` takes
 the catalog of one release. Prints the changes and the defects as JSON, and exits 1 on a defect. It
 writes only with `--apply`, in one transaction; a run without a change writes nothing.
-`--indexes` lists the registry indexes and the obsolete ones; with `--apply` it builds the schema
-index and drops the obsolete ones, and refuses while a row names no catalog.
 
 ## `cyberia ipfs` — IPFS storage
 
@@ -693,7 +716,7 @@ cyberia content import --saga amethyst-strata-expansion --dev
 | `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance; `--release <id>` writes into that release database |
 
 `import` writes Object Layer definitions and their catalog bindings, entity-type defaults, skills,
-maps, quests, dialogues and actions, in that order. An Object Layer item is planned by identity
+maps, quests, dialogues, market profiles and actions, in that order. An Object Layer item is planned by identity
 against the definition its label is bound to: absent, in sync, or differs. A label or a document
 that differs is reported and kept; `--rebind` moves it to the artifact, and a rebound label gets a
 new definition beside the earlier one. Render, quest and action sources, and placed maps stay as

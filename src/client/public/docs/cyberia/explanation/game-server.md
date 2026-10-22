@@ -113,6 +113,7 @@ The client sends one `events` message per frame with new events. The simulation 
 | One typed handler per `InputKind` | each handler runs under the world mutex held by `phaseInput`                                                                                                                                                                                                      |
 | One source of truth               | `phase_input_handlers.go` is the only file that translates an input command into world state                                                                                                                                                                      |
 | Sequence numbering                | `InputCommand.Sequence` is monotonic per client; the server tracks the highest applied sequence per player in `Session.InputConsumedThrough` and echoes it in every snapshot. A command at or below that cursor is dropped, so a resent event never applies twice |
+| Stream continuity                 | Each batch continues the last queued sequence. A gap refuses the batch and sends `input_resend {from}`; the client sends again from `from`. A gap unfilled after 1 s is skipped. See [the input command pipeline](architecture.md#input-command-pipeline)         |
 
 The batch is validated and enqueued whole. An event that fails validation becomes `InputKindUnknown`: consumed, never applied. No synchronous game-state mutation runs on the WebSocket read goroutine.
 
@@ -219,8 +220,11 @@ back through `CyberiaPlayerService`; a guest stays in memory. The engine keeps o
 [universe](universe.md); the server sends and receives the state of its own world. `game/persist` owns the pipeline: the tick captures the state of
 each account player every 6 ticks under the world lock, and a background loop sends at most one
 commit per player, with retries, checkpoints and the final commit at session end. `game/net`
-owns admission, takeover, the resume tickets and session end. See
-[accounts and persistent players](accounts-and-persistence.md#write-guarantees).
+owns admission, takeover, the resume tickets and session end. A failed commit is classed
+(`transport`, `integrity`, `rejected`) and gives the session a durability (`saved`, `saving`,
+`degraded`, `recovery`) that the snapshot, the checkpoint and the metrics report. A new session of a
+profile on the same server adopts what the closed one has not saved. See
+[accounts and persistent players](accounts-and-persistence.md#save-health).
 
 ---
 
@@ -256,14 +260,14 @@ World configuration is loaded once at boot from engine-cyberia via gRPC `GetFull
 | `cellSize`                                                           | grid math                                                                         |
 | `aoiRadius`                                                          | per-player AOI rectangle size                                                     |
 | `entityBaseSpeed`, `entityBaseMaxLife`, `entityBaseActionCooldownMs` | base stats                                                                        |
-| `economyRules`                                                       | Fountain & Sink coin economy                                                      |
+| `economyRules`                                                       | economy snapshot: fees, item policies ([economy](off-chain-economy.md))           |
 | `skillRules`                                                         | projectile / doppelganger spawn rates and lifetimes                               |
 | `equipmentRules`                                                     | item activation constraints (one-per-type, requireSkin, activeItemTypes)          |
 | `entityDefaults[*]`                                                  | per-entity-type gameplay defaults: live/dead/drop item IDs, default object layers |
 
 World configuration is gameplay-only. Presentation fields (palette, status-icon visuals, camera knobs, dev-overlay flag, interpolation window, screen factors) are not part of this contract. Presentation metadata ownership is described in the next section.
 
-Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` calls; world topology and gameplay rules are reloaded only on server restart.
+Hot reload of ObjectLayers is supported via periodic `GetObjectLayerManifest` calls. A reload whose instance version changed rebuilds the world: the config, the maps, the entry spawn, the quests, the actions and the markets; connected players and their drops stay. Each rebuild moves the world revision. The join `metadata` names it (`worldRevision`), and after a rebuild the server sends it to each client before its next snapshot, so the map views of the client read the content again.
 
 ---
 

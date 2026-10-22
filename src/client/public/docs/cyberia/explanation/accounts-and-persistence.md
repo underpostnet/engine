@@ -32,9 +32,10 @@ launch flow, what persists and the guarantees of each write. The wire contract i
 
 ### One profile per universe
 
-`instanceCode` names a world. Each world has its own maps, quests, items, progression rules and
-economy rules (`CyberiaInstanceConf`), and its game servers run it. A
-[universe](universe.md) groups worlds, and a profile belongs to one account in one universe. The
+`instanceCode` names a world. Each world has its own maps, quests, items and progression rules
+(`CyberiaInstanceConf`), and its game servers run it. A [universe](universe.md) groups worlds, all
+of one [economy profile](off-chain-economy.md#economy-profile), and a profile belongs to one account
+in one universe. The
 engine resolves the universe of the world each session plays; the client never names it.
 
 The profile holds what the player carries from world to world. Each world keeps its own part of the
@@ -123,12 +124,16 @@ a connection without a ticket (`auth_required`). The engine names the principal 
 | `wrong_instance`      | The ticket names another world                                            |
 | `revoked`             | The account session that asked for the ticket ended, or the guest expired |
 | `signed_in_elsewhere` | A newer launch of the account took over the session a resume continues    |
-| `busy`                | A resume whose old session still holds its lease; the client tries again  |
+| `busy`                | A resume whose old session may still write on another server; try again   |
+| `saving`              | The session the account left still saves on another server; try again     |
+| `ended`               | An operator ended the session a resume or a travel continues              |
 | `unavailable`         | The engine did not answer; the client may launch again                    |
 
 **Retries.** A retry of `ConsumeGameLaunchTicket` or `AcquirePlayerSession` carries the same
 connection id. The engine answers a retry with the first result, so a lost response never opens a
-second session. A different connection can never consume the same ticket.
+second session. A different connection can never consume the same ticket. The ticket and the
+acquisition each get their own 10 s budget, and an acquisition answered `saving` asks again for up
+to 8 s before the client sees `saving`.
 
 **Socket rules.** The server checks the `Origin` header against `CYBERIA_CORS_ALLOWED_ORIGINS`
 before the upgrade. Until the player is admitted, it reads one message of at most 2 KiB and waits
@@ -166,11 +171,18 @@ falls back to production. In development, only the world of the local game serve
 
 ## Session ownership
 
-One account has one gameplay session at a time, in any world.
+One account has one gameplay session at a time, in any world. At every moment one session holds
+the lease and one epoch, so one writer.
 
 - A new launch takes over. A session on the same server ends at once with `session_end
-{reason: "signed_in_elsewhere"}`, after its final commit. A session on another server ends at that
-  server's next checkpoint.
+{reason: "signed_in_elsewhere"}`, and the new session **adopts** what the old one has not saved:
+  its newest state, quests and position included, becomes the first commit of the new epoch, and
+  `init_data` says `adopted`. A launch never waits for a save that cannot land. Only a pending joint
+  commit of the old session is awaited, at most 10 s, because its outcome decides the adopted state.
+- A live session on another server ends at that server's next checkpoint. While that session is
+  closing with changes it has not saved, the engine holds the acquisition back (`saving`) until it
+  saved or released its lease. A session whose server reports **recovery** cannot save, so the new
+  session fences it at once.
 - Every profile write carries the session `epoch`. A takeover raises the epoch, so the engine refuses
   every later write of the old session (`stale_session`). Two connections never write one profile.
 - The lease expires `CYBERIA_GAME_SESSION_LEASE_SECONDS` (default 60 s) after its last checkpoint.
@@ -187,10 +199,12 @@ server asks for it with `IssueResumeTicket` when the session starts, sends it as
 and renews it 2 minutes before it expires. The client keeps it in memory only.
 
 When the connection drops, the client reconnects with the resume ticket: after 1 s, then with a
-wait that doubles up to 15 s, for at most 240 s. The old session commits its final state and
-releases its lease first. Until then the engine answers `busy` and keeps the ticket unconsumed. The
-new connection then acquires the profile with a new epoch, so two connections never write one
-profile. A newer launch of the account (`signed_in_elsewhere`) or the end of its portal session
+wait that doubles up to 15 s, for at most 240 s. When the resume reaches the server that holds the
+old session, it adopts that session at once. When it reaches another server, the old session
+commits its final state and releases its lease first; until then the engine answers `busy` and
+keeps the ticket unconsumed. A session in recovery cannot save, so a resume never waits for it. The
+new connection acquires the profile with a new epoch, so two connections never write one profile.
+The toolbar line says "Reconnected", or "Latest progress kept - saving" after an adoption. A newer launch of the account (`signed_in_elsewhere`) or the end of its portal session
 (`revoked`) voids the ticket. A server restart resumes the same way. A guest reconnects as a new
 guest.
 
@@ -212,15 +226,17 @@ client speaks it to the target too. Else the travel takes the launch bridge.
    checks the lease and its epoch, the portal session, a route of the universe from this world to
    the target, and a server of the target that takes sessions. It issues a launch ticket of the
    account for the target world: single-use, short-lived, scoped to that world.
-3. The server commits the final state and releases the lease. Only then, and only when the save
-   succeeded, `session_end {reason: "left", travel: {instanceCode, ticket}}` carries the ticket.
+3. The server commits the final state and releases the lease, then answers
+   `session_end {reason: "left", travel: {instanceCode, ticket}}`. When the save is still on its
+   way after 5 s, the reason is `left_saving` with the same ticket: the target holds its
+   acquisition (`saving`) until the world left saved, or reports that it cannot.
 4. The client clears the state of the world it left, sets the address bar to the path of the
    target (`history.replaceState`), opens the socket of the target and authenticates with the
    ticket. The card shows "Entering <world>..." until `init_data` arrives.
 5. The target acquires the profile with a new epoch, so a late write of the world left is refused.
 
-A refusal, a lost connection or a save still on its way (`left_saving`) never fakes an arrival: the
-client opens the launch bridge of the target, which asks for a ticket of its own.
+A refusal or a lost connection never fakes an arrival: the client opens the launch bridge of the
+target, which asks for a ticket of its own.
 
 | Way                      | Session | Then                                                                                 |
 | ------------------------ | ------- | ------------------------------------------------------------------------------------ |
@@ -230,9 +246,10 @@ client opens the launch bridge of the target, which asks for a ticket of its own
 | Sign out                 | Account | The portal at `/?signout`, which ends the portal session                             |
 | Sign in to keep progress | Guest   | The bridge as the account: the signed-in account, or the sign-in                     |
 
-When the final commit does not land within 5 s, the server answers `left_saving`. The client says
-that the last changes are still on their way and goes on when the player confirms. The server keeps
-that state and retries it as for a disconnect. A guest leaves at once, and its state ends.
+When the final commit of a leave without a travel does not land within 5 s, the server answers
+`left_saving`. The client says that the last changes are still saving and goes on when the player
+confirms. The server keeps that state and retries it as for a disconnect. A guest leaves at once,
+and its state ends.
 
 ---
 
@@ -317,30 +334,97 @@ answers `stale_session`: no value exists in two worlds.
 the changes after the last commit, all of them together, never a part of one. In normal operation
 that window is one commit round trip.
 
-**Coins that leave a player.** Coins a player drops on death stay locked on the ground until the
-commit that took them from the player is saved. No crash can leave the same coins with two players.
+**Goods that leave a player.** Coins a player drops on death stay locked until the commit that took
+them from the player is saved. A stack a player drops on the ground stays locked until its drop
+operation is saved. No crash can leave the same coins or units with two players.
+
+### Operations between players
+
+A trade between two account players changes two profiles. It commits both at once, or neither
+([trades](off-chain-economy.md#trades)).
+
+1. When both sides confirm, the offers leave both bags into escrow. A `persist.Link` joins the two
+   records: from now on, no single commit of either player is sent.
+2. The server sends `CommitPlayerStates`: one `operation_id`, kind `trade`, and the whole state of
+   each player at its own epoch and next sequence, each with the goods of the other.
+3. The engine checks every epoch and sequence, then writes both profiles and one
+   `CyberiaEconomyOperation` record in one transaction. The record keeps the operation id, the
+   players, their sequences and a SHA-256 fingerprint of the request.
+4. Applied, each side keeps what it received, and the single commits of both records go on.
+   Refused, each side gets its own escrow back, and the next commit of each record saves that state.
+
+A transport error retries the same request. The engine answers `duplicate` for an operation it
+applied, and refuses the same id with another fingerprint. The record expires after 7 days. A
+player who leaves while the joint commit runs gets the state of the outcome as its final commit.
+
+The same joint commit carries the [world drops](off-chain-economy.md#world-drops) of one player. A
+`drop` writes the state without the stack and creates one `CyberiaWorldDrop` record under the
+operation id. A `pickup` writes the state with the stack and claims a public record of the world
+that has not expired. A record that is gone answers `drop_gone`: nothing is written, and the session
+goes on. At boot the server reads `ListWorldDrops` and puts each public record of its world back on
+its map. A record leaves the database 7 days after it expires.
 
 **Session end.** A disconnect keeps the final state in memory, commits it, then releases the lease.
-A final state that cannot commit within 10 minutes is dropped and counted in `lost_final_total`, and
-its lease expires. A new launch of the same account on this server waits up to 10 s for that
-commit. A drain ends every session and gives the final commits 5 s of the drain budget.
+The session reports at once to the engine that it is closing with unsaved changes. A final state
+that cannot commit within 10 minutes is dropped and counted in `lost_final_total`, and its lease
+expires; a new launch of the account on this server adopts it first. A drain ends every session and
+gives the final commits 5 s of the drain budget.
 
-### Unsaved players
+### Save health
 
-A failing commit retries with backoff (200 ms to 5 s) and stays the one pending state of its player,
-so the queue never grows past one entry per player. After 15 s of failures the player is
-**unsaved**, and the toolbar says "Progress is not being saved. Trades wait; new gains can be lost."
+The server classes each failed commit and derives the **durability** of the session from the
+sequence numbers it captured and the engine applied. It never guesses from a timer alone.
 
-| Action while unsaved                                           | Rule                                                      |
-| -------------------------------------------------------------- | --------------------------------------------------------- |
-| Shop purchase, craft, container move                           | Refused: their result must be saved before it counts      |
-| Movement, combat, pickups, kill XP, quest progress and rewards | Applied to the pending state                              |
-| Coins dropped on death                                         | Dropped, and locked on the ground until the loss is saved |
+| Durability | Means                                                                       | Next try                      |
+| ---------- | --------------------------------------------------------------------------- | ----------------------------- |
+| `saved`    | The engine applied every captured change                                    | —                             |
+| `saving`   | A change waits for its commit                                               | At once                       |
+| `degraded` | Commits fail past 15 s (`transport`: the call fails, the engine is down)    | Backoff 200 ms to 5 s, jitter |
+| `recovery` | The engine refuses the state as it stands (`integrity`), or the call itself | Every 30 s, jitter            |
+
+| Failure     | Cause                                                                                             | Example                       |
+| ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `transport` | The call failed or timed out; the outcome may be uncertain, and a retry is idempotent by sequence | Engine restart, `UNAVAILABLE` |
+| `integrity` | The database refuses the write: duplicate key, document validation, document too large            | A stale unique index          |
+| `rejected`  | The engine rejects the call: `UNAUTHENTICATED`, `PERMISSION_DENIED`, `INVALID_ARGUMENT`, …        | A mismatched server key       |
+
+A failed commit stays the one pending state of its player, so the queue never grows past one entry
+per player, and the server logs each incident once. A session in `recovery` stays live: the player
+plays on, the state keeps every change, and it commits by itself once an operator repairs the
+records. A malformed state (`invalid`) still ends the session, because no repair makes it valid.
+
+The snapshot sends `durability` and `unsavedMs` (the age of the oldest unsaved change) while the
+state is not saved. One line under the toolbar shows what the player can act on, and never covers
+the world:
+
+| Line                                           | Shows                                             |
+| ---------------------------------------------- | ------------------------------------------------- |
+| "Saving..."                                    | A save takes longer than 3 s                      |
+| "Saving delayed - retrying"                    | `degraded`                                        |
+| "Latest changes not saved yet - trades paused" | `recovery`; "Last N min ..." once a minute passed |
+| "Progress saved"                               | 3 s, once the state saved after one of the above  |
+
+The player panel explains the same state in a sentence. The line clears only when the server reports
+the state saved, never when the player closes something.
+
+| Action while degraded or in recovery                            | Rule                                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------- |
+| Shop purchase, craft, container move, drop, sale, trade, market | Refused: their result must be saved before it counts      |
+| Movement, combat, pickups, kill XP, quest progress and rewards  | Applied to the pending state                              |
+| Coins dropped on death                                          | Dropped, and locked on the ground until the loss is saved |
 
 The policy is a bounded rollback, not zero loss. A pending gain exists only in the live session, so
-no action duplicates value. When the engine answers again, the pending state commits and the notice
-goes away. When the server crashes first, the player returns to the last saved state, with all
-pending gains lost together.
+no action duplicates value. When the server crashes first, the player returns to the last saved
+state, with the pending changes lost together, and only those.
+
+### Operator recovery
+
+An admin can end a live session in the [player manager](../how-to/recover-a-player-session.md). It
+raises the epoch of the profile, so the server of the session can write nothing more, marks the
+lease ended, and the server ends the session at its next checkpoint (`session_end {reason:
+"ended"}`). The changes the session has not saved are discarded; the view names them before the admin
+confirms. A request needs the epoch the operator saw and a reason, and each one, done or refused, is
+a `cyberiaplayeraudits` record.
 
 ---
 
@@ -398,14 +482,30 @@ The next step is one key per world, bound by the engine to the `instance_code` o
 | Collection                     | Unique key                          | Other indexes                                          | Notes                                                                 |
 | ------------------------------ | ----------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
 | `cyberiauniverses`             | `code`, `instances.instanceCode`    | —                                                      | Members, cells, links, `revision`; see [universes](universe.md)       |
-| `cyberiaplayers`               | `{user, universeCode}`              | —                                                      | `schemaVersion` 2, `epoch`, `revision`; per world under `worlds`      |
-| `cyberiagamesessions`          | `user`                              | —                                                      | Lease and presence, with the world it plays; never on `users`         |
+| `cyberiaplayers`               | `{user, universeCode}`              | `{lastPlayedAt, _id}`                                  | `schemaVersion` 2, `epoch`, `revision`; per world under `worlds`      |
+| `cyberiagamesessions`          | `user`                              | —                                                      | Lease, presence and the health its server reports; never on `users`   |
+| `cyberiaplayeraudits`          | `operationId`                       | `{player, createdAt}`                                  | Append-only: every operator action, done or refused, with its reason  |
 | `cyberiagametickets`           | `tokenHash`                         | `user`, `connection` once set, TTL `expiresAt` + 5 min | Hash only; `principal`, `user` or `guest`; `epoch` on a resume ticket |
 | `cyberiaquestprogresses`       | `{player, instanceCode, questCode}` | —                                                      | `player` is the profile id                                            |
+| `cyberiaeconomyoperations`     | `operationId`                       | TTL `expiresAt` (7 days)                               | One record per joint commit: players, sequences, fingerprint          |
 | `cyberiasocials`           | `{low, high}`                       | `{low, status}`, `{high, status}`, TTL `expiresAt`     | One document per pair; accepting removes `expiresAt`                  |
 
 `cyberiasocialprofiles` has one record per account, with a unique `user` index.
 It stores the note and its last accepted update time.
+
+**Indexes.** The models declare every index of these collections, and the deploy makes the stored
+indexes the declared ones with `node bin/cyberia runtime-indexes --apply` before the rollout: it
+deletes the unkeyed records, drops each index no model declares, then builds each missing one. The
+player service builds none.
+
+**Quest progress key.** Every quest progress record belongs to one profile in one world: `player`, `instanceCode` and
+`questCode` are required and form its one unique key, and a guest has no record. A unique index keys
+a record that lacks one of its fields as `null`, so the quest index of the first schema,
+`{playerId, questCode}`, refused the second player of every quest once records of the current
+schema existed; the sync drops it. A record without a required field of a unique key is unkeyed:
+quest progress without `player`, or a profile without `universeCode`. No read reaches it, and two
+of them stop the build of the key, so the sync deletes them first. The runbook is
+[recover a player session](../how-to/recover-a-player-session.md).
 
 A lease stays as a document after it expires: presence counts it only while `expiresAt` is in the
 future, and the next session of the account replaces it. No TTL index deletes a lease or an account
