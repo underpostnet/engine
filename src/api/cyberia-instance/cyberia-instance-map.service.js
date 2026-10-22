@@ -5,17 +5,46 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { refreshMapPreview } from '../../projects/cyberia/instance/map-preview-generator.js';
 import { worldPreview } from '../../projects/cyberia/instance/world-preview.js';
 import { instanceMapLayout } from '../../projects/cyberia/instance/instance-map-layout.js';
+import { entrySpawn } from '../../projects/cyberia/instance/entry-spawn.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
-import { resolveEntityDefaultBuild } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import {
+  CYBERIA_INSTANCE_CONF_DEFAULTS,
+  effectiveStatsSum,
+  resolveEntityDefaultBuild,
+  resolveProgressionRules,
+  resolveSpawnLoadout,
+} from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/catalog/object-layer-catalog.js';
 import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
-import { resolveGraphLayout } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { parseRgba } from '../../projects/cyberia/instance-data.js';
+import { isImmortalBehavior, resolveGraphLayout } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
 const actionHasStandalonePayload = (action) =>
   (action.shopItems || []).length > 0 || (action.craftRecipes || []).length > 0 || (action.storageSlots || 0) > 0;
+
+// The services an action configures, in the order the map lists them. A configured service is
+// not an open one: the client and the server still apply their own rules.
+const ACTION_SERVICES = Object.freeze([
+  ['shop', (action) => (action.shopItems || []).length > 0],
+  ['craft', (action) => (action.craftRecipes || []).length > 0],
+  ['storage', (action) => (action.storageSlots || 0) > 0],
+  ['market', (action) => Boolean(action.market?.marketCode)],
+  ['buyback', (action) => (action.buybackItems || []).length > 0],
+  ['burn', (action) => (action.burnItems || []).length > 0],
+  ['talk', (action) => Boolean(action.dialogCode)],
+]);
+
+const actionServices = (action) =>
+  ACTION_SERVICES.filter(([, configured]) => configured(action)).map(([service]) => service);
+
+// A random mode lands anywhere on the target map: the server drops the target cell, so the graph does too.
+const portalTargetCell = (portal) =>
+  String(portal.portalMode || '').includes('random')
+    ? { x: -1, y: -1 }
+    : { x: portal.targetCellX ?? -1, y: portal.targetCellY ?? -1 };
 
 const PRESENCE_STATUS = Object.freeze({
   passive: 'passive',
@@ -56,29 +85,75 @@ const entityPresenceStatus = (entity, objectLayerMetadata, behavior) => {
   }
 };
 
+const entityDefaultRow = (entityDefault) => ({
+  entityType: entityDefault.entityType || '',
+  liveItemIds: [...(entityDefault.liveItemIds || [])],
+  deadItemIds: [...(entityDefault.deadItemIds || [])],
+  dropItemIds: [...(entityDefault.dropItemIds || [])],
+  inventoryItemsIds: [...(entityDefault.inventoryItemsIds || [])],
+  overrideItemsIdsState: [...(entityDefault.overrideItemsIdsState || [])],
+  behavior: entityDefault.behavior || '',
+});
+
 const mergeEntityDefaults = (entityDefaults = []) => {
-  const merged = entityDefaults.map((entityDefault) => ({
-    entityType: entityDefault.entityType || '',
-    liveItemIds: [...(entityDefault.liveItemIds || [])],
-    behavior: entityDefault.behavior || '',
-  }));
+  const merged = entityDefaults.map(entityDefaultRow);
   const coveredTypes = new Set(merged.map((entityDefault) => entityDefault.entityType));
   for (const canonical of contentArtifact().baseline) {
-    if (!coveredTypes.has(canonical.entityType)) {
-      merged.push({
-        entityType: canonical.entityType,
-        liveItemIds: [...(canonical.liveItemIds || [])],
-        behavior: canonical.behavior || '',
-      });
-    }
+    if (!coveredTypes.has(canonical.entityType)) merged.push(entityDefaultRow(canonical));
   }
   return merged;
 };
 
-// One resolution rule for the whole platform — see resolveEntityDefaultBuild.
-const entityBehavior = (entity, entityDefaults) =>
-  resolveEntityDefaultBuild({ entityType: entity.entityType, itemIds: entity.objectLayerItemIds }, entityDefaults)
-    ?.behavior || '';
+// What the server makes of one placed entity at spawn, from the build it matches: its presence class,
+// the skin it wears, the resource item it is, whether a player can kill it, what it drops on death,
+// and its stat sum. Placed state only: never a live value.
+const placement = (entity, objectLayerMetadata, rules) => {
+  const build = resolveEntityDefaultBuild(
+    { entityType: entity.entityType, itemIds: entity.objectLayerItemIds },
+    rules.entityDefaults,
+  );
+  const behavior = build?.behavior || '';
+  const itemTypes = Object.fromEntries(Object.entries(objectLayerMetadata).map(([itemId, { type }]) => [itemId, type]));
+  const layers = resolveSpawnLoadout(
+    { itemIds: entity.objectLayerItemIds || [], seedDefaults: 0 === parseRgba(entity.color).a },
+    build,
+    { itemTypes, maxActiveLayers: rules.maxActiveLayers },
+  );
+  const worn = layers.filter(({ active }) => active).map(({ itemId }) => itemId);
+  return {
+    presence: entityPresenceStatus(entity, objectLayerMetadata, behavior),
+    skin: worn.find((itemId) => itemTypes[itemId] === 'skin') || '',
+    item: entity.entityType === 'resource' ? worn.find((itemId) => itemTypes[itemId] === 'resource') || '' : '',
+    mortal: !isImmortalBehavior(behavior),
+    drops: build?.dropItemIds || [],
+    stats: effectiveStatsSum(layers, {
+      level: entity.level,
+      rules: rules.progressionRules,
+      statsOf: (itemId) => objectLayerMetadata[itemId]?.stats,
+    }),
+  };
+};
+
+// The placements of each map, by map code, in entity order: one resolution for the marks, the counts,
+// the labels and the objective targets.
+const mapPlacements = (maps, objectLayerMetadata, rules) =>
+  new Map(
+    maps.map((map) => [map.code, (map.entities || []).map((entity) => placement(entity, objectLayerMetadata, rules))]),
+  );
+
+// The bots and resources the content places on a map: its steady population, never a live count.
+const placedCounts = (placements = []) => ({
+  hostile: placements.filter(({ presence }) => presence === PRESENCE_STATUS.hostile).length,
+  passive: placements.filter(({ presence }) => presence === PRESENCE_STATUS.passive).length,
+  resource: placements.filter(({ presence }) => presence === PRESENCE_STATUS.resource).length,
+});
+
+// An item a cell gives, and how: dropped by what is placed there, sold or assembled by its action.
+const YIELD_VIA = Object.freeze({ drop: 'drop', shop: 'shop', craft: 'craft' });
+
+const addUnique = (list, row, same) => {
+  if (!list.some((entry) => same(entry, row))) list.push(row);
+};
 
 const resolveObjectLayerMetadata = async (itemIds, options) => {
   if (!itemIds.length) return {};
@@ -91,35 +166,31 @@ const resolveObjectLayerMetadata = async (itemIds, options) => {
   }
   const objectLayers = await findBoundDefinitions(models, itemIds);
   return Object.fromEntries(
-    objectLayers.map((layer) => [
-      layer.data.item.id,
-      {
-        type: layer.data.item.type,
-      },
-    ]),
+    objectLayers.map((layer) => [layer.data.item.id, { type: layer.data.item.type, stats: layer.data.stats }]),
   );
 };
 
-// Only what this instance references: the conf names its entity-type defaults by _id, so a POI
-// never reads behavior out of another world's wiring.
-const resolveEntityDefaults = async (instance, options) => {
+// The rules a world spawns its entities by. Only what this instance references: the conf names its
+// entity-type defaults by _id, so a POI never reads behavior out of another world's wiring.
+const worldRules = (conf = {}, entityDefaults = []) => ({
+  entityDefaults: mergeEntityDefaults(entityDefaults),
+  progressionRules: resolveProgressionRules(conf.progressionRules || {}),
+  maxActiveLayers: conf.maxActiveLayers ?? CYBERIA_INSTANCE_CONF_DEFAULTS.maxActiveLayers,
+});
+
+const resolveWorldRules = async (instance, options) => {
   try {
     const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
-    const conf = await CyberiaInstanceConf.findOne({ instanceCode: instance.code }).select('entityDefaults').lean();
-    return mergeEntityDefaults(await CyberiaEntityTypeDefaultService.resolve(conf?.entityDefaults, options));
+    const conf = await CyberiaInstanceConf.findOne({ instanceCode: instance.code })
+      .select('entityDefaults progressionRules maxActiveLayers')
+      .lean();
+    return worldRules(conf || {}, await CyberiaEntityTypeDefaultService.resolve(conf?.entityDefaults, options));
   } catch {
-    return mergeEntityDefaults();
+    return worldRules();
   }
 };
 
-const buildPresencePois = ({
-  instance,
-  maps,
-  quests,
-  actions,
-  objectLayerMetadata = {},
-  entityDefaults = mergeEntityDefaults(),
-}) => {
+const buildPresencePois = ({ instance, maps, quests, actions, placements }) => {
   const pois = new Map();
 
   const getPoi = (mapCode, cellX, cellY, presenceStatus, sourcePriority = 0) => {
@@ -135,6 +206,9 @@ const buildPresencePois = ({
       capabilities: [],
       quests: [],
       actions: [],
+      bots: [],
+      resources: [],
+      yields: [],
       sourcePriority,
     };
     const priority = sourcePriority + (PRESENCE_PRIORITY[presenceStatus] || 0);
@@ -150,14 +224,26 @@ const buildPresencePois = ({
   const addCapability = (poi, capability) => {
     if (poi && !poi.capabilities.includes(capability)) poi.capabilities.push(capability);
   };
+  const addYield = (poi, itemId, via) =>
+    itemId && addUnique(poi.yields, { itemId, via }, (a, b) => a.itemId === b.itemId && a.via === b.via);
 
+  // A bot is a `talk` target by its skin, and a `kill` target when mortal; what a bot or a
+  // resource drops is a `collect` source. Each names its stat sum as placed.
   for (const map of maps) {
-    for (const entity of map.entities || []) {
-      const behavior = entityBehavior(entity, entityDefaults);
-      const presenceStatus = entityPresenceStatus(entity, objectLayerMetadata, behavior);
-      if (!presenceStatus) continue;
-      getPoi(map.code, entity.initCellX, entity.initCellY, presenceStatus, 100);
-    }
+    (map.entities || []).forEach((entity, i) => {
+      const { presence, skin, item, mortal, drops, stats } = placements.get(map.code)[i];
+      const poi = presence && getPoi(map.code, entity.initCellX, entity.initCellY, presence, 100);
+      if (!poi) return;
+      if (entity.entityType === 'bot' && skin)
+        addUnique(
+          poi.bots,
+          { skin, mortal, stats },
+          (a, b) => a.skin === b.skin && a.mortal === b.mortal && a.stats === b.stats,
+        );
+      if (item)
+        addUnique(poi.resources, { itemId: item, stats }, (a, b) => a.itemId === b.itemId && a.stats === b.stats);
+      for (const itemId of drops) addYield(poi, itemId, YIELD_VIA.drop);
+    });
   }
 
   // Portal-cell presence follows the AOI: the portal's own outgoing edge
@@ -172,7 +258,8 @@ const buildPresencePois = ({
       portalPresenceStatus(portal.portalMode),
       200,
     );
-    getPoi(portal.targetMapCode, portal.targetCellX ?? -1, portal.targetCellY ?? -1, PRESENCE_STATUS.portal);
+    const target = portalTargetCell(portal);
+    getPoi(portal.targetMapCode, target.x, target.y, PRESENCE_STATUS.portal);
   }
 
   // The client marks a quest or action POI active from its own quest state: a quest is actionable
@@ -181,17 +268,27 @@ const buildPresencePois = ({
   for (const quest of quests) {
     const poi = getPoi(quest.sourceMapCode, quest.sourceCellX ?? 0, quest.sourceCellY ?? 0, PRESENCE_STATUS.passive);
     addCapability(poi, CAPABILITY_QUEST);
-    poi?.quests.push({ code: quest.code, prerequisiteCodes: [...(quest.prerequisiteCodes || [])] });
+    poi?.quests.push({
+      code: quest.code,
+      title: quest.title || quest.code,
+      prerequisiteCodes: [...(quest.prerequisiteCodes || [])],
+    });
   }
 
   for (const action of actions) {
     const poi = getPoi(action.sourceMapCode, action.sourceCellX ?? 0, action.sourceCellY ?? 0, PRESENCE_STATUS.passive);
     addCapability(poi, CAPABILITY_ACTION);
-    poi?.actions.push({
+    if (!poi) continue;
+    poi.actions.push({
       code: action.code,
+      label: action.label || '',
       questCodes: (action.questDialogueCodes || []).map((qd) => qd.questCode),
       standalone: actionHasStandalonePayload(action),
+      services: actionServices(action),
     });
+    for (const { itemId } of action.shopItems || []) addYield(poi, itemId, YIELD_VIA.shop);
+    for (const recipe of action.craftRecipes || [])
+      for (const { itemId } of recipe.outputItems || []) addYield(poi, itemId, YIELD_VIA.craft);
   }
 
   return [...pois.values()]
@@ -205,16 +302,9 @@ const buildPresencePois = ({
 /**
  * Pure payload builder for the static graph. `world` matches the
  * resolveInstanceWorld shape: { instance, maps, quests, actions,
- * objectLayerMetadata, entityDefaults }.
+ * objectLayerMetadata, rules }.
  */
-const buildStaticPayload = ({
-  instance,
-  maps,
-  quests,
-  actions,
-  objectLayerMetadata = {},
-  entityDefaults = mergeEntityDefaults(),
-}) => {
+const buildStaticPayload = ({ instance, maps, quests, actions, objectLayerMetadata = {}, rules = worldRules() }) => {
   const previewRoute = (mapCode) =>
     `${apiPathOf()}/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
 
@@ -229,6 +319,7 @@ const buildStaticPayload = ({
     'mapCode',
   );
   const { nodes: positions } = instanceMapLayout(ordered, layout);
+  const placements = mapPlacements(maps, objectLayerMetadata, rules);
   const nodes = ordered.map((m, i) => ({
     mapCode: m.code,
     name: m.name || m.code,
@@ -248,33 +339,31 @@ const buildStaticPayload = ({
     // one the client hits the preview route, which renders on demand and stores
     // the result as the map's `preview` File.
     previewUrl: m.preview ? `${apiPathOf()}/file/blob/${String(m.preview)}` : previewRoute(m.code),
+    placed: placedCounts(placements.get(m.code)),
   }));
 
-  const edges = (instance.portals || []).map((p) => ({
-    sourceMapCode: p.sourceMapCode,
-    sourceCellX: p.sourceCellX ?? -1,
-    sourceCellY: p.sourceCellY ?? -1,
-    targetMapCode: p.targetMapCode,
-    targetCellX: p.targetCellX ?? -1,
-    targetCellY: p.targetCellY ?? -1,
-    portalMode: p.portalMode || 'inter-portal',
-  }));
+  const edges = (instance.portals || []).map((p) => {
+    const target = portalTargetCell(p);
+    return {
+      sourceMapCode: p.sourceMapCode,
+      sourceCellX: p.sourceCellX ?? -1,
+      sourceCellY: p.sourceCellY ?? -1,
+      targetMapCode: p.targetMapCode,
+      targetCellX: target.x,
+      targetCellY: target.y,
+      portalMode: p.portalMode || 'inter-portal',
+    };
+  });
 
   return {
     instanceCode: instance.code,
     name: instance.name || instance.code,
     description: instance.description || '',
     topologyMode: instance.topologyMode || 'manual',
+    entrySpawn: entrySpawn(instance, ordered),
     nodes,
     edges,
-    presencePois: buildPresencePois({
-      instance,
-      maps,
-      quests,
-      actions,
-      objectLayerMetadata,
-      entityDefaults,
-    }),
+    presencePois: buildPresencePois({ instance, maps, quests, actions, placements }),
   };
 };
 
@@ -300,17 +389,29 @@ const resolveInstanceWorld = async (instanceCode, options) => {
       .select('code title prerequisiteCodes sourceMapCode sourceCellX sourceCellY')
       .lean(),
     CyberiaAction.find({ sourceMapCode: { $in: mapCodes } })
-      .select('code label sourceMapCode sourceCellX sourceCellY questDialogueCodes shopItems craftRecipes storageSlots')
+      .select(
+        'code label sourceMapCode sourceCellX sourceCellY dialogCode questDialogueCodes shopItems craftRecipes ' +
+          'storageSlots buybackItems burnItems market',
+      )
       .lean(),
   ]);
 
+  // One metadata read covers what the content places and what the defaults carry: a worn item can come from either.
+  const rules = await resolveWorldRules(instance, options);
   const itemIds = [
-    ...new Set(maps.flatMap((map) => (map.entities || []).flatMap((entity) => entity.objectLayerItemIds || []))),
+    ...new Set([
+      ...maps.flatMap((map) => (map.entities || []).flatMap((entity) => entity.objectLayerItemIds || [])),
+      ...rules.entityDefaults.flatMap((entityDefault) => [
+        ...entityDefault.liveItemIds,
+        ...entityDefault.deadItemIds,
+        ...entityDefault.dropItemIds,
+        ...entityDefault.inventoryItemsIds,
+      ]),
+    ]),
   ];
   const objectLayerMetadata = await resolveObjectLayerMetadata(itemIds, options);
-  const entityDefaults = await resolveEntityDefaults(instance, options);
 
-  return { instance, maps, quests, actions, objectLayerMetadata, entityDefaults };
+  return { instance, maps, quests, actions, objectLayerMetadata, rules };
 };
 
 class CyberiaInstanceMapService {
