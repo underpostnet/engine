@@ -303,33 +303,3 @@ export async function resolveMapOwner(models, mapCode) {
     version: row.version,
   };
 }
-
-/**
- * The indexes of the registry collection, and with `apply` the migration to the indexes of its
- * schema: they are built, then every index without a catalog key goes.
- * @param {import('mongoose').Model} Registry
- * @param {{apply?: boolean}} [params]
- * @returns {Promise<{unscoped: number, obsolete: string[], indexes: Object[]}>}
- * @throws {Error} `status` 409 with `apply` while rows without a catalog remain.
- * @memberof CyberiaMapRegistry
- */
-export async function registryIndexes(Registry, { apply = false } = {}) {
-  const indexes = await Registry.collection
-    .indexes()
-    .catch((error) => (error.codeName === 'NamespaceNotFound' ? [] : Promise.reject(error)));
-  const obsolete = indexes.filter(({ key }) => !key.catalog && !key._id);
-  const unscoped = await Registry.countDocuments({ catalog: { $exists: false } });
-  if (apply) {
-    if (unscoped)
-      throw failure(
-        `${unscoped} registry rows name no catalog; remove them, and a reconciliation of each catalog rebuilds its rows`,
-      );
-    await Registry.createIndexes();
-    for (const { name } of obsolete) await Registry.collection.dropIndex(name);
-  }
-  return {
-    unscoped,
-    obsolete: obsolete.map(({ name }) => name),
-    indexes: indexes.map(({ name, key, unique }) => ({ name, key, unique: !!unique })),
-  };
-}

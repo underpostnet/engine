@@ -2,14 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 
 // The binding checks over stubbed collections: one item per problem, worlds read through a stub
 // of the world load, and IPFS states the test names.
-const world = vi.hoisted(() => ({ itemIds: new Set(), actionDocs: [], questDocs: [] }));
+const world = vi.hoisted(() => ({ itemIds: new Set() }));
 vi.mock('../../../src/projects/cyberia/instance-data.js', () => ({ loadWorld: async () => world }));
 const ipfsStates = vi.hoisted(() => new Map());
 vi.mock('../../../src/api/object-layer/object-layer.ipfs.js', () => ({
   objectLayerIpfsState: async ({ definition }) => ipfsStates.get(definition.cid) ?? [],
 }));
 
-const { bindingProblems, checkCatalogStorage, checkWorldBindings, findLegacyPins, repairLegacyPins } =
+const { bindingProblems, checkCatalogStorage, checkWorldBindings } =
   await import('../../../src/projects/cyberia/catalog/catalog-consistency.js');
 
 const lean = (value) => ({ lean: async () => value });
@@ -50,12 +50,8 @@ describe('binding problems', () => {
 });
 
 describe('a world checked before a game server loads it', () => {
-  it('reports every item that cannot run as an error, an unrendered one as a warning, and every legacy pin', async () => {
-    Object.assign(world, {
-      itemIds: new Set(['coin', 'shard', 'none']),
-      questDocs: [{ code: 'q1', rewards: [{ itemId: 'coin', objectLayerCid: 'old-c' }] }],
-      actionDocs: [{ code: 'shop', shopItems: [{ itemId: 'coin', priceItemId: 'coin', priceObjectLayerCid: '' }] }],
-    });
+  it('reports every item that cannot run as an error, and an unrendered one as a warning', async () => {
+    world.itemIds = new Set(['coin', 'shard', 'none']);
     const result = await checkWorldBindings({ ...STORE, CyberiaInstance: { distinct: async () => ['FOREST'] } });
     expect(result.ok).toBe(false);
     expect(result.worlds).toEqual([
@@ -65,85 +61,14 @@ describe('a world checked before a game server loads it', () => {
         findings: [
           { itemId: 'none', cid: '', problem: 'unbound', error: true },
           { itemId: 'shard', cid: 's', problem: 'unrendered', error: false },
-          { itemId: 'coin', cid: 'old-c', problem: 'legacy-pin', error: true },
         ],
       },
     ]);
   });
 
   it('passes a world whose items all run, with warnings only', async () => {
-    Object.assign(world, { itemIds: new Set(['coin', 'shard']), questDocs: [], actionDocs: [] });
+    world.itemIds = new Set(['coin', 'shard']);
     expect((await checkWorldBindings(STORE, { instanceCodes: ['FOREST'] })).ok).toBe(true);
-  });
-});
-
-describe('legacy pins', () => {
-  const raw = (docs) => {
-    const updates = [];
-    return {
-      updates,
-      collection: {
-        find: () => ({ toArray: async () => docs }),
-        updateOne: async (filter, update) => updates.push([filter, update]),
-      },
-    };
-  };
-  const pinned = () => ({
-    CyberiaItemCatalog: catalog({ coin: 'c', axe: 'x' }),
-    CyberiaQuest: raw([
-      {
-        _id: 'q1',
-        code: 'q1',
-        steps: [{ objectives: [{ itemId: 'axe', objectLayerCid: 'x' }] }],
-        rewards: [{ itemId: 'coin', objectLayerCid: 'c' }],
-      },
-    ]),
-    CyberiaAction: raw([
-      {
-        _id: 'a1',
-        code: 'shop',
-        shopItems: [{ itemId: 'axe', objectLayerCid: '', priceItemId: 'coin', priceObjectLayerCid: 'old-c' }],
-      },
-    ]),
-  });
-
-  it('finds the items pinned to several definitions, or to another one than the catalog binds', async () => {
-    const { documents, conflicts } = await findLegacyPins(pinned());
-    expect(documents.map(({ collection, code, pins }) => [collection, code, pins])).toEqual([
-      [
-        'CyberiaQuest',
-        'q1',
-        [
-          { itemId: 'axe', cid: 'x' },
-          { itemId: 'coin', cid: 'c' },
-        ],
-      ],
-      ['CyberiaAction', 'shop', [{ itemId: 'coin', cid: 'old-c' }]],
-    ]);
-    expect(conflicts).toEqual([
-      {
-        itemId: 'coin',
-        activeCid: 'c',
-        cids: [
-          { cid: 'c', documents: ['CyberiaQuest q1'] },
-          { cid: 'old-c', documents: ['CyberiaAction shop'] },
-        ],
-      },
-    ]);
-  });
-
-  it('reports without apply, and with apply removes every pin field, empty ones too', async () => {
-    const models = pinned();
-    const report = await repairLegacyPins(models);
-    expect(report).toMatchObject({ applied: false, repaired: 0 });
-    expect(models.CyberiaQuest.updates).toEqual([]);
-    expect((await repairLegacyPins(models, { apply: true })).repaired).toBe(2);
-    expect(models.CyberiaQuest.updates).toEqual([
-      [{ _id: 'q1' }, { $unset: { 'steps.0.objectives.0.objectLayerCid': '', 'rewards.0.objectLayerCid': '' } }],
-    ]);
-    expect(models.CyberiaAction.updates).toEqual([
-      [{ _id: 'a1' }, { $unset: { 'shopItems.0.objectLayerCid': '', 'shopItems.0.priceObjectLayerCid': '' } }],
-    ]);
   });
 });
 

@@ -142,19 +142,27 @@ content_release_skipped() {
     echo "$RUN_QUIET_NODE_TAG SKIP_CONTENT_RELEASE=1: $1 skipped"
 }
 
-# ── Stage D — Content candidate ──────────────────────────────────────────────────────────
+# ── Stage D — Data ───────────────────────────────────────────────────────────────────────
 #
-# The host fetches the locked content revision into a read-only release workspace, and projects
-# the data-release credentials. A Release Job on the deployed image builds the content with the
-# repository's own commands, ingests it into the candidate database and validates it there, against
-# the Object Layer authority. Players keep the active release. A rerun resumes the same release,
-# and a validated one is left as it is.
+# The data-release credentials go to their Secret, then two Release Jobs run on the deployed image
+# before the new code serves. The first makes the indexes of the runtime records the ones its models
+# declare: it deletes the records without a required field of a unique key, then syncs the indexes.
+# Two complete records that share a unique key stop the deploy, and the error names the key. The second
+# builds the content candidate: the host fetches the locked content revision into a read-only
+# release workspace, and the Job builds it with the repository's own commands, ingests it into the
+# candidate database and validates it there, against the Object Layer authority. Players keep the
+# active release. A rerun resumes the same release, and a validated one is left as it is.
+stage_runtime_indexes() {
+    deploy_step "Project data-release credentials" apply_release_secret
+    deploy_step "Sync runtime indexes" \
+        release_job "runtime-indexes" "$DEPLOY_IMAGE" "node bin/cyberia runtime-indexes --apply"
+}
+
 stage_content_candidate() {
     ! content_release_skipped "content candidate" || return 0
     deploy_step "Prepare content release $CONTENT_RELEASE_ID" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/cyberia content-release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL"
-    deploy_step "Project data-release credentials" apply_release_secret
     deploy_step "Build content release $CONTENT_RELEASE_ID" \
         content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE" \
         build "$CONTENT_RELEASE_ID" --from source ${CONTENT_INSTANCES:+--instances "$CONTENT_INSTANCES"}
@@ -255,6 +263,7 @@ main() {
     stage_sources
     stage_build
     stage_configuration
+    stage_runtime_indexes
     stage_content_candidate
     PREVIOUS_COLOUR="$(live_colour || true)"
     RELEASE_STATE=switched

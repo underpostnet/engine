@@ -4,7 +4,6 @@ import { startMongod, mongodBinary } from '../../support/mongod.js';
 import {
   catalogRegistryModels,
   reconcileMapRegistry,
-  registryIndexes,
   registryTransaction,
   resolveMapOwner,
 } from '../../../src/projects/cyberia/instance/map-registry.js';
@@ -139,23 +138,5 @@ describe.skipIf(!mongodBinary)('the map registry of a catalog', () => {
     expect((await resolveMapOwner(models, 'gate')).instanceCode).toBe('world-b');
     expect((await reconcileMapRegistry(staged)).changes).toEqual([]);
     expect(await staged.CyberiaGlobalMapCodeRegistry.countDocuments({ catalog: 'catalog-staged' })).toBe(1);
-  });
-
-  it('migrates the indexes of an older registry, once every row names its catalog', async () => {
-    const legacy = await catalogRegistryModels(connection.useDb('legacy-runtime'), 'catalog-a');
-    const collection = legacy.CyberiaGlobalMapCodeRegistry.collection;
-    await collection.createIndex({ mapCode: 1 }, { unique: true });
-    await collection.createIndex({ instanceId: 1 });
-    await collection.insertOne({ mapCode: 'gate', instanceCode: 'world-a' });
-    const report = await registryIndexes(legacy.CyberiaGlobalMapCodeRegistry);
-    expect(report).toMatchObject({ unscoped: 1, obsolete: ['mapCode_1', 'instanceId_1'] });
-    await expect(registryIndexes(legacy.CyberiaGlobalMapCodeRegistry, { apply: true })).rejects.toThrow(
-      'name no catalog',
-    );
-    await collection.deleteMany({ catalog: { $exists: false } });
-    await registryIndexes(legacy.CyberiaGlobalMapCodeRegistry, { apply: true });
-    const after = await registryIndexes(legacy.CyberiaGlobalMapCodeRegistry);
-    expect(after.obsolete).toEqual([]);
-    expect(after.indexes.map(({ name }) => name).sort()).toEqual(['_id_', 'catalog_1_mapCode_1']);
   });
 });
