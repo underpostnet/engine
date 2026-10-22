@@ -98,6 +98,11 @@ Export to custom output path:
 underpost db default-a --export --out-path /custom/backup/path
 ```
 
+A MongoDB database that declares `partitions` in `conf.server.json` exports with them. The export
+dumps each partition's own database, and every `<partition>-<id>` database on the server, into the
+same backup folder: one directory per database. `--collections` and `--out-path` export the host
+database only. An import restores the host database only.
+
 ### 2. Import Database Backups
 
 Import backups to restore databases:

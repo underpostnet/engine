@@ -118,4 +118,47 @@ describe('database pod commands', () => {
     expect(tools.slice(1).map((argv) => valueAfter(argv, '--collection'))).to.deep.equal(['a', 'b']);
     expectRedacted();
   });
+
+  it('lists the databases a partition serves, and nothing else on the server', () => {
+    Underpost.kubectl.run.mockImplementation((command) => {
+      commands.push(command);
+      return 'admin app app-content-v1 app-content app-contentx app-content-capture-1 other\n';
+    });
+    const databases = Underpost.db._partitionDatabases({
+      podName: POD.NAME,
+      namespace: 'default',
+      partitions: ['app-content'],
+      user: 'root',
+      password: PASSWORD,
+    });
+
+    expect(databases).to.deep.equal(['app-content', 'app-content-capture-1', 'app-content-v1']);
+    const [argv] = commands.map(podArgv);
+    expect(argv[0]).to.equal('mongosh');
+    expect(valueAfter(argv, '--password')).to.equal(PASSWORD);
+    expect(valueAfter(argv, '--eval')).to.include('listDatabases');
+    expectRedacted();
+  });
+
+  it('lists no database for a host without partitions, and reports a server it cannot list', () => {
+    expect(Underpost.db._partitionDatabases({ podName: POD.NAME, namespace: 'default', partitions: [] })).to.deep.equal(
+      [],
+    );
+    expect(commands).to.deep.equal([]);
+    Underpost.kubectl.run.mockImplementation(() => {
+      throw new Error('exec failed');
+    });
+    expect(
+      Underpost.db._partitionDatabases({ podName: POD.NAME, namespace: 'default', partitions: ['app-content'] }),
+    ).to.equal(null);
+  });
+
+  it('locates the backup of one host of a deployment', () => {
+    expect(Underpost.db.backupHostDir({ deployId: 'dd-cyberia', host: 'www.cyberiaonline.com', path: '/' })).to.equal(
+      '../engine-cyberia-cron-backups/www.cyberiaonline.com-',
+    );
+    expect(Underpost.db.backupHostDir({ deployId: 'app', host: 'app.net', path: '/admin' })).to.equal(
+      '../engine-app-cron-backups/app.net-admin',
+    );
+  });
 });

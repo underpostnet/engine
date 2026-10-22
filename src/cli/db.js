@@ -23,6 +23,7 @@ import { loadCronDeployEnv } from '../server/ops/cron.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
+import mongoose from 'mongoose';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -83,9 +84,10 @@ const mongoToolAuthFlagsFactory = ({ user, password, authDatabase }) =>
  * @property {string} name - Database name
  * @property {string} user - Database user
  * @property {string} password - Database password
- * @property {string} hostFolder - Host folder path
+ * @property {string} hostDir - Backup directory of the host
  * @property {string} host - Host identifier
  * @property {string} path - Path identifier
+ * @property {string[]} partitions - Partition database names the host declares
  * @property {number} [currentBackupTimestamp] - Timestamp of current backup
  */
 
@@ -120,6 +122,108 @@ class UnderpostDB {
       const entries = fs.readdirSync(backupDir).filter((e) => /^\d+$/.test(e));
       if (entries.length === 0) return null;
       return entries.sort((a, b) => parseInt(b) - parseInt(a))[0];
+    },
+
+    /**
+     * Helper: The cron backup repository of a deployment.
+     * @method _backupRepoName
+     * @memberof UnderpostDB
+     * @param {string} deployId - Deployment ID.
+     * @return {string} The repository name.
+     */
+    _backupRepoName(deployId) {
+      return `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
+    },
+
+    /**
+     * The backup directory of one host of a deployment: one timestamp folder per backup, and in
+     * each one dump directory per database.
+     * @method backupHostDir
+     * @memberof UnderpostDB
+     * @param {object} params
+     * @param {string} params.deployId - Deployment ID.
+     * @param {string} params.host - Host.
+     * @param {string} params.path - Path.
+     * @return {string} The directory, relative to the engine root.
+     */
+    backupHostDir({ deployId, host, path }) {
+      return `../${Underpost.db._backupRepoName(deployId)}/${host}${path.replaceAll('/', '-')}`;
+    },
+
+    /**
+     * The documents of one collection of a `mongodump` database directory, with their BSON types.
+     * @method readDumpCollection
+     * @memberof UnderpostDB
+     * @param {string} dir - The dump directory of one database.
+     * @param {string} collection - Collection name.
+     * @return {Object[]} Empty when the dump holds no such collection.
+     */
+    readDumpCollection(dir, collection) {
+      const file = `${dir}/${collection}.bson`;
+      if (!fs.existsSync(file)) return [];
+      const buffer = fs.readFileSync(file);
+      const documents = [];
+      for (let offset = 0; offset < buffer.length;) {
+        const size = buffer.readInt32LE(offset);
+        documents.push(
+          mongoose.mongo.BSON.deserialize(buffer.subarray(offset, offset + size), { promoteValues: false }),
+        );
+        offset += size;
+      }
+      return documents;
+    },
+
+    /**
+     * Restores a `mongodump` database directory through the driver. The indexes are the models' to build.
+     * @method restoreDump
+     * @memberof UnderpostDB
+     * @param {import('mongodb').Db} db - An empty target database.
+     * @param {string} dir - The dump directory of one database.
+     * @return {Promise<Object<string,number>>} Collection → documents restored.
+     */
+    async restoreDump(db, dir) {
+      const restored = {};
+      for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.bson'))) {
+        const collection = file.slice(0, -'.bson'.length);
+        const documents = Underpost.db.readDumpCollection(dir, collection);
+        if (documents.length) await db.collection(collection).insertMany(documents);
+        restored[collection] = documents.length;
+      }
+      return restored;
+    },
+
+    /**
+     * Helper: The databases the partitions of a MongoDB database serve: each partition's own, and
+     * every `<partition>-<id>` database it may be rebound to.
+     * @method _partitionDatabases
+     * @memberof UnderpostDB
+     * @param {Object} params
+     * @param {string} params.podName - Pod name.
+     * @param {string} params.namespace - Namespace.
+     * @param {string[]} params.partitions - The partition database names the host declares.
+     * @param {string} [params.user=''] - MongoDB username.
+     * @param {string} [params.password=''] - MongoDB password.
+     * @param {string} [params.authDatabase='admin'] - Auth database.
+     * @return {string[]|null} The database names, or null when the server cannot be listed.
+     */
+    _partitionDatabases({ podName, namespace, partitions, user = '', password = '', authDatabase = 'admin' }) {
+      if (!partitions.length) return [];
+      try {
+        const script =
+          'print(db.adminCommand({ listDatabases: 1, nameOnly: true }).databases.map((d) => d.name).join(" "))';
+        const listed = Underpost.kubectl.exec({
+          podName,
+          namespace,
+          command: `mongosh --quiet${mongoToolAuthFlagsFactory({ user, password, authDatabase })} --eval ${shellArgumentFactory(script)}`,
+        });
+        return `${listed}`
+          .split(/\s+/)
+          .filter((name) => partitions.some((partition) => name === partition || name.startsWith(`${partition}-`)))
+          .sort();
+      } catch (error) {
+        logger.error('Failed to list the partition databases', { podName, partitions, error: error.message });
+        return null;
+      }
     },
 
     /**
@@ -698,7 +802,7 @@ class UnderpostDB {
 
           /** @type {Object.<string, Object.<string, DatabaseConfig>>} */
           const dbs = {};
-          const repoName = `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
+          const repoName = Underpost.db._backupRepoName(deployId);
 
           // Load server configuration
           const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
@@ -714,16 +818,17 @@ class UnderpostDB {
             for (const path of Object.keys(confServer[host])) {
               const { db } = confServer[host][path];
               if (db) {
-                const { provider, name, user, password } = db;
+                const { provider, name, user, password, partitions } = db;
                 if (!dbs[provider]) dbs[provider] = {};
 
                 if (!(name in dbs[provider])) {
                   dbs[provider][name] = {
                     user,
                     password,
-                    hostFolder: host + path.replaceAll('/', '-'),
+                    hostDir: Underpost.db.backupHostDir({ deployId, host, path }),
                     host,
                     path,
+                    partitions: Object.values(partitions ?? {}).map((partition) => partition.name),
                   };
                 }
               }
@@ -771,7 +876,7 @@ class UnderpostDB {
           // Process each database provider
           for (const provider of Object.keys(dbs)) {
             for (const dbName of Object.keys(dbs[provider])) {
-              const { hostFolder, user, password, host, path } = dbs[provider][dbName];
+              const { hostDir, user, password, host, path, partitions } = dbs[provider][dbName];
 
               // Create unique identifier for host+path combination
               const hostPathKey = `${deployId}:${host}:${path}`;
@@ -799,29 +904,24 @@ class UnderpostDB {
                 continue;
               }
 
-              if (!hostFolder) {
-                logger.warn('No hostFolder defined for database', { dbName, provider });
-                continue;
-              }
+              logger.info('Processing database', { hostDir, provider, dbName, deployId });
 
-              logger.info('Processing database', { hostFolder, provider, dbName, deployId });
-
-              const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(`../${repoName}/${hostFolder}`);
+              const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(hostDir);
 
               dbs[provider][dbName].currentBackupTimestamp = latestBackupTimestamp;
 
               const currentTimestamp = latestBackupTimestamp || newBackupTimestamp;
               const sqlContainerPath = `/home/${dbName}.sql`;
-              const fromPartsPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}-parths.json`;
-              const toSqlPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}.sql`;
-              const toNewSqlPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}.sql`;
-              const toBsonPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}`;
-              const toNewBsonPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}`;
+              const fromPartsPath = `${hostDir}/${currentTimestamp}/${dbName}-parths.json`;
+              const toSqlPath = `${hostDir}/${currentTimestamp}/${dbName}.sql`;
+              const toNewSqlPath = `${hostDir}/${newBackupTimestamp}/${dbName}.sql`;
+              const toBsonPath = `${hostDir}/${currentTimestamp}/${dbName}`;
+              const toNewBsonPath = `${hostDir}/${newBackupTimestamp}/${dbName}`;
 
               // Merge split SQL files if needed for import
               if (options.import === true && fs.existsSync(fromPartsPath) && !fs.existsSync(toSqlPath)) {
                 const names = JSON.parse(fs.readFileSync(fromPartsPath, 'utf8')).map((_path) => {
-                  return `../${repoName}/${hostFolder}/${currentTimestamp}/${_path.split('/').pop()}`;
+                  return `${hostDir}/${currentTimestamp}/${_path.split('/').pop()}`;
                 });
                 logger.info('Merging backup parts', { fromPartsPath, toSqlPath, parts: names.length });
                 await mergeFile(names, toSqlPath);
@@ -990,6 +1090,44 @@ class UnderpostDB {
                       });
                       exportSucceeded = exportSucceeded || success;
                       if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'export' });
+                      // A whole backup of the host carries the databases its partitions serve.
+                      if (!options.outPath && !options.collections) {
+                        const databases = Underpost.db._partitionDatabases({
+                          podName: pod.NAME,
+                          namespace,
+                          partitions,
+                          user,
+                          password,
+                          authDatabase: 'admin',
+                        });
+                        if (!databases)
+                          failedOperations.push({
+                            deployId,
+                            provider,
+                            dbName: partitions.join(','),
+                            pod: pod.NAME,
+                            op: 'export',
+                          });
+                        for (const database of databases ?? []) {
+                          const dumped = Underpost.db._exportMongoDB({
+                            pod,
+                            namespace,
+                            dbName: database,
+                            outputPath: `${hostDir}/${newBackupTimestamp}/${database}`,
+                            user,
+                            password,
+                            authDatabase: 'admin',
+                          });
+                          if (!dumped)
+                            failedOperations.push({
+                              deployId,
+                              provider,
+                              dbName: database,
+                              pod: pod.NAME,
+                              op: 'export',
+                            });
+                        }
+                      }
                     }
                     break;
                   }
@@ -1001,7 +1139,7 @@ class UnderpostDB {
               }
 
               if (options.export === true && exportSucceeded === true) {
-                Underpost.db._enforceBackupRetention(`../${repoName}/${hostFolder}`);
+                Underpost.db._enforceBackupRetention(hostDir);
               }
 
               // Mark this host+path combination as processed
