@@ -6,6 +6,14 @@ CONTENT_NAMESPACE="${CONTENT_NAMESPACE:-default}"
 # The Object Layer authority a release publishes its definitions to.
 OBJECT_LAYER_API_ORIGIN="${OBJECT_LAYER_API_ORIGIN:-https://objectlayer.org}"
 
+# The public origin of the engine API.
+CYBERIA_API_ORIGIN="${CYBERIA_API_ORIGIN:-https://www.cyberiaonline.com}"
+
+# The versioned API path the engine serves, from its one source (`DOMAIN_API_VERSION`).
+engine_api_path() {
+    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node --input-type=module -e \"import('./src/server/domain/api-contract.js').then((contract) => process.stdout.write(contract.API_BASE_PATH))\""
+}
+
 # The colour the stable traffic Service routes to: the same selector the engine reads.
 live_colour() {
     sudo -n -- kubectl get service "${DEPLOY_ID}-${DEPLOY_ENV}-traffic-service" \
@@ -63,6 +71,23 @@ content_release_job() {
 served_content_release() {
     curl -fsS --max-time 10 "$1/cyberia-content-release/active" | node -e \
         'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => process.stdout.write(JSON.parse(s).data?.release?.releaseId ?? ""))'
+}
+
+# Fails when the engine cannot read its active content release. The game server loads its world
+# from that release at boot.
+#
+# Usage: require_serving_content_release <api-base-url>
+require_serving_content_release() {
+    local body
+    body="$(curl -fsS --max-time 10 "$1/cyberia-content-release/active")" || {
+        echo "Engine API unreachable at $1" >&2
+        return 1
+    }
+    if ! printf '%s' "$body" | grep -q '"serving":true'; then
+        echo "The engine does not serve its active content release: ${body}" >&2
+        echo "Run deploy/$DEPLOY_ID/sync-deploy.sh to promote a release this engine reads." >&2
+        return 1
+    fi
 }
 
 # Polls a URL until it answers 2xx, or the timeout passes.

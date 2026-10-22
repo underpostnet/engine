@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/github-actions-logging.sh"
 source "$SCRIPT_DIR/../lib/host.sh"
+source "$SCRIPT_DIR/../lib/content-release.sh"
 source "$SCRIPT_DIR/../lib/release-sources.sh"
 
 DEPLOY_ID=dd-cyberia
@@ -32,6 +33,9 @@ main() {
     deploy_step "Build $DEPLOY_ID configuration" \
     sudo -n -- /bin/bash -lc \
     "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
+
+    deploy_step "Engine serves its content release" \
+    require_serving_content_release "$CYBERIA_API_ORIGIN/$(engine_api_path)"
 
     deploy_step "Wait for target node readiness" \
     sudo -n -- /bin/bash -lc \

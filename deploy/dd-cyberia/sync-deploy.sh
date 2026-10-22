@@ -55,17 +55,11 @@ PREVIOUS_RELEASE=""
 RELEASE_STATE=""
 
 # Public origins the readiness stage probes once the new colour serves.
-CYBERIA_API_ORIGIN="${CYBERIA_API_ORIGIN:-https://www.cyberiaonline.com}"
 CYBERIA_SERVER_ORIGIN="${CYBERIA_SERVER_ORIGIN:-https://server.cyberiaonline.com}"
 READINESS_TIMEOUT="${READINESS_TIMEOUT:-300}"
 
 engine_version() {
     sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node -p \"require('./package.json').version\"" | tr -d '\n'
-}
-
-# The versioned API path the engine serves, from its one source (`DOMAIN_API_VERSION`).
-engine_api_path() {
-    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node --input-type=module -e \"import('./src/server/domain/api-contract.js').then((contract) => process.stdout.write(contract.API_BASE_PATH))\""
 }
 
 engine_commit() {
