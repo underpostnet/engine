@@ -10,6 +10,10 @@ import {
   resolveGraphLayout,
 } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { buildStaticPayload } from '../../../src/api/cyberia-instance/cyberia-instance-map.service.js';
+import { hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
+
+// The payload merges the baseline: it needs a built cyberia-content artifact.
+const contentBuilt = hasContentArtifact();
 
 const cells = (layout) => layout.map(({ x, y }) => [x, y]);
 
@@ -81,7 +85,7 @@ describe('a saved layout', () => {
   });
 });
 
-describe('the instance map payload', () => {
+describe.skipIf(!contentBuilt)('the instance map payload', () => {
   const instance = {
     code: 'w',
     cyberiaMapCodes: ['m1', 'm2', 'm3'],
@@ -94,7 +98,6 @@ describe('the instance map payload', () => {
     { code: 'm1', gridX: 8, gridY: 8, entities: [] },
     { code: 'm2', gridX: 8, gridY: 8, entities: [] },
   ];
-  // Empty entity defaults keep the payload in memory: no content artifact.
   const payloadOf = (world) => buildStaticPayload({ quests: [], actions: [], entityDefaults: [], ...world });
 
   it('places each map on its saved or default cell, in the instance order', () => {
