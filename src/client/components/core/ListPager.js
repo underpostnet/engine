@@ -2,6 +2,9 @@
  * Previous / Next pagination that keeps its page in memory, not in the query parameters, so one view
  * can page several lists. A read returns one page, so the view holds one page at a time.
  *
+ * A read pages by number and returns the total, or pages by cursor: it returns `next`, the cursor of
+ * the page after it ('' on the last page), and gets the cursor of the page it reads as `after`.
+ *
  * @module src/client/components/core/ListPager.js
  */
 import { BtnIcon } from './BtnIcon.js';
@@ -17,7 +20,7 @@ class ListPager {
    * Renders the pager of a list. Call {@link ListPager.load} once the markup is in the page.
    * @param {Object} options
    * @param {string} options.id
-   * @param {(query:{page:number,limit:number})=>Promise<{data:Object[],total:number}|null>|{data:Object[],total:number}} options.fetch
+   * @param {(query:{page:number,limit:number,after:string})=>Promise<{data:Object[],total?:number,next?:string}|null>} options.fetch
    *   Reads one page; null when the read failed.
    * @param {(rows:Object[])=>void|Promise<void>} options.render - Shows the rows of the page.
    * @param {number} [options.limit] - Rows on one page.
@@ -25,7 +28,7 @@ class ListPager {
    * @returns {Promise<string>}
    */
   static async instance({ id, fetch, render, limit = 10, unit = '' }) {
-    ListPager.Tokens[id] = { page: 1, read: 0, fetch, render, limit, unit };
+    ListPager.Tokens[id] = { page: 1, read: 0, fetch, render, limit, unit, cursors: [''] };
     const column = 'width: 33.33%;';
     return html`<div class="fl list-pager list-pager-${id}" style="padding: 5px 0;">
       <div class="in fll" style="${column}">
@@ -53,14 +56,23 @@ class ListPager {
     const pager = ListPager.Tokens[id];
     if (!pager) return;
     const read = ++pager.read;
-    const result = await pager.fetch({ page, limit: pager.limit });
+    if (page === 1) pager.cursors = [''];
+    const result = await pager.fetch({ page, limit: pager.limit, after: pager.cursors[page - 1] ?? '' });
     if (!result || ListPager.Tokens[id] !== pager || read !== pager.read) return;
-    const pages = Math.max(1, Math.ceil(result.total / pager.limit));
+    const cursor = typeof result.next === 'string';
+    if (cursor) pager.cursors[page] = result.next;
+    const pages = cursor ? (result.next ? page + 1 : page) : Math.max(1, Math.ceil(result.total / pager.limit));
     if (page > pages) return ListPager.load(id, pages);
     pager.page = page;
     await pager.render(result.data);
     if (ListPager.Tokens[id] !== pager || read !== pager.read) return;
-    htmls(`.list-pager-${id}-info`, `${page} / ${pages} (${result.total}${pager.unit ? ` ${pager.unit}` : ''})`);
+    const unit = pager.unit ? ` ${pager.unit}` : '';
+    htmls(
+      `.list-pager-${id}-info`,
+      cursor
+        ? `${page}${result.next ? '' : ' / ' + page} (${result.data.length}${unit})`
+        : `${page} / ${pages} (${result.total}${unit})`,
+    );
     for (const [action, step, off] of [
       ['prev', -1, page <= 1],
       ['next', 1, page >= pages],

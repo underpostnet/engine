@@ -57,7 +57,7 @@ describe('a list pager', () => {
 
     await ListPager.load('quests', 2);
 
-    expect(fetch).toHaveBeenCalledWith({ page: 2, limit: 10 });
+    expect(fetch).toHaveBeenCalledWith({ page: 2, limit: 10, after: '' });
     expect(render).toHaveBeenCalledWith(rowsOf(20).slice(10));
     expect(dom.html['.list-pager-quests-info']).toBe('2 / 3 (23 rows)');
   });
@@ -100,6 +100,34 @@ describe('a list pager', () => {
     expect(render).toHaveBeenLastCalledWith(rowsOf(20).slice(10));
   });
 
+  it('pages by cursor when a read names the next page, and goes back through the cursors it saw', async () => {
+    const rows = rowsOf(23);
+    const fetch = vi.fn(async ({ limit, after }) => {
+      const start = after ? Number(after) : 0;
+      const end = start + limit;
+      return { data: rows.slice(start, end), next: end < rows.length ? String(end) : '' };
+    });
+    const render = vi.fn();
+    await ListPager.instance({ id: 'players', fetch, render, limit: 10, unit: 'players' });
+    for (const action of ['prev', 'next']) dom.nodes[`.list-pager-players-${action}`] = { style: {} };
+    const prev = dom.nodes['.list-pager-players-prev'];
+    const next = dom.nodes['.list-pager-players-next'];
+
+    await ListPager.load('players', 1);
+    expect(dom.html['.list-pager-players-info']).toBe('1 (10 players)');
+    expect([prev.disabled, next.disabled]).toEqual([true, false]);
+    await next.onclick();
+    await next.onclick();
+    expect(fetch).toHaveBeenLastCalledWith({ page: 3, limit: 10, after: '20' });
+    expect(render).toHaveBeenLastCalledWith([21, 22, 23]);
+    expect(dom.html['.list-pager-players-info']).toBe('3 / 3 (3 players)');
+    expect(next.disabled).toBe(true);
+    await prev.onclick();
+    expect(fetch).toHaveBeenLastCalledWith({ page: 2, limit: 10, after: '10' });
+    await ListPager.load('players', 1);
+    expect(fetch).toHaveBeenLastCalledWith({ page: 1, limit: 10, after: '' });
+  });
+
   it('shows only the newest of two reads that overlap', async () => {
     let release;
     const slow = new Promise((resolve) => (release = resolve));
@@ -129,7 +157,7 @@ describe('a list pager', () => {
     onInput();
     await vi.runAllTimersAsync();
 
-    expect(fetch.mock.calls).toEqual([[{ page: 1, limit: 10 }]]);
+    expect(fetch.mock.calls).toEqual([[{ page: 1, limit: 10, after: '' }]]);
     vi.useRealTimers();
   });
 });
