@@ -110,7 +110,7 @@
     "peerjs": "^1.5.5",
     "prom-client": "^15.1.2",
     "rrule": "^2.8.1",
-    "shelljs": "^0.10.0",
+    "shelljs": "0.8.5",
     "sitemap": "^9.0.1",
     "socket.io": "^4.8.4",
     "sortablejs": "^1.15.0",
