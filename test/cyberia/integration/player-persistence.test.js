@@ -1,7 +1,7 @@
 /**
- * Accounts, guests, launch and resume tickets, gameplay sessions, universe profiles across worlds,
- * player state commits, friendships and status notes against a real MongoDB replica set: the transactions, the
- * unique indexes and the atomic consumption run for real. Guest identities live in a memory stand-in
+ * Accounts, guests, launch and resume tickets, gameplay sessions and their handover, universe profiles across
+ * worlds, player state commits, the index contract, the operator view, friendships and status notes against a
+ * real MongoDB replica set: the transactions, the unique indexes and the atomic consumption run for real. Guest identities live in a memory stand-in
  * of Valkey. The player service is also called over a real gRPC server, with and without the server key.
  *
  * Needs a `mongod` binary: `UNDERPOST_MONGOD_BIN`, or one on PATH. Skipped otherwise.
@@ -17,7 +17,8 @@ import { CyberiaSocialProfileRouter } from '../../../src/api/cyberia-social-prof
 import { CyberiaPlayerRouter } from '../../../src/api/cyberia-player/cyberia-player.router.js';
 import { appearanceReference } from '../../../src/projects/cyberia/player/appearance-preview.js';
 import { createGameTicket } from '../../../src/api/cyberia-game-ticket/cyberia-game-ticket.service.js';
-import { commitState } from '../../../src/projects/cyberia/player/player-state.js';
+import { commitState, commitStates } from '../../../src/projects/cyberia/player/player-state.js';
+import { listWorldDrops } from '../../../src/projects/cyberia/player/world-drops.js';
 import {
   acquireSession,
   checkpointSessions,
@@ -26,16 +27,29 @@ import {
   issueTravel,
   releaseSession,
 } from '../../../src/projects/cyberia/player/player-session.js';
-import { GuestService } from '../../../src/api/user/guest.service.js';
 import { listFriends, updateFriendship, updateStatusNote } from '../../../src/projects/cyberia/player/social.js';
 import { identityPreviews } from '../../../src/projects/cyberia/player/identity.js';
 import { DEFAULT_INSTANCE_CODE } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { FRIEND_REQUESTS_MAX } from '../../../src/api/cyberia-social/social-contract.js';
 import { heldReport, rebindHeld } from '../../../src/projects/cyberia/player/player-maintenance.js';
 import { buildPlayerHandlers, cyberiaProto } from '../../../src/grpc/cyberia/grpc-server.js';
+import {
+  runtimeModels,
+  syncRuntimeIndexes,
+  unkeyedFilter,
+} from '../../../src/projects/cyberia/runtime/runtime-indexes.js';
+import { CYBERIA_RUNTIME_APIS } from '../../../src/projects/cyberia/stack/domain-ownership.js';
+import {
+  endSession,
+  listPlayers,
+  playerAudit,
+  playerDetail,
+} from '../../../src/projects/cyberia/player/player-admin.js';
+import { WORLD_DROP_RECORD_DAYS } from '../../../src/api/cyberia-world-drop/cyberia-world-drop.model.js';
 import { reportServer } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { memoryValkey } from '../../support/valkey-memory.js';
+import { emptyState, playerSessions, stack } from '../../support/player-sessions.js';
 
 vi.mock('../../../src/db/valkey/Valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
@@ -46,57 +60,15 @@ const APIS = [
   'user',
   'file',
   'cyberia-instance',
-  'cyberia-universe',
-  'cyberia-server-registry',
-  'cyberia-player',
-  'cyberia-game-session',
-  'cyberia-game-ticket',
-  'cyberia-social',
-  'cyberia-social-profile',
-  'cyberia-quest-progress',
+  'cyberia-market',
   'object-layer',
   'cyberia-item-catalog',
+  ...CYBERIA_RUNTIME_APIS,
 ];
 const SERVER_KEY = 'player-test-server-key';
 const model = (name) => DataBaseProviderService.getModel(name, CONTEXT);
 
-let usernames = 0;
-/** A signed-in account: the user and the `activeSessions` entry of its portal session. */
-const account = async (extra = {}) => {
-  const n = ++usernames;
-  const user = await model('User').create({
-    email: `player${n}@cyberia.test`,
-    username: `player${n}`,
-    role: 'user',
-    activeSessions: [
-      { tokenHash: `hash-${n}`, expiresAt: new Date(Date.now() + 60000), host: CONTEXT.host, path: '/' },
-    ],
-    ...extra,
-  });
-  return { principal: 'account', user: String(user._id), session: String(user.activeSessions[0]._id) };
-};
-
-/** A portal guest: its GuestService identity, as a ticket names it. */
-const guest = async () => {
-  const { user } = await GuestService.create({ ip: '127.0.0.1', headers: { 'user-agent': 'test' } }, CONTEXT);
-  return { principal: 'guest', guest: user._id };
-};
-
-let connections = 0;
-/** A launch from the portal to a game server of a world: the ticket, consumed by a new connection. */
-const launch = async (who, instanceCode = 'w1') => {
-  const { ticket } = await createGameTicket({ ...who, instanceCode }, CONTEXT);
-  const connectionId = `conn-${++connections}`;
-  return { ticket, connectionId, consumed: await consumeLaunch({ ticket, instanceCode, connectionId }, CONTEXT) };
-};
-
-const play = async (who, instanceCode = 'w1') => {
-  const { connectionId } = await launch(who, instanceCode);
-  return {
-    connectionId,
-    ...(await acquireSession({ connectionId, instanceCode, serverId: 'server-a' }, CONTEXT)),
-  };
-};
+const { account, guest, launch, play } = playerSessions(CONTEXT);
 
 let reports = 0;
 /** One report of a game server process of a world: it takes sessions until it drains. */
@@ -106,24 +78,12 @@ const serve = (instanceCode, state = 'ready', serverId = `server-${instanceCode}
     CONTEXT,
   );
 
-const stack = (itemId, slot, quantity = 1, olCid = `cid-${itemId}`) => ({
-  itemId,
-  olCid,
-  quantity,
-  slot,
-  active: false,
-});
-
-const emptyState = () => ({
-  coins: 0,
-  xp: 0,
-  bag: [],
-  storage: [],
-  vaults: [],
-  held: [],
-  quests: [],
-  position: { mapCode: '', x: 0, y: 0, seq: 0 },
-});
+/** One checkpoint of a gameplay session, with the health its server reports. */
+const report = (session, who, health) =>
+  checkpointSessions(
+    { sessions: [{ playerId: session.playerId, accountId: who.user, epoch: session.epoch, health }] },
+    CONTEXT,
+  );
 
 describe.skipIf(!mongodBinary)('player persistence', () => {
   let mongod;
@@ -141,12 +101,18 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
     });
     for (const name of [
       'CyberiaPlayer',
+      'CyberiaPlayerAudit',
+      'CyberiaGameSession',
       'CyberiaGameTicket',
       'CyberiaSocial',
       'CyberiaSocialProfile',
       'CyberiaQuestProgress',
       'CyberiaUniverse',
       'CyberiaServerRegistry',
+      'CyberiaEconomyOperation',
+      'CyberiaWorldDrop',
+      'CyberiaMarketListing',
+      'CyberiaMarketClaim',
       'User',
     ])
       await model(name).syncIndexes();
@@ -373,6 +339,149 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       await model('User').updateOne({ _id: who.user }, { $set: { activeSessions: [] } });
       const lease = { playerId: live.playerId, accountId: who.user, epoch: live.epoch, instanceCode: 'w1' };
       expect((await issueResume(lease, CONTEXT)).refusal).toBe('revoked');
+    });
+  });
+
+  describe('joint commits', () => {
+    const commitOf = (session, seq, state) => ({
+      playerId: session.playerId,
+      epoch: session.epoch,
+      seq,
+      state,
+      questsChanged: false,
+      positionChanged: false,
+    });
+    const saved = async (session) => (await model('CyberiaPlayer').findById(session.playerId).lean());
+
+    it('applies the states of both players and the operation record in one transaction, once', async () => {
+      const [a, b] = [await play(await account()), await play(await account())];
+      const request = {
+        operationId: `trade-${a.playerId}-1`,
+        kind: 'trade',
+        commits: [
+          commitOf(a, 1, { ...emptyState(), coins: 6, bag: [stack('knife', 0)] }),
+          commitOf(b, 1, { ...emptyState(), coins: 24, bag: [stack('gel', 0, 2)] }),
+        ],
+      };
+      expect(await commitStates(request, CONTEXT)).toEqual({ refusal: '', playerId: '', duplicate: false });
+      expect((await saved(a)).bag).toMatchObject([{ itemId: 'knife', olCid: 'cid-knife' }]);
+      expect((await saved(b)).coins).toBe(24);
+      const record = await model('CyberiaEconomyOperation').findOne({ operationId: request.operationId }).lean();
+      expect(record).toMatchObject({ kind: 'trade', instanceCode: 'w1', seqs: [1, 1] });
+      expect(record.players.map(String)).toEqual([a.playerId, b.playerId]);
+
+      expect(await commitStates(request, CONTEXT)).toEqual({ refusal: '', playerId: '', duplicate: true });
+      const reused = { ...request, commits: [request.commits[0], commitOf(b, 2, { ...emptyState(), coins: 99 })] };
+      expect(await commitStates(reused, CONTEXT)).toMatchObject({ refusal: 'invalid' });
+      expect((await saved(b)).coins).toBe(24);
+    });
+
+    it('applies no state when one player is stale, and names that player', async () => {
+      const whoB = await account();
+      const [a, b] = [await play(await account()), await play(whoB)];
+      await play(whoB);
+      const result = await commitStates(
+        {
+          operationId: `trade-${a.playerId}-2`,
+          kind: 'trade',
+          commits: [commitOf(a, 1, { ...emptyState(), coins: 1 }), commitOf(b, 1, { ...emptyState(), coins: 2 })],
+        },
+        CONTEXT,
+      );
+      expect(result).toEqual({ refusal: 'stale_session', playerId: b.playerId, duplicate: false });
+      expect((await saved(a)).commitSeq).toBe(0);
+      expect(await model('CyberiaEconomyOperation').countDocuments({ operationId: `trade-${a.playerId}-2` })).toBe(0);
+    });
+
+    it('refuses a request that joins one player, another kind or a malformed state', async () => {
+      const a = await play(await account());
+      const one = commitOf(a, 1, emptyState());
+      const two = commitOf(await play(await account()), 1, emptyState());
+      const drop = { mapCode: 'm', x: 1, y: 1, itemId: 'gel', olCid: '', quantity: 1, lifetimeMs: 1000 };
+      for (const request of [
+        { operationId: 'op-x', kind: 'trade', commits: [one, one] },
+        { operationId: 'op-y', kind: 'gift', commits: [one, two] },
+        { operationId: '', kind: 'trade', commits: [] },
+        { operationId: 'op-t', kind: 'trade', commits: [one, two], drop },
+        { operationId: 'op-d', kind: 'drop', commits: [one] },
+        { operationId: 'op-e', kind: 'drop', commits: [one, two], drop },
+        { operationId: 'op-f', kind: 'drop', commits: [one], drop: { ...drop, lifetimeMs: 86400001 } },
+        { operationId: 'op-g', kind: 'drop', commits: [one], drop: { ...drop, quantity: 0 } },
+        { operationId: 'op-p', kind: 'pickup', commits: [one] },
+        { operationId: 'op-q', kind: 'pickup', commits: [one], claimDropId: 'x', drop },
+      ])
+        expect(await commitStates(request, CONTEXT)).toMatchObject({ refusal: 'invalid' });
+      expect(await model('CyberiaWorldDrop').countDocuments({ dropId: /^op-/ })).toBe(0);
+    });
+
+    const listed = async (instanceCode) => (await listWorldDrops({ instanceCode }, CONTEXT)).drops;
+
+    it('creates a world drop with the state of its owner, and a pickup claims it once', async () => {
+      const [a, b] = [await play(await account()), await play(await account())];
+      const drop = {
+        operationId: `drop-${a.playerId}`,
+        kind: 'drop',
+        commits: [commitOf(a, 1, { ...emptyState(), bag: [stack('gel', 0, 1)] })],
+        drop: { mapCode: 'm1', x: 2, y: 3, itemId: 'gel', olCid: 'cid-gel', quantity: 2, lifetimeMs: 60000 },
+      };
+      expect(await commitStates(drop, CONTEXT)).toEqual({ refusal: '', playerId: '', duplicate: false });
+      expect(await commitStates(drop, CONTEXT)).toEqual({ refusal: '', playerId: '', duplicate: true });
+      expect((await saved(a)).bag).toMatchObject([{ itemId: 'gel', quantity: 1 }]);
+      const [record] = (await listed('w1')).filter(({ dropId }) => dropId === drop.operationId);
+      expect(record).toMatchObject({
+        mapCode: 'm1',
+        x: 2,
+        y: 3,
+        olCid: 'cid-gel',
+        quantity: 2,
+        ownerPlayerId: a.playerId,
+      });
+      expect(record.expiresAtMs).toBeGreaterThan(Date.now() + 55000);
+      expect(await listed('w2')).toEqual([]);
+
+      const pickup = (session, seq) => ({
+        operationId: `pickup-${session.playerId}-${seq}`,
+        kind: 'pickup',
+        commits: [commitOf(session, seq, { ...emptyState(), bag: [stack('gel', 0, 2)] })],
+        claimDropId: drop.operationId,
+      });
+      expect(await commitStates(pickup(b, 1), CONTEXT)).toEqual({ refusal: '', playerId: '', duplicate: false });
+      expect((await saved(b)).bag).toMatchObject([{ itemId: 'gel', quantity: 2 }]);
+      const claimed = await model('CyberiaWorldDrop').findOne({ dropId: drop.operationId }).lean();
+      expect(claimed).toMatchObject({ status: 'claimed', instanceCode: 'w1' });
+      expect(String(claimed.claimedBy)).toBe(b.playerId);
+
+      expect(await commitStates(pickup(a, 2), CONTEXT)).toEqual({
+        refusal: 'drop_gone',
+        playerId: a.playerId,
+        duplicate: false,
+      });
+      expect((await saved(a)).commitSeq).toBe(1);
+      expect((await listed('w1')).map(({ dropId }) => dropId)).not.toContain(drop.operationId);
+    });
+
+    it('never claims an expired drop, a drop of another world or an unknown one', async () => {
+      const a = await play(await account());
+      const record = { mapCode: 'm', x: 0, y: 0, itemId: 'gel', quantity: 1, owner: a.playerId };
+      await model('CyberiaWorldDrop').create([
+        { ...record, dropId: `old-${a.playerId}`, instanceCode: 'w1', expiresAt: new Date(Date.now() - 1000) },
+        { ...record, dropId: `far-${a.playerId}`, instanceCode: 'w2', expiresAt: new Date(Date.now() + 60000) },
+      ]);
+      for (const [i, claimDropId] of [`old-${a.playerId}`, `far-${a.playerId}`, 'none'].entries())
+        expect(
+          await commitStates(
+            {
+              operationId: `claim-${a.playerId}-${i}`,
+              kind: 'pickup',
+              commits: [commitOf(a, i + 1, emptyState())],
+              claimDropId,
+            },
+            CONTEXT,
+          ),
+        ).toMatchObject({ refusal: 'drop_gone', playerId: a.playerId });
+      expect((await saved(a)).commitSeq).toBe(0);
+      expect((await listed('w1')).map(({ dropId }) => dropId)).not.toContain(`old-${a.playerId}`);
+      expect(await model('CyberiaEconomyOperation').countDocuments({ operationId: /^claim-/ })).toBe(0);
     });
   });
 
@@ -664,6 +773,246 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       expect(await model('CyberiaGameSession').countDocuments({ user: who.user })).toBe(1);
       await releaseSession({ playerId: second.playerId, accountId: who.user, epoch: second.epoch }, CONTEXT);
       expect(await model('CyberiaGameSession').countDocuments({ user: who.user })).toBe(0);
+    });
+  });
+
+  describe('session handover', () => {
+    const acquireOn = (connectionId, serverId) =>
+      acquireSession({ connectionId, instanceCode: 'w1', serverId }, CONTEXT);
+
+    it('stores the health a checkpoint reports, bounded to the vocabulary of the lease', async () => {
+      const who = await account();
+      const live = await play(who);
+      await report(live, who, {
+        durability: 'degraded',
+        seq: 5,
+        durableSeq: 3,
+        unsavedMs: 16000,
+        failure: 'transport',
+      });
+      expect((await model('CyberiaGameSession').findOne({ user: who.user }).lean()).health).toMatchObject({
+        durability: 'degraded',
+        closing: false,
+        seq: 5,
+        durableSeq: 3,
+        unsavedMs: 16000,
+        failure: 'transport',
+        at: expect.any(Date),
+      });
+      await report(live, who, { durability: 'lost', failure: 'oops' });
+      expect((await model('CyberiaGameSession').findOne({ user: who.user }).lean()).health).toMatchObject({
+        durability: 'saved',
+        failure: '',
+      });
+    });
+
+    it('holds an acquisition on another server back while the left session closes unsaved', async () => {
+      const who = await account();
+      const left = await play(who);
+      await report(left, who, { durability: 'saving', closing: true, seq: 4, durableSeq: 3, unsavedMs: 900 });
+      const { connectionId } = await launch(who);
+      expect(await acquireOn(connectionId, 'server-b')).toEqual({ refusal: 'saving' });
+      expect(await model('CyberiaPlayer').findById(left.playerId, 'epoch').lean()).toMatchObject({ epoch: left.epoch });
+      expect(await acquireOn(connectionId, 'server-a')).toMatchObject({ refusal: '', epoch: left.epoch + 1 });
+    });
+
+    it('fences at once a session its server reports it cannot save', async () => {
+      const who = await account();
+      const left = await play(who);
+      await report(left, who, { durability: 'recovery', closing: true, seq: 9, durableSeq: 3, failure: 'integrity' });
+      const { connectionId } = await launch(who);
+      expect(await acquireOn(connectionId, 'server-b')).toMatchObject({ refusal: '', epoch: left.epoch + 1 });
+      const late = { playerId: left.playerId, epoch: left.epoch, seq: 9, state: emptyState() };
+      expect(await commitState({ ...late, questsChanged: false, positionChanged: false }, CONTEXT)).toMatchObject({
+        refusal: 'stale_session',
+      });
+    });
+
+    it('lets a resume wait only for a session that may still write on another server', async () => {
+      const who = await account();
+      const live = await play(who);
+      const { ticket } = await issueResume(
+        { playerId: live.playerId, accountId: who.user, epoch: live.epoch, instanceCode: 'w1' },
+        CONTEXT,
+      );
+      const resume = (serverId) =>
+        consumeLaunch({ ticket, instanceCode: 'w1', connectionId: 'resume-x', serverId }, CONTEXT);
+      expect(await resume('server-b')).toEqual({ refusal: 'busy' });
+      expect(await resume('server-a')).toMatchObject({ refusal: '', principal: 'account', accountId: who.user });
+    });
+  });
+
+  describe('operator view', () => {
+    const admin = () => new mongoose.Types.ObjectId();
+    const end = (session, extra = {}) =>
+      endSession(
+        {
+          playerId: session.playerId,
+          operationId: `op-${session.playerId}-${extra.epoch ?? session.epoch}`,
+          reason: 'Stuck session reported by the player',
+          epoch: session.epoch,
+          actor: extra.actor ?? actor,
+          ...extra,
+        },
+        CONTEXT,
+      );
+    let actor;
+    beforeEach(() => {
+      actor = admin();
+    });
+
+    it('pages profiles by their last play with the account name and the session, and filters them', async () => {
+      const who = await account();
+      const live = await play(who);
+      await report(live, who);
+      const offline = await account();
+      const away = await play(offline);
+      await releaseSession({ playerId: away.playerId, accountId: offline.user, epoch: away.epoch }, CONTEXT);
+
+      const first = await listPlayers({ limit: 1 }, CONTEXT);
+      expect(first.data).toHaveLength(1);
+      expect(first.next).toMatch(/^\d+_[0-9a-f]{24}$/);
+      const second = await listPlayers({ limit: 1, after: first.next }, CONTEXT);
+      expect(second.data[0].id).not.toBe(first.data[0].id);
+
+      const { username } = await model('User').findById(who.user).lean();
+      const [row] = (await listPlayers({ q: username }, CONTEXT)).data;
+      expect(row).toMatchObject({
+        id: live.playerId,
+        accountId: who.user,
+        username,
+        universeCode: 'u1',
+        status: 'online',
+        session: { instanceCode: 'w1', serverId: 'server-a', live: true, health: { durability: 'saved' } },
+      });
+      expect(row).not.toHaveProperty('bag');
+      const [gone] = (await listPlayers({ q: offline.user }, CONTEXT)).data;
+      expect(gone).toMatchObject({ id: away.playerId, status: 'offline', session: null });
+      const online = (await listPlayers({ status: 'online', limit: 50 }, CONTEXT)).data.map(({ id }) => id);
+      expect(online).toContain(live.playerId);
+      expect(online).not.toContain(away.playerId);
+    });
+
+    it('shows the counts of a profile in each world, never its goods', async () => {
+      const who = await account();
+      const live = await play(who);
+      await commitState(
+        {
+          playerId: live.playerId,
+          epoch: live.epoch,
+          seq: 1,
+          state: {
+            ...emptyState(),
+            bag: [stack('sword', 0)],
+            quests: [{ questCode: 'q-detail', status: 'completed', steps: [], startedAtMs: 1, completedAtMs: 2 }],
+          },
+          questsChanged: true,
+          positionChanged: false,
+        },
+        CONTEXT,
+      );
+      const detail = await playerDetail(live.playerId, CONTEXT);
+      expect(detail).toMatchObject({
+        id: live.playerId,
+        schemaCurrent: true,
+        carried: { bag: 1, storage: 0, held: 0 },
+        worlds: [{ instanceCode: 'w1', quests: { active: 0, completed: 1 } }],
+      });
+      expect(JSON.stringify(detail)).not.toContain('sword');
+      await expect(playerDetail('nope', CONTEXT)).rejects.toMatchObject({ status: 400 });
+      await expect(playerDetail(String(new mongoose.Types.ObjectId()), CONTEXT)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('ends a live session once, fences its writes, ends it at its next checkpoint and records every request', async () => {
+      const who = await account();
+      const live = await play(who);
+      await report(live, who, {
+        durability: 'degraded',
+        seq: 7,
+        durableSeq: 5,
+        unsavedMs: 20000,
+        failure: 'transport',
+      });
+
+      expect(await end(live, { epoch: live.epoch + 3, operationId: 'op-stale-view' })).toMatchObject({
+        outcome: 'refused',
+        refusal: 'changed',
+      });
+      const done = await end(live);
+      expect(done).toMatchObject({ outcome: 'done', refusal: '', epoch: live.epoch + 1 });
+      expect(await end(live)).toEqual(done);
+      await expect(end(live, { actor: admin() })).rejects.toMatchObject({ status: 409 });
+      await expect(end(live, { reason: 'no' })).rejects.toMatchObject({ status: 400 });
+
+      expect(await report(live, who)).toEqual({ ended: [{ playerId: live.playerId, reason: 'ended' }] });
+      const late = { playerId: live.playerId, epoch: live.epoch, seq: 8, state: emptyState() };
+      expect(await commitState({ ...late, questsChanged: false, positionChanged: false }, CONTEXT)).toMatchObject({
+        refusal: 'stale_session',
+      });
+      expect(
+        (
+          await issueResume(
+            { playerId: live.playerId, accountId: who.user, epoch: live.epoch, instanceCode: 'w1' },
+            CONTEXT,
+          )
+        ).refusal,
+      ).toBe('ended');
+      expect((await listPlayers({ q: who.user }, CONTEXT)).data[0]).toMatchObject({ status: 'offline' });
+
+      const trail = await playerAudit({ player: live.playerId }, CONTEXT);
+      expect(trail.data.map(({ outcome, refusal }) => [outcome, refusal])).toEqual([
+        ['done', ''],
+        ['refused', 'changed'],
+      ]);
+      expect(trail.data[0]).toMatchObject({
+        action: 'session.end',
+        reason: 'Stuck session reported by the player',
+        epochBefore: live.epoch,
+        epochAfter: live.epoch + 1,
+        session: { serverId: 'server-a', durability: 'degraded', seq: 7, durableSeq: 5 },
+      });
+      expect(await end({ ...live, epoch: live.epoch + 1 }, { operationId: 'op-no-session' })).toMatchObject({
+        outcome: 'refused',
+        refusal: 'no_session',
+      });
+
+      const next = await play(who);
+      expect(next.epoch).toBe(live.epoch + 2);
+      expect(await model('CyberiaGameSession').findOne({ user: who.user }).lean()).toMatchObject({ endedBy: null });
+    });
+
+    it('lets moderators read and only an admin end a session', async () => {
+      const who = await account();
+      const live = await play(who);
+      const app = express();
+      app.use(express.json());
+      app.use('/player', CyberiaPlayerRouter.router({ ...CONTEXT, authMiddleware: authMiddlewareFactory(CONTEXT) }));
+      const http = await new Promise((resolve) => {
+        const server = app.listen(0, '127.0.0.1', () => resolve(server));
+      });
+      try {
+        const base = `http://127.0.0.1:${http.address().port}/player`;
+        const as = (role) => ({
+          Authorization: `Bearer ${jwtSign({ _id: String(new mongoose.Types.ObjectId()), role }, CONTEXT, 5, 10)}`,
+          'Content-Type': 'application/json',
+        });
+        const body = JSON.stringify({
+          operationId: `op-rest-${live.playerId}`,
+          reason: 'Operator test',
+          epoch: live.epoch,
+        });
+        expect((await fetch(`${base}/`)).status).toBe(401);
+        expect((await fetch(`${base}/`, { headers: as('user') })).status).toBe(403);
+        const page = await (await fetch(`${base}/?limit=2`, { headers: as('moderator') })).json();
+        expect(page.data.data.length).toBeLessThanOrEqual(2);
+        expect((await fetch(`${base}/${live.playerId}`, { headers: as('moderator') })).status).toBe(200);
+        const ends = `${base}/${live.playerId}/session/end`;
+        expect((await fetch(ends, { method: 'POST', headers: as('moderator'), body })).status).toBe(403);
+        const ended = await (await fetch(ends, { method: 'POST', headers: as('admin'), body })).json();
+        expect(ended.data).toMatchObject({ outcome: 'done', epoch: live.epoch + 1 });
+      } finally {
+        await new Promise((resolve) => http.close(resolve));
+      }
     });
   });
 
@@ -1049,6 +1398,108 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
   });
 
   describe('maintenance', () => {
+    const sync = async (apply = true) => await syncRuntimeIndexes(runtimeModels(CONTEXT), { apply });
+    const of = (result, name) => result.models.find(({ model: modelName }) => modelName === name);
+
+    it('makes the stored indexes of every runtime model the declared ones, once, and leaves platform indexes', async () => {
+      const models = runtimeModels(CONTEXT);
+      for (const name of ['CyberiaWorldDrop', 'CyberiaMarketClaim']) await models[name].collection.dropIndexes();
+      await models.CyberiaMarketClaim.collection.createIndex({ reason: 1 });
+      await model('User').collection.createIndex({ createdAt: 1 }, { name: 'manual_createdAt' });
+      const plan = await sync(false);
+      expect(plan.ready).toBe(false);
+      expect(of(plan, 'CyberiaWorldDrop').toCreate.length).toBeGreaterThan(0);
+      expect(of(plan, 'CyberiaMarketClaim').toDrop).toEqual(['reason_1']);
+
+      expect(await sync()).toMatchObject({ ready: true });
+      expect(await sync()).toMatchObject({ ready: true });
+      const drops = await models.CyberiaWorldDrop.collection.indexes();
+      expect(drops.find(({ key }) => key.dropId)?.unique).toBe(true);
+      expect(drops.find(({ key }) => key.expiresAt === 1 && !key.status)?.expireAfterSeconds).toBe(
+        WORLD_DROP_RECORD_DAYS * 86400,
+      );
+      const claims = await models.CyberiaMarketClaim.collection.indexes();
+      expect(claims.find(({ key }) => key.claimId)?.unique).toBe(true);
+      expect(claims.find(({ key }) => key.reason)).toBeUndefined();
+      expect((await model('User').collection.indexes()).map(({ name }) => name)).toContain('manual_createdAt');
+    });
+
+    it('stops on a record that refuses a declared unique index, names the key, and builds it once that is gone', async () => {
+      const Claim = runtimeModels(CONTEXT).CyberiaMarketClaim;
+      await Claim.collection.dropIndex('claimId_1');
+      const twin = { claimId: 'twin', player: new mongoose.Types.ObjectId(), listingId: 'l', reason: 'sale' };
+      await Claim.collection.insertMany([{ ...twin }, { ...twin }]);
+      const blocked = await sync();
+      expect(blocked.ready).toBe(false);
+      expect(of(blocked, 'CyberiaMarketClaim').error).toMatch(/E11000.*claimId.*"twin"/);
+      expect(of(blocked, 'CyberiaMarketClaim').toCreate).toEqual([{ claimId: 1 }]);
+      await Claim.collection.deleteMany({ claimId: 'twin' });
+      expect(await sync()).toMatchObject({ ready: true });
+    });
+
+    // The production incident: the unique index of the first quest schema, {playerId, questCode}, was
+    // never dropped. A record of the current schema has no playerId, so the index keys it as null and
+    // refuses every later player of the same quest. No model declares it, so the sync drops it.
+    it('drops a unique index no model declares, which refused the second player of a quest', async () => {
+      const QuestProgress = model('CyberiaQuestProgress');
+      // The index came first in production: it existed before any record of the current schema.
+      await QuestProgress.deleteMany({});
+      await QuestProgress.collection.createIndex({ playerId: 1, questCode: 1 }, { unique: true });
+      const quest = { questCode: 'buffer-drift-survey', status: 'active', steps: [], startedAtMs: 1, completedAtMs: 0 };
+      const commitQuest = (session, seq) =>
+        commitState(
+          {
+            playerId: session.playerId,
+            epoch: session.epoch,
+            seq,
+            state: { ...emptyState(), quests: [quest] },
+            questsChanged: true,
+            positionChanged: false,
+          },
+          CONTEXT,
+        );
+      const first = await play(await account());
+      const second = await play(await account());
+      expect(await commitQuest(first, 1)).toMatchObject({ refusal: '' });
+      expect(await commitQuest(second, 1)).toEqual({ refusal: 'integrity', duplicate: false, revision: 0 });
+      expect(of(await sync(false), 'CyberiaQuestProgress').toDrop).toEqual(['playerId_1_questCode_1']);
+
+      expect(await sync()).toMatchObject({ ready: true });
+      expect(await commitQuest(second, 2)).toMatchObject({ refusal: '' });
+      expect(await QuestProgress.countDocuments({ questCode: quest.questCode })).toBe(2);
+    });
+
+    it('deletes the records without a required field of a unique key, then builds the key, once', async () => {
+      const models = runtimeModels(CONTEXT);
+      const { CyberiaPlayer: Player, CyberiaQuestProgress: QuestProgress } = models;
+      const counts = async () => [await Player.countDocuments({}), await QuestProgress.countDocuments({})];
+      const kept = await counts();
+      const { user } = await Player.findOne({}).lean();
+      await Player.collection.dropIndex('user_1_universeCode_1');
+      await QuestProgress.collection.dropIndex('player_1_instanceCode_1_questCode_1');
+      await Player.collection.insertMany([{ user }, { user, coins: 3 }]);
+      await QuestProgress.collection.insertMany([
+        { playerId: 'uuid-a', questCode: 'q-legacy', status: 'active' },
+        { playerId: 'uuid-b', questCode: 'q-legacy', status: 'completed' },
+      ]);
+      expect(unkeyedFilter(Player.schema)).toEqual({ $or: [{ user: null }, { universeCode: null }] });
+      expect(unkeyedFilter(models.CyberiaUniverse.schema)).toEqual({ $or: [{ code: null }] });
+
+      const plan = await sync(false);
+      expect(plan.ready).toBe(false);
+      expect(of(plan, 'CyberiaPlayer')).toMatchObject({ deleted: 0, toDelete: 2 });
+      expect(of(plan, 'CyberiaQuestProgress')).toMatchObject({ deleted: 0, toDelete: 2 });
+      expect(await counts()).toEqual([kept[0] + 2, kept[1] + 2]);
+
+      const synced = await sync();
+      expect(synced.ready).toBe(true);
+      for (const name of ['CyberiaPlayer', 'CyberiaQuestProgress'])
+        expect(of(synced, name)).toMatchObject({ deleted: 2, toDelete: 0, toCreate: [], error: '' });
+      expect(await counts()).toEqual(kept);
+      expect(await sync()).toMatchObject({ ready: true });
+      expect((await sync()).models.every(({ deleted }) => deleted === 0)).toBe(true);
+    });
+
     it('reports held stacks and rebinds them only for profiles out of a session', async () => {
       const offline = await account();
       const online = await account();
@@ -1183,6 +1634,57 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       );
       expect(acquired).toMatchObject({ refusal: '', epoch: 1, created: true });
       expect(acquired.state.position).toMatchObject({ mapCode: '' });
+    });
+
+    it('carries a world drop and its claim over the wire, and lists what is public', async () => {
+      const [a, b] = [await play(await account()), await play(await account())];
+      const operationId = `grpc-drop-${a.playerId}`;
+      const commit = (session) => ({ playerId: session.playerId, epoch: session.epoch, seq: 1, state: emptyState() });
+      const drop = { mapCode: 'm1', x: 4, y: 5, itemId: 'gel', olCid: 'cid-gel', quantity: 3, lifetimeMs: 30000 };
+      expect(
+        await call('commitPlayerStates', { operationId, kind: 'drop', commits: [commit(a)], drop }, SERVER_KEY),
+      ).toMatchObject({ refusal: '', duplicate: false });
+      const { drops } = await call('listWorldDrops', { instanceCode: 'w1' }, SERVER_KEY);
+      expect(drops.find(({ dropId }) => dropId === operationId)).toMatchObject({ ...drop, lifetimeMs: 0 });
+      const pickup = { operationId: `grpc-pick-${b.playerId}`, kind: 'pickup', commits: [commit(b)] };
+      expect(await call('commitPlayerStates', { ...pickup, claimDropId: operationId }, SERVER_KEY)).toMatchObject({
+        refusal: '',
+        duplicate: false,
+      });
+      await expect(call('listWorldDrops', { instanceCode: 'w1' })).rejects.toMatchObject({
+        code: grpc.status.UNAUTHENTICATED,
+      });
+    });
+
+    it('lists a market operation over the wire and shows it in the market view', async () => {
+      await model('CyberiaMarket').create({ code: 'wire', scope: 'instance', hours: [12], fees: { sale: 1 } });
+      const seller = await play(await account());
+      const market = { marketCode: 'wire', mode: 'auction', itemId: 'gel', olCid: 'cid-gel' };
+      const request = {
+        operationId: `grpc-list-${seller.playerId}`,
+        kind: 'market_list',
+        commits: [{ playerId: seller.playerId, epoch: seller.epoch, seq: 1, state: emptyState() }],
+        market: { ...market, quantity: 3, price: 20, hours: 12, listingFee: 0, saleFee: 1, sellerName: 'neo' },
+      };
+      expect(await call('commitPlayerStates', request, SERVER_KEY)).toMatchObject({ refusal: '', duplicate: false });
+      const shown = await call(
+        'listMarket',
+        { instanceCode: 'w1', marketCode: 'wire', playerId: seller.playerId, mode: 'auction' },
+        SERVER_KEY,
+      );
+      expect(shown.listings).toEqual([
+        expect.objectContaining({
+          itemId: 'gel',
+          olCid: 'cid-gel',
+          mode: 'auction',
+          quantity: 3,
+          price: 20,
+          minBid: 20,
+          mine: true,
+        }),
+      ]);
+      expect(shown.listings[0].endsAtMs).toBeGreaterThan(Date.now() + 11 * 3600000);
+      expect(shown).toMatchObject({ next: '', claims: [], scopeKey: 'w1', revision: 1 });
     });
 
     it('protects note writes and returns the stored Unicode note and next update time', async () => {

@@ -17,14 +17,14 @@ const isMaterialItemId = (itemId) => typeof itemId === 'string' && itemId.length
  * Every ObjectLayer item id an instance's own content names.
  *
  * Four sources, and they are the whole list: what its maps place, what its entity-type
- * defaults wire, what its vendors and assemblers trade, and what its quests ask for or pay
- * out. A skill trigger is not a source — skills are selected from this set, not folded into
+ * defaults wire, what its vendors, assemblers, merchants and burners trade, and what its quests
+ * ask for or pay out. A skill trigger is not a source — skills are selected from this set, not folded into
  * it — and neither is another instance's content.
  *
  * @param {object} content
  * @param {Array<{entities?: Array<{objectLayerItemIds?: string[]}>}>} [content.maps]
  * @param {Array<object>} [content.entityDefaults] - Resolved documents, not references.
- * @param {Array<object>} [content.actions] - Vendor / assembler catalogs.
+ * @param {Array<object>} [content.actions] - Vendor, assembler, buyback and burn catalogs.
  * @param {Array<object>} [content.quests]
  * @returns {Set<string>} Item ids, placeholders excluded.
  */
@@ -51,6 +51,9 @@ function collectInstanceItemIds({ maps = [], entityDefaults = [], actions = [], 
       (recipe?.ingredients || []).forEach((ingredient) => push(ingredient?.itemId));
       (recipe?.outputItems || []).forEach((output) => push(output?.itemId));
     }
+    (action?.buybackItems || []).forEach(push);
+    (action?.burnItems || []).forEach(push);
+    (action?.market?.itemIds || []).forEach(push);
   }
   for (const quest of quests) {
     for (const step of quest?.steps || []) {

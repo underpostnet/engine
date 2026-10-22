@@ -5,7 +5,7 @@
  * @module src/client/components/cyberia/StudioCyberia.js
  */
 import { Modal } from '../core/Modal.js';
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, setPath, setQueryParams } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 
@@ -46,6 +46,16 @@ const VIEWS = Object.freeze([
     description: 'Connect maps into a world: portals, layout, spawn and instance settings',
   },
   {
+    route: 'cyberia-economy-engine',
+    icon: 'coins.png',
+    description: 'Set the wallet, fees, coin rules and item policies of the economies worlds run',
+  },
+  {
+    route: 'cyberia-market-engine',
+    icon: 'market.png',
+    description: 'Set the shared markets terminals open: scope, modes, durations, auction rules, fees and limits',
+  },
+  {
     route: 'cyberia-action-engine',
     icon: 'quest.png',
     description: 'Author the quests, actions, dialogues and skills a map offers',
@@ -59,6 +69,11 @@ const VIEWS = Object.freeze([
     route: 'cyberia-item-catalog',
     icon: 'registry.png',
     description: 'See and change the exact definition the runtime runs for each item',
+  },
+  {
+    route: 'cyberia-player-manager',
+    icon: 'users.png',
+    description: 'See player profiles and their live sessions: save health, worlds and operator actions',
   },
 ]);
 
@@ -78,6 +93,21 @@ class StudioCyberia {
       view: () => ({ observer: true, html: async () => StudioCyberia.renderLanding() }),
       children: VIEWS.map(({ route, icon, hidden }) => ({ id: route, image: icon, hidden, view: views[route] })),
     };
+  }
+
+  /**
+   * Opens the editor of `route` on what `queryParams` names.
+   * @param {string} route - A route of the Studio submenu.
+   * @param {Object.<string, string>} queryParams - What the editor loads, such as `{ instanceCode }`.
+   * @returns {boolean} Whether the host offers the editor.
+   */
+  static open(route, queryParams) {
+    const entry = s(`.main-btn-${route}`);
+    if (!entry) return false;
+    setPath(`${getProxyPath()}${route}`);
+    setQueryParams(queryParams, { replace: true });
+    entry.click();
+    return true;
   }
 
   /** Renders each open editor again, so what it offers follows the role of the session. */

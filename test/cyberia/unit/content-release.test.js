@@ -110,10 +110,6 @@ class FakeModel {
   single(query) {
     return { lean: async () => (await query.lean())[0] ?? null };
   }
-  /** The raw driver collection: every document, as the schema-free reads see it. */
-  get collection() {
-    return { find: () => ({ toArray: async () => clone(this.docs) }) };
-  }
   findById(id) {
     const doc = this.docs.find((row) => String(row._id) === String(id));
     const value = doc ? clone(doc) : null;
@@ -213,7 +209,11 @@ const content = () => {
         },
       ]),
       CyberiaInstance: new FakeModel([{ code: 'FOREST', conf: confId, cyberiaMapCodes: ['forest-1'] }]),
-      CyberiaInstanceConf: new FakeModel([{ _id: confId }]),
+      CyberiaInstanceConf: new FakeModel([{ _id: confId, instanceCode: 'FOREST' }]),
+      CyberiaEconomy: new FakeModel([{ code: 'standard', status: 'active' }]),
+      CyberiaEconomicItemPolicy: new FakeModel([
+        { economyCode: 'standard', itemId: 'sword', buyback: true, buybackPayout: 2 },
+      ]),
     },
   };
 };
@@ -253,15 +253,33 @@ describe('candidate validation', () => {
       'artifact',
       'catalog',
       'canonical',
-      'legacy-pins',
       'labels',
       'skills',
       'render',
       'instances',
+      'economy',
       'schema',
     ]);
     expect(validation.manifest).toEqual({ instances: ['FOREST'], maps: 1, bindings: 2, quests: 1, actions: 1 });
     expect(validation.dependencies).toEqual([hatchet.cid, sword.cid].sort());
+  });
+
+  it('fails on a world without an active economy, or an item policy of an unbound label', async () => {
+    const { models, hatchet, sword } = content();
+    models.CyberiaInstanceConf.docs[0].economyCode = 'frontier';
+    models.CyberiaInstanceConf.docs.push({ instanceCode: 'OLD', economyCode: 'gone' });
+    models.CyberiaEconomicItemPolicy.docs.push({
+      economyCode: 'standard',
+      itemId: 'axe',
+      burn: true,
+      salvage: [{ itemId: 'sword', qty: 1 }],
+    });
+    const validation = await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) });
+    expect(failing(validation).economy).toEqual([
+      'instance FOREST: no active economy frontier',
+      'instance OLD: no active economy gone',
+      'economy standard: label "axe" is not bound',
+    ]);
   });
 
   it('fails on a skill document whose handlers disagree or that names a handler no simulation runs', async () => {
@@ -331,20 +349,6 @@ describe('candidate validation', () => {
     models.ObjectLayer.docs[0].profile = { id: '', version: 0 };
     const validation = await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) });
     expect(failing(validation).catalog.join('\n')).toMatch(/profile is not a valid profile reference/);
-  });
-
-  it('fails on a quest or an action that still pins a definition: the catalog alone binds an item', async () => {
-    const { models, hatchet, sword } = content();
-    models.CyberiaQuest.docs[0].steps[0].objectives[0].objectLayerCid = hatchet.cid;
-    models.CyberiaAction.docs[0].shopItems[0].priceItemId = 'coin';
-    models.CyberiaAction.docs[0].shopItems[0].priceObjectLayerCid = definition('ghost', 1).cid;
-    const errors = failing(await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) }))[
-      'legacy-pins'
-    ];
-    expect(errors).toEqual([
-      `CyberiaQuest q1: pins hatchet → ${hatchet.cid}`,
-      `CyberiaAction shop: pins coin → ${definition('ghost', 1).cid}`,
-    ]);
   });
 
   it('fails on a label the runtime cannot resolve', async () => {
@@ -768,11 +772,12 @@ describe('deploy pipeline', () => {
     expect(script).toMatch(/\*:latest\)\s+if \[ "\$\{ALLOW_LATEST_IMAGE:-0\}" != "1" \]/);
   });
 
-  it('runs the stages in order: the content candidate before the rollout, the promotion after readiness', () => {
+  it('runs the stages in order: the data before the rollout, the promotion after readiness', () => {
     const order = [
       'stage_sources',
       'stage_build',
       'stage_configuration',
+      'stage_runtime_indexes',
       'stage_content_candidate',
       'stage_rollout',
       'stage_readiness',
@@ -822,17 +827,46 @@ describe('deploy pipeline', () => {
       script.indexOf('stage_promotion() {'),
     );
     const prepared = candidate.indexOf('content-release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL');
-    const secret = candidate.indexOf('apply_release_secret');
     const built = candidate.indexOf('content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE"');
     expect(prepared).toBeGreaterThan(-1);
-    expect(prepared).toBeLessThan(secret);
-    expect(secret).toBeLessThan(built);
+    expect(prepared).toBeLessThan(built);
     expect(candidate).toContain('build "$CONTENT_RELEASE_ID" --from source');
     // Only the prepare names the channel: both channels build through the one Release Job.
-    expect(candidate.slice(secret)).not.toContain('CYBERIA_SOURCE_CHANNEL');
+    expect(candidate.slice(built)).not.toContain('CYBERIA_SOURCE_CHANNEL');
     expect(script).not.toMatch(/content import|import-content/);
     expect(script).not.toContain('kubectl exec');
     expect(lib).not.toContain('kubectl exec');
+  });
+
+  it('syncs the runtime indexes on the deployed image on every deploy, and stops it when the sync fails', () => {
+    const stage = script.slice(
+      script.indexOf('stage_runtime_indexes() {'),
+      script.indexOf('stage_content_candidate() {'),
+    );
+    const run = (status) =>
+      spawnSync(
+        'bash',
+        [
+          '-c',
+          `set -euo pipefail
+          DEPLOY_IMAGE=engine:2 SKIP_CONTENT_RELEASE=1
+          deploy_step() { shift; "$@"; }
+          apply_release_secret() { echo secret; }
+          release_job() { echo "job: $*"; return ${status}; }
+          ${stage}
+          stage_runtime_indexes
+          echo next`,
+        ],
+        { encoding: 'utf8' },
+      );
+    const synced = run(0);
+    expect(synced.status).toBe(0);
+    expect(synced.stdout).toBe(
+      'secret\njob: runtime-indexes engine:2 node bin/cyberia runtime-indexes --apply\nnext\n',
+    );
+    const failed = run(1);
+    expect(failed.status).not.toBe(0);
+    expect(failed.stdout).not.toContain('next');
   });
 
   it('promotes a release from either channel and never pushes to a repository', () => {

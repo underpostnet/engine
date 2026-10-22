@@ -12,6 +12,7 @@ class CyberiaActionRouter {
     // Direct lookup by code. The client fetches an NPC's action metadata
     // (label, dialogue map) by the action code the AOI stream carries.
     router.get(`/code/:code`, async (req, res) => await CyberiaActionController.getByCode(req, res, options));
+    router.get(`/:id/diagnostics`, async (req, res) => await CyberiaActionController.diagnostics(req, res, options));
     return registerCrudRoutes(router, CyberiaActionController, options);
   }
 }

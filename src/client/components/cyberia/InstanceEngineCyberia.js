@@ -14,11 +14,13 @@ import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
+import { CyberiaEconomyService } from '../../services/cyberia-economy/cyberia-economy.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getProxyPath, getQueryParams, listenQueryParamsChange, setPath, setQueryParams } from '../core/Router.js';
+import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { GraphLayoutCyberia } from './GraphLayoutCyberia.js';
+import { StudioCyberia } from './StudioCyberia.js';
 import { resolveGraphLayout, worldPreviewPicture } from './SharedDefaultsCyberia.js';
 
 const ROUTE = 'cyberia-instance-engine';
@@ -44,12 +46,7 @@ class InstanceEngineCyberia {
    * @returns {boolean} Whether the host offers the editor.
    */
   static open({ instanceCode }) {
-    const entry = s(`.main-btn-${ROUTE}`);
-    if (!entry) return false;
-    setPath(`${getProxyPath()}${ROUTE}`);
-    setQueryParams({ instanceCode }, { replace: true });
-    entry.click();
-    return true;
+    return StudioCyberia.open(ROUTE, { instanceCode });
   }
 
   /** The maps of the instance on their cells, with the portals between them. */
@@ -219,6 +216,7 @@ class InstanceEngineCyberia {
     const idSpawnCellY = 'instance-engine-spawn-cell-y';
     const idSpawnRandom = 'instance-engine-spawn-random';
     const idAoiRadius = 'instance-engine-aoi-radius';
+    const idEconomy = 'instance-engine-economy';
 
     InstanceEngineCyberia.currentInstanceId = null;
     InstanceEngineCyberia.currentInstanceCode = null;
@@ -255,9 +253,9 @@ class InstanceEngineCyberia {
       return payload;
     };
 
-    // AOI radius lives on the linked CyberiaInstanceConf (auto-upserted on
-    // instance save). Fetch / update it by instanceCode so the engine can edit
-    // it alongside instance identity without touching the rest of the conf.
+    // The AOI radius and the economy live on the linked CyberiaInstanceConf (auto-upserted on
+    // instance save). Fetch / update it by instanceCode so the engine can edit them alongside
+    // instance identity without touching the rest of the conf.
     const fetchConfByCode = async (instanceCode) => {
       if (!instanceCode) return null;
       const res = await CyberiaInstanceConfService.get({
@@ -266,13 +264,39 @@ class InstanceEngineCyberia {
       return res?.data?.data?.[0] || null;
     };
 
-    const persistAoiRadius = async (instanceCode) => {
-      const raw = s(`.${idAoiRadius}`)?.value;
-      if (raw === undefined || raw === '') return;
-      const aoiRadius = parseFloat(raw);
-      if (!Number.isFinite(aoiRadius)) return;
+    /** Writes the AOI radius and the economy the form holds; the server refuses an economy that splits a wallet. */
+    const persistConf = async (instanceCode) => {
+      const body = {};
+      const aoiRadius = parseFloat(s(`.${idAoiRadius}`)?.value ?? '');
+      if (Number.isFinite(aoiRadius)) body.aoiRadius = aoiRadius;
+      const economyCode = s(`.${idEconomy}`)?.value;
+      if (economyCode) body.economyCode = economyCode;
       const conf = await fetchConfByCode(instanceCode);
-      if (conf?._id) await CyberiaInstanceConfService.put({ id: conf._id, body: { aoiRadius } });
+      if (!conf?._id || Object.keys(body).length === 0) return null;
+      const result = await CyberiaInstanceConfService.put({ id: conf._id, body });
+      if (result?.status !== 'success') {
+        NotificationManager.Push({ html: result?.message || 'Could not save the instance settings.', status: 'error' });
+        if (s(`.${idEconomy}`)) s(`.${idEconomy}`).value = conf.economyCode || '';
+      }
+      return result;
+    };
+
+    /** The economies a world may run: the active ones, and the one its conf names. */
+    const renderEconomyOptions = async (selected) => {
+      const select = s(`.${idEconomy}`);
+      if (!select) return;
+      const result = await CyberiaEconomyService.get({ limit: 50, sort: 'code', order: 'asc' });
+      const economies = result?.status === 'success' ? result.data.data : [];
+      const codes = economies.filter(({ status }) => status !== 'retired').map(({ code }) => code);
+      if (selected && !codes.includes(selected)) codes.push(selected);
+      select.innerHTML = codes
+        .map(
+          (code) =>
+            html`<option value="${escapeHtml(code)}" ${code === selected ? 'selected' : ''}>
+              ${escapeHtml(code)}
+            </option>`,
+        )
+        .join('');
     };
 
     const persistInstance = async ({ notify = true } = {}) => {
@@ -319,9 +343,9 @@ class InstanceEngineCyberia {
         InstanceEngineCyberia.renderWorldPreview();
         InstanceEngineCyberia.crud?.refresh();
         setQueryParams({ instanceCode: body.code || null }, { replace: true });
-        // The conf is auto-upserted on instance save; persist the AOI radius onto
+        // The conf is auto-upserted on instance save; persist the AOI radius and the economy onto
         // it now that we know the instance code resolves to a conf document.
-        await persistAoiRadius(body.code);
+        await persistConf(body.code);
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
       return result;
@@ -451,9 +475,10 @@ class InstanceEngineCyberia {
       if (s(`.${idSpawnCellY}`)) s(`.${idSpawnCellY}`).value = spawn.sourceCellY ?? 0;
       if (s(`.${idSpawnRandom}`)) s(`.${idSpawnRandom}`).checked = !!spawn.random;
 
-      // AOI radius (lives on the linked conf, fetched by instance code).
+      // AOI radius and economy (live on the linked conf, fetched by instance code).
       const conf = await fetchConfByCode(instanceData.code);
       if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = conf?.aoiRadius ?? '';
+      await renderEconomyOptions(conf?.economyCode ?? '');
     };
 
     const newInstance = () => {
@@ -497,6 +522,7 @@ class InstanceEngineCyberia {
       if (s(`.${idSpawnCellY}`)) s(`.${idSpawnCellY}`).value = 0;
       if (s(`.${idSpawnRandom}`)) s(`.${idSpawnRandom}`).checked = false;
       if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = '';
+      void renderEconomyOptions('');
     };
 
     const resetInstance = async () => {
@@ -560,6 +586,10 @@ class InstanceEngineCyberia {
         ...(canMutate && { save: saveInstance }),
       }));
       await loadInstanceByCode(getQueryParams().instanceCode);
+      if (!InstanceEngineCyberia.currentInstanceCode) await renderEconomyOptions('');
+      if (s('.btn-instance-engine-open-economy'))
+        s('.btn-instance-engine-open-economy').onclick = () =>
+          StudioCyberia.open('cyberia-economy-engine', { economyCode: s(`.${idEconomy}`)?.value || null });
 
       if (s(`.btn-instance-engine-toggle-thumbnail`))
         s(`.btn-instance-engine-toggle-thumbnail`).onclick = () => {
@@ -1176,6 +1206,20 @@ class InstanceEngineCyberia {
                     containerClass: 'inl',
                     type: 'number',
                     min: 1,
+                  })}
+                </div>
+                <div class="in" style="margin-top:10px;">
+                  <label class="in" style="font-size:13px;"
+                    >Economy: the wallet, fees and item policies this world runs
+                    <select class="wfa ${idEconomy}" ${canMutate ? '' : 'disabled'}></select>
+                  </label>
+                  <div class="in" style="font-size:12px;color:#888;">
+                    The worlds of one universe share one wallet: the server refuses an economy with another currency
+                    or maximum.
+                  </div>
+                  ${await BtnIcon.instance({
+                    class: 'wfa btn-instance-engine-open-economy',
+                    label: html`<i class="fa-solid fa-coins"></i> Open in the economy editor`,
                   })}
                 </div>
               </div>

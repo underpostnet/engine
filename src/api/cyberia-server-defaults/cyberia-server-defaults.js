@@ -15,6 +15,7 @@
 import {
   ITEM_TYPES,
   STAT_TYPES,
+  STAT_EFFECTIVE_FLOORS,
   STAT_MODIFIER_MAX,
   ENTITY_LEVEL_MAX,
   SKILL_LOGIC_ID_VALUES,
@@ -219,6 +220,70 @@ function applyEquipmentRules(rows, { itemTypes, overrides = new Map() } = {}) {
   // Taking something off does not take it away: the entity still carries the stack, so only the
   // worn flag changes. A row emptied here would leave the inventory holding nothing.
   return rows.map((row) => (deactivated.has(row.itemId) ? { ...row, active: false } : row));
+}
+
+/**
+ * The object layers a placed entity spawns with. Mirrors `SpawnObjectLayers` in
+ * cyberia-server/game/content/entity_defaults.go: each placed id as its build states it, else worn.
+ * An entity that seeds its build (`seedDefaults`: placed without a solid colour) also takes every
+ * row of the build, or the build's live ids when nothing answers, and then wears one item per
+ * governed type, first kept, and at most `maxActiveLayers` items.
+ *
+ * @param {{itemIds?:string[], seedDefaults?:boolean}} placed - The ids the map places on the entity.
+ * @param {object|undefined} build - Its entity-type default, as resolveEntityDefaultBuild matches it.
+ * @param {{itemTypes?:Object<string,string>, maxActiveLayers?:number}} [context] - itemId → item type.
+ * @returns {Array<{itemId:string,active:boolean,quantity:number}>} The spawn layers, in stack order.
+ */
+export function resolveSpawnLoadout(
+  { itemIds = [], seedDefaults = true },
+  build,
+  { itemTypes = {}, maxActiveLayers = 0 } = {},
+) {
+  const rows = build ? resolveEntityInventory(build, { itemTypes }) : [];
+  const layers = [];
+  const add = (layer) => {
+    if (layer.itemId && !layers.some(({ itemId }) => itemId === layer.itemId)) layers.push(layer);
+  };
+  for (const itemId of itemIds) add(rows.find((row) => row.itemId === itemId) ?? { itemId, active: true, quantity: 1 });
+  if (!seedDefaults || !build) return layers;
+  rows.forEach(add);
+  if (0 === layers.length) for (const itemId of build.liveItemIds || []) add({ itemId, active: true, quantity: 1 });
+  const governed = new Set(EQUIPMENT_RULES_DEFAULTS.activeItemTypes);
+  const claimed = new Set();
+  let worn = 0;
+  return layers.map((layer) => {
+    if (!layer.active) return layer;
+    const type = itemTypes[layer.itemId] || '';
+    if (governed.has(type) && EQUIPMENT_RULES_DEFAULTS.onePerType && claimed.has(type))
+      return { ...layer, active: false };
+    if (governed.has(type)) claimed.add(type);
+    if (0 < maxActiveLayers && maxActiveLayers <= worn) return { ...layer, active: false };
+    worn++;
+    return layer;
+  });
+}
+
+/**
+ * The stat sum the server shows over an entity: each stat is its base at `level` plus what every
+ * worn layer adds, floored, then the sum is cut to a whole number. Mirrors `StatBreakdown` in
+ * cyberia-server/game/content/stats.go for an entity with no temporary stats.
+ *
+ * @param {Array<{itemId:string,active:boolean,quantity:number}>} layers - The layers it wears.
+ * @param {{level?:number, rules:object, statsOf:(itemId:string)=>object|undefined}} context - Its
+ *   placed level (0 or none: the default bot level), the progression rules and the stats of an item.
+ * @returns {number}
+ */
+export function effectiveStatsSum(layers, { level, rules, statsOf }) {
+  const at = Math.max(1, Math.min(level || rules.defaultBotLevel, rules.maxLevel));
+  const worn = layers.filter(({ active, quantity }) => active && 0 < quantity);
+  const sum = STAT_TYPES.reduce((total, key) => {
+    const value = worn.reduce(
+      (stat, { itemId }) => stat + (statsOf(itemId)?.[key] || 0),
+      rules.baseStats[key] + (at - 1) * rules.perLevelStats[key],
+    );
+    return total + Math.max(STAT_EFFECTIVE_FLOORS[key], value);
+  }, 0);
+  return Math.trunc(sum);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -427,18 +492,262 @@ export const ECONOMY_RULE_LIMITS = Object.freeze(Object.fromEntries(Object.entri
 
 const ECONOMY_RATES = new Set(['coinKillPercentVsBot', 'coinKillPercentVsPlayer', 'respawnCostPercent']);
 
-/** The economy rules of a conf: every known field, from the defaults when unset. Throws on a value out of bounds. */
-export function resolveEconomyRules(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Economy rules must be an object.');
-  const rules = {};
-  for (const [key, [min, max]] of Object.entries(ECONOMY_RULE_LIMITS)) {
-    const value = input[key] ?? ECONOMY_RULES_DEFAULTS[key];
-    const valid = ECONOMY_RATES.has(key) ? Number.isFinite(value) : Number.isInteger(value);
-    if (!valid || value < min || value > max) throw new RangeError('Invalid economy rule: ' + key);
-    rules[key] = value;
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/** Every known field of a block, from its defaults when unset. Throws on an unknown field or a value out of bounds. */
+const resolveBlock = (name, input, defaults, limits, isValid) => {
+  if (!isPlainObject(input)) throw new TypeError(`${name} must be an object.`);
+  for (const key of Object.keys(input)) if (!(key in defaults)) throw new TypeError(`Unknown ${name} field: ${key}`);
+  const out = {};
+  for (const key of Object.keys(defaults)) {
+    const value = input[key] ?? defaults[key];
+    const bounds = limits[key];
+    if (!isValid(key, value) || (bounds && (value < bounds[0] || value > bounds[1])))
+      throw new RangeError(`Invalid ${name} field: ${key}`);
+    out[key] = value;
   }
-  return rules;
+  return out;
+};
+
+/** The economy rules of a profile: every known field, from the defaults when unset. Throws on a value out of bounds. */
+export const resolveEconomyRules = (input = {}) =>
+  resolveBlock('economy rule', input, ECONOMY_RULES_DEFAULTS, ECONOMY_RULE_LIMITS, (key, value) =>
+    ECONOMY_RATES.has(key) ? Number.isFinite(value) : Number.isInteger(value),
+  );
+
+// ── Economy profile ───────────────────────────────────────────────────────────
+// A CyberiaEconomy holds the coin model above, the currency, the operation fees and the item policy
+// defaults. A CyberiaEconomicItemPolicy row overrides the defaults for one item. Coin amounts are
+// integers. See docs/cyberia/explanation/off-chain-economy.md.
+
+/** The economy a conf names when it names none. Content defines it. */
+export const ECONOMY_DEFAULT_CODE = 'standard';
+
+export const ECONOMY_STATUSES = Object.freeze(['active', 'retired']);
+
+/** The wallet currencies. The coin balance is an unsigned 32-bit integer; a credit past the maximum is refused. */
+export const CURRENCY_CODES = Object.freeze(['coin']);
+export const COIN_BALANCE_MAX = 0xffffffff;
+export const CURRENCY_DEFAULTS = Object.freeze({ code: 'coin', maxBalance: COIN_BALANCE_MAX });
+
+/** Coins one operation that succeeds charges once: a portal transit and an assembly. A market profile owns its fees. */
+export const OPERATION_FEE_DEFAULTS = Object.freeze({ portal: 0, craft: 0 });
+export const OPERATION_FEE_LIMITS = Object.freeze(
+  Object.fromEntries(Object.keys(OPERATION_FEE_DEFAULTS).map((key) => [key, Object.freeze([0, 1000000])])),
+);
+
+/**
+ * What an item may do in the economy when its policy says nothing. `buybackPayout` is the coins a
+ * merchant pays per unit, `burnCoinFee` the coins a burn charges per unit, `craftSurcharge` the coins
+ * an assembly charges per produced unit when its recipe names no fee. `market` lets a market list it;
+ * a trade permission grants no market.
+ */
+export const ITEM_POLICY_DEFAULTS = Object.freeze({
+  trade: true,
+  worldDrop: true,
+  buyback: false,
+  buybackPayout: 0,
+  burn: false,
+  burnCoinFee: 0,
+  craftSurcharge: 0,
+  market: false,
+});
+export const ITEM_POLICY_FLAGS = Object.freeze(['trade', 'worldDrop', 'buyback', 'burn', 'market']);
+export const ITEM_POLICY_LIMITS = Object.freeze({
+  buybackPayout: Object.freeze([0, 1000000]),
+  burnCoinFee: Object.freeze([0, 1000000]),
+  craftSurcharge: Object.freeze([0, 1000000]),
+});
+/**
+ * Fields only an item row sets: unset is no value, never zero. `portalFee` is the coins a portal
+ * charges for each active portal item of this label; 0 makes the portal free.
+ */
+export const ITEM_POLICY_OPTIONAL_LIMITS = Object.freeze({ portalFee: Object.freeze([0, 1000000]) });
+/** A burn grants at most `lines` salvage outputs, each 1–`quantity` units per burned unit. */
+export const SALVAGE_LIMITS = Object.freeze({ lines: 8, quantity: 1000 });
+
+/** The fields, bounds and defaults of an economy, as the content schema and the Studio show them. */
+export const ECONOMY_CONTRACT = Object.freeze({
+  defaultCode: ECONOMY_DEFAULT_CODE,
+  currencyCodes: CURRENCY_CODES,
+  maxBalance: COIN_BALANCE_MAX,
+  rules: { defaults: ECONOMY_RULES_DEFAULTS, limits: ECONOMY_RULE_LIMITS },
+  fees: { defaults: OPERATION_FEE_DEFAULTS, limits: OPERATION_FEE_LIMITS },
+  itemPolicy: { defaults: ITEM_POLICY_DEFAULTS, limits: ITEM_POLICY_LIMITS, optional: ITEM_POLICY_OPTIONAL_LIMITS },
+  salvage: SALVAGE_LIMITS,
+});
+
+// ── Market ────────────────────────────────────────────────────────────────────
+// A CyberiaMarket profile is the shared contract of one market: its scope, the listing modes, the
+// durations, the auction rules, the fees and the limits. An action with a `market` capability is a
+// terminal: it names a profile and says which items and modes a seller lists there. A market keeps
+// its listings in the world of a terminal (`instance`) or in every world of its universe (`universe`).
+
+export const MARKET_STATUSES = Object.freeze(['active', 'retired']);
+export const MARKET_SCOPES = Object.freeze(['instance', 'universe']);
+export const MARKET_SELECTIONS = Object.freeze(['policy', 'items']);
+export const MARKET_MODES = Object.freeze(['fixed', 'auction']);
+/** The listing durations a profile may offer, in hours. */
+export const MARKET_HOURS = Object.freeze([1, 6, 12, 24, 48, 72, 168]);
+/** The rows of one market view. */
+export const MARKET_PAGE = 20;
+
+/** The shared rules of a market profile that sets none. */
+export const MARKET_PROFILE_DEFAULTS = Object.freeze({
+  scope: 'universe',
+  currencyCode: CURRENCY_DEFAULTS.code,
+  modes: Object.freeze(['fixed', 'auction']),
+  hours: Object.freeze([1, 12, 48]),
+  auction: Object.freeze({ raisePercent: 5, minRaise: 1 }),
+  fees: Object.freeze({ listing: 0, sale: 0 }),
+  limits: Object.freeze({ priceMin: 1, priceMax: 1000000000, listingsPerPlayer: 20 }),
+});
+export const MARKET_PROFILE_LIMITS = Object.freeze({
+  auction: Object.freeze({ raisePercent: Object.freeze([1, 100]), minRaise: Object.freeze([1, 1000000]) }),
+  fees: Object.freeze({ listing: Object.freeze([0, 1000000]), sale: Object.freeze([0, 1000000]) }),
+  limits: Object.freeze({
+    priceMin: Object.freeze([1, 1000000000]),
+    priceMax: Object.freeze([1, 1000000000]),
+    listingsPerPlayer: Object.freeze([1, 100]),
+  }),
+});
+
+/** The fields, bounds and defaults of a market profile and of a terminal, as the content schema and the Studio show them. */
+export const MARKET_CONTRACT = Object.freeze({
+  statuses: MARKET_STATUSES,
+  scopes: MARKET_SCOPES,
+  selections: MARKET_SELECTIONS,
+  modes: MARKET_MODES,
+  hours: MARKET_HOURS,
+  currencyCodes: CURRENCY_CODES,
+  page: MARKET_PAGE,
+  defaults: MARKET_PROFILE_DEFAULTS,
+  limits: MARKET_PROFILE_LIMITS,
+});
+
+const resolveIntegers = (name, input = {}) =>
+  resolveBlock(`market ${name}`, input, MARKET_PROFILE_DEFAULTS[name], MARKET_PROFILE_LIMITS[name], (key, value) =>
+    Number.isInteger(value),
+  );
+
+const resolveChoices = (name, input, choices) => {
+  const values = input ?? MARKET_PROFILE_DEFAULTS[name];
+  if (!Array.isArray(values) || values.length === 0 || new Set(values).size !== values.length)
+    throw new RangeError(`market ${name} must name each value once`);
+  if (!values.every((value) => choices.includes(value))) throw new RangeError(`Invalid market ${name}`);
+  return choices.filter((value) => values.includes(value));
+};
+
+/**
+ * The shared rules of a market profile, each block complete. Throws on a defect: a price range that
+ * is empty, or a sale fee above the lowest price, which would leave a seller with negative proceeds.
+ * @param {{scope?: string, currencyCode?: string, modes?: string[], hours?: number[], auction?: Object, fees?: Object, limits?: Object}} input
+ */
+export const resolveMarketProfile = ({ scope, currencyCode, modes, hours, auction, fees, limits } = {}) => {
+  const profile = {
+    scope: scope ?? MARKET_PROFILE_DEFAULTS.scope,
+    currencyCode: currencyCode ?? MARKET_PROFILE_DEFAULTS.currencyCode,
+    modes: resolveChoices('modes', modes, MARKET_MODES),
+    hours: resolveChoices('hours', hours, MARKET_HOURS),
+    auction: resolveIntegers('auction', auction),
+    fees: resolveIntegers('fees', fees),
+    limits: resolveIntegers('limits', limits),
+  };
+  if (!MARKET_SCOPES.includes(profile.scope)) throw new RangeError('Invalid market scope');
+  if (!CURRENCY_CODES.includes(profile.currencyCode)) throw new RangeError('Invalid market currency');
+  if (profile.limits.priceMin > profile.limits.priceMax) throw new RangeError('market priceMin is above priceMax');
+  if (profile.fees.sale > profile.limits.priceMin) throw new RangeError('market sale fee is above priceMin');
+  return profile;
+};
+
+/**
+ * The lowest bid an auction listing takes now: its opening price, or the highest bid raised by the
+ * terms the listing recorded.
+ * @param {{price: number, bid: number, raisePercent: number, minRaise: number}} listing
+ * @returns {number}
+ */
+export const minBid = ({ price, bid, raisePercent, minRaise }) =>
+  bid > 0 ? bid + Math.max(minRaise, Math.ceil((bid * raisePercent) / 100)) : price;
+
+const policyValueValid = (key, value) =>
+  ITEM_POLICY_FLAGS.includes(key) ? typeof value === 'boolean' : Number.isInteger(value);
+
+export const resolveOperationFees = (input = {}) =>
+  resolveBlock('operation fee', input, OPERATION_FEE_DEFAULTS, OPERATION_FEE_LIMITS, (key, value) =>
+    Number.isInteger(value),
+  );
+
+export const resolveItemDefaults = (input = {}) =>
+  resolveBlock('item policy', input, ITEM_POLICY_DEFAULTS, ITEM_POLICY_LIMITS, policyValueValid);
+
+export const resolveCurrency = (input = {}) =>
+  resolveBlock('currency', input, CURRENCY_DEFAULTS, { maxBalance: [1, COIN_BALANCE_MAX] }, (key, value) =>
+    key === 'code' ? CURRENCY_CODES.includes(value) : Number.isInteger(value),
+  );
+
+/**
+ * The profile fields of an economy, each block complete. Throws on a defect.
+ * @param {{currency?: Object, rules?: Object, fees?: Object, itemDefaults?: Object}} input
+ */
+export const resolveEconomyProfile = ({ currency = {}, rules = {}, fees = {}, itemDefaults = {} } = {}) => ({
+  currency: resolveCurrency(currency),
+  rules: resolveEconomyRules(rules),
+  fees: resolveOperationFees(fees),
+  itemDefaults: resolveItemDefaults(itemDefaults),
+});
+
+/** The policy fields one item row sets; a field it leaves out inherits the profile default. */
+export const ITEM_POLICY_ROW_FIELDS = Object.freeze([
+  ...Object.keys(ITEM_POLICY_DEFAULTS),
+  ...Object.keys(ITEM_POLICY_OPTIONAL_LIMITS),
+  'salvage',
+]);
+
+/**
+ * The first defect of an item policy row, or ''.
+ * @param {Object} row - `{economyCode, itemId, ...fields}`; a field left out inherits.
+ * @returns {string}
+ */
+export function itemPolicyDefect(row) {
+  if (!isPlainObject(row)) return 'the policy is not an object';
+  if (typeof row.itemId !== 'string' || !row.itemId) return 'the item id is missing';
+  for (const key of ITEM_POLICY_ROW_FIELDS) {
+    const value = row[key];
+    if (value === undefined || value === null || key === 'salvage') continue;
+    const bounds = ITEM_POLICY_LIMITS[key] ?? ITEM_POLICY_OPTIONAL_LIMITS[key];
+    if (!policyValueValid(key, value) || (bounds && (value < bounds[0] || value > bounds[1])))
+      return `${row.itemId}: invalid ${key}`;
+  }
+  const salvage = row.salvage ?? [];
+  if (!Array.isArray(salvage) || salvage.length > SALVAGE_LIMITS.lines) return `${row.itemId}: invalid salvage`;
+  const outputs = new Set();
+  for (const line of salvage) {
+    if (typeof line?.itemId !== 'string' || !line.itemId || outputs.has(line.itemId))
+      return `${row.itemId}: invalid salvage item`;
+    if (line.itemId === row.itemId || CURRENCY_CODES.includes(line.itemId)) return `${row.itemId}: salvage of itself or coins`;
+    if (!Number.isInteger(line.qty) || line.qty < 1 || line.qty > SALVAGE_LIMITS.quantity)
+      return `${row.itemId}: invalid salvage quantity`;
+    outputs.add(line.itemId);
+  }
+  if (salvage.length > 0 && row.burn === false) return `${row.itemId}: salvage without burn`;
+  return '';
 }
+
+/**
+ * The policy an item runs under: its row over the profile defaults. An optional field the row
+ * leaves out stays absent.
+ * @param {Object|undefined} row - The item row, or undefined for an item without one.
+ * @param {Object} itemDefaults - Resolved profile defaults.
+ */
+export const effectiveItemPolicy = (row, itemDefaults) => ({
+  ...itemDefaults,
+  ...Object.fromEntries(
+    [...Object.keys(ITEM_POLICY_DEFAULTS), ...Object.keys(ITEM_POLICY_OPTIONAL_LIMITS)]
+      .filter((key) => row?.[key] !== undefined && row[key] !== null)
+      .map((key) => [key, row[key]]),
+  ),
+  salvage: (row?.salvage ?? []).map(({ itemId, qty }) => ({ itemId, qty })),
+});
 
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Tick model ─────────────────────────────────────────────────────
@@ -474,8 +783,8 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Combat / death ─────────────────────────────────────────────────
   collisionLifeLoss: 10,
 
-  // ── Economy — Fountain & Sink model ────────────────────────────────
-  economyRules: { ...ECONOMY_RULES_DEFAULTS },
+  // ── Economy — the CyberiaEconomy profile the world runs ────────────
+  economyCode: ECONOMY_DEFAULT_CODE,
 
   // ── Chances, as fractions of 1 ───────────────────────────────────
   // A tap has lifeRegenChance to regenerate life; utility raises it. No chance the

@@ -7,16 +7,47 @@
  * world the session lease names.
  *
  * The game server computes every value; the engine checks the shape and the bounds, then stores
- * the whole state in one transaction with the changed quest records.
+ * the whole state in one transaction with the changed quest records. A joint operation commits its
+ * states and its effect in one transaction: a trade the states of its players, a drop the state of
+ * its owner and a new world drop record, a pickup the state of its collector and the claim of one, a
+ * market operation the state of its player and the change of the market.
+ *
+ * A write the database refuses as it stands answers `integrity`: the game server keeps the state
+ * and retries slowly until an operator repairs the records, instead of a retry loop.
  *
  * @module src/projects/cyberia/player/player-state.js
  * @namespace CyberiaPlayerState
  */
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import {
+  ECONOMY_OPERATION_KINDS,
+  OPERATION_RECORD_DAYS,
+} from '../../../api/cyberia-economy-operation/cyberia-economy-operation.model.js';
+import { claimWorldDrop, createWorldDrop, worldDropDefect } from './world-drops.js';
+import { MARKET_KINDS, applyMarketOp, marketOpDefect } from './market.js';
+import { integrityFailure, runTransaction } from './transaction.js';
 import { CONTAINER_CAPACITY } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { CONTAINERS, HELD_REASONS, PROFILE_CONTAINERS } from '../../../api/cyberia-player/cyberia-player.model.js';
 import { QUEST_STATUSES } from '../../../api/cyberia-quest-progress/cyberia-quest-progress.model.js';
+import { loggerFactory } from '../../../server/ops/logger.js';
+
+const logger = loggerFactory(import.meta);
+
+/**
+ * Runs a commit transaction. A write the database refuses as it stands logs the database error
+ * and answers `refused`; any other failure throws.
+ */
+const commitTransaction = async (Model, work, what, refused) => {
+  try {
+    return await runTransaction(Model, work);
+  } catch (error) {
+    if (!integrityFailure(error)) throw error;
+    logger.error(`${what} refused by the database: ${error.message}`);
+    return refused;
+  }
+};
 
 /** Sanity bounds of a commit. Content defines the real limits; these stop a malformed write. */
 const LIMITS = Object.freeze({
@@ -196,88 +227,222 @@ const loadState = async (player, instanceCode, context, session) => {
   return wireState(player, instanceCode, quests);
 };
 
+/** The models a commit reads and writes. */
+const commitModels = (context) => ({
+  Player: DataBaseProviderService.getModel('CyberiaPlayer', context),
+  GameSession: DataBaseProviderService.getModel('CyberiaGameSession', context),
+  QuestProgress: DataBaseProviderService.getModel('CyberiaQuestProgress', context),
+});
+
+/**
+ * Checks one commit inside a transaction: the profile exists, its epoch and lease are the
+ * session's, and the sequence is new. Writes nothing.
+ * @returns {Promise<{refusal: string, duplicate: boolean, revision: number, doc?: Object, instanceCode?: string}>}
+ */
+const checkCommit = async ({ Player, GameSession }, { playerId, epoch, seq }, session) => {
+  const doc = await Player.findById(playerId, 'user epoch commitSeq revision worlds.instanceCode worlds.positionSeq', {
+    session,
+  }).lean();
+  if (!doc) return { refusal: 'unknown', duplicate: false, revision: 0 };
+  if (doc.epoch !== epoch) return { refusal: 'stale_session', duplicate: false, revision: doc.revision };
+  if (doc.commitSeq >= seq) return { refusal: '', duplicate: true, revision: doc.revision };
+  const lease = await GameSession.findOne({ user: doc.user }, 'player epoch instanceCode', { session }).lean();
+  if (!lease || String(lease.player) !== playerId || lease.epoch !== epoch)
+    return { refusal: 'stale_session', duplicate: false, revision: doc.revision };
+  return { refusal: '', duplicate: false, revision: doc.revision, doc, instanceCode: lease.instanceCode };
+};
+
+/** Writes one checked commit: the profile, the world of its lease and the changed quest records. */
+const writeCommit = async (
+  { Player, QuestProgress },
+  { playerId, epoch, seq, state, questsChanged, positionChanged },
+  { doc, instanceCode },
+  session,
+) => {
+  const held = state.held.map(heldOf);
+  const set = {
+    coins: state.coins,
+    xp: state.xp,
+    bag: state.bag.map(stackOf),
+    storage: state.storage.map(stackOf),
+    held: held.filter(({ container }) => PROFILE_CONTAINERS.includes(container)),
+    commitSeq: seq,
+    'worlds.$[world].vaults': state.vaults.map(vaultOf),
+    'worlds.$[world].held': held.filter(({ container }) => !PROFILE_CONTAINERS.includes(container)),
+  };
+  if (positionChanged && state.position.seq > worldOf(doc, instanceCode).positionSeq) {
+    const { mapCode, x, y } = state.position;
+    Object.assign(set, {
+      'worlds.$[world].position': { mapCode, x, y, at: new Date() },
+      'worlds.$[world].positionSeq': state.position.seq,
+    });
+  }
+  await Player.updateOne(
+    { _id: playerId, epoch, commitSeq: doc.commitSeq },
+    { $set: set, $inc: { revision: 1 } },
+    { arrayFilters: [{ 'world.instanceCode': instanceCode }], session },
+  );
+  if (questsChanged) {
+    await QuestProgress.deleteMany(
+      { player: playerId, instanceCode, questCode: { $nin: state.quests.map((q) => q.questCode) } },
+      { session },
+    );
+    if (state.quests.length > 0)
+      await QuestProgress.bulkWrite(
+        state.quests.map((quest) => ({
+          replaceOne: {
+            filter: { player: playerId, instanceCode, questCode: quest.questCode },
+            replacement: questRecord(playerId, instanceCode, quest),
+            upsert: true,
+          },
+        })),
+        { session },
+      );
+  }
+  return doc.revision + 1;
+};
+
+/** The first defect of a commit request before any read, or ''. */
+const requestDefect = ({ playerId, epoch, seq, state, questsChanged, positionChanged }) => {
+  if (!mongoose.isValidObjectId(playerId) || !(epoch > 0) || !(seq > 0)) return 'bad identity';
+  return stateDefect(state, { questsChanged, positionChanged });
+};
+
 /**
  * Commits the whole state of one player in the world its lease names. Applies only the epoch of the
  * profile and a sequence above the last applied one; a repeated sequence answers `duplicate`.
  * @param {{playerId: string, epoch: number, seq: number, state: Object, questsChanged: boolean, positionChanged: boolean}} request
  * @param {{host: string, path: string}|string} context
- * @returns {Promise<{refusal: string, duplicate: boolean, revision: number, defect?: string}>}
+ * @returns {Promise<{refusal: string, duplicate: boolean, revision: number, defect?: string}>} `refusal`
+ *   is empty, or stale_session | unknown | invalid | integrity.
  * @memberof CyberiaPlayerState
  */
-const commitState = async ({ playerId, epoch, seq, state, questsChanged, positionChanged }, context) => {
-  if (!mongoose.isValidObjectId(playerId) || !(epoch > 0) || !(seq > 0))
-    return { refusal: 'invalid', duplicate: false, revision: 0, defect: 'bad identity' };
-  const defect = stateDefect(state, { questsChanged, positionChanged });
+const commitState = async (request, context) => {
+  const defect = requestDefect(request);
   if (defect) return { refusal: 'invalid', duplicate: false, revision: 0, defect };
+  const models = commitModels(context);
+  return await commitTransaction(
+    models.Player,
+    async (session) => {
+      const checked = await checkCommit(models, request, session);
+      if (checked.refusal || checked.duplicate)
+        return { refusal: checked.refusal, duplicate: checked.duplicate, revision: checked.revision };
+      return { refusal: '', duplicate: false, revision: await writeCommit(models, request, checked, session) };
+    },
+    `Commit of player ${request.playerId} seq ${request.seq}`,
+    { refusal: 'integrity', duplicate: false, revision: 0 },
+  );
+};
 
-  const Player = DataBaseProviderService.getModel('CyberiaPlayer', context);
-  const GameSession = DataBaseProviderService.getModel('CyberiaGameSession', context);
-  const QuestProgress = DataBaseProviderService.getModel('CyberiaQuestProgress', context);
-  const session = await Player.db.startSession();
-  try {
-    let result;
-    await session.withTransaction(async () => {
-      const doc = await Player.findById(
-        playerId,
-        'user epoch commitSeq revision worlds.instanceCode worlds.positionSeq',
-        {
-          session,
-        },
-      ).lean();
-      if (!doc) return (result = { refusal: 'unknown', duplicate: false, revision: 0 });
-      if (doc.epoch !== epoch) return (result = { refusal: 'stale_session', duplicate: false, revision: doc.revision });
-      if (doc.commitSeq >= seq) return (result = { refusal: '', duplicate: true, revision: doc.revision });
-      const lease = await GameSession.findOne({ user: doc.user }, 'player epoch instanceCode', { session }).lean();
-      if (!lease || String(lease.player) !== playerId || lease.epoch !== epoch)
-        return (result = { refusal: 'stale_session', duplicate: false, revision: doc.revision });
-      const { instanceCode } = lease;
+/** The fingerprint of a joint commit request: a retry carries the same bytes. */
+const operationFingerprint = ({ kind, commits, drop, claimDropId, market }) =>
+  crypto
+    .createHash('sha256')
+    .update(
+      JSON.stringify({
+        kind,
+        commits,
+        ...(drop && { drop }),
+        ...(claimDropId && { claimDropId }),
+        ...(market && { market }),
+      }),
+    )
+    .digest('hex');
 
-      const held = state.held.map(heldOf);
-      const set = {
-        coins: state.coins,
-        xp: state.xp,
-        bag: state.bag.map(stackOf),
-        storage: state.storage.map(stackOf),
-        held: held.filter(({ container }) => PROFILE_CONTAINERS.includes(container)),
-        commitSeq: seq,
-        'worlds.$[world].vaults': state.vaults.map(vaultOf),
-        'worlds.$[world].held': held.filter(({ container }) => !PROFILE_CONTAINERS.includes(container)),
-      };
-      if (positionChanged && state.position.seq > worldOf(doc, instanceCode).positionSeq) {
-        const { mapCode, x, y } = state.position;
-        Object.assign(set, {
-          'worlds.$[world].position': { mapCode, x, y, at: new Date() },
-          'worlds.$[world].positionSeq': state.position.seq,
-        });
-      }
-      await Player.updateOne(
-        { _id: playerId, epoch, commitSeq: doc.commitSeq },
-        { $set: set, $inc: { revision: 1 } },
-        { arrayFilters: [{ 'world.instanceCode': instanceCode }], session },
-      );
-      if (questsChanged) {
-        await QuestProgress.deleteMany(
-          { player: playerId, instanceCode, questCode: { $nin: state.quests.map((q) => q.questCode) } },
-          { session },
-        );
-        if (state.quests.length > 0)
-          await QuestProgress.bulkWrite(
-            state.quests.map((quest) => ({
-              replaceOne: {
-                filter: { player: playerId, instanceCode, questCode: quest.questCode },
-                replacement: questRecord(playerId, instanceCode, quest),
-                upsert: true,
-              },
-            })),
-            { session },
-          );
-      }
-      result = { refusal: '', duplicate: false, revision: doc.revision + 1 };
-    });
-    return result;
-  } finally {
-    await session.endSession();
+/** The first defect of the players and the effect an operation kind joins, or ''. */
+const operationDefect = ({ kind, commits, drop, claimDropId, market }) => {
+  if (new Set(commits.map(({ playerId }) => playerId)).size !== commits.length)
+    return 'an operation joins distinct players';
+  if (MARKET_KINDS.includes(kind))
+    return commits.length === 1 && !drop && !claimDropId ? marketOpDefect(kind, market) : 'a market joins one player';
+  if (market) return 'only a market operation carries a market';
+  switch (kind) {
+    case 'trade':
+      return commits.length >= 2 && !drop && !claimDropId ? '' : 'a trade joins two or more players and no drop';
+    case 'drop':
+      return commits.length === 1 && !claimDropId ? worldDropDefect(drop) : 'a drop joins one player and its drop';
+    case 'pickup':
+      return commits.length === 1 && !drop && isText(claimDropId) ? '' : 'a pickup joins one player and one claim';
   }
+  return 'bad operation kind';
+};
+
+/**
+ * Commits the states and the effect of one operation in one transaction: all or nothing. A drop
+ * creates its world drop record under the operation id; a pickup claims a public record of the
+ * world of its collector that has not expired, or answers `drop_gone` and writes nothing; a market
+ * operation changes the market, or answers a refusal of `MARKET_REFUSALS` and writes nothing. The
+ * operation record joins the transaction, so a retry of the same operation answers `duplicate`,
+ * and the same id with another request is refused. One refusal refuses the whole operation and
+ * names its player; `integrity` names none.
+ * @param {{operationId: string, kind: string, commits: Object[], drop?: Object, claimDropId?: string, market?: Object}} request - Each commit as {@link commitState} takes it.
+ * @param {{host: string, path: string}|string} context
+ * @returns {Promise<{refusal: string, playerId: string, duplicate: boolean, defect?: string}>}
+ * @memberof CyberiaPlayerState
+ */
+const commitStates = async (
+  { operationId, kind, commits = [], drop = null, claimDropId = '', market = null },
+  context,
+) => {
+  const invalid = (defect, playerId = '') => ({ refusal: 'invalid', playerId, duplicate: false, defect });
+  if (!isText(operationId)) return invalid('bad operation id');
+  if (!ECONOMY_OPERATION_KINDS.includes(kind)) return invalid('bad operation kind');
+  const shape = operationDefect({ kind, commits, drop, claimDropId, market });
+  if (shape) return invalid(shape);
+  for (const commit of commits) {
+    const defect = requestDefect(commit);
+    if (defect) return invalid(defect, commit.playerId);
+  }
+  const models = commitModels(context);
+  const Operation = DataBaseProviderService.getModel('CyberiaEconomyOperation', context);
+  const fingerprint = operationFingerprint({ kind, commits, drop, claimDropId, market });
+  const run = async (session) => {
+    const recorded = await Operation.findOne({ operationId }, { fingerprint: 1 }, { session }).lean();
+    if (recorded)
+      return recorded.fingerprint === fingerprint
+        ? { refusal: '', playerId: '', duplicate: true }
+        : invalid('operation id reused with another request');
+    const checks = [];
+    for (const commit of commits) {
+      const checked = await checkCommit(models, commit, session);
+      if (checked.refusal) return { refusal: checked.refusal, playerId: commit.playerId, duplicate: false };
+      if (checked.duplicate) return invalid('a sequence of the operation was applied alone', commit.playerId);
+      checks.push(checked);
+    }
+    const [{ playerId }] = commits;
+    const { instanceCode } = checks[0];
+    if (
+      claimDropId &&
+      !(await claimWorldDrop({ dropId: claimDropId, instanceCode, collector: playerId }, session, context))
+    )
+      return { refusal: 'drop_gone', playerId, duplicate: false };
+    if (market) {
+      const refusal = await applyMarketOp({ kind, market, operationId, playerId, instanceCode }, session, context);
+      if (refusal) return { refusal, playerId, duplicate: false };
+    }
+    for (const [i, commit] of commits.entries()) await writeCommit(models, commit, checks[i], session);
+    if (drop) await createWorldDrop({ dropId: operationId, instanceCode, owner: playerId, drop }, session, context);
+    await Operation.create(
+      [
+        {
+          operationId,
+          kind,
+          instanceCode,
+          players: commits.map(({ playerId }) => playerId),
+          seqs: commits.map(({ seq }) => seq),
+          fingerprint,
+          expiresAt: new Date(Date.now() + OPERATION_RECORD_DAYS * 86400000),
+        },
+      ],
+      { session },
+    );
+    return { refusal: '', playerId: '', duplicate: false };
+  };
+  return await commitTransaction(models.Player, run, `Operation ${operationId} (${kind})`, {
+    refusal: 'integrity',
+    playerId: '',
+    duplicate: false,
+  });
 };
 
 /**
@@ -305,4 +470,4 @@ const writePositions = async (entries, context) => {
   );
 };
 
-export { commitState, loadState, stateDefect, wireState, worldOf, writePositions };
+export { commitState, commitStates, loadState, stateDefect, wireState, worldOf, writePositions };

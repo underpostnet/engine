@@ -19,6 +19,7 @@
  * @namespace CyberiaSagaSync
  */
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { revisionGuard } from '../../../server/storage/revision.js';
 import { collectInstanceItemIds } from '../../../api/cyberia-instance/cyberia-instance-items.js';
 import { WORLD_ERRORS, bindingProblems } from '../catalog/catalog-consistency.js';
 
@@ -52,8 +53,9 @@ function providerCell(mapsByCode, saga, { providerSkinItemId, mapCode }) {
  * @param {import('../../../api/types.js').RouterOptions} params.options
  * @param {string} params.code - The saga code.
  * @param {boolean} [params.apply=false] - Write the assignments. Without it, nothing is written.
- * @returns {Promise<{saga:{code:string,name:string},applied:boolean,counts:Object<string,number>,entries:Array<{kind:string,code:string,outcome:string,detail:string}>}>}
- *   `code` is the quest, action or dialogue code, or the trigger item of a skill.
+ * @returns {Promise<{saga:{code:string,name:string},applied:boolean,counts:Object<string,number>,entries:Array<{kind:string,code:string,outcome:string,detail:string,actionCode?:string}>}>}
+ *   `code` is the quest, action or dialogue code, or the trigger item of a skill. A dialogue entry
+ *   names the `actionCode` it links to.
  * @throws {Error} 404 when no saga has the code.
  * @memberof CyberiaSagaSync
  */
@@ -83,8 +85,8 @@ export async function syncSaga({ options, code, apply = false }) {
   const dialogues = new Set(dialogueCodes);
   const entries = [];
   const writes = [];
-  const record = (kind, entryCode, outcome, detail) => {
-    const entry = { kind, code: entryCode, outcome, detail };
+  const record = (kind, entryCode, outcome, detail, extra = {}) => {
+    const entry = { kind, code: entryCode, outcome, detail, ...extra };
     entries.push(entry);
     return entry;
   };
@@ -168,12 +170,13 @@ export async function syncSaga({ options, code, apply = false }) {
     if (!action) continue;
     const set = {};
     const assigned = [];
+    const owner = { actionCode: action.code };
     const linkDialogue = ({ dialogCode, linked, role, assign }) => {
       if (!dialogues.has(dialogCode))
-        record('dialogue', dialogCode, linked ? 'failed' : 'omitted', `${role}; the dialogue is not stored`);
-      else if (linked) record('dialogue', dialogCode, 'kept', role);
+        record('dialogue', dialogCode, linked ? 'failed' : 'omitted', `${role}; the dialogue is not stored`, owner);
+      else if (linked) record('dialogue', dialogCode, 'kept', role, owner);
       else {
-        assigned.push(record('dialogue', dialogCode, 'assigned', role));
+        assigned.push(record('dialogue', dialogCode, 'assigned', role, owner));
         assign();
       }
     };
@@ -199,7 +202,11 @@ export async function syncSaga({ options, code, apply = false }) {
     if (assigned.length > 0)
       writes.push({
         entries: assigned,
-        run: () => model('CyberiaAction').updateOne({ _id: action._id }, { $set: set }),
+        run: async () => {
+          const { filter, next } = revisionGuard(action);
+          const { matchedCount } = await model('CyberiaAction').updateOne(filter, { $set: { ...set, revision: next } });
+          if (matchedCount === 0) throw new Error(`action ${action.code} changed during the sync: run it again`);
+        },
       });
   }
 

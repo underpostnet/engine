@@ -29,7 +29,12 @@ import {
   pingData,
 } from '../../projects/cyberia/instance-data.js';
 import { SERVER_API_KEY_HEADER, isServerApiKey } from '../../projects/cyberia/runtime/server-key.js';
-import { commitState } from '../../projects/cyberia/player/player-state.js';
+import { commitState, commitStates } from '../../projects/cyberia/player/player-state.js';
+import { listWorldDrops } from '../../projects/cyberia/player/world-drops.js';
+import { listMarket, settleEnded } from '../../projects/cyberia/player/market.js';
+import { databaseFailure } from '../../projects/cyberia/player/transaction.js';
+import { CYBERIA_PLAYER_APIS } from '../../projects/cyberia/stack/domain-ownership.js';
+import { getCapVariableName } from '../../client/components/core/CommonJs.js';
 import {
   acquireSession,
   checkpointSessions,
@@ -113,7 +118,7 @@ function buildHandlers(dbKey) {
 
     async getFullInstance(call, callback) {
       try {
-        callback(null, await fetchFullInstance(getInstanceModels(dbKey), call.request.instanceCode));
+        callback(null, await fetchFullInstance(getInstanceModels(dbKey), call.request.instanceCode, dbKey));
       } catch (err) {
         logger.error('getFullInstance:', err);
         callback({ code: grpc.status.INTERNAL, message: err.message });
@@ -142,17 +147,11 @@ const playerSeconds = histogram({
   labelNames: ['method'],
 });
 
-// The models the player service writes. A host without them serves content only.
-const PLAYER_MODELS = [
-  'CyberiaUniverse',
-  'CyberiaPlayer',
-  'CyberiaGameSession',
-  'CyberiaGameTicket',
-  'CyberiaSocial',
-  'CyberiaSocialProfile',
-  'CyberiaQuestProgress',
-  'User',
-];
+/** Ended listings settle in rounds this far apart, besides the views and operations that read them. */
+const MARKET_SETTLE_EVERY_MS = 30000;
+
+/** The models the player service writes. A host without them serves content only. */
+const PLAYER_MODELS = Object.freeze(CYBERIA_PLAYER_APIS.map(getCapVariableName));
 
 const servesPlayers = (dbKey) => {
   const models = DataBaseProviderService.servedModels(dbKey);
@@ -160,8 +159,8 @@ const servesPlayers = (dbKey) => {
 };
 
 /**
- * One unary player method: checks the server key, times the call, counts its outcome and maps
- * an exception to INTERNAL, which the game server retries.
+ * One unary player method: checks the server key, times the call and counts its outcome. A
+ * database failure a retry may complete answers UNAVAILABLE; any other exception INTERNAL.
  */
 const playerMethod = (method, run) => async (call, callback) => {
   const [key] = call.metadata.get(SERVER_API_KEY_HEADER);
@@ -178,9 +177,10 @@ const playerMethod = (method, run) => async (call, callback) => {
       logger.info(`${method} refused: ${response.refusal}${response.defect ? ` (${response.defect})` : ''}`);
     callback(null, response ?? {});
   } catch (err) {
-    playerCalls.inc({ method, outcome: 'error' });
+    const retry = databaseFailure(err);
+    playerCalls.inc({ method, outcome: retry ? 'unavailable' : 'error' });
     logger.error(`${method}:`, err);
-    callback({ code: grpc.status.INTERNAL, message: err.message });
+    callback({ code: retry ? grpc.status.UNAVAILABLE : grpc.status.INTERNAL, message: err.message });
   } finally {
     done();
   }
@@ -197,6 +197,9 @@ function buildPlayerHandlers(context) {
     issueTravelTicket: playerMethod('IssueTravelTicket', (req) => issueTravel(req, context)),
     acquirePlayerSession: playerMethod('AcquirePlayerSession', (req) => acquireSession(req, context)),
     commitPlayerState: playerMethod('CommitPlayerState', (req) => commitState(req, context)),
+    commitPlayerStates: playerMethod('CommitPlayerStates', (req) => commitStates(req, context)),
+    listWorldDrops: playerMethod('ListWorldDrops', (req) => listWorldDrops(req, context)),
+    listMarket: playerMethod('ListMarket', (req) => listMarket(req, context)),
     checkpointPlayerSessions: playerMethod('CheckpointPlayerSessions', (req) => checkpointSessions(req, context)),
     releasePlayerSession: playerMethod('ReleasePlayerSession', async (req) => {
       await releaseSession(req, context);
@@ -208,6 +211,20 @@ function buildPlayerHandlers(context) {
   };
 }
 
+/** Settles the ended listings of every market in rounds, one round at a time. */
+function startMarketSettlement(context) {
+  let running = false;
+  const timer = setInterval(async () => {
+    if (running) return;
+    running = true;
+    await settleEnded(context)
+      .catch((error) => logger.error('Market settlement failed', { error: error.message }))
+      .finally(() => (running = false));
+  }, MARKET_SETTLE_EVERY_MS);
+  timer.unref();
+  return () => clearInterval(timer);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Server lifecycle
 // ═══════════════════════════════════════════════════════════════════
@@ -215,6 +232,7 @@ function buildPlayerHandlers(context) {
 class GrpcServer {
   static _server = null;
   static _releaseWatch = null;
+  static _stopSettlement = null;
 
   /**
    * @param {Object} opts
@@ -238,9 +256,10 @@ class GrpcServer {
     });
 
     server.addService(proto.CyberiaDataService.service, buildHandlers(dbKey));
-    if (servesPlayers(dbKey))
+    if (servesPlayers(dbKey)) {
       server.addService(proto.CyberiaPlayerService.service, buildPlayerHandlers({ host, path: dbPath }));
-    else logger.info(`Player service off: ${dbKey} does not load ${PLAYER_MODELS.join(', ')}`);
+      GrpcServer._stopSettlement = startMarketSettlement({ host, path: dbPath });
+    } else logger.info(`Player service off: ${dbKey} does not load ${PLAYER_MODELS.join(', ')}`);
 
     // gRPC stays on the cluster-internal network, so credentials are insecure.
     const creds = grpc.ServerCredentials.createInsecure();
@@ -261,6 +280,8 @@ class GrpcServer {
   static async stop() {
     GrpcServer._releaseWatch?.stop();
     GrpcServer._releaseWatch = null;
+    GrpcServer._stopSettlement?.();
+    GrpcServer._stopSettlement = null;
     if (!GrpcServer._server) return;
     return new Promise((resolve) => {
       GrpcServer._server.tryShutdown(() => {

@@ -3,6 +3,7 @@ import { CyberiaActionService } from './cyberia-action.service.js';
 
 const CyberiaActionController = buildCrudController(CyberiaActionService, {
   getByCode: serviceHandler(CyberiaActionService.getByCode, { crossOrigin: true, errorStatus: 404 }),
+  diagnostics: serviceHandler(CyberiaActionService.diagnostics, { errorStatus: 404 }),
 });
 
 export { CyberiaActionController };

@@ -2,8 +2,6 @@ import { STAT_TYPES, STAT_MODIFIER_MAX } from '../../client/components/cyberia/S
 import { Schema, model } from 'mongoose';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as D,
-  ECONOMY_RULE_LIMITS,
-  resolveEconomyRules,
   resolveProgressionRules,
   PROGRESSION_RULE_LIMITS,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
@@ -28,18 +26,6 @@ const StatusIconEntrySchema = new Schema(
   },
   { _id: false },
 );
-
-// ── EconomyRulesSchema ───────────────────────────────────────────────────────
-// The EconomyRules message shape. Every field defaults from
-// cyberia-server-defaults.js, so a new document is playable at once.
-// See docs/cyberia/explanation/off-chain-economy.md for the coin model.
-const EconomyRulesSchema = new Schema(
-  Object.fromEntries(Object.entries(ECONOMY_RULE_LIMITS).map(([key, [min, max]]) => [key, {
-    type: Number, min, max, default: D.economyRules[key],
-  }])),
-  { _id: false },
-);
-EconomyRulesSchema.pre('validate', function () { resolveEconomyRules(this.toObject()); });
 
 // ── EquipmentRulesSchema ─────────────────────────────────────────────────────
 // Governs which ObjectLayer item types can be simultaneously active on a
@@ -116,8 +102,8 @@ const CyberiaInstanceConfSchema = new Schema(
     collisionLifeLoss: { type: Number, default: D.collisionLifeLoss },
 
     // ── Economy ──────────────────────────────────────────────────────
-    // Fountain & Sink parameters. See EconomyRulesSchema and OFF_CHAIN_ECONOMY.md.
-    economyRules: { type: EconomyRulesSchema },
+    // The CyberiaEconomy profile the world runs. Every world of a universe names the same one.
+    economyCode: { type: String, default: D.economyCode, trim: true },
 
     // ── Chances, as fractions of 1 ───────────────────────────────────
     lifeRegenChance: { type: Number, default: D.lifeRegenChance, min: 0, max: 1 },

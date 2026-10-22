@@ -4,6 +4,7 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import { connectPortals } from './cyberia-portal-connector.js';
 import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
 import { CacheService } from '../../server/storage/cache.js';
+import { revisionGuard } from '../../server/storage/revision.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { graphLayoutDefect } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { removeUniverseMember } from '../cyberia-universe/cyberia-universe.service.js';
@@ -15,15 +16,6 @@ const logger = loggerFactory(import.meta);
 const instanceCache = (options) => CacheService.namespace(options, 'cyberia-instance');
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
-
-/**
- * A write that applies only at the revision it read, and the revision it leaves. A record without a
- * revision is at revision 1, the schema default.
- */
-const revisionGuard = ({ _id, revision = 1 }) => ({
-  filter: { _id, revision: revision === 1 ? { $in: [1, null] } : revision },
-  next: revision + 1,
-});
 
 /**
  * The saved cells of the maps the instance keeps; a cell of a removed map goes with it.

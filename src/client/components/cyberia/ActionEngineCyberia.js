@@ -1,7 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input } from '../core/Input.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { darkTheme, dynamicCol, ThemeEvents } from '../core/Css.js';
 import { EditorCrud } from '../core/EditorCrud.js';
@@ -17,10 +17,14 @@ import { CyberiaActionService } from '../../services/cyberia-action/cyberia-acti
 import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
 import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
 import { CyberiaSagaService } from '../../services/cyberia-saga/cyberia-saga.service.js';
+import { CyberiaMarketService } from '../../services/cyberia-market/cyberia-market.service.js';
+import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { contextIconSrc } from '../objectlayer-studio/ContextPanel.js';
 import { QUEST_STEPS_TYPES, SKILL_LOGIC_IDS, skillSummonedItemId } from './SharedDefaultsCyberia.js';
 import { sagaBadgeList } from './SagaCyberia.js';
 import { SagaSync } from './SagaSyncCyberia.js';
+import { StudioCyberia } from './StudioCyberia.js';
+import { STUDIO_FORM_STYLE, toggleField } from './StudioFormCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
 // The map marker of each kind a map places.
@@ -31,6 +35,38 @@ const MARKERS = {
 // DropDown invokes optionData.onClick on selection, so every option (including
 // serviceProvider results) must carry one.
 const dropdownOption = (value) => ({ value, display: value, data: value, onClick: () => {} });
+
+/** The economy capabilities an action edits: an empty list, a zero or an empty code turns one off. */
+const blankCapabilities = () => ({
+  storageSlots: 0,
+  buybackItems: [],
+  burnItems: [],
+  market: { marketCode: '', selection: 'policy', itemIds: [], listingModes: ['fixed', 'auction'] },
+});
+
+const MODE_LABELS = Object.freeze({ fixed: 'Fixed price', auction: 'Auction' });
+
+/** The item lists of the capabilities, each with its picker. */
+const CAPABILITY_LISTS = Object.freeze([
+  {
+    id: 'buyback',
+    label: 'Bought back by the merchant',
+    list: (caps) => caps.buybackItems,
+    picker: 'action-engine-buyback-item-picker',
+  },
+  {
+    id: 'burn',
+    label: 'Burned for salvage',
+    list: (caps) => caps.burnItems,
+    picker: 'action-engine-burn-item-picker',
+  },
+  {
+    id: 'market',
+    label: 'Items a seller lists at this terminal',
+    list: (caps) => caps.market.itemIds,
+    picker: 'action-engine-market-item-picker',
+  },
+]);
 
 // ActionEngineCyberia — a map-driven engine that unifies quest, action and
 // dialogue authoring around a shared, visual map surface. It is intentionally
@@ -57,6 +93,13 @@ class ActionEngineCyberia {
   static questRewards = [];
   static actionQuestDialogues = [];
   static loadedActionPayloadExtras = {};
+  static capabilities = blankCapabilities();
+  // The market scopes, selections and modes of the economy contract.
+  static marketContract = { selections: [], modes: [] };
+  // The stored profile of the market the form names, or null.
+  static marketProfile = null;
+  // What the economy capabilities of the saved action do in each world of its map.
+  static diagnostics = null;
   // Editable `skills[]` for the loaded CyberiaSkill (logicEventIds are derived
   // from these on save).
   static skillDefs = [];
@@ -122,6 +165,35 @@ class ActionEngineCyberia {
 
   // Dialogue groups are keyed by `code`; the picker derives distinct codes from
   // the dialogue collection so authors can reuse existing dialogue groups.
+  /** The market profile a terminal opens: a server-backed search by code. */
+  static async buildMarketDropdown(id, label) {
+    const pick = async (code) => {
+      ActionEngineCyberia.capabilities = ActionEngineCyberia.readCapabilities();
+      await ActionEngineCyberia.selectMarket(code);
+    };
+    return await DropDown.instance({
+      id,
+      label,
+      data: [],
+      containerClass: 'inl',
+      serviceProvider: async (q) => {
+        const result = await CyberiaMarketService.get({
+          limit: 50,
+          filterModel: { code: { filterType: 'text', type: 'contains', filter: q } },
+        });
+        return [
+          { value: '', display: '(no market)', data: '', onClick: () => pick('') },
+          ...(result?.data?.data || []).map(({ code, status }) => ({
+            value: code,
+            display: status === 'active' ? code : `${code} (retired)`,
+            data: code,
+            onClick: () => pick(code),
+          })),
+        ];
+      },
+    });
+  }
+
   static async buildDialogCodeDropdown(id, label) {
     return await DropDown.instance({
       id,
@@ -647,6 +719,23 @@ class ActionEngineCyberia {
     }
   }
 
+  /**
+   * Loads again each loaded quest or action a synchronization changed, so the form never saves the
+   * copy it held before.
+   */
+  static async reloadSynced(report) {
+    for (const kind of ['quest', 'action']) {
+      const current = ActionEngineCyberia.current[kind];
+      const changed = report?.entries.some(
+        (entry) =>
+          entry.outcome === 'assigned' &&
+          ((entry.kind === kind && entry.code === current?.name) ||
+            (kind === 'action' && entry.actionCode === current?.name)),
+      );
+      if (current && changed) await ActionEngineCyberia.open(kind, current.id);
+    }
+  }
+
   static async refreshSagaSources() {
     const { status, data } = await CyberiaSagaService.getSources().catch(() => ({}));
     ActionEngineCyberia.sagaSources = status === 'success' ? data : {};
@@ -700,7 +789,7 @@ class ActionEngineCyberia {
       payload: () => ActionEngineCyberia.getQuestPayload(),
       check: (body) => (body.code && body.title ? '' : 'Quest code and title are required.'),
       new: () => ActionEngineCyberia.newQuest(),
-      load: (doc) => ActionEngineCyberia.loadQuest(doc),
+      load: (doc, options) => ActionEngineCyberia.loadQuest(doc, options),
       refresh: () => Promise.all([ActionEngineCyberia.refreshList('quest'), ActionEngineCyberia.refreshAssignments()]),
     },
     action: {
@@ -714,7 +803,7 @@ class ActionEngineCyberia {
       payload: () => ActionEngineCyberia.getActionPayload(),
       check: (body) => (body.code ? '' : 'Action code is required.'),
       new: () => ActionEngineCyberia.newAction(),
-      load: (doc) => ActionEngineCyberia.loadAction(doc),
+      load: (doc, options) => ActionEngineCyberia.loadAction(doc, options),
       refresh: () => Promise.all([ActionEngineCyberia.refreshList('action'), ActionEngineCyberia.refreshAssignments()]),
     },
     dialogue: {
@@ -727,7 +816,7 @@ class ActionEngineCyberia {
       payload: () => ActionEngineCyberia.getDialoguePayload(),
       check: (body) => (body.code && body.text ? '' : 'Dialogue code and text are required.'),
       new: () => ActionEngineCyberia.newDialogue(),
-      load: (doc) => ActionEngineCyberia.loadDialogue(doc),
+      load: (doc, options) => ActionEngineCyberia.loadDialogue(doc, options),
       refresh: () => ActionEngineCyberia.refreshList('dialogue'),
     },
     skill: {
@@ -745,7 +834,7 @@ class ActionEngineCyberia {
             ? 'Add at least one skill (logic event).'
             : '',
       new: () => ActionEngineCyberia.newSkill(),
-      load: (doc) => ActionEngineCyberia.loadSkill(doc),
+      load: (doc, options) => ActionEngineCyberia.loadSkill(doc, options),
       refresh: () => ActionEngineCyberia.refreshList('skill'),
     },
   };
@@ -761,11 +850,11 @@ class ActionEngineCyberia {
     ActionEngineCyberia.crud?.refresh();
   }
 
-  /** Loads the stored document `id` of a kind into its tab. */
-  static async open(kind, id) {
+  /** Loads the stored document `id` of a kind into its tab; `quiet` loads it without a notice. */
+  static async open(kind, id, { quiet = false } = {}) {
     const spec = ActionEngineCyberia.KINDS[kind];
     const { status, data, message } = await spec.service.get({ id });
-    if (status === 'success' && data) await spec.load(data);
+    if (status === 'success' && data) await spec.load(data, { quiet });
     else NotificationManager.Push({ html: message, status: 'error' });
   }
 
@@ -785,8 +874,16 @@ class ActionEngineCyberia {
     if (problem) return NotificationManager.Push({ html: problem, status: 'error' });
     const id = ActionEngineCyberia.current[kind]?.id;
     const result = await EditorCrud.save(spec.service, { id, body });
-    if (result.status !== 'success') return;
-    ActionEngineCyberia.setCurrent(kind, { ...body, _id: result.data?._id || id });
+    if (result.status !== 'success') {
+      if (/reload it/.test(result.message ?? ''))
+        NotificationManager.Push({
+          html: `Another editor saved this ${spec.subject} first. Your changes stay here: Reset loads the newer one.`,
+          status: 'warning',
+        });
+      return;
+    }
+    // The form takes the stored document: its revision, and what the server made of the save.
+    await ActionEngineCyberia.open(kind, result.data?._id || id, { quiet: true });
     await spec.refresh();
   }
 
@@ -838,7 +935,7 @@ class ActionEngineCyberia {
     return payload;
   }
 
-  static async loadQuest(doc) {
+  static async loadQuest(doc, { quiet = false } = {}) {
     ActionEngineCyberia.setMode('quest');
     ActionEngineCyberia.setCurrent('quest', doc);
     if (s('.action-engine-quest-code')) s('.action-engine-quest-code').value = doc.code || '';
@@ -862,12 +959,14 @@ class ActionEngineCyberia {
     }));
     ActionEngineCyberia.renderStepList();
     ActionEngineCyberia.renderRewardList();
+    setQueryParams({ questCode: doc.code || null }, { replace: true });
     await ActionEngineCyberia.syncMapForLoadedDoc(doc);
-    NotificationManager.Push({ html: `Quest "${doc.code}" loaded`, status: 'success' });
+    if (!quiet) NotificationManager.Push({ html: `Quest "${doc.code}" loaded`, status: 'success' });
   }
 
   static newQuest() {
     ActionEngineCyberia.setCurrent('quest', null);
+    setQueryParams({ questCode: null }, { replace: true });
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
     for (const cls of [
@@ -882,10 +981,286 @@ class ActionEngineCyberia {
     ActionEngineCyberia.renderRewardList();
   }
 
+  // ── Economy capabilities ────────────────────────────────────────────────
+  /** The capabilities the form holds: the item lists, the vault slots and the terminal of a market. */
+  static readCapabilities() {
+    const caps = structuredClone(ActionEngineCyberia.capabilities);
+    caps.storageSlots = Math.max(0, parseInt(s('.action-engine-storage-slots')?.value) || 0);
+    caps.market.marketCode = ActionEngineCyberia.getSingleDropdownValue('action-engine-market-picker');
+    caps.market.selection = s('.action-engine-market-selection')?.value ?? caps.market.selection;
+    const modes = [...document.querySelectorAll('.action-engine-market-mode')];
+    if (modes.length > 0) caps.market.listingModes = modes.filter((box) => box.checked).map((box) => box.value);
+    return caps;
+  }
+
+  /** The market capability as a save sends it: the items count only for the selection items. */
+  static terminalPayload(market) {
+    return { ...market, itemIds: market.selection === 'items' ? market.itemIds : [] };
+  }
+
+  /** Reads the profile of market `code` and shows its shared terms. */
+  static async selectMarket(code) {
+    ActionEngineCyberia.capabilities.market.marketCode = code;
+    const { status, data } = code ? await CyberiaMarketService.get({ id: code }).catch(() => ({})) : {};
+    ActionEngineCyberia.marketProfile = status === 'success' && data?.code ? data : null;
+    ActionEngineCyberia.renderCapabilities();
+  }
+
+  /** The shared terms of the market profile, read only: the market editor owns them. */
+  static sharedMarketHtml(market) {
+    const profile = ActionEngineCyberia.marketProfile;
+    if (!market.marketCode)
+      return html`<div class="studio-form-hint">
+        This terminal opens no market. Pick a market profile to open one.
+      </div>`;
+    if (!profile)
+      return html`<div class="studio-form-dirty">
+        No market profile has the code ${escapeHtml(market.marketCode)}.
+      </div>`;
+    const terms = [
+      [
+        'Scope',
+        profile.scope === 'universe' ? 'every world of the universe of this terminal' : 'the world of this terminal',
+      ],
+      ['Status', profile.status === 'active' ? 'active' : 'retired: no new listing'],
+      ['Modes', profile.modes.map((mode) => MODE_LABELS[mode]).join(', ')],
+      ['Durations', profile.hours.map((hours) => `${hours} h`).join(', ')],
+      ['Fees', `listing ${profile.fees.listing}, sale ${profile.fees.sale}`],
+      ['Prices', `${profile.limits.priceMin} to ${profile.limits.priceMax}`],
+      ['Auction', `raise ${profile.auction.raisePercent}%, ${profile.auction.minRaise} coin(s) at least`],
+    ];
+    return html`<div class="studio-form-grid">
+        ${terms
+          .map(
+            ([label, value]) =>
+              html`<div class="studio-form-field">
+                <span class="studio-form-hint">${label}</span><span>${escapeHtml(value)}</span>
+              </div>`,
+          )
+          .join('')}
+      </div>
+      <div class="studio-form-row" style="margin-top:6px;">
+        <span class="studio-form-chip studio-form-mono">${escapeHtml(profile.code)}@${profile.revision}</span>
+        <button type="button" class="studio-form-button action-engine-open-market">
+          <i class="fa-solid fa-store"></i> Open in the market editor
+        </button>
+      </div>`;
+  }
+
+  /** The local rules of the terminal: what a seller lists here and in which modes. */
+  static terminalRulesHtml(market) {
+    const profile = ActionEngineCyberia.marketProfile;
+    const disabled = ActionEngineCyberia.canMutate && market.marketCode ? '' : 'disabled';
+    const supported = profile?.modes ?? [];
+    const selections = { policy: 'Policy: every item the economy allows', items: 'Specific items' };
+    return html`<div class="studio-form-grid">
+      <label class="studio-form-field"
+        ><span>Selection</span>
+        <select class="action-engine-market-selection" ${disabled}>
+          ${ActionEngineCyberia.marketContract.selections
+            .map(
+              (value) =>
+                html`<option value="${value}" ${value === market.selection ? 'selected' : ''}>
+                  ${selections[value] ?? value}
+                </option>`,
+            )
+            .join('')}
+        </select>
+        <span class="studio-form-hint">
+          ${
+            market.selection === 'policy'
+              ? 'The item policy of the economy decides; no item list applies.'
+              : 'Only the items below, and only those the economy allows.'
+          }
+        </span>
+      </label>
+      <div class="studio-form-field">
+        <span>Listing modes at this terminal</span>
+        <div class="studio-form-row">
+          ${ActionEngineCyberia.marketContract.modes
+            .map((mode) =>
+              toggleField({
+                className: 'action-engine-market-mode',
+                value: mode,
+                label:
+                  supported.includes(mode) || !profile ? MODE_LABELS[mode] : `${MODE_LABELS[mode]}: not in the market`,
+                checked: market.listingModes.includes(mode),
+                disabled: disabled || (supported.includes(mode) ? '' : 'disabled'),
+              }),
+            )
+            .join('')}
+        </div>
+        <span class="studio-form-hint"
+          >They restrict what is listed here. Every terminal shows, sells and bids on the whole market.</span
+        >
+      </div>
+    </div>`;
+  }
+
+  /** Shows the capabilities held in `ActionEngineCyberia.capabilities`. */
+  static renderCapabilities() {
+    const caps = ActionEngineCyberia.capabilities;
+    if (s('.action-engine-storage-slots')) s('.action-engine-storage-slots').value = caps.storageSlots;
+    ActionEngineCyberia.setSingleDropdownValue('action-engine-market-picker', caps.market.marketCode);
+    htmls('.action-engine-market-shared', ActionEngineCyberia.sharedMarketHtml(caps.market));
+    htmls('.action-engine-market-rules', ActionEngineCyberia.terminalRulesHtml(caps.market));
+    const itemList = s('.action-engine-cap-market');
+    if (itemList) itemList.classList.toggle('hide', !caps.market.marketCode || caps.market.selection !== 'items');
+    for (const { id, list } of CAPABILITY_LISTS) {
+      const items = list(caps);
+      let out = '';
+      for (let i = 0; i < items.length; i++)
+        out += html`<span class="studio-form-chip studio-form-mono" style="margin:2px;"
+          >${escapeHtml(items[i])}${
+            ActionEngineCyberia.canMutate
+              ? html`<button
+                  type="button"
+                  class="action-engine-cap-remove"
+                  data-list="${id}"
+                  data-index="${i}"
+                  aria-label="Remove ${escapeHtml(items[i])}"
+                  style="border:0;background:transparent;color:inherit;cursor:pointer;min-height:0;padding:0 2px;"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>`
+              : ''
+          }</span
+        >`;
+      htmls(`.action-engine-cap-${id}-list`, out || html`<span class="studio-form-hint">None.</span>`);
+    }
+    for (const button of document.querySelectorAll('.action-engine-cap-remove'))
+      button.onclick = () => {
+        ActionEngineCyberia.capabilities = ActionEngineCyberia.readCapabilities();
+        CAPABILITY_LISTS.find(({ id }) => id === button.dataset.list)
+          .list(ActionEngineCyberia.capabilities)
+          .splice(Number(button.dataset.index), 1);
+        ActionEngineCyberia.renderCapabilities();
+      };
+    const rerender = () => {
+      ActionEngineCyberia.capabilities = ActionEngineCyberia.readCapabilities();
+      ActionEngineCyberia.renderCapabilities();
+    };
+    if (s('.action-engine-market-selection')) s('.action-engine-market-selection').onchange = rerender;
+    for (const box of document.querySelectorAll('.action-engine-market-mode')) box.onchange = rerender;
+    if (s('.action-engine-open-market'))
+      s('.action-engine-open-market').onclick = () =>
+        StudioCyberia.open('cyberia-market-engine', { marketCode: caps.market.marketCode });
+  }
+
+  /** Adds the picked item to the list `id` of the capabilities. */
+  static addCapabilityItem(id) {
+    const spec = CAPABILITY_LISTS.find((list) => list.id === id);
+    const itemId = ActionEngineCyberia.getSingleDropdownValue(spec.picker);
+    if (!itemId) return NotificationManager.Push({ html: 'Select an item id.', status: 'error' });
+    ActionEngineCyberia.capabilities = ActionEngineCyberia.readCapabilities();
+    const items = spec.list(ActionEngineCyberia.capabilities);
+    if (!items.includes(itemId)) items.push(itemId);
+    ActionEngineCyberia.renderCapabilities();
+  }
+
+  /** Reads what the capabilities of the saved action do in each world of its map. */
+  static async refreshDiagnostics() {
+    const id = ActionEngineCyberia.current.action?.id;
+    const { status, data } = id ? await CyberiaActionService.diagnostics({ id }).catch(() => ({})) : {};
+    ActionEngineCyberia.diagnostics = status === 'success' ? data : null;
+    ActionEngineCyberia.renderDiagnostics();
+  }
+
+  /** One table of a capability in one world: each item with its permission, binding, amount and state. */
+  static diagnosticsTable(title, capability, amountLabel = '') {
+    if (!capability || (capability.items.length === 0 && !capability.warning)) return '';
+    const rows = capability.items
+      .map(
+        (row) =>
+          html`<tr>
+            <td class="studio-form-mono">${escapeHtml(row.itemId)}</td>
+            <td>${row.allowed ? 'allowed' : 'refused'}</td>
+            <td class="studio-form-mono" title="${escapeHtml(row.olCid)}">
+              ${row.olCid ? escapeHtml(`${row.olCid.slice(0, 12)}…`) : 'unbound'}
+            </td>
+            ${amountLabel ? html`<td>${row.amount ?? '—'}</td>` : ''}
+            <td>
+              <span class="studio-form-chip ${row.usable ? '' : 'studio-form-bad'}"
+                >${row.usable ? 'usable' : 'blocked'}</span
+              >
+              ${row.reason ? html`<span class="studio-form-hint">${escapeHtml(row.reason)}</span>` : ''}
+            </td>
+          </tr>`,
+      )
+      .join('');
+    return html`<div style="margin-top:6px;">
+      <b>${title}</b>
+      ${capability.warning ? html`<div class="studio-form-dirty" role="alert">${escapeHtml(capability.warning)}</div>` : ''}
+      ${
+        rows
+          ? html`<div style="overflow-x:auto;">
+              <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                <thead>
+                  <tr style="text-align:left;">
+                    <th>Item</th>
+                    <th>Economy policy</th>
+                    <th>Binding</th>
+                    ${amountLabel ? html`<th>${amountLabel}</th>` : ''}
+                    <th>Here</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows}
+                </tbody>
+              </table>
+            </div>`
+          : ''
+      }
+    </div>`;
+  }
+
+  /** Shows what the capabilities of the saved action do, world by world. */
+  static renderDiagnostics() {
+    const report = ActionEngineCyberia.diagnostics;
+    if (!report) {
+      htmls(
+        '.action-engine-diagnostics',
+        html`<div class="studio-form-hint">
+          Save the action to see what its capabilities do in the worlds of its map.
+        </div>`,
+      );
+      return;
+    }
+    const worlds = report.worlds
+      .map(
+        (world) =>
+          html`<div class="studio-form-card">
+            <div class="studio-form-row">
+              <b class="studio-form-mono">${escapeHtml(world.instanceCode)}</b>
+              <span class="studio-form-chip">economy ${escapeHtml(world.economy.code)}@${world.economy.revision}</span>
+              ${world.market?.ref ? html`<span class="studio-form-chip studio-form-mono">${escapeHtml(world.market.ref)}</span>` : ''}
+            </div>
+            ${world.economy.defect ? html`<div class="studio-form-dirty">${escapeHtml(world.economy.defect)}</div>` : ''}
+            ${ActionEngineCyberia.diagnosticsTable('Buyback', world.capabilities?.buyback, 'Payout')}
+            ${ActionEngineCyberia.diagnosticsTable('Burn', world.capabilities?.burn, 'Fee')}
+            ${ActionEngineCyberia.diagnosticsTable(
+              world.capabilities?.market.selection === 'policy'
+                ? 'Market: what the economy allows'
+                : 'Market: listed items',
+              world.capabilities?.market,
+            )}
+          </div>`,
+      )
+      .join('');
+    htmls(
+      '.action-engine-diagnostics',
+      html`${report.defects.map((defect) => html`<div class="studio-form-dirty">${escapeHtml(defect)}</div>`).join('')}
+      ${worlds}`,
+    );
+  }
+
   // ── Action payload / load / persistence ─────────────────────────────────
   static getActionPayload() {
+    const capabilities = ActionEngineCyberia.readCapabilities();
     const payload = {
       ...ActionEngineCyberia.loadedActionPayloadExtras,
+      ...capabilities,
+      market: ActionEngineCyberia.terminalPayload(capabilities.market),
       code: s('.action-engine-action-code')?.value?.trim() || '',
       label: s('.action-engine-action-label')?.value?.trim() || '',
       dialogCode: ActionEngineCyberia.getSingleDropdownValue(ActionEngineCyberia.ids.actionDialogPicker),
@@ -900,11 +1275,10 @@ class ActionEngineCyberia {
     return payload;
   }
 
-  static async loadAction(doc) {
+  static async loadAction(doc, { quiet = false } = {}) {
     ActionEngineCyberia.setMode('action');
     ActionEngineCyberia.setCurrent('action', doc);
-    // Out-of-scope payloads (shop/craft/storage) are preserved verbatim so
-    // editing an action here never drops data the engine doesn't manage yet.
+    // The shop and craft payloads this form does not edit stay as they are.
     const {
       _id,
       code,
@@ -914,12 +1288,31 @@ class ActionEngineCyberia {
       sourceMapCode,
       sourceCellX,
       sourceCellY,
+      storageSlots,
+      buybackItems,
+      burnItems,
+      market,
       createdAt,
       updatedAt,
       __v,
       ...extras
     } = doc;
     ActionEngineCyberia.loadedActionPayloadExtras = extras;
+    const blank = blankCapabilities();
+    ActionEngineCyberia.capabilities = {
+      storageSlots: storageSlots ?? 0,
+      buybackItems: [...(buybackItems ?? [])],
+      burnItems: [...(burnItems ?? [])],
+      market: {
+        marketCode: market?.marketCode ?? '',
+        selection: market?.selection ?? blank.market.selection,
+        itemIds: [...(market?.itemIds ?? [])],
+        listingModes: [...(market?.listingModes ?? blank.market.listingModes)],
+      },
+    };
+    await ActionEngineCyberia.selectMarket(ActionEngineCyberia.capabilities.market.marketCode);
+    await ActionEngineCyberia.refreshDiagnostics();
+    setQueryParams({ actionCode: doc.code || null }, { replace: true });
     if (s('.action-engine-action-code')) s('.action-engine-action-code').value = doc.code || '';
     if (s('.action-engine-action-label')) s('.action-engine-action-label').value = doc.label || '';
     if (s('.action-engine-action-map-code')) s('.action-engine-action-map-code').value = doc.sourceMapCode || '';
@@ -932,13 +1325,19 @@ class ActionEngineCyberia {
     }));
     ActionEngineCyberia.renderQuestDialogueList();
     await ActionEngineCyberia.syncMapForLoadedDoc(doc);
-    NotificationManager.Push({ html: `Action "${doc.code}" loaded`, status: 'success' });
+    if (!quiet) NotificationManager.Push({ html: `Action "${doc.code}" loaded`, status: 'success' });
   }
 
   static newAction() {
     ActionEngineCyberia.setCurrent('action', null);
     ActionEngineCyberia.actionQuestDialogues = [];
     ActionEngineCyberia.loadedActionPayloadExtras = {};
+    ActionEngineCyberia.capabilities = blankCapabilities();
+    ActionEngineCyberia.marketProfile = null;
+    ActionEngineCyberia.diagnostics = null;
+    ActionEngineCyberia.renderCapabilities();
+    ActionEngineCyberia.renderDiagnostics();
+    setQueryParams({ actionCode: null }, { replace: true });
     for (const cls of ['action-engine-action-code', 'action-engine-action-label'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.actionDialogPicker, '');
@@ -956,7 +1355,7 @@ class ActionEngineCyberia {
     };
   }
 
-  static loadDialogue(doc) {
+  static loadDialogue(doc, { quiet = false } = {}) {
     ActionEngineCyberia.setMode('dialogue');
     ActionEngineCyberia.setCurrent('dialogue', doc);
     if (s('.action-engine-dialogue-code')) s('.action-engine-dialogue-code').value = doc.code || '';
@@ -964,7 +1363,7 @@ class ActionEngineCyberia {
     if (s('.action-engine-dialogue-speaker')) s('.action-engine-dialogue-speaker').value = doc.speaker || '';
     if (s('.action-engine-dialogue-text')) s('.action-engine-dialogue-text').value = doc.text || '';
     if (s('.action-engine-dialogue-mood')) s('.action-engine-dialogue-mood').value = doc.mood || 'neutral';
-    NotificationManager.Push({ html: `Dialogue line "${doc.code}" loaded`, status: 'success' });
+    if (!quiet) NotificationManager.Push({ html: `Dialogue line "${doc.code}" loaded`, status: 'success' });
   }
 
   static newDialogue() {
@@ -1086,7 +1485,7 @@ class ActionEngineCyberia {
     return { triggerItemId, logicEventIds, skills };
   }
 
-  static loadSkill(doc) {
+  static loadSkill(doc, { quiet = false } = {}) {
     ActionEngineCyberia.setMode('skill');
     ActionEngineCyberia.setCurrent('skill', doc);
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, doc.triggerItemId || '');
@@ -1097,7 +1496,7 @@ class ActionEngineCyberia {
       summonedEntityItemId: sk.summonedEntityItemId || '',
     }));
     ActionEngineCyberia.renderSkillDefList();
-    NotificationManager.Push({ html: `Skill "${doc.triggerItemId}" loaded`, status: 'success' });
+    if (!quiet) NotificationManager.Push({ html: `Skill "${doc.triggerItemId}" loaded`, status: 'success' });
   }
 
   static newSkill() {
@@ -1127,6 +1526,7 @@ class ActionEngineCyberia {
     ActionEngineCyberia.questRewards = [];
     ActionEngineCyberia.actionQuestDialogues = [];
     ActionEngineCyberia.loadedActionPayloadExtras = {};
+    ActionEngineCyberia.capabilities = blankCapabilities();
     ActionEngineCyberia.skillDefs = [];
 
     const ids = ActionEngineCyberia.ids;
@@ -1151,6 +1551,27 @@ class ActionEngineCyberia {
       html`<div class="in studio-group">
         <div class="in studio-group-title"><i class="${icon}"></i> ${title}</div>
         ${inner}
+      </div>`;
+
+    const capabilityList = async ({ id, label, picker }) =>
+      html`<div class="in" style="margin-top:8px;">
+        <div style="font-size:12px;">${label}</div>
+        <div class="in action-engine-cap-${id}-list"></div>
+        ${
+          ActionEngineCyberia.canMutate
+            ? html`<div class="fl" style="align-items:flex-end;">
+                <div class="in fll" style="flex:1;">
+                  ${await ActionEngineCyberia.buildItemIdDropdown(picker, html`Item`)}
+                </div>
+                <div class="in fll" style="padding-left:6px;">
+                  ${await BtnIcon.instance({
+                    class: `wfa btn-action-engine-cap-add-${id}`,
+                    label: html`<i class="fa-solid fa-plus"></i> Add`,
+                  })}
+                </div>
+              </div>`
+            : ''
+        }
       </div>`;
 
     const listPager = (kind) =>
@@ -1267,14 +1688,35 @@ class ActionEngineCyberia {
       if (s('.btn-action-engine-add-skill-def'))
         s('.btn-action-engine-add-skill-def').onclick = () => ActionEngineCyberia.addSkillDef();
 
+      for (const { id } of CAPABILITY_LISTS)
+        if (s(`.btn-action-engine-cap-add-${id}`))
+          s(`.btn-action-engine-cap-add-${id}`).onclick = () => ActionEngineCyberia.addCapabilityItem(id);
+
       ActionEngineCyberia.renderStepList();
       ActionEngineCyberia.renderRewardList();
       ActionEngineCyberia.renderQuestDialogueList();
       ActionEngineCyberia.renderSkillDefList();
+      const contract = await CyberiaMarketService.contract().catch(() => null);
+      if (contract?.status === 'success') ActionEngineCyberia.marketContract = contract.data;
+      ActionEngineCyberia.renderCapabilities();
+      ActionEngineCyberia.renderDiagnostics();
       await Promise.all([ActionEngineCyberia.refreshAll(), SagaSync.mount()]);
+
+      const followQuery = async ({ questCode, actionCode }) => {
+        if (!s('.action-engine-container')) return;
+        if (questCode && questCode !== ActionEngineCyberia.current.quest?.name)
+          await ActionEngineCyberia.openByKey('quest', questCode);
+        if (actionCode && actionCode !== ActionEngineCyberia.current.action?.name)
+          await ActionEngineCyberia.openByKey('action', actionCode);
+      };
+      listenQueryParamsChange({ id: 'cyberia-action-engine-query-listener', event: followQuery });
+      await followQuery(getQueryParams());
     });
 
     return html`<div class="in section-mp studio-editor action-engine-container">
+      <style>
+        ${STUDIO_FORM_STYLE}
+      </style>
       ${EditorLayout.render({
         subject: 'map',
         readout: html`<div class="in action-engine-cell-coords" style="font-size:12px;font-family:monospace;">
@@ -1552,6 +1994,51 @@ class ActionEngineCyberia {
                     <div class="in action-engine-quest-dialogue-list" style="margin-top:8px;"></div>`,
                 )}
                 ${group(
+                  'Shared Market',
+                  'fa-solid fa-store',
+                  html`<div class="studio-form-hint">
+                      The market profile owns the scope, modes, durations, fees and limits of the market every terminal
+                      of its code shares.
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await ActionEngineCyberia.buildMarketDropdown('action-engine-market-picker', html`Market profile`)}
+                    </div>
+                    <div class="in action-engine-market-shared" style="margin-top:6px;"></div>`,
+                )}
+                ${group(
+                  'Local Terminal Rules',
+                  'fa-solid fa-sliders',
+                  html`<div class="in action-engine-market-rules"></div>
+                    <div class="in action-engine-cap-market">${await capabilityList(CAPABILITY_LISTS[2])}</div>`,
+                )}
+                ${group(
+                  'Other Interaction Capabilities',
+                  'fa-solid fa-coins',
+                  html`<div class="studio-form-hint">
+                      The item policy of the economy must allow each operation too: a list never grants what the policy
+                      refuses. The shop and the recipes of the action come from content; a save keeps them.
+                    </div>
+                    <label class="in" style="font-size:12px;margin-top:6px;"
+                      >Vault slots (0: no vault)
+                      <input
+                        type="number"
+                        min="0"
+                        class="wfa action-engine-storage-slots"
+                        ${ActionEngineCyberia.canMutate ? '' : 'disabled'}
+                      />
+                    </label>
+                    ${await capabilityList(CAPABILITY_LISTS[0])} ${await capabilityList(CAPABILITY_LISTS[1])}`,
+                )}
+                ${group(
+                  'Effective Capabilities',
+                  'fa-solid fa-stethoscope',
+                  html`<div class="studio-form-hint">
+                      What the saved action does in each world of its map: its lists, the item policy of the economy,
+                      the catalog binding and the market together.
+                    </div>
+                    <div class="in action-engine-diagnostics" style="margin-top:6px;"></div>`,
+                )}
+                ${group(
                   'Existing Actions',
                   'fa-solid fa-handshake',
                   html`${await listToolbar('action')}
@@ -1699,7 +2186,10 @@ class ActionEngineCyberia {
                 content: await SagaSync.render({
                   canMutate: ActionEngineCyberia.canMutate,
                   onOpen: (kind, key) => ActionEngineCyberia.openByKey(kind, key),
-                  onSynced: () => ActionEngineCyberia.refreshAll(),
+                  onSynced: async () => {
+                    await ActionEngineCyberia.refreshAll();
+                    await ActionEngineCyberia.reloadSynced(SagaSync.report);
+                  },
                 }),
               },
             ],

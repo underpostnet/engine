@@ -27,8 +27,11 @@ const APIS = [
   'cyberia-map',
   'cyberia-quest',
   'cyberia-dialogue',
+  'cyberia-market',
   'cyberia-action',
   'cyberia-entity-type-default',
+  'cyberia-economy',
+  'cyberia-economic-item-policy',
 ];
 const MODELS = {
   entityTypeDefaults: 'CyberiaEntityTypeDefault',
@@ -87,6 +90,11 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
       expect(foundation[family].length, family).toBeGreaterThan(0);
     }
     expect(Object.keys(result.written)).toEqual(Object.keys(CONTENT_FAMILIES).filter((f) => f !== 'objectLayers'));
+    expect(await models().CyberiaEconomy.countDocuments()).toBe(foundation.economies.length);
+    const standard = foundation.economies.find(({ code }) => code === 'standard');
+    expect(await models().CyberiaEconomicItemPolicy.countDocuments({ economyCode: 'standard' })).toBe(
+      standard.items.length,
+    );
   });
 
   it('stores functional content with render unresolved, and maps without entities', async () => {

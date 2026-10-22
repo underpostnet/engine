@@ -18,7 +18,6 @@ import { domainOrigin } from '../../../server/domain/domain-client.js';
 import { publishObjectLayer, resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
 import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
 import { isProfileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
-import { findLegacyPins } from '../catalog/catalog-consistency.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
@@ -34,6 +33,8 @@ import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
 import { assertReleaseId } from '../../../server/release/source-release.js';
 import { loadContentArtifact, serveContentArtifact, servedContentArtifact } from './content-artifact.js';
 import { catalogRegistryModels, reconcileMapRegistry, registryDefects } from '../instance/map-registry.js';
+import { confEconomyCode, universeWalletDefect } from '../economy/economy-policy.js';
+import { itemPolicyDefect } from '../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -156,12 +157,13 @@ const identityDefect = (doc) => {
  *   runtime's profile, whose identity is its content's.
  * - `canonical`: every bound cid resolves at the Object Layer authority, with the same digest.
  *   Skipped, and said so, when this deployment is the authority.
- * - `legacy-pins`: no quest or action pins a definition: the catalog alone binds each item.
  * - `labels`: every label a map entity or entity default uses is bound in the catalog.
  * - `skills`: every skill document can run: see `skillDefect`.
  * - `render`: the atlas each bound definition points at holds the render it names: its primary
  *   render and its layout address `data.render`.
  * - `instances`: every instance has its conf and every map it lists.
+ * - `economy`: every conf names an active economy, every item policy is valid and names bound labels,
+ *   and the worlds of each universe of the host hold one wallet.
  * - `schema`: every content document passes its schema.
  *
  * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`,
@@ -235,13 +237,6 @@ export async function validateContentRelease(models, { options, resolveCanonical
     }
   }
   checks.push(canonicalCheck);
-
-  const legacyCheck = check('legacy-pins');
-  const legacy = await findLegacyPins(models);
-  legacyCheck.count = legacy.documents.length;
-  for (const { collection, code, pins } of legacy.documents)
-    fail(legacyCheck, `${collection} ${code}: pins ${pins.map(({ itemId, cid }) => `${itemId} → ${cid}`).join(', ')}`);
-  checks.push(legacyCheck);
 
   // Every label the content names, by the rule the boot payload and the export use, with the
   // first document that names it.
@@ -317,10 +312,46 @@ export async function validateContentRelease(models, { options, resolveCanonical
   for (const defect of registryDefects(maps, instances)) fail(instancesCheck, defect);
   checks.push(instancesCheck);
 
+  // Every world runs an active profile, every item row and salvage output is a bound label, and each
+  // universe of the host keeps one wallet over the worlds of this content.
+  const economyCheck = check('economy');
+  if (models.CyberiaEconomy && models.CyberiaEconomicItemPolicy) {
+    const economies = new Map(
+      (await models.CyberiaEconomy.find({}, { code: 1, status: 1 }).lean()).map((e) => [e.code, e.status]),
+    );
+    const confs = await models.CyberiaInstanceConf.find({}).lean();
+    for (const conf of confs) {
+      economyCheck.count++;
+      const code = confEconomyCode(conf);
+      if (economies.get(code) !== 'active')
+        fail(economyCheck, `instance ${conf.instanceCode}: no active economy ${code}`);
+    }
+    for (const row of await models.CyberiaEconomicItemPolicy.find({}).lean()) {
+      economyCheck.count++;
+      const defect = itemPolicyDefect(row);
+      if (defect) fail(economyCheck, `economy ${row.economyCode}: ${defect}`);
+      if (!economies.has(row.economyCode)) fail(economyCheck, `item policy ${row.itemId}: no economy ${row.economyCode}`);
+      for (const itemId of [row.itemId, ...(row.salvage ?? []).map((line) => line.itemId)])
+        if (!bound.has(itemId)) fail(economyCheck, `economy ${row.economyCode}: label "${itemId}" is not bound`);
+    }
+    const worlds = new Set(confs.map(({ instanceCode }) => instanceCode));
+    const universes = models.CyberiaUniverse
+      ? await models.CyberiaUniverse.find({}, { code: 1, instances: 1 }).lean()
+      : [];
+    for (const universe of universes) {
+      const members = universe.instances.map(({ instanceCode }) => instanceCode).filter((code) => worlds.has(code));
+      const defect = await universeWalletDefect(models, members).catch((error) => error.message);
+      if (defect) fail(economyCheck, `universe ${universe.code}: ${defect}`);
+    }
+  } else economyCheck.findings.push('skipped: the host loads no economy models');
+  checks.push(economyCheck);
+
   const schemaCheck = check('schema');
   for (const name of [
     'CyberiaInstance',
     'CyberiaInstanceConf',
+    'CyberiaEconomy',
+    'CyberiaEconomicItemPolicy',
     'CyberiaMap',
     'CyberiaQuest',
     'CyberiaAction',
@@ -362,6 +393,9 @@ const LIVE_CONTENT_APIS = Object.freeze([
   'cyberia-skill',
   'cyberia-entity-type-default',
   'cyberia-item-catalog',
+  'cyberia-economy',
+  'cyberia-economic-item-policy',
+  'cyberia-market',
 ]);
 
 /** Fields a write sets on its own: timestamps, version keys, save revisions and generated pictures. */
@@ -404,7 +438,8 @@ export async function liveChanges({ CyberiaContentRelease, connection }) {
   return {
     release,
     known: true,
-    changed: LIVE_CONTENT_APIS.filter((api) => current[api] !== release.fingerprint[api]),
+    // A build that predates an API records no fingerprint of it.
+    changed: LIVE_CONTENT_APIS.filter((api) => api in release.fingerprint && current[api] !== release.fingerprint[api]),
   };
 }
 

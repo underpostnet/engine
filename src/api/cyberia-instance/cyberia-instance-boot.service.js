@@ -53,7 +53,7 @@ class CyberiaInstanceBootService {
   };
 
   static fullInstance = async (req, res, options) =>
-    await fetchFullInstance(getInstanceModels(options), req.params.instanceCode);
+    await fetchFullInstance(getInstanceModels(options), req.params.instanceCode, options);
 
   static objectLayerManifest = async (req, res, options) =>
     await fetchObjectLayerManifest(getInstanceModels(options));

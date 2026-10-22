@@ -78,6 +78,22 @@ service CyberiaPlayerService {
   // Commits the whole durable state of one player at one sequence number.
   rpc CommitPlayerState(CommitPlayerStateRequest) returns (CommitPlayerStateResponse);
 
+  // Commits the whole durable states and the effect of one operation in one
+  // transaction: all or nothing. A trade joins the states of its players, a
+  // drop the state of its owner and a new world drop, a pickup the state of
+  // its collector and the claim of a world drop, a market operation the state
+  // of its player and the change of the market. A retry with the same
+  // operation id and request answers duplicate.
+  rpc CommitPlayerStates(CommitPlayerStatesRequest) returns (CommitPlayerStatesResponse);
+
+  // The public world drops of a world that have not expired.
+  rpc ListWorldDrops(ListWorldDropsRequest) returns (ListWorldDropsResponse);
+
+  // The view of a market terminal for one player: a page of the open
+  // listings, its own listings and its pending claims. Listings that ended
+  // settle first.
+  rpc ListMarket(ListMarketRequest) returns (ListMarketResponse);
+
   // Renews the leases of one server and writes their dirty positions.
   rpc CheckpointPlayerSessions(CheckpointPlayerSessionsRequest) returns (CheckpointPlayerSessionsResponse);
 
@@ -254,6 +270,7 @@ message ActionCraftRecipe {
   repeated ActionCraftItem output_items  = 1;
   repeated ActionCraftItem ingredients   = 2;
   int32                    craft_time_ms = 3; // assembly duration
+  optional uint32          fee           = 4; // coins; absent, the economy decides
 }
 
 message CyberiaActionMessage {
@@ -270,6 +287,19 @@ message CyberiaActionMessage {
   repeated ActionShopItem      shop_items           = 11;
   repeated ActionCraftRecipe   craft_recipes        = 12;
   int32                        storage_slots        = 13; // personal vault capacity
+  repeated string              buyback_items        = 14; // items this merchant buys back
+  repeated string              burn_items           = 15; // items this terminal burns
+  ActionMarket                 market               = 16; // the market this terminal opens
+}
+
+// A market terminal: the market profile it opens, and what a seller lists here. An empty code opens
+// no market.
+message ActionMarket {
+  string          market_code   = 1;
+  reserved 2; // was scope — the market profile owns it
+  string          selection     = 3; // policy | items
+  repeated string item_ids      = 4; // selection items: what a seller lists here
+  repeated string listing_modes = 5; // the modes a seller lists in here; the profile must support each
 }
 
 message QuestObjectiveMessage {
@@ -328,6 +358,30 @@ message GetFullInstanceResponse {
   // server reports it to the registry, so the convergence of a promotion
   // across replicas is visible.
   string                        release_id    = 8;
+  // The market profiles the terminals of this world open, in the scope key of this world.
+  repeated MarketProfile        markets       = 9;
+}
+
+// The shared contract of a market as one world sees it. A profile with a defect opens no market
+// in this world: its terminals list nothing.
+message MarketProfile {
+  string          code                = 1;
+  uint64          revision            = 2;
+  string          status              = 3; // active | retired
+  string          scope               = 4; // instance | universe
+  string          scope_key           = 5; // the instance or the universe of this world
+  string          ref                 = 6; // authority/scope:scope_key/code
+  string          currency_code       = 7;
+  repeated string modes               = 8; // fixed | auction
+  repeated uint32 hours               = 9; // the durations a listing may run
+  uint32          raise_percent       = 10; // a bid raises the highest one by this percent...
+  uint32          min_raise           = 11; // ...and by this many coins at least
+  uint32          listing_fee         = 12; // coins a listing charges once
+  uint32          sale_fee            = 13; // coins a sale takes from the proceeds
+  uint32          price_min           = 14;
+  uint32          price_max           = 15;
+  uint32          listings_per_player = 16;
+  string          defect              = 17; // why it opens no market in this world; empty: it opens
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -364,20 +418,58 @@ message SkillConfigEntry {
   repeated SkillDetail skills   = 7;     // per-logic-event skill definitions
 }
 
-// EconomyRules is the coin model of one instance. The wallet is session state:
-// it starts at player_spawn_coins and ends with the session. A death drops a
-// share of the victim's coins as a loot token for its damage contributors. The
-// rate follows the type of the victim, whoever made the kill. A drop is at
-// least coin_kill_min_amount and never more than the victim holds.
+// EconomyRules is the economy of an instance: the CyberiaEconomy profile its
+// conf names, with every item policy row of the profile compiled against the
+// catalog binding of its item. A death drops a share of the victim's coins as
+// a loot token for its damage contributors. The rate follows the type of the
+// victim, whoever made the kill. A drop is at least coin_kill_min_amount and
+// never more than the victim holds.
 message EconomyRules {
   int32  bot_spawn_coins             = 1; // the wallet of a bot at each spawn; a bot drop is new coins
-  int32  player_spawn_coins          = 2; // the wallet of a new session
+  int32  player_spawn_coins          = 2; // the wallet of a new guest session or account profile
   double coin_kill_percent_vs_bot    = 3; // fraction [0,1] of its coins a dead bot drops
   double coin_kill_percent_vs_player = 4; // fraction [0,1] of its coins a dead player drops
   int32  coin_kill_min_amount        = 5; // least coins a death drops, capped at what the victim holds
   double respawn_cost_percent        = 6; // fraction [0,1] of its coins a dead player burns; 0 disables
   reserved 7, 8;
   reserved "portal_fee", "crafting_fee_percent";
+  string              code          = 9;  // the profile; empty for a world without content
+  uint64              revision      = 10; // the profile revision the snapshot compiled
+  uint32              max_balance   = 11; // a credit past it is refused, never clamped
+  OperationFees       fees          = 12;
+  ItemPolicy          item_defaults = 13; // the policy of an item without a row
+  repeated ItemPolicy item_policies = 14; // one per item row, effective
+  string              authority_id  = 15; // the deployment that owns the profile; a code is local to it
+}
+
+// Coins one operation that succeeds charges once.
+message OperationFees {
+  uint32 portal = 1; // a portal transit whose active portal items name no fee
+  uint32 craft  = 2; // an assembly whose recipe and outputs name no fee
+  reserved 3, 4;
+  reserved "market_listing", "market_sale"; // the market profile owns its fees
+}
+
+// One salvage output: units granted per burned unit.
+message SalvageLine {
+  string item_id = 1;
+  uint32 qty     = 2;
+}
+
+// What one item may do in the economy. Coin amounts are per unit.
+message ItemPolicy {
+  string               item_id         = 1;  // empty for the defaults
+  string               ol_cid          = 2;  // the definition the policy compiled against
+  bool                 trade           = 3;
+  bool                 world_drop      = 4;
+  bool                 buyback         = 5;
+  uint32               buyback_payout  = 6;
+  bool                 burn            = 7;
+  uint32               burn_coin_fee   = 8;
+  uint32               craft_surcharge = 9;  // per produced unit when the recipe names no fee
+  repeated SalvageLine salvage         = 10;
+  optional uint32      portal_fee      = 11; // per active portal item of the label; unset adds nothing
+  bool                 market          = 12; // a market may list it
 }
 
 // SkillRules groups the numeric tuning parameters for each skill archetype.
@@ -673,8 +765,8 @@ message ConsumeGameLaunchTicketResponse {
   reserved 4;
   reserved "avatar_file_id";
   // Empty when accepted; else unknown | expired | replayed | wrong_instance |
-  // revoked | signed_in_elsewhere | busy (a resume whose session still holds
-  // its lease: try again).
+  // revoked | signed_in_elsewhere | busy (a resume whose session still writes
+  // on another server: try again).
   string refusal      = 1;
   string account_id   = 2; // account only
   string display_name = 3; // account only: the account username
@@ -689,7 +781,7 @@ message IssueResumeTicketRequest {
 }
 
 message IssueResumeTicketResponse {
-  string refusal       = 1; // empty, or signed_in_elsewhere | revoked
+  string refusal       = 1; // empty, or signed_in_elsewhere | revoked | ended
   string ticket        = 2;
   int64  expires_at_ms = 3;
 }
@@ -703,7 +795,7 @@ message IssueTravelTicketRequest {
 }
 
 message IssueTravelTicketResponse {
-  string refusal       = 1; // empty, or signed_in_elsewhere | revoked | no_route | unavailable
+  string refusal       = 1; // empty, or signed_in_elsewhere | revoked | ended | no_route | unavailable
   string ticket        = 2;
   int64  expires_at_ms = 3;
 }
@@ -715,7 +807,9 @@ message AcquirePlayerSessionRequest {
 }
 
 message AcquirePlayerSessionResponse {
-  string      refusal       = 1; // empty, or unknown | revoked
+  // Empty, or unknown | revoked | unavailable | saving (the session the
+  // account left still saves on another server: try again).
+  string      refusal       = 1;
   string      player_id     = 2; // the profile id
   uint64      epoch         = 3; // every write of this session carries it
   PlayerState state         = 4;
@@ -794,9 +888,120 @@ message CommitPlayerStateRequest {
 }
 
 message CommitPlayerStateResponse {
-  string refusal   = 1; // empty, or stale_session | unknown | invalid
+  // Empty, or stale_session | unknown | invalid | integrity (the database
+  // refuses the write as it stands: a retry waits for an operator repair).
+  string refusal   = 1;
   bool   duplicate = 2; // this seq was already applied
   uint64 revision  = 3;
+}
+
+// A stack an account player dropped on the ground of a world.
+message WorldDrop {
+  string drop_id         = 1; // the id of the drop operation; list only
+  string map_code        = 2;
+  double x               = 3;
+  double y               = 4;
+  string item_id         = 5;
+  string ol_cid          = 6; // the definition the stack was granted with
+  uint32 quantity        = 7;
+  string owner_player_id = 8; // list only
+  int64  expires_at_ms   = 9; // list only
+  uint32 lifetime_ms     = 10; // commit only: how long it stays once the commit applies
+}
+
+// A market operation of one player. The market checks every field against
+// its records in the transaction of the state.
+message MarketOp {
+  string               market_code = 1;
+  reserved 2; // was scope — the market profile owns it
+  string               listing_id  = 3;  // cancel, buy, bid
+  uint32               revision    = 4;  // cancel, buy, bid: the revision the player saw
+  string               mode        = 5;  // list: fixed | auction
+  string               item_id     = 6;  // list, cancel, buy: the stack
+  string               ol_cid      = 7;
+  uint32               quantity    = 8;
+  uint32               price       = 9;  // list: the price or the opening bid; buy: the price; bid: the bid
+  uint32               hours       = 10; // list
+  uint32               sale_fee    = 11; // list: the sale fee the seller saw
+  string               seller_name = 12; // list
+  repeated string      claim_ids   = 13; // collect
+  uint32               coins       = 14; // collect: the coins of the claims
+  repeated PlayerStack stacks      = 15; // collect: the stacks of the claims
+  uint32               listing_fee = 16; // list: the listing fee the seller saw
+}
+
+message CommitPlayerStatesRequest {
+  string                            operation_id  = 1; // one id per operation; a retry repeats it
+  // trade | drop | pickup | market_list | market_cancel | market_buy |
+  // market_bid | market_collect
+  string                            kind          = 2;
+  repeated CommitPlayerStateRequest commits       = 3; // distinct players: two or more for a trade, one else
+  WorldDrop                         drop          = 4; // drop: the stack it puts on the ground
+  string                            claim_drop_id = 5; // pickup: the world drop it claims
+  MarketOp                          market        = 6; // market_*
+}
+
+message CommitPlayerStatesResponse {
+  // Empty, or stale_session | unknown | invalid | integrity. An operation
+  // refusal ends no session: drop_gone (the world drop a pickup claims is claimed, expired or
+  // unknown), listing_gone, listing_changed, bid_low, market_full, claim_gone,
+  // market_closed, market_changed (the fees the seller saw are not the fees of
+  // the profile), terms_refused (a mode, duration, price or bid outside the terms).
+  string refusal   = 1;
+  string player_id = 2; // the player a refusal names
+  bool   duplicate = 3; // the operation was already applied
+}
+
+message ListWorldDropsRequest {
+  string instance_code = 1;
+}
+
+message ListWorldDropsResponse {
+  repeated WorldDrop drops = 1;
+}
+
+message ListMarketRequest {
+  string instance_code = 1; // the world of the terminal
+  string market_code   = 2;
+  reserved 3; // was scope — the market profile owns it
+  string player_id     = 4; // the viewer
+  string item_id       = 5; // optional: listings of one item
+  string after         = 6; // the cursor of the page; empty: the first
+  string mode          = 7; // optional: listings of one mode
+}
+
+message MarketListing {
+  string listing_id  = 1;
+  uint32 revision    = 2;
+  string seller_name = 3;
+  string item_id     = 4;
+  string ol_cid      = 5;
+  uint32 quantity    = 6;
+  string mode        = 7; // fixed | auction
+  uint32 price       = 8; // the fixed price, or the opening bid
+  uint32 bid         = 9; // the highest bid; 0: none
+  uint32 bids        = 10;
+  uint32 min_bid     = 11; // auction: the lowest bid it takes now
+  int64  ends_at_ms  = 12;
+  bool   mine        = 13; // the viewer sells it
+  bool   leading     = 14; // the viewer holds the highest bid
+}
+
+message MarketClaim {
+  string      claim_id    = 1;
+  string      reason      = 2; // sale | won | outbid | unsold
+  uint32      coins       = 3;
+  PlayerStack stack       = 4; // absent: coins only
+  string      market_code = 5; // the market that owes it
+}
+
+message ListMarketResponse {
+  repeated MarketListing listings  = 1; // soonest end first
+  string                 next      = 2; // the cursor of the next page; empty: the last
+  repeated MarketListing mine      = 3; // the open listings of the viewer in this market
+  repeated MarketClaim   claims    = 4; // the pending claims of the viewer
+  string                 scope_key = 5; // the market of this world; empty: none
+  uint64                 revision  = 6; // the profile revision
 }
 
 message SessionCheckpoint {
@@ -805,6 +1010,17 @@ message SessionCheckpoint {
   uint64         epoch      = 3;
   string         map_code   = 4; // presence
   PlayerPosition position   = 5; // set only when it changed
+  SessionHealth  health     = 6;
+}
+
+// How far the engine holds the state of one session, as its server sees it.
+message SessionHealth {
+  string durability  = 1; // saved | saving | degraded | recovery
+  bool   closing     = 2; // the session ended; its final state is on its way
+  uint64 seq         = 3; // the newest captured state
+  uint64 durable_seq = 4; // the newest state the engine applied
+  uint32 unsaved_ms  = 5; // age of the oldest change not applied; 0 when saved
+  string failure     = 6; // empty, or transport | integrity | rejected
 }
 
 message CheckpointPlayerSessionsRequest {
@@ -815,7 +1031,7 @@ message CheckpointPlayerSessionsRequest {
 
 message EndedSession {
   string player_id = 1;
-  string reason    = 2; // signed_in_elsewhere | revoked
+  string reason    = 2; // signed_in_elsewhere | revoked | ended (by an operator)
 }
 
 message CheckpointPlayerSessionsResponse {

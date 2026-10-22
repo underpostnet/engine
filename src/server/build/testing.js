@@ -368,27 +368,37 @@ const TEST_PROJECTS = [
     directory: 'test/cyberia/integration',
     groupOrder: 9,
     sources: [
+      'src/api/cyberia-action/cyberia-action.service.js',
       'src/api/cyberia-game-session/cyberia-game-session.model.js',
       'src/api/cyberia-game-ticket/cyberia-game-ticket.model.js',
       'src/api/cyberia-game-ticket/cyberia-game-ticket.service.js',
-      'src/api/cyberia-player/cyberia-player.model.js',
+      'src/api/cyberia-player/*.js',
+      'src/api/cyberia-player-audit/*.js',
       'src/api/cyberia-quest-progress/cyberia-quest-progress.model.js',
       'src/api/cyberia-server-registry/*.js',
       'src/api/cyberia-social-profile/*.js',
       'src/api/cyberia-social/*.js',
       'src/api/cyberia-universe/*.js',
+      'src/api/cyberia-market/*.js',
+      'src/api/cyberia-market-claim/cyberia-market-claim.model.js',
+      'src/api/cyberia-market-listing/cyberia-market-listing.model.js',
+      'src/api/cyberia-world-drop/cyberia-world-drop.model.js',
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/served-databases.js',
       'src/grpc/cyberia/grpc-server.js',
       'src/projects/cyberia/content/content-artifact.js',
       'src/projects/cyberia/content/content-release.js',
+      'src/projects/cyberia/economy/market-profile.js',
+      'src/projects/cyberia/economy/terminal-diagnostics.js',
       'src/projects/cyberia/player/*.js',
       'src/projects/cyberia/procedural/engine.js',
       'src/projects/cyberia/procedural/jobs/*.js',
       'src/projects/cyberia/procedural/source.js',
       'src/projects/cyberia/procedural/spec.js',
+      'src/projects/cyberia/runtime/runtime-indexes.js',
       'test/support/mongod.js',
+      'test/support/player-sessions.js',
       'test/support/valkey-memory.js',
     ],
     // Every content-release test does real database round trips: a release build copies ten collections.
@@ -398,10 +408,13 @@ const TEST_PROJECTS = [
       'promote, roll back, prune, restart, concurrent promotion, runtime isolation and one data source ' +
       'for every role — the content ' +
       'artifact materialization and saga import, the Procedural Engine — the two generation modes, jobs, the background worker, ' +
-      'leases, human review and promotion — accounts, launch tickets, gameplay leases, universe profiles across worlds, ' +
-      'player state commits, friendships and status notes over the player gRPC service, the server registry ' +
+      'leases, human review and promotion — accounts, launch tickets, gameplay leases and their handover, universe ' +
+      'profiles across worlds, player state commits, the runtime index sync, the operator view of ' +
+      'profiles and sessions, friendships and status notes over the player gRPC service, market profiles, ' +
+      'terminals, listings and settlement, the server registry ' +
       'and universes — the product CLI, the audio seed and the map ' +
-      'preview refresh. The database suites need a mongod binary (UNDERPOST_MONGOD_BIN or PATH), the content suites ' +
+      'preview refresh, and the Market, Universe and Player Studio editors in a browser. The database suites need a mongod ' +
+      'binary (UNDERPOST_MONGOD_BIN or PATH), the browser suites Playwright and UNDERPOST_BROWSER_BIN, the content suites ' +
       'a built cyberia-content artifact (CYBERIA_CONTENT_ROOT or ./cyberia-content); each skips without its ' +
       'requirement.',
   },

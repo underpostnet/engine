@@ -6,11 +6,36 @@ import { hintsCache } from '../cyberia-client-hints/cyberia-client-hints.service
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
   fillInstanceConfDefaults,
-  resolveEconomyRules,
   resolveProgressionRules,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
+import { activeEconomy, universeWalletDefect } from '../../projects/cyberia/economy/economy-policy.js';
 
 const logger = loggerFactory(import.meta);
+
+const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+/**
+ * Checks the economy a conf write names: an active profile whose wallet is the wallet of the other
+ * worlds of its universe.
+ * @throws {Error} 404 for an unknown profile, 409 for a retired one or a different wallet.
+ */
+const assertConfEconomy = async (instanceCode, economyCode, options) => {
+  const models = {
+    CyberiaEconomy: DataBaseProviderService.getModel('CyberiaEconomy', options),
+    CyberiaInstanceConf: DataBaseProviderService.getModel('CyberiaInstanceConf', options),
+  };
+  await activeEconomy(models, economyCode);
+  const universe = await DataBaseProviderService.getModel('CyberiaUniverse', options)
+    .findOne({ 'instances.instanceCode': instanceCode }, { instances: 1 })
+    .lean();
+  if (!universe) return;
+  const defect = await universeWalletDefect(
+    models,
+    universe.instances.map((member) => member.instanceCode),
+    { confs: { [instanceCode]: economyCode } },
+  );
+  if (defect) throw httpError(409, `Universe wallet: ${defect}`);
+};
 
 const readPath = (object, path) => path.split('.').reduce((node, key) => (node == null ? undefined : node[key]), object);
 
@@ -81,11 +106,12 @@ class CyberiaInstanceConfService {
 
   static post = async (req, res, options) => {
     if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
-    if (Object.hasOwn(req.body, 'economyRules')) req.body.economyRules = resolveEconomyRules(req.body.economyRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
-    const conf = await new CyberiaInstanceConf(req.body).save();
+    const conf = new CyberiaInstanceConf(req.body);
+    await assertConfEconomy(conf.instanceCode, conf.economyCode, options);
+    await conf.save();
     await CacheService.invalidate(hintsCache(options));
     return conf;
   };
@@ -108,10 +134,14 @@ class CyberiaInstanceConfService {
   };
   static put = async (req, res, options) => {
     if (Object.hasOwn(req.body, 'progressionRules')) req.body.progressionRules = resolveProgressionRules(req.body.progressionRules);
-    if (Object.hasOwn(req.body, 'economyRules')) req.body.economyRules = resolveEconomyRules(req.body.economyRules);
     /** @type {import('./cyberia-instance-conf.model.js').CyberiaInstanceConfModel} */
     const CyberiaInstanceConf =
       DataBaseProviderService.getModel("CyberiaInstanceConf", options);
+    if (Object.hasOwn(req.body, 'economyCode')) {
+      const stored = await CyberiaInstanceConf.findById(req.params.id, { instanceCode: 1 }).lean();
+      if (!stored) throw httpError(404, 'conf not found');
+      await assertConfEconomy(stored.instanceCode, req.body.economyCode, options);
+    }
     const conf = await CyberiaInstanceConf.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
     await CacheService.invalidate(hintsCache(options));
     return conf;

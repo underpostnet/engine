@@ -19,7 +19,9 @@ import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.serv
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
+import { CyberiaEconomyModel } from '../../../src/api/cyberia-economy/cyberia-economy.model.js';
 import { toObjectLayerMsg, toEntityMsg, toInstanceConfig } from '../../../src/projects/cyberia/instance-data.js';
+import { defaultEconomySnapshot } from '../../../src/projects/cyberia/economy/economy-policy.js';
 import {
   generateStatContract,
   hasCyberiaSiblings,
@@ -114,7 +116,7 @@ describe('Cyberia signed stat contract', () => {
 
   it('resolves economy rules within bounds and keeps an explicit zero', async () => {
     expect(resolveEconomyRules({ coinKillPercentVsPlayer: 0 }).coinKillPercentVsPlayer).toBe(0);
-    expect(toInstanceConfig({ economyRules: { coinKillPercentVsPlayer: 0 } }, []).economyRules.coinKillPercentVsPlayer).toBe(0);
+    expect(toInstanceConfig({}, []).economyRules).toEqual(defaultEconomySnapshot());
     for (const input of [
       { coinKillPercentVsBot: 1.5 },
       { coinKillPercentVsPlayer: -0.1 },
@@ -122,11 +124,12 @@ describe('Cyberia signed stat contract', () => {
       { botSpawnCoins: 2.5 },
       { coinKillMinAmount: -1 },
       { playerSpawnCoins: '50' },
+      { unknown: 1 },
       null,
     ])
       expect(() => resolveEconomyRules(input)).toThrow();
     await expect(
-      new CyberiaInstanceConfModel({ instanceCode: 'test', economyRules: { coinKillPercentVsBot: 2 } }).validate(),
+      new CyberiaEconomyModel({ code: 'test', rules: { coinKillPercentVsBot: 2 } }).validate(),
     ).rejects.toThrow();
   });
 

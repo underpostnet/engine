@@ -415,8 +415,10 @@ export const isCanonicalAudioLogicId = (logicEventId) =>
  *
  * `selectable: false` marks behaviors the runtime assigns itself
  * (projectiles, coin drops) — they are not author-assignable to a default.
+ * `immortal` marks behaviors whose entities take no combat damage
+ * (`BehaviorIsImmortal` on the server).
  *
- * @type {ReadonlyArray<{id:string,label:string,description:string,entityType:string,selectable:boolean}>}
+ * @type {ReadonlyArray<{id:string,label:string,description:string,entityType:string,selectable:boolean,immortal?:boolean}>}
  */
 export const ENTITY_BEHAVIORS = Object.freeze([
   Object.freeze({
@@ -439,6 +441,7 @@ export const ENTITY_BEHAVIORS = Object.freeze([
     description: 'Mission/action giver: barely moves from its spawn (sporadic short steps) and is immortal.',
     entityType: ENTITY_TYPES.bot,
     selectable: true,
+    immortal: true,
   }),
   Object.freeze({
     id: 'provider-static',
@@ -446,6 +449,7 @@ export const ENTITY_BEHAVIORS = Object.freeze([
     description: 'Like provider but completely immobile, and immortal.',
     entityType: ENTITY_TYPES.bot,
     selectable: true,
+    immortal: true,
   }),
   Object.freeze({
     id: 'destructible',
@@ -491,6 +495,9 @@ export const ENTITY_BEHAVIOR_VALUES = Object.freeze(ENTITY_BEHAVIORS.map((b) => 
 
 /** Author-assignable behaviors (the subset the entity-default editor offers). */
 export const SELECTABLE_ENTITY_BEHAVIORS = Object.freeze(ENTITY_BEHAVIORS.filter((b) => b.selectable));
+
+/** True when an entity of `behavior` ignores combat damage, so no player can kill it. */
+export const isImmortalBehavior = (behavior) => ENTITY_BEHAVIORS.some((b) => b.id === behavior && b.immortal);
 
 /** True when `behavior` is a known canonical entity behavior. */
 export const isCanonicalEntityBehavior = (behavior) => ENTITY_BEHAVIOR_VALUES.includes(behavior);
@@ -546,6 +553,10 @@ export const PARTY_INVITES_MAX = 5;
 // A party member shares a bot kill when its centre is this many cells or less from the centre of the bot.
 export const PARTY_XP_SHARE_RADIUS = 10;
 export const CHAT_TEXT_MAX_RUNES = 160;
+// The bag stacks one side of a trade offers at most.
+export const TRADE_OFFER_MAX_STACKS = 8;
+// The most cells between the centre of a player and the cell it drops a stack on.
+export const ITEM_DROP_REACH = 4;
 // Chat emoji: a line writes `:<name>:` and the client draws the ui-icon `emoji-<name>` in its place.
 export const CHAT_EMOJI = Object.freeze(['smile', 'laugh', 'wink', 'cool', 'sad', 'angry', 'heart', 'thumbsup']);
 export const STAT_CONTRACT_VERSION = 2;

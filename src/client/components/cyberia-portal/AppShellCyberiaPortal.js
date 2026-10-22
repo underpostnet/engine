@@ -23,6 +23,9 @@ import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 import { UniverseEngineCyberia } from '../cyberia/UniverseEngineCyberia.js';
+import { EconomyEngineCyberia } from '../cyberia/EconomyEngineCyberia.js';
+import { MarketEngineCyberia } from '../cyberia/MarketEngineCyberia.js';
+import { PlayerCyberiaManager } from '../cyberia/PlayerCyberiaManager.js';
 import { InstanceSelectionView } from '../cyberia/InstanceSelectionView.js';
 import { gameClientUrl } from '../cyberia/GameLaunchCyberia.js';
 import { DEFAULT_INSTANCE_CODE } from '../cyberia/SharedDefaultsCyberia.js';
@@ -72,6 +75,14 @@ class AppShellCyberiaPortal {
         observer: true,
         html: async () => await InstanceEngineCyberia.render({ appStore }),
       }),
+      'cyberia-economy-engine': () => ({
+        observer: true,
+        html: async () => await EconomyEngineCyberia.render({ appStore }),
+      }),
+      'cyberia-market-engine': () => ({
+        observer: true,
+        html: async () => await MarketEngineCyberia.render({ appStore }),
+      }),
       'cyberia-action-engine': () => ({
         observer: true,
         html: async () => await ActionEngineCyberia.render({ appStore }),
@@ -83,6 +94,10 @@ class AppShellCyberiaPortal {
       'cyberia-item-catalog': () => ({
         observer: true,
         html: async () => await ItemCatalogCyberia.render({ appStore }),
+      }),
+      'cyberia-player-manager': () => ({
+        observer: true,
+        html: async () => await PlayerCyberiaManager.render({ appStore }),
       }),
     };
     const navigation = {

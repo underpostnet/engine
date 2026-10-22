@@ -30,9 +30,10 @@ import {
   findBoundDefinition,
   publishItemDefinition,
 } from '../catalog/object-layer-catalog.js';
+import { readEconomy, replaceEconomy } from '../economy/economy-policy.js';
 
 /** The artifact layout and document shapes this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 5;
+export const CONTENT_SCHEMA_VERSION = 8;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what
@@ -46,7 +47,9 @@ export const CONTENT_FAMILIES = Object.freeze({
   maps: 'maps',
   quests: 'quests',
   dialogues: 'dialogues',
+  markets: 'markets',
   actions: 'actions',
+  economies: 'economies',
 });
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -499,7 +502,8 @@ const FAMILY_STORES = Object.freeze({
   maps: { model: 'CyberiaMap', key: ({ code }) => ({ code }), revised: true },
   quests: { model: 'CyberiaQuest', key: ({ code }) => ({ code }), content: withoutPlacement },
   dialogues: { model: 'CyberiaDialogue', key: ([{ code }]) => ({ code }) },
-  actions: { model: 'CyberiaAction', key: ({ code }) => ({ code }), content: withoutPlacement },
+  markets: { model: 'CyberiaMarket', key: ({ code }) => ({ code }), revised: true },
+  actions: { model: 'CyberiaAction', key: ({ code }) => ({ code }), content: withoutPlacement, revised: true },
 });
 
 /** The documents of a family as the store keeps them: dialogue lines grouped by code. */
@@ -531,6 +535,12 @@ export async function planContent({ families, models }) {
       documents[family].push({ doc, status });
     }
   }
+  // An economy is one profile with its item rows, stored apart and compared whole.
+  documents.economies = [];
+  for (const doc of families.economies) {
+    const stored = await readEconomy(models, doc.code);
+    documents.economies.push({ doc, status: !stored ? 'absent' : holdsContent(stored, doc) ? 'in-sync' : 'differs' });
+  }
   return {
     objectLayers: await planMaterialization({ items: families.objectLayers, models: catalogOf(models) }),
     documents,
@@ -539,7 +549,7 @@ export async function planContent({ families, models }) {
 
 /**
  * Imports compiled families in dependency order: Object Layer items and their catalog bindings,
- * entity-type defaults, skills, maps, quests, dialogues, then actions. It inserts what is absent,
+ * entity-type defaults, skills, maps, quests, dialogues, markets, actions, then economies with their item rows. It inserts what is absent,
  * and with `rebind` moves differing labels and documents to the artifact. Studio's work stays: an
  * item keeps its render, a quest or action its source, and a map its entities. Idempotent.
  * @param {Object} params
@@ -574,6 +584,12 @@ export async function importContent({ families, models, context, rebind = false 
       else await Model.updateOne(key(doc), { $set: content(doc), ...(revised ? { $inc: { revision: 1 } } : {}) });
       written[family]++;
     }
+  }
+  written.economies = 0;
+  for (const { doc, status } of plan.documents.economies) {
+    if (status === 'in-sync' || (status === 'differs' && !rebind)) continue;
+    await replaceEconomy(models, doc);
+    written.economies++;
   }
   const entityTypeDefaultIds = [];
   for (const row of families.entityTypeDefaults)

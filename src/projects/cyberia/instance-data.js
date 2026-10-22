@@ -23,15 +23,17 @@ import {
 } from '../../api/cyberia-instance/cyberia-instance-items.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { resolveMapOwner } from './instance/map-registry.js';
+import { playerSpawnConfig } from './instance/entry-spawn.js';
 import { domainOrigin } from '../../server/domain/domain-client.js';
 import { resolveLedgerBindings } from '../../server/domain/object-layer-resolver.js';
 import { findAllBoundDefinitions, findBoundDefinition, findBoundDefinitions } from './catalog/object-layer-catalog.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
-  resolveEconomyRules,
   resolveProgressionRules,
   resolveEntityInventory,
 } from '../../api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { compileEconomySnapshot, confEconomyCode, defaultEconomySnapshot } from './economy/economy-policy.js';
+import { worldMarkets } from './economy/market-profile.js';
 import {
   skillSummonedItemId,
   validateStats,
@@ -295,12 +297,7 @@ function toInstanceMsg(doc) {
     })),
     topologyMode: doc.topologyMode || 'hybrid',
     seed: doc.seed || '',
-    playerSpawn: {
-      sourceMapCode: doc.playerSpawn?.sourceMapCode || '',
-      sourceCellX: doc.playerSpawn?.sourceCellX || 0,
-      sourceCellY: doc.playerSpawn?.sourceCellY || 0,
-      random: !!doc.playerSpawn?.random,
-    },
+    playerSpawn: playerSpawnConfig(doc),
   };
 }
 
@@ -328,8 +325,17 @@ function toActionMsg(a) {
       outputItems: (r.outputItems || []).map(toCraftItemMsg),
       ingredients: (r.ingredients || []).map(toCraftItemMsg),
       craftTimeMs: r.craftTimeMs ?? 0,
+      ...(Number.isInteger(r.fee) ? { fee: r.fee } : {}),
     })),
     storageSlots: a.storageSlots ?? 0,
+    buybackItems: a.buybackItems || [],
+    burnItems: a.burnItems || [],
+    market: {
+      marketCode: a.market?.marketCode || '',
+      selection: a.market?.selection || 'policy',
+      itemIds: a.market?.itemIds || [],
+      listingModes: a.market?.listingModes || [],
+    },
   };
 }
 
@@ -403,7 +409,8 @@ function toInstanceConfig(gc, baseline) {
     maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
-    economyRules: resolveEconomyRules(gc.economyRules ?? {}),
+    // Filled in by the caller with the snapshot of the economy the conf names.
+    economyRules: defaultEconomySnapshot(),
     lifeRegenChance: chanceOf(gc.lifeRegenChance, fb.lifeRegenChance),
     maxChance: chanceOf(gc.maxChance, fb.maxChance),
     entityDefaults,
@@ -437,7 +444,8 @@ function toInstanceConfig(gc, baseline) {
  * Used when the requested instance does not exist in the database.
  */
 function buildFallbackConfig() {
-  return JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
+  const { economyCode, ...config } = JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
+  return { ...config, economyRules: defaultEconomySnapshot() };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -611,20 +619,52 @@ async function loadWorld(models, instanceCode) {
     owned,
   );
   for (const summoned of collectSummonedItemIds(skillDocs)) itemIds.add(summoned);
-  return { inst, conf, mapDocs, entityDefaultDocs, entityDefaultsConfig, actionDocs, questDocs, skillDocs, itemIds };
+
+  // The economy the world runs. What a burn of a world item salvages is an item the world grants.
+  const economy = await compileEconomySnapshot(models, confEconomyCode(conf));
+  for (const policy of economy.itemPolicies)
+    if (policy.burn && itemIds.has(policy.itemId)) for (const { itemId } of policy.salvage) itemIds.add(itemId);
+  return {
+    inst,
+    conf,
+    mapDocs,
+    entityDefaultDocs,
+    entityDefaultsConfig,
+    actionDocs,
+    questDocs,
+    skillDocs,
+    itemIds,
+    economy,
+  };
 }
 
 /**
  * Full world-load payload for one instance (RPC: getFullInstance):
- * `{ instance, maps, objectLayers, config, version, actions, quests, releaseId }`.
+ * `{ instance, maps, objectLayers, config, version, actions, quests, releaseId, markets }`.
+ * @param {object} models - Instance models, see {@link getInstanceModels}.
+ * @param {string} instanceCode
+ * @param {{host: string, path: string}|string} context - The host the models belong to.
  * @throws {Error} When no CyberiaInstance holds that code.
  */
-async function fetchFullInstance(models, instanceCode) {
-  const { inst, conf, mapDocs, entityDefaultDocs, entityDefaultsConfig, actionDocs, questDocs, skillDocs, itemIds } =
-    await loadWorld(models, instanceCode);
+async function fetchFullInstance(models, instanceCode, context) {
+  const {
+    inst,
+    conf,
+    mapDocs,
+    entityDefaultDocs,
+    entityDefaultsConfig,
+    actionDocs,
+    questDocs,
+    skillDocs,
+    itemIds,
+    economy,
+  } = await loadWorld(models, instanceCode);
 
   // The catalog is the one authority for the definition each item runs.
   const olDocs = await findBoundDefinitions(models, [...itemIds]);
+  const actions = actionDocs.map(toActionMsg);
+  const quests = questDocs.map(toQuestMsg);
+  const markets = await worldMarkets(instanceCode, actionDocs, context);
 
   // Opaque version over what the simulation reads. The server compares it to
   // skip a full world rebuild when nothing changed; a layout edit changes nothing here.
@@ -639,6 +679,9 @@ async function fetchFullInstance(models, instanceCode) {
   for (const ed of entityDefaultDocs) versionParts.push(String(ed.updatedAt || ed._id));
   // A bind, a rebind or an unbind of an item the world names rebuilds the world.
   versionParts.push(...olDocs.map((doc) => `${doc.data?.item?.id}=${doc.cid}`).sort());
+  // So does an economy write, or a rebind of an item the economy names, and an edit of a terminal,
+  // a quest or a market profile.
+  versionParts.push(JSON.stringify(economy), JSON.stringify(actions), JSON.stringify(quests), JSON.stringify(markets));
   const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
   const baseConfig = toInstanceConfig(conf);
@@ -652,6 +695,7 @@ async function fetchFullInstance(models, instanceCode) {
   // The wire still carries a skillConfig; nothing stores one. It is exactly the skills selected
   // above, so what the simulation runs and what the export writes come from one decision.
   baseConfig.skillConfig = skillDocsToConfig(skillDocs);
+  baseConfig.economyRules = economy;
 
   return {
     instance: toInstanceMsg(inst),
@@ -659,9 +703,10 @@ async function fetchFullInstance(models, instanceCode) {
     objectLayers: await toObjectLayerMsgs(models, olDocs),
     config: baseConfig,
     version,
-    actions: actionDocs.map(toActionMsg),
-    quests: questDocs.map(toQuestMsg),
+    actions,
+    quests,
     releaseId: servedContentArtifact().releaseId,
+    markets,
   };
 }
 
@@ -680,8 +725,8 @@ const buildInstanceEnv = ({ deployId, instance, environment, env }) => ({
  * Every ObjectLayer item id one instance runs on, as stored documents.
  *
  * Reads the world the same way the runtime does, so a tool never disagrees with the
- * simulation about what a world owns. Ids the instance names but the collection does not
- * hold are absent, because {@link fetchFullInstance} resolves the set against ObjectLayer.
+ * simulation about what a world owns. Ids the instance names but the catalog binds to no stored
+ * definition are absent, as in {@link fetchFullInstance}.
  *
  * @param {object} models - Instance models, see {@link getInstanceModels}.
  * @param {string} instanceCode - Instance code, must exist.
@@ -689,8 +734,9 @@ const buildInstanceEnv = ({ deployId, instance, environment, env }) => ({
  * @throws {Error} When no CyberiaInstance holds that code.
  */
 async function fetchInstanceObjectLayerItemIds(models, instanceCode) {
-  const { objectLayers } = await fetchFullInstance(models, instanceCode);
-  return [...new Set(objectLayers.map((objectLayer) => objectLayer?.item?.id).filter(Boolean))];
+  const { itemIds } = await loadWorld(models, instanceCode);
+  const olDocs = await findBoundDefinitions(models, [...itemIds]);
+  return [...new Set(olDocs.map((doc) => doc?.data?.item?.id).filter(Boolean))];
 }
 
 export {

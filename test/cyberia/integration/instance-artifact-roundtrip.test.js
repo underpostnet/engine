@@ -110,6 +110,10 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())(
 
       const source = contentArtifact().instanceDir(CODE);
       expect(fs.readJsonSync(path.join(out, 'cyberia-instance.json')).code).toBe(CODE);
+      // The world names the foundation economy: the import stored it, and the export carries it.
+      const economy = fs.readJsonSync(path.join(out, 'cyberia-economy.json'));
+      expect(economy.code).toBe(fs.readJsonSync(path.join(out, 'cyberia-instance-conf.json')).economyCode);
+      expect(economy).toMatchObject(contentArtifact().foundation.economies.find(({ code }) => code === economy.code));
       for (const directory of ['maps', 'object-layers', 'cyberia-quests', 'cyberia-actions', 'cyberia-dialogues'])
         expect(jsonFiles(path.join(out, directory)), directory).toEqual(jsonFiles(path.join(source, directory)));
 

@@ -482,11 +482,12 @@ const collection = (seed = []) => {
     }),
     create: async (doc) => add(doc),
     insertMany: async (list) => list.forEach(add),
-    updateOne: async (filter, { $set }) =>
-      Object.assign(
-        docs.find((doc) => matches(doc, filter)),
-        structuredClone($set),
-      ),
+    updateOne: async (filter, { $set }, { upsert } = {}) => {
+      const found = docs.find((doc) => matches(doc, filter));
+      if (found) Object.assign(found, structuredClone($set));
+      else if (upsert) add({ ...filter, ...$set });
+    },
+    db: { startSession: async () => ({ withTransaction: async (work) => await work(), endSession: async () => {} }) },
     deleteMany: async (filter) => {
       for (let index = docs.length - 1; index >= 0; index--) if (matches(docs[index], filter)) docs.splice(index, 1);
     },
@@ -534,6 +535,21 @@ const FAMILIES = {
     { code: 'default-anon', order: 0, speaker: 'Anon', text: 'Hello.', mood: 'happy' },
     { code: 'default-anon', order: 1, speaker: 'Anon', text: 'Bye.', mood: 'neutral' },
   ],
+  markets: [
+    {
+      code: 'bazaar',
+      name: 'Bazaar',
+      description: 'The market.',
+      status: 'active',
+      scope: 'universe',
+      currencyCode: 'coin',
+      modes: ['fixed', 'auction'],
+      hours: [1, 12, 48],
+      auction: { raisePercent: 5, minRaise: 1 },
+      fees: { listing: 0, sale: 0 },
+      limits: { priceMin: 1, priceMax: 1000000000, listingsPerPlayer: 20 },
+    },
+  ],
   actions: [
     {
       code: 'post',
@@ -546,6 +562,36 @@ const FAMILIES = {
       shopItems: [{ itemId: 'pistol', priceItemId: 'coin', priceQty: 4 }],
       craftRecipes: [],
       storageSlots: 0,
+      buybackItems: ['pistol'],
+      burnItems: [],
+      market: { marketCode: 'bazaar', selection: 'policy', itemIds: [], listingModes: ['fixed'] },
+    },
+  ],
+  economies: [
+    {
+      code: 'standard',
+      name: 'Standard',
+      description: 'The economy.',
+      currency: { code: 'coin', maxBalance: 4294967295 },
+      rules: {
+        botSpawnCoins: 50,
+        playerSpawnCoins: 50,
+        coinKillPercentVsBot: 0.4,
+        coinKillPercentVsPlayer: 0.15,
+        coinKillMinAmount: 10,
+        respawnCostPercent: 0,
+      },
+      fees: { portal: 0, craft: 0 },
+      itemDefaults: {
+        trade: true,
+        worldDrop: true,
+        buyback: false,
+        buybackPayout: 0,
+        burn: false,
+        burnCoinFee: 0,
+        craftSurcharge: 0,
+      },
+      items: [{ itemId: 'pistol', buyback: true, buybackPayout: 5 }],
     },
   ],
 };
@@ -560,7 +606,10 @@ const contentStore = (seed = {}) => {
     CyberiaMap: collection(seed.maps),
     CyberiaQuest: collection(seed.quests),
     CyberiaDialogue: collection(seed.dialogues),
+    CyberiaMarket: collection(seed.markets),
     CyberiaAction: collection(seed.actions),
+    CyberiaEconomy: collection(seed.economies),
+    CyberiaEconomicItemPolicy: collection(seed.economicItemPolicies),
   };
 };
 const statuses = (plan) =>
@@ -579,8 +628,19 @@ describe('content import', () => {
       maps: 1,
       quests: 1,
       dialogues: 1,
+      markets: 1,
       actions: 1,
+      economies: 1,
     });
+    expect(models.CyberiaMarket.docs[0]).toMatchObject({
+      code: 'bazaar',
+      scope: 'universe',
+      modes: ['fixed', 'auction'],
+    });
+    expect(models.CyberiaEconomy.docs[0]).toMatchObject({ code: 'standard', revision: 1, status: 'active' });
+    expect(models.CyberiaEconomicItemPolicy.docs).toEqual([
+      expect.objectContaining({ economyCode: 'standard', itemId: 'pistol', buybackPayout: 5 }),
+    ]);
     expect(models.CyberiaDialogue.docs.map(({ order }) => order)).toEqual([0, 1]);
     expect(first.entityTypeDefaultIds).toEqual([models.CyberiaEntityTypeDefault.docs[0]._id]);
 

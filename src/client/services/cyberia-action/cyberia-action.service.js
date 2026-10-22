@@ -87,5 +87,23 @@ class CyberiaActionService {
           return reject(error);
         }),
     );
+  /** What the economy capabilities of an action do in each world of its map. */
+  static diagnostics = (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/diagnostics`, endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
 }
 export { CyberiaActionService };

@@ -24,6 +24,8 @@ const buildModels = ({ instance, maps = [], storedItemIds = [] }) => ({
   CyberiaItemCatalog: {
     resolve: async (ids) => new Map(ids.filter((id) => storedItemIds.includes(id)).map((id) => [id, `cid-${id}`])),
   },
+  CyberiaEconomy: { findOne: () => lean({ code: 'standard', revision: 1, status: 'active' }) },
+  CyberiaEconomicItemPolicy: { find: () => ({ sort: () => lean([]) }) },
 });
 
 describe('instance object layer item ids', () => {

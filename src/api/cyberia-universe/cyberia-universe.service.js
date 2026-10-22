@@ -21,6 +21,8 @@ import {
 } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { liveEndpoints } from '../cyberia-server-registry/cyberia-server-registry.service.js';
 import { worldPreviewSize } from '../../projects/cyberia/instance/world-preview.js';
+import { entrySpawn } from '../../projects/cyberia/instance/entry-spawn.js';
+import { universeWalletDefect } from '../../projects/cyberia/economy/economy-policy.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
@@ -52,8 +54,9 @@ const universeDefect = ({ code, instances, links }) => {
 
 /**
  * Checks a topology and the members it adds: each one exists in the served content and belongs to
- * no other universe.
- * @throws {Error} 400 on a defect, 404 on an unknown instance, 409 on an instance of another universe.
+ * no other universe, and every member holds one wallet, since the universe shares one profile.
+ * @throws {Error} 400 on a defect, 404 on an unknown instance, 409 on an instance of another universe
+ *   or on members of different wallets.
  */
 const assertTopology = async (universe, previous, options) => {
   const defect = universeDefect(universe);
@@ -73,6 +76,11 @@ const assertTopology = async (universe, previous, options) => {
     const shared = other.instances.find(({ instanceCode }) => codes.includes(instanceCode)).instanceCode;
     throw httpError(409, `Instance ${shared} belongs to universe ${other.code}`);
   }
+  const wallet = await universeWalletDefect(
+    { CyberiaInstanceConf: model('CyberiaInstanceConf', options), CyberiaEconomy: model('CyberiaEconomy', options) },
+    codes,
+  );
+  if (wallet) throw httpError(409, `Universe wallet: ${wallet}`);
 };
 
 /** The stored shape of a topology. @throws {Error} 400 when the members or the links are not lists. */
@@ -99,8 +107,8 @@ const pictureUrl = (picture) => (picture ? `${apiPathOf()}/${picture.endpoint}/$
 
 /**
  * The universe with what each member is now: its content name, its preview with the size of its card
- * (`w`, `h`, its longest side 1), the thumbnail its author set, whether the served content holds it,
- * and the best live endpoint of its world.
+ * (`w`, `h`, its longest side 1), the thumbnail its author set, its entry spawn, whether the served
+ * content holds it, and the best live endpoint of its world.
  * @param {Object} universe - Lean `CyberiaUniverse`.
  * @param {object} options Router options (host/path context).
  */
@@ -110,7 +118,7 @@ const universeView = async (universe, options) => {
     model('CyberiaInstance', options)
       .find(
         { code: { $in: codes } },
-        { code: 1, name: 1, description: 1, thumbnail: 1, cyberiaMapCodes: 1, mapLayout: 1 },
+        { code: 1, name: 1, description: 1, thumbnail: 1, cyberiaMapCodes: 1, mapLayout: 1, playerSpawn: 1 },
       )
       .lean(),
     liveEndpoints(options, { instanceCodes: codes }),
@@ -118,7 +126,7 @@ const universeView = async (universe, options) => {
   const maps = await model('CyberiaMap', options)
     .find(
       { code: { $in: instances.flatMap(({ cyberiaMapCodes }) => cyberiaMapCodes ?? []) } },
-      { code: 1, gridX: 1, gridY: 1, worldX: 1, worldY: 1 },
+      { code: 1, name: 1, gridX: 1, gridY: 1, worldX: 1, worldY: 1 },
     )
     .lean();
   const contentOf = new Map(instances.map((instance) => [instance.code, instance]));
@@ -146,6 +154,7 @@ const universeView = async (universe, options) => {
         ...(content ? worldPreviewSize(content, maps) : { w: 1, h: 1 }),
         previewUrl: pictureUrl(content && worldPreviewPicture(instanceCode)),
         thumbnailUrl: pictureUrl(content?.thumbnail && worldPicture(content)),
+        ...(content && { entrySpawn: entrySpawn(content, maps) }),
         served: !!content,
         status: endpoint?.status ?? 'offline',
         url: endpoint?.url ?? '',

@@ -1,4 +1,9 @@
 import { Schema, model } from 'mongoose';
+import {
+  MARKET_MODES,
+  MARKET_SELECTIONS,
+  OPERATION_FEE_LIMITS,
+} from '../cyberia-server-defaults/cyberia-server-defaults.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -6,7 +11,8 @@ const CyberiaActionSchema = new Schema(
   {
     // Spatial origin: the cell whose matching bot entity provides this action.
     // An action has NO type — its capabilities are whatever payloads are
-    // populated (questDialogueCodes / shopItems / craftRecipes / storageSlots),
+    // populated (questDialogueCodes / shopItems / craftRecipes / storageSlots /
+    // buybackItems / burnItems / market),
     // resolved per player. The quest-provider capability is active when there
     // are CyberiaQuests bound to this same (sourceMapCode, sourceCellX,
     // sourceCellY).
@@ -62,11 +68,30 @@ const CyberiaActionSchema = new Schema(
           },
         ],
         craftTimeMs: { type: Number, default: 0, min: 0 },
+        // Coins the assembly charges. Unset, the economy decides: off-chain-economy.md#craft-fee.
+        fee: { type: Number, min: 0, max: OPERATION_FEE_LIMITS.craft[1], validate: Number.isInteger },
       },
     ],
 
     // ── Storage payload (type="storage") ──────────────────────────────────
     storageSlots: { type: Number, default: 0, min: 0 },
+
+    // ── Economy capabilities ──────────────────────────────────────────────
+    // The items this merchant buys back and this terminal burns. The item policy of the economy
+    // must allow the operation too: a list never grants what the policy refuses.
+    buybackItems: { type: [{ type: String, trim: true }], default: [] },
+    burnItems: { type: [{ type: String, trim: true }], default: [] },
+    // The market profile this terminal opens; an empty code opens none. `selection` names what a
+    // seller lists here: every item whose policy allows `market`, or the `itemIds`. `listingModes`
+    // are the modes a seller lists in here. Off-chain-economy.md#market.
+    market: {
+      marketCode: { type: String, trim: true, default: '' },
+      selection: { type: String, enum: MARKET_SELECTIONS, default: 'policy' },
+      itemIds: { type: [{ type: String, trim: true }], default: [] },
+      listingModes: { type: [{ type: String, enum: MARKET_MODES }], default: () => [...MARKET_MODES] },
+    },
+    // Each write raises it; a save names the revision it read.
+    revision: { type: Number, default: 1, min: 1 },
   },
   { timestamps: true },
 );

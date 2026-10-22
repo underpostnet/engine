@@ -292,4 +292,20 @@ describe.skipIf(!fs.existsSync(new URL('conf.server.json', confDir)))('dd-cyberi
     const confClient = JSON.parse(fs.readFileSync(new URL('conf.client.json', confDir), 'utf8'));
     expect(validateDomainConf({ confServer, confClient })).toEqual([]);
   });
+
+  it('lists every service a listed component imports', () => {
+    const confClient = JSON.parse(fs.readFileSync(new URL('conf.client.json', confDir), 'utf8'));
+    const unlisted = [];
+    for (const [clientId, client] of Object.entries(confClient))
+      for (const [module, names] of Object.entries(client.components ?? {}))
+        for (const name of names) {
+          const file = new URL(`../../../src/client/components/${module}/${name}.js`, import.meta.url);
+          for (const [, service] of fs
+            .readFileSync(file, 'utf8')
+            .matchAll(/^import[^;]*?from '(?:\.\.\/)+services\/([\w-]+)\//gm))
+            if (!(client.services ?? []).includes(service))
+              unlisted.push(`${clientId}: ${module}/${name} imports ${service}`);
+        }
+    expect(unlisted).toEqual([]);
+  });
 });

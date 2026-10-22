@@ -21,6 +21,8 @@ import {
 import { CyberiaServerRegistryRouter } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.router.js';
 import { CyberiaUniverseService, routeLeads } from '../../../src/api/cyberia-universe/cyberia-universe.service.js';
 import { CyberiaInstanceService } from '../../../src/api/cyberia-instance/cyberia-instance.service.js';
+import { CyberiaEconomyService } from '../../../src/api/cyberia-economy/cyberia-economy.service.js';
+import { CyberiaEconomicItemPolicyService } from '../../../src/api/cyberia-economic-item-policy/cyberia-economic-item-policy.service.js';
 import { SERVER_API_KEY_HEADER } from '../../../src/projects/cyberia/runtime/server-key.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
@@ -30,6 +32,10 @@ const APIS = [
   'file',
   'cyberia-map',
   'cyberia-instance',
+  'cyberia-instance-conf',
+  'cyberia-economy',
+  'cyberia-economic-item-policy',
+  'cyberia-item-catalog',
   'cyberia-universe',
   'cyberia-server-registry',
   'cyberia-global-map-code-registry',
@@ -85,12 +91,31 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
     for (const name of ['CyberiaUniverse', 'CyberiaServerRegistry', 'CyberiaInstance']) await model(name).syncIndexes();
     await model('CyberiaMap').create([
       { code: 'm1', gridX: 32, gridY: 16 },
-      { code: 'm2', gridX: 32, gridY: 16 },
+      { code: 'm2', name: 'East Gate', gridX: 32, gridY: 16 },
     ]);
     await model('CyberiaInstance').create([
-      { code: 'root', name: 'Root World', creator: moderator._id, cyberiaMapCodes: ['m1', 'm2'], thumbnail },
+      {
+        code: 'root',
+        name: 'Root World',
+        creator: moderator._id,
+        cyberiaMapCodes: ['m1', 'm2'],
+        thumbnail,
+        playerSpawn: { sourceMapCode: 'm2', sourceCellX: 5, sourceCellY: 6 },
+      },
       { code: 'test', name: 'Test World', creator: moderator._id },
       { code: 'island', creator: moderator._id },
+      { code: 'frontier', creator: moderator._id },
+    ]);
+    // Every world runs the standard economy but two: test charges a portal fee with the same wallet, so
+    // it shares a universe with root; frontier caps its wallet lower, so it shares none.
+    await model('CyberiaEconomy').create([
+      { code: 'standard' },
+      { code: 'tolls', fees: { portal: 5 } },
+      { code: 'frontier', currency: { maxBalance: 1000 } },
+    ]);
+    await model('CyberiaInstanceConf').collection.insertMany([
+      { instanceCode: 'test', economyCode: 'tolls' },
+      { instanceCode: 'frontier', economyCode: 'frontier' },
     ]);
   });
 
@@ -296,6 +321,15 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
           ],
         }),
       ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        universes.create({
+          code: 'mixed',
+          instances: [
+            { instanceCode: 'island', x: 0, y: 0 },
+            { instanceCode: 'frontier', x: 1, y: 0 },
+          ],
+        }),
+      ).rejects.toMatchObject({ status: 409, message: expect.stringContaining('hold different wallets') });
     });
 
     it('keeps the cells after a reload and refuses a stale save, a code change or a stranger', async () => {
@@ -338,6 +372,7 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
           build: '',
           previewUrl: expect.stringMatching(/\/cyberia-instance\/instance-map\/root\/world-preview$/),
           thumbnailUrl: expect.stringMatching(new RegExp(`/file/blob/${thumbnail}$`)),
+          entrySpawn: { mode: 'fixed', mapCode: 'm2', mapName: 'East Gate', cellX: 5, cellY: 6 },
           // Two wide maps side by side, inside their outline: the card is about four times as wide as it is tall.
           w: 1,
           h: expect.closeTo(132 / 516, 6),
@@ -349,6 +384,7 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
           status: 'offline',
           url: '',
           thumbnailUrl: '',
+          entrySpawn: { mode: 'random' },
           w: 1,
           h: 1,
         }),
@@ -387,6 +423,45 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
       expect(after.instances.map((m) => m.instanceCode)).toEqual(['root', 'test']);
       expect(after.links).toHaveLength(1);
       expect(after.revision).toBe(current.revision + 2);
+    });
+  });
+
+  describe('economy editor', () => {
+    const GEL_CID = 'bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab';
+    const economies = {
+      view: (code) => CyberiaEconomyService.view(request(null, {}, { id: code }), {}, CONTEXT),
+      clone: (code, body) => CyberiaEconomyService.clone(request(moderator, body, { id: code }), {}, CONTEXT),
+    };
+    const rows = {
+      post: (body) => CyberiaEconomicItemPolicyService.post(request(moderator, body), {}, CONTEXT),
+      view: (economyCode) =>
+        CyberiaEconomicItemPolicyService.view({ ...request(null), query: { economyCode, limit: 10 } }, {}, CONTEXT),
+    };
+
+    it('names the worlds that run an economy and the wallet of each of their universes', async () => {
+      const view = await economies.view('tolls');
+      expect(view).toMatchObject({ worlds: ['test'], itemCount: 0, economy: { code: 'tolls', fees: { portal: 5 } } });
+      expect(view.universes).toEqual([{ code: 'cyberia', worlds: ['root', 'test'], defect: '' }]);
+      await expect(economies.view('nowhere')).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('shows each item row with the definition the catalog binds and the policy it runs', async () => {
+      await model('CyberiaItemCatalog').create({ itemId: 'gel', objectLayerCid: GEL_CID });
+      await rows.post({ economyCode: 'tolls', itemId: 'gel', market: true, portalFee: 0 });
+      const { data, total } = await rows.view('tolls');
+      expect(total).toBe(1);
+      expect(data[0]).toMatchObject({ itemId: 'gel', objectLayerCid: GEL_CID });
+      expect(data[0].effective).toMatchObject({ trade: true, market: true, portalFee: 0, buyback: false });
+      await expect(rows.view('nowhere')).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('clones a profile with its item rows under a new code', async () => {
+      const copy = await economies.clone('tolls', { code: 'tolls-copy', name: 'Tolls copy' });
+      expect(copy).toMatchObject({ code: 'tolls-copy', name: 'Tolls copy', revision: 1, fees: { portal: 5 } });
+      expect((await economies.view('tolls-copy')).itemCount).toBe(1);
+      await expect(economies.clone('tolls', { code: 'tolls-copy' })).rejects.toMatchObject({ status: 409 });
+      await expect(economies.clone('tolls', { code: 'bad code' })).rejects.toMatchObject({ status: 400 });
+      await expect(economies.clone('nowhere', { code: 'x' })).rejects.toMatchObject({ status: 404 });
     });
   });
 

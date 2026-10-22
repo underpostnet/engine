@@ -62,6 +62,14 @@ class RouterCyberiaPortal {
         title: 'cyberia-instance-engine',
         render: () => s(`.main-btn-cyberia-instance-engine`).click(),
       },
+      '/cyberia-economy-engine': {
+        title: 'cyberia-economy-engine',
+        render: () => s(`.main-btn-cyberia-economy-engine`).click(),
+      },
+      '/cyberia-market-engine': {
+        title: 'cyberia-market-engine',
+        render: () => s(`.main-btn-cyberia-market-engine`).click(),
+      },
       '/cyberia-action-engine': {
         title: 'cyberia-action-engine',
         render: () => s(`.main-btn-cyberia-action-engine`).click(),
@@ -73,6 +81,10 @@ class RouterCyberiaPortal {
       '/cyberia-item-catalog': {
         title: 'cyberia-item-catalog',
         render: () => s(`.main-btn-cyberia-item-catalog`).click(),
+      },
+      '/cyberia-player-manager': {
+        title: 'cyberia-player-manager',
+        render: () => s(`.main-btn-cyberia-player-manager`).click(),
       },
       '/instance-selection': {
         title: 'instance-selection',

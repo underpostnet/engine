@@ -6,6 +6,11 @@
  * world, and the lease names the world the session plays. Each acquisition raises the epoch of the
  * profile, so a write of an older session is refused in every world of the universe.
  *
+ * A newer connection of the account waits while the session it replaces may still write on another
+ * server: a resume waits (`busy`), and an acquisition waits while that session closes (`saving`).
+ * The server of a session in `recovery` cannot save it, so a newer session fences it at once. On
+ * the same server the newer session adopts what the older one has not saved, so it never waits.
+ *
  * @module src/projects/cyberia/player/player-session.js
  * @namespace CyberiaPlayerSession
  */
@@ -19,6 +24,7 @@ import {
   ticketOfConnection,
 } from '../../../api/cyberia-game-ticket/cyberia-game-ticket.service.js';
 import { PLAYER_SCHEMA_VERSION } from '../../../api/cyberia-player/cyberia-player.model.js';
+import { SESSION_DURABILITY, SESSION_FAILURES } from '../../../api/cyberia-game-session/cyberia-game-session.model.js';
 import { routeLeads, universeCodeOf } from '../../../api/cyberia-universe/cyberia-universe.service.js';
 import { GuestService } from '../../../api/user/guest.service.js';
 import { loadState, writePositions } from './player-state.js';
@@ -46,29 +52,40 @@ const liveAccount = async (ticket, context) =>
     .lean();
 
 /**
- * Whether a resume ticket must wait: the session it continues still holds its lease, so its final
- * commit may not have landed. The ticket stays unconsumed for a later try.
+ * Whether a lease names a session on another server that may still write: it lives, and its server
+ * has not reported that the engine refuses its state.
+ * @param {Object|null} lease - Lean `CyberiaGameSession`.
+ * @param {string} serverId - The server of the newer connection.
+ * @param {Date} now
+ * @returns {boolean}
  */
-const resumeWaits = async (ticket, connectionId, context) => {
+const writesElsewhere = (lease, serverId, now) =>
+  !!lease && lease.serverId !== serverId && lease.expiresAt > now && lease.health?.durability !== 'recovery';
+
+/**
+ * Whether a resume ticket must wait: the session it continues may still write on another server,
+ * so its final commit may not have landed. The ticket stays unconsumed for a later try.
+ */
+const resumeWaits = async (ticket, serverId, context) => {
   const pending = await findGameTicket(ticket, context);
-  return (
-    typeof pending?.epoch === 'number' &&
-    !pending.consumedAt &&
-    !!(await model('CyberiaGameSession', context).exists({ user: pending.user, expiresAt: { $gt: new Date() } }))
-  );
+  if (typeof pending?.epoch !== 'number' || pending.consumedAt) return false;
+  const lease = await model('CyberiaGameSession', context)
+    .findOne({ user: pending.user }, { serverId: 1, expiresAt: 1, 'health.durability': 1 })
+    .lean();
+  return writesElsewhere(lease, serverId, new Date());
 };
 
 /**
  * Consumes a launch ticket and names its principal: an account with its name, or a guest, which
  * the game server names and never persists. A resume ticket waits (`busy`) while the session it
- * continues still holds its lease.
- * @param {{ticket: string, instanceCode: string, connectionId: string}} request
+ * continues may still write on another server.
+ * @param {{ticket: string, instanceCode: string, connectionId: string, serverId: string}} request
  * @param {{host: string, path: string}} context
  * @returns {Promise<{refusal: string, principal?: string, accountId?: string, displayName?: string}>}
  * @memberof CyberiaPlayerSession
  */
-const consumeLaunch = async ({ ticket, instanceCode, connectionId }, context) => {
-  if (await resumeWaits(ticket, connectionId, context)) return { refusal: 'busy' };
+const consumeLaunch = async ({ ticket, instanceCode, connectionId, serverId }, context) => {
+  if (await resumeWaits(ticket, serverId, context)) return { refusal: 'busy' };
   const consumed = await consumeGameTicket({ ticket, instanceCode, connection: connectionId }, context);
   if (consumed.refusal) return { refusal: consumed.refusal };
   if (consumed.principal === 'guest')
@@ -96,7 +113,8 @@ const consumeLaunch = async ({ ticket, instanceCode, connectionId }, context) =>
  * session ended, gets a refusal instead.
  * @param {{playerId: string, accountId: string, epoch: number, instanceCode: string}} request
  * @param {{host: string, path: string}} context
- * @returns {Promise<{refusal: string, lease?: Object}>}
+ * @returns {Promise<{refusal: string, lease?: Object}>} `refusal` also names `ended` for a session an
+ *   operator ended.
  */
 const liveLease = async ({ playerId, accountId, epoch, instanceCode }, context) => {
   if (!mongoose.isValidObjectId(accountId) || !mongoose.isValidObjectId(playerId)) return { refusal: 'revoked' };
@@ -108,6 +126,7 @@ const liveLease = async ({ playerId, accountId, epoch, instanceCode }, context) 
     lease.instanceCode !== instanceCode
   )
     return { refusal: 'signed_in_elsewhere' };
+  if (lease.endedBy) return { refusal: 'ended' };
   if (!(await liveAccount({ user: accountId, session: lease.accountSession }, context))) return { refusal: 'revoked' };
   return { refusal: '', lease };
 };
@@ -159,9 +178,11 @@ const issueTravel = async ({ targetCode, ...request }, context) => {
 /**
  * Makes the connection of a consumed ticket the writer of its profile in the universe of the
  * ticket's world, and loads the saved state of that world. A retry of the same connection keeps the
- * epoch it got. A world outside every universe has no profile to play.
+ * epoch it got. A world outside every universe has no profile to play. While the session the
+ * account left closes on another server and may still save, the acquisition answers `saving`.
  * @param {{connectionId: string, instanceCode: string, serverId: string}} request
  * @param {{host: string, path: string}|string} context
+ * @returns {Promise<{refusal: string, playerId?: string, epoch?: number, state?: Object, created?: boolean, leaseSeconds?: number}>}
  * @memberof CyberiaPlayerSession
  */
 const acquireSession = async ({ connectionId, instanceCode, serverId }, context) => {
@@ -179,13 +200,20 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
   const session = await Player.db.startSession();
   try {
     let player;
+    let saving = false;
     await session.withTransaction(async () => {
       const now = new Date();
       const current = await GameSession.findOne({ user: ticket.user }, null, { session }).lean();
-      if (current?.connection === connectionId) {
+      if (current?.connection === connectionId && !current.endedBy) {
         player = await Player.findById(current.player, null, { session }).lean();
         return;
       }
+      saving = writesElsewhere(current, serverId, now) && !!current.health?.closing;
+      if (saving) return;
+      if (current?.health?.durability === 'recovery' && current.expiresAt > now)
+        logger.warn(
+          `Session of account ${ticket.user} on ${current.serverId} cannot save seq ${current.health.seq}: the new session fences it`,
+        );
       const profile = await Player.findOneAndUpdate(
         { user: ticket.user, universeCode },
         {
@@ -218,11 +246,14 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
             mapCode: '',
             startedAt: now,
             expiresAt: leaseEnd(now),
+            health: { at: null },
+            endedBy: null,
           },
         },
         { upsert: true, session },
       );
     });
+    if (saving) return { refusal: 'saving' };
     return {
       refusal: '',
       playerId: String(player._id),
@@ -236,10 +267,22 @@ const acquireSession = async ({ connectionId, instanceCode, serverId }, context)
   }
 };
 
+/** The health a checkpoint reports for a session, bounded to the vocabulary of the lease. */
+const healthOf = (health, now) => ({
+  durability: SESSION_DURABILITY.includes(health?.durability) ? health.durability : 'saved',
+  closing: !!health?.closing,
+  seq: Number(health?.seq) || 0,
+  durableSeq: Number(health?.durableSeq) || 0,
+  unsavedMs: Number(health?.unsavedMs) || 0,
+  failure: SESSION_FAILURES.includes(health?.failure) ? health.failure : '',
+  at: now,
+});
+
 /**
- * Renews the leases of one server and writes their dirty positions. A session whose lease another
- * connection took, or whose account session ended, comes back in `ended`.
- * @param {{sessions: {playerId: string, accountId: string, epoch: number, mapCode: string, position?: Object}[]}} request
+ * Renews the leases of one server, stores the health each one reports and writes their dirty
+ * positions. A session whose lease another connection took, whose account session ended, or that
+ * an operator ended comes back in `ended`.
+ * @param {{sessions: {playerId: string, accountId: string, epoch: number, mapCode: string, position?: Object, health?: Object}[]}} request
  * @param {{host: string, path: string}|string} context
  * @returns {Promise<{ended: {playerId: string, reason: string}[]}>}
  * @memberof CyberiaPlayerSession
@@ -272,14 +315,20 @@ const checkpointSessions = async ({ sessions = [] }, context) => {
       ended.push({ playerId: entry.playerId, reason: 'signed_in_elsewhere' });
       continue;
     }
+    if (lease.endedBy) {
+      ended.push({ playerId: entry.playerId, reason: 'ended' });
+      continue;
+    }
     if (!accountSessionsOf.get(entry.accountId)?.has(String(lease.accountSession))) {
       ended.push({ playerId: entry.playerId, reason: 'revoked' });
       continue;
     }
     renewals.push({
       updateOne: {
-        filter: { _id: lease._id, player: lease.player, epoch: lease.epoch },
-        update: { $set: { expiresAt: leaseEnd(now), mapCode: String(entry.mapCode ?? '') } },
+        filter: { _id: lease._id, player: lease.player, epoch: lease.epoch, endedBy: null },
+        update: {
+          $set: { expiresAt: leaseEnd(now), mapCode: String(entry.mapCode ?? ''), health: healthOf(entry.health, now) },
+        },
       },
     });
     if (entry.position?.mapCode) positions.push({ ...entry, instanceCode: lease.instanceCode });

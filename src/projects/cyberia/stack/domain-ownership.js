@@ -32,12 +32,18 @@ export const DOMAIN_APIS = Object.freeze({
 });
 
 /**
- * Cyberia records of accounts and their players: the universes that scope the profiles, profiles,
- * sessions, tickets, social links and profiles, quest progress.
+ * Cyberia records of accounts and their players: the universes that scope the profiles, profiles
+ * and the operator trail of their sessions, the joint operations, the stacks dropped in a world,
+ * market listings and claims, sessions, tickets, social links and profiles, quest progress.
  */
 export const CYBERIA_PLAYER_APIS = Object.freeze([
   'cyberia-universe',
   'cyberia-player',
+  'cyberia-player-audit',
+  'cyberia-economy-operation',
+  'cyberia-world-drop',
+  'cyberia-market-listing',
+  'cyberia-market-claim',
   'cyberia-game-session',
   'cyberia-game-ticket',
   'cyberia-social',

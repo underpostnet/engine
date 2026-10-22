@@ -26,6 +26,7 @@ import {
   itemTypesOf,
 } from '../../../src/projects/cyberia/instance-data.js';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { defaultEconomySnapshot } from '../../../src/projects/cyberia/economy/economy-policy.js';
 import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
 import {
   RESPAWN_DURATION_MS_DEFAULT,
@@ -67,6 +68,14 @@ const catalog = (definitions = [], onFind = () => {}) => {
     },
   };
 };
+
+// One active economy profile with its item rows.
+const economyStore = (items = [], { code = 'standard', revision = 1, status = 'active' } = {}) => ({
+  CyberiaEconomy: { findOne: ({ code: wanted }) => lean(wanted === code ? { code, revision, status } : null) },
+  CyberiaEconomicItemPolicy: {
+    find: () => ({ sort: () => lean(items.map((row) => ({ economyCode: code, ...row }))) }),
+  },
+});
 
 describe('instance models', () => {
   it('names the context when no database provider was loaded for it', () => {
@@ -185,16 +194,16 @@ describe('wire converters', () => {
 });
 
 describe('instance config', () => {
-  it('is the canonical defaults for a world without a conf', () => {
+  it('is the canonical defaults for a world without a conf, on the default economy snapshot', () => {
+    const { economyCode, ...defaults } = CYBERIA_INSTANCE_CONF_DEFAULTS;
     expect(toInstanceConfig(null)).toEqual(buildFallbackConfig());
-    expect(buildFallbackConfig()).toEqual(CYBERIA_INSTANCE_CONF_DEFAULTS);
-    expect(buildFallbackConfig()).not.toBe(CYBERIA_INSTANCE_CONF_DEFAULTS);
+    expect(buildFallbackConfig()).toEqual({ ...defaults, economyRules: defaultEconomySnapshot() });
+    expect(defaultEconomySnapshot()).toMatchObject({ code: '', revision: 0, maxBalance: 0xffffffff, itemPolicies: [] });
   });
 
   it.skipIf(!contentBuilt)('keeps every field a conf sets and fills the rest from the defaults', () => {
     const config = toInstanceConfig({
       tickRate: 5,
-      economyRules: { coinKillMinAmount: 9 },
       skillRules: { projectileWidth: 3, doppelgangerSpawnChance: 0.2 },
       equipmentRules: { requireSkin: false },
       lifeRegenChance: 7,
@@ -202,7 +211,7 @@ describe('instance config', () => {
     const fb = CYBERIA_INSTANCE_CONF_DEFAULTS;
     expect(config.tickRate).toBe(5);
     expect(config.aoiRadius).toBe(fb.aoiRadius);
-    expect(config.economyRules).toEqual({ ...fb.economyRules, coinKillMinAmount: 9 });
+    expect(config.economyRules).toEqual(defaultEconomySnapshot());
     expect(config.skillRules).toEqual({ ...fb.skillRules, projectileWidth: 3, doppelgangerSpawnChance: 0.2 });
     expect(config.equipmentRules).toEqual({ ...fb.equipmentRules, requireSkin: false });
     expect(config.lifeRegenChance).toBe(fb.lifeRegenChance);
@@ -411,6 +420,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       CyberiaQuest: { find: () => lean([{ code: 'q1', sourceMapCode: 'forest-1' }]) },
       CyberiaSkill: { find: () => lean([]) },
       ...catalog(['atlas-pistol-mk2', 'hatchet', 'pulse-round'].map((id) => ol(id))),
+      ...economyStore(),
     };
     const world = await fetchFullInstance(models, 'FOREST');
     expect(world.instance.code).toBe('FOREST');
@@ -440,6 +450,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       CyberiaQuest: { find: () => lean([]) },
       CyberiaSkill: { find: () => lean([]) },
       ...catalog(definitions),
+      ...economyStore(),
     });
     const version = async (definitions) => (await fetchFullInstance(world(definitions), 'FOREST')).version;
     const bound = await version([ol('hatchet', 'weapon')]);
@@ -469,6 +480,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       },
       CyberiaSkill: { find: () => lean([]) },
       ...store,
+      ...economyStore(),
     };
     const world = await fetchFullInstance(models, 'FOREST');
     expect(world.objectLayers.map(({ cid }) => cid)).toEqual(['cid-hatchet']);
@@ -478,12 +490,51 @@ describe.skipIf(!contentBuilt)('full world load', () => {
     ]);
   });
 
+  // A world runs the economy its conf names: every item row resolved over the profile defaults and
+  // stamped with the definition its item is bound to; what a burn of a world item salvages joins the world.
+  it('compiles the economy the conf names against the catalog binding', async () => {
+    const models = (revision) => ({
+      CyberiaInstance: {
+        findOne: () =>
+          lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf: { _id: 'c1', economyCode: 'frontier' } }),
+      },
+      CyberiaMap: { find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [] }]) },
+      CyberiaEntityTypeDefault: { find: () => lean([]) },
+      CyberiaAction: {
+        find: () => lean([{ code: 'bench', sourceMapCode: 'forest-1', burnItems: ['hatchet'], buybackItems: ['log'] }]),
+      },
+      CyberiaQuest: { find: () => lean([]) },
+      CyberiaSkill: { find: () => lean([]) },
+      ...catalog([ol('hatchet', 'weapon'), ol('log', 'resource'), ol('scrap', 'resource')]),
+      ...economyStore(
+        [
+          { itemId: 'hatchet', burn: true, burnCoinFee: 2, salvage: [{ itemId: 'scrap', qty: 1 }] },
+          { itemId: 'log', buyback: true, buybackPayout: 3 },
+          { itemId: 'ghost', trade: false },
+        ],
+        { code: 'frontier', revision },
+      ),
+    });
+    const world = await fetchFullInstance(models(4), 'FOREST');
+    const economy = world.config.economyRules;
+    expect(economy).toMatchObject({ code: 'frontier', revision: 4, botSpawnCoins: 50, fees: { portal: 0, craft: 0 } });
+    expect(economy.itemPolicies.map(({ itemId, olCid }) => [itemId, olCid])).toEqual([
+      ['hatchet', 'cid-hatchet'],
+      ['log', 'cid-log'],
+    ]);
+    expect(economy.itemPolicies[0]).toMatchObject({ burn: true, burnCoinFee: 2, trade: true, salvage: [{ itemId: 'scrap', qty: 1 }] });
+    expect(world.actions[0]).toMatchObject({ burnItems: ['hatchet'], buybackItems: ['log'] });
+    expect(world.objectLayers.map(({ item }) => item.id).sort()).toEqual(['hatchet', 'log', 'scrap']);
+    expect((await fetchFullInstance(models(5), 'FOREST')).version).not.toBe(world.version);
+  });
+
   it('runs a world whose conf reference is gone on the foundation baseline', async () => {
     const models = {
       CyberiaInstance: { findOne: () => lean({ _id: 'i1', code: 'BARE', cyberiaMapCodes: [], conf: null }) },
       CyberiaInstanceConf: { findOne: () => lean(null) },
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       ...catalog([]),
+      ...economyStore(),
     };
     const world = await fetchFullInstance(models, 'BARE');
     expect(world.config.tickRate).toBe(CYBERIA_INSTANCE_CONF_DEFAULTS.tickRate);

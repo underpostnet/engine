@@ -34,6 +34,14 @@ class TranslateCyberiaPortal {
       en: 'Cyberia Instance Engine',
       es: 'Cyberia Instance Engine',
     };
+    Translate.Data['cyberia-economy-engine'] = {
+      en: 'Cyberia Economy Engine',
+      es: 'Cyberia Economy Engine',
+    };
+    Translate.Data['cyberia-market-engine'] = {
+      en: 'Cyberia Market Engine',
+      es: 'Cyberia Market Engine',
+    };
     Translate.Data['cyberia-action-engine'] = {
       en: 'Cyberia Action Engine',
       es: 'Cyberia Action Engine',
@@ -45,6 +53,10 @@ class TranslateCyberiaPortal {
     Translate.Data['cyberia-item-catalog'] = {
       en: 'Cyberia Item Catalog',
       es: 'Cyberia Item Catalog',
+    };
+    Translate.Data['cyberia-player-manager'] = {
+      en: 'Cyberia Player Manager',
+      es: 'Gestor de jugadores de Cyberia',
     };
     Translate.Data['instance-selection'] = {
       en: 'Select World',

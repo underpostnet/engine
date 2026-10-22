@@ -36,7 +36,7 @@ const CyberiaQuestSchema = new Schema(
         objectives: [
           {
             // collect — itemId = item that must appear in the player's inventory
-            // talk    — itemId = provideItemId of the CyberiaAction to interact with
+            // talk    — itemId = active skin item ID of the NPC to talk to
             // kill    — itemId = skin item ID of the target entity
             type: { type: String, required: true, enum: QUEST_STEPS_TYPES },
             itemId: { type: String, required: true, trim: true },

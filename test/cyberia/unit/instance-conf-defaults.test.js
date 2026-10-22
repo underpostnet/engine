@@ -28,7 +28,7 @@ const SCHEMA_FIELDS = [
   'maxActiveLayers',
   'initialLifeFraction',
   'collisionLifeLoss',
-  'economyRules',
+  'economyCode',
   'lifeRegenChance',
   'maxChance',
   'entityDefaults',
@@ -46,7 +46,7 @@ describe('fillInstanceConfDefaults', () => {
       expect(out[field], `null field: ${field}`).to.not.equal(null);
     }
     expect(out.tickRate).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.tickRate);
-    expect(out.economyRules).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules);
+    expect(out.economyCode).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyCode);
     expect(out.skillRules).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.skillRules);
     expect(out.equipmentRules).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.equipmentRules);
   });
@@ -69,20 +69,22 @@ describe('fillInstanceConfDefaults', () => {
     expect(out.aoiRadius).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.aoiRadius);
   });
 
-  it('backfills a missing nested sub-document (economyRules)', () => {
+  it('backfills a missing nested sub-document (skillRules)', () => {
     const out = fillInstanceConfDefaults({ tickRate: 60 });
-    expect(out.economyRules).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules);
+    expect(out.skillRules).to.deep.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.skillRules);
   });
 
   it('fills only the missing keys of a partial nested sub-document', () => {
     const out = fillInstanceConfDefaults({
-      economyRules: { botSpawnCoins: 999 },
+      skillRules: { projectileLifetimeMs: 999 },
     });
-    expect(out.economyRules.botSpawnCoins).to.equal(999);
-    expect(out.economyRules.playerSpawnCoins).to.equal(
-      CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules.playerSpawnCoins,
-    );
-    expect(out.economyRules.coinKillMinAmount).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.economyRules.coinKillMinAmount);
+    expect(out.skillRules.projectileLifetimeMs).to.equal(999);
+    expect(out.skillRules.projectileSpawnChance).to.equal(CYBERIA_INSTANCE_CONF_DEFAULTS.skillRules.projectileSpawnChance);
+  });
+
+  it('names the default economy for a conf that names none', () => {
+    expect(fillInstanceConfDefaults({}).economyCode).to.equal('standard');
+    expect(fillInstanceConfDefaults({ economyCode: 'frontier' }).economyCode).to.equal('frontier');
   });
 
   it('keeps a present non-empty array and does not merge defaults into it', () => {
@@ -124,7 +126,7 @@ describe('fillInstanceConfDefaults', () => {
   });
 
   it('does not mutate the input document', () => {
-    const input = { economyRules: { botSpawnCoins: 5 } };
+    const input = { skillRules: { projectileLifetimeMs: 5 } };
     const snapshot = JSON.parse(JSON.stringify(input));
     fillInstanceConfDefaults(input);
     expect(input).to.deep.equal(snapshot);
