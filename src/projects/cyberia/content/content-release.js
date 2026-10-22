@@ -11,10 +11,12 @@
  * @namespace CyberiaContentRelease
  */
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import canonicalize from 'canonicalize';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
-import { domainOrigin } from '../../../server/domain/domain-client.js';
+import { clearDomainCache, domainOrigin } from '../../../server/domain/domain-client.js';
 import { publishObjectLayer, resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
 import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
 import { isProfileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
@@ -122,6 +124,26 @@ export function releaseDbConf(db, releaseId) {
   };
 }
 
+/**
+ * The content a host backup holds: the dump of the database its active release served, or of the
+ * workspace when no release was active.
+ * @param {Object} params
+ * @param {Object[]} params.ledger - The release ledger the backup holds.
+ * @param {string} params.backupDir - One backup: a dump directory per database.
+ * @param {string} params.workspace - The workspace database name.
+ * @returns {{releaseId:string, database:string, dir:string}}
+ * @throws {Error} When the backup holds no dump of that database.
+ * @memberof CyberiaContentRelease
+ */
+export function backupContentDump({ ledger, backupDir, workspace }) {
+  const active = ledger.find((release) => release.status === 'active');
+  const database = active?.database ?? workspace;
+  const dir = path.join(backupDir, database);
+  if (!fs.existsSync(dir))
+    throw new Error(`${backupDir} holds no dump of ${database}: take a backup that dumps the partition databases`);
+  return { releaseId: active?.releaseId ?? '', database, dir };
+}
+
 const check = (name) => ({ name, ok: true, count: 0, findings: [] });
 
 /** Why a check against the Object Layer authority did not run. Only a development host skips. */
@@ -174,10 +196,11 @@ const identityDefect = (doc) => {
  * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
  * @param {{db:import('mongodb').Db, digest:string}} [params.artifact] - The release database and the
  *   content digest the release records; absent for the workspace.
+ * @param {boolean} [params.canonical=true] - Run the canonical check; content that is not published skips it.
  * @returns {Promise<{ok:boolean,checkedAt:Date,checks:Array<{name:string,ok:boolean,count:number,findings:string[]}>,manifest:Object,dependencies:string[]}>}
  * @memberof CyberiaContentRelease
  */
-export async function validateContentRelease(models, { options, resolveCanonical, artifact } = {}) {
+export async function validateContentRelease(models, { options, resolveCanonical, artifact, canonical = true } = {}) {
   const checks = [];
 
   const artifactCheck = check('artifact');
@@ -221,7 +244,9 @@ export async function validateContentRelease(models, { options, resolveCanonical
   const canonicalCheck = check('canonical');
   const authority = domainOrigin('object-layer');
   const resolve = resolveCanonical ?? (authority ? (cid) => resolveObjectLayer(cid, options) : null);
-  if (!resolve) {
+  if (!canonical) {
+    canonicalCheck.findings.push('skipped: the content is not published');
+  } else if (!resolve) {
     canonicalCheck.findings.push(`skipped: ${authoritySkipReason(options)}`);
   } else {
     canonicalCheck.count = boundCids.length;
@@ -330,7 +355,8 @@ export async function validateContentRelease(models, { options, resolveCanonical
       economyCheck.count++;
       const defect = itemPolicyDefect(row);
       if (defect) fail(economyCheck, `economy ${row.economyCode}: ${defect}`);
-      if (!economies.has(row.economyCode)) fail(economyCheck, `item policy ${row.itemId}: no economy ${row.economyCode}`);
+      if (!economies.has(row.economyCode))
+        fail(economyCheck, `item policy ${row.itemId}: no economy ${row.economyCode}`);
       for (const itemId of [row.itemId, ...(row.salvage ?? []).map((line) => line.itemId)])
         if (!bound.has(itemId)) fail(economyCheck, `economy ${row.economyCode}: label "${itemId}" is not bound`);
     }
@@ -387,11 +413,14 @@ const LIVE_CONTENT_APIS = Object.freeze([
   'cyberia-instance',
   'cyberia-instance-conf',
   'cyberia-map',
+  'cyberia-map-audio-conf',
+  'cyberia-audio',
   'cyberia-quest',
   'cyberia-action',
   'cyberia-dialogue',
   'cyberia-skill',
   'cyberia-entity-type-default',
+  'cyberia-saga',
   'cyberia-item-catalog',
   'cyberia-economy',
   'cyberia-economic-item-policy',
@@ -444,27 +473,33 @@ export async function liveChanges({ CyberiaContentRelease, connection }) {
 }
 
 /**
- * Stores every definition a release binds at the Object Layer authority, so the canonical pool
- * holds all the content the release will serve. Idempotent: the authority answers known content
- * with the identity it already has. A no-op when this deployment is the authority.
+ * Stores every definition a release binds that the Object Layer authority does not hold yet, so
+ * the canonical pool holds all the content the release will serve. Idempotent: a definition the
+ * authority holds with the same content is not sent again. A no-op when this deployment is the authority.
  * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`.
  * @param {Object} [params]
  * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host.
  * @param {(definition:Object)=>Promise<{cid:string,created:boolean}>} [params.publish] - Defaults to the domain publisher.
+ * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
  * @returns {Promise<{name:string,ok:boolean,count:number,findings:string[],created:number}>}
  * @memberof CyberiaContentRelease
  */
-export async function publishContentRelease(models, { options, publish } = {}) {
+export async function publishContentRelease(models, { options, publish, resolveCanonical } = {}) {
   const entry = { ...check('publication'), created: 0 };
-  const send = publish ?? (domainOrigin('object-layer') ? publishObjectLayer : null);
+  const authority = domainOrigin('object-layer');
+  const send = publish ?? (authority ? publishObjectLayer : null);
   if (!send) {
     entry.findings.push(`skipped: ${authoritySkipReason(options)}`);
     return entry;
   }
+  const resolve = resolveCanonical ?? (authority ? (cid) => resolveObjectLayer(cid, options) : async () => null);
   const cids = [...new Set(await models.CyberiaItemCatalog.distinct('objectLayerCid'))];
+  let sent = false;
   for (const doc of await models.ObjectLayer.find({ cid: { $in: cids } }).lean()) {
     entry.count++;
     try {
+      if ((await resolve(doc.cid))?.contentHash === doc.contentHash) continue;
+      sent = true;
       const stored = await send(doc);
       if (stored?.cid !== doc.cid) fail(entry, `${doc.cid}: the authority stored it as ${stored?.cid}`);
       else if (stored.created) entry.created++;
@@ -472,6 +507,8 @@ export async function publishContentRelease(models, { options, publish } = {}) {
       fail(entry, `${doc.cid}: ${error.message}`);
     }
   }
+  // The read cache keeps the absence a lookup saw; the canonical check reads the authority after the writes.
+  if (sent) clearDomainCache();
   return entry;
 }
 

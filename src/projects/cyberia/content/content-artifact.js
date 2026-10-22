@@ -89,6 +89,14 @@ export function contentSources() {
 }
 
 /**
+ * The source directory of one instance: where its export lands.
+ * @param {string} code - Instance code.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const instanceSourceDir = (code) => path.join(contentSources(), 'content', 'instances', code);
+
+/**
  * Whether the content root holds a built artifact. Callers that only run in a full workspace skip
  * without one, as they do without the other sibling checkouts.
  * @returns {boolean}

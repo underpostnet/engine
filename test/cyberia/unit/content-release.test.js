@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { Types } from 'mongoose';
 import { load } from 'js-yaml';
@@ -16,6 +18,7 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({ IpfsClient: {} }));
 vi.mock('../../../src/projects/cyberia/runtime/hot-reload-trigger.js', () => ({ triggerHotReload: vi.fn() }));
 
 const {
+  backupContentDump,
   beginContentRelease,
   contentPartitionOf,
   contentReleaseRowFactory,
@@ -243,6 +246,43 @@ describe('release identity', () => {
   });
 });
 
+describe('host backup content', () => {
+  let backupDir;
+  beforeEach(() => {
+    backupDir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'backup-content-'));
+    for (const database of ['cyberia-content', 'cyberia-content-r1', 'cyberia-content-r2'])
+      fs.mkdirSync(nodePath.join(backupDir, database));
+    return () => fs.rmSync(backupDir, { recursive: true, force: true });
+  });
+  const ledger = [
+    { releaseId: 'r1', status: 'retired', database: 'cyberia-content-r1' },
+    { releaseId: 'r2', status: 'active', database: 'cyberia-content-r2' },
+  ];
+
+  it('reads the dump of the database the active release served, by the name the ledger records', () => {
+    expect(backupContentDump({ ledger, backupDir, workspace: 'cyberia-content' })).toEqual({
+      releaseId: 'r2',
+      database: 'cyberia-content-r2',
+      dir: nodePath.join(backupDir, 'cyberia-content-r2'),
+    });
+  });
+
+  it('reads the workspace dump when no release was active', () => {
+    expect(backupContentDump({ ledger: ledger.slice(0, 1), backupDir, workspace: 'cyberia-content' })).toEqual({
+      releaseId: '',
+      database: 'cyberia-content',
+      dir: nodePath.join(backupDir, 'cyberia-content'),
+    });
+  });
+
+  it('refuses a backup that holds no dump of the served database', () => {
+    fs.rmSync(nodePath.join(backupDir, 'cyberia-content-r2'), { recursive: true });
+    expect(() => backupContentDump({ ledger, backupDir, workspace: 'cyberia-content' })).toThrow(
+      /holds no dump of cyberia-content-r2/,
+    );
+  });
+});
+
 describe('candidate validation', () => {
   it('passes a release whose every reference resolves', async () => {
     const { models, hatchet, sword } = content();
@@ -453,11 +493,17 @@ describe('candidate validation', () => {
     expect(consumer.checks.find((entry) => entry.name === 'canonical').findings).toEqual([
       'skipped: no Object Layer authority origin is configured',
     ]);
+    const resolve = vi.fn();
+    const unpublished = await validateContentRelease(models, { resolveCanonical: resolve, canonical: false });
+    expect(unpublished.checks.find((entry) => entry.name === 'canonical').findings).toEqual([
+      'skipped: the content is not published',
+    ]);
+    expect(resolve).not.toHaveBeenCalled();
   });
 });
 
 describe('publication to the Object Layer authority', () => {
-  it('stores every bound definition, once, and reports what was new', async () => {
+  it('stores only the bound definitions the authority does not hold, once, and reports what was new', async () => {
     const { models, hatchet, sword } = content();
     const pool = new Map([[hatchet.cid, hatchet]]);
     const sent = [];
@@ -467,20 +513,36 @@ describe('publication to the Object Layer authority', () => {
       pool.set(doc.cid, doc);
       return { cid: objectLayerIdentity(doc).cid, created };
     };
-    const first = await publishContentRelease(models, { publish });
+    const resolveCanonical = async (cid) => pool.get(cid) ?? null;
+    const first = await publishContentRelease(models, { publish, resolveCanonical });
     expect(first).toMatchObject({ name: 'publication', ok: true, count: 2, created: 1 });
-    const again = await publishContentRelease(models, { publish });
+    const again = await publishContentRelease(models, { publish, resolveCanonical });
     expect(again).toMatchObject({ ok: true, count: 2, created: 0 });
-    expect(sent.sort()).toEqual([hatchet.cid, hatchet.cid, sword.cid, sword.cid].sort());
+    expect(sent).toEqual([sword.cid]);
   });
 
   it('fails when the authority stores the content under another identity', async () => {
     const { models } = content();
     const result = await publishContentRelease(models, {
       publish: async () => ({ cid: 'bafkreiother', created: true }),
+      resolveCanonical: async () => null,
     });
     expect(result.ok).toBe(false);
     expect(result.findings[0]).toMatch(/the authority stored it as bafkreiother/);
+  });
+
+  it('fails on a lookup the authority cannot answer, and sends nothing for it', async () => {
+    const { models } = content();
+    const publish = vi.fn();
+    const result = await publishContentRelease(models, {
+      publish,
+      resolveCanonical: async () => {
+        throw new Error('The object-layer domain is unavailable');
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.findings[0]).toMatch(/domain is unavailable/);
+    expect(publish).not.toHaveBeenCalled();
   });
 });
 
@@ -882,7 +944,7 @@ describe('deploy pipeline', () => {
     const helper = script.slice(script.indexOf('content_release_skipped() {'), script.indexOf('# ── Stage D'));
     const candidate = script.slice(script.indexOf('stage_content_candidate() {'), script.indexOf('# ── Stage E'));
     const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Revert'));
-    const run = (discard) =>
+    const run = (discard, live = false) =>
       spawnSync(
         'bash',
         [
@@ -893,7 +955,7 @@ describe('deploy pipeline', () => {
           CYBERIA_SOURCE_CHANNEL=public CYBERIA_API_ORIGIN=https://api ENGINE_API_PATH=api/v1
           CYBERIA_SERVER_ORIGIN=https://server READINESS_TIMEOUT=1
           deploy_step() { shift; "$@"; }
-          content_release_job() { echo "job: $*"; }
+          content_release_job() { echo "job: $*"; ${live ? '[ "$1" != content-release-live-changes ]' : ':'}; }
           sudo() { :; }
           apply_release_secret() { :; }
           served_content_release() { echo v1; }
@@ -915,6 +977,11 @@ describe('deploy pipeline', () => {
       'job: content-release-live-changes engine:1 live-changes',
       'job: content-release-promote engine:1 promote v2',
     ]);
+    const stopped = run(0, true);
+    expect(stopped.status).toBe(1);
+    expect(stopped.stdout).not.toContain('content-release-promote');
+    expect(stopped.stderr).toContain('content-release export-live');
+    expect(stopped.stderr).toContain('DISCARD_LIVE_CHANGES=1');
     const discarded = run(1);
     expect(discarded.stdout).not.toContain('content-release-live-changes');
     expect(discarded.stdout).toContain('DISCARD_LIVE_CHANGES=1');

@@ -815,6 +815,16 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect(await changes()).toMatchObject({ known: true, changed: [] });
     });
 
+    it('counts a change to the audio of a world as a live change', async () => {
+      const { database } = await model('CyberiaContentRelease').active();
+      const store = connection().useDb(database, { useCache: true });
+      const CyberiaMapAudioConf = await MongooseDB.bindModel(store, 'cyberia-map-audio-conf');
+      const conf = await CyberiaMapAudioConf.create({ mapCode: 'forest-1' });
+      expect(await changes()).toMatchObject({ known: true, changed: ['cyberia-map-audio-conf'] });
+      await CyberiaMapAudioConf.deleteOne({ _id: conf._id });
+      expect(await changes()).toMatchObject({ known: true, changed: [] });
+    });
+
     it('refuses a change from a guest and a user, and lets a moderator and an admin change the active release', async () => {
       const map = { code: 'live-1', name: 'Live' };
       expect((await call(undefined, '', { method: 'POST', body: map })).status).toBe(401);

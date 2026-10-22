@@ -61,7 +61,7 @@ building ──▶ candidate ──validate──▶ validated ──promote─�
 | Contract  | In the Release Job, the repository's own `npm ci`, `npm test` and `npm pack` build a copy of the workspace, with no Secret                                                                                                    |
 | Verify    | The built artifact has the locked digest and revision                                                                                                                                                                         |
 | Ingest    | The release copy of the artifact is stored, then the foundation, the release sagas and each served world are imported into the release database: the release is a `candidate`. A failed foundation import imports no world    |
-| Validate  | Definitions are published to the Object Layer authority, then `artifact`, `catalog`, `canonical`, `labels`, `skills`, `render`, `instances`, `economy`, `schema`                                                              |
+| Validate  | Definitions the Object Layer authority does not hold are published to it, then `artifact`, `catalog`, `canonical`, `labels`, `skills`, `render`, `instances`, `economy`, `schema`                                             |
 | Promote   | One transaction retires the active release and activates the new one. A unique index allows one active release                                                                                                                |
 | Serve     | Each engine follows the ledger, reads the release copy of the artifact, rebinds the partition and hot-reloads the game servers ([Serving a release](#serving-a-release))                                                      |
 | Roll back | `cyberia content-release rollback` re-promotes the previous release                                                                                                                                                           |
@@ -153,7 +153,7 @@ release baseline + live authorized changes = current production state
 
 The next release replaces the baseline with the content of `cyberia-content`, and keeps no live
 change. A change that must outlive its release goes into `cyberia-content` on purpose:
-`cyberia instance <code> --export <dir> --release <id>` writes it out, and a commit makes it source.
+`cyberia content-release export-live` writes it out from a host backup, and a commit makes it source.
 An item binding is such a change: the export freezes the definition each item runs into the
 snapshot, and the next release restores it. Nothing writes Git on its own, and no release reads
 the previous database. See [Runtime binding](runtime-binding.md#releases). A rollback serves the previous release with the live changes it held

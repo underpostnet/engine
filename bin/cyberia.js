@@ -118,6 +118,7 @@ import {
   CONTENT_PARTITION,
   activateContentRelease,
   advanceContentRelease,
+  backupContentDump,
   beginContentRelease,
   contentFingerprint,
   contentReleaseRowFactory,
@@ -169,11 +170,11 @@ import {
   contentArtifact,
   contentLockEntry,
   contentRoot,
-  contentSources,
   deploymentRoot,
   entityTypeDefaultKey,
   importContent,
   importSaga,
+  instanceSourceDir,
   openContentArtifact,
   planContent,
   readBackupContent,
@@ -1570,9 +1571,7 @@ try {
 
         // Only a content source checkout takes an export by default; a packed artifact never does.
         const backupDir =
-          typeof options.export === 'string' && options.export
-            ? options.export
-            : nodePath.join(contentSources(), 'content', 'instances', instanceCode);
+          typeof options.export === 'string' && options.export ? options.export : instanceSourceDir(instanceCode);
 
         fs.ensureDirSync(backupDir);
         // The export is a projection of what this instance references, never an archive of
@@ -1645,16 +1644,21 @@ try {
           instanceConf = created?.toObject ? created.toObject() : created;
         }
         if (instanceConf) {
-          // `.lean()` skips the schema defaults and a document written before a bound tightened
-          // may carry a value the schema now rejects; the backup is made whole and valid here so
-          // it imports back as-is.
+          // `.lean()` skips the schema defaults, and a document an older schema wrote may carry a
+          // value the schema now rejects or a field it retired; the backup holds the conf whole,
+          // valid and declared only, so it imports back as-is.
           const economyCode = confEconomyCode(instanceConf);
           ({ conf: instanceConf } = await CyberiaInstanceConfService.coerceToSchema(instanceConf, CyberiaInstanceConf));
-          fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
+          fs.writeJsonSync(
+            `${backupDir}/cyberia-instance-conf.json`,
+            declaredDocument(CyberiaInstanceConf, instanceConf),
+            { spaces: 2 },
+          );
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
           if (!options.conf) {
             const economy = await readEconomy(economyModels, economyCode);
-            if (!economy) throw new Error(`Instance ${instanceCode} names economy ${economyCode}, which does not exist`);
+            if (!economy)
+              throw new Error(`Instance ${instanceCode} names economy ${economyCode}, which does not exist`);
             fs.writeJsonSync(`${backupDir}/cyberia-economy.json`, economy, { spaces: 2 });
             logger.info('Exported CyberiaEconomy', { economyCode, items: economy.items.length });
           }
@@ -4060,7 +4064,7 @@ try {
   };
 
   const exportHint = (releaseId) =>
-    `Export each changed world with \`cyberia instance <code> --export <dir> --release ${releaseId}\` and commit it to cyberia-content`;
+    `Export them from a host backup of ${releaseId} with \`cyberia content-release export-live\` and commit them to cyberia-content`;
 
   /**
    * Promotes a release. Live changes of the active release block it until they are exported, or
@@ -4299,6 +4303,114 @@ try {
     if (notice) logger.error(`${notice}. ${exportHint(release.releaseId)} before the next promotion`);
     else logger.info(release ? `Release ${release.releaseId} serves no live change` : 'No release is active');
     await endRelease(context, !notice);
+  });
+
+  /** The files of `to` against `from`, by relative path. */
+  const treeChanges = (from, to) => {
+    const files = (dir) =>
+      fs.existsSync(dir)
+        ? fs.readdirSync(dir, { recursive: true }).filter((file) => fs.statSync(nodePath.join(dir, file)).isFile())
+        : [];
+    const before = new Set(files(from));
+    const changes = { created: [], modified: [], removed: [], unchanged: 0 };
+    for (const file of files(to)) {
+      if (!before.delete(file)) changes.created.push(file);
+      else if (fs.readFileSync(nodePath.join(from, file)).equals(fs.readFileSync(nodePath.join(to, file))))
+        changes.unchanged++;
+      else changes.modified.push(file);
+    }
+    changes.removed.push(...before);
+    return changes;
+  };
+
+  releaseEnvOptions(
+    contentRelease
+      .command('export-live')
+      .option('--backup <dir>', 'One backup of this host, a timestamp folder (default: its latest backup)')
+      .option('--apply', 'Write the exported instances to cyberia-content')
+      .description(
+        'Export every world a host backup served into cyberia-content, read by the current models and completed ' +
+          'with the content the artifact adds. Import the same backup first: its Files are read from the host ' +
+          'database. Writes nothing without --apply',
+      ),
+  ).action(async (options = {}) => {
+    const { deployId, host, path } = resolveDeployDb(options);
+    const hostDir = Underpost.db.backupHostDir({ deployId, host, path });
+    const latest = Underpost.db._getLatestBackupTimestamp(hostDir);
+    const backupDir = options.backup || (latest ? nodePath.join(hostDir, latest) : '');
+    const stamp = nodePath.basename(backupDir);
+    if (!/^\d+$/.test(stamp)) {
+      logger.error(`No backup of ${host}${path}: run \`node bin db ${deployId} --import --git\`, or pass --backup`);
+      process.exit(1);
+    }
+    const stagingId = `capture-${stamp}`;
+    const context = await openReleases(options, stagingId);
+    const staging = releaseStore(context);
+    const exportDir = fs.mkdtempSync(nodePath.join(os.tmpdir(), `content-${stagingId}-`));
+    const run = artifactImportRunner(contentRoot(), options);
+    let ok = false;
+    try {
+      const hostDump = nodePath.join(backupDir, context.db.name);
+      if (!fs.existsSync(hostDump)) throw new Error(`${backupDir} holds no dump of ${context.db.name}`);
+      const ledger = Underpost.db.readDumpCollection(
+        hostDump,
+        context.models.CyberiaContentRelease.collection.collectionName,
+      );
+      const source = backupContentDump({ ledger, backupDir, workspace: context.workspaceDatabase });
+      logger.info(`Backup ${stamp} served ${source.releaseId || 'the workspace'} from ${source.database}`);
+      // The index builds of the bound models finish first, so none recreates a collection under the restore.
+      await Promise.all(Object.values(context.models).map((Model) => Model.init()));
+      await staging.dropDatabase();
+      logger.info(`Restored into ${context.releaseDatabase}`, await Underpost.db.restoreDump(staging, source.dir));
+      await run(`content import --release ${stagingId}`);
+      const validation = await validateContentRelease(context.models, {
+        options: { host: context.host, path: context.path, consumes: context.consumes },
+        canonical: false,
+      });
+      printChecks(validation);
+      if (!validation.ok) throw new Error('The content fails the current checks; nothing is exported');
+      const codes = (await context.models.CyberiaInstance.find({}, { code: 1 }).sort({ code: 1 }).lean()).map(
+        ({ code }) => code,
+      );
+      for (const code of codes)
+        await run(`instance ${code} --export ${nodePath.join(exportDir, code)} --release ${stagingId}`);
+      for (const code of codes) {
+        const changes = treeChanges(instanceSourceDir(code), nodePath.join(exportDir, code));
+        logger.info(
+          `${code}: ${changes.created.length} created, ${changes.modified.length} modified, ` +
+            `${changes.removed.length} removed, ${changes.unchanged} unchanged`,
+        );
+        // File paths are data, so they go to stdout plainly, never through the logger.
+        for (const [mark, files] of [
+          ['+', changes.created],
+          ['~', changes.modified],
+          ['-', changes.removed],
+        ])
+          for (const file of files) console.log(`${mark} ${code}/${file}`);
+      }
+      if (options.apply) {
+        const targets = codes.map(instanceSourceDir);
+        const dirty = shellExec(
+          `git -C ${shellArgumentFactory(contentRoot())} status --porcelain -- ${targets.map(shellArgumentFactory).join(' ')}`,
+          { stdout: true, silent: true },
+        ).trim();
+        if (dirty) throw new Error(`Commit or discard these changes before the export replaces them:\n${dirty}`);
+        for (const [index, code] of codes.entries()) {
+          fs.removeSync(targets[index]);
+          fs.copySync(nodePath.join(exportDir, code), targets[index]);
+        }
+        logger.info(`Wrote ${codes.join(', ')} to ${contentRoot()}: review the change with git diff`);
+      } else logger.info('Nothing written: pass --apply to write the exported instances to cyberia-content');
+      ok = true;
+    } catch (error) {
+      logger.error(error.message);
+    } finally {
+      await staging.dropDatabase();
+      const { CyberiaGlobalMapCodeRegistry } = await catalogRegistryModels(context.connection, context.releaseDatabase);
+      await CyberiaGlobalMapCodeRegistry.deleteMany({ catalog: context.releaseDatabase });
+      fs.removeSync(exportDir);
+    }
+    await endRelease(context, ok);
   });
 
   releaseEnvOptions(

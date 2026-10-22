@@ -541,6 +541,7 @@ into its own database, validates it, and promotes it by pointer.
 | `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance) and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace` |
 | `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                              |
 | `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                 |
+| `export-live [--backup <dir>] [--apply]`   | Export every world of the release a host backup served into `cyberia-content`, read by the current models; writes only with `--apply`                                                |
 | `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                    |
 | `rollback`                                 | Serve the release that was active before the current one                                                                                                                             |
 | `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                               |
@@ -556,6 +557,7 @@ cyberia content-release build local-2 --from workspace --dev
 cyberia content-release validate                      # the workspace, before any build
 cyberia content-release retire                        # back to the workspace after a local rehearsal
 cyberia content-release live-changes                  # what the next promotion stops serving
+cyberia content-release export-live --apply --dev     # the live content of the latest host backup, as source
 cyberia content-release promote v3-4-5-8b4d643-04f978b0
 cyberia content-release rollback
 ```

@@ -227,6 +227,7 @@ node bin/cyberia content-release prune --keep 0 --dev                   # drop r
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `build <id> --from workspace` | Copies the workspace into `<DB_NAME_CYBERIA_CONTENT>-<id>`, drafts left out; publishes what is not yet at the authority; validates                                                                                                    |
 | `live-changes`                | Names the Studio edits on the active release that its build does not hold                                                                                                                                                             |
+| `export-live`                 | Exports every world of the release a host backup served into `cyberia-content`. See [Export the live content](./deploy-a-release.md#export-the-live-content)                                                                          |
 | `promote <id>`                | One transaction: the active release retires, `<id>` turns active. The running engine follows within 15 s and reloads every registered game server. Refuses while the active release has live changes, unless `--discard-live-changes` |
 | `rollback`                    | Promotes the release that was active before the current one                                                                                                                                                                           |
 | `retire`                      | Retires the active release with no successor. The runtime serves the workspace again; `rollback` re-promotes the release                                                                                                              |
@@ -235,7 +236,7 @@ node bin/cyberia content-release prune --keep 0 --dev                   # drop r
 While a release is active, Studio edits change that release live, as in production. The workspace
 keeps what it held, and `retire` serves it again. A Studio edit made on the release stays in the
 release database: `cyberia instance <code> --export <dir> --release <id>` carries it out. The next
-`promote` refuses until it is exported, or until `--discard-live-changes` stops serving it.
+`promote` refuses until `--discard-live-changes` stops serving it.
 
 A local release serves development only: a production runtime promotes only a release built from
 an exact source revision. To rehearse a deploy release, prepare the locked revision into a local

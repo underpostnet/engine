@@ -164,7 +164,10 @@ stage_content_candidate() {
         echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=1: the promotion stops serving the live changes of the active release"
     else
         deploy_step "No live change the promotion stops serving" \
-            content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes
+            content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes || {
+            echo "$RUN_QUIET_NODE_TAG Export the live changes with \`node bin/cyberia content-release export-live\`, commit them to cyberia-content, then deploy again with DISCARD_LIVE_CHANGES=1" >&2
+            exit 1
+        }
     fi
 }
 

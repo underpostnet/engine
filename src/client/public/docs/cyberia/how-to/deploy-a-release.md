@@ -40,11 +40,53 @@ Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. The content candidate 
 
 A live change is a change to the active release that its build does not hold
 ([Live changes](../explanation/content-releases.md#live-changes)). The promotion stops serving it, so
-Stage D stops the deploy before the rollout and names the changed content. Export each changed world
-with `cyberia instance <code> --export <dir> --release <active-id>`, commit it to `cyberia-content`,
-and deploy that revision. Set `DISCARD_LIVE_CHANGES=1` to promote and stop serving the changes.
+Stage D stops the deploy before the rollout and names the changed content.
+[Export the live content](#export-the-live-content) to keep the changes. Set `DISCARD_LIVE_CHANGES=1`
+to promote and stop serving them.
 
 `REPLICAS` sets the pod count of each colour (default `1`). Stage E and a switch back render this count.
+
+## Export the live content
+
+`cyberia content-release export-live` turns the content production serves into `cyberia-content`
+source. It reads a host backup: the backup of the Cyberia host dumps the databases of the content
+partition with the host database.
+
+1. Stop the Studio edits in production. An edit after the backup is not exported.
+2. On the host, take a backup. The daily backup cron job runs the same command:
+
+   ```bash
+   node bin db dd-cyberia --export --git --primary-pod --preserveUUID
+   ```
+
+3. On the local machine, import the same backup. The export reads the Files from the host database:
+
+   ```bash
+   node bin db dd-cyberia --import --git --hosts www.cyberiaonline.com --paths / --drop --preserveUUID --primary-pod
+   ```
+
+4. Preview the export, then write it:
+
+   ```bash
+   node bin/cyberia content-release export-live --dev
+   node bin/cyberia content-release export-live --apply --dev
+   ```
+
+5. Review `git diff` in `cyberia-content`, run its tests, commit, and lock the revision.
+6. Deploy with `DISCARD_LIVE_CHANGES=1`. The live changes are now source, but the guard compares the
+   release with its build, so it still names them.
+
+The export restores the dump of the release the backup ledger names as active into a scratch
+release database, `<content partition>-capture-<timestamp>`. It then imports the absent content of
+the content artifact: the documents a newer schema adds, such as economies and markets. A document
+production holds stays as production holds it. Every check of `content-release validate` runs,
+except the canonical check, because nothing is published. Each world is exported into a temporary
+directory, and the change against `cyberia-content` is printed. `--apply` replaces the instance
+directories, and refuses while one of them has uncommitted changes. The scratch database and its
+map registry rows are removed at the end.
+
+A dump is consistent per collection, not at one point in time. Step 1 keeps the collections
+consistent with each other, and the checks refuse a reference that does not resolve.
 
 ## Failure and revert
 

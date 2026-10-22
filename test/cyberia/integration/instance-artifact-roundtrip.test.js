@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
+import mongoose from 'mongoose';
 import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
@@ -104,12 +105,23 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())(
       const imported = await run('--import');
       expect(imported.status, imported.output).toBe(0);
 
+      // A conf an older schema wrote keeps the fields that schema had.
+      const client = await new mongoose.mongo.MongoClient(mongod.uri).connect();
+      await client
+        .db('cyberia-content')
+        .collection('cyberiainstanceconfs')
+        .updateOne({ instanceCode: CODE }, { $set: { economyRules: { tradeFee: 1 }, snapshotRate: 20 } });
+      await client.close();
+
       const out = path.join(pod, 'export', CODE);
       const exported = await run('--export', out);
       expect(exported.status, exported.output).toBe(0);
 
       const source = contentArtifact().instanceDir(CODE);
       expect(fs.readJsonSync(path.join(out, 'cyberia-instance.json')).code).toBe(CODE);
+      const conf = fs.readJsonSync(path.join(out, 'cyberia-instance-conf.json'));
+      expect(conf).not.toHaveProperty('economyRules');
+      expect(conf).not.toHaveProperty('snapshotRate');
       // The world names the foundation economy: the import stored it, and the export carries it.
       const economy = fs.readJsonSync(path.join(out, 'cyberia-economy.json'));
       expect(economy.code).toBe(fs.readJsonSync(path.join(out, 'cyberia-instance-conf.json')).economyCode);
