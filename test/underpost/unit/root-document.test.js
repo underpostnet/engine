@@ -78,9 +78,10 @@ describe('root document', () => {
       }
   });
 
-  it.each(Object.entries(DefaultConf.ssr).flatMap(([client, { body }]) => body.map((name) => [client, name])))(
-    '%s renders its body component %s as markup',
-    async (client, name) => {
+  // Every body component in the tree, also the ones its own conf does not list.
+  it.each(fs.readdirSync('./src/client/ssr/body').map((file) => file.replace(/\.js$/, '')))(
+    'renders the body component %s as markup',
+    async (name) => {
       const markup = (await ssrFactory(`./src/client/ssr/body/${name}.js`))({ ssrPath: '/', ttiLoadTimeLimit: 1 });
       expect(markup).toBeTypeOf('string');
       expect(markup).not.toContain('[object Object]');
