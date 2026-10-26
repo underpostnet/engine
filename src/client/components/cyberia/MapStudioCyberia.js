@@ -1,7 +1,7 @@
 /**
  * The foundation panel of the Cyberia map editor: the context panel of the map, and the tracker of
  * its composition. The tracker lists each composed entity with its item ids and their item types,
- * and marks it met once the map holds one of its type and item ids.
+ * and marks it met once the map holds as many of its type and item ids as the foundation asks for.
  *
  * The map editor owns the entities. The panel reads them, and a click on an entry loads its entity
  * type and item ids into the editor's entity form.
@@ -103,18 +103,19 @@ class MapStudioCyberia {
       MapStudioCyberia.editor?.entities() ?? [],
     );
     if (entries.length === 0) return;
-    const met = entries.filter(({ placed }) => placed > 0).length;
+    const metOf = ({ placed, count = 1 }) => placed >= count;
+    const met = entries.filter(metOf).length;
     root.append(element('div', 'map-studio-title', `Composition · ${met} / ${entries.length}`));
     for (const entry of entries) {
       const row = element('div', 'map-studio-row map-studio-entry');
-      row.toggleAttribute('data-met', entry.placed > 0);
+      row.toggleAttribute('data-met', metOf(entry));
       row.title = 'Load into the entity form';
       row.append(
-        element('span', 'map-studio-state', entry.placed > 0 ? '✓' : '✗'),
+        element('span', 'map-studio-state', metOf(entry) ? '✓' : '✗'),
         element('span', '', entry.name),
         element('span', 'map-studio-muted', `entity: ${entry.entity.entityType}`),
         element('span', '', entry.items.map(({ id, type }) => (type ? `${id} (${type})` : id)).join(' + ')),
-        element('span', 'map-studio-muted', `${entry.placed} placed`),
+        element('span', 'map-studio-muted', `${entry.placed} / ${entry.count ?? 1} placed`),
       );
       row.onclick = () => MapStudioCyberia.editor?.load(entry.entity);
       root.append(row);

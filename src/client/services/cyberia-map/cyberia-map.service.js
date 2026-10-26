@@ -41,7 +41,66 @@ class CyberiaMapService {
           return reject(error);
         }),
     );
+  /** Draws the preview of the revision a map is at now, and answers its media. */
+  static media = (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/media`, endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory({}),
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
   /** The foundation context of a map against its stored entities. */
+  /** The preview state of the revision a map is at: `{ media, preview }`. */
+  static readMedia = (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/media`, endpoint }), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(readResponse)
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+
+  /** URL of the preview of a stored map, drawn once when it has none. */
+  static previewUrl = (code) => getApiBaseUrl({ id: `${encodeURIComponent(code)}/preview`, endpoint });
+
+  /**
+   * Draws a map an editor holds, saved or not; nothing is stored. Resolves with a Blob of the PNG, or
+   * null when the map draws nothing.
+   */
+  static draftPreview = (options = { body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'draft-preview', endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+        body: payloadFactory(options.body),
+      })
+        .then(async (res) => {
+          if (res.status === 204) return null;
+          if (!res.ok) throw new Error((await readResponse(res)).message ?? `draft preview failed: ${res.status}`);
+          return await res.blob();
+        })
+        .then(resolve)
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+
   static getContext = (options = { code: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `context/${encodeURIComponent(options.code)}`, endpoint }), {

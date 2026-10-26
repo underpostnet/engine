@@ -76,12 +76,14 @@ class CyberiaMapManagement {
         this.eGui = document.createElement('div');
         const { data } = params;
 
-        if (!data || !data.thumbnail) {
+        // The custom thumbnail, else the map preview.
+        const picture = data?.thumbnail ?? data?.preview;
+        if (!picture) {
           this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
-        const thumbnailId = typeof data.thumbnail === 'object' ? data.thumbnail._id : data.thumbnail;
+        const thumbnailId = typeof picture === 'object' ? picture._id : picture;
         if (!thumbnailId) {
           this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;

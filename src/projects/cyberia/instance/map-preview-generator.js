@@ -1,16 +1,16 @@
 /**
- * Cyberia map preview generator — server-side equivalent of the browser
- * MapEngine "Capture Object Layer Map" render.
+ * Cyberia map preview generator: the one renderer of the `preview` of a map.
  *
- * MapEngineCyberia.renderToOffscreenCanvas() composites, per entity, every
- * `objectLayerItemIds` frame at (initCellX, initCellY) sized (dimX, dimY).
- * This module reproduces that with sharp so maps that never pass through the
- * browser editor still get a `preview` image for the client's Instance Map node
- * backgrounds.
+ * Per entity, it composites every `objectLayerItemIds` frame at (initCellX,
+ * initCellY) sized (dimX, dimY), with sharp. Every live save and every
+ * publication that writes a map revision draws it after the commit; the
+ * preview is the node background of the client's Instance Map, and the
+ * thumbnail of a map without a custom one.
  *
  * Every entity is drawn by its items' idle-preview stills, the same picture the
- * editors show, read from the atlas of the definition each label is bound to.
- * `refreshMapPreview` stores that picture as the map's preview.
+ * editors show, read from the atlas of the definition each label is bound to: an
+ * animated item shows the first frame of its idle. `refreshMapPreview` stores that
+ * picture as the preview of the map revision, and its media records the result.
  *
  * @module src/projects/cyberia/instance/map-preview-generator.js
  */
@@ -139,6 +139,23 @@ async function solidFrame(color, width, height) {
 }
 
 /**
+ * The part of an entity picture inside the canvas: a picture that overflows an edge is cut to it.
+ * @returns {Promise<{input:Buffer,left:number,top:number}>}
+ */
+async function clipped(input, { left, top, w, h, width, height }) {
+  const x = Math.max(0, left);
+  const y = Math.max(0, top);
+  const right = Math.min(width, left + w);
+  const bottom = Math.min(height, top + h);
+  if (x === left && y === top && right === left + w && bottom === top + h) return { input, left, top };
+  const cut = await sharp(input)
+    .extract({ left: x - left, top: y - top, width: right - x, height: bottom - y })
+    .png()
+    .toBuffer();
+  return { input: cut, left: x, top: y };
+}
+
+/**
  * Render one CyberiaMap-shaped object to a PNG buffer.
  *
  * @param {object} map               CyberiaMap-shaped (code, gridX/gridY, entities).
@@ -170,18 +187,19 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
     if (left >= width || top >= height || left + w <= 0 || top + h <= 0) continue;
 
     // Stack the entity's layers in declaration order, exactly like the editor.
+    const box = { left, top, w, h, width, height };
     let drew = false;
     for (const itemId of entity.objectLayerItemIds || []) {
       const input = await resizedFrame(fileIds.get(itemId), w, h, options);
       if (input) {
-        composites.push({ input, left, top });
+        composites.push(await clipped(input, box));
         drew = true;
       }
     }
     if (drew) continue;
 
     const input = await solidFrame(entity.color, w, h);
-    if (input) composites.push({ input, left, top });
+    if (input) composites.push(await clipped(input, box));
   }
   if (composites.length === 0) return null;
 
@@ -193,36 +211,91 @@ async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = 
     .toBuffer();
 }
 
+/** The fields of a stored map a preview draws and a media write checks. */
+const PREVIEW_FIELDS = 'code revision gridX gridY preview media entities';
+
+/** The media of a map revision: whether the preview of that revision is stored. */
+const mediaOf = (revision, status, error = '') => ({ revision, status, error, at: new Date() });
+
 /**
- * Draws a stored map again and makes the picture its preview. A picture its stored File already
- * holds writes nothing, so a rerun changes nothing. The replaced File goes once no map names it,
- * and a map that draws nothing keeps no preview: no map names a missing File, and no preview File
- * outlives its references. A map another write moved on keeps its own preview.
+ * Draws a stored map at its revision and makes the picture the preview of that revision: the media
+ * of the map turns `ready`, or `failed` with the error of the draw or the store. A map another write
+ * moved to a newer revision keeps the media of that revision, and nothing is stored. A picture its
+ * stored File already holds writes no new File, so a rerun changes nothing. The replaced File goes
+ * once no map names it, and a map that draws nothing keeps no preview.
  *
- * @param {object} map - A stored map: `_id`, `code`, `gridX`, `gridY`, `preview` and `entities`.
+ * @param {object} map - A stored map with {@link PREVIEW_FIELDS} and `_id`.
  * @param {object} options - Router options ({ host, path }).
  * @returns {Promise<Buffer|null>} The stored picture, or null when none was stored.
+ * @throws {Error} The error of the draw or the store, once the media records it.
  */
 async function refreshMapPreview(map, options) {
+  const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+  try {
+    return await storeMapPreview(map, options);
+  } catch (error) {
+    await CyberiaMap.updateOne(
+      { _id: map._id, revision: map.revision },
+      { $set: { media: mediaOf(map.revision, 'failed', error.message) } },
+      { timestamps: false },
+    ).catch((failure) => logger.error(`map preview: "${map.code}" media not recorded: ${failure.message}`));
+    await CacheService.invalidate(mapCache(options));
+    throw error;
+  }
+}
+
+/** {@link refreshMapPreview} without the record of a failure. */
+async function storeMapPreview(map, options) {
   const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
   const File = DataBaseProviderService.getModel('File', options);
   const png = await renderMapPreviewPng(map, { options });
   const picture = png ? FileFactory.create(png, `${map.code}-preview.png`) : null;
-  if (picture && map.preview && (await File.exists({ _id: map.preview, md5: picture.md5 }))) return png;
-  const file = picture ? await new File(picture).save() : null;
+  const kept = Boolean(picture && map.preview && (await File.exists({ _id: map.preview, md5: picture.md5 })));
+  const ready = map.media?.status === 'ready' && map.media.revision === map.revision;
+  if (ready && (kept || (!picture && !map.preview))) return png;
+  const file = picture && !kept ? await new File(picture).save() : null;
   const { matchedCount } = await CyberiaMap.updateOne(
-    { _id: map._id, preview: map.preview ?? null },
-    file ? { $set: { preview: file._id } } : { $unset: { preview: 1 } },
+    { _id: map._id, revision: map.revision },
+    {
+      $set: { media: mediaOf(map.revision, 'ready'), ...(file && { preview: file._id }) },
+      ...(!picture && { $unset: { preview: 1 } }),
+    },
     { timestamps: false },
   );
   if (matchedCount === 0) {
     if (file) await File.deleteOne({ _id: file._id });
     return null;
   }
-  if (map.preview && !(await CyberiaMap.exists({ $or: [{ preview: map.preview }, { thumbnail: map.preview }] })))
+  if (
+    map.preview &&
+    !kept &&
+    !(await CyberiaMap.exists({ $or: [{ preview: map.preview }, { thumbnail: map.preview }] }))
+  )
     await File.deleteOne({ _id: map.preview });
   await CacheService.invalidate(mapCache(options));
   return png;
+}
+
+/**
+ * Draws the preview of a stored map at the revision it is at now, after the write of that revision.
+ * A failed render stays recorded in the media, so a retry runs it again.
+ *
+ * @param {object} filter - The map, by `_id` or `code`.
+ * @param {object} options - Router options ({ host, path }).
+ * @returns {Promise<{media:{revision:number,status:string,error:string,at:Date},preview:string|null}|null>}
+ *   The media of the map now and its preview File, or null for an unknown map.
+ */
+async function refreshMapMedia(filter, options) {
+  const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+  const map = await CyberiaMap.findOne(filter).select(PREVIEW_FIELDS).lean();
+  if (!map) return null;
+  try {
+    await refreshMapPreview(map, options);
+  } catch (error) {
+    logger.error(`map preview: "${map.code}" revision ${map.revision} failed: ${error.message}`);
+  }
+  const stored = await CyberiaMap.findOne({ _id: map._id }, { media: 1, preview: 1 }).lean();
+  return stored && { media: stored.media ?? null, preview: stored.preview ? String(stored.preview) : null };
 }
 
 /**
@@ -238,7 +311,7 @@ async function refreshMapPreview(map, options) {
 async function refreshMapPreviews({ itemIds, options }) {
   const maps = await DataBaseProviderService.getModel('CyberiaMap', options)
     .find(itemIds ? { 'entities.objectLayerItemIds': { $in: itemIds } } : {})
-    .select('code gridX gridY preview entities')
+    .select(PREVIEW_FIELDS)
     .lean();
   const tally = { codes: maps.map(({ code }) => code), drawn: 0, empty: 0, failed: [] };
   for (const map of maps) {
@@ -253,4 +326,4 @@ async function refreshMapPreviews({ itemIds, options }) {
   return tally;
 }
 
-export { renderMapPreviewPng, refreshMapPreview, refreshMapPreviews };
+export { PREVIEW_FIELDS, renderMapPreviewPng, refreshMapMedia, refreshMapPreview, refreshMapPreviews };

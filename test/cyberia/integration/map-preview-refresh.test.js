@@ -3,10 +3,12 @@ import { Types } from 'mongoose';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { refreshMapPreview } from '../../../src/projects/cyberia/instance/map-preview-generator.js';
+import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
-// A refreshed map preview on a real MongoDB: the map names the new File, the replaced File goes,
-// and neither the edit time nor the revision of the map moves.
+// A refreshed map preview on a real MongoDB: the map names the new File, the replaced File goes, the
+// media of the revision is ready, and neither the edit time nor the revision of the map moves. The
+// preview of a stored map is drawn once; the draft of an editor is drawn and never stored.
 const context = { host: 'map-preview-test', path: '/' };
 const model = (name) => DataBaseProviderService.getModel(name, context);
 const entities = [{ initCellX: 0, initCellY: 0, dimX: 2, dimY: 2, color: '#ff0000' }];
@@ -51,6 +53,7 @@ describe.skipIf(!mongodBinary)('map preview refresh on a real MongoDB', () => {
     expect(await model('File').exists({ _id: old._id })).toBeNull();
     expect(stored.updatedAt).toEqual(map.updatedAt);
     expect(stored.revision).toBe(map.revision);
+    expect(stored.media).toMatchObject({ revision: map.revision, status: 'ready', error: '' });
   });
 
   it('keeps the File of a preview that already holds the picture', async () => {
@@ -69,13 +72,40 @@ describe.skipIf(!mongodBinary)('map preview refresh on a real MongoDB', () => {
     expect(await model('File').countDocuments()).toBe(1);
   });
 
-  it('keeps the preview a save stored meanwhile, and leaves no File of its own', async () => {
+  it('serves the preview of a stored map, drawn and stored once for the revision it is at', async () => {
+    const map = await storedMap();
+    const first = await CyberiaMapService.preview({ params: { code: 'forest-1' } }, {}, context);
+    expect(first).toBeInstanceOf(Buffer);
+    const stored = await model('CyberiaMap').findById(map._id).lean();
+    expect(stored.media).toMatchObject({ revision: map.revision, status: 'ready' });
+    const second = await CyberiaMapService.preview({ params: { code: 'forest-1' } }, {}, context);
+    expect(Buffer.compare(Buffer.from(second), first)).toBe(0);
+    expect(await model('File').countDocuments()).toBe(1);
+    expect(await CyberiaMapService.readMedia({ params: { id: String(map._id) } }, {}, context)).toEqual({
+      media: expect.objectContaining({ revision: map.revision, status: 'ready' }),
+      preview: String(stored.preview),
+    });
+  });
+
+  it('draws the draft an editor holds and stores nothing; an empty draft draws nothing', async () => {
+    const draft = (body) => CyberiaMapService.draftPreview({ body }, {}, context);
+    expect(await draft({ gridX: 2, gridY: 2, entities })).toBeInstanceOf(Buffer);
+    expect(await draft({ gridX: 2, gridY: 2, entities: [] })).toBeNull();
+    await expect(draft({ gridX: 0, gridY: 2, entities })).rejects.toMatchObject({ status: 400 });
+    expect(await model('File').countDocuments()).toBe(0);
+    expect(await model('CyberiaMap').countDocuments()).toBe(0);
+  });
+
+  it('stores nothing for a revision a save moved on, and leaves no File of its own', async () => {
     const old = await file('old-preview');
     const map = await storedMap(old._id);
-    const saved = await file('map-preview');
-    await model('CyberiaMap').updateOne({ _id: map._id }, { $set: { preview: saved._id } });
+    await model('CyberiaMap').updateOne(
+      { _id: map._id },
+      { $inc: { revision: 1 }, $set: { media: { revision: map.revision + 1, status: 'pending' } } },
+    );
     expect(await refreshMapPreview(map, context)).toBeNull();
-    expect(await previewOf(map)).toBe(String(saved._id));
-    expect(await model('File').countDocuments()).toBe(2);
+    expect(await previewOf(map)).toBe(String(old._id));
+    expect((await model('CyberiaMap').findById(map._id).lean()).media).toMatchObject({ status: 'pending' });
+    expect(await model('File').countDocuments()).toBe(1);
   });
 });

@@ -12,6 +12,9 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => ({
 vi.mock('../../../src/server/storage/cache.js', () => ({
   CacheService: { namespace: () => 'maps', invalidate },
 }));
+vi.mock('../../../src/projects/cyberia/instance/map-preview-generator.js', () => ({
+  refreshMapMedia: async () => null,
+}));
 
 const { CyberiaMapService } = await import('../../../src/api/cyberia-map/cyberia-map.service.js');
 const { CyberiaMapModel } = await import('../../../src/api/cyberia-map/cyberia-map.model.js');
@@ -26,11 +29,13 @@ describe('map clone creation', () => {
     save = vi.fn(async function () {
       return this;
     });
+    let created;
     models.CyberiaMap = function (body) {
-      const map = new CyberiaMapModel(body);
-      map.save = save;
-      return map;
+      created = new CyberiaMapModel(body);
+      created.save = save;
+      return created;
     };
+    models.CyberiaMap.findById = async () => created;
     models.CyberiaInstance = { find: () => ({ lean: async () => [] }) };
   });
 
@@ -42,6 +47,12 @@ describe('map clone creation', () => {
     expect(save).toHaveBeenCalledOnce();
     expect(invalidate).toHaveBeenCalledExactlyOnceWith('maps');
     expect(body.code).toBe('map-test-b');
+  });
+
+  it('starts the media of revision 1 pending, and takes no preview from the client', async () => {
+    const map = await create({ code: 'map-test-c', preview: '64b0000000000000000000ff', media: { revision: 7 } });
+    expect(map.toObject().media).toMatchObject({ revision: 1, status: 'pending' });
+    expect(map.toObject().preview).toBeUndefined();
   });
 
   it.each([{ keyPattern: { code: 1 } }, { keyValue: { code: 'map-test-b' } }])(

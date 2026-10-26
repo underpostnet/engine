@@ -48,6 +48,7 @@ vi.mock('../../../src/db/DataBaseProvider.js', () => {
 });
 vi.mock('../../../src/api/file/file.service.js', () => ({ FileFactory: { create: (data) => ({ data }) } }));
 vi.mock('../../../src/projects/cyberia/instance/map-preview-generator.js', () => ({
+  PREVIEW_FIELDS: 'code revision gridX gridY preview media entities',
   refreshMapPreview: async (map) => {
     store.refreshed.push(map.code);
     const picture = store.pictures[map.code] ?? null;

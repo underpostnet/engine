@@ -222,6 +222,64 @@ function connectPortals(mapCodes, maps) {
   return { portals, topology, mapCount: ordered.length };
 }
 
+/**
+ * What the portals of an instance connect, and what they leave out: the maps a player cannot reach
+ * from the first map, the portals whose source cell holds no portal entity, the portals that name a
+ * map outside the instance, and the portal entities no portal starts from.
+ *
+ * @param {string[]} mapCodes  Instance's `cyberiaMapCodes` array; the first is where the walk starts.
+ * @param {Array<{ code: string, entities: object[] }>} maps  Map documents (lean or JSON).
+ * @param {object[]} portals  The portal edges of the instance.
+ * @returns {{ maps: number, portalEntities: number, connections: number, unreachable: string[],
+ *   unresolved: object[], invalid: object[], unconnected: object[] }}
+ */
+function portalTopology(mapCodes, maps, portals) {
+  const index = indexPortalEntities(maps.filter(({ code }) => mapCodes.includes(code)));
+  const known = new Set(mapCodes);
+  const invalid = portals
+    .map((portal, at) => ({ at, ...portal }))
+    .filter(({ sourceMapCode, targetMapCode }) => !known.has(sourceMapCode) || !known.has(targetMapCode));
+  const valid = portals.filter(
+    ({ sourceMapCode, targetMapCode }) => known.has(sourceMapCode) && known.has(targetMapCode),
+  );
+  const atCell = (code, x, y) => (index[code] || []).some((e) => e.initCellX === x && e.initCellY === y);
+  const unresolved = portals
+    .map((portal, at) => ({ at, ...portal }))
+    .filter(
+      ({ sourceMapCode, sourceCellX, sourceCellY }) =>
+        known.has(sourceMapCode) && !atCell(sourceMapCode, sourceCellX, sourceCellY),
+    );
+  const unconnected = Object.entries(index).flatMap(([code, entities]) =>
+    entities
+      .filter(
+        (e) =>
+          !valid.some(
+            (p) => p.sourceMapCode === code && p.sourceCellX === e.initCellX && p.sourceCellY === e.initCellY,
+          ),
+      )
+      .map((e) => ({ mapCode: code, cellX: e.initCellX, cellY: e.initCellY })),
+  );
+  const reached = new Set(mapCodes.slice(0, 1));
+  const queue = [...reached];
+  while (queue.length > 0) {
+    const code = queue.shift();
+    for (const { sourceMapCode, targetMapCode } of valid)
+      if (sourceMapCode === code && !reached.has(targetMapCode)) {
+        reached.add(targetMapCode);
+        queue.push(targetMapCode);
+      }
+  }
+  return {
+    maps: mapCodes.length,
+    portalEntities: Object.values(index).reduce((sum, entities) => sum + entities.length, 0),
+    connections: valid.length,
+    unreachable: mapCodes.filter((code) => !reached.has(code)),
+    unresolved,
+    invalid,
+    unconnected,
+  };
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export {
@@ -229,6 +287,7 @@ export {
   connectPortals,
   buildTopologyFromSubtypes,
   indexPortalEntities,
+  portalTopology,
   // Portal modes
   PORTAL_MODES,
   PORTAL_MODE_LIST,

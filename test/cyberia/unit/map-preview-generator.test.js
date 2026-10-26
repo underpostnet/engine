@@ -29,14 +29,18 @@ const store = vi.hoisted(() => {
       }),
     },
     CyberiaMap: {
-      updateOne: vi.fn(async ({ _id, preview }, update) => {
-        const map = state.maps.find((stored) => matches(stored, { _id, preview }));
+      updateOne: vi.fn(async ({ _id, revision }, update) => {
+        const map = state.maps.find((stored) => matches(stored, { _id, revision }));
         if (!map) return { matchedCount: 0 };
         if (update.$set) Object.assign(map, update.$set);
         if (update.$unset) delete map.preview;
         return { matchedCount: 1 };
       }),
       exists: async ({ $or }) => state.maps.some((map) => $or.some((condition) => matches(map, condition))),
+      findOne: (filter) => ({
+        select: () => ({ lean: async () => state.maps.find((map) => matches(map, filter)) ?? null }),
+        lean: async () => state.maps.find((map) => matches(map, filter)) ?? null,
+      }),
       find: (filter) => {
         const labels = filter['entities.objectLayerItemIds']?.$in;
         const places = (map) =>
@@ -71,7 +75,7 @@ vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js', () 
   renderFileBytes: async (fileId) => store.files[fileId] ?? null,
 }));
 
-const { renderMapPreviewPng, refreshMapPreview, refreshMapPreviews } =
+const { renderMapPreviewPng, refreshMapMedia, refreshMapPreview, refreshMapPreviews } =
   await import('../../../src/projects/cyberia/instance/map-preview-generator.js');
 
 const solid = (background) =>
@@ -86,7 +90,7 @@ const map = {
   entities: [{ initCellX: 0, initCellY: 0, dimX: 2, dimY: 2, objectLayerItemIds: ['hatchet'] }],
 };
 const stored = (fields) => {
-  const doc = { ...map, _id: 'map-1', preview: 'old-preview', ...fields };
+  const doc = { ...map, _id: 'map-1', revision: 1, preview: 'old-preview', ...fields };
   store.maps.push(doc);
   return { ...doc };
 };
@@ -113,24 +117,61 @@ describe('map previews', () => {
     expect(await topLeft(await renderMapPreviewPng(map))).toEqual([0, 0, 255, 255]);
   });
 
-  it('stores the new picture as the preview and deletes the File it replaced', async () => {
-    const png = await refreshMapPreview(stored(), {});
-    const [preview] = store.maps.map((doc) => doc.preview);
+  it('stores the new picture as the preview of the revision, marks its media ready and deletes the File it replaced', async () => {
+    const png = await refreshMapPreview(stored({ media: { revision: 1, status: 'pending' } }), {});
+    const [{ preview, media }] = store.maps;
     expect(await topLeft(png)).toEqual([255, 0, 0, 255]);
     expect(store.fileDocs.get(preview).name).toBe('forest-1-preview.png');
+    expect(media).toMatchObject({ revision: 1, status: 'ready', error: '' });
     expect(store.fileDocs.has('old-preview')).toBe(false);
     expect(store.models.CyberiaMap.updateOne.mock.calls[0][2]).toEqual({ timestamps: false });
     expect(store.invalidate).toHaveBeenCalledWith('cyberia-map');
   });
 
-  it('writes nothing when the stored preview already holds the picture', async () => {
-    const read = stored();
-    await refreshMapPreview(read, {});
-    const [preview] = store.maps.map((doc) => doc.preview);
+  it('writes nothing when the stored preview of the revision already holds the picture', async () => {
+    stored();
+    await refreshMapPreview({ ...store.maps[0] }, {});
+    const [{ preview }] = store.maps;
     store.models.CyberiaMap.updateOne.mockClear();
-    expect(await refreshMapPreview({ ...read, preview }, {})).not.toBeNull();
+    expect(await refreshMapPreview({ ...store.maps[0] }, {})).not.toBeNull();
     expect(store.maps[0].preview).toBe(preview);
     expect(store.models.CyberiaMap.updateOne).not.toHaveBeenCalled();
+  });
+
+  it('marks the media of a picture it holds ready for a new revision, with no new File', async () => {
+    stored();
+    await refreshMapPreview({ ...store.maps[0] }, {});
+    const files = store.fileDocs.size;
+    store.maps[0].revision = 2;
+    await refreshMapPreview({ ...store.maps[0] }, {});
+    expect(store.maps[0].media).toMatchObject({ revision: 2, status: 'ready' });
+    expect(store.fileDocs.size).toBe(files);
+  });
+
+  it('cuts an entity larger than the map to the map', async () => {
+    const huge = {
+      ...map,
+      entities: [{ initCellX: -1, initCellY: 0, dimX: 300, dimY: 300, objectLayerItemIds: ['hatchet'] }],
+    };
+    const png = await renderMapPreviewPng(huge);
+    expect((await sharp(png).metadata()).width).toBe(16);
+    expect(await topLeft(png)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('records a failed store in the media of its revision, and a retry draws it again', async () => {
+    stored({ media: { revision: 1, status: 'pending' } });
+    const save = store.models.File.prototype.save;
+    store.models.File.prototype.save = async () => {
+      throw new Error('disk full');
+    };
+    expect(await refreshMapMedia({ _id: 'map-1' }, {})).toMatchObject({
+      media: { revision: 1, status: 'failed', error: 'disk full' },
+      preview: 'old-preview',
+    });
+    store.models.File.prototype.save = save;
+    const retried = await refreshMapMedia({ _id: 'map-1' }, {});
+    expect(retried).toMatchObject({ media: { revision: 1, status: 'ready' } });
+    expect(store.fileDocs.get(retried.preview).name).toBe('forest-1-preview.png');
   });
 
   it('keeps a replaced File another map still names', async () => {
@@ -146,11 +187,11 @@ describe('map previews', () => {
     expect([...store.fileDocs.keys()]).toEqual([]);
   });
 
-  it('keeps the preview another write stored meanwhile, and deletes its own picture', async () => {
+  it('stores nothing for a revision another write moved on, and deletes its own picture', async () => {
     const read = stored();
-    store.maps[0].preview = 'editor-preview';
+    store.maps[0].revision = 2;
     expect(await refreshMapPreview(read, {})).toBeNull();
-    expect(store.maps[0].preview).toBe('editor-preview');
+    expect(store.maps[0].preview).toBe('old-preview');
     expect([...store.fileDocs.keys()]).toEqual(['old-preview']);
     expect(store.invalidate).not.toHaveBeenCalled();
   });

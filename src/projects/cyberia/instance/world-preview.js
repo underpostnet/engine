@@ -16,7 +16,7 @@ import { loggerFactory } from '../../../server/ops/logger.js';
 import { FileFactory } from '../../../api/file/file.service.js';
 import { hasWorldOrigin, resolveGraphLayout } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { mapRects, mapsTouch } from './instance-map-layout.js';
-import { refreshMapPreview } from './map-preview-generator.js';
+import { PREVIEW_FIELDS, refreshMapPreview } from './map-preview-generator.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -223,7 +223,7 @@ const worldPreview = async (instanceCode, options) => {
   const codes = instance.cyberiaMapCodes ?? [];
   const stored = await model('CyberiaMap')
     .find({ code: { $in: codes } })
-    .select('code gridX gridY worldX worldY preview entities')
+    .select(`${PREVIEW_FIELDS} worldX worldY`)
     .lean();
   const maps = codes.map((code) => stored.find((map) => map.code === code)).filter(Boolean);
   if (maps.length === 0) throw failure(404, `World ${instanceCode} has no map`);
