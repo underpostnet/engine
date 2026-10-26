@@ -221,49 +221,8 @@ export function patternRegion(frame, cells, tile, { originX = 0, originY = 0 } =
   return next;
 }
 
-const distance = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-
-/**
- * Moves each painted cell of a region to the nearest palette color, keeping its alpha. Cells of a
- * locked color, whatever their alpha, keep theirs.
- * @param {number[][][]} frame
- * @param {Array<[number,number]>} cells
- * @param {number[][]} palette - rgba colors.
- * @param {{locked?:number[][]}} [options]
- */
-export function paletteApply(frame, cells, palette, { locked = [] } = {}) {
-  const next = copy(frame);
-  if (palette.length === 0) return next;
-  for (const [x, y] of clip(cells, frame[0]?.length ?? 0, frame.length)) {
-    const cell = frame[y][x];
-    if (cell[3] === 0 || locked.some((color) => distance(color, cell) === 0)) continue;
-    const nearest = palette.reduce((best, color) => (distance(color, cell) < distance(best, cell) ? color : best));
-    next[y][x] = [nearest[0], nearest[1], nearest[2], cell[3]];
-  }
-  return next;
-}
-
-/**
- * Replaces colors inside a region: each `[from, to]` pair turns cells of `from` into `to`. Pairs
- * apply at once, so `[a, b]` with `[b, a]` swaps two colors.
- */
-export function paletteSwap(frame, cells, pairs) {
-  const next = copy(frame);
-  for (const [x, y] of clip(cells, frame[0]?.length ?? 0, frame.length)) {
-    const pair = pairs.find(([from]) => sameColor(from, frame[y][x]));
-    if (pair) next[y][x] = pair[1].slice();
-  }
-  return next;
-}
-
 /** The color a share `t` (0 to 1) of the way from one color to another, each channel interpolated. */
 export const mixColor = (from, to, t) => from.map((channel, at) => Math.round(channel + (to[at] - channel) * t));
-
-/** `steps` colors from one color to another, both included. */
-export function colorRamp(from, to, steps) {
-  if (steps < 2) return [from.slice()];
-  return Array.from({ length: steps }, (_, index) => mixColor(from, to, index / (steps - 1)));
-}
 
 /** The frame repeated `times × times`: how it reads as a seamless tile. */
 export const tiledPreview = (frame, times = 3) =>

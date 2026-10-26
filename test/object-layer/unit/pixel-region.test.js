@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  colorRamp,
   mixColor,
   colorRegion,
   ellipseRegion,
@@ -8,8 +7,6 @@ import {
   lineRegion,
   mirrorRegion,
   outlineRegion,
-  paletteApply,
-  paletteSwap,
   patternRegion,
   polygonRegion,
   rectOutlineRegion,
@@ -134,22 +131,7 @@ describe('pixel regions', () => {
     expect(painted).toBeLessThan(54);
   });
 
-  it('swaps, replaces and applies a palette, keeping locked colours and alpha', () => {
-    const frame = [[R, G, [250, 5, 5, 128], B]];
-    const cells = rectRegion(0, 0, 3, 0);
-    expect(
-      paletteSwap(frame, cells, [
-        [R, G],
-        [G, R],
-      ])[0].slice(0, 2),
-    ).toEqual([G, R]);
-    const applied = paletteApply(frame, cells, [R, G], { locked: [B] });
-    expect(applied[0]).toEqual([R, G, [255, 0, 0, 128], B]);
-    expect(colorRamp([0, 0, 0, 255], [100, 200, 50, 255], 3)).toEqual([
-      [0, 0, 0, 255],
-      [50, 100, 25, 255],
-      [100, 200, 50, 255],
-    ]);
+  it('mixes two colors and repeats a frame as a tile', () => {
     expect(mixColor([200, 100, 0], [255, 255, 255], 0.5)).toEqual([228, 178, 128]);
     expect(mixColor([200, 100, 0], [0, 0, 0], 0.25)).toEqual([150, 75, 0]);
     expect(tiledPreview([[R, G]], 3)).toHaveLength(3);

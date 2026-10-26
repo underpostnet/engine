@@ -27,40 +27,76 @@ export const objectLayerStatus = ({ origin, archivedAt }) => (archivedAt ? 'arch
  * Animation directions. Each entry binds:
  *   code      — numeric asset folder name on disk (`./assets/<type>/<id>/<code>/<frame>.png`)
  *   label     — editor label
+ *   facing    — the way the entity faces: `down`, `up`, `left` or `right`
+ *   animation — what it plays: `idle` or `walking`
  *   keyframes — render keyframe names this folder code feeds
  *
- * @type {ReadonlyArray<{code:string,label:string,keyframes:ReadonlyArray<string>}>}
+ * @type {ReadonlyArray<{code:string,label:string,facing:string,animation:string,keyframes:ReadonlyArray<string>}>}
  */
 export const OBJECT_LAYER_DIRECTIONS = Object.freeze([
   Object.freeze({
     code: '08',
     label: 'Down Idle',
+    facing: 'down',
+    animation: 'idle',
     keyframes: Object.freeze(['down_idle', 'none_idle', 'default_idle']),
   }),
-  Object.freeze({ code: '18', label: 'Down Walk', keyframes: Object.freeze(['down_walking']) }),
-  Object.freeze({ code: '02', label: 'Up Idle', keyframes: Object.freeze(['up_idle']) }),
-  Object.freeze({ code: '12', label: 'Up Walk', keyframes: Object.freeze(['up_walking']) }),
+  Object.freeze({
+    code: '18',
+    label: 'Down Walk',
+    facing: 'down',
+    animation: 'walking',
+    keyframes: Object.freeze(['down_walking']),
+  }),
+  Object.freeze({
+    code: '02',
+    label: 'Up Idle',
+    facing: 'up',
+    animation: 'idle',
+    keyframes: Object.freeze(['up_idle']),
+  }),
+  Object.freeze({
+    code: '12',
+    label: 'Up Walk',
+    facing: 'up',
+    animation: 'walking',
+    keyframes: Object.freeze(['up_walking']),
+  }),
   Object.freeze({
     code: '04',
     label: 'Left Idle',
+    facing: 'left',
+    animation: 'idle',
     keyframes: Object.freeze(['left_idle', 'up_left_idle', 'down_left_idle']),
   }),
   Object.freeze({
     code: '14',
     label: 'Left Walk',
+    facing: 'left',
+    animation: 'walking',
     keyframes: Object.freeze(['left_walking', 'up_left_walking', 'down_left_walking']),
   }),
   Object.freeze({
     code: '06',
     label: 'Right Idle',
+    facing: 'right',
+    animation: 'idle',
     keyframes: Object.freeze(['right_idle', 'up_right_idle', 'down_right_idle']),
   }),
   Object.freeze({
     code: '16',
     label: 'Right Walk',
+    facing: 'right',
+    animation: 'walking',
     keyframes: Object.freeze(['right_walking', 'up_right_walking', 'down_right_walking']),
   }),
 ]);
+
+/** The facings of a render, in direction order. */
+export const OBJECT_LAYER_FACINGS = Object.freeze(['down', 'up', 'left', 'right']);
+
+/** The facing of a direction code, or undefined for an unknown code. */
+export const facingOf = (code) => OBJECT_LAYER_DIRECTIONS.find((d) => d.code === code)?.facing;
 
 /** Every render keyframe name, in direction order. */
 export const OBJECT_LAYER_KEYFRAMES = Object.freeze(OBJECT_LAYER_DIRECTIONS.flatMap((d) => d.keyframes));

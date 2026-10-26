@@ -512,7 +512,9 @@ class ObjectLayerEngineElement extends HTMLElement {
                 >shade <input type="range" part="shade" min="-100" max="100" value="0" style="width:10rem"
               /></label>
 
-              <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
+              <label title="Brush size in cells: n paints n × n cells"
+                >brush <input type="number" part="brush-size" min="1" value="1"
+              /></label>
             </div>
 
             <!-- Replace global color: both colors lock from the brush color. -->
@@ -1434,10 +1436,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._brushSizeInput) this._brushSizeInput.value = this._brushSize;
   }
 
-  /* The cells a brush of the current size covers around (x, y). */
+  /* The n × n cells a brush of size n covers at (x, y): centered, an even size reaching right and down. */
   _brushCells(x, y) {
-    const half = Math.floor(this._brushSize / 2);
-    return rectRegion(x - half, y - half, x + half, y + half);
+    const x0 = x - Math.floor((this._brushSize - 1) / 2);
+    const y0 = y - Math.floor((this._brushSize - 1) / 2);
+    return rectRegion(x0, y0, x0 + this._brushSize - 1, y0 + this._brushSize - 1);
   }
 
   /* A region with its mirror images, clipped to the canvas. */

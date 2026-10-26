@@ -20,7 +20,6 @@ import { OBJECT_LAYER_DIRECTION_CODES, OBJECT_LAYER_DIRECTION_LABELS } from './O
 import { framesByDirection, fromWire, sourceFromDirectionFrames, toWire } from './RenderSource.js';
 import { renderTemplate, templateSuits } from './PixelTemplate.js';
 import { contextIcon, contextIconSrc, contextPanelStyle, mountContextPanel } from './ContextPanel.js';
-import { ObjectLayerPalettePanel, palettePanelStyle } from './ObjectLayerPalettePanel.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorDraftStore } from '../core/EditorDraftStore.js';
 import { EditorLayout } from '../core/EditorLayout.js';
@@ -530,6 +529,8 @@ const buildMosaicMatrix = (
 class ObjectLayerEngineModal {
   static selectItemType = 'skin';
   static itemActivable = false;
+  /** The stat bounds in use: `contract`, those of the item type, or `custom`, ranges the author sets. */
+  static statBoundsMode = 'contract';
   static renderFrameDuration = 100;
   static existingObjectLayerId = null;
   static selectedDistortionType = DEFAULT_DISTORTION_TYPE;
@@ -540,19 +541,21 @@ class ObjectLayerEngineModal {
   static mutationFactor = 0;
   /** The seed of the next frame import: it counts up, so each import is another variation. */
   static importSeed = 0;
+  /** The palette editor of a frame import the host's studio mounts: `request()` gives the palette of a mutation. */
+  static importPalette = null;
   static templates = [EMPTY_TEMPLATE];
-  /** What the host's Studio adds: `context(key)` for the foundation panel, and `templates`. */
+  /** What the host's Studio adds: `context(key)` for the foundation panel, `templates`, and `importPalette` for a frame import. */
   static studio = null;
-  /** The palette panel of the open editor. */
-  static palettePanel = null;
+  /** The palettes of the foundation context of the item: templates paint in the first one. */
+  static contextPalettes = [];
   /**
    * The content profile the editor binds: the item type vocabulary and the stat contract the
    * store's writers apply. Set by {@link ObjectLayerEngineModal.instance}.
-   * @type {{id:string,itemTypes:ReadonlyArray<string>,statTypes:ReadonlyArray<string>,statDescriptions:Object,statModifierMin:number,statModifierMax:number,validateStats:Function,generateRandomStats:Function}|null}
+   * @type {{id:string,itemTypes:ReadonlyArray<string>,statTypes:ReadonlyArray<string>,statDescriptions:Object,statModifierMin:number,statModifierMax:number,validateStats:Function,statBounds:Function,customStatBounds:Function,statProblems:Function,randomStats:Function}|null}
    */
   static profile = null;
 
-  /* Paints a template in the palette in use, as one command, and keeps it as the stamp. */
+  /* Paints a template in the first foundation palette of the item, as one command, and keeps it as the stamp. */
   static RenderTemplate = (template) => {
     const ole = s('object-layer-engine');
     if (!ole) return;
@@ -560,7 +563,7 @@ class ObjectLayerEngineModal {
       ole.command('Clear', () => ole.clear());
       return;
     }
-    const frame = renderTemplate(template, ObjectLayerEngineModal.palettePanel?.activeRoles() ?? {});
+    const frame = renderTemplate(template, ObjectLayerEngineModal.contextPalettes[0]?.roles ?? {});
     ole.command('PasteTemplate', () => ole.loadMatrix(frame));
     ole.setSymmetry(template.symmetry ?? '');
     ole.setStamp(frame);
@@ -572,6 +575,7 @@ class ObjectLayerEngineModal {
     this.ObjectLayerData = {};
     this.selectItemType = 'skin';
     this.itemActivable = false;
+    this.statBoundsMode = 'contract';
     this.renderFrameDuration = 100;
     this.existingObjectLayerId = null;
     this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
@@ -580,6 +584,7 @@ class ObjectLayerEngineModal {
     this.mutateFrames = false;
     this.mutationFactor = 0;
     this.templates = [EMPTY_TEMPLATE];
+    this.contextPalettes = [];
 
     const ole = s('object-layer-engine');
     if (ole && typeof ole.clear === 'function') {
@@ -613,12 +618,6 @@ class ObjectLayerEngineModal {
       const statInput = getRenderedInputNode(`ol-input-item-stats-${stat}`);
       if (statInput) statInput.value = '0';
     }
-
-    const statRandomMinInput = getRenderedInputNode('ol-input-stats-random-min');
-    if (statRandomMinInput && profile) statRandomMinInput.value = String(profile.statModifierMin);
-
-    const statRandomMaxInput = getRenderedInputNode('ol-input-stats-random-max');
-    if (statRandomMaxInput && profile) statRandomMaxInput.value = String(profile.statModifierMax);
 
     // Clear DropDown displays
     const templateDropdownCurrent = s(`.dropdown-current-ol-dropdown-template`);
@@ -700,8 +699,7 @@ class ObjectLayerEngineModal {
     const distortionApplyBtnClass = 'ol-btn-apply-distortion';
     const distortionStatusClass = 'ol-distortion-status';
     const statsRandomizeBtnClass = 'ol-btn-randomize-stats';
-    const statsRandomMinInputId = 'ol-input-stats-random-min';
-    const statsRandomMaxInputId = 'ol-input-stats-random-max';
+    const statsCorrectBtnClass = 'ol-btn-correct-stats';
 
     // ?cid=<key> opens the editor on a stored definition: its cid, its document id, or the
     // item label the host's catalog binds.
@@ -715,6 +713,7 @@ class ObjectLayerEngineModal {
     const setMutateFrames = (mutate) => {
       ObjectLayerEngineModal.mutateFrames = mutate;
       if (s('.ol-input-mutation-factor')) s('.ol-input-mutation-factor').disabled = !mutate;
+      if (s('.ol-import-palette')) s('.ol-import-palette').hidden = !mutate;
     };
 
     const readDistortionFactorA = () => {
@@ -736,19 +735,101 @@ class ObjectLayerEngineModal {
       return normalizedFactor;
     };
 
-    const randomizeStatInputs = () => {
+    // The stat bounds in use: those of the item type, or the custom ranges the author sets inside the
+    // stat contract. A save in custom bounds sends them, and the server checks the same bounds.
+    const statInputs = () =>
+      Object.fromEntries(statTypes.map((key) => [key, getRenderedInputNode(`ol-input-item-stats-${key}`)]));
+    const statValues = () =>
+      Object.fromEntries(
+        Object.entries(statInputs()).map(([key, input]) => [key, input?.value.trim() ? Number(input.value) : NaN]),
+      );
+    const customRanges = () =>
+      Object.fromEntries(
+        statTypes.map((key) => [key, ['min', 'max'].map((end) => Number(s(`.ol-stat-${end}-${key}`)?.value))]),
+      );
+    const activeBounds = () => {
+      if (ObjectLayerEngineModal.statBoundsMode !== 'custom')
+        return { bounds: profile.statBounds(ObjectLayerEngineModal.selectItemType), error: '' };
       try {
-        const minValue = Number(getRenderedInputNode(statsRandomMinInputId)?.value);
-        const maxValue = Number(getRenderedInputNode(statsRandomMaxInputId)?.value);
-        const stats = profile.generateRandomStats(minValue, maxValue);
-        for (const statType of statTypes) {
-          const input = getRenderedInputNode(`ol-input-item-stats-${statType}`);
-          if (input) input.value = String(stats[statType]);
-        }
-        NotificationManager.Push({ html: `Stats randomized between ${minValue} and ${maxValue}.`, status: 'success' });
+        return { bounds: profile.customStatBounds(customRanges()), error: '' };
       } catch (error) {
-        NotificationManager.Push({ html: error.message, status: 'error' });
+        return { bounds: null, error: error.message };
       }
+    };
+    const boundsName = () =>
+      ObjectLayerEngineModal.statBoundsMode === 'custom' ? 'custom' : ObjectLayerEngineModal.selectItemType;
+    const checkStatInputs = () => {
+      const { bounds, error } = activeBounds();
+      const problems = bounds ? profile.statProblems(bounds, statValues()) : [];
+      const invalid = new Set(problems.map(({ key }) => key));
+      for (const [key, input] of Object.entries(statInputs())) {
+        if (!input) continue;
+        input.setAttribute('aria-invalid', String(invalid.has(key)));
+        input.classList.toggle('ol-stat-invalid', invalid.has(key));
+      }
+      const list = s('.ol-stats-problems');
+      if (list)
+        list.textContent = error
+          ? `Custom bounds: ${error}`
+          : problems.length
+            ? `Outside the ${boundsName()} bounds: ${problems.map(({ key, value, min, max }) => `${profile.statDescriptions[key].title} ${Number.isNaN(value) ? 'empty' : value} (${min} to ${max})`).join('; ')}.`
+            : '';
+      if (s(`.${statsCorrectBtnClass}`)) s(`.${statsCorrectBtnClass}`).hidden = problems.length === 0;
+      return error ? [{ error }] : problems;
+    };
+    const syncStatBounds = () => {
+      const custom = ObjectLayerEngineModal.statBoundsMode === 'custom';
+      const select = s('.ol-select-stat-bounds');
+      if (select) {
+        select.options[0].textContent = `${ObjectLayerEngineModal.selectItemType} · STAT_TYPE_BOUNDS`;
+        select.value = custom ? 'custom' : 'contract';
+      }
+      if (s('.ol-stat-bounds-hint'))
+        s('.ol-stat-bounds-hint').textContent = custom
+          ? `Set each range inside ${statModifierMin} to ${statModifierMax}. A stat outside its range cannot be saved.`
+          : 'The bounds follow the item type. A stat outside them cannot be saved.';
+      const { bounds } = activeBounds();
+      for (const [key, input] of Object.entries(statInputs())) {
+        if (bounds && input) Object.assign(input, { min: bounds[key][0], max: bounds[key][1] });
+        if (s(`.ol-stat-range-${key}`)) {
+          s(`.ol-stat-range-${key}`).hidden = custom;
+          if (bounds) s(`.ol-stat-range-${key}`).textContent = `${bounds[key][0]} — ${bounds[key][1]}`;
+        }
+        if (s(`.ol-stat-custom-${key}`)) s(`.ol-stat-custom-${key}`).hidden = !custom;
+      }
+      checkStatInputs();
+    };
+    // Custom ranges start from the bounds of the item type, widened to any stat already outside them.
+    const fillCustomRanges = () => {
+      const typed = profile.statBounds(ObjectLayerEngineModal.selectItemType);
+      const values = statValues();
+      for (const key of statTypes) {
+        const value = Number.isInteger(values[key]) ? values[key] : typed[key][0];
+        if (s(`.ol-stat-min-${key}`)) s(`.ol-stat-min-${key}`).value = String(Math.min(typed[key][0], value));
+        if (s(`.ol-stat-max-${key}`)) s(`.ol-stat-max-${key}`).value = String(Math.max(typed[key][1], value));
+      }
+    };
+    const randomizeStatInputs = () => {
+      const { bounds, error } = activeBounds();
+      if (!bounds) return NotificationManager.Push({ html: `Custom bounds: ${error}`, status: 'error' });
+      const stats = profile.randomStats(bounds);
+      for (const [key, input] of Object.entries(statInputs())) if (input) input.value = String(stats[key]);
+      checkStatInputs();
+      NotificationManager.Push({ html: `Stats randomized within the ${boundsName()} bounds.`, status: 'success' });
+    };
+    const correctStatInputs = () => {
+      if (!activeBounds().bounds) return;
+      const changes = checkStatInputs().map(({ key, value, min, max }) => {
+        const next = Number.isNaN(value)
+          ? Math.max(min, Math.min(max, 0))
+          : Math.max(min, Math.min(max, Math.trunc(value)));
+        const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
+        if (input) input.value = String(next);
+        return `${profile.statDescriptions[key].title} ${Number.isNaN(value) ? 'empty' : value} → ${next}`;
+      });
+      checkStatInputs();
+      if (changes.length > 0)
+        NotificationManager.Push({ html: `Stats corrected: ${changes.join(', ')}.`, status: 'success' });
     };
 
     let uniformOpacitySyncInProgress = false;
@@ -932,6 +1013,9 @@ class ObjectLayerEngineModal {
 
     // ?review=<key> opens the definition as a revision under review in the host's Studio, which saves it.
     const review = queryParams.review ? await ObjectLayerEngineModal.studio?.review?.resolve(queryParams.review) : null;
+    // A review of a new item names the item: a blank form starts from its id and item type.
+    const reviewedItem = !loadedData ? (review?.item ?? null) : null;
+    if (reviewedItem) ObjectLayerEngineModal.selectItemType = reviewedItem.type;
     // Outside a review, the host's Studio says whether this revision is the one its item runs.
     const binding =
       loadedData && !review ? await ObjectLayerEngineModal.studio?.binding?.resolve(loadedData.metadata) : null;
@@ -1285,9 +1369,11 @@ class ObjectLayerEngineModal {
     }
 
     let statsInputsRender = '';
+    const initialBounds = profile.statBounds(ObjectLayerEngineModal.selectItemType);
     for (const statType of statTypes) {
       const statInfo = profile.statDescriptions[statType];
       const statValue = loadedData?.metadata?.data?.stats?.[statType] || 0;
+      const [statMin, statMax] = initialBounds[statType];
       statsInputsRender += html`
         <div class="inl" style="margin-bottom: 10px; position: relative;">
           ${await Input.instance({
@@ -1305,11 +1391,35 @@ class ObjectLayerEngineModal {
             </div>`,
             containerClass: 'inl',
             type: 'number',
-            min: statModifierMin,
-            max: statModifierMax,
+            min: statMin,
+            max: statMax,
             placeholder: true,
             value: statValue,
           })}
+          <span class="ol-stat-range ol-stat-range-${statType}" title="Inclusive bounds in use"
+            >${statMin} — ${statMax}</span
+          >
+          <span class="ol-stat-custom ol-stat-custom-${statType}" hidden>
+            <input
+              class="ol-stat-min-${statType}"
+              type="number"
+              step="1"
+              min="${statModifierMin}"
+              max="${statModifierMax}"
+              value="${statMin}"
+              aria-label="${statInfo.title} minimum"
+            />
+            —
+            <input
+              class="ol-stat-max-${statType}"
+              type="number"
+              step="1"
+              min="${statModifierMin}"
+              max="${statModifierMax}"
+              value="${statMax}"
+              aria-label="${statInfo.title} maximum"
+            />
+          </span>
           <div class="in stat-description">
             ${statInfo.description}<br />
             <span style="color: #888; font-style: italic;">${statInfo.detail}</span>
@@ -1479,24 +1589,29 @@ class ObjectLayerEngineModal {
       }
       syncPaletteFromEditor();
 
-      // Palettes, and the foundation context of the item: by the key the editor opened, then by
-      // the item id an author types for an item not painted yet.
-      ObjectLayerEngineModal.palettePanel = new ObjectLayerPalettePanel({
-        container: s('.ol-palette-panel'),
-        editor,
-      });
+      // The foundation context of the item: by the key the editor opened, then by the item id an
+      // author types for an item not painted yet.
+      ObjectLayerEngineModal.importPalette =
+        (await ObjectLayerEngineModal.studio?.importPalette?.(s('.ol-import-palette'), {
+          itemId: () => s('.ol-input-item-id')?.value.trim() ?? '',
+        })) ?? null;
+      if (!ObjectLayerEngineModal.importPalette)
+        s('.ol-import-palette').textContent = 'This host offers no palette: Mutate imports the frames as stored.';
       const showContext = async (key) => {
         if (!ObjectLayerEngineModal.studio || !key) return;
         const panel = await ObjectLayerEngineModal.studio.context(key);
         mountContextPanel(s('.ol-context-panel'), panel, 'No foundation definition carries this item label yet.');
-        ObjectLayerEngineModal.palettePanel.setPalettes(panel?.palettes ?? []);
+        ObjectLayerEngineModal.contextPalettes = panel?.palettes ?? [];
       };
       await showContext(cid || loadedData?.metadata?.data?.item?.id);
-      s('.ol-input-item-id')?.addEventListener('change', (event) => showContext(event.target.value.trim()));
+      s('.ol-input-item-id')?.addEventListener('change', (event) => {
+        showContext(event.target.value.trim());
+        ObjectLayerEngineModal.importPalette?.reload();
+      });
 
       // Unsaved work of an item stays in this browser until a save, whatever definition it runs; a
       // draft newer than the stored item is offered back on open.
-      const draftKey = `object-layer:${loadedData?.metadata?.data?.item?.id || 'new'}`;
+      const draftKey = `object-layer:${loadedData?.metadata?.data?.item?.id || reviewedItem?.id || 'new'}`;
       const draft = EditorDraftStore.debounced(draftKey);
       const draftState = () => ({
         itemId: s('.ol-input-item-id')?.value ?? '',
@@ -1527,6 +1642,7 @@ class ObjectLayerEngineModal {
         ObjectLayerEngineModal.selectItemType = value.itemType;
         ObjectLayerEngineModal.itemActivable = value.activable;
         htmls(`.dropdown-current-ol-dropdown-item-type`, value.itemType);
+        syncStatBounds();
         await fillDirectionBars(
           Object.fromEntries(
             Object.entries(value.frames).map(([code, frames]) => [code, frames.map((json) => JSON.parse(json).matrix)]),
@@ -1548,21 +1664,17 @@ class ObjectLayerEngineModal {
         if (answer.status === 'confirm') await restoreDraft(stored.value);
         else await discardDraft();
       }
+      // A new reviewed item starts from one empty down idle frame: a canvas, never artwork.
+      if (reviewedItem && !ObjectLayerEngineModal.ObjectLayerData['08']?.length)
+        await fillDirectionBars({ '08': [JSON.parse(editor.exportMatrixJSON()).matrix] });
 
       // Takes the frames of every direction and the frame duration from another object layer: as stored or,
-      // with Mutate, in the studio palette of this item and with a new contour. The item data and the stats stay.
+      // with Mutate, in the palette of the import and with a new contour. The item data and the stats stay.
       EventsUI.onClick('.ol-btn-import-frames', async () => {
         const itemId = DropDown.Tokens['ol-dropdown-import-frames']?.value;
         if (typeof itemId !== 'string' || !itemId) return;
-        const mutate = ObjectLayerEngineModal.mutateFrames;
-        const palette = mutate ? ObjectLayerEngineModal.palettePanel?.studioPalette() : null;
-        if (mutate && !palette) {
-          NotificationManager.Push({
-            html: 'The foundation palette of this item is unavailable, so its frames cannot be remapped',
-            status: 'error',
-          });
-          return;
-        }
+        const palette = ObjectLayerEngineModal.importPalette;
+        const mutate = ObjectLayerEngineModal.mutateFrames && Boolean(palette);
         if (editingFrameId) exitEditMode();
         const factorInput = s('.ol-input-mutation-factor');
         const mutationFactor = Math.round(clampNumber(Number.parseFloat(factorInput?.value) || 0, 0, 1) * 100) / 100;
@@ -1572,7 +1684,7 @@ class ObjectLayerEngineModal {
         const { status, data, message } = await ObjectLayerService.importFrames({
           body: {
             id: itemId,
-            roles: palette?.roles,
+            ...(mutate && { palette: palette.request() }),
             mutate,
             mutationFactor,
             seed: ObjectLayerEngineModal.importSeed++,
@@ -1588,15 +1700,18 @@ class ObjectLayerEngineModal {
         ObjectLayerEngineModal.renderFrameDuration = result.frameDurationMs;
         if (s('.ol-input-render-frame-duration')) s('.ol-input-render-frame-duration').value = result.frameDurationMs;
         scheduleDraft();
+        const shown = mutate
+          ? `mutated in the palette of the import, factor ${mutationFactor}`
+          : 'as stored, with no mutation';
+        if (s('.ol-import-status'))
+          s('.ol-import-status').textContent =
+            `The frames show ${itemId} ${shown}. ${itemId} itself is unchanged; save to keep them in this item.`;
         NotificationManager.Push({
           html: [
             `Frames of "${itemId}" imported: ${result.frames}`,
-            ...(mutate
-              ? [
-                  `Palette: ${palette.name}`,
-                  `Mutation: factor ${mutationFactor}, ${result.accepted} accepted, ${result.rejected} rejected`,
-                ]
-              : ['Mutation: no']),
+            mutate
+              ? `Mutation: factor ${mutationFactor}, ${result.accepted} accepted, ${result.rejected} rejected`
+              : 'Mutation: no',
           ].join('<br />'),
           status: 'success',
         });
@@ -1698,6 +1813,26 @@ class ObjectLayerEngineModal {
       EventsUI.onClick(`.${statsRandomizeBtnClass}`, async () => {
         randomizeStatInputs();
       });
+      EventsUI.onClick(`.${statsCorrectBtnClass}`, async () => {
+        correctStatInputs();
+      });
+      for (const input of Object.values(statInputs())) input?.addEventListener('input', checkStatInputs);
+      for (const key of statTypes)
+        for (const end of ['min', 'max']) s(`.ol-stat-${end}-${key}`)?.addEventListener('input', syncStatBounds);
+      s('.ol-select-stat-bounds')?.addEventListener('change', (event) => {
+        ObjectLayerEngineModal.statBoundsMode = event.target.value;
+        if (event.target.value === 'custom') fillCustomRanges();
+        syncStatBounds();
+      });
+      const storedStats = loadedData?.metadata?.data?.stats;
+      if (
+        storedStats &&
+        profile.statProblems(profile.statBounds(ObjectLayerEngineModal.selectItemType), storedStats).length
+      ) {
+        ObjectLayerEngineModal.statBoundsMode = 'custom';
+        fillCustomRanges();
+      }
+      syncStatBounds();
 
       if (review) EventsUI.onClick('.ol-btn-review-back', () => ObjectLayerEngineModal.studio.review.close(review));
       if (binding?.bindable && canMutate)
@@ -1762,15 +1897,15 @@ class ObjectLayerEngineModal {
           NotificationManager.Push({ html: error.message, status: 'error' });
           return;
         }
+        if (checkStatInputs().length > 0) {
+          NotificationManager.Push({
+            html: `Some stats or ranges are outside the ${boundsName()} bounds: correct them first.`,
+            status: 'error',
+          });
+          return;
+        }
         try {
-          objectLayer.data.stats = profile.validateStats(
-            Object.fromEntries(
-              statTypes.map((key) => {
-                const input = getRenderedInputNode(`ol-input-item-stats-${key}`);
-                return [key, input?.value.trim() ? Number(input.value) : NaN];
-              }),
-            ),
-          );
+          objectLayer.data.stats = profile.validateStats(statValues());
         } catch (error) {
           NotificationManager.Push({ html: error.message, status: 'error' });
           return;
@@ -1794,6 +1929,7 @@ class ObjectLayerEngineModal {
         const body = {
           data: objectLayer.data,
           objectLayerRenderFramesData,
+          ...(ObjectLayerEngineModal.statBoundsMode === 'custom' && { statBounds: customRanges() }),
           ...(review && { review: queryParams.review }),
         };
         const { status, data, message } = isUpdateMode
@@ -1922,6 +2058,40 @@ class ObjectLayerEngineModal {
           margin-bottom: 5px;
           max-width: 200px;
         }
+        .ol-stat-bounds-field {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .ol-stat-bounds-hint,
+        .ol-stat-range {
+          color: #888;
+          font-size: 12px;
+        }
+        .ol-stat-range,
+        .ol-stat-custom {
+          margin-left: 6px;
+          font-variant-numeric: tabular-nums;
+        }
+        .ol-stat-custom input {
+          width: 6ch;
+        }
+        .ol-stats-problems:not(:empty) {
+          color: #ff7a7a;
+          margin-bottom: 8px;
+        }
+        .ol-stat-invalid {
+          outline: 2px solid #ff5a5a;
+          outline-offset: 1px;
+        }
+        .ol-import-palette {
+          margin: 6px 0;
+        }
+        .ol-import-status {
+          color: #888;
+          font-size: 12px;
+        }
         .frame-editor-container-loading {
           width: 100%;
           height: 150px;
@@ -1932,7 +2102,6 @@ class ObjectLayerEngineModal {
           font-size: 26px;
         }
         ${contextPanelStyle}
-        ${palettePanelStyle}
       </style>
       ${borderChar(2, 'black', [
         '.sub-title-modal',
@@ -1949,7 +2118,7 @@ class ObjectLayerEngineModal {
               <div class="in" style="font-size: 12px; opacity: 0.7;">${review.detail}</div>
               ${await BtnIcon.instance({
                 class: 'ol-btn-review-back',
-                label: html`<i class="fa-solid fa-arrow-left"></i> Back to review`,
+                label: html`<i class="fa-solid fa-arrow-left"></i> ${review.back}`,
               })}
             </div>`
           : ''
@@ -2012,10 +2181,6 @@ class ObjectLayerEngineModal {
                           Keep all visible cells at the current opacity bar value
                         </div>
                       </div>
-                      <div class="in sub-title-modal" style="margin-top: 8px;">
-                        <i class="fa-solid fa-swatchbook"></i> Palettes
-                      </div>
-                      <div class="in ol-palette-panel"></div>
                     </div>
 
                     <div class="in section-mp section-mp-border">
@@ -2194,6 +2359,8 @@ class ObjectLayerEngineModal {
                         })}
                       </div>
                     </div>
+                    <div class="in ol-import-palette" hidden></div>
+                    <div class="in ol-import-status" role="status" aria-live="polite"></div>
                     ${directionsCodeBarRender}
                   </div>`,
                 },
@@ -2213,7 +2380,7 @@ class ObjectLayerEngineModal {
                             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
                             containerClass: '',
                             placeholder: true,
-                            value: loadedData?.metadata?.data?.item?.id || '',
+                            value: loadedData?.metadata?.data?.item?.id || reviewedItem?.id || '',
                           })}
                           ${await Input.instance({
                             id: `ol-input-item-description`,
@@ -2233,8 +2400,8 @@ class ObjectLayerEngineModal {
                                   value: itemType,
                                   display: html`${itemType}`,
                                   onClick: async () => {
-                                    console.warn('itemType click', itemType);
                                     ObjectLayerEngineModal.selectItemType = itemType;
+                                    syncStatBounds();
                                   },
                                 };
                               }),
@@ -2265,41 +2432,29 @@ class ObjectLayerEngineModal {
                         <div class="in section-mp section-mp-border">
                           <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
                           <div class="in">${statModifierMin} penalty ↔ 0 neutral ↔ +${statModifierMax} bonus</div>
-                          <div
-                            class="fl"
-                            style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;"
-                          >
-                            <div class="in fll" style="width: 110px;">
-                              ${await Input.instance({
-                                id: statsRandomMinInputId,
-                                label: html`Random min`,
-                                containerClass: 'inl',
-                                type: 'number',
-                                min: statModifierMin,
-                                max: statModifierMax,
-                                placeholder: true,
-                                value: statModifierMin,
-                              })}
-                            </div>
-                            <div class="in fll" style="width: 110px;">
-                              ${await Input.instance({
-                                id: statsRandomMaxInputId,
-                                label: html`Random max`,
-                                containerClass: 'inl',
-                                type: 'number',
-                                min: statModifierMin,
-                                max: statModifierMax,
-                                placeholder: true,
-                                value: statModifierMax,
-                              })}
-                            </div>
-                            <div class="in fll">
-                              ${await BtnIcon.instance({
-                                label: html`<i class="fa-solid fa-dice"></i> Randomize`,
-                                class: statsRandomizeBtnClass,
-                              })}
-                            </div>
+                          <label class="in ol-stat-bounds-field">
+                            <span>Stat bounds</span>
+                            <select class="ol-select-stat-bounds" aria-describedby="ol-stat-bounds-hint">
+                              <option value="contract" selected>
+                                ${ObjectLayerEngineModal.selectItemType} · STAT_TYPE_BOUNDS
+                              </option>
+                              <option value="custom">Custom bounds</option>
+                            </select>
+                          </label>
+                          <div id="ol-stat-bounds-hint" class="in ol-stat-bounds-hint">
+                            The bounds follow the item type. A stat outside them cannot be saved.
                           </div>
+                          <div class="fl" style="align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0;">
+                            ${await BtnIcon.instance({
+                              label: html`<i class="fa-solid fa-dice"></i> Randomize within bounds`,
+                              class: statsRandomizeBtnClass,
+                            })}
+                            ${await BtnIcon.instance({
+                              label: html`<i class="fa-solid fa-wand-magic"></i> Correct to bounds`,
+                              class: statsCorrectBtnClass,
+                            })}
+                          </div>
+                          <div class="in ol-stats-problems" role="status" aria-live="polite"></div>
                           ${statsInputsRender}
                         </div>
                       </div>
@@ -2362,13 +2517,14 @@ class ObjectLayerEngineModal {
    * @param {object} [options]
    * @param {string} [options.cid] - The object layer to edit.
    * @param {string} [options.review] - The key of the review the edit belongs to; the host's Studio resolves it.
+   *   With no cid it opens a blank form on the item the review names.
    * @returns {boolean} Whether the host offers the editor.
    */
   static open({ cid, review } = {}) {
     const entryEl = s(`.main-btn-object-layer-engine`);
     if (!entryEl) return false;
     setPath(`${getProxyPath()}object-layer-engine`);
-    if (cid) setQueryParams({ id: null, cid, review: review ?? null }, { replace: true });
+    if (cid || review) setQueryParams({ id: null, cid: cid ?? null, review: review ?? null }, { replace: true });
     if (s(`.modal-object-layer-engine`)) setTimeout(() => ObjectLayerEngineModal.Reload());
     entryEl.click();
     return true;
