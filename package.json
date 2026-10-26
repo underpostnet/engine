@@ -133,7 +133,7 @@
   "devDependencies": {
     "@socketsecurity/cli": "1.8.3",
     "@vitest/coverage-v8": "5.0.5",
-    "allure-vitest": "3.13.0",
+    "allure-vitest": "3.14.0",
     "bumpp": "^12.3.0",
     "chai": "^6.3.0",
     "vitest": "5.0.5"
