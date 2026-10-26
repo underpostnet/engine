@@ -3,10 +3,11 @@
 /**
  * @module test/support/procedural-engine
  * @description A Procedural Engine on a real MongoDB for the integration suites: one host that is
- * its own Object Layer authority, the shipped profiles, the procedural content of
- * `procedural-content.js` with the foundation of three items, and a few existing Cyberia items to
- * target. Needs a mongod binary (`UNDERPOST_MONGOD_BIN`); IPFS points at a closed port, so a pin
- * failure is a warning, never a failed write.
+ * its own Object Layer authority with the maps, instances, instance confs and entity-type defaults a
+ * map population reads, the shipped profiles, the procedural content of `procedural-content.js` with the foundation
+ * of three items, and a few existing Cyberia items to target. Needs a mongod binary
+ * (`UNDERPOST_MONGOD_BIN`); IPFS points at a closed port, so a pin failure is a warning, never a
+ * failed write.
  */
 
 import { DataBaseProviderService } from '../../src/db/DataBaseProvider.js';
@@ -22,6 +23,7 @@ import { RANDOM_PALETTE } from '../../src/projects/cyberia/procedural/spec.js';
 import { ensureDefaultProfiles } from '../../src/projects/cyberia/procedural/profiles/registry.js';
 import { drainQueue } from '../../src/projects/cyberia/procedural/jobs/worker.js';
 import { resolveTemplate } from '../../src/projects/cyberia/procedural/templates.js';
+import { paletteRoles } from '../../src/projects/cyberia/procedural/palettes/resolver.js';
 import { CyberiaObjectLayerProfile } from '../../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import {
   framesByDirection,
@@ -29,7 +31,7 @@ import {
   toWire,
 } from '../../src/client/components/objectlayer-studio/RenderSource.js';
 import { startMongod } from './mongod.js';
-import { SKIN_PALETTES, SKIN_TEMPLATE, VIOLET_STRATA, writeProceduralArtifact } from './procedural-content.js';
+import { SKIN_TEMPLATE, VIOLET_STRATA, paletteFixture, writeProceduralArtifact } from './procedural-content.js';
 import { skinSource } from './procedural-skin.js';
 
 export const host = { host: 'procedural.test', path: '/', consumes: {} };
@@ -40,6 +42,10 @@ export const APIS = [
   'file',
   'ipfs',
   'cyberia-item-catalog',
+  'cyberia-map',
+  'cyberia-instance',
+  'cyberia-entity-type-default',
+  'cyberia-instance-conf',
   ...PROCEDURAL_APIS,
 ];
 export const MODERATOR = '64b000000000000000000001';
@@ -64,13 +70,10 @@ export const FOUNDATION_ITEMS = Object.freeze({
   'violet-skin': { locations: [VIOLET_STRATA.id] },
 });
 
-/** A Palette Template of the content by id. */
-export const paletteOf = (id) => SKIN_PALETTES.find((palette) => palette.id === id);
-
-/** The color slots that set the base of every role of a Palette Template. */
+/** The color slots that set the base of every role of the humanoid template from a palette. */
 export const slotsOf = (paletteId) =>
   Object.fromEntries(
-    Object.entries(paletteOf(paletteId).roles).map(([role, color]) => [
+    Object.entries(paletteRoles(resolveTemplate(SKIN_TEMPLATE), paletteFixture(paletteId))).map(([role, color]) => [
       ['outline', 'accent'].includes(role) ? role : `${role}.base`,
       color,
     ]),
@@ -139,17 +142,67 @@ export const edited = async (item, paint, change = (data) => data) => {
   };
 };
 
+/** Effect 1 and agility 4, each kept inside the bounds of the item type. */
+const statsOf = (type) => {
+  const bounds = CyberiaObjectLayerProfile.statBounds(type);
+  const wanted = { effect: 1, agility: 4 };
+  return CyberiaObjectLayerProfile.validateStats(
+    Object.fromEntries(
+      Object.entries(bounds).map(([key, [min, max]]) => [key, Math.min(max, Math.max(min, wanted[key] ?? 0))]),
+    ),
+  );
+};
+
 /** The data of a Cyberia item definition. */
 export const definitionOf = (id, type = 'skin') => ({
   item: { id, type, description: `the ${id}`, activable: true },
-  stats: CyberiaObjectLayerProfile.validateStats({ effect: 1, agility: 4 }),
+  stats: statsOf(type),
 });
 
-/** Starts mongod, serves the procedural content, loads the host and stores the shipped profiles and the existing items. */
-export async function startEngine() {
+/**
+ * Publishes an existing Cyberia item and binds its label to it.
+ * @param {string} itemId
+ * @param {Object} [params]
+ * @param {boolean} [params.render] - Whether it has a render: the source skin of the humanoid template.
+ * @param {string} [params.type] - Its item type.
+ * @param {Object} [params.renderSource] - The render it has, over the source skin.
+ * @returns {Promise<string>} The cid it runs.
+ */
+export async function publishItem(itemId, { render = true, type = 'skin', renderSource } = {}) {
+  const definition = await (render || renderSource
+    ? ObjectLayerEngine.persistObjectLayerDocuments({
+        models: catalogModels(host),
+        objectLayerRenderFramesData: renderSource ?? skinSource(resolveTemplate(SKIN_TEMPLATE)).renderSource,
+        objectLayerData: { data: definitionOf(itemId, type) },
+        persistOptions: { options: host },
+      })
+    : publishItemDefinition({
+        models: catalogModels(host),
+        payload: { data: definitionOf(itemId, type) },
+        options: host,
+      }));
+  await bindItem({
+    models: catalogModels(host),
+    itemId,
+    objectLayerCid: definition.cid,
+    expectedCid: null,
+    source: 'content',
+    options: host,
+  });
+  return definition.cid;
+}
+
+/**
+ * Starts mongod, serves the procedural content, loads the host and stores the shipped profiles and the existing items.
+ * @param {Object} [world] - What the content holds besides the items; see {@link writeProceduralArtifact}.
+ * @param {Object} [world.maps]
+ * @param {Object[]} [world.entities]
+ * @param {Object[]} [world.baseline]
+ */
+export async function startEngine({ maps = {}, entities = [], baseline = [] } = {}) {
   for (const key of ['DB_USER', 'DB_PASSWORD', 'DB_AUTH_SOURCE', 'DB_REPLICA_SET', 'DEFAULT_DEPLOY_ID'])
     delete process.env[key];
-  process.env.CYBERIA_CONTENT_ROOT = writeProceduralArtifact(FOUNDATION_ITEMS);
+  process.env.CYBERIA_CONTENT_ROOT = writeProceduralArtifact(FOUNDATION_ITEMS, { maps, entities, baseline });
   process.env.IPFS_API_URL = 'http://127.0.0.1:9';
   process.env.IPFS_CLUSTER_API_URL = 'http://127.0.0.1:9';
   mongod = await startMongod('cyberia', { replSet: 'proceduralset' });
@@ -160,37 +213,13 @@ export async function startEngine() {
   });
   for (const model of Object.values(models())) await model.init();
   await ensureDefaultProfiles(models());
-  const { renderSource } = skinSource(resolveTemplate(SKIN_TEMPLATE));
-  const publish = async (itemId, { render = true, type = 'skin' } = {}) => {
-    const definition = await (render
-      ? ObjectLayerEngine.persistObjectLayerDocuments({
-          models: catalogModels(host),
-          objectLayerRenderFramesData: renderSource,
-          objectLayerData: { data: definitionOf(itemId, type) },
-          persistOptions: { options: host },
-        })
-      : publishItemDefinition({
-          models: catalogModels(host),
-          payload: { data: definitionOf(itemId, type) },
-          options: host,
-        }));
-    await bindItem({
-      models: catalogModels(host),
-      itemId,
-      objectLayerCid: definition.cid,
-      expectedCid: null,
-      source: 'content',
-      options: host,
-    });
-    return definition.cid;
-  };
   Object.assign(cids, {
-    'base-skin': await publish('base-skin'),
-    'violet-skin': await publish('violet-skin'),
-    'bare-skin': await publish('bare-skin', { render: false }),
-    'iron-sword': await publish('iron-sword', { render: false, type: 'weapon' }),
-    'aether-agent': await publish('aether-agent'),
-    'ash-raider': await publish('ash-raider', { render: false }),
+    'base-skin': await publishItem('base-skin'),
+    'violet-skin': await publishItem('violet-skin'),
+    'bare-skin': await publishItem('bare-skin', { render: false }),
+    'iron-sword': await publishItem('iron-sword', { render: false, type: 'weapon' }),
+    'aether-agent': await publishItem('aether-agent'),
+    'ash-raider': await publishItem('ash-raider', { render: false }),
   });
 }
 

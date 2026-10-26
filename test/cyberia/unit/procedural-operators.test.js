@@ -6,18 +6,18 @@ import {
   paletteMaps,
   regionDeformation,
   regionFill,
-} from '../../../src/projects/cyberia/procedural/generators/skin/operators.js';
+} from '../../../src/projects/cyberia/procedural/generators/sprite/operators.js';
 import {
   growHair,
   HAIR_STYLES,
   HAIR_STYLE_IDS,
-} from '../../../src/projects/cyberia/procedural/generators/skin/hair-growth.js';
+} from '../../../src/projects/cyberia/procedural/generators/sprite/hair-growth.js';
 import { analyzeFrame } from '../../../src/projects/cyberia/procedural/core/frame-analysis.js';
 import { shapeOf } from '../../../src/projects/cyberia/procedural/core/frame-mutation.js';
 import { planPalette } from '../../../src/projects/cyberia/procedural/palettes/resolver.js';
 import { resolveProceduralContext } from '../../../src/projects/cyberia/procedural/context.js';
-import { prepareSkinBatch } from '../../../src/projects/cyberia/procedural/generators/skin/generator.js';
-import { protectedCells, resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
+import { prepareSpriteBatch } from '../../../src/projects/cyberia/procedural/generators/sprite/generator.js';
+import { protectedCells, regionsOf, resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
 import { hexToRgba } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 import { SKIN_DEFAULT_PROFILE as profile } from '../../../src/projects/cyberia/procedural/profiles/registry.js';
 import { SKIN_TEMPLATE } from '../../support/procedural-content.js';
@@ -30,13 +30,14 @@ const plan = (roles = {}, extra = {}) =>
 const paint = (hex) => [...hexToRgba(hex).slice(0, 3), 255];
 const keyOf = (frame, x, y) => frame[y][x].join();
 const keys = (cells) => new Set(cells.map(([x, y]) => `${x},${y}`));
-const batchOf = (source) => prepareSkinBatch(resolveProceduralContext({ source, template: genesis, profile }));
+const batchOf = (source) => prepareSpriteBatch(resolveProceduralContext({ source, template: genesis, profile }));
 const template = batchOf(bareSkin(genesis));
 const rendered = batchOf(skinSource(genesis));
 const direction = (batch, code) => {
-  const { frames, owned, rule } = batch.directions[code];
-  return { ...frames[0], owned, rule };
+  const { frames, rule } = batch.directions[code];
+  return { ...frames[0], rule };
 };
+const guarded = protectedCells(regionsOf(genesis, '08', 0), profile);
 const cellsWhere = (analysis, mask) =>
   [...mask.keys()]
     .filter((cell) => mask[cell])
@@ -145,7 +146,7 @@ describe('direction features', () => {
 describe('region deformation', () => {
   const { frame, analysis, owned } = direction(template, '08');
   const colors = plan();
-  const frozen = keys(protectedCells(genesis, profile, '08'));
+  const frozen = keys(guarded);
   const pairs = profile.constraints.deformablePairs;
   const run = (strength, seed = 2) =>
     regionDeformation(frame, { analysis, owned, pairs, frozen, plan: colors, seed, strength });
@@ -158,7 +159,7 @@ describe('region deformation', () => {
     const result = run(1);
     expect(result.changed).toBeGreaterThan(0);
     expect(run(1)).toEqual(result);
-    for (const [x, y] of [...cellsWhere(analysis, analysis.outline), ...protectedCells(genesis, profile, '08')])
+    for (const [x, y] of [...cellsWhere(analysis, analysis.outline), ...guarded])
       expect(keyOf(result.frame, x, y)).toBe(keyOf(frame, x, y));
     expect(shapeOf(result.frame)).toEqual(shapeOf(frame));
   });
@@ -167,7 +168,7 @@ describe('region deformation', () => {
 describe('detail pass', () => {
   const { frame, analysis, owned } = direction(template, '08');
   const colors = plan();
-  const frozen = keys(protectedCells(genesis, profile, '08'));
+  const frozen = keys(guarded);
   const run = (detail) =>
     detailPass(frame, { analysis, owned, frozen, plan: colors, seedOf: (id) => id.length + 11, detail });
 
@@ -175,7 +176,7 @@ describe('detail pass', () => {
     expect(run(0)).toEqual(frame);
     const detailed = run(1);
     expect(detailed).not.toEqual(frame);
-    for (const [x, y] of [...cellsWhere(analysis, analysis.outline), ...protectedCells(genesis, profile, '08')])
+    for (const [x, y] of [...cellsWhere(analysis, analysis.outline), ...guarded])
       expect(keyOf(detailed, x, y)).toBe(keyOf(frame, x, y));
   });
 });
@@ -184,7 +185,7 @@ describe('hair growth', () => {
   const { frame: base, analysis: baseAnalysis, owned, rule } = direction(template, '08');
   const colors = plan();
   const frame = regionFill(base, { analysis: baseAnalysis, owned, plan: colors });
-  const frozen = keys(protectedCells(genesis, profile, '08'));
+  const frozen = keys(guarded);
   const grow = (overrides = {}) =>
     growHair(frame, {
       analysis: analyzeFrame(frame),
@@ -218,7 +219,7 @@ describe('hair growth', () => {
       const after = shapeOf(result.frame);
       expect([after.components, after.holes]).toEqual([before.components, before.holes]);
       expect(after.count).toBe(before.count + result.added);
-      for (const [x, y] of protectedCells(genesis, profile, '08')) expect(keyOf(result.frame, x, y)).toBe(keyOf(frame, x, y));
+      for (const [x, y] of guarded) expect(keyOf(result.frame, x, y)).toBe(keyOf(frame, x, y));
     }
   });
 

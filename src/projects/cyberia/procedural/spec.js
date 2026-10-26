@@ -15,19 +15,24 @@
 import { randomInt } from 'node:crypto';
 import { sourceFromDirectionFrames, toWire } from '../../../client/components/objectlayer-studio/RenderSource.js';
 import { seededRandom } from '../../../client/components/objectlayer-studio/PixelRegion.js';
-import { resolveProceduralContext } from './context.js';
+import { ORIGINS, generationSource, resolveProceduralContext } from './context.js';
 import { requestError } from './engine.js';
 import { GENERATORS, resolveGenerator } from './generator-registry.js';
-import { paletteCatalog, palettesFor, randomPalette } from './palettes/catalog.js';
+import { paletteCatalog, paletteOf, randomPalette } from './palettes/catalog.js';
 import {
   candidatePalette,
   paletteSlots,
+  rampRoles,
   randomSlotColors,
   slotDefaults,
   templateSlotColors,
 } from './palettes/resolver.js';
-import { baselineSource, itemBaseline, loadItemSource } from './source.js';
+import { contentFreshness } from '../content/content-artifact.js';
+import { RENDER_FRAME_CONTRACT } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { artDirectionOf, baselineSource, itemBaseline, loadItemSource } from './source.js';
 import {
+  GENERATOR_ROLES,
+  PALETTE_ROLES,
   compatibilityProblems,
   genesisTemplate,
   genesisTemplates,
@@ -42,16 +47,27 @@ export const MAX_JOB_ITEMS = 200;
 export const GENERATION_MODES = Object.freeze(['update-existing', 'create-new']);
 
 /**
- * The `paletteId` of a palette choice that gives each candidate a Palette Template the seed picks.
+ * The `paletteId` of a palette choice that gives each candidate a palette the seed picks.
  * @memberof CyberiaProceduralSpec
  */
 export const RANDOM_PALETTE = 'random';
 
 const SEED_LIMIT = 2 ** 32;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const ITEM_ID_PREFIX_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** An item id, or the prefix of the item ids a create proposes: lowercase words joined by hyphens. */
+export const ITEM_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REQUEST_KEYS = Object.freeze({
-  'update-existing': ['mode', 'generator', 'source', 'palette', 'output', 'variation', 'seed', 'parameters'],
+  'update-existing': [
+    'mode',
+    'generator',
+    'source',
+    'template',
+    'palette',
+    'output',
+    'variation',
+    'seed',
+    'parameters',
+  ],
   'create-new': ['mode', 'generator', 'itemType', 'template', 'palette', 'output', 'variation', 'seed', 'parameters'],
 });
 
@@ -69,17 +85,38 @@ const countOf = (value, name) => {
   return value;
 };
 
-/** The target item ids of an update request: existing items, each once. */
-const itemIdsOf = (source) => {
+const isIdList = (ids) =>
+  Array.isArray(ids) && ids.every((id) => typeof id === 'string' && id) && new Set(ids).size === ids.length;
+
+/**
+ * The target item ids of an update request, existing items each once, and those of them whose
+ * candidates start from the Genesis Template instead of their render.
+ */
+const sourceOf = (source) => {
   if (!isPlain(source) || !Array.isArray(source.itemIds) || source.itemIds.length === 0)
     throw requestError('An update needs source.itemIds with at least one existing item');
-  only(source, ['itemIds'], 'source');
-  if (
-    source.itemIds.some((id) => typeof id !== 'string' || !id) ||
-    new Set(source.itemIds).size !== source.itemIds.length
-  )
-    throw requestError('source.itemIds must list each item id once');
-  return source.itemIds;
+  only(source, ['itemIds', 'fromTemplate'], 'source');
+  if (!isIdList(source.itemIds)) throw requestError('source.itemIds must list each item id once');
+  const fromTemplate = source.fromTemplate ?? [];
+  if (!isIdList(fromTemplate) || fromTemplate.some((id) => !source.itemIds.includes(id)))
+    throw requestError('source.fromTemplate lists items of source.itemIds, each once');
+  return { itemIds: source.itemIds, fromTemplate };
+};
+
+/** The new item ids of a create: the ids it names, or the prefix and the count it proposes them from. */
+const proposedOf = (output) => {
+  if (output.itemIds !== undefined) {
+    only(output, ['itemIds'], 'output');
+    if (!isIdList(output.itemIds) || output.itemIds.length === 0 || output.itemIds.length > MAX_JOB_ITEMS)
+      throw requestError(`output.itemIds lists from 1 to ${MAX_JOB_ITEMS} new item ids, each once`);
+    if (output.itemIds.some((id) => !ITEM_ID_PATTERN.test(id)))
+      throw requestError('output.itemIds must be lowercase words joined by hyphens');
+    return { itemIds: output.itemIds };
+  }
+  only(output, ['variants', 'itemIdPrefix'], 'output');
+  if (typeof output.itemIdPrefix !== 'string' || !ITEM_ID_PATTERN.test(output.itemIdPrefix))
+    throw requestError('output.itemIdPrefix must be lowercase words joined by hyphens');
+  return { variants: countOf(output.variants, 'output.variants'), itemIdPrefix: output.itemIdPrefix };
 };
 
 const refOf = (ref, name) => {
@@ -90,15 +127,21 @@ const refOf = (ref, name) => {
 };
 
 /**
- * A palette choice checked: `paletteId`, a Palette Template or {@link RANDOM_PALETTE}, and the
+ * A palette choice checked: `paletteId`, a palette of the library or {@link RANDOM_PALETTE}, and the
  * `slots` it sets, slot id → `#rrggbb` in lower case.
+ * @param {Object} choice
+ * @param {string} name - The name of the choice, for the messages.
+ * @param {string[]} [keys] - The other keys the choice may hold.
+ * @returns {{paletteId?:string,slots:Object<string,string>}}
+ * @throws {Error} 400 on a key it does not take or a value that is not a color.
+ * @memberof CyberiaProceduralSpec
  */
-const choiceOf = (choice, name, keys = []) => {
+export const choiceOf = (choice, name, keys = []) => {
   if (!isPlain(choice)) throw requestError(`${name} must be an object`);
   only(choice, [...keys, 'paletteId', 'slots'], name);
   const { paletteId, slots = {} } = choice;
   if (paletteId !== undefined && (typeof paletteId !== 'string' || !paletteId))
-    throw requestError(`${name}.paletteId names a Palette Template or ${RANDOM_PALETTE}`);
+    throw requestError(`${name}.paletteId names a palette or ${RANDOM_PALETTE}`);
   if (!isPlain(slots) || Object.values(slots).some((color) => typeof color !== 'string' || !HEX_COLOR.test(color)))
     throw requestError(`${name}.slots maps a slot id to a color as #rrggbb`);
   return {
@@ -130,7 +173,14 @@ const itemChoicesOf = (palette = {}, itemIds) => {
   };
 };
 
-const seedOf = (seed = { mode: 'auto' }) => {
+/**
+ * A seed checked: `{ mode: 'fixed', value }` as it is, and `{ mode: 'auto' }` with a new value drawn once.
+ * @param {Object} [seed]
+ * @returns {{mode:string,value:number}}
+ * @throws {Error} 400 on any other seed.
+ * @memberof CyberiaProceduralSpec
+ */
+export const seedOf = (seed = { mode: 'auto' }) => {
   if (!isPlain(seed)) throw requestError('seed must be an object');
   only(seed, ['mode', 'value'], 'seed');
   if (seed.mode === 'auto' && seed.value === undefined) return { mode: 'auto', value: randomInt(SEED_LIMIT) };
@@ -169,25 +219,23 @@ export function checkRequest(request) {
   };
   if (mode === 'update-existing') {
     only(output, ['variantsPerItem'], 'output');
-    const itemIds = itemIdsOf(request.source);
+    const { itemIds, fromTemplate } = sourceOf(request.source);
     return {
       ...common,
       palette: itemChoicesOf(request.palette, itemIds),
+      template: refOf(request.template, 'template'),
       itemIds,
+      fromTemplate,
       variants: countOf(output.variantsPerItem, 'output.variantsPerItem'),
     };
   }
-  only(output, ['variants', 'itemIdPrefix'], 'output');
   if (typeof request.itemType !== 'string' || !request.itemType) throw requestError('A create needs an itemType');
-  if (typeof output.itemIdPrefix !== 'string' || !ITEM_ID_PREFIX_PATTERN.test(output.itemIdPrefix))
-    throw requestError('output.itemIdPrefix must be lowercase words joined by hyphens');
   return {
     ...common,
     palette: choiceOf(request.palette ?? {}, 'palette'),
     itemType: request.itemType,
     template: refOf(request.template, 'template'),
-    variants: countOf(output.variants, 'output.variants'),
-    itemIdPrefix: output.itemIdPrefix,
+    ...proposedOf(output),
   };
 }
 
@@ -201,7 +249,7 @@ export function checkRequest(request) {
 export const specTemplate = (spec, id) => resolveTemplate(spec.templates.find((template) => template.id === id));
 
 /**
- * The Palette Template a spec holds under an id; null for no id.
+ * The palette a spec holds under an id; null for no id.
  * @param {Object} spec
  * @param {string} id
  * @returns {Object|null}
@@ -220,18 +268,17 @@ export const specPalette = (spec, id) => (id ? spec.palettes.find((palette) => p
 export const specChoice = ({ mode, palette }, itemId) =>
   mode === 'update-existing' ? (palette.items.find((entry) => entry.itemId === itemId) ?? { slots: {} }) : palette;
 
-/** The Palette Template `paletteId` names, when it fits a template. */
-function fittingPalette(template, paletteId) {
-  const palette = palettesFor(template).find(({ id }) => id === paletteId);
-  if (!palette) throw new RangeError(`Palette ${paletteId} does not fit Genesis Template ${template.id}`);
-  return palette;
-}
-
 /** The item id of a proposed item: the prefix and a number of at least three digits. */
 export const proposedItemId = (prefix, ordinal) => `${prefix}-${String(ordinal + 1).padStart(3, '0')}`;
 
-/** The Genesis Templates of an item type that fit a profile, resolved. */
-const usableTemplates = (itemType, profile) =>
+/**
+ * The Genesis Templates of an item type that serve a profile, resolved.
+ * @param {string} itemType
+ * @param {Object} profile - A validated profile.
+ * @returns {Object[]}
+ * @memberof CyberiaProceduralSpec
+ */
+export const usableTemplates = (itemType, profile) =>
   genesisTemplates()
     .filter((template) => template.itemType === itemType)
     .map(resolveTemplate)
@@ -250,13 +297,64 @@ function createTemplate(input, profile) {
   return template;
 }
 
-/** The first usable template of the item type of a source that fits its render. */
-function updateTemplate(source, profile) {
-  const fits = usableTemplates(source.data.item.type, profile).find(
-    (template) => compatibilityProblems({ template, profile }, source.renderSource, source.data.item.type).length === 0,
-  );
-  if (!fits) throw new RangeError(`No ${source.data.item.type} Genesis Template fits item ${source.data.item.id}`);
-  return fits;
+/**
+ * Where the candidates of a source start: its render, unless it has none or the request names it
+ * among the items that start from the template.
+ * @param {{renderSource:Object|null}} source
+ * @param {boolean} [fromTemplate]
+ * @returns {string} One of {@link ORIGINS}.
+ * @memberof CyberiaProceduralSpec
+ */
+export const originOf = (source, fromTemplate = false) =>
+  fromTemplate || !source.renderSource ? 'template' : 'render';
+
+/**
+ * The first usable template of the item type of a source that fits what its candidates start from.
+ * @param {Object} source - {@link loadItemSource}.
+ * @param {Object} profile - A validated profile.
+ * @param {string} origin - One of {@link ORIGINS}.
+ * @returns {Object} A resolved Genesis Template.
+ * @throws {RangeError} When no template fits.
+ * @memberof CyberiaProceduralSpec
+ */
+export function sourceTemplate(source, profile, origin) {
+  const { renderSource } = generationSource(source, origin);
+  const { type, id } = source.data.item;
+  const checked = usableTemplates(type, profile).map((template) => ({
+    template,
+    problems: compatibilityProblems(template, renderSource, type),
+  }));
+  const fits = checked.find(({ problems }) => problems.length === 0);
+  if (!fits)
+    throw new RangeError(
+      `No ${type} Genesis Template fits item ${id}${checked.length > 0 ? `: ${checked[0].problems.join('; ')}` : ''}`,
+    );
+  return fits.template;
+}
+
+/**
+ * The template a source takes for an origin: the one `templateId` names when it fits, else the first
+ * usable template of its item type that fits.
+ * @param {Object} source - {@link loadItemSource}.
+ * @param {Object} profile - A validated profile.
+ * @param {string} origin - One of {@link ORIGINS}.
+ * @param {string} [templateId]
+ * @returns {Object} A resolved Genesis Template.
+ * @throws {RangeError} When the named template, or every template, does not fit.
+ * @memberof CyberiaProceduralSpec
+ */
+export function templateFor(source, profile, origin, templateId = '') {
+  if (!templateId) return sourceTemplate(source, profile, origin);
+  const template = resolveTemplate(genesisTemplate(templateId));
+  const problems = [
+    ...templateProblems(template, profile),
+    ...compatibilityProblems(template, generationSource(source, origin).renderSource, source.data.item.type),
+  ];
+  if (problems.length > 0)
+    throw new RangeError(
+      `Genesis Template ${templateId} does not fit item ${source.data.item.id}: ${problems.join('; ')}`,
+    );
+  return template;
 }
 
 /**
@@ -282,7 +380,21 @@ export async function resolveSpec(models, request) {
       throw new RangeError(`Profile ${profile.profileId} drives ${profile.generatorId}, not ${generator.id}`);
     const baseline = update ? null : itemBaseline(itemType);
     const created = update ? null : createTemplate(input, profile);
-    const templateOf = new Map(sources.map((source) => [source.data.item.id, updateTemplate(source, profile)]));
+    const originOfId = new Map(
+      sources.map((source) => [
+        source.data.item.id,
+        originOf(source, input.fromTemplate.includes(source.data.item.id)),
+      ]),
+    );
+    const templateOf = new Map(
+      sources.map((source) => [
+        source.data.item.id,
+        templateFor(source, profile, originOfId.get(source.data.item.id), input.template?.id),
+      ]),
+    );
+    const newIds = update
+      ? []
+      : (input.itemIds ?? Array.from({ length: input.variants }, (_, at) => proposedItemId(input.itemIdPrefix, at)));
 
     const rootSeed = input.seed.value;
     const targets = update
@@ -294,8 +406,8 @@ export async function resolveSpec(models, request) {
             variant,
           })),
         )
-      : Array.from({ length: input.variants }, (_, ordinal) => ({
-          targetItemId: proposedItemId(input.itemIdPrefix, ordinal),
+      : newIds.map((targetItemId) => ({
+          targetItemId,
           sourceCid: '',
           template: created,
           variant: 0,
@@ -308,9 +420,9 @@ export async function resolveSpec(models, request) {
       const { paletteId, slots } = specChoice(input, targetItemId);
       const palette =
         paletteId === RANDOM_PALETTE
-          ? randomPalette({ template, rootSeed, itemId: targetItemId, variant })
+          ? randomPalette({ rootSeed, itemId: targetItemId, variant })
           : paletteId
-            ? fittingPalette(template, paletteId)
+            ? paletteOf(paletteId)
             : null;
       candidatePalette(template, { palette, slots });
       templates.set(template.id, genesisTemplate(template.id));
@@ -340,12 +452,15 @@ export async function resolveSpec(models, request) {
           itemType: source.data.item.type,
           hasRender: source.renderSource !== null,
           artDirection: source.artDirection,
+          origin: originOfId.get(source.data.item.id),
           templateId: templateOf.get(source.data.item.id).id,
         })),
         candidates,
         output: update
           ? { variantsPerItem: input.variants }
-          : { variants: input.variants, itemIdPrefix: input.itemIdPrefix },
+          : input.itemIds
+            ? { itemIds: input.itemIds }
+            : { variants: input.variants, itemIdPrefix: input.itemIdPrefix },
         variation: { level: variation },
         seed: input.seed,
         parameters: operators,
@@ -358,36 +473,39 @@ export async function resolveSpec(models, request) {
 
 /**
  * The palette a target starts from: the Genesis Template it takes, its foundation palettes, and the
- * default of each color slot with its origin under the Palette Template `paletteId` names. The
+ * default of each color slot with its origin under the palette `paletteId` names. The
  * target is an existing item of an update, or the Genesis Template of a create.
  * @param {Object} models
  * @param {Object} target
  * @param {string} [target.itemId] - An existing item.
- * @param {string} [target.templateId] - A Genesis Template, when no item is named.
- * @param {string} [target.paletteId] - A Palette Template that fits the template.
+ * @param {string} [target.templateId] - The Genesis Template the item takes, or the template of a create.
+ * @param {string} [target.paletteId] - A palette of the library.
+ * @param {boolean} [target.fromTemplate] - Whether the candidates of the item start from the template.
  * @returns {Promise<{templateId:string,palettes:Array<{id:string,name:string,group:string}>,slots:Object<string,{color:string,origin:string}>}>}
  * @throws {Error} 404 for an item that is not a Cyberia item here; 400 for what no generator, template or palette fits.
  * @memberof CyberiaProceduralSpec
  */
-export async function paletteDefaults(models, { itemId, templateId, paletteId }) {
+export async function paletteDefaults(models, { itemId, templateId, paletteId, fromTemplate = false }) {
   const source = itemId ? await loadItemSource(models, itemId) : null;
   try {
     const itemType = source ? source.data.item.type : resolveTemplate(genesisTemplate(templateId)).itemType;
     const generator = resolveGenerator({ itemType, mode: source ? 'update-existing' : 'create-new' });
     const profile = await models.CyberiaProceduralProfile.resolve(generator.defaultProfile);
+    const origin = source && originOf(source, fromTemplate);
     const template = source
-      ? updateTemplate(source, profile)
+      ? templateFor(source, profile, origin, templateId)
       : createTemplate({ itemType, template: { id: templateId } }, profile);
     const artDirection = source?.artDirection ?? null;
-    const sourceBase = source?.renderSource
-      ? generator.prepare(resolveProceduralContext({ source, template, profile, artDirection })).sourceBase
-      : {};
+    const sourceBase =
+      origin === 'render'
+        ? generator.prepare(resolveProceduralContext({ source, template, profile, artDirection, origin })).sourceBase
+        : {};
     return {
       templateId: template.id,
       palettes: (artDirection?.palettes ?? []).map(({ id, name, group }) => ({ id, name, group })),
       slots: slotDefaults({
         template,
-        palette: paletteId ? fittingPalette(template, paletteId) : null,
+        palette: paletteId ? paletteOf(paletteId) : null,
         artDirection,
         sourceBase,
       }),
@@ -398,16 +516,98 @@ export async function paletteDefaults(models, { itemId, templateId, paletteId })
 }
 
 /**
- * What a client shows of a Genesis Template: its identity, canvas and roles, its color slots with the
- * color the template gives each, the palettes that fit it, what stops it from serving the profile of
- * its generator, and the base item a create draws from it, as wire render frames with one frame for
- * each direction.
- * @param {Object} template - A resolved Genesis Template.
- * @param {{generator:Object,profile:Object}|null} driver - The generator of its item type and its profile.
+ * The color slots of a frame import: the roles of a palette of the library.
+ * @memberof CyberiaProceduralSpec
+ */
+export const IMPORT_SLOTS = Object.freeze([...PALETTE_ROLES, ...GENERATOR_ROLES]);
+
+/** The import slots the foundation palettes of an item color: bases in order, the first outline, the first accent or special. */
+const foundationImportColors = (palettes) => {
+  const first = (...names) =>
+    names.map((name) => palettes.map(({ roles }) => roles[name]?.[0]).find(Boolean)).find(Boolean);
+  const bases = palettes.flatMap(({ roles }) => roles.base ?? []);
+  return {
+    ...Object.fromEntries(PALETTE_ROLES.map((role, at) => [role, bases[at]])),
+    outline: first('outline'),
+    accent: first('accent', 'special'),
+  };
+};
+
+/**
+ * The palette a frame import remaps to, slot by slot: a palette of the library when the author
+ * chose one, else the foundation palettes of the item, else the first palette of the library. Each
+ * slot names where its color comes from; a slot no color reaches is left out.
+ * @param {{itemId?:string,paletteId?:string}} params - The item the frames go to, and the chosen palette.
+ * @returns {{templateId:string,palettes:Object[],slots:Object<string,{color:string,origin:string}>}}
+ * @throws {Error} 400 for an unknown palette.
+ * @memberof CyberiaProceduralSpec
+ */
+export function importPaletteDefaults({ itemId, paletteId }) {
+  const palettes = (itemId && artDirectionOf(itemId)?.palettes) || [];
+  let colors;
+  let origin = 'palette';
+  try {
+    if (paletteId) colors = paletteOf(paletteId).roles;
+    else if (palettes.length > 0) {
+      colors = foundationImportColors(palettes);
+      origin = 'foundation';
+    } else colors = paletteCatalog().palettes[0]?.roles ?? {};
+  } catch (error) {
+    throw requestError(error.message);
+  }
+  return {
+    templateId: '',
+    palettes: palettes.map(({ id, name, group }) => ({ id, name, group })),
+    slots: Object.fromEntries(
+      IMPORT_SLOTS.filter((slot) => colors[slot]).map((slot) => [slot, { color: colors[slot], origin }]),
+    ),
+  };
+}
+
+/**
+ * The roles a frame import remaps to: the palette of {@link importPaletteDefaults} under the slot
+ * colors the author set, as one lightness ramp with its outline and accent.
+ * @param {{itemId?:string,paletteId?:string,slots?:Object<string,string>}} params
+ * @returns {Object<string,string[]>}
+ * @throws {Error} 400 for an unknown palette, slot or color.
+ * @memberof CyberiaProceduralSpec
+ */
+export function importRoles({ itemId, paletteId, slots = {} }) {
+  if (!isPlain(slots)) throw requestError('palette.slots maps an import slot to a #rrggbb color');
+  for (const [slot, color] of Object.entries(slots)) {
+    if (!IMPORT_SLOTS.includes(slot)) throw requestError(`${slot} is not an import slot: ${IMPORT_SLOTS.join(', ')}`);
+    if (typeof color !== 'string' || !HEX_COLOR.test(color)) throw requestError(`${slot} is not a #rrggbb color`);
+  }
+  const defaults = importPaletteDefaults({ itemId, paletteId }).slots;
+  const roles = Object.fromEntries(
+    IMPORT_SLOTS.map((slot) => [slot, slots[slot] ?? defaults[slot]?.color]).filter(([, color]) => color),
+  );
+  if (!roles.outline && !PALETTE_ROLES.some((role) => roles[role]))
+    throw requestError('The palette of the import holds no color');
+  return rampRoles({ roles });
+}
+
+/**
+ * What a client shows of a Genesis Template: its identity, canvas and roles with the palette role
+ * each takes, its color slots with the color the template gives each, what stops it from serving the profile of
+ * its generator, and the base item a create draws from it, as wire render frames with every frame of
+ * each direction. A template content holds in a broken form shows only its identity and the reason.
+ * @param {Object} stored - A Genesis Template as content holds it.
+ * @param {Object[]} drivers - Each generator with its profile.
  * @returns {Object}
  */
-function templateView(template, driver) {
-  const problems = driver ? templateProblems(template, driver.profile) : [`there is no generator for ${template.itemType}`];
+function templateView(stored, drivers) {
+  let template;
+  try {
+    template = resolveTemplate(stored);
+  } catch (error) {
+    const { id, name, description, itemType } = stored;
+    return { id, name, description, itemType, problems: [error.message], preview: null };
+  }
+  const driver = drivers.find(({ generator }) => generator.itemType === template.itemType);
+  const problems = driver
+    ? templateProblems(template, driver.profile)
+    : [`there is no generator for ${template.itemType}`];
   const baseFrames =
     problems.length === 0 &&
     driver.generator.prepare(
@@ -424,26 +624,26 @@ function templateView(template, driver) {
     itemType: template.itemType,
     canvas: template.canvas,
     roles: Object.fromEntries(
-      Object.entries(template.roles).map(([role, { regions, artDirection }]) => [role, { regions, artDirection }]),
+      Object.entries(template.roles).map(([role, { regions, palette, artDirection }]) => [
+        role,
+        { regions, palette, artDirection },
+      ]),
     ),
     slots: paletteSlots(template),
     slotColors: templateSlotColors(template),
-    palettes: palettesFor(template).map(({ id }) => id),
+    frames: Object.fromEntries(Object.entries(template.directions).map(([code, frames]) => [code, frames.length])),
+    baseline: RENDER_FRAME_CONTRACT[template.itemType] ?? {},
     problems,
     preview: baseFrames
-      ? toWire(
-          sourceFromDirectionFrames({
-            framesByCode: Object.fromEntries(Object.entries(baseFrames).map(([code, frame]) => [code, [frame]])),
-            frameDurationMs: template.frameDurationMs,
-          }),
-        )
+      ? toWire(sourceFromDirectionFrames({ framesByCode: baseFrames, frameDurationMs: template.frameDurationMs }))
       : null,
   };
 }
 
 /**
  * What a client needs to build a request: the generators with their modes and profile, the Genesis
- * Templates with a preview of each, the palette catalog and the limits.
+ * Templates with a preview of each, the palette catalog, the limits, and whether the served content
+ * is older than the content checkout.
  * @param {{CyberiaProceduralProfile: import('mongoose').Model}} models
  * @returns {Promise<Object>}
  * @memberof CyberiaProceduralSpec
@@ -466,13 +666,10 @@ export async function proceduralConfig({ CyberiaProceduralProfile }) {
         protectedRegions: profile.constraints.protectedRegions,
       },
     })),
-    templates: genesisTemplates()
-      .map(resolveTemplate)
-      .map((template) =>
-        templateView(template, drivers.find(({ generator }) => generator.itemType === template.itemType) ?? null),
-      ),
+    templates: genesisTemplates().map((template) => templateView(template, drivers)),
     palettes: paletteCatalog(),
     limits: { maxCandidates: MAX_JOB_ITEMS },
+    content: contentFreshness(),
   };
 }
 

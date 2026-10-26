@@ -6,7 +6,7 @@
  * in a hole the silhouette encloses. A strand that closes a hole or splits the shape is dropped.
  * It is not a contour mutation: the silhouette grows where the hair grows. Pure functions.
  *
- * @module src/projects/cyberia/procedural/generators/skin/hair-growth.js
+ * @module src/projects/cyberia/procedural/generators/sprite/hair-growth.js
  */
 import { hexToRgba } from '../../../../../client/components/objectlayer-studio/RenderSource.js';
 import { seededRandom } from '../../../../../client/components/objectlayer-studio/PixelRegion.js';

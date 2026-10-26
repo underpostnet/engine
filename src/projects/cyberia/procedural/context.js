@@ -37,6 +37,20 @@ export function extractArtDirection(foundation) {
 }
 
 /**
+ * Where a variant starts: `render`, the render of its source, or `template`, the Genesis Template.
+ */
+export const ORIGINS = Object.freeze(['render', 'template']);
+
+/**
+ * The source as a generation reads it: a variant that starts from the template reads an item with no render.
+ * @param {{renderSource:Object|null}} source
+ * @param {string} origin - One of {@link ORIGINS}.
+ * @returns {Object}
+ */
+export const generationSource = (source, origin) =>
+  origin === 'template' ? { ...source, renderSource: null } : source;
+
+/**
  * The context of a run: what one generator batch reads about one source item.
  * @param {Object} params
  * @param {Object} params.source - The source item: `cid`, `data` (`item`, `stats`) and its decoded
@@ -44,19 +58,27 @@ export function extractArtDirection(foundation) {
  * @param {Object} params.template - A resolved Genesis Template.
  * @param {Object} params.profile - A validated profile.
  * @param {Object|null} [params.artDirection] - {@link extractArtDirection} of the source.
+ * @param {string} [params.origin] - Where the variants start, one of {@link ORIGINS}.
  * @returns {Readonly<{source:Object,artDirection:Object|null,directions:string[],template:Object,profile:Object}>}
  * @throws {RangeError} When the template does not fit the profile, or the item does not fit them.
  */
-export function resolveProceduralContext({ source, template, profile, artDirection = null }) {
+export function resolveProceduralContext({
+  source: stored,
+  template,
+  profile,
+  artDirection = null,
+  origin = 'render',
+}) {
+  const source = generationSource(stored, origin);
   const { item, stats } = source.data;
   const problems = [
     ...templateProblems(template, profile).map((problem) => `template ${template.id}: ${problem}`),
-    ...compatibilityProblems({ template, profile }, source.renderSource, item.type),
+    ...compatibilityProblems(template, source.renderSource, item.type),
   ];
   if (problems.length > 0)
     throw new RangeError(`The source does not fit template ${template.id}: ${problems.join('; ')}`);
   const framesByCode = source.renderSource ? framesByDirection(source.renderSource) : null;
-  const rendered = framesByCode && OBJECT_LAYER_DIRECTION_CODES.filter((code) => framesByCode[code].length > 0);
+  const drawn = framesByCode ? (code) => framesByCode[code].length > 0 : (code) => Boolean(template.directions[code]);
   return Object.freeze({
     source: Object.freeze({
       cid: source.cid,
@@ -68,7 +90,7 @@ export function resolveProceduralContext({ source, template, profile, artDirecti
       renderSource: source.renderSource,
     }),
     artDirection,
-    directions: rendered ?? Object.keys(template.directions),
+    directions: OBJECT_LAYER_DIRECTION_CODES.filter(drawn),
     template,
     profile,
   });

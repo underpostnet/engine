@@ -1,4 +1,10 @@
-import { getProxyPath, isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
+import {
+  getProxyPath,
+  getQueryParams,
+  isCurrentRoute,
+  listenQueryParamsChange,
+  setQueryParams,
+} from '../core/Router.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -14,6 +20,7 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
+import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
 import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS, isAssignableEntityBehavior } from './SharedDefaultsCyberia.js';
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
@@ -39,6 +46,10 @@ class EntityEngineCyberia {
   static bindings = new Map();
   static currentId = null;
   static crud = null;
+  // The Procedural Engine population the form edits a default for: { id, rowId }; null otherwise.
+  static population = null;
+  // The `updatedAt` of the loaded default: a save names it, so it never overwrites a newer version.
+  static currentUpdatedAt = null;
 
   // Editable working copies of the array fields for the loaded document.
   static liveItemIds = [];
@@ -371,7 +382,7 @@ class EntityEngineCyberia {
     }
     if (!out) {
       out = html`<div style="color:#888;font-size:12px;">
-        No instance runs on this default — it reaches no world until one references it.
+        No instance references this row: it is a global row, and every world runs it.
       </div>`;
     }
     htmls('.entity-engine-instance-list', out);
@@ -590,6 +601,7 @@ class EntityEngineCyberia {
 
   static load(doc) {
     EntityEngineCyberia.currentId = doc._id || null;
+    EntityEngineCyberia.currentUpdatedAt = doc.updatedAt ?? null;
     EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.entityType, doc.entityType || '');
     EntityEngineCyberia.setSingleDropdownValue(EntityEngineCyberia.ids.behavior, doc.behavior || '');
     EntityEngineCyberia.liveItemIds = [...(doc.liveItemIds || [])];
@@ -650,8 +662,9 @@ class EntityEngineCyberia {
 
   /** The loaded default as the CRUD bar names it: its entity type and live item ids. */
   static currentName() {
-    const doc = EntityEngineCyberia.listCache.find(({ _id }) => _id === EntityEngineCyberia.currentId);
-    return doc ? `${doc.entityType} (${(doc.liveItemIds || []).join(', ')})` : '';
+    if (!EntityEngineCyberia.currentId) return '';
+    const entityType = EntityEngineCyberia.getSingleDropdownValue(EntityEngineCyberia.ids.entityType);
+    return `${entityType} (${EntityEngineCyberia.liveItemIds.join(', ')})`;
   }
 
   /** Reloads the stored default over unsaved changes. */
@@ -664,10 +677,16 @@ class EntityEngineCyberia {
   static async save() {
     const body = EntityEngineCyberia.getPayload();
     if (!EntityEngineCyberia.validate(body)) return;
-    const result = await EditorCrud.save(CyberiaEntityTypeDefaultService, { id: EntityEngineCyberia.currentId, body });
+    const { currentId, currentUpdatedAt } = EntityEngineCyberia;
+    const result = await EditorCrud.save(CyberiaEntityTypeDefaultService, {
+      id: currentId,
+      body: currentId ? { ...body, updatedAt: currentUpdatedAt } : body,
+    });
     if (result.status !== 'success') return;
-    if (result.data?._id) EntityEngineCyberia.currentId = result.data._id;
+    EntityEngineCyberia.currentId = result.data?._id ?? currentId;
+    EntityEngineCyberia.currentUpdatedAt = result.data?.updatedAt ?? null;
     await EntityEngineCyberia.persistInstanceLinks();
+    if (EntityEngineCyberia.population) return EntityEngineCyberia.returnToPopulation();
     await EntityEngineCyberia.refreshList();
   }
 
@@ -695,6 +714,59 @@ class EntityEngineCyberia {
     await EntityEngineCyberia.refreshList();
   }
 
+  // ── Procedural Engine context ────────────────────────────────────────────
+  // ?population=<id> opens a default for the Procedural Engine: the stored row ?row=, or a new row of
+  // ?entityType= and ?liveItemIds=. A save stores the row and returns to the population.
+  static async enterPopulation({ population: id, row: rowId = '', entityType = '', liveItemIds = '' }) {
+    if (rowId) {
+      const { status, data, message } = await CyberiaEntityTypeDefaultService.get({ id: rowId });
+      if (status !== 'success' || !data)
+        return NotificationManager.Push({ html: message || `There is no entity default ${rowId}.`, status: 'error' });
+      EntityEngineCyberia.load(data);
+    } else {
+      EntityEngineCyberia.newDefault();
+      EntityEngineCyberia.load({ entityType, liveItemIds: liveItemIds ? liveItemIds.split(',') : [] });
+    }
+    EntityEngineCyberia.population = { id, rowId };
+    EntityEngineCyberia.paintPopulation();
+  }
+
+  static leavePopulation() {
+    EntityEngineCyberia.population = null;
+    EntityEngineCyberia.paintPopulation();
+    EntityEngineCyberia.newDefault();
+  }
+
+  /** Back to the defaults of the population; what is not saved stays unsaved. */
+  static returnToPopulation() {
+    const { id } = EntityEngineCyberia.population;
+    EntityEngineCyberia.population = null;
+    EntityEngineCyberia.paintPopulation();
+    setQueryParams({ population: null, row: null, entityType: null, liveItemIds: null }, { replace: true });
+    ProceduralEngineCyberia.open({ populationId: id, step: 'defaults' });
+  }
+
+  static paintPopulation() {
+    EntityEngineCyberia.crud?.refresh();
+    const banner = s('.entity-engine-population');
+    if (!banner) return;
+    const { population } = EntityEngineCyberia;
+    banner.hidden = !population;
+    if (!population) return;
+    banner.innerHTML = html`<span class="entity-engine-population-label"
+        ><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Procedural Engine · Entity Type
+        Default</span
+      >
+      <span class="entity-engine-population-note"
+        >${population.rowId ? 'Editing a stored default.' : 'A new default.'} Save stores it and returns to the
+        Procedural Engine.</span
+      >
+      <button type="button" class="entity-engine-population-back">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back without saving
+      </button>`;
+    banner.querySelector('.entity-engine-population-back').onclick = () => EntityEngineCyberia.returnToPopulation();
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
   static async render(options = {}) {
     const { appStore } = options;
@@ -704,6 +776,7 @@ class EntityEngineCyberia {
     EntityEngineCyberia.bindings = new Map();
     EntityEngineCyberia.loadedPage = null;
     EntityEngineCyberia.currentId = null;
+    EntityEngineCyberia.population = null;
     EntityEngineCyberia.liveItemIds = [];
     EntityEngineCyberia.deadItemIds = [];
     EntityEngineCyberia.dropItemIds = [];
@@ -792,6 +865,11 @@ class EntityEngineCyberia {
         onFilterChanged: () => EntityEngineCyberia.queryChanged(),
         onSortChanged: () => EntityEngineCyberia.queryChanged(),
         onRowClicked: (event) => {
+          if (EntityEngineCyberia.population)
+            return NotificationManager.Push({
+              html: 'Save, or go back to the Procedural Engine, before you open another default.',
+              status: 'warning',
+            });
           const doc = EntityEngineCyberia.listCache.find((d) => d._id === event.data?._id);
           if (doc) EntityEngineCyberia.load(doc);
         },
@@ -816,13 +894,19 @@ class EntityEngineCyberia {
         subject: 'entity default',
         id: EntityEngineCyberia.currentId,
         name: EntityEngineCyberia.currentName(),
-        new: () => EntityEngineCyberia.newDefault(),
-        reset: () => EntityEngineCyberia.reset(),
-        ...(EntityEngineCyberia.canMutate && {
-          save: () => EntityEngineCyberia.save(),
-          clone: () => EntityEngineCyberia.clone(),
-          delete: () => EntityEngineCyberia.delete(),
-        }),
+        ...(!EntityEngineCyberia.population && { new: () => EntityEngineCyberia.newDefault() }),
+        reset: () =>
+          EntityEngineCyberia.population
+            ? EntityEngineCyberia.enterPopulation(getQueryParams())
+            : EntityEngineCyberia.reset(),
+        ...(EntityEngineCyberia.canMutate &&
+          (EntityEngineCyberia.population
+            ? { save: () => EntityEngineCyberia.save() }
+            : {
+                save: () => EntityEngineCyberia.save(),
+                clone: () => EntityEngineCyberia.clone(),
+                delete: () => EntityEngineCyberia.delete(),
+              })),
       }));
       if (s('.btn-entity-engine-refresh'))
         s('.btn-entity-engine-refresh').onclick = () => EntityEngineCyberia.refreshList();
@@ -833,9 +917,43 @@ class EntityEngineCyberia {
       EntityEngineCyberia.renderOverrideList();
       await EntityEngineCyberia.refreshList();
       listenQueryParamsChange({ id: 'entity-engine-page', event: () => EntityEngineCyberia.followPageQuery() });
+      listenQueryParamsChange({
+        id: 'entity-engine-population',
+        event: (params) => {
+          if (!isCurrentRoute(EntityEngineCyberia.route) || !s('.entity-engine-container')) return;
+          if (params.population) EntityEngineCyberia.enterPopulation(params);
+          else if (EntityEngineCyberia.population) EntityEngineCyberia.leavePopulation();
+        },
+      });
+      if (getQueryParams().population) await EntityEngineCyberia.enterPopulation(getQueryParams());
     });
 
     return html`<div class="in section-mp studio-editor entity-engine-container">
+      <style>
+        .entity-engine-population {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          align-items: center;
+          padding: 8px 10px;
+          margin-bottom: 8px;
+          border: 1px solid var(--studio-accent);
+          border-radius: 6px;
+        }
+        .entity-engine-population[hidden] {
+          display: none;
+        }
+        .entity-engine-population-label {
+          font-weight: bold;
+          color: var(--studio-accent);
+        }
+        .entity-engine-population-note {
+          font-size: 12px;
+          opacity: 0.8;
+          flex-basis: 100%;
+        }
+      </style>
+      <div class="in entity-engine-population" role="status" aria-live="polite" hidden></div>
       ${EditorLayout.render({
         subject: 'table',
         readout: html`<div class="in studio-group-title" style="margin:0;">
@@ -879,8 +997,9 @@ class EntityEngineCyberia {
             'Live Item Ids',
             'fa-solid fa-heart',
             html`<div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
-                <i class="fa-solid fa-key"></i> Lookup key — each itemId may belong to only one entity default across the
-                whole collection (empty is allowed for non-lookup categories).
+                <i class="fa-solid fa-key"></i> Lookup key — an entity runs on this default when it carries every live
+                itemId. An itemId may appear in many defaults: the one with the most live itemIds wins, and between
+                equal ones the first in the conf of the world.
               </div>
               <div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
                 <i class="fa-solid fa-link"></i> Each item shows its runtime binding. A default names items only; the

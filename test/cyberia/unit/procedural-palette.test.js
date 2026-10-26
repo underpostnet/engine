@@ -14,7 +14,7 @@ import { seededRandom } from '../../../src/client/components/objectlayer-studio/
 import { toOklab, toOklch } from '../../../src/projects/cyberia/procedural/core/oklab.js';
 import { resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
 import { hexToRgba } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
-import { SKIN_PALETTES, SKIN_TEMPLATE, VIOLET_STRATA } from '../../support/procedural-content.js';
+import { SKIN_TEMPLATE, VIOLET_STRATA, paletteFixture } from '../../support/procedural-content.js';
 
 const lightness = (hex) => toOklab(hexToRgba(hex))[0];
 const chroma = (hex) => toOklch(hexToRgba(hex))[1];
@@ -179,18 +179,20 @@ describe('the foundation palettes of an item', () => {
 });
 
 describe('the palette of a candidate', () => {
-  it('takes the base of each role of its Palette Template, under the slots the request sets', () => {
-    const [palette] = SKIN_PALETTES;
+  it('takes for each role the color of the palette role it takes, under the slots the request sets', () => {
+    const palette = paletteFixture('natural-deep');
     const resolved = candidatePalette(template, {
       palette,
       slots: { 'hair.highlight': '#ffffff', 'skin.base': '#123456' },
     });
-    expect(resolved.roles.hair).toEqual({ base: palette.roles.hair, highlight: '#ffffff' });
+    expect(resolved.roles.hair).toEqual({ base: palette.roles.detail, highlight: '#ffffff' });
+    expect(resolved.roles.torso).toEqual({ base: palette.roles.primary });
+    expect(resolved.roles.legs).toEqual({ base: palette.roles.secondary });
     expect(resolved.roles.skin).toEqual({ base: '#123456' });
     expect(resolved.roles.outline).toEqual({ base: palette.roles.outline });
   });
 
-  it('takes the foundation palettes of its item under the slots of that item, and refuses a slot or a role the template lacks', () => {
+  it('takes the foundation palettes of its item under the slots of that item, and refuses a slot the template lacks', () => {
     const artDirection = { palettes: [{ group: 'biome', roles: VIOLET_STRATA.palette }] };
     const resolved = candidatePalette(template, { artDirection, slots: { 'legs.base': '#0000ff' } });
     expect(resolved.roles.torso.base).toBe('#2f5a34');
@@ -198,9 +200,6 @@ describe('the palette of a candidate', () => {
     expect(() => candidatePalette(template, { slots: { 'wings.base': '#ffffff' } })).toThrow(
       /no color slot wings.base/,
     );
-    expect(() =>
-      candidatePalette(template, { palette: { ...SKIN_PALETTES[0], roles: { wings: '#ffffff', outline: '#000000' } } }),
-    ).toThrow(/lacks: wings/);
   });
 });
 
@@ -219,11 +218,21 @@ describe('the default of each slot', () => {
     expect(defaults.accent).toEqual({ color: '#b57bff', origin: 'foundation' });
   });
 
-  it('takes the colors of a Palette Template over the foundation palettes', () => {
-    const [palette] = SKIN_PALETTES;
+  it('takes the colors a palette gives, and keeps the default of a role whose palette role it lacks', () => {
+    const palette = paletteFixture('dark-basalt');
+    const defaults = slotDefaults({ template, palette });
+    expect(defaults['torso.base']).toEqual({ color: palette.roles.primary, origin: 'palette' });
+    expect(defaults['legs.base']).toEqual({ color: palette.roles.secondary, origin: 'palette' });
+    expect(defaults['hair.base']).toEqual({ color: base('hair'), origin: 'template' });
+    expect(defaults['skin.base']).toEqual({ color: base('skin'), origin: 'template' });
+    expect(candidatePalette(template, { palette }).roles).not.toHaveProperty('hair');
+  });
+
+  it('takes the colors of a palette over the foundation palettes', () => {
+    const palette = paletteFixture('natural-deep');
     const defaults = slotDefaults({ template, palette, artDirection });
-    expect(defaults['torso.base']).toEqual({ color: palette.roles.torso, origin: 'palette' });
-    expect(defaults['hair.base']).toEqual({ color: palette.roles.hair, origin: 'palette' });
+    expect(defaults['torso.base']).toEqual({ color: palette.roles.primary, origin: 'palette' });
+    expect(defaults['hair.base']).toEqual({ color: palette.roles.detail, origin: 'palette' });
     expect(defaults.outline).toEqual({ color: palette.roles.outline, origin: 'palette' });
     expect(defaults['legs.shadow'].origin).toBe('palette');
   });

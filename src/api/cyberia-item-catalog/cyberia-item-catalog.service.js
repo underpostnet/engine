@@ -17,9 +17,13 @@ import {
   itemBindingHistory,
   listBindings,
   reconcileItemCatalog,
+  renderedCids,
   unboundItems,
 } from '../../projects/cyberia/catalog/object-layer-catalog.js';
 import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
+
+/** The most item ids one resolve reads. */
+const RESOLVE_LIMIT = 500;
 
 const bindingModels = (options) => ({
   ...catalogModels(options),
@@ -46,6 +50,35 @@ class CyberiaItemCatalogService {
     const page = DataQuery.parse(req.query);
     const { data, total } = await listBindings(bindingModels(options), page);
     return { data, total, page: page.page, totalPages: Math.ceil(total / page.limit) };
+  };
+
+  /**
+   * GET `/resolve?ids=a,b`: the CID each item id runs now and whether it has a render, or null for
+   * an unbound one.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object<string,{cid:string,hasRender:boolean}|null>>}
+   */
+  static resolve = async (req, res, options) => {
+    const itemIds = [
+      ...new Set(
+        String(req.query.ids ?? '')
+          .split(',')
+          .filter(Boolean),
+      ),
+    ].slice(0, RESOLVE_LIMIT);
+    const bindings = await DataBaseProviderService.getModel('CyberiaItemCatalog', options).resolve(itemIds);
+    const rendered = await renderedCids(
+      { ObjectLayerRenderFrames: DataBaseProviderService.getModel('ObjectLayerRenderFrames', options) },
+      [...bindings.values()],
+    );
+    return Object.fromEntries(
+      itemIds.map((itemId) => {
+        const cid = bindings.get(itemId);
+        return [itemId, cid ? { cid, hasRender: rendered.has(cid) } : null];
+      }),
+    );
   };
 
   /**

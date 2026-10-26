@@ -8,7 +8,12 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralProfileDto } from './cyberia-procedural-profile.model.js';
-import { paletteDefaults, proceduralConfig, randomSlots } from '../../projects/cyberia/procedural/spec.js';
+import {
+  importPaletteDefaults,
+  paletteDefaults,
+  proceduralConfig,
+  randomSlots,
+} from '../../projects/cyberia/procedural/spec.js';
 
 class CyberiaProceduralProfileService {
   /**
@@ -33,7 +38,7 @@ class CyberiaProceduralProfileService {
 
   /**
    * GET `/templates/:id/palette`: the palette a create starts from with a Genesis Template, under the
-   * Palette Template `?paletteId=` names.
+   * palette `?paletteId=` names.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -44,6 +49,15 @@ class CyberiaProceduralProfileService {
       { CyberiaProceduralProfile: DataBaseProviderService.getModel('CyberiaProceduralProfile', options) },
       { templateId: req.params.id, paletteId: req.query.paletteId },
     );
+
+  /**
+   * GET `/import-palette?itemId=&paletteId=`: the palette a frame import into the item remaps to,
+   * slot by slot, with where each color comes from.
+   * @param {Object} req - Express request.
+   * @returns {{templateId:string,palettes:Object[],slots:Object}}
+   */
+  static importPalette = (req) =>
+    importPaletteDefaults({ itemId: String(req.query.itemId ?? ''), paletteId: String(req.query.paletteId ?? '') });
 
   /**
    * GET `/` (paginated) or `/:profileId` (one profile).

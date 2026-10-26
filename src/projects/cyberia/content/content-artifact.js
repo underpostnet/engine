@@ -13,6 +13,7 @@
  * @namespace CyberiaContentArtifact
  */
 import crypto from 'crypto';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -33,7 +34,7 @@ import {
 import { readEconomy, replaceEconomy } from '../economy/economy-policy.js';
 
 /** The artifact layout and document shapes this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 8;
+export const CONTENT_SCHEMA_VERSION = 10;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what
@@ -315,7 +316,8 @@ function runtimeArtifact(opened) {
 
 /**
  * The verified content artifact of the content this process serves: the copy the served release
- * holds ({@link serveContentArtifact}), else the artifact on disk, opened once per process.
+ * holds ({@link serveContentArtifact}), else the artifact on disk, opened once per build
+ * ({@link refreshWorkspaceArtifact}).
  * @returns {{manifest:Object, foundation:Object<string,Object[]>, baseline:ReadonlyArray<Object>,
  *   itemBaseline:Object<string,string>, byItemId:Map<string,Object>, context:Object,
  *   procedural:{templates:Object[], families:string[], palettes:Object[]}, saga:(code:string)=>{saga:Object,
@@ -330,6 +332,49 @@ export function contentArtifact() {
   if (served?.error) throw served.error;
   if (served) return served.artifact;
   return (workspaceArtifact ??= runtimeArtifact(openContentArtifact()));
+}
+
+/**
+ * Makes the next read open the artifact on disk again when its manifest names another content
+ * digest than the copy this process holds. A manifest that is missing or unreadable, as during a
+ * build, changes nothing.
+ * @returns {boolean} Whether the next read opens the artifact again.
+ * @memberof CyberiaContentArtifact
+ */
+export function refreshWorkspaceArtifact() {
+  if (!workspaceArtifact) return false;
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(contentRoot(), 'dist', MANIFEST_FILE), 'utf8'));
+  } catch {
+    return false;
+  }
+  if (manifest?.contentDigest === workspaceArtifact.manifest.contentDigest) return false;
+  workspaceArtifact = undefined;
+  return true;
+}
+
+/**
+ * Whether the content this process serves is built from the commit the content checkout is at. A
+ * host with no content sources, or a checkout git cannot read, answers no checkout revision.
+ * @returns {{sourceRevision:string, checkoutRevision:string, stale:boolean}} `stale` when the checkout
+ *   holds a commit the served artifact does not: build cyberia-content and release it.
+ * @throws {Error} When the served artifact cannot be read.
+ * @memberof CyberiaContentArtifact
+ */
+export function contentFreshness() {
+  const { sourceRevision } = contentArtifact().manifest;
+  let checkoutRevision = '';
+  if (hasContentSources())
+    try {
+      checkoutRevision = execFileSync('git', ['-C', contentRoot(), 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      checkoutRevision = '';
+    }
+  return { sourceRevision, checkoutRevision, stale: Boolean(checkoutRevision) && checkoutRevision !== sourceRevision };
 }
 
 /**

@@ -55,12 +55,12 @@ describe('an update request', () => {
 
   it('takes the palette choice of each item apart, in the order of the items, and drops an item with none', () => {
     const items = [
-      { itemId: 'skin.violet', paletteId: 'skin.exotic-teal', slots: { 'legs.base': '#00FF00' } },
+      { itemId: 'skin.violet', paletteId: 'exotic-teal', slots: { 'legs.base': '#00FF00' } },
       { itemId: 'skin.worker', paletteId: RANDOM_PALETTE },
     ];
     expect(checkRequest({ ...UPDATE, palette: { items } }).palette.items).toEqual([
       { itemId: 'skin.worker', paletteId: 'random', slots: {} },
-      { itemId: 'skin.violet', paletteId: 'skin.exotic-teal', slots: { 'legs.base': '#00ff00' } },
+      { itemId: 'skin.violet', paletteId: 'exotic-teal', slots: { 'legs.base': '#00ff00' } },
     ]);
     expect(
       checkRequest({ ...UPDATE, palette: { items: [{ itemId: 'skin.worker', slots: {} }] } }).palette.items,
@@ -75,9 +75,11 @@ describe('an update request', () => {
     refused({ ...UPDATE, source: { itemIds: ['a'], cid: 'x' } }, /source does not take cid/);
   });
 
-  it('refuses what only a create takes: the server picks the template of each item', () => {
+  it('refuses what only a create takes, and takes the template its items start from', () => {
+    expect(checkRequest(UPDATE).template).toBeNull();
+    expect(checkRequest({ ...UPDATE, template: { id: 'skin.humanoid' } }).template).toEqual({ id: 'skin.humanoid' });
+    refused({ ...UPDATE, template: { id: '' } }, /template needs an id/);
     refused({ ...UPDATE, itemType: 'skin' }, /does not take itemType/);
-    refused({ ...UPDATE, template: { id: 'skin.humanoid' } }, /does not take template/);
     refused({ ...UPDATE, output: { variants: 3 } }, /output does not take variants/);
     refused({ ...UPDATE, output: { variantsPerItem: 3, itemIdPrefix: 'x' } }, /output does not take itemIdPrefix/);
   });
@@ -106,9 +108,8 @@ describe('a create request', () => {
     const { palette, ...request } = CREATE;
     expect(checkRequest(request).palette).toEqual({ slots: {} });
     expect(
-      checkRequest({ ...CREATE, palette: { paletteId: 'skin.exotic-teal', slots: { 'legs.base': '#123ABC' } } })
-        .palette,
-    ).toEqual({ paletteId: 'skin.exotic-teal', slots: { 'legs.base': '#123abc' } });
+      checkRequest({ ...CREATE, palette: { paletteId: 'exotic-teal', slots: { 'legs.base': '#123ABC' } } }).palette,
+    ).toEqual({ paletteId: 'exotic-teal', slots: { 'legs.base': '#123abc' } });
   });
 
   it('has no source: any source is refused, whatever it holds', () => {
@@ -127,14 +128,37 @@ describe('a create request', () => {
     expect(proposedItemId('skin-generated', 0)).toBe('skin-generated-001');
     expect(proposedItemId('skin-generated', 1199)).toBe('skin-generated-1200');
   });
+
+  it('takes exact new item ids in place of a prefix and a count', () => {
+    expect(checkRequest({ ...CREATE, output: { itemIds: ['violet-moss', 'violet-stone'] } })).toMatchObject({
+      itemIds: ['violet-moss', 'violet-stone'],
+    });
+    refused({ ...CREATE, output: { itemIds: ['Violet Moss'] } }, /lowercase words/);
+    refused({ ...CREATE, output: { itemIds: ['a', 'a'] } }, /each once/);
+    refused({ ...CREATE, output: { itemIds: ['a'], variants: 1 } }, /output does not take variants/);
+  });
+});
+
+describe('the origin of an update', () => {
+  it('starts each item from its render, unless the request names it among the items that start from the template', () => {
+    expect(checkRequest(UPDATE).fromTemplate).toEqual([]);
+    expect(
+      checkRequest({ ...UPDATE, source: { itemIds: UPDATE.source.itemIds, fromTemplate: ['skin.violet'] } })
+        .fromTemplate,
+    ).toEqual(['skin.violet']);
+    refused(
+      { ...UPDATE, source: { itemIds: ['skin.worker'], fromTemplate: ['skin.violet'] } },
+      /fromTemplate lists items/,
+    );
+  });
 });
 
 describe('the palette choice', () => {
   it('names a palette by a non-empty id, and refuses what a choice does not take', () => {
-    refused({ ...CREATE, palette: { paletteId: '' } }, /palette.paletteId names a Palette Template or random/);
+    refused({ ...CREATE, palette: { paletteId: '' } }, /palette.paletteId names a palette or random/);
     refused({ ...CREATE, palette: { items: [] } }, /palette does not take items/);
     refused({ ...UPDATE, palette: { slots: {} } }, /palette does not take slots/);
-    refused({ ...UPDATE, palette: { paletteId: 'skin.exotic-teal' } }, /palette does not take paletteId/);
+    refused({ ...UPDATE, palette: { paletteId: 'exotic-teal' } }, /palette does not take paletteId/);
   });
 
   it('takes slots for the run in a create, and for each item of the source in an update', () => {

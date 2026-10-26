@@ -34,10 +34,15 @@ class CyberiaProceduralJobService {
   static getSources = (options = {}) =>
     send(buildQueryUrl(getApiBaseUrl({ id: 'sources', endpoint }), options).toString(), 'GET');
 
-  /** The palette an update starts from for one item (`itemId`), under the Palette Template `paletteId` names. */
-  static getSourcePalette = (options = { itemId: '', paletteId: '' }) => {
+  /**
+   * The palette an update starts from for one item (`itemId`), under the palette `paletteId`
+   * names, from the Genesis Template when `fromTemplate` is set.
+   */
+  static getSourcePalette = (options = { itemId: '', paletteId: '', templateId: '', fromTemplate: false }) => {
     const url = new URL(getApiBaseUrl({ id: `sources/${encodeURIComponent(options.itemId)}/palette`, endpoint }));
     if (options.paletteId) url.searchParams.set('paletteId', options.paletteId);
+    if (options.templateId) url.searchParams.set('templateId', options.templateId);
+    if (options.fromTemplate) url.searchParams.set('fromTemplate', 'true');
     return send(url.toString(), 'GET');
   };
 

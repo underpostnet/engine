@@ -157,6 +157,12 @@ import {
 } from '../src/projects/cyberia/stack/domain-ownership.js';
 import { resolveMarketProfile } from '../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { runtimeModels, syncRuntimeIndexes } from '../src/projects/cyberia/runtime/runtime-indexes.js';
+import { PROCEDURAL_APIS } from '../src/projects/cyberia/procedural/engine.js';
+import { populationModels } from '../src/projects/cyberia/procedural/population/map-context.js';
+import { migratePopulations } from '../src/projects/cyberia/procedural/population/migration.js';
+import { paletteCatalog } from '../src/projects/cyberia/procedural/palettes/catalog.js';
+import { migrateJobs } from '../src/projects/cyberia/procedural/jobs/migration.js';
+import { genesisTemplates } from '../src/projects/cyberia/procedural/templates.js';
 import { ValkeyAPI, closeValkeyConnection, createValkeyConnection } from '../src/db/valkey/Valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
 import { program as underpostProgram } from '../src/cli/index.js';
@@ -1444,7 +1450,7 @@ try {
     .option('--dev', 'Force development environment')
     .option(
       '--sync-entities',
-      'Point the instance conf at every entity-type default its maps place and every skill their items trigger, dropping what the world no longer carries',
+      'Drop the conf references whose entity-type default is gone, rewrite the placed entities by the defaults they resolve to, and report the skills their items trigger',
     )
     .description('Export/import a Cyberia instance with all related maps, entities and object layers')
     .action(async (instanceCode, options = {}) => {
@@ -1544,14 +1550,11 @@ try {
         logger.info(`sync-entities ${instanceCode}`, {
           maps: result.mapCodes.length,
           references: result.entityDefaults.length,
-          ...(result.linked.length > 0 ? { linked: result.linked } : {}),
           ...(result.dropped.length > 0 ? { dropped: result.dropped } : {}),
-          ...(result.skipped.length > 0 ? { claimedByAnotherInstance: result.skipped } : {}),
           ...(result.skills.length > 0 ? { skills: result.skills } : {}),
           ...(result.entitiesUpdated.length > 0
             ? { entitiesUpdated: result.entitiesUpdated.map(({ mapCode, entities }) => `${mapCode}:${entities}`) }
             : {}),
-          ...(result.conflicts.length > 0 ? { notLinkedSameBuildAlreadyReferenced: result.conflicts } : {}),
           ...(result.duplicates.length > 0 ? { duplicateReferencesDeleteOne: result.duplicates } : {}),
         });
         if (options.export === undefined && !options.import && !options.drop) {
@@ -4550,6 +4553,57 @@ try {
     process.exit(report.failed.length > 0 ? 1 : 0);
   });
 
+  // ─── Map populations ────────────────────────────────────────────────────────
+  const population = program.command('population').description('Map populations of the Procedural Engine');
+
+  releaseEnvOptions(
+    population
+      .command('migrate')
+      .description(
+        'Move every version 2 to 5 map population to the current version: each strategy takes its resolution, ' +
+          'each palette its global id with the same colors, and each stored publication names the revision and the ' +
+          'result of each asset; of a version 2 or 3 record, a kept item keeps the CID it read, an excluded item is ' +
+          'removed and its runs stop, every entity-default change is kept in full for review and the default it ' +
+          'names joins the defaults workspace, and a publication before its commit is cancelled. Then move every ' +
+          'job spec stored before the global palettes: its templates take their palette roles and its palettes ' +
+          'their global ids, with the same colors, seeds and run. A job whose items still generate waits for a ' +
+          'later run. No binding, CID or default changes. A record of another earlier version stays outdated. ' +
+          'Prints the report as JSON, and exits 1 while something waits; writes nothing without --apply',
+      )
+      .option('--apply', 'Write the migration'),
+  ).action(async (options = {}) => {
+    const { host, path, db } = resolveDeployDb(options);
+    await DataBaseProviderService.load({
+      apis: [
+        ...ITEM_DEFINITION_APIS,
+        ...PROCEDURAL_APIS,
+        'cyberia-map',
+        'cyberia-instance',
+        'cyberia-instance-conf',
+        'cyberia-entity-type-default',
+      ],
+      host,
+      path,
+      db,
+    });
+    try {
+      const models = populationModels({ host, path });
+      const apply = !!options.apply;
+      const report = {
+        ...(await migratePopulations(models, {
+          apply,
+          palettes: new Set(paletteCatalog().palettes.map(({ id }) => id)),
+        })),
+        jobs: await migrateJobs(models, { apply, templates: genesisTemplates() }),
+      };
+      console.log(JSON.stringify(report, null, 2));
+      if (report.outdated.length + report.jobs.generating.length + report.jobs.unresolved.length > 0)
+        process.exitCode = 1;
+    } finally {
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    }
+  });
+
   // ─── Runtime indexes ────────────────────────────────────────────────────────
   releaseEnvOptions(
     program
@@ -5607,7 +5661,7 @@ node bin test cyberia --grep 'Cyberia load'`);
     .option('--dev', 'Write only the development manifests of the game checkouts')
     .option(
       '--node-name <node-name>',
-      'The node the hostPath volumes of the game manifests bind to (default: UNDERPOST_DEPLOY_NODE, then this host)',
+      'The node the hostPath volumes of the game manifests bind to (default: UNDERPOST_DEPLOY_NODE, then the control node of deploy/nodes, then this host)',
     )
     .option('--commit', 'Commit what each build writes to the game and deployment checkouts')
     .option('--from-n-commit <n>', 'The engine commits the deployment commit message sums up', '1')

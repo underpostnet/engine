@@ -26,6 +26,16 @@ import {
 const actorOf = (req) => String(req.auth.user._id);
 const reasonOf = (req) => String(req.body?.reason ?? '');
 
+/** Refuses a promotion or a delete of the job of a map population stage: its population owns them. */
+async function assertItemGeneration({ CyberiaProceduralJob }, jobId) {
+  const job = await CyberiaProceduralJob.findById(jobId, { populationId: 1 }).lean();
+  if (job?.populationId)
+    throw requestError(
+      `Job ${jobId} runs a stage of map population ${job.populationId}: act through the population`,
+      409,
+    );
+}
+
 class CyberiaProceduralJobService {
   /**
    * POST `/`: creates the job of a generation request of one of the two modes, or returns the one an
@@ -53,17 +63,24 @@ class CyberiaProceduralJobService {
 
   /**
    * GET `/sources/:itemId/palette`: the palette an update starts from for one item, under the
-   * Palette Template `?paletteId=` names.
+   * palette `?paletteId=` names, from the Genesis Template with `?fromTemplate=true`, on the
+   * template `?templateId=` names when it fits.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
    * @returns {Promise<{templateId:string,palettes:Object[],slots:Object}>}
    */
   static sourcePalette = async (req, res, options) =>
-    await paletteDefaults(proceduralModels(options), { itemId: req.params.itemId, paletteId: req.query.paletteId });
+    await paletteDefaults(proceduralModels(options), {
+      itemId: req.params.itemId,
+      paletteId: req.query.paletteId,
+      templateId: req.query.templateId ? String(req.query.templateId) : '',
+      fromTemplate: req.query.fromTemplate === 'true',
+    });
 
   /**
-   * GET `/` (paginated) or `/:jobId` (one job with its persisted counts).
+   * GET `/` (paginated: the item generations, without the stage jobs of a map population) or
+   * `/:jobId` (one job with its persisted counts).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -77,7 +94,7 @@ class CyberiaProceduralJobService {
       if (!job) throw requestError('Job not found', 404);
       return job;
     }
-    const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+    const { query, sort, skip, limit, page } = DataQuery.parse({ ...req.query, query: { populationId: null } });
     const [data, total] = await Promise.all([
       CyberiaProceduralJob.find(query)
         .sort(Object.keys(sort).length > 0 ? sort : { createdAt: -1 })
@@ -135,8 +152,11 @@ class CyberiaProceduralJobService {
    * @param {import('../types.js').RouterOptions} options - Router options.
    * @returns {Promise<{stopped:number,candidates:number,drafts:number,audit:number}>}
    */
-  static delete = async (req, res, options) =>
-    await deleteJob({ models: proceduralModels(options), jobId: req.params.jobId, options });
+  static delete = async (req, res, options) => {
+    const models = proceduralModels(options);
+    await assertItemGeneration(models, req.params.jobId);
+    return await deleteJob({ models, jobId: req.params.jobId, options });
+  };
 
   /**
    * POST `/:jobId/items/:itemId/regenerate`: queues the item for a new generation.
@@ -211,8 +231,10 @@ class CyberiaProceduralJobService {
    * @returns {Promise<Object>} The item.
    */
   static promote = async (req, res, options) => {
+    const models = proceduralModels(options);
+    await assertItemGeneration(models, req.params.jobId);
     const item = await promoteItem({
-      models: proceduralModels(options),
+      models,
       jobId: req.params.jobId,
       id: req.params.itemId,
       actor: actorOf(req),
@@ -231,8 +253,10 @@ class CyberiaProceduralJobService {
    * @returns {Promise<{promoted:string[],failed:Array<{targetItemId:string,message:string}>}>}
    */
   static promoteJob = async (req, res, options) => {
+    const models = proceduralModels(options);
+    await assertItemGeneration(models, req.params.jobId);
     const result = await promoteJob({
-      models: proceduralModels(options),
+      models,
       jobId: req.params.jobId,
       actor: actorOf(req),
       options,

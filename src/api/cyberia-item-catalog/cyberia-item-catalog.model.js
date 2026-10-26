@@ -51,6 +51,17 @@ CyberiaItemCatalogSchema.index({ objectLayerCid: 1 });
 const conflict = (message) => Object.assign(new Error(message), { status: 409 });
 
 /**
+ * Why a write refuses an item that runs another definition than the writer saw.
+ * @param {string} itemId
+ * @param {string|undefined} current - The definition it runs; empty when unbound.
+ * @param {string|null} expected - The definition the writer saw; empty when unbound.
+ * @returns {string}
+ * @memberof CyberiaItemCatalogModel
+ */
+export const runsAnother = (itemId, current, expected) =>
+  `'${itemId}' runs ${current || 'no definition'}, not ${expected || 'no definition'}`;
+
+/**
  * Binds an item to a definition while the item still runs `expectedCid`, and appends the change to
  * its history in the same write. Binding the definition the item already runs changes nothing.
  * @param {string} itemId
@@ -72,7 +83,7 @@ CyberiaItemCatalogSchema.statics.bind = async function (
   const current = await this.findOne({ itemId }).session(session).lean();
   if (current?.objectLayerCid === objectLayerCid) return current;
   const entry = { objectLayerCid, previousCid: expectedCid || '', source, by, at: new Date() };
-  const runs = `'${itemId}' runs ${current?.objectLayerCid || 'no definition'}, not ${expectedCid || 'no definition'}`;
+  const runs = runsAnother(itemId, current?.objectLayerCid, expectedCid);
   if (!expectedCid) {
     if (current) throw conflict(runs);
     try {
@@ -103,6 +114,26 @@ CyberiaItemCatalogSchema.statics.resolve = async function (itemIds = []) {
   if (labels.length === 0) return new Map();
   const entries = await this.find({ itemId: { $in: labels } }, { itemId: 1, objectLayerCid: 1 }).lean();
   return new Map(entries.map((entry) => [entry.itemId, entry.objectLayerCid]));
+};
+
+/**
+ * The binding of each of the given items with its revision: how many bindings its history holds.
+ * Unbound items are absent.
+ * @param {string[]} itemIds
+ * @param {import('mongoose').ClientSession} [session] - The transaction the read joins.
+ * @returns {Promise<Map<string,{cid:string,revision:number}>>}
+ * @memberof CyberiaItemCatalogModel
+ */
+CyberiaItemCatalogSchema.statics.bindingsOf = async function (itemIds = [], session = null) {
+  const labels = [...new Set(itemIds.filter(Boolean))];
+  if (labels.length === 0) return new Map();
+  const entries = await this.find(
+    { itemId: { $in: labels } },
+    { itemId: 1, objectLayerCid: 1, revision: { $size: '$history' } },
+  )
+    .session(session)
+    .lean();
+  return new Map(entries.map(({ itemId, objectLayerCid, revision }) => [itemId, { cid: objectLayerCid, revision }]));
 };
 
 const CyberiaItemCatalogModel = model('CyberiaItemCatalog', CyberiaItemCatalogSchema);

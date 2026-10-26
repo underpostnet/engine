@@ -10,6 +10,33 @@ const idlePreviews = new Map();
 const idlePreviewLoads = new Map();
 /* The version of a key moves on every write that changes its preview, so its URL never shows a stale copy. */
 const idlePreviewVersions = new Map();
+/* Sprites by definition cid, oldest first; a cid names immutable content, so a sprite never goes stale. */
+const sprites = new Map();
+const spriteLoads = new Map();
+/* The most sprites a page keeps: the oldest goes first. */
+const MAX_SPRITES = 256;
+/* The idle frames a sprite draws, in the order the game client looks for them. */
+const IDLE_FRAMES = Object.freeze(['down_idle', 'default_idle', 'none_idle']);
+/* Reads the sprite of a cid: its layout, then its render image. */
+const readSprite = async (cid) => {
+  const response = await fetch(getApiBaseUrl({ endpoint, id: `layout/${cid}` }), {
+    headers: headersFactory(),
+    credentials: 'include',
+  }).then(readResponse);
+  if (response.status !== 'success') return { missing: `no atlas: ${response.message ?? 'not found'}` };
+  const { layout } = response.data;
+  const frames = IDLE_FRAMES.map((key) => layout.frames?.[key] ?? []).find((list) => list.length > 0);
+  if (!frames) return { missing: 'the atlas has no idle frame' };
+  const image = await new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = getApiBaseUrl({ endpoint, id: `render/${cid}` });
+  });
+  if (!image) return { missing: 'the atlas render did not load' };
+  return { image, frames, duration: layout.frame_duration > 0 ? layout.frame_duration : 100 };
+};
 class AtlasSpriteSheetService {
   /** URL of the 300 px idle preview of an item label or a definition cid. */
   static idlePreviewUrl = (key) => {
@@ -51,6 +78,36 @@ class AtlasSpriteSheetService {
     idlePreviewLoads.delete(key);
     idlePreviewVersions.set(key, (idlePreviewVersions.get(key) ?? 0) + 1);
   };
+  /**
+   * The sprite of a definition cid as the game client draws it: the render image, the idle frames
+   * that face down (else the default ones) and the frame duration; `{ missing }` with the reason
+   * when it cannot load; undefined while it loads or before {@link loadSprite}.
+   */
+  static sprite = (cid) => sprites.get(cid);
+  /** Loads the sprite of a cid once; concurrent callers share one load. */
+  static loadSprite = (cid) => {
+    if (sprites.has(cid)) return Promise.resolve(sprites.get(cid));
+    if (!spriteLoads.has(cid))
+      spriteLoads.set(
+        cid,
+        readSprite(cid)
+          .catch((error) => ({ missing: error.message }))
+          .then((sprite) => {
+            sprites.set(cid, sprite);
+            if (sprites.size > MAX_SPRITES) sprites.delete(sprites.keys().next().value);
+            return sprite;
+          })
+          .finally(() => spriteLoads.delete(cid)),
+      );
+    return spriteLoads.get(cid);
+  };
+  /** Loads the sprites of many cids; `onLoad` runs once for each that settles. */
+  static preloadSprites = (cids, onLoad) =>
+    Promise.all(
+      [...new Set(cids)]
+        .filter((cid) => cid && !sprites.has(cid))
+        .map((cid) => AtlasSpriteSheetService.loadSprite(cid).then(() => onLoad?.())),
+    );
   /** Frames per direction code, and the frame duration, of the render a definition names. */
   static getFrameCounts = (options = { cid: '' }) =>
     new Promise((resolve, reject) =>

@@ -8,6 +8,7 @@
  */
 
 import { dilate, maskOfCells } from '../../src/projects/cyberia/procedural/core/morphology.js';
+import { regionsOf } from '../../src/projects/cyberia/procedural/templates.js';
 import { sourceFromDirectionFrames } from '../../src/client/components/objectlayer-studio/RenderSource.js';
 
 /** The color of each region of the source skin. */
@@ -21,10 +22,10 @@ export const SKIN_COLORS = Object.freeze({
 });
 export const SKIN_OUTLINE = Object.freeze([0, 0, 0, 255]);
 
-/** The frame of a direction: the regions in their colors inside an outline ring. */
-export const skinFrame = (template, code) => {
+/** A frame of a direction: the regions in their colors inside an outline ring. */
+export const skinFrame = (template, code, index = 0) => {
   const { width, height } = template.canvas;
-  const owned = template.directions[code];
+  const owned = regionsOf(template, code, index);
   const body = maskOfCells(Object.values(owned).flat(), width, height);
   const frame = Array.from({ length: height }, () => Array.from({ length: width }, () => [0, 0, 0, 0]));
   dilate(body, width, height).forEach((set, cell) => {
@@ -38,10 +39,10 @@ export const skinFrame = (template, code) => {
 /**
  * @param {Object} template - A resolved Genesis Template.
  * @param {Object} [params]
- * @param {string[]} [params.codes] - Directions to fill; `18` repeats the frames of `08`.
+ * @param {string[]} [params.codes] - Directions to fill, each with the frames the template draws.
  * @returns {{cid:string,data:{item:Object,stats:Object},renderSource:Object}}
  */
-export const skinSource = (template, { codes = ['08', '06', '18'] } = {}) => ({
+export const skinSource = (template, { codes = Object.keys(template.directions) } = {}) => ({
   cid: 'bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   data: {
     item: { id: 'base-skin', type: 'skin', description: 'a base', activable: true },
@@ -49,7 +50,7 @@ export const skinSource = (template, { codes = ['08', '06', '18'] } = {}) => ({
   },
   renderSource: sourceFromDirectionFrames({
     framesByCode: Object.fromEntries(
-      codes.map((code) => [code, [skinFrame(template, code === '18' ? '08' : code), skinFrame(template, '08')]]),
+      codes.map((code) => [code, template.directions[code].map((_, index) => skinFrame(template, code, index))]),
     ),
     frameDurationMs: 250,
   }),

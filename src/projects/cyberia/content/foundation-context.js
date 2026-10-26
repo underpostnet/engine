@@ -158,7 +158,7 @@ export const itemContext = (itemId, index = contentArtifact().context) =>
 /**
  * The context of a map as the editor holds it: its definition, world and palette, the portals that
  * reach it, and its composition tracked against the entities it stores: each composed entity with
- * its item ids, the item type of each, and how many the map holds.
+ * its item ids, the item type of each, how many the foundation asks for and how many the map holds.
  * @param {Object} params
  * @param {string} params.code - Map code.
  * @param {Object} [params.map] - The stored map: `name`, `description`, `entities`.
@@ -173,11 +173,12 @@ export function mapContext({ code, map = {}, instances = [] }, index = contentAr
   const definition = index.definitions[id] ?? null;
   const itemTypeOfLabel = (itemId) => index.definitions[index.labels[itemId]]?.objectLayer?.itemType;
   const composition = trackComposition(
-    (definition?.composition ?? []).map(({ entity: entityId }) => {
+    (definition?.composition ?? []).map(({ entity: entityId, count }) => {
       const entity = index.entities[entityId];
       return {
         ...summary(entityId),
         entity,
+        count,
         items: entity.objectLayerItemIds.map((itemId) => ({ id: itemId, type: itemTypeOfLabel(itemId) })),
       };
     }),

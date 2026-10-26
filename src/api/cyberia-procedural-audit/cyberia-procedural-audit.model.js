@@ -24,9 +24,12 @@ export const AUDIT_ACTIONS = Object.freeze([
   'item.opened_for_edit',
   'item.revision_created',
   'item.approved',
+  'item.approval_withdrawn',
   'item.rejected',
   'item.promoted',
   'item.created',
+  'target.reset',
+  'target.draft_deleted',
 ]);
 
 /** The actor of a transition no human made. */
@@ -36,8 +39,10 @@ export const SYSTEM_ACTOR = 'system:procedural-worker';
  * @typedef {Object} CyberiaProceduralAudit
  * @property {string} action - One of {@link AUDIT_ACTIONS}
  * @property {string} actor - User id of the human, or {@link SYSTEM_ACTOR}
- * @property {import('mongoose').Types.ObjectId} jobId - The job concerned
+ * @property {import('mongoose').Types.ObjectId|null} jobId - The job concerned; null for a population action
  * @property {import('mongoose').Types.ObjectId|null} jobItemId - The item concerned; null for a job action
+ * @property {import('mongoose').Types.ObjectId|null} populationId - The map population of a `target.*` action
+ * @property {string} itemId - The item id of a `target.*` action
  * @property {number|null} previousRevision
  * @property {number|null} newRevision
  * @property {string} previousCid
@@ -50,8 +55,10 @@ const CyberiaProceduralAuditSchema = new Schema(
   {
     action: { type: String, required: true, enum: AUDIT_ACTIONS, immutable: true },
     actor: { type: String, required: true, trim: true, immutable: true },
-    jobId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    jobId: { type: Schema.Types.ObjectId, default: null, immutable: true },
     jobItemId: { type: Schema.Types.ObjectId, default: null, immutable: true },
+    populationId: { type: Schema.Types.ObjectId, default: null, immutable: true },
+    itemId: { type: String, default: '', trim: true, immutable: true },
     previousRevision: { type: Number, default: null, immutable: true },
     newRevision: { type: Number, default: null, immutable: true },
     previousCid: { type: String, default: '', immutable: true },
@@ -63,6 +70,7 @@ const CyberiaProceduralAuditSchema = new Schema(
 
 CyberiaProceduralAuditSchema.index({ jobId: 1, createdAt: 1 });
 CyberiaProceduralAuditSchema.index({ jobItemId: 1, createdAt: 1 });
+CyberiaProceduralAuditSchema.index({ populationId: 1, itemId: 1, createdAt: 1 });
 
 /**
  * Appends one record.
@@ -87,6 +95,8 @@ class CyberiaProceduralAuditDto {
       actor: 1,
       jobId: 1,
       jobItemId: 1,
+      populationId: 1,
+      itemId: 1,
       previousRevision: 1,
       newRevision: 1,
       previousCid: 1,

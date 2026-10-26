@@ -50,7 +50,7 @@ class CyberiaProceduralJobRouter {
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-job']
         #swagger.summary = 'The palette an update starts from for one item'
-        #swagger.description = 'The Genesis Template an update takes for the item, its foundation palettes, and the default color of each color slot with its origin under the Palette Template ?paletteId= names: palette or foundation (applied as they are), render or template (moved by the palette variation).'
+        #swagger.description = 'The Genesis Template an update takes for the item, its foundation palettes, and the default color of each color slot with its origin under the palette ?paletteId= names: palette or foundation (applied as they are), render or template (moved by the palette variation).'
         #swagger.path = '/cyberia-procedural-job/sources/{itemId}/palette'
         #swagger.method = 'get'
         #swagger.produces = ['application/json']

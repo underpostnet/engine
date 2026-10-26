@@ -62,7 +62,7 @@ async function finishAndPromote(job, candidate, description) {
 }
 
 describe.skipIf(!mongodBinary)('the procedural workflows, from generation to the runtime', () => {
-  beforeAll(startEngine, 60000);
+  beforeAll(() => startEngine(), 60000);
   afterAll(stopEngine);
 
   it('updates an existing item with an art direction and no render, and the runtime resolves the human revision', async () => {

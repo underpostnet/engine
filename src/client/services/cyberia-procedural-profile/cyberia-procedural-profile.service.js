@@ -19,9 +19,17 @@ class CyberiaProceduralProfileService {
   /** What a request is built from: generators, Genesis Templates, the palette catalog and the limits. */
   static getConfig = () => read(getApiBaseUrl({ id: 'config', endpoint }));
 
-  /** The palette a create starts from with a Genesis Template (`id`), under the Palette Template `paletteId` names. */
+  /** The palette a create starts from with a Genesis Template (`id`), under the palette `paletteId` names. */
   static getTemplatePalette = (options = { id: '', paletteId: '' }) => {
     const url = new URL(getApiBaseUrl({ id: `templates/${encodeURIComponent(options.id)}/palette`, endpoint }));
+    if (options.paletteId) url.searchParams.set('paletteId', options.paletteId);
+    return read(url.toString());
+  };
+
+  /** The palette a frame import into the item `itemId` remaps to, slot by slot, under the palette `paletteId` names. */
+  static getImportPalette = (options = { itemId: '', paletteId: '' }) => {
+    const url = new URL(getApiBaseUrl({ id: 'import-palette', endpoint }));
+    if (options.itemId) url.searchParams.set('itemId', options.itemId);
     if (options.paletteId) url.searchParams.set('paletteId', options.paletteId);
     return read(url.toString());
   };

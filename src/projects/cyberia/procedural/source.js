@@ -55,8 +55,17 @@ export async function loadSource({ ObjectLayer, ObjectLayerRenderFrames }, cid) 
 export async function loadItemSource(models, itemId) {
   const cid = await findBoundCid(models, itemId);
   if (!cid) throw requestError(`Item ${itemId} is not a Cyberia item here`, 404);
-  return { ...(await loadSource(models, cid)), artDirection: extractArtDirection(contextOf(itemId)) };
+  return { ...(await loadSource(models, cid)), artDirection: artDirectionOf(itemId) };
 }
+
+/**
+ * The art direction of an item label from its foundation context; null where the foundation does not
+ * define it. An item needs no stored definition for it.
+ * @param {string} itemId
+ * @returns {Object|null} {@link extractArtDirection}.
+ * @memberof CyberiaProceduralSource
+ */
+export const artDirectionOf = (itemId) => extractArtDirection(contextOf(itemId));
 
 /**
  * A page of the existing items: every item label bound to a definition. The filter and the sort

@@ -62,6 +62,20 @@ export const catalogModels = (options) => ({
 });
 
 /**
+ * The cids among some definitions that have stored render frames: the only definitions a view
+ * draws and a frame operation takes.
+ * @param {{ObjectLayerRenderFrames:Object}} models
+ * @param {string[]} cids
+ * @returns {Promise<Set<string>>}
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export const renderedCids = async ({ ObjectLayerRenderFrames }, cids) => {
+  const unique = [...new Set(cids.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+  return new Set(await ObjectLayerRenderFrames.distinct('objectLayerCid', { objectLayerCid: { $in: unique } }));
+};
+
+/**
  * Whether the deployment context serves the Cyberia item catalog. A host without it names
  * definitions by cid only.
  * @param {{host:string,path:string}} options - Router options.
@@ -382,6 +396,17 @@ export function composeItemDefinition({ boundData, payload, setOnInsert = null }
   next.data.stats = CyberiaObjectLayerProfile.validateStats(next.data.stats);
   return next;
 }
+
+/**
+ * The cid an exact publication of a stored definition gives: its content composed alone, with the
+ * render it names. A revision stored under the current profile gives its own cid.
+ * @param {{data:Object}} definition - A stored definition, lean.
+ * @returns {string}
+ * @memberof CyberiaObjectLayerCatalog
+ */
+export const exactDefinitionCid = (definition) =>
+  objectLayerIdentity(composeItemDefinition({ boundData: null, payload: { data: structuredClone(definition.data) } }))
+    .cid;
 
 /**
  * Publishes a definition of a Cyberia item under the Cyberia profile. The item keeps its binding:

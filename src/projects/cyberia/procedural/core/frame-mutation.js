@@ -305,9 +305,10 @@ const weightedPick = (moves, random) => {
 };
 
 /**
- * A frame whose contour takes up to {@link mutationBudget} moves, each drawn from the seed and
- * kept only when {@link validateShape} accepts it. A moved cell keeps its color and alpha. No
- * accepted move leaves the frame as it was. A frozen cell is never emptied and never filled.
+ * A frame whose contour takes up to {@link mutationBudget} moves of the boundary it may move, each
+ * drawn from the seed and kept only when {@link validateShape} accepts it. A moved cell keeps its
+ * color and alpha. No accepted move leaves the frame as it was. A frozen cell is never emptied and
+ * never filled.
  * @param {number[][][]} frame
  * @param {{factor?: number, seed?: number, frozen?: Array<[number,number]>}} [options]
  * @returns {{frame: number[][][], accepted: number, rejected: number}}
@@ -317,7 +318,8 @@ export function mutateFrameShape(frame, { factor = 0, seed = 0, frozen = [] } = 
   const width = frame[0]?.length ?? 0;
   const result = { frame: frame.map((row) => row.map((cell) => cell.slice())), accepted: 0, rejected: 0 };
   const source = silhouetteOf(maskOf(frame), width, height);
-  const budget = mutationBudget(source.boundary.length, factor);
+  const fixed = new Set(frozen.map(([x, y]) => y * width + x));
+  const budget = mutationBudget(source.boundary.filter((cell) => !fixed.has(cell)).length, factor);
   if (budget === 0) return result;
 
   const baseline = measure(source.mask, width, height);

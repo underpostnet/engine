@@ -15,7 +15,9 @@ import {
   drainQueue,
   persistCandidate,
   runItem,
+  validateRevision,
 } from '../../../src/projects/cyberia/procedural/jobs/worker.js';
+import { migrateJobs } from '../../../src/projects/cyberia/procedural/jobs/migration.js';
 import {
   approveItem,
   openForEdit,
@@ -24,7 +26,7 @@ import {
 } from '../../../src/projects/cyberia/procedural/jobs/review.js';
 import { promoteJob } from '../../../src/projects/cyberia/procedural/jobs/promotion.js';
 import { resolveProceduralContext } from '../../../src/projects/cyberia/procedural/context.js';
-import { skinParameters } from '../../../src/projects/cyberia/procedural/generators/skin/generator.js';
+import { spriteParameters } from '../../../src/projects/cyberia/procedural/generators/sprite/generator.js';
 import { itemSeed } from '../../../src/projects/cyberia/procedural/core/seed.js';
 import { framesByDirection, fromWire } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 import {
@@ -32,14 +34,15 @@ import {
   paletteSlots,
   templateSlotColors,
 } from '../../../src/projects/cyberia/procedural/palettes/resolver.js';
-import { resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
+import { genesisTemplates, resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
 import { mongodBinary } from '../../support/mongod.js';
 import {
   BASELINE_SKIN,
+  PALETTES,
   PALETTE_FAMILIES,
-  SKIN_PALETTES,
   SKIN_TEMPLATE,
   VIOLET_STRATA,
+  paletteFixture,
 } from '../../support/procedural-content.js';
 import {
   actionsOf,
@@ -53,7 +56,6 @@ import {
   itemsOf,
   models,
   MODERATOR,
-  paletteOf,
   rebind,
   rejection,
   slotsOf,
@@ -72,7 +74,7 @@ const settle = (...jobs) =>
   );
 
 describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => {
-  beforeAll(startEngine, 60000);
+  beforeAll(() => startEngine(), 60000);
   afterAll(stopEngine);
 
   describe('procedural profiles and the configuration', () => {
@@ -126,9 +128,42 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
             protectedRegions: ['torso', 'leftLeg', 'rightLeg'],
           },
         },
+        {
+          id: 'portal-variant',
+          itemType: 'portal',
+          modes: ['update-existing', 'create-new'],
+          profile: {
+            profileId: 'portal-default',
+            regionOrder: ['ring', 'swirl', 'depth', 'core'],
+            protectedRegions: ['core'],
+          },
+        },
+        {
+          id: 'obstacle-variant',
+          itemType: 'obstacle',
+          modes: ['update-existing', 'create-new'],
+          profile: {
+            profileId: 'obstacle-default',
+            regionOrder: ['dust', 'chunk', 'seam', 'loose'],
+            protectedRegions: ['chunk'],
+          },
+        },
+        {
+          id: 'floor-tile',
+          itemType: 'floor',
+          modes: ['update-existing', 'create-new'],
+          profile: { profileId: 'floor-default', regionOrder: ['ground', 'patch'], protectedRegions: [] },
+        },
       ]);
-      const [view] = config.templates;
-      expect(config.templates).toHaveLength(1);
+      const [view, floorView] = config.templates;
+      expect(config.templates.map(({ id }) => id)).toEqual([
+        'skin.humanoid',
+        'floor.terrain',
+        'portal.vortex',
+        'obstacle.rock-pile',
+      ]);
+      expect(floorView).toMatchObject({ itemType: 'floor', canvas: { width: 12, height: 12 }, problems: [] });
+      expect(framesByDirection(fromWire(floorView.preview))['08']).toHaveLength(1);
       expect(view).toMatchObject({
         id: 'skin.humanoid',
         name: 'Humanoid',
@@ -141,10 +176,10 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       });
       const preview = framesByDirection(fromWire(view.preview));
       expect(preview['08']).toHaveLength(1);
-      expect(preview['06']).toHaveLength(1);
-      expect(preview['02']).toHaveLength(0);
+      expect(preview['02']).toHaveLength(1);
+      expect(preview['18']).toHaveLength(2);
       expect(config.palettes.families).toEqual(PALETTE_FAMILIES);
-      expect(config.palettes.palettes.map(({ id }) => id).sort()).toEqual(SKIN_PALETTES.map(({ id }) => id).sort());
+      expect(config.palettes.palettes.map(({ id }) => id).sort()).toEqual(PALETTES.map(({ id }) => id).sort());
       expect(config.limits).toEqual({ maxCandidates: 200 });
     });
   });
@@ -153,16 +188,16 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
     it('refuses what the engine cannot run', async () => {
       const refused = async (overrides) => (await rejection(create(updateRequest(overrides)))).message;
       expect(await refused({ generator: { id: 'rock-variant' } })).toBe('Unknown generator rock-variant');
-      expect(await refused({ template: { id: 'skin.humanoid' } })).toBe(
-        'A update-existing request does not take template',
+      expect(await refused({ template: { id: 'floor.terrain' } })).toMatch(
+        /^Genesis Template floor.terrain does not fit item base-skin: it draws floor, not skin/,
       );
       expect(await refused({ variation: { level: 2 } })).toMatch(/variation must be/);
-      expect(await refused({ parameters: { speed: 1 } })).toMatch(/Unknown skin variant parameter/);
+      expect(await refused({ parameters: { speed: 1 } })).toMatch(/Unknown sprite variant parameter/);
       expect(await refused({ palette: { items: [{ itemId: 'base-skin', slots: { wing: '#ffffff' } }] } })).toBe(
         'Genesis Template skin.humanoid has no color slot wing',
       );
-      expect(await refused({ palette: { items: [{ itemId: 'base-skin', paletteId: 'skin.nothing' }] } })).toBe(
-        'Palette skin.nothing does not fit Genesis Template skin.humanoid',
+      expect(await refused({ palette: { items: [{ itemId: 'base-skin', paletteId: 'skin.exotic-teal' }] } })).toBe(
+        'There is no palette skin.exotic-teal',
       );
       expect(await refused({ source: { itemIds: ['base-skin', 'iron-sword'] } })).toMatch(
         /one item type: iron-sword is not skin|skin-variant makes skin, not weapon/,
@@ -176,7 +211,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         updateRequest({
           source: { itemIds: ['base-skin', 'bare-skin'] },
           output: { variantsPerItem: 2 },
-          palette: { items: [{ itemId: 'base-skin', slots: slotsOf('skin.exotic-teal') }] },
+          palette: { items: [{ itemId: 'base-skin', slots: slotsOf('exotic-teal') }] },
         }),
       );
       expect(job).toMatchObject({
@@ -193,17 +228,18 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         generator: { id: 'skin-variant' },
         profile: SKIN_DEFAULT_PROFILE,
         templates: [SKIN_TEMPLATE],
-        palette: { items: [{ itemId: 'base-skin', slots: slotsOf('skin.exotic-teal') }] },
+        palette: { items: [{ itemId: 'base-skin', slots: slotsOf('exotic-teal') }] },
         palettes: [],
         sources: [
-          ['base-skin', true],
-          ['bare-skin', false],
-        ].map(([itemId, hasRender]) => ({
+          ['base-skin', true, 'render'],
+          ['bare-skin', false, 'template'],
+        ].map(([itemId, hasRender, origin]) => ({
           itemId,
           cid: cids[itemId],
           itemType: 'skin',
           hasRender,
           artDirection: null,
+          origin,
           templateId: 'skin.humanoid',
         })),
         candidates: ['base-skin', 'base-skin', 'bare-skin', 'bare-skin'].map((targetItemId, ordinal) => ({
@@ -217,7 +253,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         variation: { level: 0.6 },
         seed: { mode: 'fixed', value: 424242 },
         parameters: (({ variation, ...operators }) => operators)(
-          skinParameters({ variation: 0.6 }, SKIN_DEFAULT_PROFILE),
+          spriteParameters({ variation: 0.6 }, SKIN_DEFAULT_PROFILE),
         ),
       });
       expect(job.generationRunId).toMatch(/^run-[0-9a-f]{16}$/);
@@ -343,9 +379,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       expect(await refused({ template: { id: 'skin.humanoid', version: 2 } })).toMatch(
         /template does not take version/,
       );
-      expect(await refused({ palette: { paletteId: 'skin.nothing' } })).toBe(
-        'Palette skin.nothing does not fit Genesis Template skin.humanoid',
-      );
+      expect(await refused({ palette: { paletteId: 'nothing' } })).toBe('There is no palette nothing');
       expect(await refused({ palette: { slots: { wing: '#ffffff' } } })).toMatch(/no color slot wing/);
       expect(await refused({ output: { variants: 201, itemIdPrefix: 'many' } })).toMatch(/from 1 to 200/);
       expect(await refused({ seed: { mode: 'fixed', value: -1 } })).toMatch(/seed is/);
@@ -390,20 +424,20 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       await settle(job);
     });
 
-    it('takes the first usable template of the item type when the request names none, and one Palette Template', async () => {
+    it('takes the first usable template of the item type when the request names none, and one palette', async () => {
       const { template: named, ...request } = createRequest({
         output: { variants: 2, itemIdPrefix: 'plain-skin' },
-        palette: { paletteId: 'skin.exotic-teal', slots: { 'hair.base': '#AA00AA' } },
+        palette: { paletteId: 'exotic-teal', slots: { 'hair.base': '#AA00AA' } },
       });
       const job = await create(request);
       expect(job.spec.templates).toEqual([SKIN_TEMPLATE]);
-      expect(job.spec.palette).toEqual({ paletteId: 'skin.exotic-teal', slots: { 'hair.base': '#aa00aa' } });
-      expect(job.spec.palettes).toEqual([paletteOf('skin.exotic-teal')]);
-      expect(job.spec.candidates).toMatchObject([{ paletteId: 'skin.exotic-teal' }, { paletteId: 'skin.exotic-teal' }]);
+      expect(job.spec.palette).toEqual({ paletteId: 'exotic-teal', slots: { 'hair.base': '#aa00aa' } });
+      expect(job.spec.palettes).toEqual([paletteFixture('exotic-teal')]);
+      expect(job.spec.candidates).toMatchObject([{ paletteId: 'exotic-teal' }, { paletteId: 'exotic-teal' }]);
       await settle(job);
     });
 
-    it('takes the defaults of the template when no palette is named: no candidate takes a Palette Template', async () => {
+    it('takes the defaults of the template when no palette is named: no candidate takes a palette', async () => {
       const { palette, ...request } = createRequest({ output: { variants: 1, itemIdPrefix: 'default-palette' } });
       const job = await create(request);
       expect(job.spec.palette).toEqual({ slots: {} });
@@ -449,7 +483,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         expect(item.revisions).toMatchObject([
           { revision: 0, cid: item.candidateCid, kind: 'generated', parentCid: item.sourceCid },
         ]);
-        expect(item.metrics).toMatchObject({ directions: item.targetItemId === 'base-skin' ? 3 : 2 });
+        expect(item.metrics).toMatchObject({ directions: 8, frames: 12 });
         expect(item.diversity.score).toBeGreaterThanOrEqual(job.spec.parameters.minDiversity);
         expect(item.signature.palette).toHaveLength(8);
         const draft = await models().ObjectLayer.findByCid(item.candidateCid).lean();
@@ -535,18 +569,18 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
           output: { variantsPerItem: 1 },
           palette: {
             items: [
-              { itemId: 'base-skin', paletteId: 'skin.exotic-teal' },
+              { itemId: 'base-skin', paletteId: 'exotic-teal' },
               { itemId: 'violet-skin', slots: { 'legs.base': '#0000ff' } },
             ],
           },
           seed: { mode: 'fixed', value: 6 },
         }),
       );
-      expect(painted.spec.palettes).toEqual([paletteOf('skin.exotic-teal')]);
+      expect(painted.spec.palettes).toEqual([paletteFixture('exotic-teal')]);
       await drain();
       const [teal, violet] = await itemsOf(painted);
       expect([teal, violet].map(({ status, paletteId }) => [status, paletteId])).toEqual([
-        ['review', 'skin.exotic-teal'],
+        ['review', 'exotic-teal'],
         ['review', ''],
       ]);
       const colorsOf = async ({ candidateCid }) =>
@@ -555,11 +589,11 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
             await models().ObjectLayerRenderFrames.findOne({ objectLayerCid: candidateCid }).lean(),
           )
           .palette.map((color) => color.slice(0, 7));
-      const roles = paletteOf('skin.exotic-teal').roles;
-      expect(await colorsOf(teal)).toEqual(expect.arrayContaining([roles.torso, roles.hair]));
+      const roles = paletteFixture('exotic-teal').roles;
+      expect(await colorsOf(teal)).toEqual(expect.arrayContaining([roles.primary, roles.detail]));
       const violetColors = await colorsOf(violet);
-      expect(violetColors).toEqual(expect.arrayContaining(['#2f5a34', '#1c3620', '#0000ff']));
-      expect(violetColors).not.toContain(roles.torso);
+      expect(violetColors).toEqual(expect.arrayContaining(['#2f5a34', '#0000ff']));
+      expect(violetColors).not.toContain(roles.primary);
     });
 
     it('draws a created item from its Genesis Template with the baseline function, an empty description and its proposed id', async () => {
@@ -571,7 +605,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         const { data } = await models().ObjectLayer.findByCid(item.candidateCid).lean();
         expect(data.item).toEqual({ id: item.targetItemId, type: 'skin', description: '', activable: true });
         expect(data.stats).toEqual(BASELINE_SKIN.payload.data.stats);
-        expect(item.metrics.directions).toBe(2);
+        expect(item.metrics).toMatchObject({ directions: 8, frames: 12 });
         expect(item.revisions[0]).toMatchObject({ kind: 'generated', parentCid: '' });
         expect(await models().CyberiaItemCatalog.countDocuments({ itemId: item.targetItemId })).toBe(0);
       }
@@ -591,7 +625,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       await drain();
       const [item] = await itemsOf(bare);
       expect(item).toMatchObject({ status: 'review', paletteId: '' });
-      expect(item.metrics.directions).toBe(2);
+      expect(item.metrics).toMatchObject({ directions: 8, frames: 12 });
     });
 
     it('colors an item from its art direction, as a render or from the template', async () => {
@@ -817,6 +851,95 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         expect((await rejection(decide({ ...ctx, id: undecided._id, cid: undecided.candidateCid }))).status).toBe(409);
       expect((await promoteJob({ ...ctx, options: host })).promoted).toEqual(['late-cancel-001']);
       expect((await rejection(cancelJob(ctx))).status).toBe(409);
+    });
+  });
+  describe('a job spec stored before the global palettes', () => {
+    /** The spec as the engine stored it before: no palette role on the template roles, `skin.` palette ids, colors by template role. */
+    const earlier = (spec) => {
+      const takes = Object.fromEntries(
+        spec.templates.flatMap(({ roles }) => Object.entries(roles).map(([role, { palette }]) => [palette, role])),
+      );
+      const old = (id) => (id && id !== RANDOM_PALETTE ? `skin.${id}` : id);
+      return {
+        ...spec,
+        templates: spec.templates.map((stored) => ({
+          ...stored,
+          roles: Object.fromEntries(Object.entries(stored.roles).map(([role, { palette, ...rest }]) => [role, rest])),
+        })),
+        palettes: spec.palettes.map(({ id, roles, constraints, ...rest }) => ({
+          ...rest,
+          id: old(id),
+          itemType: 'skin',
+          roles: Object.fromEntries(Object.entries(roles).map(([role, color]) => [takes[role] ?? role, color])),
+          constraints: { ...constraints, contrastRoles: constraints.contrastRoles.map((role) => takes[role]) },
+        })),
+        palette: { ...spec.palette, paletteId: old(spec.palette.paletteId) },
+        candidates: spec.candidates.map((candidate) => ({ ...candidate, paletteId: old(candidate.paletteId) })),
+      };
+    };
+    const store = async (job, spec) => {
+      await models().CyberiaProceduralJob.collection.updateOne({ _id: job._id }, { $set: { spec } });
+      await models().CyberiaProceduralJobItem.collection.updateMany(
+        { jobId: job._id, paletteId: { $ne: '' } },
+        { $set: { paletteId: `skin.${job.spec.palette.paletteId}` } },
+      );
+    };
+
+    it('moves it with the same colors, seeds and run, waits for a job that generates, and reports what content cannot map', async () => {
+      const request = (prefix, value) =>
+        createRequest({
+          palette: { paletteId: 'exotic-teal', slots: { 'hair.base': '#aa00aa' } },
+          output: { variants: 2, itemIdPrefix: prefix },
+          seed: { mode: 'fixed', value },
+        });
+      const settled = await create(request('teal-before', 71));
+      await drain();
+      const waiting = await create(request('teal-waiting', 72));
+      const unknown = await create(request('teal-unknown', 73));
+      await drain();
+      const current = (await models().CyberiaProceduralJob.findById(settled._id).lean()).spec;
+      const items = await itemsOf(settled);
+      await store(settled, earlier(current));
+      await store(waiting, earlier(waiting.spec));
+      await models().CyberiaProceduralJobItem.updateMany({ jobId: waiting._id }, { $set: { status: 'queued' } });
+      const lost = earlier(unknown.spec);
+      await store(unknown, { ...lost, templates: lost.templates.map((stored) => ({ ...stored, id: 'skin.lost' })) });
+      const stored = await models().CyberiaProceduralJob.find({}).sort({ _id: 1 }).lean();
+
+      const dry = await migrateJobs(models(), { apply: false, templates: genesisTemplates() });
+      expect(dry.migrated).toEqual([
+        { id: String(settled._id), palettes: [{ from: 'skin.exotic-teal', to: 'exotic-teal' }] },
+      ]);
+      expect(dry.generating.map(({ id }) => id)).toEqual([String(waiting._id)]);
+      expect(dry.unresolved).toEqual([
+        {
+          id: String(unknown._id),
+          problems: expect.arrayContaining(['Genesis Template skin.lost: the content gives role hair no palette role']),
+        },
+      ]);
+      expect(await models().CyberiaProceduralJob.find({}).sort({ _id: 1 }).lean()).toEqual(stored);
+
+      const applied = await migrateJobs(models(), { apply: true, templates: genesisTemplates() });
+      expect(applied.migrated.map(({ id }) => id)).toEqual([String(settled._id)]);
+      const moved = await models().CyberiaProceduralJob.findById(settled._id).lean();
+      expect(moved.spec).toEqual(current);
+      expect([moved.requestFingerprint, moved.generationRunId]).toEqual([
+        settled.requestFingerprint,
+        settled.generationRunId,
+      ]);
+      const after = await itemsOf(settled);
+      expect(after.map(({ paletteId, seed, candidateCid }) => [paletteId, seed, candidateCid])).toEqual(
+        items.map(({ seed, candidateCid }) => ['exotic-teal', seed, candidateCid]),
+      );
+      for (const item of after)
+        expect(
+          await validateRevision({ models: models(), cid: item.candidateCid, item, spec: moved.spec }),
+        ).toMatchObject({
+          ok: true,
+        });
+      expect((await models().CyberiaProceduralJob.findById(waiting._id).lean()).spec).toEqual(earlier(waiting.spec));
+      expect((await migrateJobs(models(), { apply: true, templates: genesisTemplates() })).migrated).toEqual([]);
+      await settle(waiting);
     });
   });
 });

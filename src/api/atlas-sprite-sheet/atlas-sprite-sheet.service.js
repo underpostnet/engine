@@ -29,6 +29,8 @@ const renderCache = (options) => CacheService.namespace(options, 'atlas-sprite-s
 /** Frame duration of a render whose layout names none, in milliseconds. */
 const DEFAULT_FRAME_DURATION = 100;
 const failure = (status, message) => Object.assign(new Error(message), { status });
+/** A definition that names no render yet: a state every client expects, not a fault. */
+const noRender = (cid) => Object.assign(failure(404, `Object layer ${cid} names no render`), { expected: true });
 
 /**
  * Removes one atlas: the local materialization of a render, and every File render it owns that
@@ -221,7 +223,7 @@ class AtlasSpriteSheetService {
    */
   static derived = async (cid, options, kind, produce) => {
     const refs = await AtlasSpriteSheetService.renderRefsOf(cid, options);
-    if (!refs) throw failure(404, `Object layer ${cid} names no render`);
+    if (!refs) throw noRender(cid);
     return await CacheService.getOrLoad(renderCache(options), {
       identifier: `${kind}:${refs.renderCid}`,
       binary: true,
@@ -262,7 +264,7 @@ class AtlasSpriteSheetService {
    */
   static layout = async (req, res, options) => {
     const render = await AtlasSpriteSheetService.renderOf(req.params.cid, options, { png: false });
-    if (!render) throw failure(404, `Object layer ${req.params.cid} names no render`);
+    if (!render) throw noRender(req.params.cid);
     res.set('Cache-Control', IMMUTABLE);
     return { renderCid: render.renderCid, metadataCid: render.metadataCid, layout: render.layout };
   };
@@ -275,7 +277,7 @@ class AtlasSpriteSheetService {
     const { cid, scale } = req.params;
     if (scale === undefined) {
       const render = await AtlasSpriteSheetService.renderOf(cid, options);
-      if (!render) throw failure(404, `Object layer ${cid} names no render`);
+      if (!render) throw noRender(cid);
       res.set('Cache-Control', IMMUTABLE);
       return { buffer: render.png, mimetype: 'image/png', name: `${cid}-render.png` };
     }

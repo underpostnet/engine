@@ -25,12 +25,24 @@ async function lineageOf({ CyberiaProceduralJobItem }, sourceCid, generationRunI
   };
 }
 
-/** Refuses a proposed item id some definition or live candidate already holds. */
-async function assertIdsFree({ CyberiaItemCatalog, CyberiaProceduralJobItem }, itemIds) {
+/**
+ * Refuses a proposed item id some definition or live candidate already holds. The runs of one map
+ * population share the new item ids of its targets.
+ */
+async function assertIdsFree(
+  { CyberiaItemCatalog, CyberiaProceduralJob, CyberiaProceduralJobItem },
+  itemIds,
+  populationId,
+) {
   const bound = await CyberiaItemCatalog.findOne({ itemId: { $in: itemIds } }, { itemId: 1 }).lean();
   if (bound) throw requestError(`Item ${bound.itemId} already runs a definition`, 409);
+  const shared = populationId ? await CyberiaProceduralJob.distinct('_id', { populationId }) : [];
   const live = await CyberiaProceduralJobItem.findOne(
-    { targetItemId: { $in: itemIds }, status: { $nin: ['rejected', 'cancelled', 'failed'] } },
+    {
+      targetItemId: { $in: itemIds },
+      status: { $nin: ['rejected', 'cancelled', 'failed'] },
+      jobId: { $nin: shared },
+    },
     { targetItemId: 1 },
   ).lean();
   if (live) throw requestError(`Item ${live.targetItemId} belongs to another generation`, 409);
@@ -77,18 +89,17 @@ async function ensureItems(models, job) {
 }
 
 /**
- * Creates the job of a request, or returns the one an equal spec created.
+ * Stores the job of a resolved spec, or returns the one an equal spec stored.
  * @param {Object} params
  * @param {Object} params.models
- * @param {Object} params.request - See {@link module:src/projects/cyberia/procedural/spec.js}.
+ * @param {Object} params.spec - {@link resolveSpec}.
  * @param {string} params.actor - User id of the moderator.
+ * @param {import('mongoose').Types.ObjectId|null} [params.populationId] - The map population whose item the job generates.
  * @returns {Promise<Object>} The job.
- * @throws {Error} 400 for an invalid request; 409 when a proposed item id is taken.
+ * @throws {Error} 409 when a proposed item id is taken.
  * @memberof CyberiaProceduralJob
  */
-export async function createJob({ models, request, actor }) {
-  const { spec } = await resolveSpec(models, request);
-
+export async function storeJob({ models, spec, actor, populationId = null }) {
   const { CyberiaProceduralJob } = models;
   const requestFingerprint = createHash('sha256').update(canonicalize(spec)).digest('hex');
   let job = await CyberiaProceduralJob.findOne({ requestFingerprint }).lean();
@@ -97,6 +108,7 @@ export async function createJob({ models, request, actor }) {
       await assertIdsFree(
         models,
         spec.candidates.map(({ targetItemId }) => targetItemId),
+        populationId,
       );
     try {
       job = (
@@ -107,6 +119,7 @@ export async function createJob({ models, request, actor }) {
           requestFingerprint,
           rootSeed: spec.seed.value,
           spec,
+          populationId,
           createdBy: actor,
         })
       ).toObject();
@@ -120,3 +133,16 @@ export async function createJob({ models, request, actor }) {
   await syncJob({ models, jobId: job._id });
   return await CyberiaProceduralJob.findById(job._id).lean();
 }
+
+/**
+ * Creates the job of a request, or returns the one an equal spec created.
+ * @param {Object} params
+ * @param {Object} params.models
+ * @param {Object} params.request - See {@link module:src/projects/cyberia/procedural/spec.js}.
+ * @param {string} params.actor - User id of the moderator.
+ * @returns {Promise<Object>} The job.
+ * @throws {Error} 400 for an invalid request; 409 when a proposed item id is taken.
+ * @memberof CyberiaProceduralJob
+ */
+export const createJob = async ({ models, request, actor }) =>
+  await storeJob({ models, spec: (await resolveSpec(models, request)).spec, actor });

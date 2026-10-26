@@ -82,7 +82,7 @@ const RevisionSchema = new Schema(
  * @property {number} ordinal - Position in the job, from 0
  * @property {string} targetItemId - The item the candidate becomes: an existing item id, or the proposed id of a new item; the `data.item.id` of every revision
  * @property {string} sourceCid - Object Layer the target item ran on when the job was created; empty for a new item
- * @property {string} paletteId - Palette Template of the candidate; empty when its palette choice names none
+ * @property {string} paletteId - The palette of the candidate; empty when its palette choice names none
  * @property {string} templateId - Genesis Template the candidate starts from
  * @property {{parentCid:string,parentItemId:string,parentRevision:number|null,generationRunId:string}} lineage - Where the source came from; the parent revision is the source revision
  * @property {string} generatedCid - Cid of the latest generated revision

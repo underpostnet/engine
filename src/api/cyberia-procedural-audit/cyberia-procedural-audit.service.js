@@ -10,11 +10,11 @@ import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralAuditDto } from './cyberia-procedural-audit.model.js';
 
 /** The query parameters that filter a list by one field. */
-const FILTERS = ['jobId', 'jobItemId', 'action'];
+const FILTERS = ['jobId', 'jobItemId', 'populationId', 'itemId', 'action'];
 
 class CyberiaProceduralAuditService {
   /**
-   * GET `/` (paginated; `?jobId=`, `?jobItemId=`, `?action=` filter).
+   * GET `/` (paginated; `?jobId=`, `?jobItemId=`, `?populationId=`, `?itemId=`, `?action=` filter).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.

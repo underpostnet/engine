@@ -1,8 +1,8 @@
 /**
  * Procedural profiles: how a generator transforms a Genesis Template. A profile ranks the regions,
- * gives each direction its rules, and bounds what the generator may do: required directions,
- * protected regions, variation, shape and diversity. It holds no region map, color, item semantics,
- * binding or CID.
+ * gives each facing its rules, and bounds what the generator may do: protected regions, variation,
+ * shape and diversity. It holds no region map, color, item semantics, binding or CID. The frames a
+ * template draws are the frame contract of its item type.
  *
  * The profiles Cyberia ships live here and are stored in the CyberiaProceduralProfile collection.
  * The source is the truth: a worker start writes it over the stored copy.
@@ -10,11 +10,10 @@
  * @module src/projects/cyberia/procedural/profiles/registry.js
  * @namespace CyberiaProceduralProfiles
  */
-import { OBJECT_LAYER_DIRECTION_CODES } from '../../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import { OBJECT_LAYER_FACINGS } from '../../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 
 const PROFILE_ID_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const REGION_ID_PATTERN = /^[a-z][A-Za-z0-9]*$/;
-const FACINGS = Object.freeze(['down', 'up', 'left', 'right']);
 const FACES = Object.freeze(['front', 'side', 'back']);
 
 const fail = (message) => {
@@ -25,22 +24,17 @@ const isInteger = (value, min) => Number.isSafeInteger(value) && value >= min;
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isUnit = (value) => Number.isFinite(value) && value >= 0 && value <= 1;
 
-const checkRules = (rules, code) => {
-  if (!OBJECT_LAYER_DIRECTION_CODES.includes(code)) fail(`${code} is not a direction code`);
-  const { facing, face, hairMass = 1 } = rules ?? {};
-  if (!FACINGS.includes(facing)) fail(`direction ${code} needs facing: ${FACINGS.join(', ')}`);
-  if (!FACES.includes(face)) fail(`direction ${code} needs face: ${FACES.join(', ')}`);
+const checkRules = (rules, facing) => {
+  if (!OBJECT_LAYER_FACINGS.includes(facing)) fail(`${facing} is not a facing: ${OBJECT_LAYER_FACINGS.join(', ')}`);
+  const { face, hairMass = 1 } = rules ?? {};
+  if (!FACES.includes(face)) fail(`facing ${facing} needs face: ${FACES.join(', ')}`);
   if (!(Number.isFinite(hairMass) && hairMass >= 0.25 && hairMass <= 2))
-    fail(`direction ${code} needs hairMass from 0.25 to 2`);
-  return { facing, face, hairMass };
+    fail(`facing ${facing} needs hairMass from 0.25 to 2`);
+  return { face, hairMass };
 };
 
-const checkConstraints = (constraints, directionRules, regionOrder) => {
+const checkConstraints = (constraints, regionOrder) => {
   if (!isPlainObject(constraints)) fail('constraints must be an object');
-  const { requiredDirections } = constraints;
-  if (!Array.isArray(requiredDirections) || requiredDirections.length === 0)
-    fail('requiredDirections must list at least one direction');
-  for (const code of requiredDirections) if (!directionRules[code]) fail(`required direction ${code} has no rules`);
   const protectedRegions = constraints.protectedRegions ?? [];
   if (!Array.isArray(protectedRegions) || protectedRegions.some((id) => !regionOrder.includes(id)))
     fail('protectedRegions must name regions of regionOrder');
@@ -60,7 +54,6 @@ const checkConstraints = (constraints, directionRules, regionOrder) => {
   )
     fail('deformablePairs must list pairs of regions of regionOrder');
   return {
-    requiredDirections: [...requiredDirections],
     protectedRegions: [...protectedRegions],
     variationBounds: { min, max },
     shape: { maxBoxGrowth, maxCentroidDrift },
@@ -91,24 +84,23 @@ export function validateProfile(profile) {
     !regionOrder.every((id) => REGION_ID_PATTERN.test(id))
   )
     fail('regionOrder must list each region id once');
-  if (!isPlainObject(profile.directionRules) || Object.keys(profile.directionRules).length === 0)
-    fail('directionRules must give at least one direction its rules');
-  const directionRules = Object.fromEntries(
-    Object.entries(profile.directionRules).map(([code, rules]) => [code, checkRules(rules, code)]),
-  );
+  if (!isPlainObject(profile.directionRules)) fail('directionRules must map facings to their rules');
   return {
     profileId: profile.profileId,
     generatorId: profile.generatorId,
     itemType: profile.itemType,
     regionOrder: [...regionOrder],
-    directionRules,
-    constraints: checkConstraints(profile.constraints, directionRules, regionOrder),
+    directionRules: Object.fromEntries(
+      Object.entries(profile.directionRules).map(([facing, rules]) => [facing, checkRules(rules, facing)]),
+    ),
+    constraints: checkConstraints(profile.constraints, regionOrder),
   };
 }
 
 /**
  * The default skin profile. Torso and legs are protected: a variant keeps the shape of the body
- * that armor layers fit. The head, the hair and the skin vary.
+ * that armor layers fit. The head, the hair and the skin vary. A face shows its features from the
+ * front and the side, none from the back.
  * @memberof CyberiaProceduralProfiles
  */
 export const SKIN_DEFAULT_PROFILE = validateProfile({
@@ -117,11 +109,12 @@ export const SKIN_DEFAULT_PROFILE = validateProfile({
   itemType: 'skin',
   regionOrder: ['hair', 'torso', 'leftLeg', 'rightLeg', 'head', 'skin'],
   directionRules: {
-    '06': { facing: 'right', face: 'side', hairMass: 1 },
-    '08': { facing: 'down', face: 'front', hairMass: 1 },
+    down: { face: 'front', hairMass: 1 },
+    up: { face: 'back', hairMass: 1 },
+    left: { face: 'side', hairMass: 1 },
+    right: { face: 'side', hairMass: 1 },
   },
   constraints: {
-    requiredDirections: ['06', '08'],
     protectedRegions: ['torso', 'leftLeg', 'rightLeg'],
     variationBounds: { min: 0, max: 1 },
     shape: { maxBoxGrowth: 4, maxCentroidDrift: 2 },
@@ -133,8 +126,78 @@ export const SKIN_DEFAULT_PROFILE = validateProfile({
   },
 });
 
+/**
+ * The default floor profile. A floor has no facing rules. The ground and its patches trade cells,
+ * and nothing is protected.
+ * @memberof CyberiaProceduralProfiles
+ */
+export const FLOOR_DEFAULT_PROFILE = validateProfile({
+  profileId: 'floor-default',
+  generatorId: 'floor-tile',
+  itemType: 'floor',
+  regionOrder: ['ground', 'patch'],
+  directionRules: {},
+  constraints: {
+    protectedRegions: [],
+    variationBounds: { min: 0, max: 1 },
+    diversity: { threshold: 0.02 },
+    deformablePairs: [['ground', 'patch']],
+  },
+});
+
+/**
+ * The default portal profile. A portal has no facing rules. Its core keeps its shape, so every
+ * frame of the vortex turns around the same center; the swirl trades cells with the ring and the depth.
+ * @memberof CyberiaProceduralProfiles
+ */
+export const PORTAL_DEFAULT_PROFILE = validateProfile({
+  profileId: 'portal-default',
+  generatorId: 'portal-variant',
+  itemType: 'portal',
+  regionOrder: ['ring', 'swirl', 'depth', 'core'],
+  directionRules: {},
+  constraints: {
+    protectedRegions: ['core'],
+    variationBounds: { min: 0, max: 1 },
+    shape: { maxBoxGrowth: 2, maxCentroidDrift: 1 },
+    diversity: { threshold: 0.04 },
+    deformablePairs: [
+      ['ring', 'swirl'],
+      ['swirl', 'depth'],
+    ],
+  },
+});
+
+/**
+ * The default obstacle profile. An obstacle has no facing rules. Its chunks keep their shape, so
+ * the three idle frames shift only the seams, the loose pieces and the dust.
+ * @memberof CyberiaProceduralProfiles
+ */
+export const OBSTACLE_DEFAULT_PROFILE = validateProfile({
+  profileId: 'obstacle-default',
+  generatorId: 'obstacle-variant',
+  itemType: 'obstacle',
+  regionOrder: ['dust', 'chunk', 'seam', 'loose'],
+  directionRules: {},
+  constraints: {
+    protectedRegions: ['chunk'],
+    variationBounds: { min: 0, max: 1 },
+    shape: { maxBoxGrowth: 2, maxCentroidDrift: 1 },
+    diversity: { threshold: 0.03 },
+    deformablePairs: [
+      ['seam', 'loose'],
+      ['loose', 'dust'],
+    ],
+  },
+});
+
 /** Every profile Cyberia ships. */
-export const DEFAULT_PROFILES = Object.freeze([SKIN_DEFAULT_PROFILE]);
+export const DEFAULT_PROFILES = Object.freeze([
+  SKIN_DEFAULT_PROFILE,
+  FLOOR_DEFAULT_PROFILE,
+  PORTAL_DEFAULT_PROFILE,
+  OBSTACLE_DEFAULT_PROFILE,
+]);
 
 /**
  * Stores every shipped profile over its stored copy. Safe to run again.

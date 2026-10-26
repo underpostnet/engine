@@ -1,8 +1,8 @@
 /**
  * Palette resolution. A color slot is one tone of one role: `<role>.shadow`, `<role>.base` and
  * `<role>.highlight` for each role of a Genesis Template, then `outline` and `accent`. The palette
- * of a candidate takes, for each role, the base color of its Palette Template or the colors of the
- * foundation palettes of its item, then the slot colors the moderator sets. The palette plan of a
+ * of a candidate takes, for each role, the color of the palette role it takes in its palette or the
+ * colors of the foundation palettes of its item, then the slot colors the moderator sets. The palette plan of a
  * variant resolves the tones of every region: an explicit tone stays; any other role starts from
  * the source render or the template and moves with the seed. A tone left open derives from the
  * base. Colors move in OKLCH. Pure functions.
@@ -13,7 +13,7 @@ import { hexToRgba, rgbaToHex } from '../../../../client/components/objectlayer-
 import { seededRandom } from '../../../../client/components/objectlayer-studio/PixelRegion.js';
 import { fromOklch, toOklab, toOklch } from '../core/oklab.js';
 import { operatorSeed } from '../core/seed.js';
-import { GENERATOR_ROLES, TONES } from '../templates.js';
+import { GENERATOR_ROLES, PALETTE_ROLES, TONES } from '../templates.js';
 
 /** The strongest move of a color the palette variation makes: OKLab lightness, a turn of hue, and a share of chroma. */
 const MAX_LIGHTNESS_SHIFT = 0.1;
@@ -138,29 +138,53 @@ export function foundationRoles(template, palettes = []) {
 }
 
 /**
- * The palette of a candidate: the roles its Palette Template or the foundation palettes of its item
- * color, under the slot colors the request sets.
+ * The color a palette gives the roles of a template: each role takes the color of its palette role,
+ * then `outline` and `accent`. A role whose palette role the palette does not give is left out.
+ * @param {Object} template - A resolved Genesis Template.
+ * @param {Object} palette - A palette.
+ * @returns {Object<string,string>} Role → `#rrggbb`.
+ */
+export const paletteRoles = (template, palette) =>
+  Object.fromEntries(
+    [
+      ...Object.entries(template.roles).map(([role, { palette: taken }]) => [role, palette.roles[taken]]),
+      ...GENERATOR_ROLES.map((role) => [role, palette.roles[role]]),
+    ].filter(([, color]) => color),
+  );
+
+/**
+ * The roles a remap of imported frames reads from the colors of a palette: its outline, its colors as
+ * the base of one lightness ramp, and its accent. A role with no color is left out.
+ * @param {{roles:Object<string,string>}} palette - A palette, or the colors of an import by slot.
+ * @returns {Object<string,string[]>} Role → `#rrggbb` colors.
+ */
+export const rampRoles = ({ roles }) => ({
+  ...(roles.outline && { outline: [roles.outline] }),
+  base: PALETTE_ROLES.map((role) => roles[role]).filter(Boolean),
+  ...(roles.accent && { accent: [roles.accent] }),
+});
+
+/**
+ * The palette of a candidate: the roles its palette or the foundation palettes of its item color,
+ * under the slot colors the request sets.
  * @param {Object} template - A resolved Genesis Template.
  * @param {Object} [params]
- * @param {Object|null} [params.palette] - A Palette Template.
+ * @param {Object|null} [params.palette] - A palette.
  * @param {Object<string,string>} [params.slots] - Slot id → `#rrggbb`; see {@link paletteSlots}.
  * @param {Object|null} [params.artDirection] - The art direction of the source item.
  * @returns {Readonly<{roles:Object<string,Object<string,string>>}>}
- * @throws {RangeError} When the palette names a role or a slot the template lacks.
+ * @throws {RangeError} When a slot is not a slot of the template.
  */
 export function candidatePalette(template, { palette = null, slots = {}, artDirection = null } = {}) {
   const known = new Map(paletteSlots(template).map((slot) => [slot.id, slot]));
   const unknown = Object.keys(slots).filter((id) => !known.has(id));
   if (unknown.length > 0)
     throw new RangeError(`Genesis Template ${template.id} has no color slot ${unknown.join(', ')}`);
-  const lacking = Object.keys(palette?.roles ?? {}).filter(
-    (role) => !template.roles[role] && !GENERATOR_ROLES.includes(role),
-  );
-  if (lacking.length > 0)
-    throw new RangeError(`Palette ${palette.id} names roles template ${template.id} lacks: ${lacking.join(', ')}`);
   const roles = {
     ...foundationRoles(template, artDirection?.palettes),
-    ...Object.fromEntries(Object.entries(palette?.roles ?? {}).map(([role, base]) => [role, { base }])),
+    ...Object.fromEntries(
+      Object.entries(palette ? paletteRoles(template, palette) : {}).map(([role, base]) => [role, { base }]),
+    ),
   };
   for (const [id, color] of Object.entries(slots)) {
     const { role, tone } = known.get(id);
@@ -210,12 +234,12 @@ export function planPalette({ template, palette, sourceBase = {}, seed, variatio
 }
 
 /**
- * The color each slot of a template starts from, and where it comes from: `palette` for a role a
- * Palette Template colors, `foundation` for a role the foundation palettes color, which both stay as
- * they are; `render` or `template` for the others, which move with the palette variation.
+ * The color each slot of a template starts from, and where it comes from: `palette` for a role the
+ * palette colors, `foundation` for a role the foundation palettes color, which both stay as they
+ * are; `render` or `template` for the others, which move with the palette variation.
  * @param {Object} params
  * @param {Object} params.template - A resolved Genesis Template.
- * @param {Object|null} [params.palette] - A Palette Template.
+ * @param {Object|null} [params.palette] - A palette.
  * @param {Object|null} [params.artDirection] - The art direction of the source item.
  * @param {Object<string,string>} [params.sourceBase] - The dominant color of each role in the source render.
  * @returns {Object<string,{color:string,origin:'palette'|'foundation'|'render'|'template'}>} Slot id → its default.
@@ -229,8 +253,9 @@ export function slotDefaults({ template, palette = null, artDirection = null, so
     variation: 0,
   });
   const foundation = foundationRoles(template, artDirection?.palettes);
+  const colored = palette ? paletteRoles(template, palette) : {};
   const originOf = (role) =>
-    palette?.roles[role] ? 'palette' : foundation[role] ? 'foundation' : sourceBase[role] ? 'render' : 'template';
+    colored[role] ? 'palette' : foundation[role] ? 'foundation' : sourceBase[role] ? 'render' : 'template';
   const [firstRole] = Object.keys(template.roles);
   const defaults = {};
   for (const { id, role, tone } of paletteSlots(template)) {

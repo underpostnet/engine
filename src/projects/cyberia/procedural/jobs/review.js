@@ -97,6 +97,7 @@ export async function openForEdit({ models, jobId, id, actor }) {
   });
   if (!opened) throw await conflict(models, item, EDITABLE);
   await recordAudit(models, auditOf(item, 'item.opened_for_edit', actor));
+  await syncJob({ models, jobId: item.jobId });
   return reviewContextOf(await models.CyberiaProceduralJob.findById(jobId).lean(), opened);
 }
 
@@ -120,10 +121,9 @@ async function recordRevision({ models, id, cid, actor, now = new Date() }) {
   if (!item) throw requestError('Job item not found', 404);
   if (!EDITABLE.includes(item.status)) throw await conflict(models, item, EDITABLE);
   if (item.candidateCid === cid) {
-    return (
-      (await Item.advance({ id, from: ['editing'], to: 'review', where: { candidateCid: cid } })) ??
-      (await Item.findById(id).lean())
-    );
+    const reviewed = await Item.advance({ id, from: ['editing'], to: 'review', where: { candidateCid: cid } });
+    if (reviewed) await syncJob({ models, jobId: item.jobId, now });
+    return reviewed ?? (await Item.findById(id).lean());
   }
   const { spec } = await Job.findById(item.jobId, { spec: 1 }).lean();
   const validation = await validateRevision({ models, cid, item, spec, now });
@@ -145,6 +145,7 @@ async function recordRevision({ models, id, cid, actor, now = new Date() }) {
       reason: item.review.decision === 'approved' ? 'the approval of the previous revision no longer applies' : '',
     }),
   );
+  await syncJob({ models, jobId: item.jobId, now });
   return updated;
 }
 
@@ -216,7 +217,36 @@ export async function approveItem({ models, jobId, id, cid, actor, reason = '', 
   });
   if (!approved) throw await conflict(models, item, ITEM_REVIEWABLE);
   await recordAudit(models, auditOf(item, 'item.approved', actor, { reason }));
+  await syncJob({ models, jobId: item.jobId, now });
   return approved;
+}
+
+/**
+ * Takes back the approval of an item: it returns to review with its revision, and no decision covers it.
+ * @param {Object} params
+ * @param {Object} params.models
+ * @param {string} params.jobId
+ * @param {string} params.id - The item's document id.
+ * @param {string} params.actor
+ * @param {string} [params.reason]
+ * @param {Date} [params.now]
+ * @returns {Promise<Object>} The item.
+ * @throws {Error} 409 when the item is not approved.
+ * @memberof CyberiaProceduralReview
+ */
+export async function withdrawApproval({ models, jobId, id, actor, reason = '', now = new Date() }) {
+  const item = await findItem(models, jobId, id);
+  const withdrawn = await models.CyberiaProceduralJobItem.advance({
+    id: item._id,
+    from: ['approved'],
+    to: 'review',
+    where: { candidateCid: item.candidateCid },
+    set: { review: EMPTY_REVIEW },
+  });
+  if (!withdrawn) throw await conflict(models, item, ['approved']);
+  await recordAudit(models, auditOf(item, 'item.approval_withdrawn', actor, { reason }));
+  await syncJob({ models, jobId: item.jobId, now });
+  return withdrawn;
 }
 
 /**

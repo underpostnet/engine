@@ -17,7 +17,7 @@ import { validateProfile } from '../../projects/cyberia/procedural/profiles/regi
  * @property {string} generatorId - Generator the profile drives
  * @property {string} itemType - Item type the profile generates
  * @property {string[]} regionOrder - Region ids, in the order the generator ranks them
- * @property {Object<string,{facing:string,face:string,hairMass:number}>} directionRules - Rules by direction code
+ * @property {Object<string,{face:string,hairMass:number}>} directionRules - Rules by facing: down, up, left, right
  * @property {Object} constraints - Bounds a generator keeps
  * @memberof CyberiaProceduralProfileModel
  */

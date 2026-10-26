@@ -33,7 +33,12 @@ import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-spr
 import { pruneUnreferencedContent } from '../../../api/object-layer/object-layer.ipfs.js';
 import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
 import { assertReleaseId } from '../../../server/release/source-release.js';
-import { loadContentArtifact, serveContentArtifact, servedContentArtifact } from './content-artifact.js';
+import {
+  loadContentArtifact,
+  refreshWorkspaceArtifact,
+  serveContentArtifact,
+  servedContentArtifact,
+} from './content-artifact.js';
 import { catalogRegistryModels, reconcileMapRegistry, registryDefects } from '../instance/map-registry.js';
 import { confEconomyCode, universeWalletDefect } from '../economy/economy-policy.js';
 import { itemPolicyDefect } from '../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
@@ -873,11 +878,12 @@ export async function servedContent(context, workspace) {
 /**
  * Makes the content partition of a running host serve its active release to every reader, and the
  * process read the content artifact that release holds. With no promotion yet, it serves the
- * workspace and the artifact on disk. An artifact that failed to load is loaded again on each call.
+ * workspace and the artifact on disk, and opens that artifact again after a rebuild. An artifact
+ * that failed to load is loaded again on each call.
  * @param {{host:string,path:string}} context
  * @returns {Promise<{releaseId:string,database:string,changed:boolean,artifact:{releaseId:string,error:string}}|null>}
- *   `changed` when the served database or the state of its artifact changed. Null when the host has
- *   no content partition.
+ *   `changed` when the served database, the state of its artifact or the artifact on disk changed.
+ *   Null when the host has no content partition.
  * @memberof CyberiaContentRelease
  */
 export async function activateContentRelease(context) {
@@ -890,12 +896,14 @@ export async function activateContentRelease(context) {
     digest: served.digest,
     db: served.releaseId ? bucket.connection.getClient().db(served.database) : undefined,
   });
+  const rebuilt = !served.releaseId && refreshWorkspaceArtifact();
   const { previous, database } = await DataBaseProviderService.serveDatabase(
     context,
     CONTENT_PARTITION,
     served.database,
   );
-  const changed = previous !== database || before.releaseId !== artifact.releaseId || before.error !== artifact.error;
+  const changed =
+    rebuilt || previous !== database || before.releaseId !== artifact.releaseId || before.error !== artifact.error;
   return { releaseId: served.releaseId, database, changed, artifact };
 }
 
@@ -949,7 +957,7 @@ export function watchContentRelease(context, { intervalMs = RELEASE_WATCH_MS } =
     try {
       const result = await activateContentRelease(context);
       if (result?.changed) {
-        logger.info(`Content release ${result.releaseId} is now served from ${result.database}`);
+        logger.info(`Content release ${result.releaseId || '(none promoted)'} is now served from ${result.database}`);
         if (result.artifact.error) logger.warn(result.artifact.error);
         await reloadContentServers(context);
       }

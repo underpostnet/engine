@@ -1,9 +1,11 @@
 /**
- * The palette panel of the Procedural Engine view: one palette editor for the run of a create, or
- * one for each selected item of an update. An editor starts from the defaults of its target, the
- * foundation palettes of an item where it has them, else its render or its Genesis Template. Its
- * dropdown applies a Palette Template, or a random one for each candidate. Any slot set wins. Every
- * color, slot, default and palette comes from the server.
+ * The palette editors of the Procedural Engine view: one for the run of a create, one for each
+ * selected item of an update, one for an item of a map population, and the palette of a frame import
+ * in the Object Layer Studio. An editor starts from the defaults the server answers for its target:
+ * the foundation palettes of an item or the biome of a map where they exist, else its render, its
+ * Genesis Template or the library. Its dropdown applies a palette of the global library, or a random
+ * one for each candidate where the target takes one. Any slot set wins.
+ * Every color, slot, default and palette comes from the server.
  *
  * @module src/client/components/cyberia/ProceduralPaletteCyberia.js
  */
@@ -13,7 +15,7 @@ import { s } from '../core/VanillaJs.js';
 import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
 import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
 
-/** The `paletteId` that gives each candidate a Palette Template the seed picks. */
+/** The `paletteId` that gives each candidate a palette the seed picks. */
 const RANDOM_PALETTE = 'random';
 /** The dropdown value that keeps the defaults of the target. */
 const DEFAULTS = 'defaults';
@@ -33,6 +35,12 @@ export const swatches = (colors) =>
     .join('');
 
 const label = (id) => id.replace(/^./, (first) => first.toUpperCase());
+/** The slots of a target with no Genesis Template: one color for each slot the server answers. */
+const slotLayout = (defaults) => ({
+  id: '',
+  slots: Object.keys(defaults).map((id) => ({ id, role: id, tone: 'base' })),
+  roles: Object.fromEntries(Object.keys(defaults).map((id) => [id, { palette: id, regions: [] }])),
+});
 const notify = (text, status = 'info') => NotificationManager.Push({ html: text, status });
 const element = (tag, className = '', text) => {
   const node = document.createElement(tag);
@@ -50,10 +58,35 @@ const button = (icon, text, title, onclick) => {
 };
 
 /**
- * A palette target: the run of a create (`templateId`) or one item of an update (`itemId`), its
- * palette choice, the slots set, and the defaults the server answers for that choice.
+ * A palette target: what it is (`key`, `title`), how it reads its defaults (`read`), what its
+ * dropdown offers (`defaultsLabel`, `random`), its palette choice, the slots set, and the defaults
+ * the server answers for that choice.
+ * @param {Object} fields
+ * @param {string} fields.key - Unique among the editors of the page.
+ * @param {string} fields.title
+ * @param {(paletteId:string)=>Promise<Object>} fields.read - The defaults of a palette choice: `{ templateId, palettes, slots }`.
+ * @param {(template:Object, palettes:Object[])=>string} fields.describe - The line under the title.
+ * @param {string} [fields.defaultsLabel] - The dropdown entry that keeps the defaults.
+ * @param {boolean} [fields.random] - Whether the dropdown offers a random template for each candidate.
+ * @param {string} [fields.paletteId] - The palette choice it starts with.
+ * @param {Object<string,string>} [fields.colors] - The slots it starts with set.
+ * @param {(entry:Object)=>void} [fields.onChange] - Runs when the moderator changes the choice or a slot.
  */
-const target = (fields) => ({ paletteId: '', colors: {}, defaults: null, palettes: [], error: '', ...fields });
+const target = (fields) => ({
+  paletteId: '',
+  colors: {},
+  defaults: null,
+  palettes: [],
+  error: '',
+  random: true,
+  ...fields,
+});
+
+/** The line under the title of an item of an update: its template and its foundation palettes. */
+const describeItem = (template, palettes) => {
+  const names = palettes.map(({ name, group }) => `${name} (${group})`).join(', ');
+  return `${template.id} · ${names ? `foundation palettes: ${names}` : 'no foundation palette'}`;
+};
 
 class ProceduralPalette {
   static catalog = { families: [], palettes: [] };
@@ -65,8 +98,18 @@ class ProceduralPalette {
   /** The target of each selected item of an update, and the order of the selection. */
   static items = new Map();
   static order = [];
+  /** Whether the candidates of an update start from the Genesis Template instead of the render. */
+  static fromTemplate = false;
 
   static style = css`
+    .procedural-swatch {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 3px;
+      border: 1px solid var(--studio-subtle-border, rgba(127, 127, 127, 0.6));
+      vertical-align: middle;
+    }
     .procedural-palette-editor {
       padding: 8px;
       margin-bottom: 10px;
@@ -168,18 +211,27 @@ class ProceduralPalette {
    * @returns {string}
    */
   static render(config) {
+    ProceduralPalette.configure(config);
     Object.assign(ProceduralPalette, {
-      catalog: config.palettes,
-      templates: config.templates,
       mode: '',
       run: null,
       items: new Map(),
       order: [],
     });
-    return html`<style>
-        ${ProceduralPalette.style}
-      </style>
-      <div class="in procedural-palette"></div>`;
+    return html`<div class="in procedural-palette"></div>`;
+  }
+
+  /**
+   * Takes the palette library and the Genesis Templates of the server configuration, and puts the
+   * styles of the editors and the swatches in the page once.
+   * @param {{templates: Object[], palettes: {families: string[], palettes: Object[]}}} config
+   */
+  static configure(config) {
+    Object.assign(ProceduralPalette, { catalog: config.palettes, templates: config.templates });
+    if (document.querySelector('style[data-procedural-palette]')) return;
+    const style = Object.assign(element('style'), { textContent: ProceduralPalette.style });
+    style.dataset.proceduralPalette = '';
+    document.head.append(style);
   }
 
   /**
@@ -189,7 +241,13 @@ class ProceduralPalette {
   static setContext({ mode, template }) {
     ProceduralPalette.mode = mode;
     if (mode === 'create-new' && template && ProceduralPalette.run?.templateId !== template.id) {
-      ProceduralPalette.run = target({ key: 'run', templateId: template.id });
+      ProceduralPalette.run = target({
+        key: 'run',
+        title: 'New items',
+        templateId: template.id,
+        read: (paletteId) => CyberiaProceduralProfileService.getTemplatePalette({ id: template.id, paletteId }),
+        describe: ({ name }) => name,
+      });
       ProceduralPalette.load(ProceduralPalette.run);
     }
     ProceduralPalette.layout();
@@ -205,25 +263,63 @@ class ProceduralPalette {
     ProceduralPalette.order = [...itemIds];
     for (const itemId of [...items.keys()]) if (!itemIds.includes(itemId)) items.delete(itemId);
     for (const itemId of itemIds.filter((id) => !items.has(id))) {
-      items.set(itemId, target({ key: itemId, itemId }));
+      items.set(
+        itemId,
+        target({
+          key: itemId,
+          title: itemId,
+          itemId,
+          read: (paletteId) =>
+            CyberiaProceduralJobService.getSourcePalette({
+              itemId,
+              paletteId,
+              fromTemplate: ProceduralPalette.fromTemplate,
+            }),
+          describe: describeItem,
+        }),
+      );
       ProceduralPalette.load(items.get(itemId));
     }
     ProceduralPalette.layout();
   }
 
   static reset() {
-    Object.assign(ProceduralPalette, { mode: '', run: null, items: new Map(), order: [] });
+    Object.assign(ProceduralPalette, { mode: '', run: null, items: new Map(), order: [], fromTemplate: false });
   }
+
+  /** Sets where the candidates of an update start; each item reads its defaults again. */
+  static setFromTemplate(fromTemplate) {
+    ProceduralPalette.fromTemplate = fromTemplate;
+    for (const entry of ProceduralPalette.items.values()) ProceduralPalette.load(entry);
+  }
+
+  /** The palette choice of a target: its palette and the slots set. */
+  static choice = ({ paletteId, colors }) => ({ ...(paletteId && { paletteId }), slots: { ...colors } });
 
   /** The palette of the request: the choice of each item of an update, or the choice of the run of a create. */
   static request() {
-    const choice = ({ paletteId, colors }) => ({ ...(paletteId && { paletteId }), slots: { ...colors } });
+    const { choice } = ProceduralPalette;
     if (ProceduralPalette.mode !== 'update-existing') return ProceduralPalette.run ? choice(ProceduralPalette.run) : {};
     return {
       items: ProceduralPalette.targets()
         .filter(({ paletteId, colors }) => paletteId || Object.keys(colors).length > 0)
         .map((entry) => ({ itemId: entry.itemId, ...choice(entry) })),
     };
+  }
+
+  /**
+   * An editor outside the panel of the item generation: it paints in `container` and reads its
+   * defaults with `fields.read`. See {@link target}.
+   * @param {HTMLElement} container
+   * @param {Object} fields
+   * @returns {Object} The target; {@link ProceduralPalette.choice} reads its choice.
+   */
+  static editor(container, fields) {
+    const entry = target(fields);
+    entry.host = element('div', 'procedural-palette-editor');
+    container.replaceChildren(entry.host);
+    ProceduralPalette.load(entry);
+    return entry;
   }
 
   /** The targets the mode shows, in order. */
@@ -246,7 +342,7 @@ class ProceduralPalette {
     for (const entry of targets) if (!entry.painted) ProceduralPalette.paint(entry);
   }
 
-  /** The Palette Template whose defaults a target shows: none for a random choice. */
+  /** The palette whose defaults a target shows: none for a random choice. */
   static defaultsFor = ({ paletteId }) => (paletteId === RANDOM_PALETTE ? '' : paletteId);
 
   /** Reads the defaults of a target for its palette choice. */
@@ -255,9 +351,7 @@ class ProceduralPalette {
     const paletteId = ProceduralPalette.defaultsFor(entry);
     Object.assign(entry, { defaults: null, error: '' });
     ProceduralPalette.paint(entry);
-    const { status, data, message } = entry.itemId
-      ? await CyberiaProceduralJobService.getSourcePalette({ itemId: entry.itemId, paletteId })
-      : await CyberiaProceduralProfileService.getTemplatePalette({ id: entry.templateId, paletteId });
+    const { status, data, message } = await entry.read(paletteId);
     if (ticket !== entry.ticket) return;
     if (status === 'success')
       Object.assign(entry, {
@@ -274,11 +368,15 @@ class ProceduralPalette {
   static choose(entry, paletteId) {
     if (paletteId === entry.paletteId) return;
     Object.assign(entry, { paletteId, colors: {} });
+    entry.onChange?.(entry);
     if (entry.defaults && entry.loadedFor === ProceduralPalette.defaultsFor(entry)) ProceduralPalette.paint(entry);
     else ProceduralPalette.load(entry);
   }
 
-  /** The dropdown entries of a target: its defaults, a random palette, then the palettes that fit its template. */
+  /**
+   * The dropdown entries of a target: its defaults, a random palette, then every palette of the
+   * library by family, each with the colors it gives the roles of the template and its outline.
+   */
   static choices(entry, template) {
     const option = (value, display) => ({
       value,
@@ -286,19 +384,21 @@ class ProceduralPalette {
       data: value,
       onClick: () => ProceduralPalette.choose(entry, value === DEFAULTS ? '' : value),
     });
-    const fitting = new Set(template.palettes);
     const data = [
-      option(DEFAULTS, entry.palettes.length > 0 ? 'Foundation palette' : 'Default colors'),
-      option(RANDOM_PALETTE, 'Random template for each candidate'),
+      option(DEFAULTS, entry.defaultsLabel ?? (entry.palettes.length > 0 ? 'Foundation palette' : 'Default colors')),
+      ...(entry.random ? [option(RANDOM_PALETTE, 'Random palette for each candidate')] : []),
     ];
     for (const family of ProceduralPalette.catalog.families) {
-      const members = ProceduralPalette.catalog.palettes.filter(
-        (palette) => palette.family === family && fitting.has(palette.id),
-      );
+      const members = ProceduralPalette.catalog.palettes.filter((palette) => palette.family === family);
       if (members.length === 0) continue;
       data.push({ kind: 'group', value: `group-${family}`, display: label(family) });
-      for (const palette of members)
-        data.push(option(palette.id, `${swatches(Object.values(palette.roles))} ${palette.name}`));
+      for (const palette of members) {
+        const colors = [
+          ...Object.values(template.roles).map(({ palette: taken }) => palette.roles[taken]),
+          palette.roles.outline,
+        ].filter(Boolean);
+        data.push(option(palette.id, `${swatches(colors)} ${palette.name}`));
+      }
     }
     return data;
   }
@@ -309,7 +409,7 @@ class ProceduralPalette {
     if (!entry.painted) return;
     const ticket = (entry.paintTicket = (entry.paintTicket ?? 0) + 1);
     const head = element('div', 'procedural-palette-editor-head');
-    head.append(element('span', 'procedural-palette-editor-title', entry.itemId ?? 'New items'));
+    head.append(element('span', 'procedural-palette-editor-title', entry.title));
     if (entry.error)
       return entry.host.replaceChildren(
         head,
@@ -317,17 +417,9 @@ class ProceduralPalette {
       );
     if (!entry.defaults)
       return entry.host.replaceChildren(head, element('div', 'procedural-muted', 'Loading the palette…'));
-    const template = ProceduralPalette.templates.find(({ id }) => id === entry.templateId);
-    const names = entry.palettes.map(({ name, group }) => `${name} (${group})`).join(', ');
-    head.append(
-      element(
-        'span',
-        'procedural-muted',
-        entry.itemId
-          ? `${template.id} · ${names ? `foundation palettes: ${names}` : 'no foundation palette'}`
-          : template.name,
-      ),
-    );
+    const template =
+      ProceduralPalette.templates.find(({ id }) => id === entry.templateId) ?? slotLayout(entry.defaults);
+    head.append(element('span', 'procedural-muted', entry.describe(template, entry.palettes)));
     const choice = element('div', '');
     const dropdown = await DropDown.instance({
       id: `procedural-palette-${entry.key}`,
@@ -350,18 +442,28 @@ class ProceduralPalette {
         set > 0
           ? `${set} of ${template.slots.length} slots set. The other slots take their default.`
           : entry.paletteId === RANDOM_PALETTE
-            ? 'Each candidate takes a palette template the seed picks. Pick a color to set a slot over it.'
+            ? 'Each candidate takes a palette the seed picks. Pick a color to set a slot over it.'
             : 'Palette and foundation colors stay as they are; auto colors move with the variation. Pick a color to set a slot.';
     };
+    if (template.id)
+      tools.append(
+        button(
+          'fa-solid fa-dice',
+          'Random colors',
+          'Set every slot to random colors in one color scheme.',
+          async () => {
+            const { status, data, message } = await CyberiaProceduralProfileService.getRandomSlots({ id: template.id });
+            if (status !== 'success') return notify(message, 'error');
+            entry.colors = data.slots;
+            entry.onChange?.(entry);
+            repaint();
+          },
+        ),
+      );
     tools.append(
-      button('fa-solid fa-dice', 'Random colors', 'Set every slot to random colors in one color scheme.', async () => {
-        const { status, data, message } = await CyberiaProceduralProfileService.getRandomSlots({ id: template.id });
-        if (status !== 'success') return notify(message, 'error');
-        entry.colors = data.slots;
-        repaint();
-      }),
       button('fa-solid fa-eraser', 'Reset', 'Give every slot its default again.', () => {
         entry.colors = {};
+        entry.onChange?.(entry);
         repaint();
       }),
     );
@@ -399,11 +501,13 @@ class ProceduralPalette {
       <div class="procedural-slot-value"></div>`;
     card.querySelector('input').oninput = ({ target: input }) => {
       entry.colors = { ...entry.colors, [slot.id]: input.value };
+      entry.onChange?.(entry);
       repaint();
     };
     card.querySelector('.procedural-slot-clear').onclick = () => {
       const { [slot.id]: cleared, ...rest } = entry.colors;
       entry.colors = rest;
+      entry.onChange?.(entry);
       repaint();
     };
     const paint = () => {

@@ -1,13 +1,15 @@
 /**
  * The Procedural Engine view of the Cyberia Studio: it orchestrates generation and review, and
- * computes nothing. A moderator first picks one of two modes. Update mutates existing Cyberia items:
- * each target keeps its item id and gets candidate revisions. Create has no source item: it starts
- * from a Genesis Template and proposes new items. Either mode starts a persistent job on the server,
- * which runs without this page. The moderator then reviews each candidate, finishes it in the Object
- * Layer Studio, approves it and promotes it. Every mode, palette and template this view offers comes
- * from the server configuration; every generation, validation and diversity decision is the server's.
- * Every role sees the same view. Only a moderator reads the runs and changes them; another role who
- * tries a change gets a permission notification.
+ * computes nothing. It holds two workflows. Map Population ({@link ProceduralPopulation}) prepares
+ * the items of one map, their runtime defaults and the map, then publishes them. Item Generation
+ * works on items: in Update it mutates existing Cyberia items, each target keeps its item id and
+ * gets candidate revisions; in Create it starts from a Genesis Template and proposes new items.
+ * Either starts a persistent job on the server, which runs without this page. The moderator then
+ * reviews each candidate, finishes it in the Object Layer Studio, approves it and promotes it.
+ * Every mode, palette and template this view offers comes from the server configuration; every
+ * generation, validation and diversity decision is the server's. Every role sees the same view.
+ * Only a moderator reads the runs and changes them; another role who tries a change gets a
+ * permission notification.
  *
  * @module src/client/components/cyberia/ProceduralEngineCyberia.js
  */
@@ -16,16 +18,36 @@ import { commonModeratorGuard } from '../core/CommonJs.js';
 import { DropDown } from '../core/DropDown.js';
 import { Input } from '../core/Input.js';
 import { Modal } from '../core/Modal.js';
-import { NotificationManager } from '../core/NotificationManager.js';
 import { getProxyPath, getQueryParams, setPath, setQueryParams } from '../core/Router.js';
+import { Tabs } from '../core/Tabs.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineElement } from '../objectlayer-studio/ObjectLayerEngine.js';
-import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
-import { OBJECT_LAYER_DIRECTION_LABELS } from '../objectlayer-studio/ObjectLayerProtocol.js';
+import {
+  OBJECT_LAYER_DIRECTION_CODES,
+  OBJECT_LAYER_DIRECTION_LABELS,
+} from '../objectlayer-studio/ObjectLayerProtocol.js';
 import { framesByDirection, fromWire } from '../objectlayer-studio/RenderSource.js';
 import { ProceduralGrid } from './ProceduralGridCyberia.js';
 import { ProceduralPalette, swatches } from './ProceduralPaletteCyberia.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { ProceduralPopulation } from './ProceduralPopulationCyberia.js';
+import {
+  ACTIVE,
+  ITEM_STATUS,
+  actionsColumn,
+  candidateColumns,
+  column,
+  decide,
+  denied,
+  element,
+  frameSummary,
+  notify,
+  observe,
+  readPage,
+  refusal,
+  shortCid,
+  showCandidate,
+  stamp,
+} from './ProceduralReviewCyberia.js';
 import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
 import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
 
@@ -36,7 +58,6 @@ const POLL_MS = 3000;
 const SOURCES_GRID = 'procedural-sources-grid';
 const JOBS_GRID = 'procedural-jobs-grid';
 const ITEMS_GRID = 'procedural-items-grid';
-const ACCESS_MESSAGE = 'Moderator access required to manage procedural generation.';
 const MODES = Object.freeze({
   'update-existing': {
     label: 'UPDATE / MUTATE EXISTING CYBERIA CONTENT',
@@ -55,59 +76,8 @@ const MODES = Object.freeze({
     ],
   },
 });
-const ITEM_STATUS = Object.freeze([
-  'queued',
-  'running',
-  'generated',
-  'review',
-  'editing',
-  'approved',
-  'promoted',
-  'rejected',
-  'failed',
-  'cancelled',
-]);
-/** The statuses in which a job still has work for the server or a decision for a moderator. */
-const ACTIVE = Object.freeze(['queued', 'running', 'generated', 'review', 'editing']);
-/** The decisions each candidate status offers. */
-const ACTIONS = Object.freeze({
-  review: ['edit', 'regenerate', 'approve', 'reject'],
-  editing: ['edit', 'regenerate', 'approve', 'reject'],
-  approved: ['edit', 'promote', 'reject'],
-  rejected: ['regenerate'],
-  failed: ['regenerate'],
-});
-const ACTION_ICONS = Object.freeze({
-  edit: 'fa-solid fa-pen-to-square',
-  regenerate: 'fa-solid fa-dice',
-  approve: 'fa-solid fa-check',
-  reject: 'fa-solid fa-xmark',
-  promote: 'fa-solid fa-cloud-arrow-up',
-  open: 'fa-solid fa-folder-open',
-  cancel: 'fa-solid fa-ban',
-  delete: 'fa-solid fa-trash',
-});
-/** What each action does, and why it is off when it is. */
-const ACTION_HINTS = Object.freeze({
-  edit: ['Open the candidate in the Object Layer Studio.'],
-  regenerate: ['Make a new candidate from a new seed.'],
-  approve: ['Approve this revision.', 'Only a valid revision can be approved.'],
-  reject: ['Reject this revision.'],
-  promote: ['Make this revision the active definition of its item.'],
-  open: ['Show the candidates of this run.'],
-  cancel: ['Stop the run. Nothing is deleted.', 'The run has no active work.'],
-  delete: ['Delete the run and everything it left. A run that still works stops first.'],
-});
-const REVISION_KINDS = Object.freeze({ generated: 'generated', regenerated: 'regenerated', edited: 'human-retouched' });
-
-const element = (tag, className = '', text) => {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-};
-const shortCid = (cid) => (cid ? `${cid.slice(0, 9)}…${cid.slice(-5)}` : '—');
-const stamp = (date) => (date ? new Date(date).toLocaleString() : '—');
+const TABS = 'procedural-engine-tabs';
+const WORKFLOWS = Object.freeze(['map', 'items']);
 const value = (name) => s(`.procedural-input-${name}`)?.value.trim() ?? '';
 const picked = (id) => {
   const chosen = DropDown.Tokens[id]?.value;
@@ -122,49 +92,6 @@ const setPicked = (id, chosen) => {
 const show = (selector, on) => {
   if (s(selector)) s(selector).style.display = on ? '' : 'none';
 };
-const notify = (text, status = 'error') => NotificationManager.Push({ html: text, status });
-const denied = () => notify(`Permission denied. ${ACCESS_MESSAGE}`);
-/** Tells why a request failed: a conflict, a refusal for lack of the moderator role, or the server message. */
-const refusal = (response) => {
-  if (response.code === 409) return notify(`Conflict detected. ${response.message}`, 'warning');
-  if (response.code === 401 || response.code === 403) return denied();
-  return notify(response.message);
-};
-
-/** Notifies what changed on the server between two reads of the selected job and its candidates. */
-function changesBetween(before, job, items) {
-  const notes = [];
-  if (before && before.jobId === job._id) {
-    if (before.status === 'queued' && job.status === 'running') notes.push(['Job started.', 'info']);
-    if (before.status !== 'completed' && job.status === 'completed') notes.push(['Job completed.', 'success']);
-    if (before.status !== 'cancelled' && job.status === 'cancelled') notes.push(['Job cancelled.', 'warning']);
-    for (const item of items) {
-      const was = before.items[item._id];
-      if (!was) continue;
-      const revision = item.revision ?? -1;
-      const changed = was.status !== item.status;
-      if (revision > was.revision && ['review', 'editing', 'approved'].includes(was.status))
-        notes.push([`${item.targetItemId}: revision ${revision} saved.`, 'success']);
-      else if (changed && item.status === 'failed' && item.validation.problems.length > 0)
-        notes.push([`${item.targetItemId}: validation failed. ${item.validation.problems.join('; ')}`, 'error']);
-      else if (changed && item.status === 'failed')
-        notes.push([`${item.targetItemId}: generation failed. ${item.error?.message ?? ''}`, 'error']);
-      else if (changed && item.status === 'review' && was.status !== 'editing') {
-        if (item.metrics?.rejectedTries > 0)
-          notes.push([
-            `${item.targetItemId}: ${item.metrics.rejectedTries} tries failed the diversity check.`,
-            'warning',
-          ]);
-        notes.push(
-          was.revision >= 0
-            ? [`${item.targetItemId}: regenerated as revision ${revision}.`, 'success']
-            : [`${item.targetItemId} is ready for review.`, 'info'],
-        );
-      }
-    }
-  }
-  return notes;
-}
 
 class ProceduralEngineCyberia {
   static jobId = '';
@@ -175,29 +102,66 @@ class ProceduralEngineCyberia {
   static itemType = '';
   static job = null;
   static seen = null;
+  /** The candidate the detail panel shows. */
+  static shownId = '';
   /** Genesis Template id → the preview of each direction of its base item: `{ label, url }`. */
   static previews = {};
 
   /**
-   * Opens the view, on a job when one is given. From the Object Layer Studio this is the way back
-   * to the candidate under review.
-   * @param {{jobId?: string}} [params]
+   * Opens the view, on a job or a map population when one is given, on a step and an item of it.
+   * From the Object Layer Studio, the Map Studio and the Entity Studio this is the way back: a
+   * population already open keeps its selections.
+   * @param {{jobId?: string, populationId?: string, step?: string, itemId?: string}} [params]
    * @returns {boolean} Whether the host offers the view.
    */
-  static open({ jobId } = {}) {
+  static open({ jobId, populationId, step, itemId } = {}) {
     const entry = s(`.main-btn-${ROUTE}`);
     if (!entry) return false;
     setPath(`${getProxyPath()}${ROUTE}`);
-    setQueryParams({ cid: null, review: null, id: null, job: jobId ?? null }, { replace: true });
-    if (s('.procedural-engine') && ProceduralEngineCyberia.config) ProceduralEngineCyberia.select(jobId ?? '');
+    setQueryParams(
+      {
+        cid: null,
+        review: null,
+        id: null,
+        mapCode: null,
+        job: jobId ?? null,
+        population: populationId ?? null,
+        ...(populationId && { workflow: 'map', step: step ?? null, item: itemId ?? null }),
+      },
+      { replace: true },
+    );
+    if (s('.procedural-engine') && ProceduralEngineCyberia.config) {
+      if (populationId) {
+        Tabs.select(s(`.${TABS}`), 'map');
+        if (ProceduralPopulation.population?._id === populationId) ProceduralPopulation.resume(step, itemId);
+        else ProceduralPopulation.select(populationId, { step, itemId });
+      } else ProceduralEngineCyberia.route(jobId ?? '');
+    }
     entry.click();
     return true;
+  }
+
+  /** Shows the workflow of a job: the map population of a stage job, else the item generation on it. */
+  static async route(jobId) {
+    const job =
+      jobId && ProceduralEngineCyberia.canMutate ? await CyberiaProceduralJobService.get({ id: jobId }) : null;
+    const populationId = job?.status === 'success' ? job.data.populationId : null;
+    if (populationId) {
+      setQueryParams({ job: null, workflow: 'map' }, { replace: true });
+      Tabs.select(s(`.${TABS}`), 'map');
+      return await ProceduralPopulation.select(populationId);
+    }
+    if (jobId) {
+      setQueryParams({ workflow: 'items' }, { replace: true });
+      Tabs.select(s(`.${TABS}`), 'items');
+    }
+    return await ProceduralEngineCyberia.select(jobId);
   }
 
   static async render({ appStore }) {
     Object.assign(ProceduralEngineCyberia, {
       canMutate: commonModeratorGuard(appStore?.Data?.user?.main?.model?.user?.role || 'guest'),
-      jobId: getQueryParams().job ?? '',
+      jobId: '',
       mode: '',
       seen: null,
       job: null,
@@ -220,11 +184,18 @@ class ProceduralEngineCyberia {
         )}
       </div>`;
     setTimeout(() => ProceduralEngineCyberia.mount());
+    const query = getQueryParams();
+    const workflow = WORKFLOWS.includes(query.workflow) ? query.workflow : query.job ? 'items' : 'map';
 
     const { dropdown } = ProceduralEngineCyberia;
     const field = async (name, label, extra) =>
       html`<div class="in" style="margin-bottom: 8px;">
-        ${await Input.instance({ id: `procedural-input-${name}`, label: html`${label}`, containerClass: 'inl', ...extra })}
+        ${await Input.instance({
+          id: `procedural-input-${name}`,
+          label: html`${label}`,
+          containerClass: 'inl',
+          ...extra,
+        })}
       </div>`;
     const button = (action, icon, label) =>
       BtnIcon.instance({
@@ -257,14 +228,6 @@ class ProceduralEngineCyberia {
         }
         .procedural-engine .procedural-good {
           color: var(--studio-positive);
-        }
-        .procedural-engine .procedural-swatch {
-          display: inline-block;
-          width: 16px;
-          height: 16px;
-          margin-right: 3px;
-          border: 1px solid var(--studio-subtle-border);
-          vertical-align: middle;
         }
         .procedural-engine .procedural-preview {
           width: 64px;
@@ -348,113 +311,202 @@ class ProceduralEngineCyberia {
         }
         .procedural-engine .procedural-candidate {
           display: flex;
+          flex-wrap: wrap;
           gap: 16px;
           align-items: flex-start;
         }
+        .procedural-engine .procedural-candidate-view {
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+        }
+        .procedural-engine .procedural-candidate-facts {
+          flex: 1;
+          min-width: 200px;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .procedural-engine .procedural-state {
+          display: inline-block;
+          padding: 1px 8px;
+          border-radius: 10px;
+          font-size: 12px;
+          border: 1px solid var(--studio-subtle-border);
+          white-space: nowrap;
+        }
+        .procedural-engine .procedural-state-good {
+          color: var(--studio-positive);
+          border-color: var(--studio-positive);
+        }
+        .procedural-engine .procedural-state-live {
+          background: var(--studio-positive);
+          border-color: var(--studio-positive);
+          color: var(--studio-card, #fff);
+        }
+        .procedural-engine .procedural-state-bad {
+          color: var(--studio-accent-warm);
+          border-color: var(--studio-accent-warm);
+        }
+        .procedural-engine .procedural-state-pending {
+          color: var(--studio-accent);
+          border-color: var(--studio-accent);
+        }
+        .procedural-engine .procedural-state-draft {
+          border-style: dashed;
+        }
+        .procedural-engine .procedural-state-muted {
+          opacity: 0.6;
+        }
       </style>
-      ${group(
-        'Generation mode',
-        'fa-solid fa-code-branch',
-        html`${await dropdown(
-            'procedural-mode',
-            'Mode',
-            Object.entries(MODES).map(([mode, { label }]) => ({
-              value: mode,
-              display: label,
-              data: mode,
-              onClick: () => ProceduralEngineCyberia.changeMode(mode),
-            })),
-            { disableSearchBox: true },
-          )}
-          <div class="in procedural-mode-help procedural-muted" style="margin-bottom: 8px;">
-            Select a generation mode to start.
-          </div>`,
-      )}
-      <div class="in procedural-panel-update" style="display: none;">
-        ${group(
-          'Existing items to update',
-          'fa-solid fa-table-list',
-          html`${await ProceduralGrid.instance({
-              id: SOURCES_GRID,
-              height: '420px',
-              selectable: true,
-              rowId: ({ itemId }) => itemId,
-              columnDefs: ProceduralEngineCyberia.sourceColumns(),
-              fetch: (query) => ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.getSources(query)),
-              onSelectionChanged: () => ProceduralEngineCyberia.selectionChanged(),
-            })}
-            <div class="in procedural-selection-info procedural-muted" style="margin: 6px 0;"></div>
-            ${await field('variants-update', 'Variants per item', { type: 'number', min: 1, max: 200, step: 1, value: 3 })}`,
-        )}
-      </div>
-      <div class="in procedural-panel-create" style="display: none;">
-        ${group(
-          'New item from a template',
-          'fa-solid fa-file-circle-plus',
-          html`${await dropdown(
-              'procedural-item-type',
-              'Item type',
-              [...new Set((config?.generators ?? []).map(({ itemType }) => itemType))].map((itemType) => ({
-                value: itemType,
-                display: itemType,
-                data: itemType,
-                onClick: () => ProceduralEngineCyberia.changeItemType(itemType),
-              })),
-              { value: ProceduralEngineCyberia.itemType, disableSearchBox: true },
-            )}
-            <div class="procedural-template-slot">${await ProceduralEngineCyberia.templateDropdown()}</div>
-            <div class="in procedural-template-preview"></div>
-            ${await field('variants-create', 'Variant count', { type: 'number', min: 1, max: 200, step: 1, value: 4 })}
-            ${await field('prefix', 'New item ID prefix', { type: 'text', placeholder: true, value: 'skin-generated' })}`,
-        )}
-      </div>
-      <div class="in procedural-panel-shared" style="display: none;">
-        ${group(
-          'Palette and variation',
-          'fa-solid fa-palette',
-          html`${ProceduralPalette.render(config)}
-            ${await field('variation', 'Variation', { type: 'number', min: 0, max: 1, step: 0.05, value: 0.5 })}`,
-        )}
-      </div>
-      ${group(
-        'Runs',
-        'fa-solid fa-layer-group',
-        html`<div class="fl" style="gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
-            ${await button('create', 'fa-solid fa-play', 'Generate')}
-            ${await button('cancel', 'fa-solid fa-ban', 'Cancel')}
-            ${await button('delete', 'fa-solid fa-trash', 'Delete')}
-            ${await button('reset', 'fa-solid fa-broom', 'Reset')}
-            ${await button('refresh', 'fa-solid fa-rotate', 'Refresh')}
-            ${await button('promote', 'fa-solid fa-cloud-arrow-up', 'Promote approved')}
-          </div>
-          ${await ProceduralGrid.instance({
-            id: JOBS_GRID,
-            height: '320px',
-            rowId: ({ _id }) => _id,
-            columnDefs: ProceduralEngineCyberia.jobColumns(),
-            fetch: (query) => ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.get(query)),
-            onRowClicked: ({ _id }) => ProceduralEngineCyberia.select(_id),
-          })}`,
-      )}
-      ${group(
-        'Progress',
-        'fa-solid fa-bars-progress',
-        html`<div class="in procedural-job-meta procedural-muted" style="margin-bottom: 6px;">No run selected.</div>
-          <div class="in procedural-chips procedural-progress"></div>`,
-      )}
-      ${group(
-        'Candidates',
-        'fa-solid fa-clipboard-check',
-        html`${await ProceduralGrid.instance({
-            id: ITEMS_GRID,
-            height: '480px',
-            rowId: ({ _id }) => _id,
-            columnDefs: ProceduralEngineCyberia.itemColumns(),
-            fetch: (query) => ProceduralEngineCyberia.fetchCandidates(query),
-            onRowClicked: (item) => ProceduralEngineCyberia.showCandidate(item),
-          })}
-          <div class="in procedural-candidate" style="margin-top: 8px;"></div>`,
-      )}
+      ${Tabs.render({
+        id: TABS,
+        label: 'Procedural workflows',
+        selected: workflow,
+        tabs: [
+          {
+            id: 'map',
+            label: 'Map Population',
+            icon: 'fa-solid fa-map-location-dot',
+            content: await ProceduralPopulation.render({ canMutate: ProceduralEngineCyberia.canMutate, config, group }),
+          },
+          {
+            id: 'items',
+            label: 'Item Generation',
+            icon: 'fa-solid fa-wand-magic-sparkles',
+            content: html`<div class="in procedural-items">
+              ${group(
+                'Generation mode',
+                'fa-solid fa-code-branch',
+                html`${await dropdown(
+                    'procedural-mode',
+                    'Mode',
+                    Object.entries(MODES).map(([mode, { label }]) => ({
+                      value: mode,
+                      display: label,
+                      data: mode,
+                      onClick: () => ProceduralEngineCyberia.changeMode(mode),
+                    })),
+                    { disableSearchBox: true },
+                  )}
+                  <div class="in procedural-mode-help procedural-muted" style="margin-bottom: 8px;">
+                    Select a generation mode to start.
+                  </div>`,
+              )}
+              <div class="in procedural-panel-update" style="display: none;">
+                ${group(
+                  'Existing items to update',
+                  'fa-solid fa-table-list',
+                  html`${await ProceduralGrid.instance({
+                      id: SOURCES_GRID,
+                      height: '420px',
+                      selectable: true,
+                      rowId: ({ itemId }) => itemId,
+                      columnDefs: ProceduralEngineCyberia.sourceColumns(),
+                      fetch: (query) =>
+                        ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.getSources(query)),
+                      onSelectionChanged: () => ProceduralEngineCyberia.selectionChanged(),
+                    })}
+                    <div class="in procedural-selection-info procedural-muted" style="margin: 6px 0;"></div>
+                    <label class="in procedural-from-template" style="margin-bottom: 8px;">
+                      <input type="checkbox" class="procedural-input-from-template" />
+                      Rebuild from a Genesis Template: the candidates replace the current render. Off, they revise it.
+                    </label>
+                    ${await field('variants-update', 'Variants per item', {
+                      type: 'number',
+                      min: 1,
+                      max: 200,
+                      step: 1,
+                      value: 3,
+                    })}`,
+                )}
+              </div>
+              <div class="in procedural-panel-create" style="display: none;">
+                ${group(
+                  'New item from a template',
+                  'fa-solid fa-file-circle-plus',
+                  html`${await dropdown(
+                      'procedural-item-type',
+                      'Item type',
+                      [...new Set((config?.generators ?? []).map(({ itemType }) => itemType))].map((itemType) => ({
+                        value: itemType,
+                        display: itemType,
+                        data: itemType,
+                        onClick: () => ProceduralEngineCyberia.changeItemType(itemType),
+                      })),
+                      { value: ProceduralEngineCyberia.itemType, disableSearchBox: true },
+                    )}
+                    <div class="procedural-template-slot">${await ProceduralEngineCyberia.templateDropdown()}</div>
+                    <div class="in procedural-template-preview"></div>
+                    ${await field('variants-create', 'Variant count', {
+                      type: 'number',
+                      min: 1,
+                      max: 200,
+                      step: 1,
+                      value: 4,
+                    })}
+                    ${await field('prefix', 'New item ID prefix', {
+                      type: 'text',
+                      placeholder: true,
+                      value: `${ProceduralEngineCyberia.itemType}-generated`,
+                    })}`,
+                )}
+              </div>
+              <div class="in procedural-panel-shared" style="display: none;">
+                ${group(
+                  'Palette and variation',
+                  'fa-solid fa-palette',
+                  html`${ProceduralPalette.render(config)}
+                  ${await field('variation', 'Variation', { type: 'number', min: 0, max: 1, step: 0.05, value: 0.5 })}`,
+                )}
+              </div>
+              ${group(
+                'Runs',
+                'fa-solid fa-layer-group',
+                html`<div class="fl" style="gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+                    ${await button('create', 'fa-solid fa-play', 'Generate')}
+                    ${await button('cancel', 'fa-solid fa-ban', 'Cancel')}
+                    ${await button('delete', 'fa-solid fa-trash', 'Delete')}
+                    ${await button('reset', 'fa-solid fa-broom', 'Reset')}
+                    ${await button('refresh', 'fa-solid fa-rotate', 'Refresh')}
+                    ${await button('promote', 'fa-solid fa-cloud-arrow-up', 'Promote approved')}
+                  </div>
+                  ${await ProceduralGrid.instance({
+                    id: JOBS_GRID,
+                    height: '320px',
+                    rowId: ({ _id }) => _id,
+                    columnDefs: ProceduralEngineCyberia.jobColumns(),
+                    fetch: (query) => ProceduralEngineCyberia.fetchPage(() => CyberiaProceduralJobService.get(query)),
+                    onRowClicked: ({ _id }) => ProceduralEngineCyberia.select(_id),
+                  })}`,
+              )}
+              ${group(
+                'Progress',
+                'fa-solid fa-bars-progress',
+                html`<div class="in procedural-job-meta procedural-muted" style="margin-bottom: 6px;">
+                    No run selected.
+                  </div>
+                  <div class="in procedural-chips procedural-progress"></div>`,
+              )}
+              ${group(
+                'Candidates',
+                'fa-solid fa-clipboard-check',
+                html`${await ProceduralGrid.instance({
+                    id: ITEMS_GRID,
+                    height: '480px',
+                    rowId: ({ _id }) => _id,
+                    columnDefs: ProceduralEngineCyberia.itemColumns(),
+                    fetch: (query) => ProceduralEngineCyberia.fetchCandidates(query),
+                    onRowClicked: (item) => ProceduralEngineCyberia.showCandidate(item),
+                  })}
+                  <div class="in procedural-candidate" style="margin-top: 8px;"></div>`,
+              )}
+            </div>`,
+          },
+        ],
+      })}
     </div>`;
   }
 
@@ -465,49 +517,41 @@ class ProceduralEngineCyberia {
     return html`<div class="in" style="margin-bottom: 8px;">${rendered}</div>`;
   }
 
-  /**
-   * The grid answer of a moderator read as `{ data, total }`, or null when the read failed, after the
-   * user is told. Another role reads nothing and sees an empty grid.
-   */
-  static async fetchPage(read) {
-    if (!ProceduralEngineCyberia.canMutate) return { data: [], total: 0 };
-    const response = await read();
-    if (response.status !== 'success') {
-      refusal(response);
-      return null;
-    }
-    return response.data;
-  }
+  /** A moderator read of a grid page; see {@link readPage}. */
+  static fetchPage = (read) => readPage(ProceduralEngineCyberia.canMutate, read);
 
   /** The candidates of the selected run; they are compared with the last read to tell what changed. */
   static async fetchCandidates(query) {
-    const { jobId } = ProceduralEngineCyberia;
+    const { jobId, job } = ProceduralEngineCyberia;
     if (!jobId) return { data: [], total: 0 };
     const page = await ProceduralEngineCyberia.fetchPage(() =>
       CyberiaProceduralJobService.getItems({ jobId, ...query }),
     );
-    if (page) ProceduralEngineCyberia.observe(page.data);
+    if (page && job) ProceduralEngineCyberia.seen = observe(ProceduralEngineCyberia.seen, job, page.data);
     return page;
   }
 
-  /** Draws the base item of each Genesis Template the server previews, one image for each direction. */
+  /** Draws the base item of each Genesis Template the server previews: every frame of every direction, in direction order. */
   static async loadPreviews() {
     for (const { url } of Object.values(ProceduralEngineCyberia.previews).flat()) URL.revokeObjectURL(url);
     ProceduralEngineCyberia.previews = Object.fromEntries(
       await Promise.all(
         ProceduralEngineCyberia.config.templates
           .filter(({ preview }) => preview)
-          .map(async ({ id, preview }) => [
-            id,
-            await Promise.all(
-              Object.entries(framesByDirection(fromWire(preview)))
-                .filter(([, frames]) => frames.length > 0)
-                .map(async ([code, [frame]]) => ({
-                  label: OBJECT_LAYER_DIRECTION_LABELS[code],
-                  url: URL.createObjectURL(await ObjectLayerEngineElement.matrixToBlob(frame, PREVIEW_SCALE)),
-                })),
-            ),
-          ]),
+          .map(async ({ id, preview }) => {
+            const byCode = framesByDirection(fromWire(preview));
+            return [
+              id,
+              await Promise.all(
+                OBJECT_LAYER_DIRECTION_CODES.flatMap((code) =>
+                  byCode[code].map(async (frame, index) => ({
+                    label: `${OBJECT_LAYER_DIRECTION_LABELS[code]}${byCode[code].length > 1 ? ` ${index + 1}/${byCode[code].length}` : ''}`,
+                    url: URL.createObjectURL(await ObjectLayerEngineElement.matrixToBlob(frame, PREVIEW_SCALE)),
+                  })),
+                ),
+              ),
+            ];
+          }),
       ),
     );
   }
@@ -538,6 +582,15 @@ class ProceduralEngineCyberia {
     );
   }
 
+  /** The picked Genesis Template, only while it is one of the item type: a stale pick never counts. */
+  static currentTemplate() {
+    return (
+      ProceduralEngineCyberia.templatesOf(ProceduralEngineCyberia.itemType).find(
+        ({ id }) => id === picked('procedural-template'),
+      ) ?? null
+    );
+  }
+
   /** A chosen template shows its base item and gives its color slots to the palette editor. */
   static selectTemplate() {
     ProceduralEngineCyberia.showTemplate();
@@ -548,9 +601,9 @@ class ProceduralEngineCyberia {
   static showTemplate() {
     const panel = s('.procedural-template-preview');
     if (!panel) return;
-    const template = ProceduralEngineCyberia.config.templates.find(({ id }) => id === picked('procedural-template'));
+    const template = ProceduralEngineCyberia.currentTemplate();
     panel.replaceChildren();
-    if (!template) return;
+    if (!template) return panel.append(ProceduralEngineCyberia.noTemplate(ProceduralEngineCyberia.itemType));
     for (const { label, url } of ProceduralEngineCyberia.previews[template.id] ?? []) {
       const view = element('figure', 'procedural-template-view');
       view.append(Object.assign(element('img'), { src: url, alt: label }), element('figcaption', '', label));
@@ -583,6 +636,11 @@ class ProceduralEngineCyberia {
       element('div', '', `Kept in shape: ${words(profile.protectedRegions) || 'none'}`),
       element(
         'div',
+        '',
+        `Frames: ${frameSummary(template.frames)} · baseline of a ${template.itemType}: ${frameSummary(template.baseline)}`,
+      ),
+      element(
+        'div',
         'procedural-muted',
         'Each new item starts from this base item and the function of the content baseline. The palette colors it, the variation changes its shape and details, and you finish it in the Object Layer Studio.',
       ),
@@ -590,13 +648,39 @@ class ProceduralEngineCyberia {
     panel.append(facts);
   }
 
-  /** A grid column over a server field: the field is also its id, so a filter and a sort name that field. */
-  static column(field, headerName, extra = {}) {
-    return { field, colId: field, headerName, minWidth: 90, ...extra };
+  /**
+   * Why an item type has no template to run: the templates of the type the content holds with what
+   * stops each, and whether the served content is behind the content checkout.
+   */
+  static noTemplate(itemType) {
+    const { templates, content } = ProceduralEngineCyberia.config;
+    const root = element('div', 'procedural-muted');
+    const unusable = templates.filter((entry) => entry.itemType === itemType);
+    root.append(
+      element(
+        'div',
+        '',
+        unusable.length > 0
+          ? `No ${itemType} Genesis Template can run:`
+          : `The served content holds no ${itemType} Genesis Template.`,
+      ),
+    );
+    const list = element('ul');
+    for (const { id, problems } of unusable)
+      list.append(element('li', 'procedural-bad', `${id}: ${problems.join('; ')}`));
+    if (unusable.length > 0) root.append(list);
+    if (content?.stale)
+      root.append(
+        element(
+          'div',
+          '',
+          `The served content is built from ${content.sourceRevision.slice(0, 7)}; the content checkout is at ${content.checkoutRevision.slice(0, 7)}. Build cyberia-content and release it to serve its latest templates.`,
+        ),
+      );
+    return root;
   }
 
   static sourceColumns() {
-    const { column } = ProceduralEngineCyberia;
     const text = { sortable: true, filter: 'agTextColumnFilter' };
     return [
       column('itemId', 'Item ID', { ...text, minWidth: 150 }),
@@ -626,7 +710,6 @@ class ProceduralEngineCyberia {
   }
 
   static jobColumns() {
-    const { column, actionsColumn } = ProceduralEngineCyberia;
     const text = { sortable: true, filter: 'agTextColumnFilter' };
     const date = { sortable: true, minWidth: 150, valueFormatter: ({ value: at }) => stamp(at) };
     const settled = (job) =>
@@ -662,122 +745,35 @@ class ProceduralEngineCyberia {
       column('status', 'Status', text),
       column('createdAt', 'Created', date),
       column('updatedAt', 'Updated', date),
-      actionsColumn((job) => [
-        ['open', true],
-        ['cancel', ProceduralEngineCyberia.canCancel(job)],
-        ['delete', true],
-      ]),
-    ];
-  }
-
-  static itemColumns() {
-    const { column, actionsColumn } = ProceduralEngineCyberia;
-    const text = { sortable: true, filter: 'agTextColumnFilter' };
-    return [
-      {
-        headerName: 'Preview',
-        field: 'candidateCid',
-        colId: 'preview',
-        minWidth: 90,
-        maxWidth: 100,
-        autoHeight: true,
-        cellRenderer: ({ value: cid }) => {
-          const preview = element('img', 'procedural-preview');
-          if (cid) preview.src = AtlasSpriteSheetService.idlePreviewUrl(cid);
-          return preview;
-        },
-      },
-      column('targetItemId', 'Item ID', { ...text, minWidth: 140 }),
-      column('candidateCid', 'Candidate CID', {
-        ...text,
-        minWidth: 140,
-        valueFormatter: ({ value: cid }) => shortCid(cid),
-      }),
-      column('revision', 'Revision', {
-        sortable: true,
-        filter: 'agNumberColumnFilter',
-        minWidth: 130,
-        valueFormatter: ({ data }) =>
-          data.revision === null ? '—' : `${data.revision} · ${REVISION_KINDS[data.revisions.at(-1).kind]}`,
-      }),
-      column('templateId', 'Template', { ...text, minWidth: 130 }),
-      column('paletteId', 'Palette', {
-        ...text,
-        minWidth: 130,
-        valueFormatter: ({ data }) => ProceduralEngineCyberia.paletteOf(data).label,
-      }),
-      column('diversity.score', 'Diversity', {
-        sortable: true,
-        filter: 'agNumberColumnFilter',
-        valueFormatter: ({ value: score }) => (score === null || score === undefined ? '—' : score.toFixed(3)),
-      }),
-      {
-        headerName: 'Validation',
-        minWidth: 180,
-        autoHeight: true,
-        cellRenderer: ({ data }) => {
-          const checked = Boolean(data.validation.checkedAt);
-          return element(
-            'span',
-            `procedural-cell-text ${!checked ? 'procedural-muted' : data.validation.ok ? 'procedural-good' : 'procedural-bad'}`,
-            checked
-              ? data.validation.ok
-                ? 'valid'
-                : data.validation.problems.join('; ')
-              : data.error?.message || 'pending',
-          );
-        },
-      },
-      column('status', 'Status', text),
-      column('createdAt', 'Created', {
-        sortable: true,
-        minWidth: 150,
-        valueFormatter: ({ value: date }) => stamp(date),
-      }),
-      actionsColumn((item) =>
-        (ACTIONS[item.status] ?? []).map((action) => [action, !(action === 'approve' && !item.validation.ok)]),
+      actionsColumn(
+        (job) => [
+          ['open', true],
+          ['cancel', ProceduralEngineCyberia.canCancel(job)],
+          ['delete', true],
+        ],
+        (row, action) => ProceduralEngineCyberia.act(row, action),
       ),
     ];
   }
 
-  /**
-   * The action buttons of a grid row: `build` answers the `[action, enabled]` pairs of the row. The
-   * row grows to show every button.
-   */
-  static actionsColumn(build) {
-    return {
-      headerName: 'Actions',
-      minWidth: 300,
-      sortable: false,
-      filter: false,
-      autoHeight: true,
-      cellRenderer: ({ data }) => {
-        const cell = element('div', 'procedural-cell-actions');
-        for (const [action, enabled] of build(data)) {
-          const control = element('button', '', ` ${action}`);
-          control.type = 'button';
-          control.prepend(element('i', ACTION_ICONS[action]));
-          control.disabled = !enabled;
-          const [hint, off = hint] = ACTION_HINTS[action];
-          control.title = enabled ? hint : off;
-          control.onclick = (event) => {
-            event.stopPropagation();
-            ProceduralEngineCyberia.act(data, action);
-          };
-          cell.append(control);
-        }
-        return cell;
-      },
-    };
+  static itemColumns() {
+    return candidateColumns({
+      jobOf: () => ProceduralEngineCyberia.job,
+      act: (row, action) => ProceduralEngineCyberia.act(row, action),
+    });
   }
 
   static canCancel(job) {
     return job.status !== 'cancelled' && ACTIVE.some((status) => (job.counts?.[status] ?? 0) > 0);
   }
 
-  /** Connects the rendered view: the buttons, and the first read of the runs and of the run the URL names. */
+  /**
+   * Connects the rendered view: the workflow tabs, the buttons, the map population, and the first
+   * read of the runs and of the job the URL names.
+   */
   static async mount() {
     if (!s('.procedural-engine')) return;
+    Tabs.bind(s(`.${TABS}`), { onChange: (workflow) => setQueryParams({ workflow }, { replace: true }) });
     const on = (action, handler) => {
       if (s(`.procedural-btn-${action}`)) s(`.procedural-btn-${action}`).onclick = handler;
     };
@@ -787,7 +783,8 @@ class ProceduralEngineCyberia {
     on('reset', () => ProceduralEngineCyberia.reset());
     on('refresh', () => ProceduralEngineCyberia.refresh());
     on('promote', () => ProceduralEngineCyberia.promote());
-    await ProceduralEngineCyberia.refresh();
+    s('.procedural-input-from-template').onchange = ({ target }) => ProceduralPalette.setFromTemplate(target.checked);
+    await Promise.all([ProceduralPopulation.mount(), ProceduralEngineCyberia.route(getQueryParams().job ?? '')]);
   }
 
   /** Shows the controls of a mode and none of the other: the semantic of each mode comes first. */
@@ -808,22 +805,21 @@ class ProceduralEngineCyberia {
    * items of an update.
    */
   static syncPalette() {
-    const { mode, config } = ProceduralEngineCyberia;
+    const { mode } = ProceduralEngineCyberia;
     ProceduralPalette.setContext({
       mode,
-      template:
-        mode === 'create-new'
-          ? (config.templates.find(({ id }) => id === picked('procedural-template')) ?? null)
-          : null,
+      template: mode === 'create-new' ? ProceduralEngineCyberia.currentTemplate() : null,
     });
     if (mode === 'update-existing') ProceduralEngineCyberia.selectionChanged();
   }
 
-  /** A new item type lists its own templates and palettes. */
+  /** A new item type lists its own templates and palettes, and proposes ids of its own. */
   static async changeItemType(itemType) {
     ProceduralEngineCyberia.itemType = itemType;
     htmls('.procedural-template-slot', await ProceduralEngineCyberia.templateDropdown());
-    ProceduralEngineCyberia.syncPalette();
+    setPicked('procedural-template', ProceduralEngineCyberia.templatesOf(itemType)[0]?.id);
+    if (s('.procedural-input-prefix')) s('.procedural-input-prefix').value = `${itemType}-generated`;
+    ProceduralEngineCyberia.selectTemplate();
   }
 
   /** The selected items, and a palette editor for each one. */
@@ -835,7 +831,7 @@ class ProceduralEngineCyberia {
 
   /** The request of the form for the chosen mode; null, after a warning, when the form is not valid. */
   static request() {
-    const { mode, config } = ProceduralEngineCyberia;
+    const { mode, itemType } = ProceduralEngineCyberia;
     const warn = (text) => {
       notify(text, 'warning');
       return null;
@@ -845,17 +841,18 @@ class ProceduralEngineCyberia {
     if (mode === 'update-existing') {
       const rows = ProceduralGrid.selection(SOURCES_GRID);
       if (rows.length === 0) return warn('Select at least one existing item.');
+      const itemIds = rows.map(({ itemId }) => itemId);
       return {
         ...common,
-        source: { itemIds: rows.map(({ itemId }) => itemId) },
+        source: { itemIds, ...(ProceduralPalette.fromTemplate && { fromTemplate: itemIds }) },
         output: { variantsPerItem: Number(value('variants-update')) },
       };
     }
-    const template = config.templates.find(({ id }) => id === picked('procedural-template'));
-    if (!template) return warn('Select a Genesis Template.');
+    const template = ProceduralEngineCyberia.currentTemplate();
+    if (!template) return warn(`Select a ${itemType} Genesis Template.`);
     return {
       ...common,
-      itemType: ProceduralEngineCyberia.itemType,
+      itemType,
       template: { id: template.id },
       output: { variants: Number(value('variants-create')), itemIdPrefix: value('prefix') },
     };
@@ -876,7 +873,11 @@ class ProceduralEngineCyberia {
   /** Selects a run and reads it. An empty id selects none. */
   static select(jobId) {
     const same = jobId === ProceduralEngineCyberia.jobId;
-    Object.assign(ProceduralEngineCyberia, { jobId, seen: same ? ProceduralEngineCyberia.seen : null });
+    Object.assign(ProceduralEngineCyberia, {
+      jobId,
+      seen: same ? ProceduralEngineCyberia.seen : null,
+      shownId: same ? ProceduralEngineCyberia.shownId : '',
+    });
     if (!same) ProceduralGrid.Tokens[ITEMS_GRID].page = 1;
     setQueryParams({ job: jobId || null }, { replace: true });
     return ProceduralEngineCyberia.refresh();
@@ -894,11 +895,11 @@ class ProceduralEngineCyberia {
       'variants-update': 3,
       'variants-create': 4,
       variation: 0.5,
-      prefix: 'skin-generated',
     }))
       if (s(`.procedural-input-${name}`)) s(`.procedural-input-${name}`).value = text;
+    s('.procedural-input-from-template').checked = false;
     ProceduralEngineCyberia.changeMode('');
-    Object.assign(ProceduralEngineCyberia, { jobId: '', seen: null, job: null });
+    Object.assign(ProceduralEngineCyberia, { jobId: '', seen: null, shownId: '', job: null });
     setQueryParams({ job: null }, { replace: true });
     await Promise.all([SOURCES_GRID, JOBS_GRID, ITEMS_GRID].map((id) => ProceduralGrid.reset(id)));
     ProceduralEngineCyberia.paint(null, []);
@@ -919,23 +920,6 @@ class ProceduralEngineCyberia {
     ProceduralEngineCyberia.paint(job?.data ?? null, items ?? []);
     const busy = [job?.data, ...(jobs ?? [])].some((entry) => entry && ['queued', 'running'].includes(entry.status));
     if (busy) ProceduralEngineCyberia.timer = setTimeout(() => ProceduralEngineCyberia.refresh(), POLL_MS);
-  }
-
-  /** Tells what changed on the server since the last read of the selected run. */
-  static observe(items) {
-    const { job, seen } = ProceduralEngineCyberia;
-    if (!job) return;
-    for (const [text, status] of changesBetween(seen, job, items)) notify(text, status);
-    ProceduralEngineCyberia.seen = {
-      jobId: job._id,
-      status: job.status,
-      items: {
-        ...(seen?.jobId === job._id ? seen.items : {}),
-        ...Object.fromEntries(
-          items.map(({ _id, status: state, revision }) => [_id, { status: state, revision: revision ?? -1 }]),
-        ),
-      },
-    };
   }
 
   static paint(job, items) {
@@ -959,63 +943,16 @@ class ProceduralEngineCyberia {
     disable('cancel', !(job && ProceduralEngineCyberia.canCancel(job)));
     disable('delete', !job);
     disable('promote', !((counts.approved ?? 0) > 0));
-    if (items.length === 0) htmls('.procedural-candidate', '');
+    const shown = items.find(({ _id }) => _id === ProceduralEngineCyberia.shownId);
+    if (job && shown) ProceduralEngineCyberia.showCandidate(shown);
+    else htmls('.procedural-items .procedural-candidate', '');
   }
 
-  /**
-   * What colored a candidate: the Palette Template its run holds for it, or the foundation palettes
-   * of the item of an update, and the slots set for the run or for that item.
-   * @returns {{label: string, colors: string[]}}
-   */
-  static paletteOf(item) {
-    const { spec } = ProceduralEngineCyberia.job ?? {};
-    if (!spec) return { label: '—', colors: [] };
-    const update = spec.mode === 'update-existing';
-    const set = update
-      ? spec.palette.items.find(({ itemId }) => itemId === item.targetItemId)?.slots
-      : spec.palette.slots;
-    const slots = Object.values(set ?? {});
-    const overrides = slots.length > 0 ? ' and slots set' : '';
-    const palette = spec.palettes.find(({ id }) => id === item.paletteId);
-    if (palette) return { label: `${palette.name}${overrides}`, colors: [...Object.values(palette.roles), ...slots] };
-    const palettes = spec.sources.find(({ itemId }) => itemId === item.targetItemId)?.artDirection?.palettes ?? [];
-    return {
-      label: `${palettes.map(({ name }) => name).join(', ') || 'default colors'}${overrides}`,
-      colors: [...palettes.flatMap(({ roles }) => roles.base ?? []), ...slots],
-    };
-  }
-
-  /** The larger view of a candidate: what it replaces or proposes, its palette and its template. */
+  /** The larger view of a candidate of the selected run; each read of the run shows it again as it is now. */
   static showCandidate(item) {
-    const { job } = ProceduralEngineCyberia;
-    if (!job) return;
-    const update = job.spec.mode === 'update-existing';
-    const palette = ProceduralEngineCyberia.paletteOf(item);
-    const kind = item.revisions.length > 0 ? REVISION_KINDS[item.revisions.at(-1).kind] : '—';
-    const lines = update
-      ? [
-          `Item: ${item.targetItemId}`,
-          `Current: ${shortCid(item.sourceCid)}`,
-          `Candidate: ${shortCid(item.candidateCid)}`,
-          `Revision: ${kind}`,
-          `Genesis Template: ${item.templateId}`,
-        ]
-      : [
-          `Proposed item ID: ${item.targetItemId}`,
-          `Candidate CID: ${shortCid(item.candidateCid)}`,
-          `Genesis Template: ${item.templateId}`,
-          `Variation: ${job.spec.variation.level}`,
-        ];
-    const panel = s('.procedural-candidate');
-    panel.replaceChildren();
-    const preview = element('img', 'procedural-preview-large');
-    if (item.candidateCid) preview.src = AtlasSpriteSheetService.idlePreviewUrl(item.candidateCid);
-    const details = element('div');
-    for (const line of lines) details.append(element('div', '', line));
-    const palettes = element('div');
-    palettes.innerHTML = `Palette: ${palette.label} ${swatches(palette.colors)}`;
-    details.append(palettes);
-    panel.append(preview, details);
+    ProceduralEngineCyberia.shownId = item._id;
+    if (ProceduralEngineCyberia.job)
+      showCandidate(s('.procedural-items .procedural-candidate'), ProceduralEngineCyberia.job, item);
   }
 
   /** The action of a grid row: a run or a candidate. */
@@ -1086,40 +1023,10 @@ class ProceduralEngineCyberia {
     await ProceduralEngineCyberia.refresh();
   }
 
-  /** A decision on a candidate. Edit opens the Object Layer Studio on its current revision. */
+  /** A decision on a candidate; see {@link decide}. */
   static async decide(item, action) {
     if (!ProceduralEngineCyberia.canMutate) return denied();
-    const target = item.targetItemId;
-    const response =
-      action === 'promote'
-        ? await CyberiaProceduralJobService.promote({ jobId: item.jobId, itemId: item._id })
-        : await CyberiaProceduralJobService.decide({
-            jobId: item.jobId,
-            itemId: item._id,
-            action,
-            body: action === 'approve' ? { cid: item.candidateCid } : {},
-          });
-    if (response.status !== 'success') return refusal(response);
-    if (action === 'edit') {
-      const { candidateCid, jobItemId } = response.data;
-      if (!ObjectLayerEngineModal.open({ cid: candidateCid, review: jobItemId }))
-        notify('This host has no Object Layer Studio.', 'warning');
-      else notify(`${target} opened for edit in the Object Layer Studio.`, 'info');
-      return;
-    }
-    const update = ProceduralEngineCyberia.job?.spec.mode === 'update-existing';
-    notify(
-      {
-        approve: `${target}: approval succeeded for revision ${item.revision}.`,
-        reject: `${target} rejected.`,
-        regenerate: `${target} queued for regeneration.`,
-        promote: update
-          ? `${target}: promotion succeeded. It runs on ${shortCid(item.candidateCid)}.`
-          : `New item ${target} created.`,
-      }[action],
-      action === 'reject' ? 'warning' : 'success',
-    );
-    await ProceduralEngineCyberia.refresh();
+    if (await decide(item, action, ProceduralEngineCyberia.job)) await ProceduralEngineCyberia.refresh();
   }
 }
 

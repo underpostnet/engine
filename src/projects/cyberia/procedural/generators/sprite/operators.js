@@ -1,5 +1,5 @@
 /**
- * The operators of the skin generator. An operator takes a frame and the analysis and context of
+ * The operators of the sprite generator. An operator takes a frame and the analysis and context of
  * its direction, and returns a new frame; the input stays as it was. Each operator draws its
  * randomness from the seed it is given, and no operator paints a cell of the outline.
  *
@@ -7,13 +7,13 @@
  * | -------------------- | --------------------------------------- |
  * | `regionFill`         | none: shading follows the outline       |
  * | `paletteMap`         | none: the mapping follows the colors    |
- * | `featurePass`        | variant seed, direction                 |
- * | `regionDeformation`  | variant seed, direction, frame index    |
- * | `detailPass`         | variant seed, direction, frame, region  |
+ * | `featurePass`        | variant seed, facing                    |
+ * | `regionDeformation`  | variant seed, facing                    |
+ * | `detailPass`         | variant seed, facing, region            |
  *
  * Pure functions.
  *
- * @module src/projects/cyberia/procedural/generators/skin/operators.js
+ * @module src/projects/cyberia/procedural/generators/sprite/operators.js
  */
 import { hexToRgba } from '../../../../../client/components/objectlayer-studio/RenderSource.js';
 import { scatterRegion, seededRandom } from '../../../../../client/components/objectlayer-studio/PixelRegion.js';

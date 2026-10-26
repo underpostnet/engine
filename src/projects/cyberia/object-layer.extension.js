@@ -32,8 +32,67 @@ import {
   toWire,
 } from '../../client/components/objectlayer-studio/RenderSource.js';
 import { transformImportedFrames } from './procedural/core/frame-mutation.js';
+import { importRoles } from './procedural/spec.js';
+import {
+  authoringOf,
+  customStatBounds,
+  statBoundsForType,
+  statProblemText,
+  statProblems,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { proceduralModels } from './procedural/engine.js';
 import { saveRevision } from './procedural/jobs/review.js';
+import { populationModels } from './procedural/population/map-context.js';
+import { authorTarget } from './procedural/population/population.js';
+
+/**
+ * Refuses an authored save whose stats leave its bounds, and names each one: the custom bounds the
+ * save declares, checked against the stat contract, else the bounds of its item type.
+ * @param {Object} [data] - The data of the save.
+ * @param {Object<string,[number,number]>} [statBounds] - The custom bounds of the save.
+ * @memberof CyberiaObjectLayerStudio
+ */
+const checkStats = (data, statBounds) => {
+  if (!data) return;
+  const refuse = (message) => {
+    throw Object.assign(new Error(message), { status: 400, expected: true });
+  };
+  let bounds = statBoundsForType(data.item?.type);
+  if (statBounds)
+    try {
+      bounds = customStatBounds(statBounds);
+    } catch (error) {
+      refuse(`Custom stat bounds: ${error.message}`);
+    }
+  const problems = statProblems(bounds, data.stats);
+  if (problems.length > 0)
+    refuse(
+      `Stats outside the ${statBounds ? 'custom' : data.item?.type} bounds: ${problems.map(statProblemText).join('; ')}`,
+    );
+};
+
+/**
+ * Stores a save the Studio sends with a review key, and publishes nothing: a job item id stores a
+ * revision of that Procedural Engine candidate; an authoring key stores the draft definition of that
+ * Map Population item.
+ * @memberof CyberiaObjectLayerStudio
+ */
+const reviewedSave = async ({ review, data, statBounds, objectLayerRenderFramesData, req, options }) => {
+  checkStats(data, statBounds);
+  const actor = String(req.auth.user._id);
+  const body = { data, objectLayerRenderFramesData };
+  const authoring = authoringOf(review);
+  if (authoring)
+    return await authorTarget({
+      models: populationModels(options),
+      id: authoring.populationId,
+      itemId: authoring.itemId,
+      body,
+      actor,
+      options,
+    });
+  return await saveRevision({ models: proceduralModels(options), id: review, body, actor, options });
+};
 
 /**
  * Authoring handlers of the Cyberia Studio.
@@ -42,7 +101,8 @@ import { saveRevision } from './procedural/jobs/review.js';
 class ObjectLayerStudioService {
   /**
    * POST handler: creates an object layer from the request body, its render source inline in
-   * `objectLayerRenderFramesData` when it has one.
+   * `objectLayerRenderFramesData` when it has one. A body with `review` stores the save as
+   * {@link reviewedSave} does instead.
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build and the materializations; publication goes through the Object Layer
@@ -59,7 +119,20 @@ class ObjectLayerStudioService {
    * @returns {Promise<Object>} The created object layer document.
    */
   static post = async (req, res, options) => {
-    const { objectLayerRenderFramesData, ...objectLayerData } = { ...req.body, createdBy: req.auth.user._id };
+    const { review, statBounds, objectLayerRenderFramesData, ...objectLayerData } = {
+      ...req.body,
+      createdBy: req.auth.user._id,
+    };
+    if (review)
+      return await reviewedSave({
+        review,
+        data: objectLayerData.data,
+        statBounds,
+        objectLayerRenderFramesData,
+        req,
+        options,
+      });
+    checkStats(objectLayerData.data, statBounds);
     const models = catalogModels(options);
     if (!objectLayerRenderFramesData) return await publishItemDefinition({ models, payload: objectLayerData, options });
     return await ObjectLayerEngine.persistObjectLayerDocuments({
@@ -73,8 +146,8 @@ class ObjectLayerStudioService {
   /**
    * PUT `/:id`: publishes the body's content as a new definition of the item; the item keeps its
    * binding. Its render source comes inline in `objectLayerRenderFramesData` when the editor sends
-   * one, else from the render frames of `:id`. A body with `review`, the id of a Procedural Engine
-   * item, stores the save as a draft revision of that item instead: nothing is published.
+   * one, else from the render frames of `:id`. A body with `review` stores the save as
+   * {@link reviewedSave} does instead: nothing is published.
    *
    * A write with render frames delegates to {@link ObjectLayerEngine.persistObjectLayerDocuments}
    * for the render build, the identity, the IPFS pins and the materializations.
@@ -95,15 +168,10 @@ class ObjectLayerStudioService {
     const existingOL = await models.ObjectLayer.findById(req.params.id);
     if (!existingOL) throw new Error('ObjectLayer not found');
 
-    const { review, objectLayerRenderFramesData, ...body } = req.body;
+    const { review, statBounds, objectLayerRenderFramesData, ...body } = req.body;
     if (review)
-      return await saveRevision({
-        models: proceduralModels(options),
-        id: review,
-        body: { data: body.data, objectLayerRenderFramesData },
-        actor: String(req.auth.user._id),
-        options,
-      });
+      return await reviewedSave({ review, data: body.data, statBounds, objectLayerRenderFramesData, req, options });
+    checkStats(body.data, statBounds);
     const objectLayerData = { ...body, createdBy: req.auth.user._id };
     objectLayerData.data ??= ObjectLayerEngine.payloadOf(existingOL).data;
     if (objectLayerRenderFramesData)
@@ -127,12 +195,14 @@ class ObjectLayerStudioService {
 
 /**
  * POST `/import-frames`: the frames of the definition a key names, as stored or, with `mutate`, in
- * the palette roles the body gives and with a seeded contour mutation. Nothing is stored: the
- * editor takes the frames and saves them as it saves any frames.
+ * the palette of the import ({@link importRoles} of the item `target`) and with a seeded contour
+ * mutation. Nothing is stored: the source stays as it is, and the editor takes the frames and saves
+ * them as it saves any frames.
  * @memberof CyberiaObjectLayerStudio
  */
 const importFrames = async (req, res, options) => {
-  const { id, roles, mutate = false, mutationFactor = 0, seed = 0, target = '' } = req.body;
+  const { id, palette = {}, mutate = false, mutationFactor = 0, seed = 0, target = '' } = req.body;
+  const roles = mutate ? importRoles({ itemId: target, paletteId: palette.paletteId, slots: palette.slots }) : null;
   const ObjectLayer = DataBaseProviderService.getModel('ObjectLayer', options);
   const objectLayer = await findObjectLayerByKey({ ObjectLayer, key: id, options, select: { cid: 1 } });
   if (!objectLayer) throw Object.assign(new Error(`No definition for ${id}`), { status: 404 });
@@ -249,7 +319,7 @@ export function mount(router, options) {
       #swagger.auto = false
       #swagger.tags = ['object-layer']
       #swagger.summary = 'Frames of a definition in a palette'
-      #swagger.description = 'Body { id, roles, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette `roles` and with a seeded contour mutation. Stores nothing.'
+      #swagger.description = 'Body { id, palette, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette of the item `target` and with a seeded contour mutation. `palette` is { paletteId?, slots? }: a palette of the library, else the foundation palettes of `target`, else the first palette of the library, under the slot colors set. Stores nothing.'
       #swagger.path = '/object-layer/import-frames'
       #swagger.method = 'post'
       #swagger.produces = ['application/json']

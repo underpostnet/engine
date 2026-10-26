@@ -34,7 +34,7 @@ const bind = (itemId, objectLayerCid, expectedCid, by = MODERATOR) =>
 const runs = async (itemId) => (await findBoundDefinitions(models(), [itemId])).map(({ cid }) => cid);
 
 describe.skipIf(!mongodBinary)('the runtime binding on a real MongoDB', () => {
-  beforeAll(startEngine, 60000);
+  beforeAll(() => startEngine(), 60000);
   afterAll(stopEngine);
 
   it('keeps the item on its definition while a save publishes a new revision', async () => {

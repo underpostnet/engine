@@ -8,14 +8,20 @@ import { CyberiaProceduralJobRouter } from '../../../src/api/cyberia-procedural-
 import { CyberiaProceduralProfileRouter } from '../../../src/api/cyberia-procedural-profile/cyberia-procedural-profile.router.js';
 import { mount } from '../../../src/projects/cyberia/object-layer.extension.js';
 import { stopProceduralWorkers } from '../../../src/projects/cyberia/procedural/jobs/worker.js';
-import { fromWire, toWire } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import {
+  fromWire,
+  sourceFromDirectionFrames,
+  toWire,
+} from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import { STAT_TYPES } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { mongodBinary } from '../../support/mongod.js';
+import { paletteFixture } from '../../support/procedural-content.js';
 import {
   cids,
   createRequest,
+  definitionOf,
   host,
   models,
-  paletteOf,
   rebind,
   startEngine,
   stopEngine,
@@ -81,7 +87,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     expect((await post(createRequest(), 'user')).status).toBe(403);
     const profile = await call(null, `${PROFILES}/skin-default`);
     expect(profile.body.data).toMatchObject({ profileId: 'skin-default', itemType: 'skin' });
-    expect((await call(null, PROFILES)).body.data.total).toBe(1);
+    expect((await call(null, PROFILES)).body.data.total).toBe(4);
   });
 
   it('serves the configuration a client builds a request from, with the palette catalog and no frontend copy', async () => {
@@ -89,18 +95,22 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     expect(status).toBe(200);
     expect(body.data.generators).toMatchObject([
       { id: 'skin-variant', itemType: 'skin', profile: { profileId: 'skin-default' } },
+      { id: 'portal-variant', itemType: 'portal', profile: { profileId: 'portal-default' } },
+      { id: 'obstacle-variant', itemType: 'obstacle', profile: { profileId: 'obstacle-default' } },
+      { id: 'floor-tile', itemType: 'floor', profile: { profileId: 'floor-default' } },
     ]);
     expect(body.data.templates).toMatchObject([
       { id: 'skin.humanoid', itemType: 'skin', canvas: { width: 25, height: 25 }, problems: [] },
+      { id: 'floor.terrain', itemType: 'floor', canvas: { width: 12, height: 12 }, problems: [] },
+      { id: 'portal.vortex', itemType: 'portal', canvas: { width: 12, height: 12 }, problems: [] },
+      { id: 'obstacle.rock-pile', itemType: 'obstacle', canvas: { width: 12, height: 12 }, problems: [] },
     ]);
     expect(body.data.templates[0].preview).toMatchObject({ width: 25, height: 25 });
     const { families, palettes } = body.data.palettes;
     expect(families).toEqual(['natural', 'dark', 'light', 'warm', 'cool', 'biome', 'exotic']);
-    expect(palettes.find(({ id }) => id === 'skin.exotic-teal')).toMatchObject({
-      family: 'exotic',
-      itemType: 'skin',
-      roles: { torso: expect.stringMatching(/^#[0-9a-f]{6}$/) },
-    });
+    expect(palettes.find(({ id }) => id === 'exotic-teal')).toEqual(paletteFixture('exotic-teal'));
+    expect(body.data.templates[0].roles.torso).toMatchObject({ palette: 'primary', artDirection: true });
+    expect(body.data.templates[0]).not.toHaveProperty('palettes');
   });
 
   it('draws random colors for the color slots of a Genesis Template, one scheme each time', async () => {
@@ -172,26 +182,35 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
       });
       const plain = (await call('moderator', `${JOBS}/sources/bare-skin/palette`)).body.data.slots;
       expect(Object.values(plain).every(({ origin }) => origin === 'template')).toBe(true);
-      const teal = (await call('moderator', `${JOBS}/sources/violet-skin/palette?paletteId=skin.exotic-teal`)).body
-        .data;
-      expect(teal.slots['torso.base']).toEqual({ color: paletteOf('skin.exotic-teal').roles.torso, origin: 'palette' });
+      const teal = (await call('moderator', `${JOBS}/sources/violet-skin/palette?paletteId=exotic-teal`)).body.data;
+      expect(teal.slots['torso.base']).toEqual({
+        color: paletteFixture('exotic-teal').roles.primary,
+        origin: 'palette',
+      });
       expect((await call('user', `${JOBS}/sources/violet-skin/palette`)).status).toBe(403);
       expect((await call('moderator', `${JOBS}/sources/nobody/palette`)).status).toBe(404);
       expect((await call('moderator', `${JOBS}/sources/violet-skin/palette?paletteId=random`)).status).toBe(400);
     });
 
-    it('answers the palette a create starts from with a Genesis Template, under a Palette Template', async () => {
+    it('answers the palette a create starts from with a Genesis Template, under a palette', async () => {
       const plain = await call(null, `${PROFILES}/templates/skin.humanoid/palette`);
       expect(plain.status).toBe(200);
       expect(plain.body.data).toMatchObject({ templateId: 'skin.humanoid', palettes: [] });
       expect(Object.values(plain.body.data.slots).every(({ origin }) => origin === 'template')).toBe(true);
-      const teal = await call(null, `${PROFILES}/templates/skin.humanoid/palette?paletteId=skin.exotic-teal`);
+      const teal = await call(null, `${PROFILES}/templates/skin.humanoid/palette?paletteId=exotic-teal`);
       expect(teal.body.data.slots.outline).toEqual({
-        color: paletteOf('skin.exotic-teal').roles.outline,
+        color: paletteFixture('exotic-teal').roles.outline,
+        origin: 'palette',
+      });
+      const rift = await call(null, `${PROFILES}/templates/obstacle.rock-pile/palette?paletteId=natural-deep`);
+      expect(rift.body.data.slots['chunk.base']).toEqual({
+        color: paletteFixture('natural-deep').roles.primary,
         origin: 'palette',
       });
       expect((await call(null, `${PROFILES}/templates/skin.winged/palette`)).status).toBe(400);
-      expect((await call(null, `${PROFILES}/templates/skin.humanoid/palette?paletteId=skin.nothing`)).status).toBe(400);
+      expect((await call(null, `${PROFILES}/templates/skin.humanoid/palette?paletteId=skin.exotic-teal`)).status).toBe(
+        400,
+      );
     });
   });
 
@@ -384,31 +403,101 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     });
   });
 
-  it('serves the frames of an item in a palette, with a seeded mutation, for the Studio editor', async () => {
-    const roles = { outline: ['#000000'], shadow: ['#101010'], base: ['#808080'], highlight: ['#f0f0f0'] };
+  it('serves the palette of a frame import: the foundation palettes of the item, else a palette of the library', async () => {
+    const read = (query) => call(null, `${PROFILES}/import-palette?${new URLSearchParams(query)}`);
+    const foundation = await read({ itemId: 'aether-agent' });
+    expect(foundation.status).toBe(200);
+    expect(foundation.body.data.palettes.length).toBeGreaterThan(0);
+    expect(Object.values(foundation.body.data.slots).every(({ origin }) => origin === 'foundation')).toBe(true);
+    const teal = paletteFixture('exotic-teal');
+    const chosen = await read({ itemId: 'aether-agent', paletteId: 'exotic-teal' });
+    expect(chosen.body.data.slots.primary).toEqual({ color: teal.roles.primary, origin: 'palette' });
+    expect((await read({ itemId: 'no-such-item' })).body.data).toMatchObject({ templateId: '', palettes: [] });
+    expect((await read({ paletteId: 'no-such-theme' })).status).toBe(400);
+  });
+
+  it('serves the frames of an item in the palette of the import, with a seeded mutation, for the Studio editor', async () => {
+    const id = cids['violet-skin'];
     const send = (body, role = 'moderator') => call(role, '/object-layer/import-frames', { method: 'POST', body });
     const frames = (response) => toWire(fromWire(response.body.data.renderFrames));
-    const plain = await send({ id: cids['violet-skin'], roles, seed: 1 });
+    const colorsOf = (response) =>
+      fromWire(response.body.data.renderFrames)
+        .palette.filter((color) => !color.endsWith('00'))
+        .map((color) => color.slice(0, 7));
+    const teal = { paletteId: 'exotic-teal' };
+    const stored = await models().ObjectLayerRenderFrames.findOne({ objectLayerCid: id }).lean();
+    const plain = await send({ id, palette: teal, seed: 1 });
     expect(plain.status).toBe(200);
-    expect(plain.body.data).toMatchObject({ frames: 6, accepted: 0, frameDurationMs: 250 });
+    expect(plain.body.data).toMatchObject({ frames: 12, accepted: 0, frameDurationMs: 250 });
     // Without Mutate the frames come as stored, so the palette of the body changes nothing.
-    expect(frames(await send({ id: cids['violet-skin'], roles: { ...roles, base: ['#204060'] }, seed: 1 }))).toEqual(
-      frames(plain),
-    );
-    const remapped = await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 0, seed: 1 });
-    const palette = fromWire(remapped.body.data.renderFrames).palette.filter((color) => !color.endsWith('00'));
-    expect(palette.every((color) => Object.values(roles).flat().includes(color.slice(0, 7)))).toBe(true);
+    expect(frames(await send({ id, palette: { slots: { primary: '#204060' } }, seed: 1 }))).toEqual(frames(plain));
+    const remapped = await send({ id, palette: teal, mutate: true, mutationFactor: 0, seed: 1 });
+    expect(
+      colorsOf(remapped).every((color) => Object.values(paletteFixture('exotic-teal').roles).includes(color)),
+    ).toBe(true);
     expect(frames(remapped)).not.toEqual(frames(plain));
-    const mutated = await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 1, seed: 3 });
+    const set = { ...teal, slots: { primary: '#123456', secondary: '#654321' } };
+    const overridden = await send({ id, palette: set, mutate: true, seed: 1 });
+    const effective = { ...paletteFixture('exotic-teal').roles, ...set.slots };
+    expect(colorsOf(overridden).every((color) => Object.values(effective).includes(color))).toBe(true);
+    expect(frames(overridden)).not.toEqual(frames(remapped));
+    const foundation = (await call(null, `${PROFILES}/import-palette?itemId=aether-agent`)).body.data.slots;
+    const own = await send({ id, palette: {}, mutate: true, seed: 1, target: 'aether-agent' });
+    expect(colorsOf(own).every((color) => Object.values(foundation).some((slot) => slot.color === color))).toBe(true);
+    const mutated = await send({ id, palette: teal, mutate: true, mutationFactor: 1, seed: 3 });
     expect(mutated.body.data.accepted).toBeGreaterThan(0);
-    expect(frames(await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 1, seed: 3 }))).toEqual(
+    expect(frames(await send({ id, palette: teal, mutate: true, mutationFactor: 1, seed: 3 }))).toEqual(
       frames(mutated),
     );
+    expect(frames(await send({ id, palette: teal, mutate: true, mutationFactor: 1, seed: 4 }))).not.toEqual(
+      frames(mutated),
+    );
+    expect(await models().ObjectLayerRenderFrames.findOne({ objectLayerCid: id }).lean()).toEqual(stored);
+    const refusal = async (palette) => {
+      const { status, body } = await send({ id, palette, mutate: true });
+      return [status, body.message];
+    };
+    expect(await refusal({ paletteId: 'no-such-theme' })).toEqual([400, 'There is no palette no-such-theme']);
+    expect(await refusal({ slots: { hair: '#123456' } })).toEqual([
+      400,
+      'hair is not an import slot: primary, secondary, detail, feature, outline, accent',
+    ]);
+    expect(await refusal({ slots: { primary: 'red' } })).toEqual([400, 'primary is not a #rrggbb color']);
     expect(
-      frames(await send({ id: cids['violet-skin'], roles, mutate: true, mutationFactor: 1, seed: 4 })),
-    ).not.toEqual(frames(mutated));
-    expect((await send({ id: 'bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab', roles })).status).toBe(404);
-    expect((await send({ id: cids['bare-skin'], roles })).status).toBe(404);
-    expect((await send({ id: cids['violet-skin'], roles }, 'user')).status).toBe(403);
+      (await send({ id: 'bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab', palette: teal })).status,
+    ).toBe(404);
+    expect((await send({ id: cids['bare-skin'], palette: teal })).status).toBe(404);
+    expect((await send({ id, palette: teal }, 'user')).status).toBe(403);
+  });
+
+  it('checks the stats of a save against the bounds it declares: the item type, else custom bounds inside the contract', async () => {
+    const frames = toWire(
+      sourceFromDirectionFrames({ framesByCode: { '08': [[[[200, 40, 40, 255]]]] }, frameDurationMs: 100 }),
+    );
+    const save = (data, statBounds) =>
+      call('moderator', '/object-layer', {
+        method: 'POST',
+        body: { data, objectLayerRenderFramesData: frames, ...(statBounds && { statBounds }) },
+      });
+    const base = definitionOf('bold-skin', 'skin');
+    const strong = { ...base, stats: { ...base.stats, effect: 30 } };
+    const open = Object.fromEntries(STAT_TYPES.map((key) => [key, [-100, 100]]));
+    expect(await save(strong)).toMatchObject({
+      status: 400,
+      body: { message: 'Stats outside the skin bounds: effect 30 is outside 1 to 1' },
+    });
+    expect((await save(strong, { ...open, effect: [20, 40] })).status).toBe(200);
+    expect(await save(strong, { ...open, effect: [40, 20] })).toMatchObject({
+      status: 400,
+      body: { message: 'Custom stat bounds: effect: the minimum 40 is above the maximum 20.' },
+    });
+    expect(await save(strong, { ...open, effect: [0, 10] })).toMatchObject({
+      status: 400,
+      body: { message: 'Stats outside the custom bounds: effect 30 is outside 0 to 10' },
+    });
+    expect(await save(strong, { ...open, utility: [0, 200] })).toMatchObject({
+      status: 400,
+      body: { message: 'Custom stat bounds: utility: 200 is outside -100 to 100.' },
+    });
   });
 });

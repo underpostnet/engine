@@ -1,6 +1,7 @@
 /**
  * The background worker of the Procedural Engine: it claims queued candidates, runs their generator,
- * stores each result as a draft Object Layer and validates it.
+ * stores each result as a draft Object Layer and validates it. It also runs the publications of map
+ * populations, phase by phase, under the same kind of lease.
  *
  * Every candidate is a task of its own. A claim is one atomic update that leases the candidate to a
  * worker for a time; a worker that dies loses it when the lease expires, and it runs again up to
@@ -24,6 +25,8 @@ import { resolveProceduralContext } from '../context.js';
 import { proceduralModels, purgeRevisions, recordAudit, syncJob } from '../engine.js';
 import { GENERATORS } from '../generator-registry.js';
 import { candidatePalette } from '../palettes/resolver.js';
+import { populationModels } from '../population/map-context.js';
+import { drainPublications } from '../population/publication.js';
 import { ensureDefaultProfiles } from '../profiles/registry.js';
 import { baselineSource, loadSource } from '../source.js';
 import { specChoice, specPalette, specTemplate } from '../spec.js';
@@ -79,7 +82,7 @@ export const persistCandidate = async ({ models, result, createdBy, options }) =
 export async function validateRevision({ models, cid, item, spec, now = new Date() }) {
   const { ObjectLayer, ObjectLayerRenderFrames } = models;
   const itemId = item.targetItemId;
-  const frame = { template: specTemplate(spec, item.templateId), profile: spec.profile };
+  const template = specTemplate(spec, item.templateId);
   const problems = [];
   const definition = await ObjectLayer.findByCid(cid).lean();
   if (!definition) problems.push('the definition is not stored');
@@ -94,10 +97,13 @@ export async function validateRevision({ models, cid, item, spec, now = new Date
     if (!definition.data.render?.cid) problems.push('it names no render');
     const frames = await ObjectLayerRenderFrames.findOne({ objectLayerCid: cid }).lean();
     if (!frames) problems.push('its render frames are not stored');
-    else
+    else {
+      const source = ObjectLayerRenderFrames.sourceOf(frames);
       problems.push(
-        ...compatibilityProblems(frame, ObjectLayerRenderFrames.sourceOf(frames), definition.data.item.type),
+        ...compatibilityProblems(template, source, definition.data.item.type),
+        ...(GENERATORS[spec.generator.id]?.renderProblems?.(source) ?? []),
       );
+    }
   }
   return { ok: problems.length === 0, checkedAt: now, problems };
 }
@@ -237,6 +243,7 @@ async function batchOf(models, job, item) {
       template: specTemplate(spec, item.templateId),
       profile: spec.profile,
       artDirection: entry?.artDirection ?? null,
+      origin: entry?.origin ?? 'template',
     });
     batches.set(key, { generator, batch: generator.prepare(context) });
     if (batches.size > BATCH_CACHE_SIZE) batches.delete(batches.keys().next().value);
@@ -401,7 +408,7 @@ const workers = new Map();
 
 /**
  * Starts the worker of a deployment context: it stores the shipped profiles once, then drains the
- * queue on an interval. A second start for the same context returns the first worker.
+ * queue and the publications on an interval. A second start for the same context returns the first worker.
  * @param {{host:string,path:string}} options - Router options.
  * @param {Object} [params]
  * @param {number} [params.intervalMs]
@@ -425,6 +432,7 @@ export function startProceduralWorker(options, { intervalMs = POLL_MS, concurren
         seeded = true;
       }
       await drainQueue({ models, options, holder, concurrency });
+      await drainPublications({ models: populationModels(options), options, holder });
     } catch (error) {
       logger.warn(`Procedural worker failed: ${messageOf(error)}`);
     } finally {

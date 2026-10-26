@@ -270,13 +270,14 @@ export class ObjectLayerEngine {
    * @memberof CyberiaObjectLayer
    */
   static objectLayerDataFactory({ metadata, objectLayerType, objectLayerId }) {
-    const { validateStats, generateRandomStats } = CyberiaObjectLayerProfile;
+    const { validateStats, randomStats, statBounds } = CyberiaObjectLayerProfile;
     const item = { id: objectLayerId, type: objectLayerType, description: '', activable: true };
-    if (!metadata?.data) return { data: { item, stats: generateRandomStats() } };
+    if (!metadata?.data) return { data: { item, stats: randomStats(statBounds(objectLayerType)) } };
+    const described = metadata.data.item || item;
     return {
       data: {
-        item: metadata.data.item || item,
-        stats: validateStats(metadata.data.stats ?? generateRandomStats()),
+        item: described,
+        stats: validateStats(metadata.data.stats ?? randomStats(statBounds(described.type))),
       },
     };
   }
@@ -486,7 +487,8 @@ export class ObjectLayerEngine {
 
   /**
    * Builds the render of a definition again from its stored render frames and publishes the
-   * definition that names it. The item keeps its binding. `revise` may change the payload first.
+   * definition that names it. The item keeps its binding. `revise` may change the payload first;
+   * `exact` publishes the payload alone, never composed over the definition the item runs.
    *
    * @static
    * @param {Object} params
@@ -495,6 +497,7 @@ export class ObjectLayerEngine {
    * @param {number} [params.upscaleFactor] - Pixels per cell of the upscaled render.
    * @param {number|null} [params.maxAtlasDim=null] - Atlas dimension cap.
    * @param {(payload:{data:Object})=>void} [params.revise] - Changes the payload in place.
+   * @param {boolean} [params.exact=false] - Publish the payload alone.
    * @param {Object} [params.options] - Router options ({ host, path }).
    * @returns {Promise<{definition:Object,atlas:Object}|null>} Null when the definition has no render frames.
    * @memberof CyberiaObjectLayer
@@ -505,6 +508,7 @@ export class ObjectLayerEngine {
     upscaleFactor,
     maxAtlasDim = null,
     revise = () => {},
+    exact = false,
     options,
   }) {
     const ObjectLayerRenderFrames = DataBaseProviderService.getModel('ObjectLayerRenderFrames', options);
@@ -520,7 +524,7 @@ export class ObjectLayerEngine {
     });
     const payload = ObjectLayerEngine.payloadOf(objectLayer);
     revise(payload);
-    const definition = await publishItemDefinition({ models, payload, renderFrames, rendered, options });
+    const definition = await publishItemDefinition({ models, payload, renderFrames, rendered, exact, options });
     return { definition, atlas: rendered.atlas };
   }
 

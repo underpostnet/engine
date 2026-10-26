@@ -42,7 +42,7 @@ import {
 } from '../../support/procedural-engine.js';
 
 describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', () => {
-  beforeAll(startEngine, 60000);
+  beforeAll(() => startEngine(), 60000);
   afterAll(stopEngine);
 
   describe('human review of a create run', () => {
@@ -390,7 +390,7 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
       await drain();
       const [item] = await itemsOf(retouch);
       const rctx = { models: models(), jobId: retouch._id, actor: MODERATOR };
-      expect(item.metrics.directions).toBe(2);
+      expect(item.metrics.directions).toBe(8);
       await openForEdit({ ...rctx, id: item._id });
       const saved = await saveRevision({
         ...rctx,

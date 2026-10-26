@@ -1,10 +1,11 @@
 /**
  * Genesis Templates: the reusable visual starts of a generation. Cyberia content owns them; this
  * module reads them from the content artifact, verifies them and answers their geometry: the cells
- * of each region by direction, the protected cells and the base frame a template draws.
+ * of each region by frame and direction, the protected cells, the base frame a template draws and
+ * the place of its regions on a render.
  *
- * A template holds a canvas, a region map per direction, the role of each region and the tones of
- * each role. It is not an item, a CID or a binding.
+ * A template holds a canvas, the frames of each direction as region maps, the role of each region,
+ * and the palette role and the tones of each role. It is not an item, a CID or a binding.
  *
  * @module src/projects/cyberia/procedural/templates.js
  */
@@ -22,6 +23,9 @@ export const TONES = Object.freeze(['shadow', 'base', 'highlight']);
 /** The roles every generator colors besides the roles of a template. */
 export const GENERATOR_ROLES = Object.freeze(['outline', 'accent']);
 
+/** The palette roles a template role takes its palette color from. */
+export const PALETTE_ROLES = Object.freeze(['primary', 'secondary', 'detail', 'feature']);
+
 const ID_PATTERN = /^[a-z][a-z0-9]*\.[a-z0-9]+(-[a-z0-9]+)*$/;
 const ROLE_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REGION_PATTERN = /^[a-z][A-Za-z0-9]*$/;
@@ -32,8 +36,9 @@ const isCount = (value) => Number.isSafeInteger(value) && value > 0;
 function checkRoles(template, legend, fail) {
   const regionRoles = {};
   const roles = {};
-  for (const [role, { regions, tones, artDirection = false } = {}] of Object.entries(template.roles ?? {})) {
+  for (const [role, { regions, palette, tones, artDirection = false } = {}] of Object.entries(template.roles ?? {})) {
     if (!ROLE_PATTERN.test(role) || GENERATOR_ROLES.includes(role)) fail(`${role} is not a template role`);
+    if (!PALETTE_ROLES.includes(palette)) fail(`role ${role} takes no palette role of ${PALETTE_ROLES.join(', ')}`);
     if (!Array.isArray(regions) || regions.length === 0) fail(`role ${role} needs regions`);
     if (!TONES.every((tone) => HEX_COLOR.test(tones?.[tone] ?? '')))
       fail(`role ${role} needs the tones ${TONES.join(', ')} as #rrggbb`);
@@ -44,6 +49,7 @@ function checkRoles(template, legend, fail) {
     }
     roles[role] = {
       regions: [...regions],
+      palette,
       tones: Object.fromEntries(TONES.map((tone) => [tone, tones[tone]])),
       artDirection: artDirection === true,
     };
@@ -56,31 +62,38 @@ function checkRoles(template, legend, fail) {
 function checkDirections(template, legend, fail) {
   const { width, height } = template.canvas;
   const directions = {};
-  for (const [code, rows] of Object.entries(template.directions ?? {})) {
+  for (const [code, frames] of Object.entries(template.directions ?? {})) {
     if (!OBJECT_LAYER_DIRECTION_CODES.includes(code)) fail(`${code} is not a direction code`);
-    if (!Array.isArray(rows) || rows.length !== height || rows.some((row) => typeof row !== 'string' || row.length !== width))
-      fail(`direction ${code} needs ${height} rows of ${width} cells`);
-    const cells = {};
-    rows.forEach((row, y) =>
-      [...row].forEach((letter, x) => {
-        if (letter === '.') return;
-        if (!legend[letter]) fail(`direction ${code} holds ${letter}, which is not in the legend`);
-        (cells[legend[letter]] ??= []).push([x, y]);
-      }),
-    );
-    directions[code] = cells;
+    if (!Array.isArray(frames) || frames.length === 0) fail(`direction ${code} needs a list of frames`);
+    directions[code] = frames.map((rows, index) => {
+      if (
+        !Array.isArray(rows) ||
+        rows.length !== height ||
+        rows.some((row) => typeof row !== 'string' || row.length !== width)
+      )
+        fail(`frame ${index} of direction ${code} needs ${height} rows of ${width} cells`);
+      const cells = {};
+      rows.forEach((row, y) =>
+        [...row].forEach((letter, x) => {
+          if (letter === '.') return;
+          if (!legend[letter]) fail(`frame ${index} of direction ${code} holds ${letter}, which is not in the legend`);
+          (cells[legend[letter]] ??= []).push([x, y]);
+        }),
+      );
+      return cells;
+    });
   }
   if (Object.keys(directions).length === 0) fail('it needs at least one direction');
   return directions;
 }
 
 /**
- * A Genesis Template as content holds it, verified and resolved: the role of each region and the
- * cells of each region by direction code.
+ * A Genesis Template as content holds it, verified and resolved: the role of each region and, for
+ * each direction code, its frames in play order, each the cells of each region.
  * @param {Object} template - A Genesis Template of the content artifact.
  * @returns {{id:string,name:string,description:string,itemType:string,canvas:{width:number,height:number},
- *   frameDurationMs:number,outline:string,roles:Object<string,{regions:string[],tones:Object,artDirection:boolean}>,
- *   regionRoles:Object<string,string>,directions:Object<string,Object<string,Array<[number,number]>>>}}
+ *   frameDurationMs:number,outline:string,roles:Object<string,{regions:string[],palette:string,tones:Object,artDirection:boolean}>,
+ *   regionRoles:Object<string,string>,directions:Object<string,Array<Object<string,Array<[number,number]>>>>}}
  * @throws {RangeError} When the template breaks the structure.
  */
 export function resolveTemplate(template) {
@@ -135,8 +148,8 @@ export function genesisTemplate(id) {
 }
 
 /**
- * What stops a template from serving a profile: its item type, a region the profile does not rank,
- * a direction the profile requires.
+ * What stops a template from serving a profile: its item type, or a region the profile does not
+ * rank. Its frames and direction codes are the author's choice.
  * @param {Object} template - {@link resolveTemplate}.
  * @param {Object} profile - A validated profile.
  * @returns {string[]} One line per problem; empty when the template fits.
@@ -146,54 +159,96 @@ export function templateProblems(template, profile) {
   if (template.itemType !== profile.itemType) problems.push(`it draws ${template.itemType}, not ${profile.itemType}`);
   const unranked = Object.keys(template.regionRoles).filter((region) => !profile.regionOrder.includes(region));
   if (unranked.length > 0) problems.push(`profile ${profile.profileId} does not rank ${unranked.join(', ')}`);
-  for (const code of profile.constraints.requiredDirections)
-    if (!template.directions[code]) problems.push(`it has no direction ${code}`);
   return problems;
 }
 
 /**
- * What stops an item from serving as the source or the result of a template and a profile: its item
- * type and, when it has a render, the canvas and the required directions of that render.
- * @param {{template:Object,profile:Object}} frame - A resolved template and a validated profile.
+ * What stops an item from serving as the source or the result of a template: its item type, and a
+ * render with no frame. The regions of a template take their place on a render of any canvas.
+ * @param {Object} template - A resolved template.
  * @param {Object|null} source - A decoded render source; null for an item with no render.
  * @param {string} itemType - The item type of the definition.
  * @returns {string[]} One line per problem; empty when the item fits.
  */
-export function compatibilityProblems({ template, profile }, source, itemType) {
+export function compatibilityProblems(template, source, itemType) {
   const problems = [];
   if (itemType !== template.itemType) problems.push(`its item type is ${itemType}, not ${template.itemType}`);
-  if (!source) return problems;
-  const { width, height } = template.canvas;
-  if (source.width !== width || source.height !== height)
-    problems.push(`its canvas is ${source.width}×${source.height}, not ${width}×${height}`);
-  for (const code of profile.constraints.requiredDirections)
-    if (!getKeyframeDirectionsByCode(code).some((keyframe) => source.frames[keyframe]?.length > 0))
-      problems.push(`it has no frame in direction ${code}`);
+  if (
+    source &&
+    !OBJECT_LAYER_DIRECTION_CODES.some((code) =>
+      getKeyframeDirectionsByCode(code).some((keyframe) => source.frames[keyframe]?.length > 0),
+    )
+  )
+    problems.push('its render has no frame');
   return problems;
 }
 
 /**
- * The cells of the regions a profile protects in a direction: their shape stays as it is.
+ * The region map of one frame of a direction: its own frame, else the last frame the template draws.
  * @param {Object} template - {@link resolveTemplate}.
- * @param {Object} profile - A validated profile.
  * @param {string} code - Direction code.
+ * @param {number} index - Frame index.
+ * @returns {Object<string,Array<[number,number]>>|undefined} Undefined for a direction the template does not draw.
+ */
+export const regionsOf = (template, code, index) => {
+  const frames = template.directions[code];
+  return frames?.[Math.min(index, frames.length - 1)];
+};
+
+/**
+ * The cells of the regions a profile protects in a region map: their shape stays as it is.
+ * @param {Object<string,Array<[number,number]>>} owned - A region map.
+ * @param {Object} profile - A validated profile.
  * @returns {Array<[number,number]>}
  */
-export const protectedCells = (template, profile, code) =>
-  Object.entries(template.directions[code] ?? {})
+export const protectedCells = (owned, profile) =>
+  Object.entries(owned)
     .filter(([region]) => profile.constraints.protectedRegions.includes(region))
     .flatMap(([, cells]) => cells);
 
+/** The bounding box of some cells. */
+const boxOf = (cells) => ({
+  left: Math.min(...cells.map(([x]) => x)),
+  right: Math.max(...cells.map(([x]) => x)),
+  bottom: Math.max(...cells.map(([, y]) => y)),
+});
+
 /**
- * The base frame a template draws in a direction: each region in the base tone of its role, inside a
- * ring of the outline color.
+ * A region map placed on a frame: moved so that its regions stand where the interior of the frame
+ * stands, bottom on bottom and centre on centre. Cells off the frame go.
+ * @param {Object<string,Array<[number,number]>>} owned - A region map of a template.
+ * @param {{width:number,height:number,interior:Uint8Array}} analysis - The analysis of the frame.
+ * @returns {Object<string,Array<[number,number]>>}
+ */
+export function placeRegions(owned, { width, height, interior }) {
+  const inside = [];
+  interior.forEach((set, cell) => set && inside.push([cell % width, Math.floor(cell / width)]));
+  const cells = Object.values(owned).flat();
+  if (inside.length === 0 || cells.length === 0) return owned;
+  const from = boxOf(cells);
+  const to = boxOf(inside);
+  const dx = Math.round((to.left + to.right - from.left - from.right) / 2);
+  const dy = to.bottom - from.bottom;
+  if (dx === 0 && dy === 0) return owned;
+  return Object.fromEntries(
+    Object.entries(owned).map(([region, list]) => [
+      region,
+      list.map(([x, y]) => [x + dx, y + dy]).filter(([x, y]) => x >= 0 && y >= 0 && x < width && y < height),
+    ]),
+  );
+}
+
+/**
+ * The base frame a template draws for a frame of a direction: each region in the base tone of its
+ * role, inside a ring of the outline color.
  * @param {Object} template - {@link resolveTemplate}.
  * @param {string} code - A direction code of the template.
+ * @param {number} [index] - The frame index.
  * @returns {number[][][]} An rgba frame.
  */
-export function drawTemplate(template, code) {
+export function drawTemplate(template, code, index = 0) {
   const { width, height } = template.canvas;
-  const owned = template.directions[code];
+  const owned = regionsOf(template, code, index);
   const ring = dilate(maskOfCells(Object.values(owned).flat(), width, height), width, height);
   const frame = Array.from({ length: height }, () => Array.from({ length: width }, () => [0, 0, 0, 0]));
   const paint = (hex) => [...hexToRgba(hex).slice(0, 3), 255];

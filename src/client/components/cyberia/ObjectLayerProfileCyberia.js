@@ -7,7 +7,10 @@ import {
   STAT_MODIFIER_MAX,
   STAT_MODIFIER_MIN,
   STAT_TYPES,
-  generateRandomStats,
+  customStatBounds,
+  randomStatsWithin,
+  statBoundsForType,
+  statProblems,
   validateStats,
 } from './SharedDefaultsCyberia.js';
 
@@ -20,5 +23,8 @@ export const CyberiaObjectLayerProfile = Object.freeze({
   statModifierMin: STAT_MODIFIER_MIN,
   statModifierMax: STAT_MODIFIER_MAX,
   validateStats,
-  generateRandomStats,
+  statBounds: statBoundsForType,
+  customStatBounds,
+  statProblems,
+  randomStats: randomStatsWithin,
 });

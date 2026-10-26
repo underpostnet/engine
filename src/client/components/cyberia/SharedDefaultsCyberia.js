@@ -72,6 +72,18 @@ export const VISUAL_LAYER_PRIORITY = Object.freeze({ skin: 10, weapon: 40, other
 export const visualLayerPriority = (type) => VISUAL_LAYER_PRIORITY[type] ?? VISUAL_LAYER_PRIORITY.other;
 
 /**
+ * The baseline frames of a render of an item type, by direction code: a skin idles and walks in four
+ * facings, with two alternating frames per walk; a floor is one static frame; a portal turns and an
+ * obstacle shifts in three idle frames. A suggestion an author starts from, never a rule.
+ */
+export const RENDER_FRAME_CONTRACT = Object.freeze({
+  [ITEM_TYPES.skin]: Object.freeze({ '08': 1, '02': 1, '04': 1, '06': 1, '18': 2, '12': 2, '14': 2, '16': 2 }),
+  [ITEM_TYPES.floor]: Object.freeze({ '08': 1 }),
+  [ITEM_TYPES.portal]: Object.freeze({ '08': 3 }),
+  [ITEM_TYPES.obstacle]: Object.freeze({ '08': 3 }),
+});
+
+/**
  * Canonical set of entity category names used by the Go simulation,
  * the C/WASM client, and the browser editor UI.
  *
@@ -113,6 +125,18 @@ export const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
 
 /** The table column the sagas of a row show in, and the filter key a table sends for them. */
 export const SAGA_FILTER_KEY = 'sagaCode';
+
+/**
+ * The key of a Map Population item a moderator authors in the Object Layer Studio: the Studio sends it
+ * with its save, so the save becomes the draft definition of that item.
+ */
+export const authoringKey = (populationId, itemId) => `population:${populationId}:${itemId}`;
+
+/** The population and the item an authoring key names, or null for another key. */
+export const authoringOf = (key) => {
+  const match = /^population:([0-9a-f]{24}):(.+)$/.exec(String(key ?? ''));
+  return match ? { populationId: match[1], itemId: match[2] } : null;
+};
 
 /** How a portal connects: to a portal or a random cell, on another map or the same one. */
 export const PORTAL_MODES = Object.freeze(['inter-portal', 'inter-random', 'intra-random', 'intra-portal']);
@@ -624,15 +648,74 @@ export function statBoundsForType(itemType) {
   return Object.freeze(Object.fromEntries(STAT_TYPES.map((key) => [key, typed[key] ?? [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX]])));
 }
 
+/**
+ * Custom stat bounds an author sets in place of the bounds of the item type: each stat `[min, max]`,
+ * whole numbers inside the stat contract, the minimum not above the maximum.
+ *
+ * @param {Record<string,[number,number]>} ranges
+ * @returns {Readonly<Record<string,[number,number]>>}
+ * @throws {RangeError} Naming the first stat whose range is not valid.
+ */
+export function customStatBounds(ranges) {
+  if (!ranges || typeof ranges !== 'object') throw new RangeError('Custom stat bounds give each stat [min, max].');
+  return Object.freeze(
+    Object.fromEntries(
+      STAT_TYPES.map((key) => {
+        const range = ranges[key];
+        if (!Array.isArray(range) || range.length !== 2) throw new RangeError(`${key}: custom bounds are [min, max].`);
+        for (const value of range)
+          if (!Number.isInteger(value) || value < STAT_MODIFIER_MIN || value > STAT_MODIFIER_MAX)
+            throw new RangeError(`${key}: ${value} is outside ${STAT_MODIFIER_MIN} to ${STAT_MODIFIER_MAX}.`);
+        if (range[0] > range[1])
+          throw new RangeError(`${key}: the minimum ${range[0]} is above the maximum ${range[1]}.`);
+        return [key, Object.freeze([...range])];
+      }),
+    ),
+  );
+}
+
+/**
+ * The stats outside some bounds ({@link statBoundsForType} or {@link customStatBounds}), in contract
+ * order. A stat left out takes the default.
+ *
+ * @param {Readonly<Record<string,[number,number]>>} bounds
+ * @param {Record<string,number>} [stats]
+ * @returns {Array<{key:string,value:number,min:number,max:number}>}
+ */
+export function statProblems(bounds, stats = {}) {
+  return STAT_TYPES.flatMap((key) => {
+    const value = stats?.[key] ?? STAT_DEFAULT;
+    const [min, max] = bounds[key];
+    return Number.isInteger(value) && min <= value && value <= max ? [] : [{ key, value, min, max }];
+  });
+}
+
+/** One line for a stat outside its bounds: `effect 30 is outside 5 to 20`. */
+export const statProblemText = ({ key, value, min, max }) => `${key} ${value} is outside ${min} to ${max}`;
+
+/**
+ * Stats drawn inside some bounds, each from its inclusive `[min, max]`.
+ *
+ * @param {Readonly<Record<string,[number,number]>>} bounds
+ * @param {() => number} [random=Math.random] - Source in [0, 1).
+ * @returns {Record<string,number>}
+ */
+export function randomStatsWithin(bounds, random = Math.random) {
+  return Object.fromEntries(
+    STAT_TYPES.map((key) => {
+      const value = random();
+      if (!Number.isFinite(value) || value < 0 || value >= 1) throw new RangeError('Random source must return [0, 1).');
+      const [min, max] = bounds[key];
+      return [key, Math.floor(value * (max - min + 1)) + min];
+    }),
+  );
+}
+
 export function generateRandomStats(min = STAT_MODIFIER_MIN, max = STAT_MODIFIER_MAX, random = Math.random) {
   validateStatModifier(min);
   validateStatModifier(max);
   if (min > max) throw new RangeError('Random minimum must not exceed maximum.');
-  return Object.fromEntries(STAT_TYPES.map((key) => {
-    const value = random();
-    if (!Number.isFinite(value) || value < 0 || value >= 1) throw new RangeError('Random source must return [0, 1).');
-    return [key, Math.floor(value * (max - min + 1)) + min];
-  }));
+  return randomStatsWithin(Object.fromEntries(STAT_TYPES.map((key) => [key, [min, max]])), random);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

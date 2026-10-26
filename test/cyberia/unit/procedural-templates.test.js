@@ -2,13 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   compatibilityProblems,
   drawTemplate,
+  placeRegions,
   protectedCells,
+  regionsOf,
   resolveTemplate,
   templateProblems,
 } from '../../../src/projects/cyberia/procedural/templates.js';
+import { analyzeFrame } from '../../../src/projects/cyberia/procedural/core/frame-analysis.js';
 import { SKIN_DEFAULT_PROFILE } from '../../../src/projects/cyberia/procedural/profiles/registry.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
-import { SKIN_TEMPLATE } from '../../support/procedural-content.js';
+import { FLOOR_TEMPLATE, SKIN_TEMPLATE } from '../../support/procedural-content.js';
 
 const TONES = { shadow: '#101010', base: '#808080', highlight: '#f0f0f0' };
 const tiny = (overrides = {}) => ({
@@ -20,26 +23,31 @@ const tiny = (overrides = {}) => ({
   frameDurationMs: 100,
   outline: '#000000',
   legend: { h: 'hair', s: 'skin' },
-  roles: { hair: { regions: ['hair'], tones: TONES }, skin: { regions: ['skin'], tones: TONES, artDirection: true } },
-  directions: { '08': ['.hh.', '.ss.', '....'] },
+  roles: {
+    hair: { regions: ['hair'], palette: 'detail', tones: TONES },
+    skin: { regions: ['skin'], palette: 'primary', tones: TONES, artDirection: true },
+  },
+  directions: { '08': [['.hh.', '.ss.', '....']] },
   ...overrides,
 });
 
 describe('a Genesis Template', () => {
   it('resolves the cells of each region from its region map, and the role of each region', () => {
     const template = resolveTemplate(tiny());
-    expect(template.directions['08']).toEqual({
-      hair: [
-        [1, 0],
-        [2, 0],
-      ],
-      skin: [
-        [1, 1],
-        [2, 1],
-      ],
-    });
+    expect(template.directions['08']).toEqual([
+      {
+        hair: [
+          [1, 0],
+          [2, 0],
+        ],
+        skin: [
+          [1, 1],
+          [2, 1],
+        ],
+      },
+    ]);
     expect(template.regionRoles).toEqual({ hair: 'hair', skin: 'skin' });
-    expect(template.roles.skin).toEqual({ regions: ['skin'], tones: TONES, artDirection: true });
+    expect(template.roles.skin).toEqual({ regions: ['skin'], palette: 'primary', tones: TONES, artDirection: true });
     expect(template.roles.hair.artDirection).toBe(false);
   });
 
@@ -52,48 +60,75 @@ describe('a Genesis Template', () => {
     ['a region in no role', { legend: { h: 'hair', s: 'skin', e: 'head' } }, /head is in no role/],
     [
       'a region in two roles',
-      { roles: { hair: { regions: ['hair', 'skin'], tones: TONES }, skin: { regions: ['skin'], tones: TONES } } },
+      {
+        roles: {
+          hair: { regions: ['hair', 'skin'], palette: 'detail', tones: TONES },
+          skin: { regions: ['skin'], palette: 'primary', tones: TONES },
+        },
+      },
       /skin is in roles hair and skin/,
     ],
     [
       'a role with a missing tone',
-      { roles: { hair: { regions: ['hair', 'skin'], tones: { base: '#808080' } } } },
+      { roles: { hair: { regions: ['hair', 'skin'], palette: 'detail', tones: { base: '#808080' } } } },
       /tones/,
     ],
+    [
+      'a role with no palette role',
+      { roles: { hair: { regions: ['hair', 'skin'], palette: 'hair', tones: TONES } } },
+      /role hair takes no palette role of primary, secondary, detail, feature/,
+    ],
     ['a generator role', { roles: { outline: { regions: ['hair', 'skin'], tones: TONES } } }, /not a template role/],
-    ['a direction code the protocol lacks', { directions: { 99: ['.hh.', '.ss.', '....'] } }, /not a direction code/],
-    ['a row of the wrong length', { directions: { '08': ['.hh', '.ss.', '....'] } }, /3 rows of 4 cells/],
-    ['a letter the legend lacks', { directions: { '08': ['.hx.', '.ss.', '....'] } }, /holds x/],
+    ['a direction code the protocol lacks', { directions: { 99: [['.hh.', '.ss.', '....']] } }, /not a direction code/],
+    ['a direction with no frame', { directions: { '08': [] } }, /direction 08 needs a list of frames/],
+    ['rows in place of frames', { directions: { '08': ['.hh.', '.ss.', '....'] } }, /frame 0 of direction 08 needs/],
+    ['a row of the wrong length', { directions: { '08': [['.hh', '.ss.', '....']] } }, /3 rows of 4 cells/],
+    [
+      'a letter the legend lacks',
+      { directions: { '08': [['.hx.', '.ss.', '....']] } },
+      /frame 0 of direction 08 holds x/,
+    ],
     ['no direction', { directions: {} }, /at least one direction/],
   ])('refuses %s', (_, overrides, message) => {
     expect(() => resolveTemplate(tiny(overrides))).toThrow(message);
   });
 
-  it('fits a profile that ranks its regions and whose required directions it draws', () => {
+  it('takes the frames its author chooses, and refuses only a region the profile does not rank', () => {
+    const frame = ['.hh.', '.ss.', '....'];
+    const step = ['.hh.', '.s..', '....'];
+    const facings = Object.fromEntries(
+      ['08', '02', '04', '06'].flatMap((idle) => [
+        [idle, [frame]],
+        [`1${idle[1]}`, [frame, step]],
+      ]),
+    );
+    expect(templateProblems(resolveTemplate(tiny({ directions: facings })), SKIN_DEFAULT_PROFILE)).toEqual([]);
+    expect(templateProblems(resolveTemplate(tiny()), SKIN_DEFAULT_PROFILE)).toEqual([]);
+    const still = resolveTemplate(tiny({ directions: { ...facings, 18: [frame, frame] } }));
+    expect(templateProblems(still, SKIN_DEFAULT_PROFILE)).toEqual([]);
+    const tail = tiny({
+      directions: facings,
+      legend: { h: 'hair', s: 'tail' },
+      roles: { hair: { regions: ['hair', 'tail'], palette: 'detail', tones: TONES } },
+    });
+    expect(templateProblems(resolveTemplate(tail), SKIN_DEFAULT_PROFILE)).toEqual([
+      'profile skin-default does not rank tail',
+    ]);
+  });
+
+  it('reads a frame past the last one as the last frame the template draws', () => {
     const template = resolveTemplate(tiny());
-    const profile = {
-      ...SKIN_DEFAULT_PROFILE,
-      constraints: { ...SKIN_DEFAULT_PROFILE.constraints, requiredDirections: ['08'] },
-    };
-    expect(templateProblems(template, profile)).toEqual([]);
-    expect(templateProblems(template, SKIN_DEFAULT_PROFILE)).toEqual(['it has no direction 06']);
-    expect(
-      templateProblems(
-        resolveTemplate(
-          tiny({ legend: { h: 'hair', s: 'tail' }, roles: { hair: { regions: ['hair', 'tail'], tones: TONES } } }),
-        ),
-        profile,
-      ),
-    ).toEqual(['profile skin-default does not rank tail']);
+    expect(regionsOf(template, '08', 3)).toBe(template.directions['08'][0]);
+    expect(regionsOf(template, '06', 0)).toBeUndefined();
   });
 
   it('lists the cells of the regions the profile protects', () => {
-    const template = resolveTemplate(tiny());
-    expect(protectedCells(template, { constraints: { protectedRegions: ['hair'] } }, '08')).toEqual([
+    const owned = regionsOf(resolveTemplate(tiny()), '08', 0);
+    expect(protectedCells(owned, { constraints: { protectedRegions: ['hair'] } })).toEqual([
       [1, 0],
       [2, 0],
     ]);
-    expect(protectedCells(template, SKIN_DEFAULT_PROFILE, '06')).toEqual([]);
+    expect(protectedCells(owned, SKIN_DEFAULT_PROFILE)).toEqual([]);
   });
 
   it('draws each region in the base tone of its role inside an outline ring', () => {
@@ -113,19 +148,42 @@ describe('source compatibility', () => {
       framesByCode: Object.fromEntries(codes.map((code) => [code, [frame(width, height)]])),
       frameDurationMs: 100,
     });
-  const fit = { template: resolveTemplate(SKIN_TEMPLATE), profile: SKIN_DEFAULT_PROFILE };
+  const template = resolveTemplate(SKIN_TEMPLATE);
 
-  it('accepts a source of the canvas and the required directions, and an item with no render', () => {
-    expect(compatibilityProblems(fit, sourceOf(25, 25), 'skin')).toEqual([]);
-    expect(compatibilityProblems(fit, null, 'skin')).toEqual([]);
+  it('accepts a render of any canvas and directions, and an item with no render', () => {
+    expect(compatibilityProblems(template, sourceOf(25, 25), 'skin')).toEqual([]);
+    expect(compatibilityProblems(template, sourceOf(26, 26, ['08']), 'skin')).toEqual([]);
+    expect(compatibilityProblems(template, null, 'skin')).toEqual([]);
   });
 
-  it('names the item type, the canvas and the missing direction', () => {
-    expect(compatibilityProblems(fit, sourceOf(24, 25), 'weapon')).toEqual([
-      'its item type is weapon, not skin',
-      'its canvas is 24×25, not 25×25',
-    ]);
-    expect(compatibilityProblems(fit, sourceOf(25, 25, ['08']), 'skin')).toEqual(['it has no frame in direction 06']);
+  it('names the item type and a render with no frame', () => {
+    expect(compatibilityProblems(template, sourceOf(24, 25), 'weapon')).toEqual(['its item type is weapon, not skin']);
+    expect(compatibilityProblems(template, sourceOf(25, 25, []), 'skin')).toEqual(['its render has no frame']);
+  });
+});
+
+describe('the place of template regions on a render', () => {
+  const template = resolveTemplate(SKIN_TEMPLATE);
+  const owned = regionsOf(template, '08', 0);
+  const cells = Object.values(owned).flat();
+
+  it('keeps the regions where a render of the template canvas stands like the template', () => {
+    expect(placeRegions(owned, analyzeFrame(drawTemplate(template, '08')))).toBe(owned);
+  });
+
+  it('moves the regions onto the interior of a larger render: bottom on bottom, centre on centre', () => {
+    const wide = drawTemplate(template, '08').map((row) => [[0, 0, 0, 0], ...row]);
+    wide.unshift(wide[0].map(() => [0, 0, 0, 0]));
+    const placed = placeRegions(owned, analyzeFrame(wide));
+    const moved = Object.values(placed).flat();
+    expect(moved).toHaveLength(cells.length);
+    expect(moved).toEqual(cells.map(([x, y]) => [x + 1, y + 1]));
+  });
+});
+
+describe('the terrain Genesis Template', () => {
+  it('draws one static frame facing down', () => {
+    expect(resolveTemplate(FLOOR_TEMPLATE).directions).toEqual({ '08': [expect.any(Object)] });
   });
 });
 
@@ -137,14 +195,46 @@ describe('the humanoid Genesis Template', () => {
   });
 
   it('gives every canvas cell at most one region, and keeps the head above the torso', () => {
-    for (const code of Object.keys(template.directions)) {
-      const keys = Object.values(template.directions[code])
-        .flat()
-        .map(([x, y]) => `${x},${y}`);
-      expect(new Set(keys).size).toBe(keys.length);
+    for (const frames of Object.values(template.directions))
+      for (const owned of frames) {
+        const keys = Object.values(owned)
+          .flat()
+          .map(([x, y]) => `${x},${y}`);
+        expect(new Set(keys).size).toBe(keys.length);
+        expect(Math.max(...owned.head.map(([, y]) => y))).toBeLessThan(Math.min(...owned.torso.map(([, y]) => y)));
+      }
+  });
+
+  it('shows the back of the head with no face, and the left side as the mirror of the right', () => {
+    const [back] = template.directions['02'];
+    for (let y = 4; y < 13; y++) {
+      const xs = [...back.hair, ...back.head].filter(([, row]) => row === y).map(([x]) => x);
+      expect(xs.length).toBe(Math.max(...xs) - Math.min(...xs) + 1);
     }
-    const owned = template.directions['08'];
-    expect(Math.max(...owned.head.map(([, y]) => y))).toBeLessThan(Math.min(...owned.torso.map(([, y]) => y)));
+    const mirror = ([x, y]) => [template.canvas.width - 1 - x, y];
+    const [left] = template.directions['04'];
+    const [right] = template.directions['06'];
+    for (const region of Object.keys(right)) expect([...left[region]].sort()).toEqual(right[region].map(mirror).sort());
+  });
+
+  it('walks by lifting one foot, then the other, with the body still', () => {
+    for (const [walk, idle] of [
+      ['18', '08'],
+      ['12', '02'],
+      ['14', '04'],
+      ['16', '06'],
+    ]) {
+      const [stand] = template.directions[idle];
+      const [left, right] = template.directions[walk];
+      for (const region of ['hair', 'head', 'skin', 'torso']) {
+        expect(left[region]).toEqual(stand[region]);
+        expect(right[region]).toEqual(stand[region]);
+      }
+      expect(left.leftLeg.length).toBeLessThan(stand.leftLeg.length);
+      expect(left.rightLeg).toEqual(stand.rightLeg);
+      expect(right.rightLeg.length).toBeLessThan(stand.rightLeg.length);
+      expect(right.leftLeg).toEqual(stand.leftLeg);
+    }
   });
 
   it('lets the art direction color the body and gives both legs one role', () => {

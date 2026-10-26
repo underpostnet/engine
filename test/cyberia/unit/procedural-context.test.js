@@ -85,7 +85,8 @@ describe('the source of a new item', () => {
 
 describe('the procedural context', () => {
   it('resolves a source with a render: its identity, its directions, its art direction, the template and the profile', () => {
-    const context = resolveProceduralContext({ source: skinSource(template), template, profile, artDirection: ART });
+    const source = skinSource(template, { codes: ['08', '18', '06'] });
+    const context = resolveProceduralContext({ source, template, profile, artDirection: ART });
     expect(context.source).toMatchObject({ itemId: 'base-skin', itemType: 'skin', activable: true });
     expect(context.source.renderSource).not.toBeNull();
     expect(context.directions).toEqual(['08', '18', '06']);
@@ -98,7 +99,7 @@ describe('the procedural context', () => {
   it('resolves a source with no render to the directions of the template', () => {
     const context = resolveProceduralContext({ source: bareSkin(template), template, profile });
     expect(context.source.renderSource).toBeNull();
-    expect(context.directions).toEqual(['06', '08']);
+    expect(context.directions).toEqual(['08', '18', '02', '12', '04', '14', '06', '16']);
     expect(context.artDirection).toBeNull();
   });
 
@@ -109,7 +110,7 @@ describe('the procedural context', () => {
       profile,
     });
     expect(context.source).toMatchObject({ cid: '', itemType: 'skin', description: '' });
-    expect(context.directions).toEqual(['06', '08']);
+    expect(context.directions).toEqual(['08', '18', '02', '12', '04', '14', '06', '16']);
   });
 
   it('refuses an item that does not fit the template, and a template that does not fit the profile', () => {
@@ -118,9 +119,9 @@ describe('the procedural context', () => {
       data: { ...bareSkin(template).data, item: { ...bareSkin(template).data.item, type: 'weapon' } },
     };
     expect(() => resolveProceduralContext({ source: weapon, template, profile })).toThrow(/item type is weapon/);
-    expect(() =>
-      resolveProceduralContext({ source: skinSource(template, { codes: ['06'] }), template, profile }),
-    ).toThrow(/direction 08/);
+    expect(() => resolveProceduralContext({ source: skinSource(template, { codes: [] }), template, profile })).toThrow(
+      /its render has no frame/,
+    );
     const unranked = { ...profile, regionOrder: profile.regionOrder.filter((region) => region !== 'hair') };
     expect(() => resolveProceduralContext({ source: bareSkin(template), template, profile: unranked })).toThrow(
       /does not rank hair/,

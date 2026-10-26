@@ -43,12 +43,14 @@ const {
   planMaterialization,
   planObjectLayer,
   readBackupContent,
+  refreshWorkspaceArtifact,
   serveContentArtifact,
   servedContentArtifact,
   storeContentArtifact,
 } = await import('../../../src/projects/cyberia/content/content-artifact.js');
 const { resolveTemplate, templateProblems } = await import('../../../src/projects/cyberia/procedural/templates.js');
-const { validatePaletteTemplate } = await import('../../../src/projects/cyberia/procedural/palettes/catalog.js');
+const { validatePalette } = await import('../../../src/projects/cyberia/procedural/palettes/catalog.js');
+const { paletteRoles } = await import('../../../src/projects/cyberia/procedural/palettes/resolver.js');
 const { DEFAULT_PROFILES } = await import('../../../src/projects/cyberia/procedural/profiles/registry.js');
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -321,6 +323,36 @@ describe('the content artifact a release database holds', () => {
   });
 });
 
+describe('the artifact on disk a running process holds', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('keeps its copy until a rebuild names another content digest, then opens the new artifact', () => {
+    const root = writeArtifact(RELEASE_FILES);
+    const dist = path.join(root, 'dist');
+    vi.stubEnv('CYBERIA_CONTENT_ROOT', root);
+    refreshWorkspaceArtifact();
+    const opened = contentArtifact();
+    expect(refreshWorkspaceArtifact()).toBe(false);
+    expect(contentArtifact()).toBe(opened);
+
+    // A build removes dist/ first and writes the manifest last.
+    fs.removeSync(dist);
+    expect(refreshWorkspaceArtifact()).toBe(false);
+    expect(contentArtifact()).toBe(opened);
+    fs.copySync(
+      path.join(writeArtifact({ ...RELEASE_FILES, 'foundation/item-baseline.json': { skin: 'anon' } }), 'dist'),
+      dist,
+    );
+    expect(refreshWorkspaceArtifact()).toBe(true);
+    expect(contentArtifact().itemBaseline).toEqual({ skin: 'anon' });
+
+    const altered = { ...contentArtifact().manifest, contentDigest: `sha256:${'0'.repeat(64)}` };
+    fs.outputJsonSync(path.join(dist, 'manifest.json'), altered);
+    expect(refreshWorkspaceArtifact()).toBe(true);
+    expect(() => contentArtifact()).toThrow('Content digest mismatch: the file list does not match contentDigest');
+  });
+});
+
 describe('content roots', () => {
   afterEach(() => vi.unstubAllEnvs());
 
@@ -380,7 +412,19 @@ describe.skipIf(!hasContentArtifact())('the workspace content artifact', () => {
       expect(byItemId.get(itemBaseline[template.itemType]).payload.data.item.type).toBe(template.itemType);
     }
     for (const palette of procedural.palettes)
-      expect(() => validatePaletteTemplate(palette, procedural.families), palette.id).not.toThrow();
+      expect(() => validatePalette(palette, procedural.families), palette.id).not.toThrow();
+  });
+
+  it('colors the roles of every template from every palette of the library', () => {
+    const { procedural } = contentArtifact();
+    for (const template of procedural.templates.map(resolveTemplate))
+      for (const palette of procedural.palettes) {
+        const roles = paletteRoles(template, palette);
+        const primary = Object.keys(template.roles).filter((role) => template.roles[role].palette === 'primary');
+        expect(primary.length, template.id).toBeGreaterThan(0);
+        for (const role of [...primary, 'outline'])
+          expect(roles[role], `${palette.id} on ${template.id}`).toMatch(/^#[0-9a-f]{6}$/);
+      }
   });
 
   it('opens once, of a supported schema, with every foundation family and its baseline frozen', () => {

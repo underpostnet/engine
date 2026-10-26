@@ -1,7 +1,7 @@
 /**
  * What the Cyberia Studio adds to the Object Layer editor and viewer: the foundation context of
- * the item, the pixel templates, the saga column, the review of a Procedural Engine candidate and
- * the runtime binding of the item. The context arrives as a panel the generic editor and viewer
+ * the item, the pixel templates, the palette editor of a frame import, the saga column, the review of a
+ * Procedural Engine candidate and the runtime binding of the item. The context arrives as a panel the generic editor and viewer
  * render without knowing Cyberia; a review arrives as a title, a way back and a key the editor
  * sends with its save; a binding arrives as a state and the one action that moves it.
  *
@@ -10,12 +10,17 @@
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
 import { CyberiaProceduralJobItemService } from '../../services/cyberia-procedural-job-item/cyberia-procedural-job-item.service.js';
+import { CyberiaProceduralPopulationService } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
+import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { CyberiaObjectLayerTemplates } from './ObjectLayerTemplatesCyberia.js';
 import { itemContextPanel } from './FoundationContextCyberia.js';
 import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
+import { ProceduralPalette } from './ProceduralPaletteCyberia.js';
 import { sagaColumn } from './SagaCyberia.js';
+import { authoringOf } from './SharedDefaultsCyberia.js';
 
 const shortCid = (cid) => `${cid.slice(0, 9)}…${cid.slice(-5)}`;
 
@@ -31,22 +36,70 @@ export const CyberiaObjectLayerStudio = Object.freeze({
     const { status, data } = await ObjectLayerService.getContext({ id: key });
     return status === 'success' && data ? itemContextPanel(data) : null;
   },
+  /**
+   * The palette editor of a frame import, in `container`: the slots of the Procedural Engine, from
+   * the foundation palettes of the item, or any palette of the library, each slot set over it.
+   * @param {HTMLElement} container
+   * @param {{itemId: () => string}} item - The item id the frames go to, read at each load.
+   * @returns {Promise<{request: () => Object, reload: () => void}|null>} The palette of the import
+   *   request; null where the server configuration does not load.
+   */
+  async importPalette(container, { itemId }) {
+    const { status, data } = await CyberiaProceduralProfileService.getConfig();
+    if (status !== 'success') return null;
+    ProceduralPalette.configure(data);
+    const entry = ProceduralPalette.editor(container, {
+      key: 'object-layer-import',
+      title: 'Palette of the mutation',
+      random: false,
+      read: (paletteId) => CyberiaProceduralProfileService.getImportPalette({ itemId: itemId(), paletteId }),
+      describe: (template, palettes) =>
+        palettes.length > 0
+          ? `Foundation palettes of the item: ${palettes.map(({ name }) => name).join(', ')}`
+          : 'The item has no foundation palette: the first palette of the library is the default',
+    });
+    return { request: () => ProceduralPalette.choice(entry), reload: () => ProceduralPalette.load(entry) };
+  },
   review: Object.freeze({
     /**
-     * The review a Procedural Engine item opens, or null where the key names none.
-     * @param {string} key - Id of the job item.
+     * The Procedural Engine work a key names, or null where it names none: an authoring key, a Map
+     * Population item a moderator authors by hand; else the id of a job item, a candidate under review.
+     * Each comes with a title, a detail and the label of its way back; an authored item also with its
+     * id and item type, which a blank editor starts from.
+     * @param {string} key
      */
     async resolve(key) {
+      const authoring = authoringOf(key);
+      if (authoring) {
+        const { status, data } = await CyberiaProceduralPopulationService.get({ id: authoring.populationId });
+        const target = status === 'success' ? data.targets.find(({ itemId }) => itemId === authoring.itemId) : null;
+        if (!target) return null;
+        return {
+          ...authoring,
+          item: { id: target.itemId, type: target.itemType },
+          title: `Procedural Engine · ${target.itemId} · authored by hand`,
+          back: 'Back to the Procedural Engine',
+          detail: `A ${target.itemType} item of map ${data.mapCode}. A save stores a draft definition the item uses; the population publishes it. Nothing runs before then.`,
+        };
+      }
       const { status, data } = await CyberiaProceduralJobItemService.get({ id: key });
       if (status !== 'success' || !data) return null;
+      const job = await CyberiaProceduralJobService.get({ id: String(data.jobId) });
+      const populationId = job.status === 'success' && job.data.populationId ? String(job.data.populationId) : '';
       return {
         jobId: String(data.jobId),
-        title: `Reviewing ${data.targetItemId} · revision ${data.revision}`,
-        detail: `${data.sourceCid ? 'Update of an existing item' : 'Proposed new item'} · generation ${data.lineage.generationRunId} · seed ${data.seed}. A save stores a new revision for review; nothing is promoted.`,
+        populationId,
+        itemId: data.targetItemId,
+        title: `${populationId ? 'Procedural Engine · ' : ''}${data.targetItemId} · revision ${data.revision}`,
+        back: populationId ? 'Back to the Procedural Engine' : 'Back to review',
+        detail: `${data.sourceCid ? 'Update of an existing item' : 'Proposed new item'} · generation ${data.lineage.generationRunId} · seed ${data.seed}. A save stores a new revision for review; nothing is published.`,
       };
     },
-    /** Returns to the Procedural Engine on the job of a review. */
-    close: ({ jobId }) => ProceduralEngineCyberia.open({ jobId }),
+    /** Returns to the Procedural Engine: on the item of a Map Population, else on the job of the review. */
+    close: ({ jobId, populationId, itemId }) =>
+      populationId
+        ? ProceduralEngineCyberia.open({ populationId, step: 'items', itemId })
+        : ProceduralEngineCyberia.open({ jobId }),
   }),
   binding: Object.freeze({
     /**

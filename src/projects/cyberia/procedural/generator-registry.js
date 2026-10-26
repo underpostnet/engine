@@ -1,27 +1,50 @@
 /**
  * The generator registry of the Procedural Engine. A generator declares its id, the item type it
  * makes, the modes it supports, its default profile and its implementation: `parameters` checks the
- * parameters of a run, `prepare` analyzes a source once for a batch, `generate` makes one variant.
+ * parameters of a run, `prepare` analyzes a source once for a batch, `generate` makes one variant,
+ * and `renderProblems`, where a generator has one, checks any revision of its item type, an edit too.
  * A new item type is a new entry; the jobs, the worker and the review flow do not change.
  *
  * @module src/projects/cyberia/procedural/generator-registry.js
  * @namespace CyberiaProceduralGenerators
  */
-import { generateSkinVariant, prepareSkinBatch, skinParameters } from './generators/skin/generator.js';
+import { floorParameters, floorRenderProblems, generateFloorTile, prepareFloorBatch } from './generators/floor/generator.js';
+import { generateSpriteVariant, prepareSpriteBatch, spriteParameters } from './generators/sprite/generator.js';
+
+const sprite = Object.freeze({
+  modes: Object.freeze(['update-existing', 'create-new']),
+  parameters: spriteParameters,
+  prepare: prepareSpriteBatch,
+  generate: generateSpriteVariant,
+});
 
 /**
  * The generators a job may name: id → the registry entry.
  * @memberof CyberiaProceduralGenerators
  */
 export const GENERATORS = Object.freeze({
-  'skin-variant': Object.freeze({
-    id: 'skin-variant',
-    itemType: 'skin',
+  'skin-variant': Object.freeze({ ...sprite, id: 'skin-variant', itemType: 'skin', defaultProfile: 'skin-default' }),
+  'portal-variant': Object.freeze({
+    ...sprite,
+    id: 'portal-variant',
+    itemType: 'portal',
+    defaultProfile: 'portal-default',
+  }),
+  'obstacle-variant': Object.freeze({
+    ...sprite,
+    id: 'obstacle-variant',
+    itemType: 'obstacle',
+    defaultProfile: 'obstacle-default',
+  }),
+  'floor-tile': Object.freeze({
+    id: 'floor-tile',
+    itemType: 'floor',
     modes: Object.freeze(['update-existing', 'create-new']),
-    defaultProfile: 'skin-default',
-    parameters: skinParameters,
-    prepare: prepareSkinBatch,
-    generate: generateSkinVariant,
+    defaultProfile: 'floor-default',
+    parameters: floorParameters,
+    prepare: prepareFloorBatch,
+    generate: generateFloorTile,
+    renderProblems: floorRenderProblems,
   }),
 });
 

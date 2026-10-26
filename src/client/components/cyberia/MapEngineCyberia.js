@@ -15,6 +15,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import {
   ENTITY_TYPES,
@@ -31,7 +32,10 @@ import { EditorDraftStore } from '../core/EditorDraftStore.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { Tabs } from '../core/Tabs.js';
 import { MapStudioCyberia } from './MapStudioCyberia.js';
+import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
+import { CyberiaProceduralPopulationService } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
 import { MapAudioCyberia } from './MapAudioCyberia.js';
+import { animationPace, drawEntities, mapMediaLabel } from './MapPlacementCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -49,6 +53,9 @@ const createDropdownOption = (value, onClick = () => {}, display = value, data =
   onClick,
 });
 
+/** The text color of each tone of the map media state. */
+const MEDIA_TONE_COLORS = Object.freeze({ good: '#6c6', pending: '#c90', bad: '#d66', muted: '#888' });
+
 class MapEngineCyberia {
   static entities = [];
   // The entity the form adds, under the pointer: `{ col, row, dimX, dimY, color }`, or null.
@@ -58,6 +65,21 @@ class MapEngineCyberia {
   static currentThumbnailId = null;
   static thumbnailDirty = false;
   static currentPreviewId = null;
+  // The media of the stored map: the state of the preview the server draws for a revision.
+  static currentMedia = null;
+  // The custom thumbnail chosen and not saved yet, as an object URL.
+  static pendingThumbnailUrl = null;
+  // The picture of the map the editor holds, while no stored preview shows its revision: an object
+  // URL, `empty` when it draws nothing, or null before its first draw.
+  static draftPreview = null;
+  // The newest draft draw: an older answer never replaces a newer one.
+  static draftRequest = 0;
+  static draftTimer = null;
+  static mediaTimer = null;
+  // The grid sides the editor holds: `{ gridX, gridY }`.
+  static draftGrid = null;
+  /** The most reads of a pending preview before the Studio stops following it. */
+  static MEDIA_READS = 40;
   static loadMap = null;
   static crud = null;
   static showGridBorders = true;
@@ -65,11 +87,16 @@ class MapEngineCyberia {
   static removeOnClick = false;
   static showObjectLayers = false;
   static enableRandomFactors = false;
-  static captureObjLayerThumbnail = true;
   // One named command per finished edit of the entities.
   static history = new CommandHistory({ limit: 200 });
   // The revision of the stored map the editor loaded; a save names it.
   static currentRevision = null;
+  /** The map population whose draft the editor composes: `{ id, mapCode, revision, baseRevision, previewKeys, missing, items }`; null on the live map. */
+  static population = null;
+  /** The binding each item id of the live map runs, `{ cid, hasRender }`, or null for an unbound one. */
+  static bindings = new Map();
+  /** The next frame of an animated canvas. */
+  static frameTimer = null;
   // Called after each command, undo and redo: the editor keeps its draft there.
   static onCommand = () => {};
   static entityHistorySync = null;
@@ -188,11 +215,13 @@ class MapEngineCyberia {
       containerClass: 'inl',
       excludeSelected: true,
       serviceProvider: async (q) => {
+        const drafted = (MapEngineCyberia.population?.items ?? [])
+          .filter(({ itemId }) => itemId.includes(q))
+          .map(({ itemId }) => createDropdownOption(itemId));
         const result = await ObjectLayerService.searchItemIds({ q });
-        if (result.status === 'success' && result.data?.items) {
-          return result.data.items.map(({ id }) => createDropdownOption(id));
-        }
-        return [];
+        if (result.status === 'success' && result.data?.items)
+          return [...drafted, ...result.data.items.map(({ id }) => createDropdownOption(id))];
+        return drafted;
       },
     });
   }
@@ -341,14 +370,50 @@ class MapEngineCyberia {
     MapEngineCyberia.entityHistorySync = callback;
   }
 
-  static preloadEntityObjectLayers(onLoad = null) {
-    AtlasSpriteSheetService.preloadIdlePreviews(
-      MapEngineCyberia.entities.flatMap((entity) => entity.objectLayerItemIds || []),
-      onLoad,
-    );
+  /**
+   * The CID that draws an item: the one a population draft would publish it with, else its binding
+   * when it has a render; null when nothing draws it, undefined while the binding loads.
+   */
+  static cidOf = (itemId) => {
+    if (MapEngineCyberia.population) return MapEngineCyberia.population.previewKeys[itemId] ?? null;
+    const binding = MapEngineCyberia.bindings.get(itemId);
+    return binding === undefined ? undefined : binding?.hasRender ? binding.cid : null;
+  };
+
+  /** Why nothing draws an item: the reason of the population draft, else its binding. */
+  static missingOf = (itemId) => {
+    if (MapEngineCyberia.population)
+      return MapEngineCyberia.population.missing.find((entry) => entry.itemId === itemId)?.reason ?? 'No artwork';
+    return MapEngineCyberia.bindings.get(itemId)
+      ? `${itemId} runs a definition with no render`
+      : `No definition is bound to ${itemId}`;
+  };
+
+  /** The sprite of an item, or why it has none; undefined while it loads. */
+  static spriteOf = (itemId) => {
+    const cid = MapEngineCyberia.cidOf(itemId);
+    if (cid === undefined) return undefined;
+    if (cid === null) return { missing: MapEngineCyberia.missingOf(itemId) };
+    return AtlasSpriteSheetService.sprite(cid);
+  };
+
+  /** Reads the binding of each item of the live map it does not know, then the sprite of each item. */
+  static async preloadEntityObjectLayers(onLoad = null) {
+    const itemIds = [...new Set(MapEngineCyberia.entities.flatMap((entity) => entity.objectLayerItemIds || []))];
+    const unknown = MapEngineCyberia.population
+      ? []
+      : itemIds.filter((itemId) => !MapEngineCyberia.bindings.has(itemId));
+    if (unknown.length > 0) {
+      const response = await CyberiaItemCatalogService.resolve({ itemIds: unknown });
+      for (const itemId of unknown)
+        MapEngineCyberia.bindings.set(itemId, response.status === 'success' ? response.data[itemId] : null);
+      onLoad?.();
+    }
+    await AtlasSpriteSheetService.preloadSprites(itemIds.map(MapEngineCyberia.cidOf).filter(Boolean), onLoad);
   }
 
   static refreshEntityEditor() {
+    MapEngineCyberia.scheduleDraftPreview();
     const callback = MapEngineCyberia.entityHistorySync;
     if (typeof callback !== 'function') return;
     MapEngineCyberia.preloadEntityObjectLayers(callback);
@@ -479,24 +544,13 @@ class MapEngineCyberia {
     const ctx = canvas.getContext('2d');
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw entities
-    for (const entity of MapEngineCyberia.entities) {
-      const x = entity.initCellX * cellW;
-      const y = entity.initCellY * cellH;
-      const w = entity.dimX * cellW;
-      const h = entity.dimY * cellH;
-
-      if (MapEngineCyberia.showObjectLayers && entity.objectLayerItemIds?.length) {
-        for (const itemId of entity.objectLayerItemIds) {
-          const img = AtlasSpriteSheetService.idlePreviewImage(itemId);
-          if (img) ctx.drawImage(img, x, y, w, h);
-        }
-      } else {
-        ctx.fillStyle = entity.color;
-        ctx.fillRect(x, y, w, h);
-      }
-    }
+    drawEntities(ctx, MapEngineCyberia.entities, {
+      cellW,
+      cellH,
+      objectLayers: MapEngineCyberia.showObjectLayers,
+      spriteOf: MapEngineCyberia.spriteOf,
+      now: performance.now(),
+    });
 
     // Draw grid lines on top
     if (showGrid) {
@@ -524,6 +578,15 @@ class MapEngineCyberia {
       ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
       ctx.restore();
     }
+
+    clearTimeout(MapEngineCyberia.frameTimer);
+    const pace =
+      MapEngineCyberia.showObjectLayers && animationPace(MapEngineCyberia.entities, MapEngineCyberia.spriteOf);
+    if (pace)
+      MapEngineCyberia.frameTimer = setTimeout(() => {
+        if (canvas.isConnected && canvas.offsetParent)
+          MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH, showGrid);
+      }, pace);
   }
 
   static renderToOffscreenCanvas(cols, rows, cellW, cellH, { forceObjectLayers = false } = {}) {
@@ -532,23 +595,12 @@ class MapEngineCyberia {
     offscreen.height = rows * cellH;
     const ctx = offscreen.getContext('2d');
     ctx.clearRect(0, 0, offscreen.width, offscreen.height);
-    const useObjectLayers = forceObjectLayers || MapEngineCyberia.showObjectLayers;
-    for (const entity of MapEngineCyberia.entities) {
-      const x = entity.initCellX * cellW;
-      const y = entity.initCellY * cellH;
-      const w = entity.dimX * cellW;
-      const h = entity.dimY * cellH;
-
-      if (useObjectLayers && entity.objectLayerItemIds?.length) {
-        for (const itemId of entity.objectLayerItemIds) {
-          const img = AtlasSpriteSheetService.idlePreviewImage(itemId);
-          if (img) ctx.drawImage(img, x, y, w, h);
-        }
-      } else {
-        ctx.fillStyle = entity.color;
-        ctx.fillRect(x, y, w, h);
-      }
-    }
+    drawEntities(ctx, MapEngineCyberia.entities, {
+      cellW,
+      cellH,
+      objectLayers: forceObjectLayers || MapEngineCyberia.showObjectLayers,
+      spriteOf: MapEngineCyberia.spriteOf,
+    });
     return offscreen;
   }
 
@@ -704,6 +756,90 @@ class MapEngineCyberia {
     });
   }
 
+  /** Whether the stored preview shows the revision the map is at. */
+  static storedPreviewReady() {
+    const { currentMapId, currentMedia, currentRevision } = MapEngineCyberia;
+    return Boolean(currentMapId && currentMedia?.status === 'ready' && currentMedia.revision === currentRevision);
+  }
+
+  /**
+   * The thumbnail the map shows, its custom image or else its preview, and the state of that preview.
+   * Until a stored preview shows the revision, the picture of the map the editor holds stands in.
+   */
+  static renderMedia() {
+    const panel = s('.map-engine-media');
+    if (!panel) return;
+    const { currentThumbnailId, pendingThumbnailUrl, currentPreviewId, currentMedia, currentRevision, currentMapId } =
+      MapEngineCyberia;
+    const blob = (ref) => getApiBaseUrl({ id: typeof ref === 'object' ? ref._id : ref, endpoint: 'file/blob' });
+    const custom = pendingThumbnailUrl ?? (currentThumbnailId ? blob(currentThumbnailId) : null);
+    const media = mapMediaLabel(currentMedia, currentRevision);
+    const stored = MapEngineCyberia.storedPreviewReady();
+    const { draftPreview } = MapEngineCyberia;
+    const figure = (src, caption) =>
+      html`<figure class="map-engine-media-figure">
+        <img src="${src}" alt="${caption}" onerror="this.style.display='none';" />
+        <figcaption>${caption}</figcaption>
+      </figure>`;
+    const picture = stored
+      ? currentPreviewId
+        ? figure(blob(currentPreviewId), custom ? 'Map preview' : 'Thumbnail · map preview')
+        : html`<div class="map-engine-media-empty">Empty map: place entities to draw its preview.</div>`
+      : draftPreview === 'empty'
+        ? html`<div class="map-engine-media-empty">Empty map: place entities to draw its preview.</div>`
+        : draftPreview
+          ? figure(draftPreview, 'Draft preview · not stored')
+          : html`<div class="map-engine-media-empty">Drawing the draft preview…</div>`;
+    panel.innerHTML = html`<div class="map-engine-media-figures">
+        ${custom ? figure(custom, 'Thumbnail · custom image') : ''} ${picture}
+      </div>
+      <div class="in" role="status" style="font-size:12px;margin:4px 0;color:${MEDIA_TONE_COLORS[media.tone]};">
+        ${currentMapId ? media.text : 'Not saved: the preview shows the draft. A save stores the map and draws it.'}
+      </div>`;
+    const retry = s('.btn-map-engine-media-retry');
+    if (retry) retry.hidden = !(currentMapId && media.retry && !MapEngineCyberia.population);
+  }
+
+  /** Draws the map the editor holds again, a moment after its last change, while the media panel shows and no stored preview shows its revision. */
+  static scheduleDraftPreview() {
+    clearTimeout(MapEngineCyberia.draftTimer);
+    const panel = s('.map-engine-media');
+    if (!panel?.offsetParent || MapEngineCyberia.population || MapEngineCyberia.storedPreviewReady()) return;
+    MapEngineCyberia.draftTimer = setTimeout(() => MapEngineCyberia.drawDraftPreview(), 400);
+  }
+
+  static async drawDraftPreview() {
+    const request = ++MapEngineCyberia.draftRequest;
+    let picture;
+    try {
+      picture = await CyberiaMapService.draftPreview({
+        body: { ...MapEngineCyberia.draftGrid(), entities: MapEngineCyberia.entities },
+      });
+    } catch {
+      return;
+    }
+    if (request !== MapEngineCyberia.draftRequest) return;
+    if (MapEngineCyberia.draftPreview?.startsWith('blob:')) URL.revokeObjectURL(MapEngineCyberia.draftPreview);
+    MapEngineCyberia.draftPreview = picture ? URL.createObjectURL(picture) : 'empty';
+    MapEngineCyberia.renderMedia();
+  }
+
+  /** Reads the media of a saved map again while its preview is pending, then shows the stored preview. */
+  static followMedia(reads = 0) {
+    clearTimeout(MapEngineCyberia.mediaTimer);
+    const { currentMapId: id, currentMedia, currentRevision } = MapEngineCyberia;
+    const pending = !currentMedia || currentMedia.revision !== currentRevision || currentMedia.status === 'pending';
+    if (!id || !pending || reads >= MapEngineCyberia.MEDIA_READS) return;
+    MapEngineCyberia.mediaTimer = setTimeout(async () => {
+      const response = await CyberiaMapService.readMedia({ id });
+      if (response.status !== 'success' || id !== MapEngineCyberia.currentMapId) return;
+      MapEngineCyberia.currentMedia = response.data.media;
+      MapEngineCyberia.currentPreviewId = response.data.preview;
+      MapEngineCyberia.renderMedia();
+      MapEngineCyberia.followMedia(reads + 1);
+    }, 1500);
+  }
+
   static async render(options = {}) {
     const { appStore } = options;
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
@@ -752,6 +888,7 @@ class MapEngineCyberia {
     MapEngineCyberia.currentMapCode = null;
     MapEngineCyberia.currentThumbnailId = null;
     MapEngineCyberia.currentPreviewId = null;
+    MapEngineCyberia.currentMedia = null;
 
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -817,6 +954,7 @@ class MapEngineCyberia {
       if (!canvas) return;
       const { cols, rows, cellW, cellH } = getCanvasParams();
       MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH, MapEngineCyberia.showGridBorders);
+      MapEngineCyberia.scheduleDraftPreview();
     };
 
     // The size and color of the entity the form adds.
@@ -1025,12 +1163,15 @@ class MapEngineCyberia {
         worldX: worldCell(idWorldX),
         worldY: worldCell(idWorldY),
       };
-      if (MapEngineCyberia.currentThumbnailId) payload.thumbnail = MapEngineCyberia.currentThumbnailId;
+      payload.thumbnail = MapEngineCyberia.currentThumbnailId ?? null;
       return payload;
     };
 
-    // Unsaved work stays in this browser until a save, one draft per map code.
-    const draftKey = () => `cyberia-map:${MapEngineCyberia.currentMapCode || 'new'}`;
+    // Unsaved work stays in this browser until a save, one draft per map code or population.
+    const draftKey = () =>
+      MapEngineCyberia.population
+        ? `cyberia-map-population:${MapEngineCyberia.population.id}`
+        : `cyberia-map:${MapEngineCyberia.currentMapCode || 'new'}`;
     let draft = EditorDraftStore.debounced(draftKey());
     const followDraft = () => {
       draft.cancel();
@@ -1042,46 +1183,42 @@ class MapEngineCyberia {
       await EditorDraftStore.remove(draftKey());
     };
 
-    // Render the current auto-captured Instance Map preview image (or an
-    // empty-state hint) into the Instance Map Preview section.
-    const renderPreviewImage = () => {
-      const el = s('.map-engine-preview-image');
-      if (!el) return;
-      const rawId = MapEngineCyberia.currentPreviewId;
-      const previewId = rawId && typeof rawId === 'object' ? rawId._id : rawId;
-      el.innerHTML = previewId
-        ? html`<img
-            src="${getApiBaseUrl({ id: previewId, endpoint: 'file/blob' })}"
-            class="in"
-            style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
-            onerror="this.style.display='none';"
-          />`
-        : html`<span style="color:#888;font-size:12px;">No preview captured yet — save the map to generate it.</span>`;
+    // The stored media and preview of a map write answer; a pending preview is followed until it is stored.
+    const takeMedia = (map) => {
+      MapEngineCyberia.currentPreviewId = map?.preview ?? null;
+      MapEngineCyberia.currentMedia = map?.media ?? null;
+      MapEngineCyberia.renderMedia();
+      MapEngineCyberia.followMedia();
+      MapEngineCyberia.scheduleDraftPreview();
     };
 
-    // Capture the Object Layer canvas render and upload it as a File.
-    // Returns the uploaded file id, or null when capture/upload failed.
-    const captureObjectLayerUpload = async (filename) => {
+    // A population draft saves its placements to the population; the live map does not change.
+    const savePopulationDraft = async () => {
+      const { population } = MapEngineCyberia;
       const { cols, rows, cellW, cellH } = getCanvasParams();
-      const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
-        forceObjectLayers: true,
+      const result = await CyberiaProceduralPopulationService.saveDraft({
+        id: population.id,
+        body: {
+          grid: { gridX: cols, gridY: rows, cellWidth: cellW, cellHeight: cellH },
+          entities: MapEngineCyberia.entities,
+          revision: population.revision,
+          baseRevision: population.baseRevision,
+        },
       });
-      const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
-      if (!blob) return null;
-      const file = new File([blob], filename, { type: 'image/png' });
-      const formData = new FormData();
-      formData.append('file', file);
-      const uploadResult = await FileService.post({ body: formData });
-      if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
-        return uploadResult.data[0]._id;
-      }
-      return null;
+      if (result.status !== 'success') return NotificationManager.Push({ html: result.message, status: 'error' });
+      Object.assign(population, { revision: result.data.revision, baseRevision: result.data.baseRevision });
+      await dropDraft();
+      await readPopulationKeys();
+      paintPopulation();
+      NotificationManager.Push({
+        html: `Draft revision ${result.data.revision} saved. The live map does not change until you publish.`,
+        status: 'success',
+      });
     };
 
     const saveMap = async () => {
-      // Thumbnail: a user-selected custom image always wins; the Object
-      // Layer canvas capture is the checkbox-gated fallback when no custom
-      // image was set.
+      if (MapEngineCyberia.population) return await savePopulationDraft();
+      // A custom thumbnail uploads with the save; without one, the preview is the thumbnail.
       const thumbnailInput = s(`.${idThumbnail}`);
       const hasCustomThumbnail =
         MapEngineCyberia.thumbnailDirty && thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0;
@@ -1098,19 +1235,9 @@ class MapEngineCyberia {
           });
           return;
         }
-      } else if (MapEngineCyberia.captureObjLayerThumbnail) {
-        const thumbId = await captureObjectLayerUpload('map-thumbnail.png');
-        if (thumbId) MapEngineCyberia.currentThumbnailId = thumbId;
       }
 
-      // Preview is always a fresh automatic Object Layer capture — the node
-      // background for the client's Instance Map. Independent of the
-      // thumbnail checkbox and never user-managed.
-      const previewId = await captureObjectLayerUpload('map-preview.png');
-      if (previewId) MapEngineCyberia.currentPreviewId = previewId;
-
       const body = getMapPayload();
-      if (previewId) body.preview = previewId;
       if (MapEngineCyberia.currentMapId) body.revision = MapEngineCyberia.currentRevision;
       const result = await EditorCrud.save(CyberiaMapService, { id: MapEngineCyberia.currentMapId, body });
       if (result.status === 'success') {
@@ -1119,19 +1246,27 @@ class MapEngineCyberia {
         MapEngineCyberia.currentRevision = result.data?.revision ?? MapEngineCyberia.currentRevision;
         // A saved map becomes the one the URL points at.
         MapEngineCyberia.currentMapCode = body.code || null;
+        MapEngineCyberia.thumbnailDirty = false;
+        MapEngineCyberia.currentThumbnailId = result.data?.thumbnail ?? null;
+        MapEngineCyberia.pendingThumbnailUrl = null;
         followDraft();
         setQueryParams({ mapCode: body.code || null }, { replace: true });
-        renderPreviewImage();
+        takeMedia(result.data);
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
     };
 
+    const leaveDraftFirst = () =>
+      NotificationManager.Push({
+        html: 'Leave the population draft first: it composes the grid and the placements only.',
+        status: 'warning',
+      });
+
     const cloneMap = async () => {
+      if (MapEngineCyberia.population) return leaveDraftFirst();
       let cloneThumbnailId = null;
 
-      // Same precedence as saveMap: a user-selected custom image wins; the
-      // Object Layer capture is the checkbox-gated fallback. The clone never
-      // reuses the source map's thumbnail file (it would be double-owned).
+      // A custom thumbnail uploads as a file of its own: the clone never shares the File of the source.
       const thumbnailInput = s(`.${idThumbnail}`);
       if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
         const formData = new FormData();
@@ -1146,17 +1281,10 @@ class MapEngineCyberia {
           });
           return;
         }
-      } else if (MapEngineCyberia.captureObjLayerThumbnail) {
-        cloneThumbnailId = await captureObjectLayerUpload('map-thumbnail.png');
       }
 
-      // The clone always gets its own automatic Object Layer preview capture.
-      const clonePreviewId = await captureObjectLayerUpload('map-preview.png');
-
       // A clone is a new map: it has no place in a world until one is set.
-      const source = { ...getMapPayload(), worldX: null, worldY: null };
-      if (cloneThumbnailId) source.thumbnail = cloneThumbnailId;
-      if (clonePreviewId) source.preview = clonePreviewId;
+      const source = { ...getMapPayload(), worldX: null, worldY: null, thumbnail: cloneThumbnailId };
       const { result, body } = await EditorCrud.clone(CyberiaMapService, source);
       if (result.status === 'success') {
         if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = '';
@@ -1166,9 +1294,8 @@ class MapEngineCyberia {
         MapEngineCyberia.currentMapCode = body.code || null;
         followDraft();
         setQueryParams({ mapCode: body.code || null }, { replace: true });
-        if (cloneThumbnailId) MapEngineCyberia.currentThumbnailId = cloneThumbnailId;
-        if (clonePreviewId) MapEngineCyberia.currentPreviewId = clonePreviewId;
-        renderPreviewImage();
+        MapEngineCyberia.currentThumbnailId = cloneThumbnailId;
+        takeMedia(result.data);
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
     };
@@ -1197,25 +1324,17 @@ class MapEngineCyberia {
         if (statusIndex > -1) s(`.dropdown-option-${idStatus}-${statusIndex}`).click();
       }
 
-      // Thumbnail
+      // The custom thumbnail, the preview and its media
       MapEngineCyberia.currentThumbnailId = mapData.thumbnail || null;
-      MapEngineCyberia.currentPreviewId = mapData.preview || null;
-      renderPreviewImage();
-      const thumbnailPreview = s(`.map-engine-thumbnail-preview`);
+      MapEngineCyberia.pendingThumbnailUrl = null;
+      MapEngineCyberia.draftPreview = null;
+      MapEngineCyberia.currentRevision = mapData.revision ?? 1;
+      takeMedia(mapData);
       if (MapEngineCyberia.currentThumbnailId) {
         const thumbId =
           typeof MapEngineCyberia.currentThumbnailId === 'object'
             ? MapEngineCyberia.currentThumbnailId._id
             : MapEngineCyberia.currentThumbnailId;
-
-        // Set preview image
-        if (thumbnailPreview) {
-          thumbnailPreview.innerHTML = html`<img
-            src="${getApiBaseUrl({ id: thumbId, endpoint: 'file/blob' })}"
-            style="max-width:120px;max-height:120px;border:1px solid #555;"
-            onerror="this.style.display='none';"
-          />`;
-        }
 
         // Populate InputFile with the actual file from server
         if (s(`.${idThumbnail}`)) {
@@ -1229,7 +1348,6 @@ class MapEngineCyberia {
         }
         MapEngineCyberia.thumbnailDirty = false;
       } else {
-        if (thumbnailPreview) thumbnailPreview.innerHTML = '';
         // Clear InputFile
         if (s(`.${idThumbnail}`)) {
           s(`.${idThumbnail}`).value = '';
@@ -1257,7 +1375,6 @@ class MapEngineCyberia {
         objectLayerItemIds: entity.objectLayerItemIds || [],
       }));
       MapEngineCyberia.setEntities(nextEntities, { clearHistory: true });
-      MapEngineCyberia.currentRevision = mapData.revision ?? 1;
       followDraft();
       await Promise.all([MapStudioCyberia.loadContext(mapData.code), MapAudioCyberia.load(mapData.code)]);
 
@@ -1281,6 +1398,10 @@ class MapEngineCyberia {
     };
 
     MapEngineCyberia.loadMap = loadMap;
+    MapEngineCyberia.draftGrid = () => {
+      const { cols, rows } = getCanvasParams();
+      return { gridX: cols, gridY: rows };
+    };
 
     const newMap = () => {
       MapEngineCyberia.currentMapId = null;
@@ -1292,8 +1413,12 @@ class MapEngineCyberia {
       MapAudioCyberia.load(null);
       setQueryParams({ mapCode: null }, { replace: true });
       MapEngineCyberia.currentThumbnailId = null;
+      MapEngineCyberia.pendingThumbnailUrl = null;
       MapEngineCyberia.currentPreviewId = null;
+      MapEngineCyberia.currentMedia = null;
+      MapEngineCyberia.draftPreview = null;
       MapEngineCyberia.thumbnailDirty = false;
+      MapEngineCyberia.scheduleDraftPreview();
       if (s(`.${idCode}`)) s(`.${idCode}`).value = '';
       if (s(`.${idWorldX}`)) s(`.${idWorldX}`).value = '';
       if (s(`.${idWorldY}`)) s(`.${idWorldY}`).value = '';
@@ -1304,9 +1429,7 @@ class MapEngineCyberia {
         const resetIndex = statusOptions.findIndex((opt) => opt.value === 'unlisted');
         if (resetIndex > -1) s(`.dropdown-option-${idStatus}-${resetIndex}`).click();
       }
-      const thumbnailPreview = s(`.map-engine-thumbnail-preview`);
-      if (thumbnailPreview) thumbnailPreview.innerHTML = '';
-      renderPreviewImage();
+      MapEngineCyberia.renderMedia();
       if (s(`.${idThumbnail}`)) {
         s(`.${idThumbnail}`).value = '';
         s(`.${idThumbnail}`).onchange({ target: s(`.${idThumbnail}`) });
@@ -1330,6 +1453,7 @@ class MapEngineCyberia {
     };
 
     const deleteMap = async () => {
+      if (MapEngineCyberia.population) return leaveDraftFirst();
       const result = await EditorCrud.remove(CyberiaMapService, {
         id: MapEngineCyberia.currentMapId,
         subject: 'map',
@@ -1366,11 +1490,101 @@ class MapEngineCyberia {
       }
     };
 
+    // The banner of a population draft: which population, which draft revision, and the way back.
+    const paintPopulation = () => {
+      const banner = s('.map-engine-population');
+      if (!banner) return;
+      const { population } = MapEngineCyberia;
+      banner.hidden = !population;
+      if (!population) return;
+      banner.innerHTML = html`<span class="map-engine-population-title"
+          ><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Population draft of
+          ${population.mapCode}</span
+        >
+        <span>
+          ${population.revision ? `Draft revision ${population.revision}` : 'Not saved yet'} · from map revision
+          ${population.baseRevision}. Save stores the grid and the placements in the draft; the live map does not change
+          until you publish.
+        </span>
+        ${
+          population.missing.length > 0
+            ? html`<details class="map-engine-population-missing">
+                <summary>${population.missing.length} items have no artwork to draw</summary>
+                <ul>
+                  ${population.missing.map(({ reason }) => html`<li>${reason}</li>`).join('')}
+                </ul>
+              </details>`
+            : ''
+        }
+        <span class="map-engine-population-actions">
+          <button type="button" class="map-engine-population-back">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to population
+          </button>
+          <button type="button" class="map-engine-population-leave">
+            <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Open the live map
+          </button>
+        </span>`;
+      banner.querySelector('.map-engine-population-back').onclick = () =>
+        ProceduralEngineCyberia.open({ populationId: population.id });
+      banner.querySelector('.map-engine-population-leave').onclick = () => setQueryParams({ population: null });
+    };
+
+    // The CID that draws each item, the items nothing draws and the items of the population. A selection
+    // in the population changes them, so the Studio reads them again whenever it comes back to the draft.
+    const readPopulationKeys = async () => {
+      const { population } = MapEngineCyberia;
+      const read = await CyberiaProceduralPopulationService.getDraft({ id: population.id });
+      if (read.status !== 'success') return NotificationManager.Push({ html: read.message, status: 'error' });
+      const { previewKeys, missing, items } = read.data;
+      Object.assign(population, { previewKeys, missing, items });
+      MapEngineCyberia.refreshEntityEditor();
+      paintPopulation();
+    };
+
+    // ?population=<id> composes the draft of that population over its map: its grid and placements,
+    // and each item drawn by the CID the population would publish.
+    let entering = null;
+    const enterPopulation = async (id) => {
+      if (entering === id) return;
+      entering = id;
+      try {
+        const draft = await CyberiaProceduralPopulationService.getDraft({ id });
+        if (draft.status !== 'success') return NotificationManager.Push({ html: draft.message, status: 'error' });
+        const map = await CyberiaMapService.get({ id: draft.data.mapCode });
+        if (map.status !== 'success' || !map.data?._id)
+          return NotificationManager.Push({
+            html: `No map answers to the code "${draft.data.mapCode}"`,
+            status: 'error',
+          });
+        const { mapCode, revision, baseRevision, previewKeys, missing, items, grid, entities, savedAt } = draft.data;
+        MapEngineCyberia.population = { id, mapCode, revision, baseRevision, previewKeys, missing, items };
+        MapEngineCyberia.showObjectLayers = true;
+        for (const control of s('.map-engine-container').querySelectorAll('[data-map-toggle="showObjectLayers"]'))
+          control.setAttribute('aria-pressed', 'true');
+        paintPopulation();
+        await loadMap({ ...map.data, ...grid, entities, updatedAt: savedAt ?? map.data.updatedAt });
+      } finally {
+        entering = null;
+      }
+    };
+
+    const leavePopulation = async () => {
+      MapEngineCyberia.population = null;
+      paintPopulation();
+      followDraft();
+      const { status, data } = await CyberiaMapService.get({ id: MapEngineCyberia.currentMapCode });
+      if (status === 'success' && data) await loadMap(data);
+    };
+
     listenQueryParamsChange({
       id: 'cyberia-map-engine-query-listener',
       event: async (queryParams) => {
         if (!s(`.${idCode}`)) return;
         const code = queryParams.mapCode || null;
+        const population = queryParams.population || null;
+        if (population && population !== MapEngineCyberia.population?.id) return await enterPopulation(population);
+        if (population) return await readPopulationKeys();
+        if (!population && MapEngineCyberia.population) return await leavePopulation();
         if (code) await loadMapByCode(code);
         else if (MapEngineCyberia.currentMapCode) newMap();
       },
@@ -1536,25 +1750,18 @@ class MapEngineCyberia {
         ...(canMutate && { save: saveMap, clone: cloneMap, delete: deleteMap }),
       }));
 
-      if (s(`.btn-map-engine-capture-thumbnail`))
-        s(`.btn-map-engine-capture-thumbnail`).onclick = () => {
-          const { cols, rows, cellW, cellH } = getCanvasParams();
-          const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH);
-          offscreen.toBlob((blob) => {
-            if (!blob) return;
-            const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            const thumbnailInput = s(`.${idThumbnail}`);
-            if (thumbnailInput) {
-              thumbnailInput.files = dataTransfer.files;
-              thumbnailInput.onchange({ target: thumbnailInput });
-            }
-            MapEngineCyberia.thumbnailDirty = true;
-          }, 'image/png');
+      // The draft preview draws when the media panel comes into view.
+      new IntersectionObserver((seen) => {
+        if (seen.some(({ isIntersecting }) => isIntersecting)) MapEngineCyberia.scheduleDraftPreview();
+      }).observe(s('.map-engine-media'));
+      if (s('.btn-map-engine-media-retry'))
+        s('.btn-map-engine-media-retry').onclick = async () => {
+          const response = await CyberiaMapService.media({ id: MapEngineCyberia.currentMapId });
+          if (response.status !== 'success')
+            return NotificationManager.Push({ html: response.message, status: 'error' });
+          takeMedia(response.data);
         };
-
-      for (const section of ['thumbnail', 'preview', 'entity-filter', 'rename']) {
+      for (const section of ['thumbnail', 'entity-filter', 'rename']) {
         const toggle = s(`.btn-map-engine-toggle-${section}`);
         if (toggle)
           toggle.onclick = () => {
@@ -1609,7 +1816,9 @@ class MapEngineCyberia {
         };
 
       // Loaded last: loadMap repaints the canvas through the history sync above.
-      loadMapByCode(getQueryParams().mapCode);
+      const { population, mapCode } = getQueryParams();
+      if (population) enterPopulation(population);
+      else loadMapByCode(mapCode);
     });
 
     const statusOptions = [
@@ -1658,6 +1867,72 @@ class MapEngineCyberia {
 
     return html`<div class="in section-mp studio-editor map-engine-container">
       <style>
+        .map-engine-media-figures {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .map-engine-media-figure {
+          margin: 0;
+          font-size: 12px;
+          color: #888;
+        }
+        .map-engine-media-figure img,
+        .map-engine-media-empty {
+          display: block;
+          box-sizing: border-box;
+          width: 160px;
+          max-width: 100%;
+          aspect-ratio: 1;
+          object-fit: contain;
+          image-rendering: pixelated;
+          border: 1px solid #555;
+        }
+        .map-engine-media-empty {
+          display: flex;
+          align-items: center;
+          padding: 8px;
+          border-style: dashed;
+          color: #888;
+          font-size: 12px;
+          text-align: center;
+        }
+        .map-engine-population {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          align-items: center;
+          padding: 8px 10px;
+          margin-bottom: 8px;
+          border: 1px solid var(--studio-accent, #5aa7ff);
+          border-left-width: 4px;
+          border-radius: 6px;
+          font-size: 13px;
+        }
+        .map-engine-population[hidden] {
+          display: none;
+        }
+        .map-engine-population-title {
+          font-weight: bold;
+        }
+        .map-engine-population-actions {
+          display: inline-flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-left: auto;
+        }
+        .map-engine-population-actions > button {
+          padding: 3px 10px;
+          cursor: pointer;
+        }
+        .map-engine-population-missing {
+          flex-basis: 100%;
+          color: #ff8a9e;
+        }
+        .map-engine-population-missing ul {
+          margin: 4px 0 0;
+          padding-left: 18px;
+        }
         .map-engine-stage-controls {
           display: inline-flex;
           gap: 2px;
@@ -1749,6 +2024,7 @@ class MapEngineCyberia {
           style="border: 1px solid #555;"
         ></canvas>`,
         tools: html`<div class="in map-engine-tools">
+          <div class="in map-engine-population" role="status" aria-live="polite" hidden></div>
           ${EditorCrud.render({ id: 'map-engine-crud', label: 'Map' })}
           ${Tabs.render({
             id: 'map-engine-tabs',
@@ -2276,36 +2552,20 @@ class MapEngineCyberia {
                 label: 'Media',
                 icon: 'fa-solid fa-photo-film',
                 content: html`<div class="in section-mp" style="margin-top: 5px;">
-                  <div class="in map-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
+                  <div class="in map-engine-media"></div>
                   ${await BtnIcon.instance({
-                    class: 'wfa btn-map-engine-capture-thumbnail',
-                    label: html`<i class="fa-solid fa-camera"></i> Capture Thumbnail`,
+                    class: 'wfa btn-map-engine-media-retry',
+                    label: html`<i class="fa-solid fa-rotate-right"></i> Draw the preview again`,
                   })}
-                  <div
-                    class="fl"
-                    style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;"
-                  >
-                    ${await ToggleSwitch.instance({
-                      id: 'map-engine-capture-obj-layer-thumb',
-                      type: 'checkbox',
-                      displayMode: 'checkbox',
-                      containerClass: 'in fll',
-                      checked: true,
-                      on: {
-                        checked: () => {
-                          MapEngineCyberia.captureObjLayerThumbnail = true;
-                        },
-                        unchecked: () => {
-                          MapEngineCyberia.captureObjLayerThumbnail = false;
-                        },
-                      },
-                    })}
-                    <div class="section-mp">&nbsp &nbsp Capture Object Layer Map Thumbnail on Save/Update/Clone</div>
+                  <div class="in" style="color:#888;font-size:12px;margin:4px 0;">
+                    The server draws the map preview from the placed entities after each save. It is the node background
+                    in the Instance Map, and the thumbnail while no custom image is set.
                   </div>
                   ${await BtnIcon.instance({
                     class: 'wfa btn-map-engine-toggle-thumbnail',
                     attrs: 'aria-expanded="false"',
-                    label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Thumbnail`,
+                    label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Custom thumbnail
+                      (optional)`,
                   })}
                   <div class="in map-engine-thumbnail-body hide">
                     ${await InputFile.instance(
@@ -2317,38 +2577,19 @@ class MapEngineCyberia {
                       {
                         change: (e) => {
                           const file = e.target.files[0];
-                          if (file) {
-                            MapEngineCyberia.thumbnailDirty = true;
-                            const url = URL.createObjectURL(file);
-                            const preview = s('.map-engine-thumbnail-preview');
-                            if (preview)
-                              preview.innerHTML = html`<img
-                                src="${url}"
-                                class="in"
-                                style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
-                              />`;
-                          }
+                          if (!file) return;
+                          MapEngineCyberia.thumbnailDirty = true;
+                          MapEngineCyberia.pendingThumbnailUrl = URL.createObjectURL(file);
+                          MapEngineCyberia.renderMedia();
                         },
                         clear: () => {
                           MapEngineCyberia.thumbnailDirty = true;
                           MapEngineCyberia.currentThumbnailId = null;
-                          const preview = s('.map-engine-thumbnail-preview');
-                          if (preview) preview.innerHTML = '';
+                          MapEngineCyberia.pendingThumbnailUrl = null;
+                          MapEngineCyberia.renderMedia();
                         },
                       },
                     )}
-                  </div>
-                  ${await BtnIcon.instance({
-                    class: 'wfa btn-map-engine-toggle-preview',
-                    attrs: 'aria-expanded="false"',
-                    label: html`<i class="fa-solid fa-caret-right map-engine-preview-caret"></i> Instance Map Preview`,
-                  })}
-                  <div class="in map-engine-preview-body hide">
-                    <div class="in map-engine-preview-image" style="margin: 5px 0; text-align: center;"></div>
-                    <div class="in" style="color:#888;font-size:12px;">
-                      Auto-captured Object Layer render on Save/Update/Clone — used as this map's node background in the
-                      Instance Map.
-                    </div>
                   </div>
                   ${await MapAudioCyberia.renderPanel()}
                 </div>`,

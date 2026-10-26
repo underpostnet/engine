@@ -14,6 +14,7 @@ class CyberiaProceduralProfileRouter {
     router.get(`/config`, handle('config'));
     router.get(`/templates/:id/random-slots`, handle('randomSlots'));
     router.get(`/templates/:id/palette`, handle('templatePalette'));
+    router.get(`/import-palette`, handle('importPalette'));
     router.get(`/:id`, handle('get'));
     router.get(`/`, handle('get'));
     router.post(`/`, options.authMiddleware, moderatorGuard, handle('post'));
