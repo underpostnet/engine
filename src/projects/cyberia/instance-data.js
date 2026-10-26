@@ -21,6 +21,10 @@ import {
   selectInstanceSkills,
   skillDefect,
 } from '../../api/cyberia-instance/cyberia-instance-items.js';
+import {
+  findGlobalDefaults,
+  runtimeEntityDefaults,
+} from '../../api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { resolveMapOwner } from './instance/map-registry.js';
 import { playerSpawnConfig } from './instance/entry-spawn.js';
@@ -135,16 +139,12 @@ async function loadEntityTypeDefaultDocs(models, conf) {
   return ids.filter((id) => byId.has(id)).map((id) => byId.get(id));
 }
 
-// `itemTypes` lets the equipment rules settle a contested slot: which skin an entity wears when an
-// override names one. Without it every row keeps the state its list derives, which is the right
-// answer for a world whose object layers have not been read yet.
-function mergeEntityDefaults(entityDefaults = [], itemTypes, baseline = contentArtifact().baseline) {
-  const merged = entityDefaults.map((entityDefault) => normalizeEntityDefault(entityDefault, {}, itemTypes));
-  const coveredTypes = new Set(merged.map((entityDefault) => entityDefault.entityType));
-  for (const canonical of baseline) {
-    if (!coveredTypes.has(canonical.entityType)) merged.push(normalizeEntityDefault(canonical, canonical, itemTypes));
-  }
-  return merged;
+// The instance rows, the baseline and the global rows in runtime order. `itemTypes` lets the
+// equipment rules settle a contested slot; without it every row keeps the state its list derives.
+function mergeEntityDefaults(entityDefaults = [], itemTypes, baseline = contentArtifact().baseline, global = []) {
+  return runtimeEntityDefaults({ instance: entityDefaults, baseline, global }).map(({ row, source }) =>
+    normalizeEntityDefault(row, source === 'baseline' ? row : {}, itemTypes),
+  );
 }
 
 /** itemId → item type, read from the ObjectLayer documents a world already loads for its atlases. */
@@ -578,10 +578,14 @@ async function loadWorld(models, instanceCode) {
   const mapCodes = inst.cyberiaMapCodes || [];
   const mapDocs = mapCodes.length ? await models.CyberiaMap.find({ code: { $in: mapCodes } }).lean() : [];
 
-  // Authoritative per-entity-type defaults are the documents this instance's conf references;
-  // referencing none leaves the foundation baseline in place.
-  const entityDefaultDocs = await loadEntityTypeDefaultDocs(models, conf);
+  // The instance rows are the documents this instance's conf references; the global rows are the
+  // documents no conf references, and every world runs them after the instance rows and the baseline.
+  const [entityDefaultDocs, globalDefaultDocs] = await Promise.all([
+    loadEntityTypeDefaultDocs(models, conf),
+    models.CyberiaEntityTypeDefault ? findGlobalDefaults(models) : [],
+  ]);
   const entityDefaultsConfig = entityTypeDefaultDocsToConfig(entityDefaultDocs);
+  const globalDefaultsConfig = entityTypeDefaultDocsToConfig(globalDefaultDocs);
 
   // Mission content for this instance: actions and quests bound to its maps (by sourceMapCode).
   // Delivered with the world so the Go server never opens a separate content channel, and never
@@ -601,7 +605,7 @@ async function loadWorld(models, instanceCode) {
   // hold what they wire — the baseline Fragmentation among them — even when no map places it.
   const owned = collectInstanceItemIds({
     maps: mapDocs,
-    entityDefaults: [...entityDefaultsConfig, ...contentArtifact().baseline],
+    entityDefaults: [...entityDefaultsConfig, ...contentArtifact().baseline, ...globalDefaultsConfig],
     actions: actionDocs,
     quests: questDocs,
   });
@@ -630,6 +634,8 @@ async function loadWorld(models, instanceCode) {
     mapDocs,
     entityDefaultDocs,
     entityDefaultsConfig,
+    globalDefaultDocs,
+    globalDefaultsConfig,
     actionDocs,
     questDocs,
     skillDocs,
@@ -653,6 +659,8 @@ async function fetchFullInstance(models, instanceCode, context) {
     mapDocs,
     entityDefaultDocs,
     entityDefaultsConfig,
+    globalDefaultDocs,
+    globalDefaultsConfig,
     actionDocs,
     questDocs,
     skillDocs,
@@ -676,7 +684,7 @@ async function fetchFullInstance(models, instanceCode, context) {
   for (const sk of skillDocs) versionParts.push(String(sk.updatedAt || sk._id || sk.triggerItemId));
   // Entity-type-default edits live in their own collection too — fold them
   // in so adding/editing a default (e.g. a new resource) rebuilds the world.
-  for (const ed of entityDefaultDocs) versionParts.push(String(ed.updatedAt || ed._id));
+  for (const ed of [...entityDefaultDocs, ...globalDefaultDocs]) versionParts.push(String(ed.updatedAt || ed._id));
   // A bind, a rebind or an unbind of an item the world names rebuilds the world.
   versionParts.push(...olDocs.map((doc) => `${doc.data?.item?.id}=${doc.cid}`).sort());
   // So does an economy write, or a rebind of an item the economy names, and an edit of a terminal,
@@ -685,13 +693,15 @@ async function fetchFullInstance(models, instanceCode, context) {
   const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
 
   const baseConfig = toInstanceConfig(conf);
-  // The referenced documents are the world's defaults, completed by the canonical set for every
-  // entity type they do not cover. Every variant — each resource skin, say — reaches the Go
-  // runtime keyed by liveItemIds. Applied BEFORE default-player-inventory so the player layer
-  // additions survive.
-  if (entityDefaultsConfig.length) {
-    baseConfig.entityDefaults = mergeEntityDefaults(entityDefaultsConfig, itemTypesOf(olDocs));
-  }
+  // The instance rows, the baseline and the global rows, in runtime order. Every variant — each
+  // resource skin, say — reaches the Go runtime keyed by liveItemIds. Applied BEFORE
+  // default-player-inventory so the player layer additions survive.
+  baseConfig.entityDefaults = mergeEntityDefaults(
+    entityDefaultsConfig,
+    itemTypesOf(olDocs),
+    contentArtifact().baseline,
+    globalDefaultsConfig,
+  );
   // The wire still carries a skillConfig; nothing stores one. It is exactly the skills selected
   // above, so what the simulation runs and what the export writes come from one decision.
   baseConfig.skillConfig = skillDocsToConfig(skillDocs);

@@ -1,7 +1,8 @@
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
-import { connectPortals } from './cyberia-portal-connector.js';
+import { connectPortals, portalTopology } from './cyberia-portal-connector.js';
+import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { revisionGuard } from '../../server/storage/revision.js';
@@ -142,6 +143,43 @@ class CyberiaInstanceService {
     const endpoints = await reloadContentServers(options, { mode, instanceCode: instance.code });
     if (endpoints.length === 0) throw httpError(404, `No live server runs ${instance.code}`);
     return { instanceCode: instance.code, mode, endpoints };
+  };
+
+  /**
+   * GET `/map-sources`: the maps an instance takes in one step: the maps of the Foundation and the
+   * maps of each saga, each with whether this host stores it. A map it does not store needs the
+   * content imported first.
+   */
+  static mapSources = async (req, res, options) => {
+    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+    const CyberiaSaga = DataBaseProviderService.getModel('CyberiaSaga', options);
+    const foundation = contentArtifact().foundation.maps.map(({ code }) => code);
+    const sagas = await CyberiaSaga.find({}, { _id: 0, code: 1, name: 1, mapCodes: 1 }).sort({ code: 1 }).lean();
+    const codes = [...new Set([...foundation, ...sagas.flatMap(({ mapCodes }) => mapCodes)])];
+    const stored = new Map(
+      (await CyberiaMap.find({ code: { $in: codes } }, { _id: 0, code: 1, name: 1 }).lean()).map(({ code, name }) => [
+        code,
+        name,
+      ]),
+    );
+    const entryOf = (code) => ({ code, name: stored.get(code) ?? '', stored: stored.has(code) });
+    return {
+      foundation: [...foundation].sort().map(entryOf),
+      sagas: sagas.map(({ code, name, mapCodes }) => ({ code, name, maps: mapCodes.map(entryOf) })),
+    };
+  };
+
+  /**
+   * POST `/topology`: what `{ mapCodes, portals }` connect, from the portal entities the maps hold.
+   * Unsaved edits check as they are; nothing is stored.
+   */
+  static topology = async (req, res, options) => {
+    const { mapCodes, portals } = req.body ?? {};
+    if (!Array.isArray(mapCodes) || !Array.isArray(portals))
+      throw httpError(400, 'A topology names mapCodes and portals');
+    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
+    const maps = await CyberiaMap.find({ code: { $in: mapCodes } }, { code: 1, entities: 1 }).lean();
+    return portalTopology(mapCodes, maps, portals);
   };
 
   /**

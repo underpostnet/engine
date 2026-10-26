@@ -6,10 +6,12 @@ import {
   applyDefaultsToEntities,
   CyberiaEntityTypeDefaultService,
   findDuplicateBuilds,
+  runtimeEntityDefaults,
 } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
+  resolveEntityDefaultBuild,
   resolveEntityInventory,
 } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { contentArtifact, hasContentArtifact } from '../../../src/projects/cyberia/content/content-artifact.js';
@@ -27,6 +29,18 @@ import {
 const contentBuilt = hasContentArtifact();
 
 const baseline = () => contentArtifact().baseline;
+
+/** A mongoose query of a mock: chains `sort`, `select` and `session`, and resolves to `result()`. */
+const query = (result) => {
+  const chain = {
+    sort: () => chain,
+    select: () => chain,
+    session: () => chain,
+    lean: async () => result(),
+    then: (resolve, reject) => Promise.resolve(result()).then(resolve, reject),
+  };
+  return chain;
+};
 
 // Two worlds built on the same art: identical entityType, identical liveItemIds, different
 // wiring. This is the shape that used to make item-id matching resolve one into the other.
@@ -57,11 +71,16 @@ describe('entity-type defaults are resolved by reference', () => {
     docs = new Map([FOREST_BOT, CAVERN_BOT].map((doc) => [String(doc._id), doc]));
     vi.spyOn(DataBaseProviderService, 'getModel').mockImplementation((name) => {
       if (name.toLowerCase() === 'cyberiaentitytypedefault') return CyberiaEntityTypeDefaultModel;
+      if (name === 'CyberiaInstanceConf') return { distinct: () => query(() => [...docs.keys()]) };
       throw new Error(`Unexpected model: ${name}`);
     });
-    vi.spyOn(CyberiaEntityTypeDefaultModel, 'find').mockImplementation((query) => ({
-      lean: async () => [...docs.values()].filter((doc) => query._id.$in.includes(String(doc._id))),
-    }));
+    vi.spyOn(CyberiaEntityTypeDefaultModel, 'find').mockImplementation((filter) =>
+      query(() =>
+        [...docs.values()].filter((doc) =>
+          filter._id.$in ? filter._id.$in.includes(String(doc._id)) : !filter._id.$nin.includes(String(doc._id)),
+        ),
+      ),
+    );
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -95,7 +114,7 @@ describe('entity-type defaults are resolved by reference', () => {
     }
   });
 
-  it.skipIf(!contentBuilt)('completes the referenced set with every canonical type it does not cover', async () => {
+  it.skipIf(!contentBuilt)('completes the referenced set with the baseline of the types it leaves out', async () => {
     const completed = await CyberiaEntityTypeDefaultService.resolveWithCanonical([FOREST_BOT._id], options);
     // The referenced document owns 'bot'; the canonical entry for that type must not come back too.
     expect(completed.filter((d) => d.entityType === 'bot')).toHaveLength(1);
@@ -239,7 +258,50 @@ describe('orphaned references are impossible to keep', () => {
   });
 });
 
-describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps place', () => {
+describe('the rows a world runs on', () => {
+  const row = (rowId, entityType, liveItemIds, behavior = '') => ({ rowId, entityType, liveItemIds, behavior });
+  const BASE_BOT = row('', 'bot', ['drifter'], 'passive');
+  const BASE_FLOOR = row('', 'floor', ['grass']);
+  const order = (rows) => rows.map(({ row: entry, source }) => `${source}:${entry.rowId || entry.liveItemIds}`);
+
+  it('puts the instance rows first, then the baseline of the types they leave out, then the global rows', () => {
+    const rows = runtimeEntityDefaults({
+      instance: [row('i1', 'bot', ['purple'])],
+      baseline: [BASE_BOT, BASE_FLOOR],
+      global: [row('g1', 'bot', ['purple', 'pistol']), row('g2', 'resource', ['wood'])],
+    });
+    expect(order(rows)).toEqual(['instance:i1', 'baseline:grass', 'global:g1', 'global:g2']);
+  });
+
+  it('puts the global row of a baseline build in its place, so the first row of a type stays first', () => {
+    const rows = runtimeEntityDefaults({
+      baseline: [BASE_BOT, BASE_FLOOR],
+      global: [row('g1', 'bot', ['purple']), row('g2', 'bot', ['drifter'], 'hostile')],
+    });
+    expect(order(rows)).toEqual(['global:g2', 'baseline:grass', 'global:g1']);
+    const fallback = resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['ghost'] }, rows.map(({ row: r }) => r));
+    expect(fallback.behavior).toBe('hostile');
+  });
+
+  it('resolves the most specific row, and an instance row before a global row of the same size', () => {
+    const rows = runtimeEntityDefaults({
+      instance: [row('i1', 'bot', ['purple'], 'passive')],
+      baseline: [BASE_BOT],
+      global: [row('g1', 'bot', ['purple'], 'hostile'), row('g2', 'bot', ['purple', 'pistol'], 'hostile')],
+    }).map(({ row: r }) => r);
+    expect(resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['purple'] }, rows).rowId).toBe('i1');
+    expect(resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['purple', 'pistol'] }, rows).rowId).toBe('g2');
+  });
+
+  it('runs every global row in a world with no instance row', () => {
+    const rows = runtimeEntityDefaults({ baseline: [BASE_BOT], global: [row('g1', 'bot', ['purple'], 'hostile')] });
+    expect(
+      resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['purple'] }, rows.map(({ row: r }) => r)).rowId,
+    ).toBe('g1');
+  });
+});
+
+describe.skipIf(!contentBuilt)('syncing an instance', () => {
   const options = { host: 'entity-default-test', path: '/' };
   let docs;
   let confs;
@@ -247,8 +309,8 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
   let actions;
   let quests;
 
-  // A purple bot carrying the pistol matches both the bare-purple default and the armed one;
-  // the runtime resolves the most specific, and the sync must reference both so it can.
+  // A purple bot carrying the pistol matches both the bare-purple default and the armed one; the
+  // runtime resolves the most specific. The armed one no conf references: it is a global row.
   const ARMED_BOT = { _id: new Types.ObjectId(), entityType: 'bot', liveItemIds: ['purple', 'atlas_pistol_mk2'] };
   const PLAYER = { _id: new Types.ObjectId(), entityType: 'player', liveItemIds: ['anon'], inventoryItemsIds: ['coin'] };
   // What the collection defines: a skill for a trigger the world carries, and one for a trigger
@@ -258,57 +320,69 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
     { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
     { triggerItemId: 'hatchet', logicEventIds: ['projectile'] },
   ];
-
-  const model = (store, project) => ({
-    find: (filter) => ({
-      lean: async () => [...store.values()].filter((doc) => !filter?.code || filter.code.$in.includes(doc.code)),
-    }),
-    findOne: (filter) => ({
-      select: () => ({ lean: async () => [...store.values()].find((d) => d.code === filter.code) ?? null }),
-    }),
-  });
+  const referenced = () => [...confs.values()].flatMap(({ entityDefaults }) => entityDefaults.map(String));
 
   beforeEach(() => {
-    docs = new Map(
-      [FOREST_BOT, CAVERN_BOT, ARMED_BOT, PLAYER].map((doc) => [String(doc._id), doc]),
-    );
+    docs = new Map([FOREST_BOT, CAVERN_BOT, ARMED_BOT, PLAYER].map((doc) => [String(doc._id), doc]));
     confs = new Map([
       ['c1', { _id: 'c1', instanceCode: 'forest', entityDefaults: [String(PLAYER._id)] }],
-      // Another world already owns its purple bot — same art, same live item ids.
+      // Another world owns its purple bot — same art, same live item ids.
       ['c2', { _id: 'c2', instanceCode: 'cavern', entityDefaults: [String(CAVERN_BOT._id)] }],
     ]);
     maps = new Map([
-      ['m1', { _id: 'm1', code: 'm1', entities: [{ entityType: 'bot', objectLayerItemIds: ['purple', 'atlas_pistol_mk2'] }] }],
+      [
+        'm1',
+        {
+          _id: 'm1',
+          code: 'm1',
+          entities: [{ entityType: 'bot', objectLayerItemIds: ['purple', 'atlas_pistol_mk2'] }],
+        },
+      ],
       ['m2', { _id: 'm2', code: 'm2', entities: [{ entityType: 'floor', objectLayerItemIds: ['grass'] }] }],
     ]);
     actions = [];
     quests = [];
+    const byCode = (store) => ({
+      find: (filter) =>
+        query(() => [...store.values()].filter((doc) => !filter?.code || filter.code.$in.includes(doc.code))),
+      findOne: (filter) => query(() => [...store.values()].find((doc) => doc.code === filter.code) ?? null),
+      updateOne: async ({ _id }, { $set }) => {
+        Object.assign(store.get(String(_id)), $set);
+        return { modifiedCount: 1 };
+      },
+    });
     vi.spyOn(DataBaseProviderService, 'getModel').mockImplementation((name) => {
       switch (name.toLowerCase()) {
         case 'cyberiaentitytypedefault':
           return {
-            find: (filter) => ({
-              lean: async () =>
-                [...docs.values()].filter(
-                  (doc) => !filter?._id?.$in || filter._id.$in.includes(String(doc._id)),
+            find: (filter) =>
+              query(() =>
+                [...docs.values()].filter((doc) =>
+                  filter?._id?.$in
+                    ? filter._id.$in.map(String).includes(String(doc._id))
+                    : !filter?._id?.$nin || !filter._id.$nin.map(String).includes(String(doc._id)),
                 ),
-            }),
+              ),
           };
         case 'cyberiaskill':
-          return { find: () => ({ lean: async () => SKILLS }) };
+          return { find: () => query(() => SKILLS) };
         case 'cyberiaaction':
-          return { find: (filter) => ({ lean: async () => actions.filter((a) => filter.sourceMapCode.$in.includes(a.sourceMapCode)) }) };
+          return {
+            find: (filter) => query(() => actions.filter((a) => filter.sourceMapCode.$in.includes(a.sourceMapCode))),
+          };
         case 'cyberiaquest':
-          return { find: (filter) => ({ lean: async () => quests.filter((q) => filter.sourceMapCode.$in.includes(q.sourceMapCode)) }) };
+          return {
+            find: (filter) => query(() => quests.filter((q) => filter.sourceMapCode.$in.includes(q.sourceMapCode))),
+          };
         case 'cyberiainstance':
-          return model(new Map([['i1', { code: 'forest', cyberiaMapCodes: ['m1'] }]]));
+          return byCode(new Map([['i1', { code: 'forest', cyberiaMapCodes: ['m1'] }]]));
         case 'cyberiamap':
-          return model(maps);
+          return byCode(maps);
         case 'objectlayer':
           // The types a contested equipment slot is settled by; this world's items are unarguable.
           return {
-            find: () => ({
-              lean: async () =>
+            find: () =>
+              query(() =>
                 [
                   ['purple', 'skin'],
                   ['atlas_pistol_mk2', 'weapon'],
@@ -316,11 +390,20 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
                   ['coin', 'coin'],
                   ['hatchet', 'weapon'],
                 ].map(([id, type]) => ({ data: { item: { id, type } } })),
-            }),
+              ),
           };
         case 'cyberiainstanceconf':
           return {
-            find: () => ({ lean: async () => [...confs.values()] }),
+            find: (filter) =>
+              query(() =>
+                [...confs.values()].filter(
+                  (conf) => !filter?.instanceCode || conf.instanceCode === filter.instanceCode,
+                ),
+              ),
+            findOne: (filter) =>
+              query(() => [...confs.values()].find((conf) => conf.instanceCode === filter.instanceCode) ?? null),
+            exists: async (filter) => [...confs.values()].some((conf) => conf.instanceCode === filter.instanceCode),
+            distinct: () => query(referenced),
             updateOne: async ({ _id }, { $set }) => {
               Object.assign(confs.get(String(_id)), $set);
               return { modifiedCount: 1 };
@@ -333,99 +416,31 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('references every unclaimed default whose live items the maps actually place', async () => {
+  it('links nothing: a global row runs in the world with no reference, and another world keeps its own', async () => {
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    // Both purple defaults match the armed bot by subset containment; only the unclaimed ones
-    // are linked.
-    expect(result.linked.sort()).toEqual([String(FOREST_BOT._id), String(ARMED_BOT._id)].sort());
-    // The hand-linked player default survives: a player is never placed on a map, so a wholesale
-    // replace would have discarded it.
-    expect(result.entityDefaults).toContain(String(PLAYER._id));
-  });
-
-  it('never adopts a default another instance already references', async () => {
-    const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    // The cavern bot matches by item ids — identical live ids to the forest one — and is exactly
-    // the cross-instance contamination the reference model exists to prevent.
-    expect(result.skipped).toEqual([String(CAVERN_BOT._id)]);
-    expect(result.entityDefaults).not.toContain(String(CAVERN_BOT._id));
+    expect(result.entityDefaults).toEqual([String(PLAYER._id)]);
+    expect(confs.get('c1').entityDefaults).toEqual([String(PLAYER._id)]);
     expect(confs.get('c2').entityDefaults).toEqual([String(CAVERN_BOT._id)]);
+    expect(result).not.toHaveProperty('linked');
   });
 
-  it('never displaces the default this instance already references with an unowned lookalike', async () => {
-    // The reported bug: a second `resource`/`wood-1` document, edited later and referenced by no
-    // world, matched the placed wood and was adopted — so the instance ran on, and exported,
-    // wiring its operator never linked to it.
-    const mine = { _id: new Types.ObjectId(), entityType: 'resource', liveItemIds: ['wood-1'] };
-    const stray = {
-      _id: new Types.ObjectId(),
-      entityType: 'resource',
-      liveItemIds: ['wood-1'],
-      inventoryItemsIds: ['tim-knife'],
-      overrideItemsIdsState: [{ itemId: 'tim-knife', active: true }],
-    };
-    docs.set(String(mine._id), mine);
-    docs.set(String(stray._id), stray);
-    confs.get('c1').entityDefaults = [String(mine._id)];
-    maps.get('m1').entities.push({ entityType: 'resource', objectLayerItemIds: ['wood-1'] });
-
-    const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    expect(result.conflicts).toEqual([String(stray._id)]);
-    expect(result.linked).not.toContain(String(stray._id));
-    expect(result.entityDefaults).toContain(String(mine._id));
-    expect(result.entityDefaults).not.toContain(String(stray._id));
-    // The instance's own reference is untouched, so nothing the stray declares reaches the map.
-    const wood = maps.get('m1').entities.find((entity) => entity.entityType === 'resource');
-    expect(wood.objectLayerItemIds).toEqual(['wood-1']);
-  });
-
-  it('links a lookalike no reference answers for, and only one of them', async () => {
-    // The guard is about a build already answered, not about the item ids: with nothing
-    // referenced for it, the first match is adopted the way every other match is. The second
-    // would only add an ambiguity this sync invented, so it is reported instead.
-    const first = { _id: new Types.ObjectId(), entityType: 'resource', liveItemIds: ['wood-1'] };
-    const second = { _id: new Types.ObjectId(), entityType: 'resource', liveItemIds: ['wood-1'] };
-    docs.set(String(first._id), first);
-    docs.set(String(second._id), second);
-    maps.get('m1').entities.push({ entityType: 'resource', objectLayerItemIds: ['wood-1'] });
-
-    const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    expect(result.linked).toContain(String(first._id));
-    expect(result.conflicts).toEqual([String(second._id)]);
-    // The conf never ends up carrying two answers for one build unless an operator put them there.
-    expect(result.duplicates).toEqual([]);
-  });
-
-  it('withdraws no reference an operator made, however redundant', async () => {
-    // Two references for the same build inside one conf is an authoring mistake worth reporting,
-    // and still not something to resolve by guessing which the operator meant.
+  it('keeps every reference an operator made, and names the second answer for one build', async () => {
     const a = { _id: new Types.ObjectId(), entityType: 'resource', liveItemIds: ['wood-1'] };
     const b = { _id: new Types.ObjectId(), entityType: 'resource', liveItemIds: ['wood-1'] };
     docs.set(String(a._id), a);
     docs.set(String(b._id), b);
     confs.get('c1').entityDefaults = [String(a._id), String(b._id)];
-
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
     expect(result.duplicates).toEqual([String(b._id)]);
-    expect(result.entityDefaults).toEqual(expect.arrayContaining([String(a._id), String(b._id)]));
-    expect(confs.get('c1').entityDefaults).toEqual(expect.arrayContaining([String(a._id), String(b._id)]));
-  });
-
-  it('is idempotent — a second run links nothing new', async () => {
-    await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    const again = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    expect(again.linked).toEqual([]);
-    expect(again.dropped).toEqual([]);
+    expect(confs.get('c1').entityDefaults).toEqual([String(a._id), String(b._id)]);
   });
 
   it('syncs against the map codes it is given, not only the stored ones', async () => {
-    // m2 places nothing any default matches, so an explicit selection links nothing.
     const result = await CyberiaEntityTypeDefaultService.syncInstance(
       { instanceCode: 'forest', mapCodes: ['m2'] },
       options,
     );
     expect(result.mapCodes).toEqual(['m2']);
-    expect(result.linked).toEqual([]);
   });
 
   it('drops a reference whose document is gone while it syncs', async () => {
@@ -433,37 +448,28 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
     confs.get('c1').entityDefaults = [String(PLAYER._id), orphan];
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
     expect(result.dropped).toEqual([orphan]);
-    expect(result.entityDefaults).not.toContain(orphan);
+    expect(result.entityDefaults).toEqual([String(PLAYER._id)]);
   });
 
-  it('runs the skills its entities trigger, and reports them without storing them', async () => {
+  it('runs the skills its entities trigger, a global row among them, and stores none of them', async () => {
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    // atlas_pistol_mk2 is carried by the armed bot this sync linked, and coin by the player
-    // default's inventory. hatchet is triggered by nothing this world names.
+    // atlas_pistol_mk2 is carried by the global armed bot, and coin by the player default's
+    // inventory. hatchet is triggered by nothing this world names.
     expect(result.skills).toEqual(['atlas_pistol_mk2', 'coin']);
-    // Nothing is written: the conf owns references, not a second copy of the skill list.
     expect(confs.get('c1')).not.toHaveProperty('skillConfig');
   });
 
   it('runs a skill only a quest objective names', async () => {
-    // The reported case. No entity in this world wears a hatchet and no default wires one, so a
-    // rule reading entity loadouts alone called the skill unreachable — while the export shipped
-    // it and the simulation ran it, because a player can be handed one to satisfy the quest.
-    quests = [
-      { sourceMapCode: 'm1', steps: [{ objectives: [{ itemId: 'hatchet' }] }], rewards: [] },
-    ];
+    quests = [{ sourceMapCode: 'm1', steps: [{ objectives: [{ itemId: 'hatchet' }] }], rewards: [] }];
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
     expect(result.skills).toContain('hatchet');
   });
 
   it('runs a skill only a vendor or an assembler names', async () => {
-    actions = [
-      { sourceMapCode: 'm1', shopItems: [{ itemId: 'hatchet', priceItemId: 'coin' }], craftRecipes: [] },
-    ];
-    expect(
-      (await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options)).skills,
-    ).toContain('hatchet');
-
+    actions = [{ sourceMapCode: 'm1', shopItems: [{ itemId: 'hatchet', priceItemId: 'coin' }], craftRecipes: [] }];
+    expect((await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options)).skills).toContain(
+      'hatchet',
+    );
     actions = [
       {
         sourceMapCode: 'm1',
@@ -471,14 +477,9 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
         craftRecipes: [{ ingredients: [{ itemId: 'wood-1' }], outputItems: [{ itemId: 'hatchet' }] }],
       },
     ];
-    expect(
-      (await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options)).skills,
-    ).toContain('hatchet');
-  });
-
-  it('leaves out a skill whose trigger nothing in the world names', async () => {
-    const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
-    expect(result.skills).not.toContain('hatchet');
+    expect((await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options)).skills).toContain(
+      'hatchet',
+    );
   });
 
   it("ignores content bound to another instance's maps", async () => {
@@ -489,7 +490,7 @@ describe.skipIf(!contentBuilt)('syncing an instance to the defaults its maps pla
 
   it('keeps a skill whose trigger the baseline defaults supply', async () => {
     // The instance references no player default of its own, so anon/atlas_pistol_mk2 reach it
-    // through the canonical set — leaving their skills out would disarm the player.
+    // through the baseline — leaving their skills out would disarm the player.
     confs.get('c1').entityDefaults = [];
     const result = await CyberiaEntityTypeDefaultService.syncInstance({ instanceCode: 'forest' }, options);
     expect(result.skills).toContain('atlas_pistol_mk2');
@@ -956,7 +957,9 @@ describe('the destructible behavior binds obstacle defaults only', () => {
     const options = { host: 'entity-default-test', path: '/' };
     vi.spyOn(DataBaseProviderService, 'getModel').mockReturnValue(CyberiaEntityTypeDefaultModel);
     vi.spyOn(CyberiaEntityTypeDefaultModel, 'findById').mockReturnValue({ lean: async () => ({ ...FOREST_BOT }) });
-    const update = vi.spyOn(CyberiaEntityTypeDefaultModel, 'findByIdAndUpdate').mockResolvedValue(FOREST_BOT);
+    const update = vi
+      .spyOn(CyberiaEntityTypeDefaultModel, 'findOneAndUpdate')
+      .mockReturnValue({ lean: async () => FOREST_BOT });
     const put = (body) =>
       CyberiaEntityTypeDefaultService.put({ params: { id: String(FOREST_BOT._id) }, body }, {}, options);
 
@@ -964,6 +967,23 @@ describe('the destructible behavior binds obstacle defaults only', () => {
     expect(update).not.toHaveBeenCalled();
     await put({ entityType: 'obstacle', behavior: 'destructible' });
     expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a save over a version newer than the one it read', async () => {
+    const options = { host: 'entity-default-test', path: '/' };
+    vi.spyOn(DataBaseProviderService, 'getModel').mockReturnValue(CyberiaEntityTypeDefaultModel);
+    vi.spyOn(CyberiaEntityTypeDefaultModel, 'findById').mockReturnValue({ lean: async () => ({ ...FOREST_BOT }) });
+    const update = vi.spyOn(CyberiaEntityTypeDefaultModel, 'findOneAndUpdate').mockReturnValue({ lean: async () => null });
+    const read = '2026-10-25T10:00:00.000Z';
+    await expect(
+      CyberiaEntityTypeDefaultService.put(
+        { params: { id: String(FOREST_BOT._id) }, body: { behavior: 'passive', updatedAt: read } },
+        {},
+        options,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(update.mock.calls[0][0]).toEqual({ _id: String(FOREST_BOT._id), updatedAt: new Date(read) });
+    expect(update.mock.calls[0][1]).toEqual({ behavior: 'passive' });
   });
 
   it('drops through the shared rows: the override sizes the stack and rolls the chance', () => {

@@ -90,24 +90,6 @@ class CyberiaInstanceService {
           return reject(error);
         }),
     );
-  /** The instance map payload of one instance: its maps with their cells, names and previews. */
-  static instanceMap = (options = { code: '' }) =>
-    new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: `instance-map/${encodeURIComponent(options.code)}/static`, endpoint }), {
-        method: 'GET',
-        headers: headersFactory(),
-        credentials: 'include',
-      })
-        .then(readResponse)
-        .then((res) => {
-          logger.info(res);
-          return resolve(res);
-        })
-        .catch((error) => {
-          logger.error(error);
-          return reject(error);
-        }),
-    );
   static portalConnect = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/portal-connect`, endpoint }), {
@@ -125,6 +107,27 @@ class CyberiaInstanceService {
           return reject(error);
         }),
     );
+  /** The maps of the Foundation and of each saga, each with whether this host stores it. */
+  static getMapSources = () =>
+    fetch(getApiBaseUrl({ id: 'map-sources', endpoint }), { headers: headersFactory(), credentials: 'include' })
+      .then(readResponse)
+      .catch((error) => {
+        logger.error(error);
+        throw error;
+      });
+  /** What `{ mapCodes, portals }` connect, from the portal entities of the maps. */
+  static getTopology = (options = { body: {} }) =>
+    fetch(getApiBaseUrl({ id: 'topology', endpoint }), {
+      method: 'POST',
+      headers: headersFactory(),
+      credentials: 'include',
+      body: payloadFactory(options.body),
+    })
+      .then(readResponse)
+      .catch((error) => {
+        logger.error(error);
+        throw error;
+      });
   static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

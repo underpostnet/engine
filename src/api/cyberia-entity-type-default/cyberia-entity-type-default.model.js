@@ -3,8 +3,10 @@ import { isAssignableEntityBehavior } from '../../client/components/cyberia/Shar
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-// CyberiaEntityTypeDefault — the per-entity-type item wiring an instance authors
-// over the foundation baseline of the cyberia-content artifact.
+// CyberiaEntityTypeDefault — the per-entity-type item wiring over the foundation baseline of the
+// cyberia-content artifact. A document no instance conf references is a global row: every world
+// runs it. A document a conf references is an instance row of that world, and it precedes the
+// baseline and the global rows.
 // A document binds an entity category (entityType) to the item ids the runtime
 // rotates through by lifecycle state:
 //   liveItemIds       — ObjectLayer item ids while the entity is alive.

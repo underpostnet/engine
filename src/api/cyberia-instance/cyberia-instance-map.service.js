@@ -2,11 +2,9 @@
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { refreshMapPreview } from '../../projects/cyberia/instance/map-preview-generator.js';
 import { worldPreview } from '../../projects/cyberia/instance/world-preview.js';
 import { instanceMapLayout } from '../../projects/cyberia/instance/instance-map-layout.js';
 import { entrySpawn } from '../../projects/cyberia/instance/entry-spawn.js';
-import { loggerFactory } from '../../server/ops/logger.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,
@@ -16,11 +14,8 @@ import {
   resolveSpawnLoadout,
 } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { catalogModels, findBoundDefinitions } from '../../projects/cyberia/catalog/object-layer-catalog.js';
-import { contentArtifact } from '../../projects/cyberia/content/content-artifact.js';
 import { parseRgba } from '../../projects/cyberia/instance-data.js';
 import { isImmortalBehavior, resolveGraphLayout } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-
-const logger = loggerFactory(import.meta);
 
 const actionHasStandalonePayload = (action) =>
   (action.shopItems || []).length > 0 || (action.craftRecipes || []).length > 0 || (action.storageSlots || 0) > 0;
@@ -83,25 +78,6 @@ const entityPresenceStatus = (entity, objectLayerMetadata, behavior) => {
     default:
       return '';
   }
-};
-
-const entityDefaultRow = (entityDefault) => ({
-  entityType: entityDefault.entityType || '',
-  liveItemIds: [...(entityDefault.liveItemIds || [])],
-  deadItemIds: [...(entityDefault.deadItemIds || [])],
-  dropItemIds: [...(entityDefault.dropItemIds || [])],
-  inventoryItemsIds: [...(entityDefault.inventoryItemsIds || [])],
-  overrideItemsIdsState: [...(entityDefault.overrideItemsIdsState || [])],
-  behavior: entityDefault.behavior || '',
-});
-
-const mergeEntityDefaults = (entityDefaults = []) => {
-  const merged = entityDefaults.map(entityDefaultRow);
-  const coveredTypes = new Set(merged.map((entityDefault) => entityDefault.entityType));
-  for (const canonical of contentArtifact().baseline) {
-    if (!coveredTypes.has(canonical.entityType)) merged.push(entityDefaultRow(canonical));
-  }
-  return merged;
 };
 
 // What the server makes of one placed entity at spawn, from the build it matches: its presence class,
@@ -170,10 +146,10 @@ const resolveObjectLayerMetadata = async (itemIds, options) => {
   );
 };
 
-// The rules a world spawns its entities by. Only what this instance references: the conf names its
-// entity-type defaults by _id, so a POI never reads behavior out of another world's wiring.
-const worldRules = (conf = {}, entityDefaults = []) => ({
-  entityDefaults: mergeEntityDefaults(entityDefaults),
+// The rules a world spawns its entities by: its instance rows, the baseline and the global rows, in the
+// order the runtime resolves them.
+const worldRules = (conf = {}, entityDefaults = CyberiaEntityTypeDefaultService.completeWithCanonical()) => ({
+  entityDefaults,
   progressionRules: resolveProgressionRules(conf.progressionRules || {}),
   maxActiveLayers: conf.maxActiveLayers ?? CYBERIA_INSTANCE_CONF_DEFAULTS.maxActiveLayers,
 });
@@ -184,7 +160,10 @@ const resolveWorldRules = async (instance, options) => {
     const conf = await CyberiaInstanceConf.findOne({ instanceCode: instance.code })
       .select('entityDefaults progressionRules maxActiveLayers')
       .lean();
-    return worldRules(conf || {}, await CyberiaEntityTypeDefaultService.resolve(conf?.entityDefaults, options));
+    return worldRules(
+      conf || {},
+      await CyberiaEntityTypeDefaultService.resolveWithCanonical(conf?.entityDefaults, options),
+    );
   } catch {
     return worldRules();
   }
@@ -305,8 +284,7 @@ const buildPresencePois = ({ instance, maps, quests, actions, placements }) => {
  * objectLayerMetadata, rules }.
  */
 const buildStaticPayload = ({ instance, maps, quests, actions, objectLayerMetadata = {}, rules = worldRules() }) => {
-  const previewRoute = (mapCode) =>
-    `${apiPathOf()}/cyberia-instance/instance-map/${encodeURIComponent(instance.code)}/preview/${encodeURIComponent(mapCode)}`;
+  const previewRoute = (mapCode) => `${apiPathOf()}/cyberia-map/${encodeURIComponent(mapCode)}/preview`;
 
   // Nodes follow the instance order, so the default cells never depend on the read order.
   const mapByCode = new Map(maps.map((m) => [m.code, m]));
@@ -420,34 +398,6 @@ class CyberiaInstanceMapService {
     if (!instanceCode) throw new Error('instanceCode parameter is required');
     const world = await resolveInstanceWorld(instanceCode, options);
     return buildStaticPayload(world);
-  };
-
-  /**
-   * Node-background PNG for one map.
-   *
-   * A map without a stored `preview` File is drawn once and the picture becomes
-   * its preview, so every later request is served through the default
-   * /api/v1/file/blob path.
-   */
-  static getPreview = async (req, res, options) => {
-    const { mapCode } = req.params;
-    if (!mapCode) throw new Error('mapCode parameter is required');
-
-    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
-    const File = DataBaseProviderService.getModel('File', options);
-    const map = await CyberiaMap.findOne({ code: mapCode }).select('code gridX gridY preview entities').lean();
-    if (!map) throw new Error(`CyberiaMap "${mapCode}" not found`);
-
-    // Another request may have persisted it between the payload and this hit.
-    if (map.preview) {
-      const stored = await File.findOne({ _id: map.preview });
-      if (stored?.data) return stored.data;
-    }
-
-    const rendered = await refreshMapPreview(map, options);
-    if (!rendered) throw new Error(`No preview for map "${mapCode}"`);
-    logger.info(`map preview persisted for "${mapCode}"`);
-    return rendered;
   };
 
   /** The preview of a world: its maps on their cells, keyed by both. */

@@ -46,11 +46,6 @@ class CyberiaInstanceRouter {
       `/instance-map/:instanceCode/static`,
       async (req, res) => await CyberiaInstanceController.instanceMapStatic(req, res, options),
     );
-    // Node-background capture of one map (PNG).
-    router.get(
-      `/instance-map/:instanceCode/preview/:mapCode`,
-      async (req, res) => await CyberiaInstanceController.instanceMapPreview(req, res, options),
-    );
     // The preview of a world: its maps on their cells (PNG).
     router.get(
       `/instance-map/:instanceCode/world-preview`,
@@ -63,6 +58,19 @@ class CyberiaInstanceRouter {
       options.authMiddleware,
       moderatorGuard,
       async (req, res) => await CyberiaInstanceController.hotReload(req, res, options),
+    );
+    // Map sources and topology — the maps an instance takes in one step, and what its portals connect.
+    router.get(
+      `/map-sources`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaInstanceController.mapSources(req, res, options),
+    );
+    router.post(
+      `/topology`,
+      options.authMiddleware,
+      moderatorGuard,
+      async (req, res) => await CyberiaInstanceController.topology(req, res, options),
     );
     router.get(
       `/:id/portal-connect`,

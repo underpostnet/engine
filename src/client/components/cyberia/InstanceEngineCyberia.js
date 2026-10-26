@@ -37,8 +37,10 @@ class InstanceEngineCyberia {
   // The saved cells of the graph view; a map without one takes the default cell.
   static mapLayout = [];
   static layoutGraph = null;
-  // Name and preview of each map, from the instance map payload.
+  // Name and preview of each map: from the instance map payload, else from the stored map.
   static mapCards = new Map();
+  // The map codes whose card is being read.
+  static cardLoads = new Set();
 
   /**
    * Opens the editor on an instance.
@@ -49,7 +51,6 @@ class InstanceEngineCyberia {
     return StudioCyberia.open(ROUTE, { instanceCode });
   }
 
-  /** The maps of the instance on their cells, with the portals between them. */
   /** The world preview the engine draws from the saved maps, cells and portals: what the universe shows. */
   static renderWorldPreview() {
     const slot = s('.instance-engine-world-preview');
@@ -67,11 +68,48 @@ class InstanceEngineCyberia {
         />`
       : html`<span>Save the instance to draw its world preview.</span>`;
   }
+  /**
+   * Reads the card of each map a code names: its name and its stored preview, from the stored map.
+   * A map added to the form shows it before the instance is saved; a map that draws nothing shows
+   * as empty. A card changes only once its new one arrives.
+   */
+  static async loadCards(mapCodes) {
+    if (mapCodes.length === 0) return InstanceEngineCyberia.renderLayout();
+    for (const code of mapCodes) InstanceEngineCyberia.cardLoads.add(code);
+    const result = await CyberiaMapService.get({
+      filterModel: { code: { filterType: 'set', values: mapCodes } },
+      limit: mapCodes.length,
+    });
+    for (const code of mapCodes) InstanceEngineCyberia.cardLoads.delete(code);
+    if (result.status !== 'success') return;
+    const stored = new Map(result.data.data.map((map) => [map.code, map]));
+    for (const code of mapCodes) {
+      const map = stored.get(code);
+      const preview = map?.preview?._id ?? map?.preview;
+      const empty = Boolean(map) && !preview && map.media?.status === 'ready';
+      InstanceEngineCyberia.mapCards.set(code, {
+        name: map?.name || code,
+        note: !map ? 'Not stored here' : empty ? 'Empty map' : '',
+        previewUrl: preview
+          ? getApiBaseUrl({ id: preview, endpoint: 'file/blob' })
+          : map && !empty
+            ? CyberiaMapService.previewUrl(code)
+            : '',
+      });
+    }
+    InstanceEngineCyberia.renderLayout();
+  }
+
+  /** The maps of the instance on their cells, with the portals between them. */
   static renderLayout() {
     InstanceEngineCyberia.renderWorldPreview();
     const graph = InstanceEngineCyberia.layoutGraph;
     if (!graph) return;
     const mapCodes = DropDown.Tokens['instance-engine-map-codes-dropdown']?.value ?? [];
+    const unread = mapCodes.filter(
+      (code) => !InstanceEngineCyberia.mapCards.has(code) && !InstanceEngineCyberia.cardLoads.has(code),
+    );
+    if (unread.length > 0) InstanceEngineCyberia.loadCards(unread);
     const cells = resolveGraphLayout([...mapCodes], InstanceEngineCyberia.mapLayout, 'mapCode');
     const loops = new Map();
     const pairs = new Map();
@@ -93,6 +131,7 @@ class InstanceEngineCyberia {
           code: mapCode,
           label: card?.name || mapCode,
           sublabel: card?.name && card.name !== mapCode ? mapCode : '',
+          note: card ? card.note : 'Reading the map',
           x,
           y,
           image: card?.previewUrl ?? '',
@@ -109,6 +148,55 @@ class InstanceEngineCyberia {
       hint: 'Drag a map to a free cell. The layout moves no portal and no entity.',
     });
   }
+  static topologyTimer = null;
+
+  /** Checks what the portals of the form connect, a moment after the last change. */
+  static checkTopology() {
+    clearTimeout(InstanceEngineCyberia.topologyTimer);
+    InstanceEngineCyberia.topologyTimer = setTimeout(async () => {
+      const panel = s('.instance-engine-topology');
+      const mapCodes = [...(DropDown.Tokens['instance-engine-map-codes-dropdown']?.value ?? [])];
+      if (!panel) return;
+      if (mapCodes.length === 0) return (panel.innerHTML = '');
+      const result = await CyberiaInstanceService.getTopology({
+        body: { mapCodes, portals: InstanceEngineCyberia.portals },
+      });
+      if (result.status !== 'success') return (panel.textContent = result.message);
+      const { maps, portalEntities, connections, unreachable, unresolved, invalid, unconnected } = result.data;
+      const cell = ({ sourceMapCode, sourceCellX, sourceCellY }) => `${sourceMapCode} (${sourceCellX}, ${sourceCellY})`;
+      const issues = [
+        [`Maps a player cannot reach from ${mapCodes[0]}`, unreachable],
+        ['Portals with no portal entity at their source cell', unresolved.map(cell)],
+        ['Portals to a map outside the instance', invalid.map((portal) => `${cell(portal)} → ${portal.targetMapCode}`)],
+        [
+          'Portal entities no portal starts from',
+          unconnected.map(({ mapCode, cellX, cellY }) => `${mapCode} (${cellX}, ${cellY})`),
+        ],
+      ].filter(([, entries]) => entries.length > 0);
+      panel.innerHTML = html`<div style="font-weight:bold;">
+          Topology · ${maps} maps · ${portalEntities} portal entities · ${connections} connections
+        </div>
+        ${
+          portalEntities === 0
+            ? html`<div>
+                No map holds a portal entity: place portals in the Map Studio, then run the Portal Connector.
+              </div>`
+            : ''
+        }
+        ${
+          issues.length > 0
+            ? html`<ul style="margin:4px 0;padding-left:18px;color:#ff8a9e;">
+                ${issues.map(([label, entries]) => html`<li>${label}: ${entries.join(', ')}</li>`).join('')}
+              </ul>`
+            : portalEntities > 0
+              ? html`<div style="color:var(--studio-positive);">
+                  Every map is reachable, and every portal entity leads somewhere.
+                </div>`
+              : ''
+        }`;
+    }, 300);
+  }
+
   static renderPortalList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
@@ -172,6 +260,7 @@ class InstanceEngineCyberia {
       };
     });
     InstanceEngineCyberia.renderLayout();
+    InstanceEngineCyberia.checkTopology();
 
     container.querySelectorAll('.btn-instance-engine-load-portal').forEach((btn) => {
       btn.onclick = () => {
@@ -355,14 +444,79 @@ class InstanceEngineCyberia {
       await persistInstance({ notify: true });
     };
 
-    /** Reads the name and the preview of each map of the instance, for the layout cards. */
-    const loadMapCards = async (instanceCode) => {
-      InstanceEngineCyberia.mapCards = new Map();
-      const result = instanceCode ? await CyberiaInstanceService.instanceMap({ code: instanceCode }) : null;
-      if (result?.status === 'success')
-        for (const node of result.data.nodes) InstanceEngineCyberia.mapCards.set(node.mapCode, node);
-      InstanceEngineCyberia.renderLayout();
-      InstanceEngineCyberia.layoutGraph?.fit();
+    // The maps of the instance, as the map codes dropdown shows them.
+    const setMapCodes = (mapCodes) => {
+      const token = DropDown.Tokens[idMapCodesDropdown];
+      if (!token) return;
+      token.oncheckvalues = {};
+      for (const code of mapCodes) {
+        const key = code.trim().replaceAll(' ', '-');
+        token.oncheckvalues[key] = { data: code, display: code, value: code };
+      }
+      token.value = mapCodes;
+      if (s(`.${idMapCodesDropdown}`)) s(`.${idMapCodesDropdown}`).value = mapCodes;
+      if (s(`.dropdown-current-${idMapCodesDropdown}`)) token._renderSelectedBadges?.();
+    };
+
+    // The maps a source adds: each in the instance already, added, or skipped because this host
+    // does not store it. Adding is a change of the form; a save keeps it.
+    const previewMapImport = (title, maps) => {
+      const current = DropDown.Tokens[idMapCodesDropdown]?.value ?? [];
+      const rows = maps.map((map) => ({
+        ...map,
+        status: current.includes(map.code)
+          ? 'In the instance'
+          : map.stored
+            ? 'Adds'
+            : 'Not stored here: import its content first',
+      }));
+      const adds = rows.filter(({ status }) => status === 'Adds').map(({ code }) => code);
+      const panel = s('.instance-engine-map-import');
+      panel.innerHTML = html`<div class="in" style="margin-top:8px;font-weight:bold;">${title}</div>
+        <ul style="margin:4px 0;padding-left:18px;font-size:13px;">
+          ${rows
+            .map(
+              ({ code, name, status }) =>
+                html`<li>
+                  ${name ? `${name} · ` : ''}<code>${code}</code> —
+                  <span style="opacity:${status === 'Adds' ? 1 : 0.7}">${status}</span>
+                </li>`,
+            )
+            .join('')}
+        </ul>
+        <div class="in" style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn-instance-engine-map-import-apply" ${adds.length === 0 ? 'disabled' : ''}>
+            <i class="fa-solid fa-plus"></i> Add ${adds.length} maps
+          </button>
+          <button type="button" class="btn-instance-engine-map-import-close">
+            <i class="fa-solid fa-xmark"></i> Close
+          </button>
+        </div>`;
+      panel.querySelector('.btn-instance-engine-map-import-apply').onclick = () => {
+        setMapCodes([...current, ...adds]);
+        panel.innerHTML = '';
+        InstanceEngineCyberia.renderLayout();
+        InstanceEngineCyberia.checkTopology();
+        NotificationManager.Push({
+          html: `${adds.length} maps added. Save the instance to keep them.`,
+          status: 'success',
+        });
+      };
+      panel.querySelector('.btn-instance-engine-map-import-close').onclick = () => (panel.innerHTML = '');
+    };
+
+    const readMapSources = async () => {
+      const result = await CyberiaInstanceService.getMapSources();
+      if (result.status !== 'success') {
+        NotificationManager.Push({ html: result.message, status: 'error' });
+        return null;
+      }
+      const sagas = s('.instance-engine-saga');
+      if (sagas && sagas.options.length === 0)
+        sagas.innerHTML = result.data.sagas
+          .map(({ code, name }) => html`<option value="${code}">${name || code}</option>`)
+          .join('');
+      return result.data;
     };
 
     const loadInstance = async (instanceData) => {
@@ -437,21 +591,7 @@ class InstanceEngineCyberia {
         }
       }
 
-      // Load cyberiaMapCodes into the dropdown
-      if (DropDown.Tokens[idMapCodesDropdown]) {
-        DropDown.Tokens[idMapCodesDropdown].oncheckvalues = {};
-        const mapCodes = instanceData.cyberiaMapCodes || [];
-        for (const code of mapCodes) {
-          const key = code.trim().replaceAll(' ', '-');
-          DropDown.Tokens[idMapCodesDropdown].oncheckvalues[key] = { data: code, display: code, value: code };
-        }
-        DropDown.Tokens[idMapCodesDropdown].value = mapCodes;
-        if (s(`.${idMapCodesDropdown}`)) s(`.${idMapCodesDropdown}`).value = mapCodes;
-        if (s(`.dropdown-current-${idMapCodesDropdown}`)) {
-          DropDown.Tokens[idMapCodesDropdown]._renderSelectedBadges?.();
-        }
-      }
-
+      setMapCodes(instanceData.cyberiaMapCodes || []);
 
       InstanceEngineCyberia.mapLayout = (instanceData.mapLayout || []).map(({ mapCode, x, y }) => ({ mapCode, x, y }));
 
@@ -466,7 +606,7 @@ class InstanceEngineCyberia {
         portalMode: p.portalMode || 'inter-portal',
       }));
       InstanceEngineCyberia.renderPortalList(portalListId);
-      void loadMapCards(instanceData.code);
+      InstanceEngineCyberia.loadCards(instanceData.cyberiaMapCodes || []);
 
       // Player spawn (instance-level).
       const spawn = instanceData.playerSpawn || {};
@@ -668,7 +808,7 @@ class InstanceEngineCyberia {
       };
 
       // Syncs against what is on screen: the instance is persisted first so the conf and the map
-      // selection agree, then the server matches defaults to the entities those maps place.
+      // selection agree, then the server rewrites the placed entities by the defaults they resolve to.
       if (s(`.btn-instance-engine-sync-entities`))
         s(`.btn-instance-engine-sync-entities`).onclick = async () => {
           const btn = s(`.btn-instance-engine-sync-entities`);
@@ -700,47 +840,33 @@ class InstanceEngineCyberia {
               return;
             }
             const {
-              linked = [],
-              skipped = [],
               dropped = [],
               entityDefaults = [],
               skills = [],
               entitiesUpdated = [],
-              conflicts = [],
               duplicates = [],
             } = result.data || {};
             const placedRewritten = entitiesUpdated.reduce((sum, { entities }) => sum + entities, 0);
             if (status) {
               htmls(
                 `.instance-engine-sync-entities-status`,
-                html`${entityDefaults.length} reference${1 === entityDefaults.length ? '' : 's'}${linked.length
-                  ? ` · linked ${linked.length}`
-                  : ''}${dropped.length ? ` · dropped ${dropped.length}` : ''}${skills.length
+                html`${entityDefaults.length} instance row${1 === entityDefaults.length ? '' : 's'}${dropped.length
+                  ? ` · dropped ${dropped.length}`
+                  : ''}${skills.length
                   ? ` · ${skills.length} skill${1 === skills.length ? '' : 's'}`
                   : ''}${placedRewritten
                   ? ` · placed ${placedRewritten}`
-                  : ''}${skipped.length
-                  ? html`<div style="margin-top:3px;color:#c90;">
-                      ${skipped.length} match${1 === skipped.length ? '' : 'es'} already referenced by another
-                      instance — link deliberately in the Entity engine, or clone it there.
-                    </div>`
-                  : ''}${conflicts.length
-                  ? html`<div style="margin-top:3px;color:#c90;">
-                      ${conflicts.length} match${1 === conflicts.length ? '' : 'es'} not linked: this instance already
-                      references a default for the same entity type and live items. Link it in the Entity engine only
-                      if you mean to replace the one it has.
-                    </div>`
                   : ''}${duplicates.length
                   ? html`<div style="margin-top:3px;color:#c90;">
-                      ${duplicates.length} reference${1 === duplicates.length ? '' : 's'} answer for a build another
-                      reference already covers — which one applies depends on list order. Unlink or delete the
-                      redundant record in the Entity engine.
+                      ${duplicates.length} instance row${1 === duplicates.length ? '' : 's'} answer for a build another
+                      row of this instance already covers — which one applies depends on list order. Unlink or delete
+                      the redundant record in the Entity engine.
                     </div>`
                   : ''}`,
               );
             }
             NotificationManager.Push({
-              html: `Entity type defaults synced — ${entityDefaults.length} referenced`,
+              html: `Entity type defaults synced — ${entityDefaults.length} instance rows`,
               status: 'success',
             });
           } finally {
@@ -752,6 +878,20 @@ class InstanceEngineCyberia {
         s(`.btn-instance-engine-hot-reload`).onclick = () => triggerHotReload('full');
       if (s(`.btn-instance-engine-hot-reload-incremental`))
         s(`.btn-instance-engine-hot-reload-incremental`).onclick = () => triggerHotReload('incremental');
+
+      if (s('.btn-instance-engine-foundation-maps'))
+        s('.btn-instance-engine-foundation-maps').onclick = async () => {
+          const sources = await readMapSources();
+          if (sources) previewMapImport('The maps of the Foundation', sources.foundation);
+        };
+      if (s('.btn-instance-engine-saga-maps'))
+        s('.btn-instance-engine-saga-maps').onclick = async () => {
+          const sources = await readMapSources();
+          const saga = sources?.sagas.find(({ code }) => code === s('.instance-engine-saga').value);
+          if (saga) previewMapImport(`The maps of ${saga.name || saga.code}`, saga.maps);
+          else if (sources) NotificationManager.Push({ html: 'This host stores no saga.', status: 'warning' });
+        };
+      if (canMutate) void readMapSources();
 
       if (s(`.btn-instance-engine-arrange`))
         s(`.btn-instance-engine-arrange`).onclick = () => {
@@ -1011,6 +1151,18 @@ class InstanceEngineCyberia {
                     return [];
                   },
                 })}
+                <div class="in" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+                  ${await BtnIcon.instance({
+                    class: 'btn-instance-engine-foundation-maps',
+                    label: html`<i class="fa-solid fa-landmark"></i> Add the Foundation maps`,
+                  })}
+                  <select class="instance-engine-saga" aria-label="Saga"></select>
+                  ${await BtnIcon.instance({
+                    class: 'btn-instance-engine-saga-maps',
+                    label: html`<i class="fa-solid fa-book-open"></i> Add the maps of the saga`,
+                  })}
+                </div>
+                <div class="in instance-engine-map-import" aria-live="polite"></div>
               </div>
               <div class="in section-mp" style="margin-top: 10px;">
                 <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
@@ -1122,6 +1274,7 @@ class InstanceEngineCyberia {
                   </div>
                 </div>
                 <div class="in ${portalListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+                <div class="in instance-engine-topology" style="margin-top: 10px; font-size: 13px;" aria-live="polite"></div>
               </div>
             `,
           },

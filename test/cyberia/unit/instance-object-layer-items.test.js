@@ -5,11 +5,20 @@ import { hasContentArtifact } from '../../../src/projects/cyberia/content/conten
 // The baseline is content: a test that runs a world on it needs a built cyberia-content artifact.
 const contentBuilt = hasContentArtifact();
 
-const lean = (value) => ({ lean: async () => value, populate: () => lean(value) });
+const lean = (value) => ({
+  lean: async () => value,
+  populate: () => lean(value),
+  sort: () => lean(value),
+  session: () => lean(value),
+  then: (resolve, reject) => Promise.resolve(value).then(resolve, reject),
+});
 
 const buildModels = ({ instance, maps = [], storedItemIds = [] }) => ({
   CyberiaInstance: { findOne: () => lean(instance) },
-  CyberiaInstanceConf: { findOne: () => lean({ instanceCode: instance?.code, entityDefaults: [] }) },
+  CyberiaInstanceConf: {
+    findOne: () => lean({ instanceCode: instance?.code, entityDefaults: [] }),
+    distinct: () => lean([]),
+  },
   CyberiaMap: { find: () => lean(maps) },
   CyberiaEntityTypeDefault: { find: () => lean([]) },
   CyberiaAction: { find: () => lean([]) },

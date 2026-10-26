@@ -143,6 +143,49 @@ const applyDefaultsToEntities = (entities = [], defaults = [], itemTypes = {}) =
   return { entities: next, changed };
 };
 
+/**
+ * The global rows: the entity-type defaults no instance conf references. Every world runs them,
+ * oldest first. A row a conf references is an instance row of that world only.
+ * @param {{CyberiaEntityTypeDefault: import('mongoose').Model, CyberiaInstanceConf: import('mongoose').Model}} models
+ * @param {import('mongoose').ClientSession} [session] - The transaction the read joins.
+ * @returns {Promise<Array<object>>} Lean rows, by `_id`.
+ */
+const findGlobalDefaults = async ({ CyberiaEntityTypeDefault, CyberiaInstanceConf }, session = null) => {
+  const referenced = await CyberiaInstanceConf.distinct('entityDefaults').session(session);
+  return await CyberiaEntityTypeDefault.find({ _id: { $nin: referenced } })
+    .sort({ _id: 1 })
+    .session(session)
+    .lean();
+};
+
+/**
+ * The rows a world runs on, in the order the runtime resolves them: its instance rows in conf order;
+ * then the baseline rows of the entity types they leave out, each replaced in place by the global
+ * row of its build; then the other global rows. The most specific match wins, an earlier row wins a
+ * tie, and with no match the first row of the type answers.
+ * @param {{instance?: Array<object>, baseline?: Array<object>, global?: Array<object>}} rows
+ * @returns {Array<{row: object, source: 'instance'|'baseline'|'global'}>}
+ */
+const runtimeEntityDefaults = ({ instance = [], baseline = [], global = [] }) => {
+  const covered = new Set(instance.map(({ entityType }) => entityType));
+  const byBuild = new Map();
+  for (const row of global) if (!byBuild.has(buildKey(row))) byBuild.set(buildKey(row), row);
+  const placed = new Set();
+  const base = baseline
+    .filter(({ entityType }) => !covered.has(entityType))
+    .map((row) => {
+      const replacement = byBuild.get(buildKey(row));
+      if (!replacement) return { row, source: 'baseline' };
+      placed.add(replacement);
+      return { row: replacement, source: 'global' };
+    });
+  return [
+    ...instance.map((row) => ({ row, source: 'instance' })),
+    ...base,
+    ...global.filter((row) => !placed.has(row)).map((row) => ({ row, source: 'global' })),
+  ];
+};
+
 class CyberiaEntityTypeDefaultService {
   // No per-itemId uniqueness: resolution is by subset containment (most-specific
   // match wins), so the same itemId may appear in many documents — e.g.
@@ -184,28 +227,26 @@ class CyberiaEntityTypeDefaultService {
     );
 
   /**
-   * The defaults a world runs on: what its conf references, completed by the foundation baseline.
-   *
-   * Every entity type the referenced documents do not cover falls back to the baseline, so an
-   * instance only has to own the rows it actually changes.
+   * The defaults a world runs on: what its conf references, the foundation baseline and the global
+   * rows, in {@link runtimeEntityDefaults} order.
    *
    * @param {Array<object>} resolved - Defaults an instance references, already materialised.
-   * @returns {Array<object>} Those defaults followed by the uncovered canonical ones.
+   * @param {Array<object>} [global] - {@link findGlobalDefaults}.
+   * @returns {Array<object>} The rows in the stored shape.
    */
-  static completeWithCanonical = (resolved = []) => {
-    const covered = new Set(resolved.map((entityDefault) => entityDefault.entityType));
-    return [
-      ...resolved.map(toEntityDefault),
-      ...contentArtifact()
-        .baseline.filter((canonical) => !covered.has(canonical.entityType))
-        .map(toEntityDefault),
-    ];
-  };
+  static completeWithCanonical = (resolved = [], global = []) =>
+    runtimeEntityDefaults({ instance: resolved, baseline: contentArtifact().baseline, global }).map(({ row }) =>
+      toEntityDefault(row),
+    );
 
-  /** {@link completeWithCanonical} over what a conf references. */
+  /** {@link completeWithCanonical} over what a conf references and the global rows. */
   static resolveWithCanonical = async (entityDefaultIds = [], options) =>
     CyberiaEntityTypeDefaultService.completeWithCanonical(
       await CyberiaEntityTypeDefaultService.resolve(entityDefaultIds, options),
+      await findGlobalDefaults({
+        CyberiaEntityTypeDefault: DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options),
+        CyberiaInstanceConf: DataBaseProviderService.getModel('CyberiaInstanceConf', options),
+      }),
     );
 
   /**
@@ -296,160 +337,61 @@ class CyberiaEntityTypeDefaultService {
   };
 
   /**
-   * Points an instance's conf at every entity-type default its maps place. A map save runs it for
-   * every instance the map is in, so a default works where its live items are placed.
-   *
-   * Matching is the runtime's rule, not a guess: a document belongs to this world when all of its
-   * `liveItemIds` appear together on some entity its maps place — the same subset containment
-   * `game/content/entity_defaults.go` resolves an entity with. So whatever an author drops on a map, the
-   * conf ends up referencing the wiring that will actually be applied to it.
-   *
-   * Additive, then compacting: references already there are kept in place (order carries
-   * specificity), matches missing from the conf are appended, and references whose document is
-   * gone are dropped. Nothing an author linked by hand is lost — a player or coin default is
-   * never placed on a map, so a wholesale replace would silently discard it.
-   *
-   * A match is reported rather than linked whenever linking it would decide something for the
-   * operator. Two worlds built on the same art hold documents with identical `liveItemIds`, so
-   * matching alone cannot tell them apart: one another instance references is left to that
-   * instance (`skipped`), and one answering for a build this conf already references is left
-   * where it is (`conflicts`), since the two would then differ only by list order. Both stay
-   * claimable by hand in the Entity engine. That is the cross-instance contamination the
-   * reference model exists to prevent — a document is in a world because the world points at it.
-   *
-   * Membership is only ever added here. A reference an operator made is never withdrawn on a
-   * guess: the sole removal is `dropped`, a reference whose document no longer exists.
-   *
-   * @param {{instanceCode: string, mapCodes?: string[]}} params - Target instance; `mapCodes`
-   *   overrides the stored set, which is what lets an editor sync against an unsaved selection.
-   * @param {{host: string, path: string}} options - Provider context.
-   * @returns {Promise<{mapCodes: string[], maps: Array<object>, linked: string[], skipped: string[],
-   *   dropped: string[], entityDefaults: string[], conflicts: string[], duplicates: string[]}>}
-   */
-  static linkPlacedDefaults = async ({ instanceCode, mapCodes }, options) => {
-    if (!instanceCode) throw new Error('instanceCode is required to sync entity-type defaults');
-    const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
-    const CyberiaInstance = DataBaseProviderService.getModel('CyberiaInstance', options);
-    const CyberiaInstanceConf = DataBaseProviderService.getModel('CyberiaInstanceConf', options);
-    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
-
-    const confs = await CyberiaInstanceConf.find({}, { instanceCode: 1, entityDefaults: 1 }).lean();
-    const conf = confs.find((entry) => entry.instanceCode === instanceCode);
-    if (!conf) throw new Error(`cyberia-instance-conf not found for instanceCode="${instanceCode}"`);
-    const codes = mapCodes?.length
-      ? [...mapCodes]
-      : (await CyberiaInstance.findOne({ code: instanceCode }).select('cyberiaMapCodes').lean())?.cyberiaMapCodes ??
-        [];
-
-    const maps = codes.length ? await CyberiaMap.find({ code: { $in: codes } }, { code: 1, entities: 1 }).lean() : [];
-    const placed = maps.flatMap((map) => (map.entities || []).map((entity) => new Set(entity.objectLayerItemIds || [])));
-
-    const defaults = await CyberiaEntityTypeDefault.find(
-      {},
-      { entityType: 1, liveItemIds: 1, updatedAt: 1 },
-    ).lean();
-    const matched = defaults
-      .filter(({ liveItemIds }) => (liveItemIds || []).length > 0)
-      .filter(({ liveItemIds }) => placed.some((itemIds) => liveItemIds.every((id) => itemIds.has(id))))
-      .map((doc) => String(doc._id));
-
-    const claimedElsewhere = new Set(
-      confs
-        .filter((entry) => entry.instanceCode !== instanceCode)
-        .flatMap((entry) => (entry.entityDefaults || []).map(String)),
-    );
-    const byId = new Map(defaults.map((doc) => [String(doc._id), doc]));
-    const existing = new Set(byId.keys());
-    const refs = (conf.entityDefaults || []).map(String);
-    const dropped = refs.filter((ref) => !existing.has(ref));
-    const kept = refs.filter((ref) => existing.has(ref));
-    // What this world already has an answer for. A match that answers for a build a reference
-    // already covers is a second opinion, never an upgrade: adopting it would put a document the
-    // operator never linked into the world, and — sharing the winner's key — it would decide by
-    // list order which of the two the entities actually resolve to. Reported, not linked.
-    const answered = new Set(kept.map((ref) => buildKey(byId.get(ref))));
-    const candidates = matched.filter((id) => !kept.includes(id));
-    const skipped = candidates.filter((id) => claimedElsewhere.has(id));
-    const linked = [];
-    const conflicts = [];
-    for (const id of candidates.filter((candidate) => !claimedElsewhere.has(candidate))) {
-      const key = buildKey(byId.get(id));
-      if (answered.has(key)) {
-        conflicts.push(id);
-        continue;
-      }
-      answered.add(key);
-      linked.push(id);
-    }
-    const entityDefaults = [...kept, ...linked];
-    const duplicates = findDuplicateBuilds(entityDefaults, defaults);
-
-    if (linked.length > 0 || dropped.length > 0) {
-      // A conf written before skills were derived still carries the field. It reaches nothing —
-      // it is off the schema, and fillInstanceConfDefaults strips it from every read that matters
-      // — so it is cleared here rather than in a write of its own.
-      await CyberiaInstanceConf.updateOne(
-        { _id: conf._id },
-        { $set: { entityDefaults, updatedAt: new Date() }, $unset: { skillConfig: '' } },
-      );
-    }
-    return { mapCodes: codes, maps, linked, skipped, dropped, entityDefaults, conflicts, duplicates };
-  };
-
-  /**
-   * {@link linkPlacedDefaults}, then the rest of what an instance's content implies.
+   * What an instance's content implies, with no reference made: a global row runs in every world
+   * without one, and a reference an operator made stays. The only removal is `dropped`, a reference
+   * whose document is gone.
    *
    * The skills the world runs are reported, not written. They follow from its content by the
    * shared rule in cyberia-instance-items.js — a skill belongs when its trigger item is named by
-   * a map entity, an entity-type default, a vendor or assembler catalog, or a quest. Nothing to
-   * store means nothing to keep in step: the export and the boot payload derive the same list
-   * from the same content.
+   * a map entity, an entity-type default, a vendor or assembler catalog, or a quest.
    *
    * Placed entities are rewritten too: each carries the items the default it resolves to says it
    * wears, so a map document and the simulation agree on what is on an entity.
    *
-   * @param {{instanceCode: string, mapCodes?: string[]}} params - See {@link linkPlacedDefaults}.
+   * @param {{instanceCode: string, mapCodes?: string[]}} params - Target instance; `mapCodes`
+   *   overrides the stored set, which is what lets an editor sync against an unsaved selection.
    * @param {{host: string, path: string}} options - Provider context.
-   * @returns {Promise<{instanceCode: string, mapCodes: string[], linked: string[], skipped: string[],
-   *   dropped: string[], entityDefaults: string[], skills: string[],
-   *   entitiesUpdated: Array<{mapCode: string, entities: number}>, conflicts: string[],
-   *   duplicates: string[]}>}
+   * @returns {Promise<{instanceCode: string, mapCodes: string[], dropped: string[], entityDefaults: string[],
+   *   skills: string[], entitiesUpdated: Array<{mapCode: string, entities: number}>, duplicates: string[]}>}
    */
   static syncInstance = async ({ instanceCode, mapCodes }, options) => {
-    const CyberiaAction = DataBaseProviderService.getModel('CyberiaAction', options);
-    const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
-    const CyberiaMap = DataBaseProviderService.getModel('CyberiaMap', options);
-    const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
-    const CyberiaSkill = DataBaseProviderService.getModel('CyberiaSkill', options);
-    const {
-      mapCodes: codes,
-      maps,
-      linked,
-      skipped,
-      dropped,
-      entityDefaults,
-      conflicts,
-      duplicates,
-    } = await CyberiaEntityTypeDefaultService.linkPlacedDefaults({ instanceCode, mapCodes }, options);
+    if (!instanceCode) throw new Error('instanceCode is required to sync entity-type defaults');
+    const model = (name) => DataBaseProviderService.getModel(name, options);
+    const CyberiaEntityTypeDefault = model('CyberiaEntityTypeDefault');
+    const CyberiaInstanceConf = model('CyberiaInstanceConf');
+    const CyberiaMap = model('CyberiaMap');
+    if (!(await CyberiaInstanceConf.exists({ instanceCode })))
+      throw new Error(`cyberia-instance-conf not found for instanceCode="${instanceCode}"`);
+    const codes = mapCodes?.length
+      ? [...mapCodes]
+      : (await model('CyberiaInstance').findOne({ code: instanceCode }).select('cyberiaMapCodes').lean())
+          ?.cyberiaMapCodes ?? [];
+    const maps = codes.length ? await CyberiaMap.find({ code: { $in: codes } }, { code: 1, entities: 1 }).lean() : [];
 
-    // Every item the world can hold: what it references, completed by the baseline defaults for
-    // the entity types it does not cover. A skill triggers from one of these or from nothing.
+    const [compacted] = await CyberiaEntityTypeDefaultService.compactInstanceRefs(options, { instanceCode });
+    const conf = await CyberiaInstanceConf.findOne({ instanceCode }, { entityDefaults: 1 }).lean();
+    const entityDefaults = (conf.entityDefaults || []).map(String);
     const referenced = await CyberiaEntityTypeDefault.find({ _id: { $in: entityDefaults } }).lean();
-    const running = CyberiaEntityTypeDefaultService.completeWithCanonical(referenced.map(toEntityDefault));
+    const duplicates = findDuplicateBuilds(entityDefaults, referenced);
+
+    // Every item the world can hold: its instance rows, the baseline and the global rows. A skill
+    // triggers from one of these or from nothing.
+    const running = CyberiaEntityTypeDefaultService.completeWithCanonical(
+      await CyberiaEntityTypeDefaultService.resolveWith(CyberiaEntityTypeDefault, entityDefaults),
+      await findGlobalDefaults({ CyberiaEntityTypeDefault, CyberiaInstanceConf }),
+    );
     const carried = new Set(running.flatMap((doc) => resolveEntityInventory(doc).map((row) => row.itemId)));
 
-    // Which skills the world runs is derived, never stored. Reported so an operator can see what
-    // a sync changed, and computed by the one rule the export and the boot payload also use — a
-    // stored list was a second answer to the same question, and it disagreed: a trigger only a
-    // quest or a vendor named was reachable in play, exported with the world, and missing here.
+    // Which skills the world runs is derived, never stored, by the one rule the export and the boot
+    // payload also use.
     const [actions, quests] = codes.length
       ? await Promise.all([
-          CyberiaAction.find({ sourceMapCode: { $in: codes } }, { shopItems: 1, craftRecipes: 1 }).lean(),
-          CyberiaQuest.find({ sourceMapCode: { $in: codes } }, { steps: 1, rewards: 1 }).lean(),
+          model('CyberiaAction').find({ sourceMapCode: { $in: codes } }, { shopItems: 1, craftRecipes: 1 }).lean(),
+          model('CyberiaQuest').find({ sourceMapCode: { $in: codes } }, { steps: 1, rewards: 1 }).lean(),
         ])
       : [[], []];
     const owned = collectInstanceItemIds({ maps, entityDefaults: running, actions, quests });
-    const skills = selectInstanceSkills(await CyberiaSkill.find({}, { triggerItemId: 1 }).lean(), owned)
+    const skills = selectInstanceSkills(await model('CyberiaSkill').find({}, { triggerItemId: 1 }).lean(), owned)
       .map((skill) => skill.triggerItemId)
       .sort();
 
@@ -464,29 +406,16 @@ class CyberiaEntityTypeDefaultService {
       entitiesUpdated.push({ mapCode: map.code, entities: changed });
     }
 
+    const dropped = compacted?.dropped ?? [];
     logger.info('Synced entity-type defaults', {
       instanceCode,
       maps: codes.length,
-      linked,
-      skipped,
       dropped,
       skills,
       entitiesUpdated,
-      ...(conflicts.length > 0 ? { conflicts } : {}),
       ...(duplicates.length > 0 ? { duplicates } : {}),
     });
-    return {
-      instanceCode,
-      mapCodes: codes,
-      linked,
-      skipped,
-      dropped,
-      entityDefaults,
-      skills,
-      entitiesUpdated,
-      conflicts,
-      duplicates,
-    };
+    return { instanceCode, mapCodes: codes, dropped, entityDefaults, skills, entitiesUpdated, duplicates };
   };
 
   /** REST form of {@link syncInstance}: `params.instanceCode`, optional `body.mapCodes`. */
@@ -521,13 +450,28 @@ class CyberiaEntityTypeDefaultService {
     const totalPages = Math.ceil(total / limit);
     return { data: await withInstanceCodes(CyberiaInstanceConf, defaults), total, page, totalPages };
   };
+  // A save that names the `updatedAt` it read refuses a newer version. A behavior is valid only for
+  // its entity type, so the merged document is what validates.
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity-type-default.model.js').CyberiaEntityTypeDefaultModel} */
     const CyberiaEntityTypeDefault = DataBaseProviderService.getModel('CyberiaEntityTypeDefault', options);
-    // A behavior is valid only for its entity type, so the merged document is what validates.
+    const { updatedAt, ...changes } = req.body;
     const stored = await CyberiaEntityTypeDefault.findById(req.params.id).lean();
-    if (stored) await new CyberiaEntityTypeDefault({ ...stored, ...req.body }).validate();
-    return await CyberiaEntityTypeDefault.findByIdAndUpdate(req.params.id, req.body);
+    if (!stored)
+      throw Object.assign(new Error(`cyberia-entity-type-default not found for _id="${req.params.id}"`), {
+        status: 404,
+      });
+    await new CyberiaEntityTypeDefault({ ...stored, ...changes }).validate();
+    const saved = await CyberiaEntityTypeDefault.findOneAndUpdate(
+      { _id: req.params.id, ...(updatedAt && { updatedAt: new Date(updatedAt) }) },
+      changes,
+      { returnDocument: 'after' },
+    ).lean();
+    if (!saved)
+      throw Object.assign(new Error('This entity default changed since you opened it: reload it, then save again'), {
+        status: 409,
+      });
+    return saved;
   };
   // Unlinks before it deletes: a conf pointing at a document that is gone is the one way this
   // collection produces orphans, and the delete is where it would happen.
@@ -552,4 +496,12 @@ class CyberiaEntityTypeDefaultService {
   };
 }
 
-export { applyDefaultsToEntities, buildKey, findDuplicateBuilds, CyberiaEntityTypeDefaultService, toEntityDefault };
+export {
+  applyDefaultsToEntities,
+  buildKey,
+  findDuplicateBuilds,
+  findGlobalDefaults,
+  runtimeEntityDefaults,
+  CyberiaEntityTypeDefaultService,
+  toEntityDefault,
+};

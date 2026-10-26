@@ -39,7 +39,15 @@ const contentBuilt = hasContentArtifact();
 
 const baseline = () => contentArtifact().baseline;
 
-const lean = (value) => ({ lean: async () => value, populate: () => lean(value) });
+const lean = (value) => ({
+  lean: async () => value,
+  populate: () => lean(value),
+  sort: () => lean(value),
+  session: () => lean(value),
+  then: (resolve, reject) => Promise.resolve(value).then(resolve, reject),
+});
+// No instance conf references a row: every stored row is a global row.
+const noInstanceRows = { distinct: () => lean([]) };
 
 // A store of definitions, each bound in the item catalog under its label.
 const catalog = (definitions = [], onFind = () => {}) => {
@@ -413,6 +421,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       CyberiaMap: {
         find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['atlas-pistol-mk2'] }] }]),
       },
+      CyberiaInstanceConf: noInstanceRows,
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       CyberiaAction: {
         find: () => lean([{ code: 'shop', sourceMapCode: 'forest-1', shopItems: [{ itemId: 'hatchet' }] }]),
@@ -445,6 +454,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       CyberiaMap: {
         find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['hatchet'] }] }]),
       },
+      CyberiaInstanceConf: noInstanceRows,
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       CyberiaAction: { find: () => lean([]) },
       CyberiaQuest: { find: () => lean([]) },
@@ -469,6 +479,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       CyberiaMap: {
         find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [{ objectLayerItemIds: ['hatchet'] }] }]),
       },
+      CyberiaInstanceConf: noInstanceRows,
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       CyberiaAction: { find: () => lean([]) },
       CyberiaQuest: {
@@ -499,6 +510,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
           lean({ _id: 'i1', code: 'FOREST', cyberiaMapCodes: ['forest-1'], conf: { _id: 'c1', economyCode: 'frontier' } }),
       },
       CyberiaMap: { find: () => lean([{ _id: 'm1', code: 'forest-1', entities: [] }]) },
+      CyberiaInstanceConf: noInstanceRows,
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       CyberiaAction: {
         find: () => lean([{ code: 'bench', sourceMapCode: 'forest-1', burnItems: ['hatchet'], buybackItems: ['log'] }]),
@@ -528,10 +540,49 @@ describe.skipIf(!contentBuilt)('full world load', () => {
     expect((await fetchFullInstance(models(5), 'FOREST')).version).not.toBe(world.version);
   });
 
+  describe('global entity-type defaults', () => {
+    const GLOBAL = { _id: 'g1', entityType: 'bot', liveItemIds: ['purple'], behavior: 'hostile', updatedAt: 't1' };
+    const LOCAL = { _id: 'i1', entityType: 'bot', liveItemIds: ['purple'], behavior: 'passive', updatedAt: 't1' };
+    const world = ({ conf, rows }) => ({
+      CyberiaInstance: { findOne: () => lean({ _id: 'w1', code: 'FOREST', cyberiaMapCodes: [], conf }) },
+      CyberiaInstanceConf: { distinct: () => lean(conf.entityDefaults) },
+      CyberiaEntityTypeDefault: {
+        find: ({ _id }) =>
+          lean(rows.filter((row) => (_id.$in ? _id.$in.includes(row._id) : !_id.$nin.includes(row._id)))),
+      },
+      ...catalog([ol('purple')]),
+      ...economyStore(),
+    });
+    const bots = ({ config }) => config.entityDefaults.filter(({ entityType }) => entityType === 'bot');
+
+    it('runs a global row in a world with no instance association, after the baseline row of its type', async () => {
+      const loaded = await fetchFullInstance(
+        world({ conf: { _id: 'c1', entityDefaults: [] }, rows: [GLOBAL] }),
+        'FOREST',
+      );
+      expect(bots(loaded).at(-1)).toMatchObject({ liveItemIds: ['purple'], behavior: 'hostile' });
+      expect(bots(loaded)[0].liveItemIds).not.toEqual(['purple']);
+      expect(loaded.objectLayers.map(({ item }) => item.id)).toContain('purple');
+      const edited = await fetchFullInstance(
+        world({ conf: { _id: 'c1', entityDefaults: [] }, rows: [{ ...GLOBAL, updatedAt: 't2' }] }),
+        'FOREST',
+      );
+      expect(edited.version).not.toBe(loaded.version);
+    });
+
+    it('runs the instance row of a world before the global row of the same build', async () => {
+      const loaded = await fetchFullInstance(
+        world({ conf: { _id: 'c1', entityDefaults: ['i1'] }, rows: [LOCAL, GLOBAL] }),
+        'FOREST',
+      );
+      expect(bots(loaded).map(({ behavior }) => behavior)).toEqual(['passive', 'hostile']);
+    });
+  });
+
   it('runs a world whose conf reference is gone on the foundation baseline', async () => {
     const models = {
       CyberiaInstance: { findOne: () => lean({ _id: 'i1', code: 'BARE', cyberiaMapCodes: [], conf: null }) },
-      CyberiaInstanceConf: { findOne: () => lean(null) },
+      CyberiaInstanceConf: { ...noInstanceRows, findOne: () => lean(null) },
       CyberiaEntityTypeDefault: { find: () => lean([]) },
       ...catalog([]),
       ...economyStore(),
