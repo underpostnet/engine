@@ -9,12 +9,14 @@ class DropDown {
   static Tokens = {};
   static async instance(options) {
     const id = options.id ? options.id : getId(DropDown.Tokens, 'dropdown-');
-    DropDown.Tokens[id] = {
+    // The deferred work below acts only while this instance owns the id: a newer one replaces it.
+    const token = (DropDown.Tokens[id] = {
       onClickEvents: {},
       lastSelectValue: undefined,
       oncheckvalues: {},
       originData: options.data ? newInstance(options.data) : [],
-    };
+    });
+    const owned = () => DropDown.Tokens[id] === token;
     const _renderSelectedBadges = async () => {
       if (options.type !== 'checkbox') return;
       const container = s(`.dropdown-current-${id}`);
@@ -195,15 +197,18 @@ class DropDown {
       }
       return { render, index };
     };
+    const selectInitial = (indexValue) =>
+      setTimeout(() => owned() && s(`.dropdown-option-${id}-${indexValue}`)?.click());
     setTimeout(() => {
+      if (!owned()) return;
       if (options.type === 'checkbox')
         options.data.map((optionData) => {
           const indexValue = options.data.findIndex((t) => optionData.checked && t.value === optionData.value);
-          if (indexValue > -1) setTimeout(() => s(`.dropdown-option-${id}-${indexValue}`).click());
+          if (indexValue > -1) selectInitial(indexValue);
         });
       else {
         const indexValue = options.data.findIndex((t) => t.value === options.value);
-        if (indexValue > -1) setTimeout(() => s(`.dropdown-option-${id}-${indexValue}`).click());
+        if (indexValue > -1) selectInitial(indexValue);
       }
       s(`.dropdown-label-${id}`).onclick = switchOptionsPanel;
       s(`.dropdown-current-${id}`).onclick = switchOptionsPanel;
