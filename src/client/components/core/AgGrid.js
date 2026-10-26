@@ -261,6 +261,10 @@ class AgGrid {
           min-width: 90px;
           min-height: 90px;
         }
+        /* A grid under a hidden parent reads a finite viewport width, so AG Grid stops its resize loop. */
+        .ag-grid-viewport {
+          width: 100%;
+        }
       </style>
       ${darkTheme
         ? html`
