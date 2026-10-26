@@ -215,7 +215,8 @@ const sendBlob = (req, res, { buffer, mimetype, filename, disposition = 'inline'
 };
 
 /**
- * Wraps a controller body with error logging and the error response envelope.
+ * Wraps a controller body with error logging and the error response envelope. An error marked
+ * `expected` is a domain outcome the request meets, not a fault: it logs one line without a stack.
  * @method controllerHandler
  * @param {(req, res, options) => Promise<any>} fn
  * @param {{ errorStatus?: number }} [config] - Status used when the error carries no `status` of its own.
@@ -228,7 +229,8 @@ const controllerHandler =
     try {
       return await fn(req, res, options);
     } catch (error) {
-      logger.error(error, error.stack);
+      if (error.expected) logger.warn(`${error.status ?? errorStatus} ${error.message}`);
+      else logger.error(error, error.stack);
       return sendError(res, error, error.status ?? errorStatus);
     }
   };
