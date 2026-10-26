@@ -171,7 +171,7 @@ cyberia instance <instance-code> [options]
 | `--conf`                                              | With `--export`/`--import`: only `cyberia-instance.json` + `-conf.json`; leaves the rest  |
 | `--drop` `--confirm <deploy-id>`                      | Bootstrap only: drop all documents associated with the instance code                      |
 | `--release <release-id>`                              | Import into, or export from, one content release database                                 |
-| `--sync-entities`                                     | Sync the conf's entity-type default references and skill config                           |
+| `--sync-entities`                                     | Drop the conf's gone references, rewrite placed entities, report the skills               |
 | `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                                                                  |
 
 The command works on the one instance it names. The default export writes into the instance
@@ -232,13 +232,11 @@ A backup also carries the entity-type defaults the instance's conf **references*
 id: the export writes exactly the referenced documents, and the import restores them under their
 original `_id` so the references keep resolving.
 
-`--sync-entities` builds those references from the world's own content: a default belongs to the
-instance when all of its `liveItemIds` appear together on some entity the maps place — the same
-subset containment the runtime resolves an entity with. It is additive and idempotent, so a
-hand-linked default that no map places (a player or coin default) is kept, and re-running links
-nothing new. A match another instance already references is **reported, not adopted**: two worlds
-built on the same art hold documents with identical live item ids, so matching alone cannot tell
-them apart, and claiming one stays a deliberate act in the Entity engine.
+A referenced document is an **instance row** of that world. A document no conf references is a
+**global row**: every world runs it after its instance rows and the content baseline, and no export
+of an instance carries it. `--sync-entities` links nothing: a global row needs no reference. It
+drops a reference whose document is gone, reports two references that answer one build, and
+rewrites each placed entity to carry what the row it resolves to wears. Re-running changes nothing.
 
 Skills are **derived, never stored**. The `cyberia-skill` collection is deployment-wide and owns
 the definitions; an instance runs the ones whose `triggerItemId` is an item id its own content
@@ -645,6 +643,26 @@ cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
 `rebind-held` reports without `--apply`. See
 [the player service reference](player-service.md#operator-commands) and
 [Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
+
+## `cyberia population` — map populations
+
+```
+cyberia population migrate [--apply] --dev
+```
+
+Moves every version 2, 3, 4 or 5 map population of the Procedural Engine to the current version.
+Each strategy takes its resolution, and each palette reference its global id with the same colors.
+Each publication asset names its revision and its result, and the plan takes its manifest hash. Of a
+version 2 or 3 record, a kept item keeps the CID it read, with the binding revision that bound it; an
+excluded item is removed and the active work of its runs stops; every entity-default change is kept
+in full for review, and the default it names joins the defaults workspace; a publication before its
+commit is cancelled. Then it moves every job spec stored before the global palettes: its templates
+take their palette roles and its palettes their global ids, with the same colors, seeds and run. A
+job whose items still generate waits for a later run. No binding, CID or default changes. A record of
+another earlier version stays outdated and read-only: delete it. The command reads the content
+artifact. Prints the report as JSON and writes nothing without `--apply`. Exits 1 while a record
+stays outdated or a job waits or cannot be mapped. A second run changes nothing. See
+[the Procedural Engine reference](procedural-engine.md#migration).
 
 ## `cyberia runtime-indexes` — runtime record indexes
 

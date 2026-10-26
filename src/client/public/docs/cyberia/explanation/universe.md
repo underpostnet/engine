@@ -109,7 +109,7 @@ There are three pictures, one per level:
 
 | Picture       | Shows                                                                  | Source                                                                             |
 | ------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Map preview   | One map: the stills of its entities on its grid                        | `CyberiaMap.preview`, drawn by `map-preview-generator.js` or the Studio map editor |
+| Map preview   | One map: the stills of its entities on its grid                        | `CyberiaMap.preview`, drawn by `map-preview-generator.js` after each map write     |
 | World preview | One world: its maps at their places or layout cells, and their portals | `CyberiaInstance.preview`, drawn by `world-preview.js`                             |
 | Universe view | The worlds of a universe, their routes and their state                 | The client and Studio draw it, each world by its world preview                     |
 

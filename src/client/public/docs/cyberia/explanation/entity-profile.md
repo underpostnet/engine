@@ -170,8 +170,9 @@ StatusActionProvider    = 8  // NPC with available actions (bouncing chat icon)
 ## Per-EntityType Defaults
 
 Every entity type resolves against a default build. The foundation baseline supplies one per entity
-type ([Content artifact](content-artifact.md#document-families)); an instance conf references
-`CyberiaEntityTypeDefault` documents that replace the baseline for the types they cover:
+type ([Content artifact](content-artifact.md#document-families)). A `CyberiaEntityTypeDefault`
+document no instance conf references is a global row: every world runs it. A document an instance
+conf references is an instance row of that world, and replaces the baseline for the types it covers:
 
 | Field               | Description                                                                                                                                                                  |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -181,9 +182,10 @@ type ([Content artifact](content-artifact.md#document-families)); an instance co
 | `inventoryItemsIds` | Items the entity carries that no lifecycle state activates                                                                                                                   |
 | `behavior`          | Runtime behavior of a bot: passive, hostile, provider or provider-static. Of a foreground: overhead-occlusion. Of an obstacle: destructible. Of loot: consume-on-pickup-heal |
 
-A map save links each default whose live items the map places to every instance that runs the map,
-unless another instance references that default. The instance editor's sync does the same for a whole
-instance. A default that no instance references reaches no world.
+A world runs its instance rows in conf order, then the baseline of the types they leave out, with a
+global row of the same build in place of its baseline row, then the other global rows, oldest first.
+The most specific match wins, and the earlier row wins a tie. No map save and no sync links a row to
+an instance.
 
 ---
 

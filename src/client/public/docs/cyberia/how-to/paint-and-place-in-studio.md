@@ -90,25 +90,28 @@ The drawing tools of the Object Layer editor stay above its tabs.
    that carry it, the visual guide (silhouette, detail, distinctive features, palette direction,
    required variants), the palettes, the biome, the region, the maps that place it, related
    content, and every reference. **Raw JSON** holds the definition.
-3. Pick a palette in **Palettes**, in **Paint**. The biome palette and the foundation palette come from the
-   context; the custom palette and recent colors stay in this browser.
-   - Click a swatch to paint with it. Shift+click locks a color. Alt+click marks it.
-   - **Apply** moves the selection to the nearest colors in use. **Swap** exchanges the two marked
-     colors. **Replace** turns the brush color into the marked one. **Scatter** paints a share of
-     the selection with the marked colors, the same way for the same seed. **Ramp** adds the
-     colors between two marked ones to the custom palette.
+3. Set the brush color with the color picker or the hex field of the editor. A click on a palette
+   color in **Context** copies it as `#RRGGBBAA` for the hex field. **brush** sets the brush size: a
+   size of n paints n × n cells, centered on the cell you point at; an even size reaches right and
+   down.
 4. To start from another item's animation, pick it under **Frames of object layer** in
    **Frames** and click **Import frames**: the frames of every direction and the frame duration are replaced; the item
    data and the stats stay. With **Mutate** off, the frames stay exactly as stored. With **Mutate**
-   on, the frames take the palette in use in **Palettes**, or the first palette of the context: the
-   darkest color takes the outline, the lightest the highlight, a rare saturated color the accent,
-   and transparency stays. An item without a context palette imports nothing with **Mutate** on.
+   on, the **Palette of the mutation** editor shows one color for each slot: primary, secondary,
+   detail, feature, outline and accent. It starts from the foundation palettes of the item id in
+   **Item**, else from the first palette of the library. Its **Palette** list offers any palette of
+   the global library, by family, for any item type. Pick a color on a slot to set it over the
+   palette; the slot shows the color it takes and where it comes from. The cross of a slot gives it
+   its palette color again, and **Reset** gives every slot its palette color. The darkest color
+   takes the outline, the lightest the highlight, the accent stays the accent, and transparency
+   stays. The source item never changes.
    A **Random factor** above 0 also moves a share of each frame's outer contour by one cell, each
    frame with a seed of its own. A move that splits the shape, fills or opens a hole, or shifts its
    box or center by more than one cell is rejected. The message counts the frames and the moves
    accepted and rejected.
+
 5. Pick a template in **Paint**. Templates that suit the item type come first (★). A template paints in the
-   palette in use, sets its mirror, and becomes the stamp.
+   first foundation palette of the item, else in gray, sets its mirror, and becomes the stamp.
 6. Paint. The tools: pencil, eraser, fill, eyedropper, line, rectangle and ellipse (Shift fills),
    pattern brush (paints the clipboard as a tile), stamp, and the color wand (Shift selects every
    cell of the color). The mirror button cycles left-right, top-bottom and four-way painting.
@@ -119,7 +122,13 @@ The drawing tools of the Object Layer editor stay above its tabs.
 7. In select mode, **cells** selects by coordinates or shape: `1,2 3,4`, `rect 0 0 7 7`,
    `circle 8 8 4` or `poly 0,0 8,0 0,8`. Fill, delete, copy and move act on that selection.
 8. Set the item id, type, description and stats in **Item**, and add each painted frame to its
-   direction in **Frames**.
+   direction in **Frames**. **Stat bounds** sets the bounds in use: the bounds of the item type
+   (`STAT_TYPE_BOUNDS`), or **Custom bounds**, a minimum and a maximum you set for each stat inside
+   -100 to 100. Each stat shows its range. **Randomize within bounds** draws each stat inside its
+   range, both ends included. A stat you type outside its range, or a range whose minimum is above its
+   maximum, shows in red with the reason, and the save refuses it; **Correct to bounds** moves each such
+   stat to a whole value in its range. A save in custom bounds sends them, and the server checks the
+   same bounds. A stored item with stats outside the bounds of its type opens in custom bounds.
 9. Save. The save stores a new revision and the item keeps running the one it ran. Unsaved work is
    kept per item.
 10. To make the revision run, click **Bind as Runtime Version** in the banner. A bind made

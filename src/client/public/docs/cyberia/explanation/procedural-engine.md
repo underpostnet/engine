@@ -2,7 +2,13 @@
 
 The Procedural Engine makes item candidates in the Cyberia Studio. The server makes the candidates:
 it automates the visual work. A human finishes each candidate in the Object Layer Studio, then
-approves and promotes it. The first generator makes skins.
+approves and promotes it. Its generators make skins, floors and portals.
+
+The view has two workflows. **Map Population** prepares the floors, the NPC skins and the portals of
+one map, records the entity-type defaults they need, composes the map in a draft, and publishes all
+of it onto the same map in the background. **Item Generation** works on items one run at a time, in the
+two modes below. A map population orchestrates item generation runs; it adds no second candidate
+lifecycle.
 
 ```text
 Automation creates a candidate.
@@ -37,7 +43,7 @@ The server checks the pair of mode and source in one place, the spec validator i
 
 | Part                   | Owns                                                                | Does not own                 |
 | ---------------------- | ------------------------------------------------------------------- | ---------------------------- |
-| `cyberia-content`      | The semantic foundation, Genesis Templates, Palette Templates       | Any render or binding        |
+| `cyberia-content`      | The semantic foundation, Genesis Templates, the palette library     | Any render or binding        |
 | Procedural profile     | How a generator transforms a template: rules, protection and bounds | Region maps, colors, stats   |
 | Generator registry     | Each generator: its item type, modes, default profile and code      | Jobs                         |
 | Procedural core        | Analysis, morphology, operators, palettes, diversity                | Storage and HTTP             |
@@ -61,15 +67,47 @@ a binding or a semantic definition. `cyberia-content` owns the templates
 (`procedural/genesis-templates/<itemType>.<slug>.json`), and the engine reads them from the content
 artifact through `src/projects/cyberia/procedural/templates.js`, which verifies each one.
 
-A template holds a canvas, a region map for each direction, a legend from letters to region ids, the
-palette role of each region with its shadow, base and highlight tones, an outline color and a frame
-duration. A role with `artDirection` takes the colors of the foundation palettes of an item. One
-item type can have many templates, for example `skin.humanoid` and `skin.humanoid-heavy`.
+A template holds a canvas, a list of frames for each direction code, a legend from letters to region
+ids, the palette role of each region with its shadow, base and highlight tones, an outline color and
+a frame duration. Each frame is a region map. A role with `artDirection` takes the colors of the
+foundation palettes of an item. One item type can have many templates, for example `skin.humanoid`
+and `skin.humanoid-heavy`.
 
-A template must fit the profile of its generator: the profile ranks each of its regions, and the
-template draws each direction the profile requires. The configuration lists, for each template, what
-stops it from fitting. A create names its template; an update takes, for each item, the first
-template of its item type that fits the profile and the canvas and directions of its render.
+Each item type has a frame baseline, `RENDER_FRAME_CONTRACT` in `SharedDefaultsCyberia.js`. The
+shipped templates start from it, and the view shows it next to the frames of each template. It is a
+suggestion, never a rule: a template holds the direction codes and the frame count its author
+chooses. The client reads the same codes: a walking code it does not find falls back to the idle
+code of its facing.
+
+| Item type  | Idle codes, frames each | Walking codes, frames each |
+| ---------- | ----------------------- | -------------------------- |
+| `skin`     | `08` `02` `04` `06`, 1  | `18` `12` `14` `16`, 2     |
+| `floor`    | `08`, 1                 | None                       |
+| `portal`   | `08`, 3                 | None                       |
+| `obstacle` | `08`, 3                 | None                       |
+
+The first digit is the action, 0 idle and 1 walking. The second digit is the facing: 8 down, 2 up, 4
+left, 6 right. The walking frames of a skin lift one foot, then the other. The three idle frames of
+a portal turn its arms by a third of their period each, so the third frame leads back to the first.
+The three idle frames of an obstacle shift its loose pieces. The back view of a skin has no face.
+The left view is the right view mirrored, and the template holds it in full. `cyberia-content`
+checks only the structure of each direction: a direction code, at least one frame, and frame rows
+that fit the canvas and the legend.
+
+A template must also fit the profile of its generator: the profile ranks each of its regions. The
+configuration lists, for each template, what stops it from fitting. A create names its template. An
+update takes the template the request names for an item, else the first usable template of its
+item type.
+
+A template is a start, not a dependency. It fits any render of its item type that has a frame,
+whatever its canvas. A render stays valid: the item keeps it, a run revises it, or a moderator
+rebuilds the item from a template on request.
+
+The engine reads the templates from the content artifact it serves, never from the source files. A
+template that is in the content checkout but not in the artifact does not exist for the engine. The
+configuration therefore reports `content`: the commit the artifact is built from, the commit of the
+checkout, and `stale` when they differ. The view then tells the moderator to build and release
+`cyberia-content`.
 
 ## Existing content
 
@@ -80,8 +118,13 @@ its foundation palettes. The foundation palettes are, in order, the colors its a
 the palette of each biome it belongs to.
 
 A target with no render is valid. The engine then draws the base item from its template, with the
-colors of its palette. A target with a render is mutated: its frames are recolored and changed
-inside the bounds of the profile. This lets a run complete the renderless items of the content.
+colors of its palette. A target with a render starts from it: its frames are recolored and changed
+inside the bounds of the profile. The region map of the template frame moves onto each frame of the
+render, bottom on bottom and centre on centre, so a 26×26 skin takes the regions of a 25×25
+template. This lets a run complete the renderless items of the content.
+
+An update names in `source.fromTemplate` the items that start from their template instead. Their
+candidate replaces the render. The engine never replaces a render that the request did not name.
 
 ## New items
 
@@ -92,13 +135,26 @@ stats in the Object Layer Studio before approval.
 
 ## Palettes
 
-`cyberia-content` owns the Palette Templates (`procedural/palettes/<itemType>.<slug>.json`). A
-Palette Template has an `id`, an `itemType`, a `name`, a `family`, `biomeTags`, `roles` and
-`constraints`. A role is a role of a Genesis Template, the `outline` or the `accent`. Its value is a
-base color. The constraint `minContrast` keeps the `contrastRoles` apart from the outline; the
-engine checks it in OKLab when it reads the catalog
-(`src/projects/cyberia/procedural/palettes/catalog.js`). A palette fits a template when the template
-has each of its roles.
+`cyberia-content` owns one global palette library (`procedural/palettes/<slug>.json`). A palette is
+a theme. It belongs to no item type. It has an `id` (a slug), a unique `name`, a `family`,
+`biomeTags`, `roles` and `constraints`. Its `roles` give a base color to `primary` and `outline`,
+and to any of `secondary`, `detail`, `feature` and `accent` the theme needs. A palette with fewer
+colors stays as it is: a template role whose palette role the palette does not give keeps its
+default, from the foundation palettes, the render or the template.
+
+| Palette role | Takes                      | Skin  | Floor  | Portal | Obstacle |
+| ------------ | -------------------------- | ----- | ------ | ------ | -------- |
+| `primary`    | The main mass              | torso | ground | swirl  | chunk    |
+| `secondary`  | The second mass            | legs  | patch  | rim    | loose    |
+| `detail`     | Small dark parts and lines | hair  |        | depth  | seam     |
+| `feature`    | The distinct part          | skin  |        | core   | dust     |
+
+Each role of a Genesis Template names the palette role it takes (`palette`). The mapping belongs to
+the template, not to the palette, so every palette colors every template: a skin theme colors a
+floor, a portal or an obstacle too. The constraint `minContrast` keeps the `contrastRoles` apart
+from the outline; the engine checks it in OKLab when it reads the catalog
+(`src/projects/cyberia/procedural/palettes/catalog.js`). A palette id the library does not hold is
+refused.
 
 The families are natural, dark, light, warm, cool, biome and exotic. Each family goes from the
 darkest to the lightest of its first contrast role.
@@ -110,16 +166,16 @@ skin), `torso` and `legs` (both legs).
 A palette choice says where the colors of a target come from. A target is one item of an update,
 or the run of a create. Both modes take the same choice:
 
-| `paletteId`        | Each candidate takes                                                |
-| ------------------ | ------------------------------------------------------------------- |
-| None               | The defaults of the target                                          |
-| A Palette Template | That palette, when it fits the template of the target               |
-| `random`           | A palette that fits the template, which the seed picks for each one |
+| `paletteId` | Each candidate takes                                        |
+| ----------- | ----------------------------------------------------------- |
+| None        | The defaults of the target                                  |
+| A palette   | That palette of the library                                 |
+| `random`    | A palette of the library, which the seed picks for each one |
 
 The slots the choice sets win over each of them. The resolution order is:
 
 ```text
-defaults (foundation palettes of an item, else its render or template)  →  Palette Template  →  slots
+defaults (foundation palettes of an item, else its render or template)  →  palette  →  slots
 ```
 
 The only difference of the modes is the defaults: an existing item starts from its foundation
@@ -134,14 +190,14 @@ These colors stay as they are. A slot nothing sets is automatic: its base starts
 render or the template and moves with the palette variation, and its shadow and highlight derive
 from the base.
 
-A Palette Template colors the roles it names, over the foundation palettes; these colors also stay
+A palette colors every role of the template, over the foundation palettes; these colors also stay
 as they are.
 
 `GET /api/v1/cyberia-procedural-job/sources/:itemId/palette` answers the palette an update starts
 from for one item, and `GET /api/v1/cyberia-procedural-profile/templates/:id/palette` the palette a
 create starts from with a template. Each answers the template, the foundation palettes and the
 default of each slot with its origin, `palette`, `foundation`, `render` or `template`, under the
-Palette Template `?paletteId=` names. The view shows these defaults, and the moderator sets any slot
+palette `?paletteId=` names. The view shows these defaults, and the moderator sets any slot
 over them.
 
 A random palette is deterministic: the root seed, the item id and the variant choose it. The job
@@ -165,47 +221,365 @@ the baseline item.
 ## The profile
 
 A procedural profile says how a generator transforms a Genesis Template. It names its generator and
-item type, ranks the regions, gives each direction its rules (where it faces, whether its face shows
-from the front, the side or the back, and how much hair it carries), and holds the constraints: the
-required directions, the regions whose shape is protected, the bounds of the variation, how far a
-shape may grow, the least diversity and the regions that may deform each other. It holds no region
-map, color, item semantics, binding or CID.
+item type, ranks the regions, gives each facing its rules (whether its face shows from the front, the
+side or the back, and how much hair it carries), and holds the constraints: the regions whose shape
+is protected, the bounds of the variation, how far a shape may grow, the least diversity and the
+regions that may deform each other. An idle and a walking direction of one facing take the same
+rules. It holds no region map, frame, color, item semantics, binding or CID.
 
 A profile is known by its id. The shipped profiles are source data
 (`src/projects/cyberia/procedural/profiles/registry.js`): each start of the worker writes them over
 the stored copy. The shipped `skin-default` profile protects the shape of the torso and the legs, so
-armor layers fit.
+armor layers fit. `portal-default` protects the core, so every frame of a vortex turns around the
+same center.
 
 ## The generator registry
 
 `src/projects/cyberia/procedural/generator-registry.js` lists each generator: its id, the item type
 it makes, the modes it supports, its default profile and its implementation (`parameters`,
 `prepare`, `generate`). A new item type is a new entry; the jobs, the worker and the review flow do
-not change. The first entry is `skin-variant`.
+not change. It holds `skin-variant`, `portal-variant`, `obstacle-variant` and `floor-tile`. The skin,
+the portal and the obstacle generators are one implementation, the sprite generator; each has its
+own profile, and face features and hair grow only where a profile gives facing rules. A generator
+may also check every revision of its item type, an edit in the Studio too: `floor-tile` refuses a
+cell that is not opaque, and `obstacle-variant` refuses a render that breaks the exact obstacle
+contract.
+
+A portal generator draws art only. Where a portal leads is the portal connection of its instance,
+which the Instance Studio edits; artwork and connection never change each other.
+
+## Obstacles
+
+An obstacle blocks movement. `cyberia-content` holds two obstacle Genesis Templates: a pile of rocks
+in brown tones (`obstacle.rock-pile`) and a pile of concrete rubble with bent rebar in gray tones
+(`obstacle.rubble-pile`). Both share the regions `chunk`, `seam`, `loose` and `dust`, so one profile
+(`obstacle-default`) fits both. The chunks keep their shape; the
+three idle frames shift only the seams, the loose pieces and the dust. A new obstacle takes its
+function from `baseline.items.obstacle`. Item Generation updates or creates obstacles, and a map
+population generates the obstacles its map names in the Obstacles group.
+
+## The floor generator
+
+`floor-tile` has two paths (`src/projects/cyberia/procedural/generators/floor/`).
+
+A floor that starts from its render keeps its canvas, its frames and its frame duration. Each cell
+takes the nearest tone of the plan by lightness: the mean lightness of the render goes to the base of
+the ground, and its spread goes to the span from the shadow to the highlight. Alpha stays.
+
+A floor that starts from the template gets a seamless tile from the region map of the floor Genesis
+Template. The tile is a torus: each operator reads its
+neighbors across the edges, so the right edge joins the left edge, the bottom edge joins the top
+edge, and a tile joins its copies.
+
+1. **Shift.** The pattern moves on the tile. The layout variation sets how far.
+2. **Trade.** `ground` and `patch` trade cells at their border. Each region keeps its share within
+   0.1, and no trade makes a line one cell wide.
+3. **Tones.** Smooth noise on the torus picks the shadow, base or highlight tone of each cell. The
+   detail variation sets how many cells leave the base.
+4. **Relief.** A patch lights its top edge, takes the outline color on its bottom edge, and casts
+   the shadow tone of the ground under it.
+5. **Accents.** Single accent cells lie on the ground, away from the outline and from each other.
+
+A tile that leaves its bounds, or stands too close to its source or its siblings, is drawn again from
+the next seed of the try. Every cell is opaque.
+
+## Map population
+
+A map population prepares the items of one map, their entity type defaults and the map itself, then
+publishes them onto that map (`src/projects/cyberia/procedural/population/`). Each item keeps its own
+identity, configuration and entries. The map orchestrates the items, the moderator owns the
+composition, and the publication applies the selected content in a fixed order. The view follows the
+work in four steps:
+
+1. **Items.** Each item the map needs, grouped as floors, NPC skins, portals, obstacles and other.
+   An item has an editor: its resolution, template, palette and variation, Generate, and its gallery
+   of entries; an item no generator draws has the way to the Object Layer Studio instead.
+2. **Entity type defaults.** The stored entity-type defaults that name the staged items.
+3. **Map.** The Map Studio composes the draft: the grid and the placements.
+4. **Publish.** The review of everything the publication applies, then the publication in the
+   background.
+
+Each step shows a state the server derives from what is stored: not started, in progress, needs
+attention, ready or published. Opening a step, a default template or a run is not progress.
+
+**Three states.** The asset source is the definition an item has: from the foundation, an Object
+Layer revision, or a definition a human made. The population item is what one population does with
+the item. The runtime binding is the CID `CyberiaItemCatalog` selects. A decision of a population
+changes no definition, no binding and no placement. Only its publication does.
+
+**Items.** An item comes from the foundation composition of the map, from its placed entities, or
+from the moderator. The item type and the entity type decide its group, by
+`ENTITY_TYPE_TO_ITEM_TYPES` of the shared vocabulary. A generator stage takes the item type its
+generator draws; the **Other** group takes every canonical item type no generator draws, for example
+a weapon, a static or a resource. A new generator takes its item type out of Other, with no
+migration. A player stays out. One item id is one item, however often the map places it. An item id
+the map places can have any form, for example `atlas_pistol_mk2`; a new item id is lowercase words
+joined by hyphens, and a new item of Other also names its item type. Other is a group, never an
+item type: each item keeps its own type.
+
+A placed item that is not a Cyberia item here is a finding, not a failure.
+
+**Resolutions.** Every item, of any item type, has one Resolution selector of exclusive choices:
+
+| Resolution                    | Does                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| Keep current artwork          | Generates, publishes and binds nothing                                               |
+| Generate from current artwork | Generates variants of the render it runs now, on its own canvas                      |
+| Rebuild from template         | Draws new artwork from a Genesis Template; an item with no artwork is a new item     |
+| Authored by hand              | Uses a definition a moderator authors in the Object Layer Studio, or one that exists |
+
+One function decides what each item allows (`resolutionsOf` in
+`src/projects/cyberia/procedural/population/resolution.js`); the view and every write read it, and
+the client keeps no list of its own. It reads what the item type supports and what the item has:
+
+| Resolution | Available when                                                                                     | Else the reason names        |
+| ---------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
+| keep       | the item runs a definition now                                                                     | no artwork to keep           |
+| render     | a generator makes variants of the type, a template serves it, and the current artwork has a render | the first that fails         |
+| template   | a Genesis Template of the type exists and a generator builds from it                               | no template, or no generator |
+| author     | always                                                                                             | —                            |
+
+A choice the item type cannot offer at all is left out: an item no generator draws and no Genesis
+Template serves offers Keep current artwork and Authored by hand. A choice the type offers but the
+item does not take now shows disabled, with its reason. The view recommends an authored
+definition, else the current artwork while it has a render, else a template, else authoring by
+hand. Generation is optional: an item with valid artwork starts kept. No resolution replaces artwork
+that the moderator did not select.
+
+**Authored by hand.** It works for every canonical item type, a type a generator draws too.
+**Create draft** opens the Object Layer Studio under the label "Procedural Engine" on a blank draft
+with the item id, the item type and one empty down idle frame: never template pixels and never a
+generation. A save stores a new draft definition through the Studio persistence and selects it; the
+same content saved again is the same draft. No CID or binding changes before the population
+publishes and binds it with the map. Back returns to the same item of the same population, and the
+view reads it again.
+
+The item lists every stored definition of its item id, newest first, each with its state:
+**Selected** (the draft the item uses), **Saved draft**, **Superseded** (a draft saved before the
+selected one), **No render** (a draft with no frames: it cannot be used or published), **Runs now**
+and **Published**. **Use this draft** selects a draft or a published definition with a render; the
+selection is stored, so it stays after a reload. **Continue editing** opens a draft in the Studio.
+**Delete draft** deletes a draft nothing keeps; a kept draft names what keeps it. An item set to
+Authored by hand with no definition yet needs attention and blocks the publication, as an undecided
+item does.
+
+**Reset item.** A workflow can end in a state nobody wants to repair by hand. **Reset item** returns
+the item to a clean start after a confirmation that lists what goes and what stays: the selection,
+the runs, the use of the authored draft, the palette choice and the variation go; the draft goes
+when nothing else keeps it. Published definitions, bindings, placements, defaults, jobs and audit
+stay. The reset reports what it removed, what it kept and what failed, and runs again safely.
+**Remove from population** is another action: it takes the item out of the population.
+
+**A change of resolution.** A switch deletes nothing: the entries, the authored definition, the
+binding and the audit stay. It takes the approval back from the selected entry, which stays ready
+for a later choice; the audit names the change. Keep records the binding of that moment again.
+
+**Keep.** A keep records the CID the item runs and its binding revision: how many bindings its
+catalog history holds. It needs no run and no revision. When the item is bound again, the item shows
+a conflict until the moderator keeps it again or chooses new artwork, and the publication checks the
+binding again in its transaction.
+
+**Remove from population.** One operation takes an item out, whatever its source: the foundation,
+a placement or the moderator. It cancels the active work of its runs and keeps its jobs, entries and
+audit. The catalog, the definitions, the bindings, the placements and the Map Studio catalog stay as
+they are. A removed item stays in the Removed list, with who removed it, when and why. From there a
+moderator restores it, with its runs, or forgets it permanently.
+
+**Forget permanently.** It deletes only the entry of that item in the Removed list of this
+population, after a confirmation that names the item and that scope. The definitions, the CIDs, the
+bindings, the placements, the defaults, the other items, the jobs and the audit stay. Forgetting an
+item the list does not hold changes nothing, and the list changes only when the server confirms.
+Nothing remembers the item after that: a later read of the map, or a moderator, may add it again.
+
+**Configuration and entries.** The configuration of an item is saved on the server and changes at
+any time: the view shows whether it is saved, saving, or failed, and asks before it drops unsaved
+changes. Generate stores runs from the configuration as it is; each run has its own seed, so a new
+run gives new artwork and an old entry stays. Select publishes the exact revision of one entry; the
+entry selected before returns to ready. Edit artwork opens the entry in the Object Layer Studio, and
+a save there makes a new revision to select; the Studio then returns to the same item of the same
+population. Discard rejects an entry and keeps its revision. The gallery shows each entry as the
+game client draws it: its idle frames, animated.
+
+**Artwork of an item.** One function on the server resolves the artwork every view shows, from the
+working state: a kept item shows its binding; else the definition it uses, its selected entry, its
+newest stored entry not selected yet, else the binding it runs now. An item none of these draws is
+missing. Each picture names its source (Kept, Definition, Selected entry, Newest entry not selected,
+Runs now, No artwork), so a draft never passes for published content. A CID names immutable content:
+a new revision has a new CID, so a picture never shows a stale revision.
+
+**Palettes for several items.** The moderator checks items and chooses one source, a Palette
+Template or the biome colors of the map, and one policy for the colors each item sets: keep them or
+replace them. The preview shows every slot that changes or stays, and what is skipped and why. Apply
+stores exactly what the preview showed; each item keeps its own palette and is linked to no other.
+With the biome colors, each NPC and each portal starts from another color of the biome, so they
+differ.
+
+**Map draft.** The Map Studio opens the draft of the population, never the live map. The draft holds
+the grid (cells across and down, and the pixels of a cell, as the runtime receives them) and the
+placements, from the map revision it read. Each save names the draft revision it read, so no save
+overwrites a newer one; a reload, another browser or another moderator opens the saved draft. When
+the live map moves to a new revision, the draft keeps its base revision and the publication refuses
+it; after a review, a rebase moves the draft onto the new revision.
+
+**Map preview.** The Studio, the map step and the gallery draw every item as the game client does:
+from the atlas of its CID (`layout/:cid` and `render/:cid`), the idle frames facing down, at the
+frame duration of the atlas, without smoothing. In a draft the CID is the artwork of the item; on a
+live map it is the binding. The Studio reads these CIDs again each time it comes back to the draft,
+so a selection made in the population shows at once. An item no CID draws is hatched with a dashed
+border, and the draft lists it with the reason.
+
+**Runtime order of the defaults.** The game server gives an entity its behavior and drops from the
+entity-type default row it matches. A row no instance conf references is a global row: every world
+runs it, with no instance association. A row a conf references is an instance row of that world.
+A world runs its instance rows in conf order, then the content baseline of the entity types they
+leave out, with a global row of the same build in place of its baseline row, then the other global
+rows, oldest first. Among the rows of the entity type whose `liveItemIds` the entity carries, the
+largest set wins, and the earlier row wins a tie: an instance row wins over a global row of the same
+size. With no match, the first row of the type answers. The view and the runtime build that order
+with one function, `runtimeEntityDefaults`.
+
+**Entity type defaults.** The defaults step is a workspace of stored defaults, built from the staged
+items. It needs no map, placement, universe or instance. A default joins it when its live, dead or
+drop items name a staged item. The moderator adds any other stored default, and removes a default
+from the workspace; neither changes the default. Each default shows its entity type; its live, dead
+and drop items, each as a tile with its idle 08 artwork, its item type and the source of the
+artwork; its behavior; and where the game runs it: every world for a global default, else the
+instances whose conf names it. A staged item shows its artwork from the working state, so a new
+entry shows before any publication. The step also names each world that runs another default in its
+place, for example an instance default over a global one. A staged item that no default names is a
+warning, never a blocker; Create default opens a new default for it.
+
+Edit opens the stored default in the Entity Studio, in edit mode, under the label "Procedural
+Engine · Entity Type Default". Save stores it through the Entity Studio and returns to the defaults
+step of the same population. A save names the version it read: when another save changed the
+default since, the server refuses it (409) and the moderator reloads it. "Back without saving"
+returns with no change. A publication never changes a default.
+
+**Map media.** The preview of a map is the picture `map-preview-generator.js` draws from its placed
+entities, by the first idle frame of each item, as the node background of the Instance Map. Every
+write of a map revision, a live save of the Map Studio or a publication, stores its media `pending`
+with that revision. After the commit the server draws the preview of that revision and stores the
+media `ready`, or `failed` with the error. A live save answers at once and draws after its answer;
+a publication completes only once the preview is drawn. A draw of an older revision stores nothing
+once a newer write moved the map on, and a draw that its stored picture already holds writes no new
+File, so a retry is safe. The Map Studio and the map step show the state and draw again on a failed
+or pending preview. The thumbnail of a map is the custom image its author uploads; without one, the
+preview is the thumbnail. No step copies the preview into the thumbnail.
+
+**Draft pictures.** The same renderer draws a map an editor holds, saved or not, and stores nothing.
+The Map Studio shows that draft picture for a new map and while the stored preview of a save is
+pending, then the stored preview once it is ready; a map that draws nothing shows as empty. An older
+draw never replaces a newer one. The Instance Studio shows a map it adds at once, from the stored
+map: its stored preview, else its picture drawn for the revision it is at, else "Empty map". The
+cards change only once the new ones arrive.
+
+**Impact.** The catalog binds an item id for every map. Before a publication the view shows where
+each item runs: on this map only, also on maps of the same biome, or globally (on another biome, or
+on a player). A global change needs the explicit acceptance of the moderator.
+
+**Review.** Before a publication, the publish step shows everything it applies: each item with the
+artwork it shows, its state and what publishing does to it (kept, publish a definition, publish the
+selected entry, or not ready); the entity type defaults; the map draft drawn by the artwork of its
+items, with the live preview and the custom thumbnail; and the instances that run the map. Each item, the
+defaults and the map open their step or their Studio. Errors stop the publication; warnings, such as a missing default or an
+item no artwork draws, stop nothing. Nothing in the review publishes or stores anything. Publish
+names the population revision the review showed: a population that changed since asks for a new
+review (409).
+
+**Publication.** The publish step runs the check first and lists what would stop the publication.
+The publication runs in the worker, not in the request; a moderator can close the browser, and a
+restart of the server does not lose it, because each phase runs under a lease and records its result.
+
+```text
+queued → preflight → publishing_objects → committing_runtime → refreshing_runtime → completed
+```
+
+1. **Preflight** checks every condition again and freezes the plan: the population revision, the
+   kept items with their observed CIDs and binding revisions, the assets with their CIDs and the
+   binding revision each replaces, the map revision,
+   the draft revision and its grid, and the map revision whose media the refresh draws. The plan
+   holds only what changes: a kept item publishes and binds nothing.
+2. **Objects.** Each selected revision goes to the Object Layer authority, one at a time. The
+   authority must answer the selected CID. Each published revision is recorded, so a retry skips it.
+3. **Commit.** One MongoDB transaction checks the population and every binding of the plan, binds
+   each item at the CID its item read, writes the draft
+   grid and placements onto the same map document at the revision of the plan with its media
+   pending, and records the commit. The map keeps its id, code and metadata; its revision grows by
+   one. If one check or write fails, nothing applies. The transaction holds no network call.
+4. **Refresh.** After the commit, the engine clears the map cache, draws the preview of the map
+   revision it wrote, refreshes the previews of the maps the assets reach, and reloads the game
+   servers. The worlds of the instances of the map reload in full after a map change, and every
+   world reloads its object layers after a binding. The publication completes once the media is
+   ready and every server reloaded. The publish step then shows the preview.
+
+A failed phase stops the publication with its error, and Retry resumes that phase. Cancel stops a
+publication before its commit; after a cancel or a failed check the population takes changes again.
+A revision that the authority published stays published and unbound. A reload that a game server
+misses, or a preview that fails to draw, leaves the commit in place, and the step says the refresh
+waits: the worker tries it again with a longer wait each time. A second publish request while one
+runs answers the same publication.
+
+**Records of an earlier version.** A population keeps its version. A record of another version shows
+as outdated and read-only. `cyberia population migrate` reports what a move of each version 2, 3 or
+4 record would do, and writes nothing; `--apply` writes it. No deploy runs it. Every record: each
+earlier strategy takes its resolution (`create` is `template`, `definition` and none are `author`),
+the frozen lists of what a target allowed go, and each palette reference takes its global id
+(`skin.exotic-teal` is `exotic-teal`, with the same colors). Of a version 2 or 3 record, a kept item
+keeps the CID it read, at the binding revision that bound it; when the item runs another CID now, it
+shows a conflict. An excluded item is removed and its runs stop. Every entity-default change stays
+in full in the record for review, and the default it names joins the workspace. A publication before
+its commit is cancelled. A version 4 record keeps its revision, defaults, publication and earlier
+migration report. No binding, CID, default or placement changes. The population shows what the
+migration kept. A record of any other version stays outdated, and a delete removes it with every job
+it stored.
+
+The same command then moves every job spec stored before the global palettes
+(`src/projects/cyberia/procedural/jobs/migration.js`). Each frozen template role takes the palette
+role its content template takes, each frozen palette takes its global id with its colors by palette
+role, and the spec, its candidates and its items name the new ids. The fingerprint, the run, the
+seeds and the candidates stay, so a retry, a regeneration or a Studio edit of an earlier item gives
+what it gave before. A job whose items still generate waits, a spec the content cannot map stays as
+it is, and the command reports both and exits 1 until they settle.
+
+## Instance maps and portals
+
+The Instance Studio takes maps in one step: all the maps of the Foundation, or the maps of one saga.
+It first lists each map as in the instance already, added, or not stored on this host (its content
+needs an import first), and adds only the maps that are new; a second import adds nothing. A map
+keeps its code and its document; the instance only references it.
+
+The portals of an instance connect the portal entities its maps place: the Portal Connector rings
+the maps, then gives each other portal entity its mode. The topology check reads the same portal
+records and the portal entities of the maps, and lists the maps a player cannot reach from the first
+map, the portals with no portal entity at their source cell, the portals to a map outside the
+instance, and the portal entities no portal starts from. It keeps no graph of its own.
 
 ## The pipeline
 
 The server analyzes each source once for a job: the silhouette, the outline, the interior, the
 enclosed cells and a distance to the outline for each frame. The outline is the occupied cells next
 to the exterior, found by a flood fill from the canvas edge. Morphology (erosion, dilation, opening
-and closing) works on these masks. A direction the template does not map takes the interior of its
-silhouette as one region.
+and closing) works on these masks. Each frame takes the region map of the template frame of its
+direction and index.
 
 Each frame then goes through the operators, in this order.
 
-| Operator            | Does                                                                                              | Seed inputs                                  |
-| ------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `regionFill`        | With no render: fills the interior of each region, with highlight, shadow and base by the outline | None                                         |
-| `paletteMap`        | With a render: recolors the interior of each region by lightness, and keeps its details           | None                                         |
-| `featurePass`       | Clears the face features, then draws the ones the direction rules show                            | Variant seed, direction                      |
-| `growHair`          | Grows hair from the hair region by a styled, constrained walk                                     | Variant seed, direction                      |
-| `regionDeformation` | Moves the border of two regions near the contour, less with depth                                 | Variant seed, direction, frame index         |
-| `mutateFrameShape`  | Moves boundary cells by a bounded contour mutation                                                | Variant seed, direction, frame index         |
-| `detailPass`        | Scatters tone and accent cells over the regions that may change                                   | Variant seed, direction, frame index, region |
+| Operator            | Does                                                                                              | Seed inputs                  |
+| ------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `regionFill`        | With no render: fills the interior of each region, with highlight, shadow and base by the outline | None                         |
+| `paletteMap`        | With a render: recolors the interior of each region by lightness, and keeps its details           | None                         |
+| `featurePass`       | Clears the face features, then draws the ones the facing rules show                               | Variant seed, facing         |
+| `growHair`          | Grows hair from the hair region by a styled, constrained walk                                     | Variant seed, facing         |
+| `regionDeformation` | Moves the border of two regions near the contour, less with depth                                 | Variant seed, facing         |
+| `mutateFrameShape`  | Moves boundary cells by a bounded contour mutation                                                | Variant seed, facing         |
+| `detailPass`        | Scatters tone and accent cells over the regions that may change                                   | Variant seed, facing, region |
 
 No operator paints a cell of the outline. The contour mutation keeps its topology guards: the
-components, the holes, the bounding box and the centroid. It is the micro variation, not the whole
-generator.
+components, the holes, the bounding box and the centroid. It also keeps the outline next to the
+protected regions. It is the micro variation, not the whole generator.
+
+The idle and walking frames of one facing take the same seeds, so a variant keeps one head, one face
+and one hair style while it walks. Only the legs of the template move.
 
 A front face gets two eyes, and by chance a nose and brows. A side face gets one eye on the facing
 side and an ear. A back face gets none, so a back-facing skin never keeps front features.
@@ -272,7 +646,7 @@ alone: no sibling is needed. A regeneration takes a new seed from the old one.
 | `sourceCid`       | The CID the target item ran on when the job was created. Empty in a create       |
 | `generationRunId` | The run that made the candidate                                                  |
 | `templateId`      | The Genesis Template the candidate starts from                                   |
-| `paletteId`       | The Palette Template of the candidate. Empty when its choice names none          |
+| `paletteId`       | The palette of the candidate. Empty when its choice names none                   |
 
 The item id is `data.item.id` of every revision. The CID changes with any change of the content,
 semantic fields among them. A candidate keeps one target item id through every revision, edit and
@@ -343,6 +717,10 @@ candidate to `promoted` and records the audit entry. See [Runtime binding](runti
 - **Create.** The bind holds only while the proposed item id is still unbound. If a definition took
   it, the promotion answers 409. If not, the approved revision becomes a new item and its binding.
 
+A map population promotes through its publication, in the same transaction as the map. The job API
+refuses to promote or delete a job that a population owns. A publication of a revision that answers
+another CID than the approved one fails, and binds nothing.
+
 After a promotion, the engine asks the game servers to reload their object layers. The engine never
 edits `cyberia-content`.
 
@@ -363,8 +741,10 @@ src/projects/cyberia/procedural/
 ├── spec.js                request checks, the spec, the configuration
 ├── source.js              existing items, and the baseline of a new item
 ├── core/                  frame analysis and mutation, morphology, diversity, OKLab, seeds
-├── generators/skin/       the skin generator, its operators and hair growth
+├── generators/sprite/     the sprite generator of skins and portals, its operators and hair growth
+├── generators/floor/      the floor generator and its torus operators
 ├── jobs/                  job creation, the worker, review and promotion
+├── population/            map context, targets, draft, theme, entity defaults, publication
 ├── profiles/registry.js   profile validation and the shipped profiles
 └── palettes/              the palette catalog from content, and palette resolution
 ```
@@ -375,9 +755,13 @@ src/projects/cyberia/procedural/
 | -------------------------- | ------------------------------------ | -------------------- |
 | Candidates and revisions   | `ObjectLayer`, render frames         | The content database |
 | Profiles, jobs, candidates | `CyberiaProceduralProfile` and so on | The runtime database |
+| Map populations and drafts | `CyberiaProceduralPopulation`        | The runtime database |
 | Audit trail                | `CyberiaProceduralAudit`             | The runtime database |
 
-Genesis Templates and Palette Templates are content, not collections. A job stores the ones it uses.
+Genesis Templates and palettes are content, not collections. A job stores the ones it uses, as they
+were. A job stored before the global palettes runs again only after `cyberia population migrate
+--apply` moves its spec; until then a retry, a regeneration or a Studio edit of one of its items
+fails with the reason. Its candidates and their artwork stay.
 
 A content release builds a new content database and does not carry drafts. Finish or promote the
 approved candidates of a job before you promote a release.

@@ -59,18 +59,18 @@ The artifact is `dist/`: the compiled document families of the foundation and of
 procedural templates, the instance backups and a manifest. It holds no code; the engine reads and
 verifies it.
 
-| Path                                | Holds                                                                   |
-| ----------------------------------- | ----------------------------------------------------------------------- |
-| `context.json`                      | The context index: every definition and its references                  |
-| `foundation/<family>.json`          | The compiled foundation, one file per document family                   |
-| `foundation/baseline.json`          | The entity-type defaults every world resolves against                   |
-| `foundation/item-baseline.json`     | The item label a new item of each type takes its function from          |
-| `procedural/genesis-templates.json` | The Genesis Templates of the Procedural Engine                          |
-| `procedural/palettes.json`          | The palette families and the Palette Templates of the Procedural Engine |
-| `sagas/<code>/<family>.json`        | Each compiled saga, one file per document family                        |
-| `sagas/<code>/saga.json`            | Its `CyberiaSaga` record                                                |
-| `sagas/<code>/instance.json`        | The shell of its instance                                               |
-| `instances/<code>/`                 | Each instance backup                                                    |
+| Path                                | Holds                                                                        |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| `context.json`                      | The context index: every definition and its references                       |
+| `foundation/<family>.json`          | The compiled foundation, one file per document family                        |
+| `foundation/baseline.json`          | The entity-type defaults every world resolves against                        |
+| `foundation/item-baseline.json`     | The item label a new item of each type takes its function from               |
+| `procedural/genesis-templates.json` | The Genesis Templates of the Procedural Engine                               |
+| `procedural/palettes.json`          | The palette families and the global palette library of the Procedural Engine |
+| `sagas/<code>/<family>.json`        | Each compiled saga, one file per document family                             |
+| `sagas/<code>/saga.json`            | Its `CyberiaSaga` record                                                     |
+| `sagas/<code>/instance.json`        | The shell of its instance                                                    |
+| `instances/<code>/`                 | Each instance backup                                                         |
 
 The Procedural Engine verifies the templates when it reads them. See
 [Procedural Engine](procedural-engine.md).
@@ -101,7 +101,8 @@ without them.
 | Deployment checkout | `CYBERIA_DEPLOYMENT_ROOT` | `cyberia-deployment` in the engine |
 
 In development, the content root is the `cyberia-content` checkout: run
-`node bin/cyberia-content.js build` there after a commit. The content root can also be a packed
+`node bin/cyberia-content.js build` there after a commit. A running engine reads the new artifact
+at its next content release watch, with no restart. The content root can also be a packed
 artifact: `cyberia-content pack` writes the same `dist/` into a tarball, and its extracted copy
 has the same layout. A registry, an OCI image or a release asset can carry that tarball later; the
 engine reads it the same way.
@@ -119,7 +120,7 @@ pinned revision from the channel it runs on, and the image build from the public
 image build checks out that revision, packs it, and runs `cyberia release verify` before anything
 reads content.
 
-`src/projects/cyberia/content/content-artifact.js` opens the artifact once per process. It fails, and
+`src/projects/cyberia/content/content-artifact.js` opens each build once per process. It fails, and
 never falls back, when:
 
 - the artifact or its manifest is missing, or the manifest is invalid;
@@ -139,7 +140,8 @@ A running engine reads the artifact of the content it serves:
 
 - While a release is active, it reads the copy that release holds. A promotion and a rollback
   change the copy with the database.
-- While the workspace serves, it reads the artifact on disk.
+- While the workspace serves, it reads the artifact on disk. The content release watch opens it
+  again when its manifest names another content digest.
 
 The copy is verified as the artifact on disk is. Its content digest must be the one the release
 records. A release whose copy does not load fails every read of the artifact, and
