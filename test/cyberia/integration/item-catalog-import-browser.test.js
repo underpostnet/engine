@@ -1,0 +1,238 @@
+// Requires Playwright and UNDERPOST_BROWSER_BIN. CYBERIA_BROWSER_DRIVER can name its module path.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { build } from 'esbuild';
+import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { findBinary } from '../../support/binary.js';
+import { sourceFromDirectionFrames, toWire } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+
+const driver = await import(process.env.CYBERIA_BROWSER_DRIVER || 'playwright').catch(() => null);
+const browserBinary = findBinary('chromium', 'UNDERPOST_BROWSER_BIN');
+const manifest = {
+  schema: 1,
+  application: 'cyberia-portal',
+  version: 'test',
+  build: { id: 'test', mode: 'production' },
+  runtime: { basePath: '/', apiBasePath: 'api/v1' },
+};
+const CID = 'bafkreigoodlanternskin2xbvkozmmlvrxqdbvqm5bzxz4dydm7k6zq6bq4i';
+const BOUND = 'bafkreioldlanternskin3xbvkozmmlvrxqdbvqm5bzxz4dydm7k6zq6bq4i';
+const FORGED = 'bafkreiforgedlanternskinbvkozmmlvrxqdbvqm5bzxz4dydm7k6zq6bq4i';
+
+/** One frame of the down idle keyframe, in the wire form a preview carries. */
+const frame = (() => {
+  const wire = toWire(
+    sourceFromDirectionFrames({
+      framesByCode: {
+        '08': [Array.from({ length: 12 }, (_, y) => Array.from({ length: 12 }, (_, x) => [x * 20, y * 20, 90, 255]))],
+      },
+      frameDurationMs: 200,
+    }),
+  );
+  return { keyframe: 'down_idle', ...wire, frames: { down_idle: [wire.frames.down_idle[0]] } };
+})();
+const LICENSE = 'It names no license or author: the Object Layer protocol carries none; confirm the right to use it';
+
+/** The preview the server answers for a definition and an item id. */
+const previewOf = (cid, itemId) => ({
+  cid,
+  source: { domain: 'objectlayer.test', createdBy: 'service:objectlayer', createdAt: '2026-10-20T00:00:00.000Z' },
+  item: { id: 'lantern-skin', type: 'skin', description: 'A lantern skin' },
+  profile: { id: 'cyberia', version: 2 },
+  stats: {},
+  render: { width: 12, height: 12, colors: 144, frameDurationMs: 200, frames: { down_idle: 1 }, preview: frame },
+  stored: { definition: false, frames: false, atlas: false },
+  validation:
+    cid === FORGED
+      ? { ok: false, problems: [`Its bytes hash to bafkreielse, not ${FORGED}`], warnings: [LICENSE] }
+      : { ok: true, problems: [], warnings: [LICENSE] },
+  target:
+    itemId === 'old-lantern'
+      ? { itemId, boundCid: BOUND, revision: 2, unchanged: false, replaces: true }
+      : { itemId: itemId || 'lantern-skin', boundCid: '', revision: 0, unchanged: false, replaces: false },
+});
+
+describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browser', () => {
+  let browser, server, page;
+  const imports = [];
+  const errors = [];
+  const text = (selector) => page.evaluate((selector) => document.querySelector(selector)?.innerText ?? '', selector);
+  const importButton = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll('.item-catalog-import-preview .item-catalog-button')].find((node) =>
+          node.textContent.includes('Import and bind'),
+        )?.disabled ?? null,
+    );
+
+  beforeAll(async () => {
+    const script = (
+      await build({
+        stdin: {
+          contents: `import {ItemCatalogCyberia} from './src/client/components/cyberia/ItemCatalogCyberia.js';
+          import {NotificationManager} from './src/client/components/core/NotificationManager.js';
+          import {Modal} from './src/client/components/core/Modal.js';
+          window.notes = [];
+          NotificationManager.Push = async (options) => window.notes.push(options);
+          Modal.RenderConfirm = async () => ({ status: 'confirm' });
+          document.querySelector('#mount').innerHTML = await ItemCatalogCyberia.render({
+            appStore: {Data: {user: {main: {model: {user: {role: 'moderator'}}}}}}
+          });
+          window.mounted = true;`,
+          resolveDir: process.cwd(),
+          sourcefile: 'item-catalog-test.js',
+        },
+        bundle: true,
+        format: 'esm',
+        write: false,
+        logLevel: 'silent',
+        alias: {
+          'socket.io/client-dist/socket.io.esm.min.js': resolve(
+            'node_modules/socket.io/client-dist/socket.io.esm.min.js',
+          ),
+        },
+      })
+    ).outputFiles[0].text;
+    const grid = readFileSync(resolve('node_modules/ag-grid-community/dist/ag-grid-community.min.js'), 'utf8');
+    server = createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://localhost');
+      if (url.pathname === '/catalog.js' || url.pathname === '/grid.js') {
+        res.setHeader('Content-Type', 'text/javascript');
+        return res.end(url.pathname === '/catalog.js' ? script : grid);
+      }
+      if (url.pathname === '/') {
+        res.setHeader('Content-Type', 'text/html');
+        return res.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <script id="underpost-build-manifest" type="application/json">${JSON.stringify(manifest)}</script>
+          <script>globalThis.html = globalThis.css = (parts, ...values) => parts.reduce((text, part, i) => text + part + (values[i] ?? ''), '');</script>
+          <script src="/grid.js"></script>
+          <style>body{margin:12px;font:16px sans-serif;background:#111b2b;color:#e5efff}.hide{display:none!important}</style>
+          <div id="mount"></div><script type="module" src="/catalog.js"></script></html>`);
+      }
+      res.setHeader('Content-Type', 'application/json');
+      const send = (data) => res.end(JSON.stringify({ status: 'success', data }));
+      if (url.pathname.endsWith('/cyberia-item-catalog/import/search'))
+        return send({
+          data: [
+            { cid: CID, itemId: 'lantern-skin', itemType: 'skin', profile: 'cyberia v2', archived: false },
+            { cid: FORGED, itemId: 'lantern-skin-forged', itemType: 'skin', profile: 'cyberia v2', archived: false },
+          ],
+        });
+      const preview = url.pathname.match(/\/cyberia-item-catalog\/import\/([^/]+)$/);
+      if (preview && req.method === 'GET') return send(previewOf(preview[1], url.searchParams.get('itemId') ?? ''));
+      if (url.pathname.endsWith('/cyberia-item-catalog/import')) {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        imports.push(JSON.parse(body));
+        return send({
+          cid: CID,
+          itemId: imports.at(-1).itemId,
+          binding: 'bound',
+          stored: {},
+          renderCid: '',
+          entry: {},
+        });
+      }
+      if (url.pathname.endsWith('/history'))
+        return send({
+          objectLayerCid: CID,
+          definitions: [],
+          history: [
+            {
+              objectLayerCid: CID,
+              previousCid: '',
+              source: 'import',
+              by: 'moderator-ana',
+              at: '2026-10-26T10:00:00.000Z',
+              provenance: { domain: 'objectlayer.test', createdBy: 'service:objectlayer', warnings: [LICENSE] },
+            },
+          ],
+        });
+      return send({ data: [], total: 0, page: 1, totalPages: 0 });
+    });
+    await new Promise((done) => server.listen(0, '127.0.0.1', done));
+    browser = await driver.chromium.launch({ executablePath: browserBinary, headless: true, args: ['--no-sandbox'] });
+    page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForFunction(() => window.mounted && document.querySelector('.item-catalog-import-open'));
+  }, 60000);
+
+  afterAll(async () => {
+    await browser?.close();
+    await new Promise((done) => (server ? server.close(done) : done()));
+  });
+
+  it('finds a definition, draws its frame, and imports it only once its warnings are confirmed', async () => {
+    await page.locator('.item-catalog-import-open').click();
+    await page.locator('.item-catalog-import-q').fill('lantern');
+    await page.locator('.item-catalog-import form button[type="submit"]').first().click();
+    await page.waitForFunction(() =>
+      document.querySelector('.item-catalog-import-results')?.textContent.includes('lantern-skin'),
+    );
+    await page.locator('.item-catalog-import-results .item-catalog-button').first().click();
+    await page.waitForSelector('.item-catalog-import-frame');
+    expect(
+      await page.evaluate(() => {
+        const canvas = document.querySelector('.item-catalog-import-frame');
+        return [canvas.width, canvas.height, [...canvas.getContext('2d').getImageData(11, 11, 1, 1).data]];
+      }),
+    ).toEqual([12, 12, [220, 220, 90, 255]]);
+    const shown = await text('.item-catalog-import-preview');
+    expect(shown).toContain('From objectlayer.test, stored there by service:objectlayer');
+    expect(shown).toContain(`I confirm: ${LICENSE}`);
+    expect(shown).toContain('lantern-skin runs no definition now: the import binds it.');
+    expect(await importButton()).toBe(true);
+    await page.locator('.item-catalog-import-preview input[type="checkbox"]').first().check();
+    expect(await importButton()).toBe(false);
+    await page.locator('.item-catalog-import-preview .item-catalog-button', { hasText: 'Import and bind' }).click();
+    await expect.poll(() => imports.length).toBe(1);
+    expect(imports[0]).toEqual({
+      cid: CID,
+      itemId: 'lantern-skin',
+      expectedCid: '',
+      replace: false,
+      acknowledged: true,
+    });
+    await page.waitForFunction(() => window.notes.some(({ status }) => status === 'success'));
+    await page.waitForFunction(() =>
+      document.querySelector('.item-catalog-details')?.textContent.includes('From objectlayer.test'),
+    );
+  });
+
+  it('asks for a decision before it replaces a binding, and sends the binding the moderator saw', async () => {
+    const target = page.locator('.item-catalog-import-preview form input');
+    await target.fill('old-lantern');
+    await page.locator('.item-catalog-import-preview form button[type="submit"]').click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector('.item-catalog-import-preview')
+        ?.textContent.includes('Replace the binding of old-lantern'),
+    );
+    const boxes = page.locator('.item-catalog-import-preview input[type="checkbox"]');
+    await boxes.nth(0).check();
+    expect(await importButton()).toBe(true);
+    await boxes.nth(1).check();
+    expect(await importButton()).toBe(false);
+    await page.locator('.item-catalog-import-preview .item-catalog-button', { hasText: 'Import and bind' }).click();
+    await expect.poll(() => imports.length).toBe(2);
+    expect(imports[1]).toEqual({
+      cid: CID,
+      itemId: 'old-lantern',
+      expectedCid: BOUND,
+      replace: true,
+      acknowledged: true,
+    });
+  });
+
+  it('shows why a definition does not import, and offers no import', async () => {
+    await page.locator('.item-catalog-import-results .item-catalog-button').nth(1).click();
+    await page.waitForFunction(() =>
+      document.querySelector('.item-catalog-import-preview')?.textContent.includes('It does not import.'),
+    );
+    expect(await text('.item-catalog-import-preview')).toContain(`Its bytes hash to bafkreielse, not ${FORGED}`);
+    expect(await importButton()).toBe(true);
+    expect(errors).toEqual([]);
+  });
+});

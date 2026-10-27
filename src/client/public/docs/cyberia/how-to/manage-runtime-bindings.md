@@ -57,6 +57,29 @@ world names changes.
 In the Object Layer Studio, a banner above the editor says whether the revision you edit is the
 runtime version. **Bind as Runtime Version** there does the same bind. A save never binds.
 
+## Import a definition from Object Layer
+
+A definition another studio published to the Object Layer authority can run here. The import
+stores a copy on this host, so the game never asks the authority for it.
+
+1. Click **Import from Object Layer**, type a part of the item id or a CID, and click **Search**.
+   The list shows the canonical definitions the authority holds.
+2. Click **Preview**. The view draws the idle frame and shows the item, its CID, where it comes
+   from and who stored it there, its profile and its frames. The server checks it first: a
+   definition with a problem, for example bytes that do not hash to its CID or an unknown item type,
+   shows the problem and does not import.
+3. Read the warnings. The Object Layer protocol carries no license or author, so the view asks you
+   to confirm the right to use the definition. Check **I confirm**.
+4. Choose the item id under **Bind to**, then click **Check item id**. By default it is the item id
+   of the definition. When the item runs another definition, the view shows what it runs now and
+   asks you to decide: check **Replace the binding** to replace it. The earlier definition stays
+   stored, and the history keeps it.
+5. Click **Import and bind**, and confirm. Every world that names the item runs it after its next
+   reload. The history of the item shows the import and its provenance.
+
+If another moderator bound the item meanwhile, the import answers 409 and binds nothing: check the
+item id again. An import of a definition the item runs already changes nothing.
+
 ## Read the IPFS state
 
 Click **IPFS** on a definition. One line for each file under `/object-layer/cid/<cid>/` shows its

@@ -333,16 +333,33 @@ async function assertRunnable({ ObjectLayer }, cid, options) {
  * @param {string|null} params.expectedCid - The definition the caller saw the item run; empty when unbound.
  * @param {string} params.source - What binds: see `BINDING_SOURCES` of the catalog model.
  * @param {string} [params.by=''] - The actor.
+ * @param {Object} [params.provenance] - Where an imported definition came from.
  * @param {import('mongoose').ClientSession} [params.session] - The transaction the binding joins.
  * @param {Object} [params.options] - Router options of this host.
  * @returns {Promise<Object>} The catalog entry.
  * @throws {Error} 400 when the definition cannot run; 409 when the item runs another definition.
  * @memberof CyberiaObjectLayerCatalog
  */
-export async function bindItem({ models, itemId, objectLayerCid, expectedCid, source, by = '', session, options }) {
+export async function bindItem({
+  models,
+  itemId,
+  objectLayerCid,
+  expectedCid,
+  source,
+  by = '',
+  provenance,
+  session,
+  options,
+}) {
   if (!itemId) throw invalid('An item id is required');
   await assertRunnable(models, objectLayerCid, options);
-  const entry = await models.CyberiaItemCatalog.bind(itemId, objectLayerCid, { expectedCid, source, by, session });
+  const entry = await models.CyberiaItemCatalog.bind(itemId, objectLayerCid, {
+    expectedCid,
+    source,
+    by,
+    provenance,
+    session,
+  });
   await CacheService.invalidate(objectLayerCache(options));
   return entry;
 }

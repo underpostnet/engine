@@ -4,7 +4,8 @@ import { CyberiaItemCatalogController } from './cyberia-item-catalog.controller.
 
 class CyberiaItemCatalogRouter {
   /**
-   * Reads are public; the IPFS diagnostics, binding, unbinding and reconciling need a moderator.
+   * Reads are public; the IPFS diagnostics, an import from the Object Layer authority, binding,
+   * unbinding and reconciling need a moderator.
    * @param {import('../types.js').RouterOptions} options
    * @returns {import('express').Router}
    */
@@ -14,11 +15,14 @@ class CyberiaItemCatalogRouter {
     const handle = (method) => async (req, res) => await CyberiaItemCatalogController[method](req, res, options);
     router.get(`/unbound`, handle('unbound'));
     router.get(`/resolve`, handle('resolve'));
+    router.get(`/import/search`, ...moderator, handle('importSearch'));
+    router.get(`/import/:cid`, ...moderator, handle('importPreview'));
     router.get(`/:id/history`, handle('history'));
     router.get(`/:id/diagnostics`, ...moderator, handle('diagnostics'));
     router.get(`/:id`, handle('get'));
     router.get(`/`, handle('get'));
     router.post(`/reconcile`, ...moderator, handle('reconcile'));
+    router.post(`/import`, ...moderator, handle('importDefinition'));
     router.post(`/`, ...moderator, handle('post'));
     router.delete(`/:id`, ...moderator, handle('delete'));
     return router;

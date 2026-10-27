@@ -49,6 +49,24 @@ class CyberiaItemCatalogService {
       method: 'POST',
       body: payloadFactory({ itemId, objectLayerCid, expectedCid: expectedCid ?? '' }),
     });
+
+  /** The canonical definitions of the Object Layer authority whose item id holds `q`, or the one `q` names by CID. */
+  static importSearch = ({ q }) => {
+    const url = new URL(getApiBaseUrl({ id: 'import/search', endpoint }));
+    url.searchParams.set('q', q);
+    return request(url.toString());
+  };
+
+  /** What an import of a definition of the authority would do for `itemId` (default: its own). */
+  static importPreview = ({ cid, itemId = '' }) => {
+    const url = new URL(getApiBaseUrl({ id: `import/${encodeURIComponent(cid)}`, endpoint }));
+    if (itemId) url.searchParams.set('itemId', itemId);
+    return request(url.toString());
+  };
+
+  /** Imports a definition of the authority and binds it: `{ cid, itemId, expectedCid, replace, acknowledged }`. */
+  static importDefinition = (body) =>
+    request(getApiBaseUrl({ id: 'import', endpoint }), { method: 'POST', body: payloadFactory(body) });
 }
 
 export { CyberiaItemCatalogService };

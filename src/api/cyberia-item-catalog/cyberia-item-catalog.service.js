@@ -20,6 +20,11 @@ import {
   renderedCids,
   unboundItems,
 } from '../../projects/cyberia/catalog/object-layer-catalog.js';
+import {
+  importDefinition,
+  previewImport,
+  searchAuthority,
+} from '../../projects/cyberia/catalog/object-layer-import.js';
 import { reloadContentServers } from '../../projects/cyberia/content/content-release.js';
 
 /** The most item ids one resolve reads. */
@@ -151,6 +156,49 @@ class CyberiaItemCatalogService {
     void reloadContentServers(options, { mode: 'incremental' });
     return entry;
   };
+
+  /**
+   * GET `/import/search?q=`: the canonical definitions of the Object Layer authority whose item id
+   * holds `q`, or the one `q` names by its CID.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<{data:Object[]}>}
+   */
+  static importSearch = async (req, res, options) => await searchAuthority({ q: req.query.q });
+
+  /**
+   * GET `/import/:cid?itemId=`: what an import of a definition of the authority would do. Stores nothing.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static importPreview = async (req, res, options) =>
+    await previewImport(catalogModels(options), { cid: req.params.cid, itemId: req.query.itemId }, options);
+
+  /**
+   * POST `/import`: imports a definition of the authority and binds it to an item id, `{ cid,
+   * itemId?, expectedCid, replace?, acknowledged }`. The game servers then reload their object layers.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static importDefinition = async (req, res, options) =>
+    await importDefinition(
+      catalogModels(options),
+      {
+        cid: req.body?.cid,
+        itemId: req.body?.itemId,
+        expectedCid: req.body?.expectedCid,
+        replace: req.body?.replace,
+        acknowledged: req.body?.acknowledged,
+        actor: req.auth.user._id,
+      },
+      options,
+      (host) => reloadContentServers(host, { mode: 'incremental' }),
+    );
 
   /**
    * POST `/reconcile`: unbinds every item whose definition the Object Layer authority no longer

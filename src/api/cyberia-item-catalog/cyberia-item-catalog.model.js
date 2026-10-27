@@ -12,20 +12,41 @@ import { OBJECT_LAYER_CID_PATTERN } from '../object-layer/object-layer.identity.
 
 /**
  * What made a binding: an explicit Studio bind, a procedural promotion, a content import, a
- * snapshot restore, a profile revision, or the first binding of a label with one definition.
+ * snapshot restore, a profile revision, the first binding of a label with one definition, or an
+ * import of a definition from the Object Layer authority.
  * @memberof CyberiaItemCatalogModel
  */
-export const BINDING_SOURCES = Object.freeze(['studio', 'procedural', 'content', 'snapshot', 'revise', 'seed']);
+export const BINDING_SOURCES = Object.freeze([
+  'studio',
+  'procedural',
+  'content',
+  'snapshot',
+  'revise',
+  'seed',
+  'import',
+]);
 
 /**
  * @typedef {Object} CyberiaItemCatalogEntry
  * @property {string} itemId - Item id, one entry per id
  * @property {string} objectLayerCid - CID of the definition the runtime runs for the item
- * @property {Array<{objectLayerCid:string,previousCid:string,source:string,by:string,at:Date}>} history - Every binding, oldest first
+ * @property {Array<{objectLayerCid:string,previousCid:string,source:string,by:string,at:Date,provenance:Object}>} history - Every binding, oldest first; an `import` holds its provenance
  * @property {Date} createdAt - When the item was first bound
  * @property {Date} updatedAt - When the binding last changed
  * @memberof CyberiaItemCatalogModel
  */
+/** Where an imported definition came from, and what the moderator confirmed. */
+const ProvenanceSchema = new Schema(
+  {
+    domain: { type: String, required: true },
+    createdBy: { type: String, default: '' },
+    createdAt: { type: Date, default: null },
+    warnings: { type: [String], default: [] },
+    acknowledged: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 const BindingSchema = new Schema(
   {
     objectLayerCid: { type: String, required: true, match: OBJECT_LAYER_CID_PATTERN },
@@ -33,6 +54,7 @@ const BindingSchema = new Schema(
     source: { type: String, required: true, enum: BINDING_SOURCES },
     by: { type: String, default: '' },
     at: { type: Date, required: true },
+    provenance: { type: ProvenanceSchema, default: undefined },
   },
   { _id: false },
 );
@@ -70,6 +92,7 @@ export const runsAnother = (itemId, current, expected) =>
  * @param {string|null} binding.expectedCid - The definition the caller saw; empty for an unbound item.
  * @param {string} binding.source - One of {@link BINDING_SOURCES}.
  * @param {string} [binding.by=''] - The actor.
+ * @param {Object} [binding.provenance] - Where an imported definition came from.
  * @param {import('mongoose').ClientSession} [binding.session] - The transaction the write joins.
  * @returns {Promise<Object>} The stored entry, lean.
  * @throws {Error} 409 when the item runs another definition than `expectedCid`.
@@ -78,11 +101,18 @@ export const runsAnother = (itemId, current, expected) =>
 CyberiaItemCatalogSchema.statics.bind = async function (
   itemId,
   objectLayerCid,
-  { expectedCid, source, by = '', session = null },
+  { expectedCid, source, by = '', provenance, session = null },
 ) {
   const current = await this.findOne({ itemId }).session(session).lean();
   if (current?.objectLayerCid === objectLayerCid) return current;
-  const entry = { objectLayerCid, previousCid: expectedCid || '', source, by, at: new Date() };
+  const entry = {
+    objectLayerCid,
+    previousCid: expectedCid || '',
+    source,
+    by,
+    at: new Date(),
+    ...(provenance && { provenance }),
+  };
   const runs = runsAnother(itemId, current?.objectLayerCid, expectedCid);
   if (!expectedCid) {
     if (current) throw conflict(runs);

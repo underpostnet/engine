@@ -42,7 +42,9 @@ definition, the second bind answers 409 and changes nothing. A bind of the defin
 runs already changes nothing. The definition must be stored and published, and not archived.
 
 Each bind appends to the history of the item in the same write: the new and the previous CID,
-what bound it (`studio`, `procedural`, `content`, `snapshot`, `revise`, `seed`), who, and when.
+what bound it (`studio`, `procedural`, `content`, `snapshot`, `revise`, `seed`, `import`), who, and
+when. An `import` also keeps its `provenance`: the authority host, who stored the definition there
+and when, and the warnings the moderator confirmed.
 
 | Path                    | Publishes             | Binds                                                       |
 | ----------------------- | --------------------- | ----------------------------------------------------------- |
@@ -52,6 +54,15 @@ what bound it (`studio`, `procedural`, `content`, `snapshot`, `revise`, `seed`),
 | Content import          | The artifact item     | An absent item, or with `--rebind` a differing one          |
 | Snapshot restore        | The snapshot item     | Always: the snapshot is authoritative for what it restores  |
 | `cyberia ol` operations | The written item      | The item the operator wrote                                 |
+| Object Layer import     | A cache copy          | The item the moderator chose, under the binding it saw      |
+
+An Object Layer import (`src/projects/cyberia/catalog/object-layer-import.js`) reads a canonical
+definition from the authority origin of the deploy, and only from it: a request names a CID or a
+search text, never a URL. It refuses content whose bytes do not hash to the CID, another profile, an
+unknown item type, invalid stats, frames that do not decode or that pass the limits, and an archived
+definition. It stores a `cache` copy, the render frames and the atlas on this host, so no world, no
+catalog read and no Object Layer Viewer asks the authority for it again; then it binds. An import
+again stores nothing twice and binds nothing new; an import that failed resumes where it stopped.
 
 After a bind, the engine asks every registered game server to reload its object layers. A
 promotion publishes first: a definition is immutable, so a bind that a later step refuses leaves

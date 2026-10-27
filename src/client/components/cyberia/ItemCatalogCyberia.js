@@ -4,6 +4,9 @@
  * page at a time from the `page` and `limit` query parameters; a row opens the definitions the item
  * could run, its binding history and how its definition is stored on IPFS. Add binding opens the same view for an item with no binding. A bind names the
  * definition the moderator saw the item run, so a concurrent bind answers 409 and changes nothing.
+ * Import from Object Layer finds a canonical definition at the Object Layer authority, shows what the
+ * server checked and the binding it takes, and imports it once the moderator confirms its warnings
+ * and any replacement.
  *
  * @module src/client/components/cyberia/ItemCatalogCyberia.js
  */
@@ -17,6 +20,7 @@ import { firstPage, pageQuery } from '../core/Pagination.js';
 import { isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
+import { fromWire, rgbaFrame } from '../objectlayer-studio/RenderSource.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 
@@ -37,6 +41,7 @@ const ORIGINS = Object.freeze({
   procedural: 'live: promotion',
   revise: 'live: revision',
   seed: 'live: first binding',
+  import: 'live: Object Layer import',
 });
 
 const element = (tag, className = '', text) => {
@@ -71,6 +76,8 @@ class ItemCatalogCyberia {
   static itemId = '';
   /** The page the grid shows, as `{ page, limit }`; null until the first read. */
   static loadedPage = null;
+  /** The preview of the definition the import panel shows. */
+  static importPreview = null;
 
   static style = css`
     .item-catalog .item-catalog-muted {
@@ -145,7 +152,41 @@ class ItemCatalogCyberia {
       image-rendering: pixelated;
     }
     .item-catalog .item-catalog-add {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
       margin-bottom: 8px;
+    }
+    .item-catalog .item-catalog-import-frame {
+      width: 96px;
+      height: 96px;
+      image-rendering: pixelated;
+      background: #0004;
+      border-radius: 4px;
+    }
+    .item-catalog .item-catalog-import-card {
+      display: grid;
+      gap: 6px;
+      padding: 8px 0;
+    }
+    .item-catalog .item-catalog-import-facts {
+      display: grid;
+      gap: 2px;
+      flex: 1 1 16rem;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .item-catalog .item-catalog-bad {
+      color: #ef5350;
+    }
+    .item-catalog .item-catalog-warn {
+      color: #ffb74d;
+    }
+    .item-catalog .item-catalog-check {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
     }
   `;
 
@@ -232,6 +273,9 @@ class ItemCatalogCyberia {
             containerClass: 'inl',
             serviceProvider: (q) => ItemCatalogCyberia.unboundOptions(q),
           })}
+          <button type="button" class="item-catalog-button item-catalog-import-open">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Import from Object Layer
+          </button>
         </div>`
       : '';
     const grid = await AgGrid.instance({
@@ -254,6 +298,7 @@ class ItemCatalogCyberia {
       },
     });
     setTimeout(async () => {
+      s('.item-catalog-import-open')?.addEventListener('click', () => ItemCatalogCyberia.openImport());
       await ItemCatalogCyberia.refreshList();
       listenQueryParamsChange({ id: 'item-catalog-page', event: () => ItemCatalogCyberia.followPageQuery() });
     });
@@ -269,6 +314,7 @@ class ItemCatalogCyberia {
           </div>
           ${addBinding} ${grid}
         </div>
+        <div class="in studio-group item-catalog-import" hidden></div>
         <div class="in studio-group">
           <div class="in studio-group-title"><i class="fa-solid fa-clock-rotate-left"></i> Item</div>
           <div class="in item-catalog-details item-catalog-muted">
@@ -357,13 +403,21 @@ class ItemCatalogCyberia {
       row.append(open, bind, ipfs);
       return row;
     });
-    const historyRows = history.map(({ objectLayerCid: cid, previousCid, source, by, at }) => {
+    const historyRows = history.map(({ objectLayerCid: cid, previousCid, source, by, at, provenance }) => {
       const row = element('div', 'item-catalog-row');
       row.append(
         element('span', '', stamp(at)),
         element('code', '', `${shortCid(previousCid)} → ${shortCid(cid)}`),
         element('span', 'item-catalog-muted', `${ORIGINS[source] ?? source}${by ? ` by ${by}` : ''}`),
       );
+      if (provenance)
+        row.append(
+          element(
+            'span',
+            'item-catalog-muted',
+            `From ${provenance.domain}${provenance.createdBy ? `, stored there by ${provenance.createdBy}` : ''}. Confirmed: ${provenance.warnings.join('; ') || 'nothing to confirm'}`,
+          ),
+        );
       return row;
     });
     details.replaceChildren(
@@ -390,6 +444,221 @@ class ItemCatalogCyberia {
     if (response.status !== 'success') refusal(response);
     else notify(`${itemId} runs ${shortCid(objectLayerCid)}.`, 'success');
     await Promise.all([ItemCatalogCyberia.refreshList(), ItemCatalogCyberia.showItem(itemId)]);
+  }
+
+  /** Opens the import panel: a search of the Object Layer authority, its results and a preview. */
+  static openImport() {
+    const panel = s('.item-catalog-import');
+    if (!panel) return;
+    panel.hidden = false;
+    const form = element('form', 'item-catalog-row');
+    const query = Object.assign(element('input', 'item-catalog-import-q'), {
+      placeholder: 'Item id or CID',
+      maxLength: 128,
+    });
+    query.setAttribute('aria-label', 'Search the Object Layer authority by item id or CID');
+    const search = element('button', 'item-catalog-button', ' Search');
+    search.type = 'submit';
+    search.prepend(element('i', 'fa-solid fa-magnifying-glass'));
+    form.append(query, search);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      ItemCatalogCyberia.searchImport(query.value.trim());
+    };
+    panel.replaceChildren(
+      element('div', 'studio-group-title', 'Import from Object Layer'),
+      element(
+        'div',
+        'item-catalog-muted',
+        'Find a canonical definition at the Object Layer authority, check it, and bind it to an item id. The import stores a copy here, so the game never asks the authority for it.',
+      ),
+      form,
+      element('div', 'item-catalog-import-results'),
+      element('div', 'item-catalog-import-preview'),
+    );
+    query.focus();
+  }
+
+  /** Lists the canonical definitions of the authority a search names. */
+  static async searchImport(q) {
+    const results = s('.item-catalog-import-results');
+    if (!q || !results) return;
+    results.replaceChildren(element('div', 'item-catalog-muted', 'Searching…'));
+    const response = await CyberiaItemCatalogService.importSearch({ q });
+    if (response.status !== 'success')
+      return results.replaceChildren(element('div', 'item-catalog-bad', response.message));
+    const rows = response.data.data.map((row) => {
+      const line = element('div', 'item-catalog-row');
+      line.append(
+        element('strong', '', row.itemId),
+        element('span', 'item-catalog-muted', `${row.itemType} · ${row.profile}`),
+        element('code', '', shortCid(row.cid)),
+        element('span', 'item-catalog-muted', stamp(row.createdAt)),
+        ...(row.archived ? [statusBadge('archived')] : []),
+        button('Preview', () => ItemCatalogCyberia.previewImport(row.cid, ''), 'fa-solid fa-eye'),
+      );
+      return line;
+    });
+    results.replaceChildren(
+      ...(rows.length ? rows : [element('div', 'item-catalog-muted', 'No canonical definition matches.')]),
+    );
+  }
+
+  /** Reads what an import of a definition would do for an item id, and shows it. */
+  static async previewImport(cid, itemId) {
+    const holder = s('.item-catalog-import-preview');
+    if (!holder) return;
+    holder.replaceChildren(element('div', 'item-catalog-muted', 'Reading and checking the definition…'));
+    const response = await CyberiaItemCatalogService.importPreview({ cid, itemId });
+    if (response.status !== 'success')
+      return holder.replaceChildren(element('div', 'item-catalog-bad', response.message));
+    ItemCatalogCyberia.importPreview = response.data;
+    ItemCatalogCyberia.showImportPreview(response.data);
+  }
+
+  /** One frame of a render, drawn as the game draws its pixels; a note when there is none. */
+  static frameCanvas(frame) {
+    if (!frame) return element('span', 'item-catalog-muted', 'No render');
+    try {
+      const source = fromWire(frame);
+      const canvas = element('canvas', 'item-catalog-import-frame');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      canvas.setAttribute('role', 'img');
+      canvas.setAttribute('aria-label', `The ${frame.keyframe} frame`);
+      const context = canvas.getContext('2d');
+      const image = context.createImageData(source.width, source.height);
+      image.data.set(rgbaFrame(source, source.frames[frame.keyframe][0]).flat(2));
+      context.putImageData(image, 0, 0);
+      return canvas;
+    } catch {
+      return element('span', 'item-catalog-bad', 'The frame does not decode');
+    }
+  }
+
+  /**
+   * The preview of an import: the frame, the source and identity, what the server checked, and the
+   * binding it takes. Import stays off until the warnings are confirmed and a replacement is decided.
+   */
+  static showImportPreview(preview) {
+    const holder = s('.item-catalog-import-preview');
+    if (!holder) return;
+    const { cid, source, item, profile, render, stored, validation, target } = preview;
+    const frames = render ? Object.values(render.frames).reduce((sum, value) => sum + value, 0) : 0;
+    const facts = element('div', 'item-catalog-import-facts');
+    facts.append(
+      element('strong', '', `${item.id} · ${item.type}`),
+      element('span', 'item-catalog-muted', item.description || 'No description'),
+      element('code', '', cid),
+      element(
+        'span',
+        'item-catalog-muted',
+        `From ${source.domain}${source.createdBy ? `, stored there by ${source.createdBy}` : ''} · ${stamp(source.createdAt)}`,
+      ),
+      element('span', 'item-catalog-muted', `Profile ${profile.id} v${profile.version}`),
+      element(
+        'span',
+        'item-catalog-muted',
+        render
+          ? `${render.width} × ${render.height} px · ${frames} frames in ${Object.keys(render.frames).length} keyframes · ${render.colors} colors`
+          : 'No render frames',
+      ),
+      element(
+        'span',
+        'item-catalog-muted',
+        stored.definition ? 'This host stores it already.' : 'The import stores a copy of it here.',
+      ),
+    );
+    const head = element('div', 'item-catalog-row');
+    head.append(ItemCatalogCyberia.frameCanvas(render?.preview), facts);
+
+    const checks = element('div', 'item-catalog-import-facts');
+    for (const problem of validation.problems) checks.append(element('span', 'item-catalog-bad', problem));
+    const confirm = Object.assign(element('input'), { type: 'checkbox', disabled: !validation.ok });
+    const confirmLabel = element('label', 'item-catalog-check');
+    confirmLabel.append(confirm, element('span', 'item-catalog-warn', `I confirm: ${validation.warnings.join('; ')}`));
+    checks.append(validation.ok ? confirmLabel : element('span', 'item-catalog-bad', 'It does not import.'));
+
+    const targetRow = element('form', 'item-catalog-row');
+    const targetInput = Object.assign(element('input'), { value: target.itemId, maxLength: 128 });
+    targetInput.setAttribute('aria-label', 'Item id the definition binds to');
+    const check = element('button', 'item-catalog-button', 'Check item id');
+    check.type = 'submit';
+    targetRow.append(element('span', '', 'Bind to'), targetInput, check);
+    targetRow.onsubmit = (event) => {
+      event.preventDefault();
+      ItemCatalogCyberia.previewImport(cid, targetInput.value.trim());
+    };
+
+    const binding = element('div', 'item-catalog-import-facts');
+    const replace = Object.assign(element('input'), { type: 'checkbox' });
+    if (target.unchanged)
+      binding.append(element('span', 'item-catalog-muted', `${target.itemId} runs this definition already.`));
+    else if (target.replaces) {
+      const replaceLabel = element('label', 'item-catalog-check');
+      replaceLabel.append(
+        replace,
+        element(
+          'span',
+          'item-catalog-warn',
+          `Replace the binding of ${target.itemId}: it runs ${shortCid(target.boundCid)} at binding revision ${target.revision}. That definition stays stored, and the history keeps it.`,
+        ),
+      );
+      const current = element('img', 'item-catalog-preview');
+      current.alt = `What ${target.itemId} runs now`;
+      current.onerror = () =>
+        current.replaceWith(element('span', 'item-catalog-muted', 'No preview of what it runs now'));
+      current.src = AtlasSpriteSheetService.idlePreviewUrl(target.boundCid);
+      binding.append(current, replaceLabel);
+    } else
+      binding.append(
+        element('span', 'item-catalog-muted', `${target.itemId} runs no definition now: the import binds it.`),
+      );
+
+    const run = button(
+      'Import and bind',
+      () => ItemCatalogCyberia.runImport(preview, replace.checked),
+      'fa-solid fa-cloud-arrow-down',
+    );
+    const sync = () =>
+      (run.disabled = !validation.ok || !confirm.checked || target.unchanged || (target.replaces && !replace.checked));
+    confirm.onchange = sync;
+    replace.onchange = sync;
+    sync();
+    const card = element('div', 'item-catalog-import-card');
+    card.append(head, checks, targetRow, binding, run);
+    holder.replaceChildren(card);
+  }
+
+  /** Imports and binds the previewed definition once the moderator confirms, then shows the item. */
+  static async runImport(preview, replace) {
+    const { cid, target, source } = preview;
+    const answer = await Modal.RenderConfirm({
+      id: 'item-catalog-import-confirm',
+      html: async () =>
+        html`<div class="in section-mp" style="text-align: center">
+          Import ${shortCid(cid)} from ${source.domain} and bind ${target.itemId} to it? Every world that names
+          ${target.itemId} runs it after its next reload.
+        </div>`,
+    });
+    if (answer.status !== 'confirm') return;
+    const response = await CyberiaItemCatalogService.importDefinition({
+      cid,
+      itemId: target.itemId,
+      expectedCid: target.boundCid,
+      replace,
+      acknowledged: true,
+    });
+    if (response.status !== 'success') {
+      refusal(response);
+      return await ItemCatalogCyberia.previewImport(cid, target.itemId);
+    }
+    notify(`${target.itemId} runs ${shortCid(cid)}, imported from ${source.domain}.`, 'success');
+    await Promise.all([
+      ItemCatalogCyberia.refreshList(),
+      ItemCatalogCyberia.showItem(target.itemId),
+      ItemCatalogCyberia.previewImport(cid, target.itemId),
+    ]);
   }
 
   /** Shows how a definition is stored on IPFS, below its row: one line for each file. */

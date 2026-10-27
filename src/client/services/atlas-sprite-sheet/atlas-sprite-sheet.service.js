@@ -101,6 +101,13 @@ class AtlasSpriteSheetService {
       );
     return spriteLoads.get(cid);
   };
+  /** Drops the sprites of cids whose definitions left storage: the page keeps no reference to their images. */
+  static dropSprites = (cids) => {
+    for (const cid of cids) {
+      sprites.delete(cid);
+      spriteLoads.delete(cid);
+    }
+  };
   /** Loads the sprites of many cids; `onLoad` runs once for each that settles. */
   static preloadSprites = (cids, onLoad) =>
     Promise.all(

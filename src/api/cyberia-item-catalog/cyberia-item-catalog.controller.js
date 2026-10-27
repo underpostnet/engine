@@ -7,6 +7,9 @@ const CyberiaItemCatalogController = buildCrudController(CyberiaItemCatalogServi
   history: serviceHandler(CyberiaItemCatalogService.history, { crossOrigin: true }),
   diagnostics: serviceHandler(CyberiaItemCatalogService.diagnostics),
   reconcile: serviceHandler(CyberiaItemCatalogService.reconcile),
+  importSearch: serviceHandler(CyberiaItemCatalogService.importSearch),
+  importPreview: serviceHandler(CyberiaItemCatalogService.importPreview),
+  importDefinition: serviceHandler(CyberiaItemCatalogService.importDefinition),
 });
 
 export { CyberiaItemCatalogController };
