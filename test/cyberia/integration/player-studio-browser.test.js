@@ -62,6 +62,8 @@ const rows = [
 ];
 const detail = {
   ...rows[0],
+  role: 'user',
+  restriction: null,
   schemaCurrent: true,
   createdAt: '2026-10-16T08:00:00.000Z',
   carried: { bag: 9, storage: 4, held: 1 },
@@ -76,6 +78,35 @@ const detail = {
     },
   ],
 };
+const offline = { ...detail, ...rows[1], session: null, worlds: [] };
+/** The stacks of a profile, as the server answers them: a live session holds the first profile. */
+const stacksOf = (id) => ({
+  id,
+  epoch: id === detail.id ? 12 : 3,
+  live: id === detail.id,
+  level: 4,
+  coins: 950,
+  held: 1,
+  bag: {
+    slots: 9,
+    max: 24,
+    stacks: [
+      { itemId: 'hero-skin', olCid: 'cid-h', quantity: 1, slot: 0, active: true, itemType: 'skin', boundCid: 'cid-h' },
+      {
+        itemId: 'ore-chunk',
+        olCid: 'cid-o',
+        quantity: 7,
+        slot: 3,
+        active: false,
+        itemType: 'resource',
+        boundCid: 'cid-o2',
+      },
+    ],
+  },
+  storage: { slots: 16, max: 40, stacks: [] },
+  wearable: ['skin', 'breastplate', 'weapon'],
+  maxActiveLayers: 4,
+});
 const audit = [
   {
     id: 'a1',
@@ -132,6 +163,9 @@ describe.skipIf(!driver || !browserBinary)('Player manager in a browser', () => 
   const scripts = {};
   const reads = [];
   const ends = [];
+  const changes = [];
+  const restrictions = [];
+  const batches = [];
   const errors = [];
   const notes = () => page.evaluate(() => window.notes.map(({ status, html }) => `${status}: ${html}`));
   const shot = async (name) => {
@@ -168,8 +202,58 @@ describe.skipIf(!driver || !browserBinary)('Player manager in a browser', () => 
         ends.push(JSON.parse(body));
         return send({ operationId: ends.at(-1).operationId, outcome: 'done', refusal: '', epoch: 13 });
       }
+      const body = async () => {
+        let text = '';
+        for await (const chunk of req) text += chunk;
+        return JSON.parse(text);
+      };
+      if (url.pathname.endsWith('/stacks')) {
+        const id = url.pathname.split('/').at(-2);
+        if (req.method === 'GET') return send(stacksOf(id));
+        changes.push(await body());
+        return send({ operationId: changes.at(-1).operationId, outcome: 'done', refusal: '', epoch: 4, after: [] });
+      }
+      if (url.pathname.endsWith('/account')) {
+        restrictions.push(await body());
+        return send({
+          operationId: restrictions.at(-1).operationId,
+          outcome: 'done',
+          refusal: '',
+          epoch: 3,
+          after: [],
+        });
+      }
+      if (url.pathname.endsWith('/cyberia-player/batch')) {
+        batches.push(await body());
+        const { preview, targets } = batches.at(-1);
+        const runs = batches.filter((batch) => !batch.preview).length;
+        return send({
+          batchId: batches.at(-1).batchId,
+          preview,
+          results: targets.map(({ playerId }) =>
+            preview
+              ? {
+                  playerId,
+                  username: 'trinity',
+                  outcome: 'eligible',
+                  refusal: '',
+                  after: [{ itemId: 'ore-chunk', quantity: 2, slot: 1 }],
+                }
+              : runs === 1
+                ? { playerId, outcome: 'failed', error: 'The database does not answer' }
+                : {
+                    playerId,
+                    outcome: 'done',
+                    refusal: '',
+                    epoch: 4,
+                    after: [{ itemId: 'ore-chunk', quantity: 2, slot: 1 }],
+                  },
+          ),
+        });
+      }
       if (url.pathname.endsWith('/cyberia-player-audit')) return send({ data: audit, next: '' });
       if (url.pathname.endsWith(`/cyberia-player/${detail.id}`)) return send(detail);
+      if (url.pathname.endsWith(`/cyberia-player/${offline.id}`)) return send(offline);
       if (url.pathname.endsWith('/cyberia-player')) {
         const query = Object.fromEntries(url.searchParams);
         reads.push(query);
@@ -252,6 +336,95 @@ describe.skipIf(!driver || !browserBinary)('Player manager in a browser', () => 
       },
     ]);
     expect((await notes()).at(-1)).toContain('Session ended');
+  });
+
+  it('shows the stacks of an offline profile and lets an admin change them with a reason', async () => {
+    await visit('admin', `&playerId=${offline.id}`);
+    await page.waitForSelector('.player-manager-add');
+    const text = await page.locator('.player-manager-stacks').textContent();
+    expect(text).toContain('Bag · 2 stacks · 9 of 24 slots open');
+    expect(text).toContain('Its item runs another definition now');
+    await page.locator('.player-manager-add [name="itemId"]').fill('iron-plate');
+    await page.locator('.player-manager-add button[type="submit"]').click();
+    expect(changes).toEqual([]);
+    expect((await notes()).at(-1)).toContain('error: Give the reason');
+    await page.locator('.player-manager-stack-reason').fill('Refund of ticket 4211');
+    await page.locator('.player-manager-add [name="quantity"]').fill('2');
+    await page.locator('.player-manager-add button[type="submit"]').click();
+    await expect.poll(() => changes.length).toBe(1);
+    expect(changes[0]).toEqual({
+      operationId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      reason: 'Refund of ticket 4211',
+      epoch: 3,
+      change: { op: 'add', container: 'bag', itemId: 'iron-plate', quantity: 2 },
+    });
+    await page.waitForFunction(
+      () => document.querySelector('.player-manager-stack-reason')?.value === 'Refund of ticket 4211',
+    );
+    await page.locator('.player-manager-stack[data-slot="3"] button[data-op="remove"]').click();
+    await expect.poll(() => changes.length).toBe(2);
+    expect(changes[1].change).toEqual({ op: 'remove', container: 'bag', itemId: 'ore-chunk', slot: 3 });
+    expect((await page.evaluate(() => window.questions)).at(-1)).toBe('Remove ore-chunk from slot 3 of the bag?');
+    await page.locator('.player-manager-stack[data-slot="0"] button[data-op="deactivate"]').click();
+    await expect.poll(() => changes.length).toBe(3);
+    expect(changes[2].change).toEqual({ op: 'deactivate', container: 'bag', itemId: 'hero-skin', slot: 0 });
+    await shot('player-manager-stacks.png');
+  });
+
+  it('keeps the stacks read-only for a moderator, and for an admin while a session plays', async () => {
+    await visit('moderator', `&playerId=${offline.id}`);
+    await page.waitForSelector('.player-manager-stack');
+    expect(await page.locator('.player-manager-add').count()).toBe(0);
+    expect(await page.locator('.player-manager-stacks').textContent()).toContain('Only an admin changes the stacks.');
+    await visit('admin', `&playerId=${detail.id}`);
+    await page.waitForSelector('.player-manager-stack');
+    expect(await page.locator('.player-manager-add').count()).toBe(0);
+    expect(await page.locator('.player-manager-stacks').textContent()).toContain('end the session first');
+  });
+
+  it('locks an account with its end and its reason; only an admin sees Ban', async () => {
+    await visit('moderator', `&playerId=${offline.id}`);
+    await page.waitForSelector('.player-manager-account button[data-account="lock"]');
+    expect(await page.locator('.player-manager-account button[data-account="ban"]').count()).toBe(0);
+    await page.locator('.player-manager-account-reason').fill('Harassment report 77');
+    await page.locator('.player-manager-account button[data-account="lock"]').click();
+    await expect.poll(() => restrictions.length).toBe(1);
+    expect(restrictions[0]).toEqual({
+      operationId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      reason: 'Harassment report 77',
+      op: 'lock',
+      until: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    });
+    expect((await page.evaluate(() => window.questions)).at(-1)).toContain('Every session of the account ends now.');
+    await visit('admin', `&playerId=${offline.id}`);
+    await page.waitForSelector('.player-manager-account button[data-account="ban"]');
+  });
+
+  it('previews a batch, applies it to the profiles it applies to, and retries the failed ones', async () => {
+    await visit('admin');
+    await page.locator('.player-manager-check').first().check();
+    await page.waitForSelector('.player-manager-batch-preview');
+    await page.locator('.player-manager-batch-item').fill('ore-chunk');
+    await page.locator('.player-manager-batch-quantity').fill('2');
+    await page.locator('.player-manager-batch-reason').fill('Event reward');
+    await page.locator('.player-manager-batch-preview').click();
+    await page.waitForSelector('.player-manager-batch-run:not([disabled])');
+    expect(await page.locator('.player-manager-batch').textContent()).toContain('Preview: nothing is written yet.');
+    expect(batches[0]).toMatchObject({
+      preview: true,
+      reason: 'Event reward',
+      targets: [{ playerId: rows[0].id, epoch: 12 }],
+      operation: { type: 'stacks', change: { op: 'add', container: 'bag', itemId: 'ore-chunk', quantity: 2 } },
+    });
+    await page.locator('.player-manager-batch-run').click();
+    await page.waitForSelector('.player-manager-batch-retry');
+    expect(await page.locator('.player-manager-batch').textContent()).toContain('The database does not answer');
+    await page.locator('.player-manager-batch-retry').click();
+    await expect.poll(() => batches.length).toBe(3);
+    expect(batches.map(({ batchId }) => batchId)).toEqual(Array(3).fill(batches[0].batchId));
+    await page.waitForFunction(() => !document.querySelector('.player-manager-batch-retry'));
+    expect(await page.locator('.player-manager-batch').textContent()).toContain('ore-chunk ×2 in slot 1');
+    await shot('player-manager-batch.png');
   });
 
   it('fits a mobile viewport without a horizontal scroll', async () => {

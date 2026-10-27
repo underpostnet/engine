@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import { loggerFactory } from '../ops/logger.js';
 import crypto from 'crypto';
 import { promisify } from 'util';
-import { UserDto, uniqueConflict } from '../../api/user/user.model.js';
+import { UserDto, restrictionMessage, restrictionOf, uniqueConflict } from '../../api/user/user.model.js';
 import {
   commonAdminGuard,
   commonModeratorGuard,
@@ -313,6 +313,9 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
           return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
         }
 
+        const restriction = restrictionOf(user);
+        if (restriction) return res.status(403).json({ status: 'error', message: restrictionMessage(restriction) });
+
         if (!isRefreshTokenReq(req) && session.expiresAt < new Date()) {
           return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
         }
@@ -446,7 +449,8 @@ const cookieOptionsFactory = (req, host) => {
 };
 
 /**
- * Create session and set refresh cookie. Rotating and hashed stored token.
+ * Create session and set refresh cookie. Rotating and hashed stored token. An account under a
+ * restriction gets none.
  * @param {object} user The user object.
  * @param {import('mongoose').Model} User The Mongoose User model.
  * @param {import('express').Request} req The Express request object.
@@ -455,9 +459,12 @@ const cookieOptionsFactory = (req, host) => {
  * @param {string} options.host The host name.
  * @param {string} options.path The path name.
  * @returns {Promise<{jwtid: string}>} The session ID.
+ * @throws {Error} 403 while the account is under a restriction.
  * @memberof Auth
  */
 async function createSessionAndUserToken(user, User, req, res, options = { host: '', path: '' }) {
+  const restriction = restrictionOf(await User.findById(user._id, { restriction: 1 }).lean());
+  if (restriction) throw Object.assign(new Error(restrictionMessage(restriction)), { status: 403 });
   const refreshToken = generateRandomHex();
   const now = Date.now();
   const expiresAt = new Date(now + minutes('REFRESH_EXPIRE_MINUTES'));
@@ -614,6 +621,13 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
     throw new Error('Invalid refresh token');
   }
   const { user, session } = found;
+
+  const restriction = restrictionOf(user);
+  if (restriction) {
+    await removeSession(User, user._id, session._id);
+    res.clearCookie('refreshToken', { path: '/' });
+    throw Object.assign(new Error(restrictionMessage(restriction)), { status: 403 });
+  }
 
   // A session idle past the life of its cookie is over, whatever cookie a client still presents.
   if (Date.now() - lastRefreshOf(session) > sessionIdleLimit()) {

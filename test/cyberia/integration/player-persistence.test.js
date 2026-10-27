@@ -39,12 +39,8 @@ import {
   unkeyedFilter,
 } from '../../../src/projects/cyberia/runtime/runtime-indexes.js';
 import { CYBERIA_RUNTIME_APIS } from '../../../src/projects/cyberia/stack/domain-ownership.js';
-import {
-  endSession,
-  listPlayers,
-  playerAudit,
-  playerDetail,
-} from '../../../src/projects/cyberia/player/player-admin.js';
+import { listPlayers, playerAudit, playerDetail } from '../../../src/projects/cyberia/player/player-admin.js';
+import { endSession } from '../../../src/projects/cyberia/player/player-operations.js';
 import { WORLD_DROP_RECORD_DAYS } from '../../../src/api/cyberia-world-drop/cyberia-world-drop.model.js';
 import { reportServer } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';

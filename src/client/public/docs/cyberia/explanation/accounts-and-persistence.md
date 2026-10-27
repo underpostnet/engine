@@ -426,6 +426,23 @@ lease ended, and the server ends the session at its next checkpoint (`session_en
 confirms. A request needs the epoch the operator saw and a reason, and each one, done or refused, is
 a `cyberiaplayeraudits` record.
 
+### Operator changes and account restrictions
+
+An admin changes the stacks of a profile only while no live session plays it, at the epoch the
+operator saw (`src/projects/cyberia/player/player-operations.js`). The change follows the rules of a
+game server: the open slots of the level, coins in the wallet and never in a slot, stored items never
+worn, and the equipment rules. It raises the epoch, so no older session writes over it, and the next
+session loads it. Wearing or taking off an Object Layer changes only the `active` flag of that
+player's stack; the definition, its CID and the catalog stay.
+
+A restriction belongs to the account (`users.restriction`): a lock ends within 90 days, a ban ends at
+its time or never. It removes every portal session of the account and ends its live game session, as
+an operator end does. While it holds, the account opens no portal session, a token or a refresh of it
+is refused, and no ticket launches it, since a launch needs a live portal session. The profile and
+its progress stay. A moderator locks and lifts a lock; an admin also bans and lifts a ban; no
+operator restricts an admin or its own account. A batch runs one of these requests on up to 50
+profiles, each its own transaction and record, after a preview that writes nothing.
+
 ---
 
 ## Social persistence
@@ -484,7 +501,7 @@ The next step is one key per world, bound by the engine to the `instance_code` o
 | `cyberiauniverses`             | `code`, `instances.instanceCode`    | —                                                      | Members, cells, links, `revision`; see [universes](universe.md)       |
 | `cyberiaplayers`               | `{user, universeCode}`              | `{lastPlayedAt, _id}`                                  | `schemaVersion` 2, `epoch`, `revision`; per world under `worlds`      |
 | `cyberiagamesessions`          | `user`                              | —                                                      | Lease, presence and the health its server reports; never on `users`   |
-| `cyberiaplayeraudits`          | `operationId`                       | `{player, createdAt}`                                  | Append-only: every operator action, done or refused, with its reason  |
+| `cyberiaplayeraudits`          | `operationId`                       | `{player, createdAt}`, `batchId`                       | Append-only: each operator action and reason, what it found and left  |
 | `cyberiagametickets`           | `tokenHash`                         | `user`, `connection` once set, TTL `expiresAt` + 5 min | Hash only; `principal`, `user` or `guest`; `epoch` on a resume ticket |
 | `cyberiaquestprogresses`       | `{player, instanceCode, questCode}` | —                                                      | `player` is the profile id                                            |
 | `cyberiaeconomyoperations`     | `operationId`                       | TTL `expiresAt` (7 days)                               | One record per joint commit: players, sequences, fingerprint          |

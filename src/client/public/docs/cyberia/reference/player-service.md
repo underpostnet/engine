@@ -27,16 +27,47 @@ on the game client: empty for the default world, `/<instance>` for any other.
 
 The moderator reads `cyberia-game-session`, `cyberia-social`, `cyberia-social-profile`,
 `cyberia-quest-progress`, `cyberia-economy-operation`, `cyberia-world-drop`,
-`cyberia-market-listing` and `cyberia-market-claim`, paginated. No REST route writes player state.
+`cyberia-market-listing` and `cyberia-market-claim`, paginated. Only the operator routes below write
+player state, and a change of the stacks only while no live session plays the profile.
 
-The [player manager](../how-to/recover-a-player-session.md) reads and acts through these routes:
+The player manager ([recover a session](../how-to/recover-a-player-session.md),
+[moderate players](../how-to/moderate-players.md)) reads and acts through these routes:
 
 | Route                                                          | Role      | Answers                                                                                                                                                                                                                                                |
 | -------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET /api/v1/cyberia-player?q&universeCode&status&after&limit` | Moderator | `{data, next}`: at most 50 profiles, last played first. `q` is an account id or the start of a name; `status` is `online` or `closing`. Each row holds the profile counters and the session its lease names, with the reported health; never the goods |
-| `GET /api/v1/cyberia-player/:id`                               | Moderator | The row, the counts of the bag, storage and held stacks, each world with its vaults and quests, and whether the shape is current                                                                                                                       |
+| `GET /api/v1/cyberia-player/:id`                               | Moderator | The row, the account `role` and its `restriction` while it holds, the counts of the bag, storage and held stacks, each world with its vaults and quests, and whether the shape is current                                                              |
+| `GET /api/v1/cyberia-player/:id/stacks`                        | Moderator | Each bag and storage stack with the type of its definition and the definition its item runs now, the open slots of each at the level, the coins, `live`, `wearable` and `maxActiveLayers`                                                              |
 | `GET /api/v1/cyberia-player-audit?player&after`                | Moderator | `{data, next}`: 20 operator records, newest first                                                                                                                                                                                                      |
-| `POST /api/v1/cyberia-player/:id/session/end`                  | Admin     | `{operationId, outcome, refusal, epoch}` for `{operationId, reason, epoch}`; `refusal` is `changed` or `no_session`; 30 requests per 15 min                                                                                                            |
+| `POST /api/v1/cyberia-player/:id/session/end`                  | Admin     | `{operationId, outcome, refusal, epoch, after}` for `{operationId, reason, epoch}`; `refusal` is `changed` or `no_session`                                                                                                                             |
+| `POST /api/v1/cyberia-player/:id/stacks`                       | Admin     | The answer for `{operationId, reason, epoch, change}`; `change` is `{op, container, itemId, slot?, quantity?}`, `op` one of `add`, `remove`, `quantity`, `activate`, `deactivate`                                                                      |
+| `POST /api/v1/cyberia-player/:id/account`                      | Moderator | The answer for `{operationId, reason, op, until?}`; `op` is `lock` (ends within 90 days), `ban` (an admin; `until` or none) or `lift` (a ban: an admin)                                                                                                |
+| `POST /api/v1/cyberia-player/batch`                            | Moderator | `{batchId, preview, results}` for `{batchId, targets: [{playerId, epoch}], operation, reason, preview}`; 1 to 50 profiles; each operation needs the role its single route needs                                                                        |
+
+Each operator route takes 120 requests per 15 minutes from one address. A repeated `operationId`
+answers the recorded outcome; a batch runs each profile as `<batchId>-<profile id>`. A refusal is one
+of:
+
+| Refusal           | Meaning                                                             |
+| ----------------- | ------------------------------------------------------------------- |
+| `changed`         | The profile has another epoch than the one the operator saw         |
+| `no_session`      | No live session plays the profile                                   |
+| `online`          | A live session plays the profile: end it first                      |
+| `unknown_item`    | The catalog binds no definition to the item id                      |
+| `coin`            | Coins stay in the wallet, never in a slot                           |
+| `no_room`         | The container has no open slot                                      |
+| `locked_slot`     | The slot is past the open slots of the level                        |
+| `slot_taken`      | Another stack holds the slot                                        |
+| `no_stack`        | No stack of the item is in that place                               |
+| `stored`          | A stored item is never worn                                         |
+| `not_wearable`    | The item type is not in `activeItemTypes`                           |
+| `too_many_layers` | The player would wear more than `maxActiveLayers`                   |
+| `skin_required`   | The last worn skin stays on                                         |
+| `no_account`      | The account of the profile is gone                                  |
+| `self`            | An operator never restricts the account it signs in with            |
+| `protected`       | No operator restricts an admin; only an admin restricts a moderator |
+| `not_restricted`  | The account has no restriction to lift                              |
+| `forbidden`       | Only an admin lifts a ban                                           |
 
 ## Socket messages
 

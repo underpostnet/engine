@@ -11,6 +11,14 @@ class CyberiaPlayerController {
 
   static endSession = serviceHandler(CyberiaPlayerService.endSession);
 
+  static stacks = serviceHandler(CyberiaPlayerService.stacks);
+
+  static changeStacks = serviceHandler(CyberiaPlayerService.changeStacks);
+
+  static restrictAccount = serviceHandler(CyberiaPlayerService.restrictAccount);
+
+  static batch = serviceHandler(CyberiaPlayerService.batch);
+
   // An answer that is no preview is never cached.
   static appearance = controllerHandler(async (req, res, options) => {
     setCrossOriginHeaders(req, res);

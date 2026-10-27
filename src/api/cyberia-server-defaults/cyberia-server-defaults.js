@@ -436,6 +436,19 @@ export const PROGRESSION_RULES_DEFAULTS = Object.freeze({
   defaultBotLevel: 1,
 });
 
+/**
+ * The level an XP total reaches: the highest level whose threshold `xpPerLevel × (level − 1)²` it
+ * meets, capped at `maxLevel`. Mirrors `LevelAtXP` in cyberia-server/game/content/progression.go.
+ * @param {number} xp
+ * @param {{maxLevel: number, xpPerLevel: number}} [rules]
+ * @returns {number}
+ */
+export function levelAtXp(xp, { maxLevel, xpPerLevel } = PROGRESSION_RULES_DEFAULTS) {
+  let level = 1;
+  while (level < maxLevel && xpPerLevel * level * level <= xp) level++;
+  return level;
+}
+
 export const PROGRESSION_RULE_LIMITS = Object.freeze(Object.fromEntries(Object.entries({
   maxLevel: [1, ENTITY_LEVEL_MAX], xpPerLevel: [1, 1000000],
   killXp: [0, 1000000], questXp: [0, 1000000], objectiveXp: [0, 1000000],

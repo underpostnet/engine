@@ -571,6 +571,9 @@ export const CONTAINER_CAPACITY = Object.freeze({
   inventory: Object.freeze({ base: 8, step: 1, every: 3, max: 24 }),
   storage: Object.freeze({ base: 16, step: 2, every: 5, max: 40 }),
 });
+// The open slots of a container at a level; mirrors `CapacityRule.Slots` of the game server.
+export const containerSlots = ({ base, step, every, max }, level) =>
+  Math.min(max, base + step * Math.floor((Math.max(level, 1) - 1) / every));
 export const PARTY_MAX_MEMBERS = 5;
 // Pending party invites one player can hold.
 export const PARTY_INVITES_MAX = 5;

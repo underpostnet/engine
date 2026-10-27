@@ -7,6 +7,10 @@ import {
   USERNAME_PATTERN,
 } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
+
+/** The kinds of an operator restriction: a lock ends at its time; a ban ends at its time, or never. */
+const ACCOUNT_RESTRICTIONS = Object.freeze(['lock', 'ban']);
+
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 const UserSchema = new Schema(
   {
@@ -47,6 +51,20 @@ const UserSchema = new Schema(
       ],
     },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
+    // While it holds, the account opens no session and its tokens are refused.
+    restriction: {
+      type: new Schema(
+        {
+          kind: { type: String, enum: ACCOUNT_RESTRICTIONS, required: true },
+          reason: { type: String, required: true, trim: true },
+          by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+          at: { type: Date, required: true },
+          until: { type: Date, default: null },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     activeSessions: {
       type: [
         {
@@ -151,4 +169,31 @@ const uniqueConflict = (error) => {
   return field ? Object.assign(new Error(`duplicate ${field}`), { status: 409 }) : error;
 };
 
-export { UserSchema, UserModel, userRoleEnum, ProviderSchema, UserDto, uniqueConflict };
+/**
+ * The restriction of an account while it holds, else null.
+ * @param {{restriction?: Object|null}|null} user
+ * @param {Date} [now]
+ * @returns {{kind: string, reason: string, until: Date|null}|null}
+ */
+const restrictionOf = (user, now = new Date()) =>
+  user?.restriction && (!user.restriction.until || new Date(user.restriction.until) > now) ? user.restriction : null;
+
+/**
+ * What an account in a restriction is told.
+ * @param {{kind: string, until: Date|null}} restriction
+ * @returns {string}
+ */
+const restrictionMessage = ({ kind, until }) =>
+  `This account is ${kind === 'ban' ? 'banned' : 'locked'}${until ? ` until ${new Date(until).toISOString()}` : ''}`;
+
+export {
+  UserSchema,
+  UserModel,
+  userRoleEnum,
+  ProviderSchema,
+  UserDto,
+  uniqueConflict,
+  ACCOUNT_RESTRICTIONS,
+  restrictionOf,
+  restrictionMessage,
+};

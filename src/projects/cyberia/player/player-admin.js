@@ -1,7 +1,8 @@
 /**
  * The operator view of player profiles and their live sessions: pages of profiles with the lease
- * and the health its server reports, the detail of one profile, its audit trail, and the one
- * privileged action, ending a session.
+ * and the health its server reports, the detail of one profile with the restriction of its account,
+ * and its audit trail. The changes an operator makes live in
+ * {@link module:src/projects/cyberia/player/player-operations.js}.
  *
  * A profile is the persistent state of an account in one universe; a session is the lease a game
  * server holds to write it. The view returns counts of the goods of a profile, never the goods,
@@ -13,7 +14,7 @@
 import mongoose from 'mongoose';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { PLAYER_SCHEMA_VERSION } from '../../../api/cyberia-player/cyberia-player.model.js';
-import { runTransaction } from './transaction.js';
+import { restrictionOf } from '../../../api/user/user.model.js';
 
 /** Rows of one page of profiles, by default and at most. */
 const PAGE = Object.freeze({ default: 25, max: 50 });
@@ -23,9 +24,6 @@ const SEARCH_ACCOUNTS = 200;
 
 /** Records of one page of an audit trail. */
 const AUDIT_PAGE = 20;
-
-/** Length bounds of the reason an operator gives. */
-const REASON = Object.freeze({ min: 3, max: 200 });
 
 /**
  * What an operator sees of a profile at a glance: `online` while a live lease plays it, `closing`
@@ -49,7 +47,14 @@ const afterFilter = (field, after) => {
   return { $or: [{ [field]: { $lt: at } }, { [field]: at, _id: { $lt: new mongoose.Types.ObjectId(id) } }] };
 };
 
-/** The session a lease names for a profile, as an operator sees it, or null when none plays it. */
+/**
+ * The session a lease names for a profile, as an operator sees it, or null when none plays it.
+ * @param {Object|null} lease - Lean `CyberiaGameSession`.
+ * @param {Object} profile - Lean `CyberiaPlayer`.
+ * @param {Date} now
+ * @returns {Object|null}
+ * @memberof CyberiaPlayerAdmin
+ */
 const sessionOf = (lease, profile, now) => {
   if (!lease || String(lease.player) !== String(profile._id) || lease.epoch !== profile.epoch) return null;
   return {
@@ -175,8 +180,9 @@ const listPlayers = async ({ q, universeCode, status, after, limit } = {}, conte
 };
 
 /**
- * The detail of one profile: its row, the counts of what it keeps in its universe and in each
- * world, its quests by world, and whether its shape is current.
+ * The detail of one profile: its row, the restriction of its account while it holds, the counts of
+ * what it keeps in its universe and in each world, its quests by world, and whether its shape is
+ * current.
  * @param {string} id - Profile id.
  * @param {{host: string, path: string}} context
  * @returns {Promise<Object>}
@@ -188,7 +194,7 @@ const playerDetail = async (id, context) => {
   if (!profile) throw failure(404, 'No such profile');
   const now = new Date();
   const [account, lease, quests] = await Promise.all([
-    model('User', context).findById(profile.user, { username: 1 }).lean(),
+    model('User', context).findById(profile.user, { username: 1, role: 1, restriction: 1 }).lean(),
     model('CyberiaGameSession', context).findOne({ user: profile.user }).lean(),
     model('CyberiaQuestProgress', context).aggregate([
       { $match: { player: profile._id } },
@@ -197,8 +203,16 @@ const playerDetail = async (id, context) => {
   ]);
   const questsOf = (instanceCode, status) =>
     quests.find(({ _id }) => _id.instanceCode === instanceCode && _id.status === status)?.count ?? 0;
+  const restriction = restrictionOf(account, now);
   return {
     ...rowOf(profile, account, lease, now),
+    role: account?.role ?? '',
+    restriction: restriction && {
+      kind: restriction.kind,
+      reason: restriction.reason,
+      at: restriction.at,
+      until: restriction.until,
+    },
     schemaCurrent: profile.schemaVersion === PLAYER_SCHEMA_VERSION,
     createdAt: profile.createdAt,
     carried: { bag: profile.bag.length, storage: profile.storage.length, held: profile.held.length },
@@ -240,84 +254,4 @@ const playerAudit = async ({ player, after }, context) => {
   };
 };
 
-/** The first defect of an end request, or ''. */
-const endDefect = ({ operationId, reason, epoch }) => {
-  if (typeof operationId !== 'string' || !/^[\w-]{8,64}$/.test(operationId))
-    return 'An operation id is 8 to 64 word characters';
-  const text = typeof reason === 'string' ? reason.trim() : '';
-  if (text.length < REASON.min || text.length > REASON.max)
-    return `A reason is ${REASON.min} to ${REASON.max} characters`;
-  if (!Number.isSafeInteger(epoch) || epoch < 0) return 'The epoch is the one the operator saw';
-  return '';
-};
-
-/**
- * Ends the live session of a profile for an operator. It raises the epoch of the profile, so the
- * server of the session can no longer write it, and marks the lease ended, so that server ends the
- * session at its next checkpoint. The changes the session has not saved are discarded: the view
- * shows them before the operator confirms. Refused unless the profile still has the epoch the
- * operator saw and a lease of it plays. Every request is an audit record; a retry of the same
- * operation id answers the recorded outcome.
- * @param {{playerId: string, operationId: string, reason: string, epoch: number, actor: string}} request
- * @param {{host: string, path: string}} context
- * @returns {Promise<{operationId: string, outcome: string, refusal: string, epoch: number|null}>} `refusal`
- *   is empty, or `changed` (the profile has another epoch now) | `no_session`.
- * @memberof CyberiaPlayerAdmin
- */
-const endSession = async ({ playerId, operationId, reason, epoch, actor }, context) => {
-  if (!isId(playerId)) throw failure(400, 'A profile id is 24 hexadecimal characters');
-  const defect = endDefect({ operationId, reason, epoch });
-  if (defect) throw failure(400, defect);
-  const Player = model('CyberiaPlayer', context);
-  const GameSession = model('CyberiaGameSession', context);
-  const Audit = model('CyberiaPlayerAudit', context);
-  const answer = ({ outcome, refusal, epochAfter }) => ({ operationId, outcome, refusal, epoch: epochAfter });
-  return await runTransaction(Player, async (session) => {
-    const recorded = await Audit.findOne({ operationId }, null, { session }).lean();
-    if (recorded) {
-      if (String(recorded.player) !== playerId || String(recorded.actor) !== String(actor))
-        throw failure(409, 'The operation id names another request');
-      return answer(recorded);
-    }
-    const profile = await Player.findById(playerId, { user: 1, epoch: 1 }, { session }).lean();
-    if (!profile) throw failure(404, 'No such profile');
-    const lease = await GameSession.findOne({ user: profile.user }, null, { session }).lean();
-    const now = new Date();
-    const live = sessionOf(lease, profile, now)?.live ?? false;
-    const refusal = profile.epoch !== epoch ? 'changed' : live ? '' : 'no_session';
-    const epochAfter = refusal ? profile.epoch : profile.epoch + 1;
-    if (!refusal) {
-      await Player.updateOne({ _id: profile._id, epoch: profile.epoch }, { $inc: { epoch: 1 } }, { session });
-      await GameSession.updateOne(
-        { _id: lease._id, epoch: lease.epoch },
-        { $set: { endedBy: actor, expiresAt: now } },
-        { session },
-      );
-    }
-    const record = {
-      operationId,
-      action: 'session.end',
-      actor,
-      player: profile._id,
-      reason: reason.trim(),
-      outcome: refusal ? 'refused' : 'done',
-      refusal,
-      epochBefore: profile.epoch,
-      epochAfter,
-      session: lease
-        ? {
-            instanceCode: lease.instanceCode,
-            serverId: lease.serverId,
-            durability: lease.health?.durability ?? '',
-            seq: lease.health?.seq ?? 0,
-            durableSeq: lease.health?.durableSeq ?? 0,
-            unsavedMs: lease.health?.unsavedMs ?? 0,
-          }
-        : null,
-    };
-    await Audit.create([record], { session });
-    return answer(record);
-  });
-};
-
-export { PLAYER_STATUSES, endSession, listPlayers, playerAudit, playerDetail };
+export { PLAYER_STATUSES, listPlayers, playerAudit, playerDetail, sessionOf };
