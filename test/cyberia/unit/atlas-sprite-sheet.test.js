@@ -9,7 +9,8 @@ import {
   AtlasSpriteSheetModel,
   AtlasSpriteSheetSchema,
 } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.model.js';
-import { sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import { sameSource, sourceFromIndexedFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import { renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 
 const colors = [
   [255, 0, 0, 255],
@@ -87,6 +88,41 @@ describe('Cyberia atlas generation', () => {
     ).toThrow('exceed');
     await expect(Atlas.generateAtlas(indexed({ down_idle: [frame] }), 'invalid', 0)).rejects.toThrow('pixel scale');
     await expect(Atlas.generateAtlas(indexed({ down_idle: [frame] }), 'invalid', 1, 8192)).rejects.toThrow('4096');
+  });
+});
+
+describe('Cyberia render sources from a primary render', () => {
+  const source = indexed({
+    down_idle: [frame],
+    down_walking: [
+      frame,
+      [
+        [1, 1],
+        [0, 2],
+      ],
+    ],
+  });
+
+  it('cuts the frames out of the render by its layout, so they generate the same render again', async () => {
+    const atlas = await Atlas.generateAtlas(source, 'round-trip', 3);
+    const cut = await Atlas.sourceFromRender(atlas.primary, atlas.metadata);
+    expect(sameSource(cut, source)).toBe(true);
+    expect(renderContractOf(await Atlas.generateAtlas(cut, 'round-trip', 3))).toEqual(renderContractOf(atlas));
+  });
+
+  it('refuses a layout that does not describe the render, or frames over the limit', async () => {
+    const { primary, metadata } = await Atlas.generateAtlas(source, 'refused');
+    const cut = (layout, limits) => Atlas.sourceFromRender(primary, { ...metadata, ...layout }, limits);
+    const box = { x: 0, y: 0, width: 2, height: 2, frameIndex: 0 };
+    await expect(cut({ frames: JSON.parse(`{"__proto__":[${JSON.stringify(box)}]}`) })).rejects.toThrow(
+      'names no keyframe __proto__',
+    );
+    await expect(cut({ frames: { down_idle: [{ ...box, x: metadata.atlasWidth - 1 }] } })).rejects.toThrow('outside');
+    await expect(cut({ frames: { down_idle: Array(8).fill(box) } })).rejects.toThrow('hold 32 pixels');
+    await expect(cut({}, { maxPixels: 4 })).rejects.toThrow('hold 12 pixels');
+    await expect(cut({ cellPixelDim: 20 })).rejects.toThrow('1 pixel per cell');
+    await expect(cut({ atlasWidth: metadata.atlasWidth + 1 })).rejects.toThrow('its layout');
+    await expect(cut({ frame_duration: 'slow' })).rejects.toThrow('frame duration');
   });
 });
 

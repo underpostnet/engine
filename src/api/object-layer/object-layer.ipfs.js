@@ -18,7 +18,13 @@ import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { createPinRecord } from '../ipfs/ipfs.service.js';
-import { canonicalObjectLayerBytes, canonicalRender } from './object-layer.identity.js';
+import {
+  MAX_CANONICAL_BYTES,
+  canonicalObjectLayerBytes,
+  canonicalRender,
+  parseIdentityJson,
+  payloadCid,
+} from './object-layer.identity.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -120,6 +126,25 @@ export async function publishObjectLayerBundle({ definition, canonical = false, 
       ...(await storeResource({ bytes, cid, resourceType: BUNDLE_RESOURCES[name], mfsPath: paths[name], options })),
     });
   return { objectLayerCid: definition.cid, root: paths.root, resources };
+}
+
+/** The bytes IPFS holds under a raw CID: null when it holds none, or bytes the CID does not name. */
+const readNamedBytes = async (cid) => {
+  const bytes = await IpfsClient.getFromIpfs(cid);
+  return bytes && bytes.length <= MAX_CANONICAL_BYTES && payloadCid(bytes) === cid ? bytes : null;
+};
+
+/**
+ * The render a definition names, read from IPFS: its primary render and its layout, each the bytes
+ * its CID names, so any node may serve them.
+ * @param {{cid:string,metadataCid:string}} render - `data.render` of a definition.
+ * @returns {Promise<{primary:Buffer,metadata:Object}|null>} Null when IPFS does not hold both.
+ * @throws {Error} When the layout is not identity JSON.
+ * @memberof ObjectLayerIpfs
+ */
+export async function readRender({ cid, metadataCid }) {
+  const [primary, metadata] = await Promise.all([readNamedBytes(cid), readNamedBytes(metadataCid)]);
+  return primary && metadata ? { primary, metadata: parseIdentityJson(metadata.toString('utf8')) } : null;
 }
 
 /**

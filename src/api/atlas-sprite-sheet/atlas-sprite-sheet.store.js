@@ -163,13 +163,30 @@ export class AtlasSpriteSheetStore {
     maxAtlasDim = null,
     options,
   }) {
-    const File = DataBaseProviderService.getModel('File', options);
     const { primary, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
       objectLayerRenderFrames,
       itemKey,
       upscaleFactor,
       maxAtlasDim,
     );
+    return await AtlasSpriteSheetStore.storeRender({ itemKey, primary, metadata, options });
+  }
+
+  /**
+   * Stores the Files of a render as given: the primary render and the renders derived from it. The
+   * caller records the materialization with {@link AtlasSpriteSheetStore.materialize}.
+   *
+   * @static
+   * @param {Object} params
+   * @param {string} params.itemKey - Object layer item label.
+   * @param {Buffer} params.primary - PNG bytes of the primary render.
+   * @param {Object} params.metadata - Layout of the primary render.
+   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @returns {Promise<{render: {cid: string, metadataCid: string}, atlas: AtlasMaterialization}>}
+   * @memberof CyberiaAtlasSpriteSheetStore
+   */
+  static async storeRender({ itemKey, primary, metadata, options }) {
+    const File = DataBaseProviderService.getModel('File', options);
     const render = canonicalRender({ primary, metadata }).contract;
     const fileId = await upsertRenderFile(File, itemKey, 'primary', primary);
     const derived = await upsertDerivedRenders(File, itemKey, primary, metadata);

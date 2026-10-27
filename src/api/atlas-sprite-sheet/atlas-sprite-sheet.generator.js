@@ -8,9 +8,14 @@
 import { Jimp, rgbaToInt } from 'jimp';
 import sharp from 'sharp';
 import { loggerFactory } from '../../server/ops/logger.js';
-import { hexToRgba } from '../../client/components/objectlayer-studio/RenderSource.js';
+import {
+  RENDER_SOURCE_MAX_COLORS,
+  hexToRgba,
+  sourceFromIndexedFrames,
+} from '../../client/components/objectlayer-studio/RenderSource.js';
 import {
   OBJECT_LAYER_DIRECTION_CODES,
+  OBJECT_LAYER_KEYFRAMES,
   getKeyframeDirectionsByCode,
 } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 
@@ -31,6 +36,9 @@ export const DEFAULT_ATLAS_UPSCALE_FACTOR = 20;
  * @memberof CyberiaAtlasSpriteSheetGenerator
  */
 export const PRIMARY_CELL_PIXEL_DIM = 1;
+
+/** Longest side, in cells, of an atlas. */
+const MAX_ATLAS_DIM = 4096;
 
 /**
  * Longer side, in pixels, of the idle preview every client shows as an item's picture.
@@ -190,8 +198,8 @@ export class AtlasSpriteSheetGenerator {
       );
     }
 
-    if (!Number.isInteger(maxAtlasDim) || maxAtlasDim <= 0 || maxAtlasDim > 4096) {
-      throw new Error('Atlas dimension must be between 1 and 4096');
+    if (!Number.isInteger(maxAtlasDim) || maxAtlasDim <= 0 || maxAtlasDim > MAX_ATLAS_DIM) {
+      throw new Error(`Atlas dimension must be between 1 and ${MAX_ATLAS_DIM}`);
     }
 
     // Simple grid packing algorithm
@@ -239,6 +247,76 @@ export class AtlasSpriteSheetGenerator {
     };
 
     return { primary: await primaryImage.getBuffer('image/png'), metadata };
+  }
+
+  /**
+   * The render source a primary render holds: its frames, cut out by its layout. The inverse of
+   * {@link generateAtlas}: the source generates the same render again.
+   *
+   * @static
+   * @param {Buffer} render - PNG bytes of the primary render.
+   * @param {Object} metadata - Layout of the render.
+   * @param {Object} [limits]
+   * @param {number} [limits.maxPixels=Infinity] - The most pixels its frames may hold.
+   * @returns {Promise<Object>} A render source (`RenderSource.js`).
+   * @throws {Error} When the layout does not describe the render, or its frames exceed the limits.
+   * @memberof CyberiaAtlasSpriteSheetGenerator
+   */
+  static async sourceFromRender(render, metadata, { maxPixels = Infinity } = {}) {
+    const { atlasWidth, atlasHeight, cellPixelDim, frame_duration: frameDurationMs, frames } = metadata ?? {};
+    if (cellPixelDim !== PRIMARY_CELL_PIXEL_DIM)
+      throw new Error(`A primary render holds ${PRIMARY_CELL_PIXEL_DIM} pixel per cell, not ${cellPixelDim}`);
+    if (![atlasWidth, atlasHeight].every((side) => Number.isInteger(side) && side >= 1 && side <= MAX_ATLAS_DIM))
+      throw new Error(`An atlas is 1 to ${MAX_ATLAS_DIM} cells a side`);
+    if (!Number.isFinite(frameDurationMs) || frameDurationMs < 0)
+      throw new Error('A layout names its frame duration in milliseconds');
+    if (frames === null || typeof frames !== 'object' || Array.isArray(frames))
+      throw new Error('A layout lists its frames by keyframe');
+    const inside = (box) =>
+      [box?.x, box?.y, box?.width, box?.height].every(Number.isInteger) &&
+      box.x >= 0 &&
+      box.y >= 0 &&
+      box.width >= 1 &&
+      box.height >= 1 &&
+      box.x + box.width <= atlasWidth &&
+      box.y + box.height <= atlasHeight;
+    const keyframes = Object.entries(frames).map(([keyframe, boxes]) => {
+      if (!OBJECT_LAYER_KEYFRAMES.includes(keyframe)) throw new Error(`The layout names no keyframe ${keyframe}`);
+      if (!Array.isArray(boxes) || !boxes.every(inside)) throw new Error(`A ${keyframe} frame lies outside the render`);
+      return [keyframe, boxes];
+    });
+    const pixels = keyframes.flatMap(([, boxes]) => boxes).reduce((sum, box) => sum + box.width * box.height, 0);
+    if (pixels > Math.min(maxPixels, atlasWidth * atlasHeight))
+      throw new Error(`The frames of the layout hold ${pixels} pixels`);
+
+    const { data, info } = await sharp(render, { limitInputPixels: atlasWidth * atlasHeight })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    if (info.width !== atlasWidth || info.height !== atlasHeight)
+      throw new Error(`The render is ${info.width}×${info.height}, its layout ${atlasWidth}×${atlasHeight}`);
+    const colors = [];
+    const indexOf = new Map();
+    const indexAt = (at) => {
+      const rgba = data.readUInt32BE(at);
+      if (!indexOf.has(rgba)) {
+        if (colors.length === RENDER_SOURCE_MAX_COLORS)
+          throw new RangeError(`A render holds at most ${RENDER_SOURCE_MAX_COLORS} colors`);
+        indexOf.set(rgba, colors.push([...data.subarray(at, at + 4)]) - 1);
+      }
+      return indexOf.get(rgba);
+    };
+    const cut = ({ x, y, width, height }) =>
+      Array.from({ length: height }, (_, row) =>
+        Array.from({ length: width }, (_, column) => indexAt(((y + row) * atlasWidth + x + column) * 4)),
+      );
+    return sourceFromIndexedFrames({
+      frames: Object.fromEntries(
+        keyframes.filter(([, boxes]) => boxes.length).map(([key, boxes]) => [key, boxes.map(cut)]),
+      ),
+      colors,
+      frameDurationMs,
+    });
   }
 
   /**
