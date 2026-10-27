@@ -1573,7 +1573,8 @@ Prevent build private config repo.`,
 
     /**
      * Returns metadata about unpushed commits in a git repository.
-     * Fetches the current branch of origin, then counts commits ahead of it.
+     * Fetches the branches of origin, then counts the commits of HEAD that no origin branch holds,
+     * so a branch that origin does not have yet counts from where it forks.
      * A GitHub origin is fetched over HTTPS with `GITHUB_TOKEN`, as {@link UnderpostRepository.push} does;
      * another origin is fetched as configured.
      * @param {string} [repoPath='.'] - Path to the git repository.
@@ -1601,14 +1602,14 @@ Prevent build private config repo.`,
         ? Underpost.repo.gitAuthFactory(`https://github.com/${Underpost.repo.repoSlugFactory(origin)}.git`)
         : { url: 'origin', env: process.env };
       const fetch = shellExec(
-        `cd ${repoPath} && git fetch "${auth.url}" "+refs/heads/${branch}:refs/remotes/origin/${branch}" 2>&1`,
+        `cd ${repoPath} && git fetch "${auth.url}" "+refs/heads/*:refs/remotes/origin/*" 2>&1`,
         { silent: true, disableLog: true, silentOnError: true, env: auth.env },
       );
       if (fetch.code !== 0) {
         const reason = `${fetch.stdout || ''}`.trim().split('\n').pop();
-        return { count: fallback, branch, hasUnpushed: false, error: `${auth.url} ${branch}: fetch failed: ${reason}` };
+        return { count: fallback, branch, hasUnpushed: false, error: `${auth.url}: fetch failed: ${reason}` };
       }
-      const raw = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
+      const raw = shellExec(`cd ${repoPath} && git rev-list --count HEAD --not --remotes=origin 2>/dev/null`, {
         stdout: true,
         silent: true,
         disableLog: true,

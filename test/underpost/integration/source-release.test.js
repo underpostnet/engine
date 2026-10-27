@@ -204,6 +204,14 @@ describe('the release store and the checkout origin', () => {
       expect(unpushed()).toEqual({ count: 2, branch: 'main', hasUnpushed: true });
     });
 
+    it('counts a branch the origin does not have from where it forks', () => {
+      git(work, 'remote', 'add', 'origin', remote('widget-private').url);
+      commit('first');
+      git(work, 'checkout', '-q', '-b', 'topic');
+      commitLocal('second');
+      expect(unpushed()).toEqual({ count: 1, branch: 'topic', hasUnpushed: true });
+    });
+
     it('fetches an SSH GitHub origin over HTTPS', () => {
       git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'https://github.com/acme/');
       git(work, 'remote', 'add', 'origin', 'git@github.com:acme/widget-private.git');
