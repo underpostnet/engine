@@ -178,8 +178,19 @@ class CyberiaItemCatalogService {
     await previewImport(catalogModels(options), { cid: req.params.cid, itemId: req.query.itemId }, options);
 
   /**
-   * POST `/import`: imports a definition of the authority and binds it to an item id, `{ cid,
-   * itemId?, expectedCid, replace?, acknowledged }`. The game servers then reload their object layers.
+   * POST `/import/preview`: what an import of a definition document would do, `{ document, itemId? }`.
+   * Stores nothing.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static importDocumentPreview = async (req, res, options) =>
+    await previewImport(catalogModels(options), { document: req.body?.document, itemId: req.body?.itemId }, options);
+
+  /**
+   * POST `/import`: imports a definition into the live content, `{ cid | document, itemId?, bind?,
+   * expectedCid?, replace?, acknowledged }`. With `bind`, it binds the item to it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -190,7 +201,9 @@ class CyberiaItemCatalogService {
       catalogModels(options),
       {
         cid: req.body?.cid,
+        document: req.body?.document,
         itemId: req.body?.itemId,
+        bind: req.body?.bind,
         expectedCid: req.body?.expectedCid,
         replace: req.body?.replace,
         acknowledged: req.body?.acknowledged,

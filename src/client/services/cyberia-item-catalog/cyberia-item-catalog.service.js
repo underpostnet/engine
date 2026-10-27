@@ -64,7 +64,14 @@ class CyberiaItemCatalogService {
     return request(url.toString());
   };
 
-  /** Imports a definition of the authority and binds it: `{ cid, itemId, expectedCid, replace, acknowledged }`. */
+  /** What an import of a definition document would do for `itemId` (default: its own). */
+  static importDocumentPreview = ({ document, itemId = '' }) =>
+    request(getApiBaseUrl({ id: 'import/preview', endpoint }), {
+      method: 'POST',
+      body: payloadFactory({ document, ...(itemId ? { itemId } : {}) }),
+    });
+
+  /** Imports a definition into the live content: `{ cid | document, itemId, bind, expectedCid?, replace?, acknowledged }`. */
   static importDefinition = (body) =>
     request(getApiBaseUrl({ id: 'import', endpoint }), { method: 'POST', body: payloadFactory(body) });
 }

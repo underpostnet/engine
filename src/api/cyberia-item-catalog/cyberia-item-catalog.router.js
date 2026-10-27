@@ -22,6 +22,7 @@ class CyberiaItemCatalogRouter {
     router.get(`/:id`, handle('get'));
     router.get(`/`, handle('get'));
     router.post(`/reconcile`, ...moderator, handle('reconcile'));
+    router.post(`/import/preview`, ...moderator, handle('importDocumentPreview'));
     router.post(`/import`, ...moderator, handle('importDefinition'));
     router.post(`/`, ...moderator, handle('post'));
     router.delete(`/:id`, ...moderator, handle('delete'));

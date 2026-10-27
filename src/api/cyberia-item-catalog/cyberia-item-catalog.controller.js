@@ -9,6 +9,7 @@ const CyberiaItemCatalogController = buildCrudController(CyberiaItemCatalogServi
   reconcile: serviceHandler(CyberiaItemCatalogService.reconcile),
   importSearch: serviceHandler(CyberiaItemCatalogService.importSearch),
   importPreview: serviceHandler(CyberiaItemCatalogService.importPreview),
+  importDocumentPreview: serviceHandler(CyberiaItemCatalogService.importDocumentPreview),
   importDefinition: serviceHandler(CyberiaItemCatalogService.importDefinition),
 });
 

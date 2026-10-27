@@ -54,15 +54,20 @@ and when, and the warnings the moderator confirmed.
 | Content import          | The artifact item     | An absent item, or with `--rebind` a differing one          |
 | Snapshot restore        | The snapshot item     | Always: the snapshot is authoritative for what it restores  |
 | `cyberia ol` operations | The written item      | The item the operator wrote                                 |
-| Object Layer import     | A cache copy          | The item the moderator chose, under the binding it saw      |
+| Object Layer import     | A cache copy          | Optional: the item the moderator chose, under its binding   |
 
-An Object Layer import (`src/projects/cyberia/catalog/object-layer-import.js`) reads a canonical
-definition from the authority origin of the deploy, and only from it: a request names a CID or a
-search text, never a URL. It refuses content whose bytes do not hash to the CID, another profile, an
-unknown item type, invalid stats, frames that do not decode or that pass the limits, and an archived
-definition. It stores a `cache` copy, the render frames and the atlas on this host, so no world, no
-catalog read and no Object Layer Viewer asks the authority for it again; then it binds. An import
-again stores nothing twice and binds nothing new; an import that failed resumes where it stopped.
+An Object Layer import (`src/projects/cyberia/catalog/object-layer-import.js`) takes a definition by
+its CID, read from the authority origin of the deploy, or by its document: the data of one definition,
+exactly `{ item, stats, render }`. A request names a CID, a search text or a document, never a URL.
+The definition is enough: its render names the primary render and its layout on IPFS, and the import
+cuts the render frames out of that render (`AtlasSpriteSheetGenerator.sourceFromRender`). It refuses
+content whose bytes do not hash to the CID, another profile, an unknown item type, invalid stats, a
+render that IPFS does not hold under its CIDs or that does not decode within the limits, and an
+archived definition. A document the authority does not hold is published there first. The import
+stores a `cache` copy, the render frames and the atlas on this host and pins the render, so no world,
+no catalog read and no Object Layer Viewer asks the authority for it again. A bind is optional:
+without one, the definition joins the live content and no item moves. An import again stores nothing
+twice; an import that failed resumes where it stopped.
 
 After a bind, the engine asks every registered game server to reload its object layers. A
 promotion publishes first: a definition is immutable, so a bind that a later step refuses leaves

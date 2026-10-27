@@ -35,14 +35,14 @@ const frame = (() => {
 const LICENSE = 'It names no license or author: the Object Layer protocol carries none; confirm the right to use it';
 
 /** The preview the server answers for a definition and an item id. */
-const previewOf = (cid, itemId) => ({
+const previewOf = (cid, itemId, at = 'authority') => ({
   cid,
-  source: { domain: 'objectlayer.test', createdBy: 'service:objectlayer', createdAt: '2026-10-20T00:00:00.000Z' },
+  source: { domain: 'objectlayer.test', at, createdBy: 'service:objectlayer', createdAt: '2026-10-20T00:00:00.000Z' },
   item: { id: 'lantern-skin', type: 'skin', description: 'A lantern skin' },
   profile: { id: 'cyberia', version: 2 },
   stats: {},
   render: { width: 12, height: 12, colors: 144, frameDurationMs: 200, frames: { down_idle: 1 }, preview: frame },
-  stored: { definition: false, frames: false, atlas: false },
+  stores: { definition: true, frames: true, atlas: true },
   validation:
     cid === FORGED
       ? { ok: false, problems: [`Its bytes hash to bafkreielse, not ${FORGED}`], warnings: [LICENSE] }
@@ -56,15 +56,21 @@ const previewOf = (cid, itemId) => ({
 describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browser', () => {
   let browser, server, page;
   const imports = [];
+  const documents = [];
   const errors = [];
   const text = (selector) => page.evaluate((selector) => document.querySelector(selector)?.innerText ?? '', selector);
-  const importButton = () =>
-    page.evaluate(
-      () =>
-        [...document.querySelectorAll('.item-catalog-import-preview .item-catalog-button')].find((node) =>
-          node.textContent.includes('Import and bind'),
-        )?.disabled ?? null,
-    );
+  const run = () => page.locator('.item-catalog-import-run');
+  const runState = () =>
+    page.evaluate(() => {
+      const node = document.querySelector('.item-catalog-import-run');
+      return node && { disabled: node.disabled, label: node.textContent.trim() };
+    });
+  const boxes = () => page.locator('.item-catalog-import-preview input[type="checkbox"]');
+  const bodyOf = async (req) => {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    return JSON.parse(body);
+  };
 
   beforeAll(async () => {
     const script = (
@@ -119,20 +125,17 @@ describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browse
             { cid: FORGED, itemId: 'lantern-skin-forged', itemType: 'skin', profile: 'cyberia v2', archived: false },
           ],
         });
+      if (url.pathname.endsWith('/cyberia-item-catalog/import/preview') && req.method === 'POST') {
+        const body = await bodyOf(req);
+        documents.push(body);
+        return send(previewOf(CID, body.itemId ?? '', 'document'));
+      }
       const preview = url.pathname.match(/\/cyberia-item-catalog\/import\/([^/]+)$/);
       if (preview && req.method === 'GET') return send(previewOf(preview[1], url.searchParams.get('itemId') ?? ''));
       if (url.pathname.endsWith('/cyberia-item-catalog/import')) {
-        let body = '';
-        for await (const chunk of req) body += chunk;
-        imports.push(JSON.parse(body));
-        return send({
-          cid: CID,
-          itemId: imports.at(-1).itemId,
-          binding: 'bound',
-          stored: {},
-          renderCid: '',
-          entry: {},
-        });
+        imports.push(await bodyOf(req));
+        const { itemId, bind } = imports.at(-1);
+        return send({ cid: CID, itemId, binding: bind ? 'bound' : 'none', stored: {}, entry: null });
       }
       if (url.pathname.endsWith('/history'))
         return send({
@@ -164,7 +167,7 @@ describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browse
     await new Promise((done) => (server ? server.close(done) : done()));
   });
 
-  it('finds a definition, draws its frame, and imports it only once its warnings are confirmed', async () => {
+  it('finds a definition, draws its frame, and imports and binds it only once its warnings are confirmed', async () => {
     await page.locator('.item-catalog-import-open').click();
     await page.locator('.item-catalog-import-q').fill('lantern');
     await page.locator('.item-catalog-import form button[type="submit"]').first().click();
@@ -181,16 +184,23 @@ describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browse
     ).toEqual([12, 12, [220, 220, 90, 255]]);
     const shown = await text('.item-catalog-import-preview');
     expect(shown).toContain('From objectlayer.test, stored there by service:objectlayer');
+    expect(shown).toContain('The import stores its definition, its render frames, its atlas here.');
     expect(shown).toContain(`I confirm: ${LICENSE}`);
-    expect(shown).toContain('lantern-skin runs no definition now: the import binds it.');
-    expect(await importButton()).toBe(true);
-    await page.locator('.item-catalog-import-preview input[type="checkbox"]').first().check();
-    expect(await importButton()).toBe(false);
-    await page.locator('.item-catalog-import-preview .item-catalog-button', { hasText: 'Import and bind' }).click();
+    expect(shown).toContain('Without a bind, the import only adds it to the live content');
+    expect(await runState()).toEqual({ disabled: true, label: 'Import' });
+    await boxes().nth(0).check();
+    expect(await runState()).toEqual({ disabled: false, label: 'Import' });
+    await boxes().nth(1).check();
+    expect(await runState()).toEqual({ disabled: false, label: 'Import and bind' });
+    expect(await text('.item-catalog-import-preview')).toContain(
+      'lantern-skin runs no definition now: the import binds it.',
+    );
+    await run().click();
     await expect.poll(() => imports.length).toBe(1);
     expect(imports[0]).toEqual({
       cid: CID,
       itemId: 'lantern-skin',
+      bind: true,
       expectedCid: '',
       replace: false,
       acknowledged: true,
@@ -210,20 +220,34 @@ describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browse
         .querySelector('.item-catalog-import-preview')
         ?.textContent.includes('Replace the binding of old-lantern'),
     );
-    const boxes = page.locator('.item-catalog-import-preview input[type="checkbox"]');
-    await boxes.nth(0).check();
-    expect(await importButton()).toBe(true);
-    await boxes.nth(1).check();
-    expect(await importButton()).toBe(false);
-    await page.locator('.item-catalog-import-preview .item-catalog-button', { hasText: 'Import and bind' }).click();
+    await boxes().nth(0).check();
+    expect(await boxes().nth(1).isChecked()).toBe(true);
+    expect(await runState()).toEqual({ disabled: true, label: 'Import and bind' });
+    await boxes().nth(2).check();
+    expect((await runState()).disabled).toBe(false);
+    await run().click();
     await expect.poll(() => imports.length).toBe(2);
     expect(imports[1]).toEqual({
       cid: CID,
       itemId: 'old-lantern',
+      bind: true,
       expectedCid: BOUND,
       replace: true,
       acknowledged: true,
     });
+  });
+
+  it('imports into the live content alone when no bind is asked', async () => {
+    await page.locator('.item-catalog-import-results .item-catalog-button').first().click();
+    await page.waitForSelector('.item-catalog-import-frame');
+    await boxes().nth(0).check();
+    await boxes().nth(1).uncheck();
+    expect(await page.locator('.item-catalog-import-bind').isVisible()).toBe(false);
+    expect(await runState()).toEqual({ disabled: false, label: 'Import' });
+    await run().click();
+    await expect.poll(() => imports.length).toBe(3);
+    expect(imports[2]).toEqual({ cid: CID, itemId: 'lantern-skin', bind: false, acknowledged: true });
+    await page.waitForFunction(() => window.notes.some(({ html }) => html.includes('is in the live content')));
   });
 
   it('shows why a definition does not import, and offers no import', async () => {
@@ -232,7 +256,52 @@ describe.skipIf(!driver || !browserBinary)('Import from Object Layer in a browse
       document.querySelector('.item-catalog-import-preview')?.textContent.includes('It does not import.'),
     );
     expect(await text('.item-catalog-import-preview')).toContain(`Its bytes hash to bafkreielse, not ${FORGED}`);
-    expect(await importButton()).toBe(true);
+    expect((await runState()).disabled).toBe(true);
+  });
+
+  it('checks a pasted document in the browser first, and imports an attached one by its document', async () => {
+    const field = page.locator('#item-catalog-import-text');
+    const check = page.locator('.item-catalog-import-document button[type="submit"]');
+    await field.fill('{"item": {"id": "js-rules"}}');
+    await check.click();
+    const problems = await text('.item-catalog-import-problems');
+    expect(problems).toContain('stats is missing');
+    expect(problems).toContain('render is missing');
+    await field.fill('{"item":');
+    await check.click();
+    expect(await text('.item-catalog-import-problems')).toContain('The document is not JSON');
+    expect(documents).toEqual([]);
+
+    const definition = JSON.stringify({
+      item: { id: 'lantern-skin', type: 'skin', description: 'A lantern skin', activable: true },
+      stats: { effect: 1, resistance: 0, agility: 0, range: 0, intelligence: 0, utility: 0 },
+      render: { cid: `bafkrei${'r'.repeat(52)}`, metadataCid: `bafkrei${'l'.repeat(52)}` },
+    });
+    await page.setInputFiles('.item-catalog-import-document input[type="file"]', {
+      name: 'lantern-skin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(definition),
+    });
+    await expect.poll(() => documents.length).toBe(1);
+    expect(documents[0]).toEqual({ document: definition });
+    expect(await field.inputValue()).toBe(definition);
+    await page.waitForFunction(() =>
+      document.querySelector('.item-catalog-import-preview')?.textContent.includes('From the document'),
+    );
+    await boxes().nth(0).check();
+    await run().click();
+    await expect.poll(() => imports.length).toBe(4);
+    expect(imports[3]).toEqual({ document: definition, itemId: 'lantern-skin', bind: false, acknowledged: true });
+  });
+
+  it('fits a phone screen with no horizontal scroll', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(() => {
+        const panel = document.querySelector('.item-catalog-import');
+        return panel.scrollWidth <= panel.clientWidth;
+      }),
+    ).toBe(true);
     expect(errors).toEqual([]);
   });
 });
