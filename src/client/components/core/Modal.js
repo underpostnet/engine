@@ -1744,8 +1744,10 @@ class Modal {
 
   /**
    * Render a confirmation dialog and return a promise resolving to the user's choice. One dialog
-   * per id: a call for an id whose dialog is open waits for the same answer.
-   * @param {{ id: string, html: Function, icon?: string, disableBtnCancel?: boolean }} options
+   * per id: a call for an id whose dialog is open waits for the same answer. The body scrolls inside
+   * the viewport and the buttons stay in view. `confirmLabel` names the action; `danger` marks it
+   * destructive and gives the focus to Cancel.
+   * @param {{ id: string, html: Function, icon?: string, confirmLabel?: string, danger?: boolean, disableBtnCancel?: boolean }} options
    * @returns {Promise<{ status: 'confirm'|'cancelled' }>}
    */
   static RenderConfirm(options) {
@@ -1803,6 +1805,37 @@ class Modal {
               transition-duration: 1ms !important;
             }
           }
+          .modal-html-${id},
+          .html-${id} {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+          }
+          .modal-html-${id} {
+            height: 100%;
+          }
+          .html-${id} {
+            flex: 1 1 auto;
+          }
+          .confirm-modal-body-${id} {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+          }
+          .confirm-modal-actions-${id} {
+            flex: none;
+            padding-bottom: 6px;
+          }
+          .confirm-modal-actions-${id} .form-button {
+            width: calc(100% - 16px);
+            max-width: 278px;
+          }
+          .btn-confirm-${id}.confirm-modal-danger {
+            color: var(--studio-accent-warm, #ff6b5a);
+            border: 2px solid currentColor;
+            font-weight: bold;
+          }
         </style>
         <div
           class="fix background-confirm-modal-${id}"
@@ -1833,26 +1866,29 @@ class Modal {
       barConfig.buttons.menu.disabled = true;
       barConfig.buttons.close.disabled = false;
       const htmlRender = html`
-        <br />
-        <div class="in section-mp" style="font-size: 40px; text-align: center">
-          ${options.icon ? options.icon : html` <i class="fas fa-question-circle"></i>`}
+        <div class="confirm-modal-body-${id}">
+          <div class="in section-mp" style="font-size: 40px; text-align: center">
+            ${options.icon ? options.icon : html` <i class="fas fa-question-circle"></i>`}
+          </div>
+          ${await options.html()}
         </div>
-        ${await options.html()}
-        <div class="in section-mp">
-          ${await BtnIcon.instance({
-            class: `in section-mp form-button btn-confirm-${id}`,
-            label: Translate.instance('confirm'),
-            type: 'submit',
-            style: `margin: auto`,
-          })}
-        </div>
-        <div class="in section-mp ${options.disableBtnCancel ? 'hide' : ''}">
-          ${await BtnIcon.instance({
-            class: `in section-mp form-button btn-cancel-${id}`,
-            label: Translate.instance('cancel'),
-            type: 'submit',
-            style: `margin: auto`,
-          })}
+        <div class="confirm-modal-actions-${id}">
+          <div class="in section-mp">
+            ${await BtnIcon.instance({
+              class: `in section-mp form-button btn-confirm-${id} ${options.danger ? 'confirm-modal-danger' : ''}`,
+              label: options.confirmLabel ?? Translate.instance('confirm'),
+              type: 'submit',
+              style: `margin: auto`,
+            })}
+          </div>
+          <div class="in section-mp ${options.disableBtnCancel ? 'hide' : ''}">
+            ${await BtnIcon.instance({
+              class: `in section-mp form-button btn-cancel-${id}`,
+              label: Translate.instance('cancel'),
+              type: 'submit',
+              style: `margin: auto`,
+            })}
+          </div>
         </div>
       `;
       await Modal.instance({
@@ -1860,8 +1896,10 @@ class Modal {
         barConfig,
         titleClass: 'hide',
         style: {
-          width: '300px',
-          height: '400px',
+          width: 'min(300px, calc(100vw - 16px))',
+          height: 'min(400px, calc(100vh - 16px))',
+          top: 'max(8px, calc(50vh - 200px))',
+          left: 'calc(50vw - min(150px, 50vw - 8px))',
           overflow: 'hidden',
           'z-index': '11',
           resize: 'none',
@@ -1913,6 +1951,7 @@ class Modal {
       s(`.background-confirm-modal-${id}`).onclick = () => end('cancelled');
       s(`.btn-cancel-${id}`).onclick = () => end('cancelled');
       s(`.btn-confirm-${id}`).onclick = () => end('confirm');
+      if (options.danger) s(`.btn-cancel-${id}`).focus();
     });
   }
 
