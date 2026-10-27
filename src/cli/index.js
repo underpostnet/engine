@@ -179,6 +179,10 @@ program
     'Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo".',
   )
   .option('--target-branch <branch>', 'Target branch for --switch-repo (default: remote default branch).')
+  .option(
+    '--delete-remote-branch <branch>',
+    'Deletes <branch> from origin, reaching a GitHub origin with GITHUB_TOKEN, and drops its remote-tracking ref.',
+  )
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

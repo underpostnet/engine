@@ -24,6 +24,11 @@ const diffCmd = `--no-pager show -U0 -w --word-diff=color --word-diff-regex='[^[
 
 const githubRemotePattern = /^(?:git@github\.com:|https:\/\/github\.com\/)/;
 
+const gitFailureReason = (result) => {
+  const lines = `${result.stdout || ''}`.trim().split('\n');
+  return lines.find((line) => /^(?:error|fatal):/.test(line)) || lines.pop();
+};
+
 /**
  * @class UnderpostRepository
  * @description Manages Git operations and configurations.
@@ -107,6 +112,7 @@ class UnderpostRepository {
      * @param {boolean} [options.remoteUrl=false] - If true, prints the current git remote URL (origin) in plain text and returns.
      * @param {string} [options.switchRepo=''] - If set, switches the remote `origin` to this URL and force-pulls the target branch, overwriting the current working tree.
      * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to the remote's default branch).
+     * @param {string} [options.deleteRemoteBranch=''] - If set, deletes this branch from origin.
      * @memberof UnderpostRepository
      */
     commit(
@@ -139,6 +145,7 @@ class UnderpostRepository {
         remoteUrl: false,
         switchRepo: '',
         targetBranch: '',
+        deleteRemoteBranch: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
@@ -180,6 +187,12 @@ class UnderpostRepository {
           url: options.switchRepo,
           branch: options.targetBranch,
         });
+        return;
+      }
+
+      if (options.deleteRemoteBranch) {
+        if (!Underpost.repo.deleteRemoteBranch({ path: repoPath, branch: options.deleteRemoteBranch }))
+          process.exitCode = 1;
         return;
       }
 
@@ -1572,11 +1585,74 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Resolves how git reaches the origin of a checkout.
+     * A GitHub origin is reached over HTTPS with `GITHUB_TOKEN`, as {@link UnderpostRepository.push} does;
+     * another origin is reached as configured.
+     * @param {string} [repoPath='.'] - Path to the git repository.
+     * @returns {{url: string, env: NodeJS.ProcessEnv}|null} Token-free URL and Git child environment,
+     *   or `null` when the checkout has no origin remote.
+     * @memberof UnderpostRepository
+     */
+    originAuthFactory(repoPath = '.') {
+      const origin = Underpost.repo.getRemoteUrl({ path: repoPath });
+      if (!origin) return null;
+      return githubRemotePattern.test(origin)
+        ? Underpost.repo.gitAuthFactory(`https://github.com/${Underpost.repo.repoSlugFactory(origin)}.git`)
+        : { url: 'origin', env: process.env };
+    },
+
+    /**
+     * Fetches every branch of origin into `refs/remotes/origin/` and prunes the branches origin no longer has.
+     * @param {string} [repoPath='.'] - Path to the git repository.
+     * @returns {{ error?: string }} `error` tells why origin could not be fetched.
+     * @memberof UnderpostRepository
+     */
+    fetchOrigin(repoPath = '.') {
+      const auth = Underpost.repo.originAuthFactory(repoPath);
+      if (!auth) return { error: `${repoPath}: no origin remote` };
+      const fetch = shellExec(
+        `cd "${repoPath}" && git fetch --prune "${auth.url}" "+refs/heads/*:refs/remotes/origin/*" 2>&1`,
+        { silent: true, disableLog: true, silentOnError: true, env: auth.env },
+      );
+      return fetch.code === 0 ? {} : { error: `${auth.url}: fetch failed: ${gitFailureReason(fetch)}` };
+    },
+
+    /**
+     * Deletes a branch from origin and drops its remote-tracking ref.
+     * @param {object} opts
+     * @param {string} opts.branch - Branch to delete.
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @returns {boolean} `true` when origin deleted the branch.
+     * @memberof UnderpostRepository
+     */
+    deleteRemoteBranch({ branch, path: repoPath = '.' }) {
+      const auth = Underpost.repo.originAuthFactory(repoPath);
+      if (!auth) {
+        logger.error(`${repoPath}: no origin remote`);
+        return false;
+      }
+      const push = shellExec(`cd "${repoPath}" && git push "${auth.url}" --delete "${branch}" 2>&1`, {
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+        env: auth.env,
+      });
+      if (push.code !== 0) {
+        logger.error(`${auth.url} ${branch}: delete failed: ${gitFailureReason(push)}`);
+        return false;
+      }
+      shellExec(`cd "${repoPath}" && git update-ref -d "refs/remotes/origin/${branch}"`, {
+        silent: true,
+        disableLog: true,
+      });
+      logger.info('deleteRemoteBranch', { path: repoPath, branch, url: auth.url });
+      return true;
+    },
+
+    /**
      * Returns metadata about unpushed commits in a git repository.
-     * Fetches the branches of origin, then counts the commits of HEAD that no origin branch holds,
+     * Fetches origin, then counts the commits of HEAD that no origin branch holds,
      * so a branch that origin does not have yet counts from where it forks.
-     * A GitHub origin is fetched over HTTPS with `GITHUB_TOKEN`, as {@link UnderpostRepository.push} does;
-     * another origin is fetched as configured.
      * @param {string} [repoPath='.'] - Path to the git repository.
      * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
      * @returns {{ count: number, branch: string, hasUnpushed: boolean, error?: string }} Unpush metadata;
@@ -1596,19 +1672,8 @@ Prevent build private config repo.`,
         .toString()
         .trim();
       if (!branch) return { count: fallback, branch: '', hasUnpushed: false };
-      const origin = Underpost.repo.getRemoteUrl({ path: repoPath });
-      if (!origin) return { count: fallback, branch, hasUnpushed: false, error: `${repoPath}: no origin remote` };
-      const auth = githubRemotePattern.test(origin)
-        ? Underpost.repo.gitAuthFactory(`https://github.com/${Underpost.repo.repoSlugFactory(origin)}.git`)
-        : { url: 'origin', env: process.env };
-      const fetch = shellExec(
-        `cd ${repoPath} && git fetch "${auth.url}" "+refs/heads/*:refs/remotes/origin/*" 2>&1`,
-        { silent: true, disableLog: true, silentOnError: true, env: auth.env },
-      );
-      if (fetch.code !== 0) {
-        const reason = `${fetch.stdout || ''}`.trim().split('\n').pop();
-        return { count: fallback, branch, hasUnpushed: false, error: `${auth.url}: fetch failed: ${reason}` };
-      }
+      const { error } = Underpost.repo.fetchOrigin(repoPath);
+      if (error) return { count: fallback, branch, hasUnpushed: false, error };
       const raw = shellExec(`cd ${repoPath} && git rev-list --count HEAD --not --remotes=origin 2>/dev/null`, {
         stdout: true,
         silent: true,

@@ -242,6 +242,7 @@ Manages commits to a GitHub repository, supporting various commit types and opti
 | `--remote-url` | Prints the current git remote URL (origin) in plain text. |
 | `--switch-repo <url>` | Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo". |
 | `--target-branch <branch>` | Target branch for --switch-repo (default: remote default branch). |
+| `--delete-remote-branch <branch>` | Deletes <branch> from origin, reaching a GitHub origin with GITHUB_TOKEN, and drops its remote-tracking ref. |
 | `-h, --help` | display help for command |
 
 ---
