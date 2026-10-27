@@ -101,7 +101,7 @@
     "jszip": "^3.10.2",
     "mariadb": "^3.5.4",
     "marked": "^18.1.1",
-    "mongoose": "^9.11.2",
+    "mongoose": "^9.11.3",
     "morgan": "^1.12.1",
     "nodemailer": "^10.1.7",
     "passport": "^0.7.0",
