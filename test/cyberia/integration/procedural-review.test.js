@@ -465,7 +465,8 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
         createRequest({ output: { variants: 2, itemIdPrefix: 'live-run' }, seed: { mode: 'fixed', value: 21 } }),
       );
       const ctx = { models: models(), jobId: job._id, options: host };
-      expect(await deleteJob(ctx)).toEqual({ stopped: 2, drafts: 0, candidates: 2, audit: 1 });
+      expect(await deleteJob(ctx)).toEqual({ stopped: 2, drafts: [], candidates: 2, audit: expect.any(Number) });
+      expect(await models().CyberiaProceduralAudit.countDocuments({ jobId: job._id })).toBe(0);
       expect(await drain()).toBe(0);
       expect(await models().CyberiaProceduralJob.exists({ _id: job._id })).toBeNull();
       expect(await models().ObjectLayer.countDocuments({ 'data.item.id': /^live-run-/ })).toBe(0);
@@ -482,15 +483,13 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
       expect((await models().CyberiaProceduralJob.findById(job._id).lean()).status).toBe('completed');
       expect((await rejection(cancelJob(ctx))).status).toBe(409);
       const drafts = (await itemsOf(job)).map(({ candidateCid }) => candidateCid);
-      expect(await deleteJob({ models: models(), jobId: job._id, options: host })).toMatchObject({
-        stopped: 0,
-        drafts: 2,
-        candidates: 2,
-      });
+      const removed = await deleteJob({ models: models(), jobId: job._id, options: host });
+      expect(removed).toMatchObject({ stopped: 0, candidates: 2 });
+      expect(removed.drafts.sort()).toEqual([...drafts].sort());
       expect(await stored(drafts)).toEqual({ definitions: 0, frames: 0, atlases: 0 });
     });
 
-    it('deletes a run in any state with no cancel first: only the definition of a promoted item stays', async () => {
+    it('deletes a run in any state with no cancel first, with its audit: only the definition of a promoted item stays', async () => {
       const job = await create(
         createRequest({ output: { variants: 4, itemIdPrefix: 'gone-run' }, seed: { mode: 'fixed', value: 22 } }),
       );
@@ -514,12 +513,10 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
       expect(drafts).toHaveLength(4);
       expect(await stored(drafts)).toEqual({ definitions: 4, frames: 4, atlases: 4 });
 
-      expect(await deleteJob({ models: models(), jobId: job._id, options: host })).toEqual({
-        stopped: 1,
-        drafts: 4,
-        candidates: 4,
-        audit: expect.any(Number),
-      });
+      const audit = await models().CyberiaProceduralAudit.countDocuments({ jobId: job._id });
+      const removed = await deleteJob({ models: models(), jobId: job._id, options: host });
+      expect(removed).toMatchObject({ stopped: 1, candidates: 4, audit });
+      expect(removed.drafts.sort()).toEqual([...drafts].sort());
       expect(await stored(drafts)).toEqual({ definitions: 0, frames: 0, atlases: 0 });
       expect(await models().CyberiaProceduralJob.exists({ _id: job._id })).toBeNull();
       expect(await models().CyberiaProceduralJobItem.countDocuments({ jobId: job._id })).toBe(0);
@@ -545,7 +542,7 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
       expect((await models().ObjectLayer.findByCid(published.candidateCid).lean()).origin).toBe('canonical');
 
       expect(await deleteJob({ models: models(), jobId: job._id, options: host })).toMatchObject({
-        drafts: 1,
+        drafts: [published.candidateCid],
         candidates: 2,
       });
       expect(await stored([published.candidateCid])).toEqual({ definitions: 0, frames: 0, atlases: 0 });
@@ -567,7 +564,7 @@ describe.skipIf(!mongodBinary)('human review and promotion on a real MongoDB', (
         revisions: [{ revision: 0, cid: item.candidateCid, kind: 'generated', at: new Date() }],
       });
       await cancelJob({ models: models(), jobId: job._id, actor: MODERATOR });
-      expect((await deleteJob({ models: models(), jobId: job._id, options: host })).drafts).toBe(0);
+      expect((await deleteJob({ models: models(), jobId: job._id, options: host })).drafts).toEqual([]);
       expect(await stored([item.candidateCid])).toMatchObject({ definitions: 1 });
       await models().CyberiaProceduralJobItem.deleteOne({ _id: other._id });
     });

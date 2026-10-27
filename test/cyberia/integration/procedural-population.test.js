@@ -10,27 +10,31 @@ import {
 import {
   addTarget,
   applyPalette,
-  authorTarget,
   cancelPopulation,
   createPopulation,
-  deleteDraft,
   deletePopulation,
-  discardEntry,
-  findDefinitions,
   forgetRemoved,
-  generateTarget,
   getDraft,
   getPopulation,
   listPopulations,
   previewPalette,
   rebaseDraft,
   removeTarget,
-  resetTarget,
+  runsOf,
   saveDraft,
-  selectEntry,
-  targetEntries,
   updateTarget,
 } from '../../../src/projects/cyberia/procedural/population/population.js';
+import {
+  RESULT_LIMIT,
+  authorTarget,
+  deleteResults,
+  generateTarget,
+  resetTarget,
+  retryEntry,
+  selectEntry,
+  targetDefinitions,
+  targetResults,
+} from '../../../src/projects/cyberia/procedural/population/results.js';
 import {
   addDefault,
   populationDefaults,
@@ -55,7 +59,8 @@ import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.serv
 import { CyberiaItemCatalogService } from '../../../src/api/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { publishRevision } from '../../../src/projects/cyberia/procedural/jobs/promotion.js';
-import { saveRevision } from '../../../src/projects/cyberia/procedural/jobs/review.js';
+import { rejectItem, saveRevision } from '../../../src/projects/cyberia/procedural/jobs/review.js';
+import { claimNextItem, runItem } from '../../../src/projects/cyberia/procedural/jobs/worker.js';
 import { sourceFromDirectionFrames, toWire } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 import { ObjectLayerEngine } from '../../../src/projects/cyberia/object-layer/object-layer.js';
 import { catalogModels } from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
@@ -149,17 +154,25 @@ const generate = (id, itemId, count = 1) => generateTarget({ models: all(), id, 
 const change = (id, itemId, body) => updateTarget({ models: all(), id, itemId, body, actor: MODERATOR });
 const keep = (id, itemId) => change(id, itemId, { resolution: 'keep' });
 const save = (id, body) => saveDraft({ models: all(), id, body: { grid: GRID, ...body }, actor: MODERATOR });
-const entriesOf = (id, itemId) => targetEntries(all(), id, itemId);
+const resultsOf = async (id, itemId) => (await targetResults(all(), id, itemId)).results;
+/** The generated results of an item, newest first. */
+const entriesOf = async (id, itemId) => (await resultsOf(id, itemId)).filter(({ jobId }) => jobId);
+/** The run ids of an item, oldest first. */
+const runIds = async (id, itemId) => (await runsOf(all(), id, itemId)).map(({ _id }) => String(_id)).reverse();
+const remove = (id, itemId, ids) =>
+  deleteResults({ models: all(), id, itemId, body: { ids }, actor: MODERATOR, options: host });
+const reset = (id, itemId) => resetTarget({ models: all(), id, itemId, actor: MODERATOR, options: host });
 const select = async (id, itemId, entry) => {
   const chosen = entry ?? (await entriesOf(id, itemId)).find(({ state }) => state === 'ready');
   return await selectEntry({
     models: all(),
     id,
     itemId,
-    body: { entryId: chosen.id, cid: chosen.cid },
+    body: { entryId: chosen.entryId, cid: chosen.cid },
     actor: MODERATOR,
   });
 };
+const actionOf = (result, id) => result.actions.find((entry) => entry.id === id);
 /** Generates one entry of every item that generates, and selects it. */
 const decideAll = async (id) => {
   const generating = (await view(id)).targets.filter(
@@ -362,7 +375,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const specOf = async (itemId, run) =>
         (
           await models()
-            .CyberiaProceduralJob.findById(targetOf(await view(population._id), itemId).runs[run])
+            .CyberiaProceduralJob.findById((await runIds(population._id, itemId))[run])
             .lean()
         ).spec;
       const [moss, stone] = [await specOf('violet-moss', 0), await specOf('violet-stone', 0)];
@@ -381,8 +394,9 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const changed = await change(population._id, 'violet-moss', { variation: 0.9 });
       expect(targetOf(changed, 'violet-moss')).toMatchObject({ variation: 0.9, state: 'generating' });
       await generate(population._id, 'violet-moss', 2);
-      const runs = targetOf(await view(population._id), 'violet-moss').runs;
+      const runs = await runIds(population._id, 'violet-moss');
       expect(runs).toHaveLength(3);
+      expect((await view(population._id)).nextRun).toBe(4);
       const later = await specOf('violet-moss', 1);
       expect(later.variation.level).toBe(0.9);
       expect(later.seed.value).not.toBe(moss.seed.value);
@@ -459,7 +473,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
 
       await generate(population._id, 'new-moss');
       await generate(population._id, 'new-moss');
-      const runs = targetOf(await view(population._id), 'new-moss').runs;
+      const runs = await runIds(population._id, 'new-moss');
       expect(runs).toHaveLength(2);
       const removed = await removeTarget({ models: all(), id: population._id, itemId: 'new-moss', actor: MODERATOR });
       expect(targetOf(removed, 'new-moss')).toBeUndefined();
@@ -489,7 +503,8 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const restored = await addTarget({ models: all(), id: population._id, body: { itemId: 'small-skin' } });
       expect(targetOf(restored, 'small-skin')).toMatchObject({ state: 'kept', sources: ['placement'] });
       const back = await addTarget({ models: all(), id: population._id, body: { itemId: 'new-moss' } });
-      expect(targetOf(back, 'new-moss').runs).toEqual(runs.map(String));
+      expect(await runIds(population._id, 'new-moss')).toEqual(runs);
+      expect(back.nextRun).toBe(2);
       expect(back.removed).toEqual([]);
       expect((await mapOf('violet-array')).entities).toEqual(before.entities);
       expect(await models().CyberiaItemCatalog.find({}, { itemId: 1, objectLayerCid: 1, history: 1 }).lean()).toEqual(
@@ -498,13 +513,13 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await deletePopulation({ models: all(), id: population._id, options: host });
     });
 
-    it('forgets a removed target permanently: only its entry in the removed list goes, and a later read may add it again', async () => {
+    it('forgets a removed target permanently: only its entry in the removed list goes, and a later add shows its results again', async () => {
       const population = await create('violet-array');
       const other = await create('violet-hollow');
       await change(population._id, 'violet-moss', { resolution: 'render' });
       await generate(population._id, 'violet-moss');
       await drain();
-      const runs = targetOf(await view(population._id), 'violet-moss').runs;
+      const runs = await runIds(population._id, 'violet-moss');
       await removeTarget({
         models: all(),
         id: population._id,
@@ -534,8 +549,9 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       expect(await snapshot()).toEqual(before);
       expect((await view(other._id)).removed.map(({ target }) => target.itemId)).toEqual(['violet-moss']);
       const added = await addTarget({ models: all(), id: population._id, body: { itemId: 'violet-moss' } });
-      expect(targetOf(added, 'violet-moss')).toMatchObject({ sources: ['manual'], runs: [] });
+      expect(targetOf(added, 'violet-moss')).toMatchObject({ sources: ['manual'], drafts: [] });
       expect(runs).toHaveLength(1);
+      expect((await entriesOf(population._id, 'violet-moss')).map(({ id }) => id)).toEqual(runs);
       await deletePopulation({ models: all(), id: population._id, options: host });
       await deletePopulation({ models: all(), id: other._id, options: host });
     });
@@ -566,8 +582,8 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
         observed: { cid: other, bindingRevision: binding.get('small-skin').revision + 1 },
       });
       await rebind('small-skin', cids['small-skin']);
-      const reset = await resetTarget({ models: all(), id: population._id, itemId: 'small-skin', actor: MODERATOR });
-      expect(targetOf(reset, 'small-skin')).toMatchObject({
+      const clean = await reset(population._id, 'small-skin');
+      expect(targetOf(clean, 'small-skin')).toMatchObject({
         resolution: 'keep',
         state: 'kept',
         observed: { cid: cids['small-skin'] },
@@ -693,7 +709,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await select(population._id, 'violet-skin');
       const [entry] = await entriesOf(population._id, 'violet-skin');
       expect(entry.state).toBe('selected');
-      const audits = () => models().CyberiaProceduralAudit.countDocuments({ jobItemId: entry.id });
+      const audits = () => models().CyberiaProceduralAudit.countDocuments({ jobItemId: entry.entryId });
       const before = await audits();
       const definition = await authorTarget({
         models: all(),
@@ -723,7 +739,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       expect(await audits()).toBe(before + 1);
       expect(
         await models()
-          .CyberiaProceduralAudit.findOne({ jobItemId: entry.id, action: 'item.approval_withdrawn' })
+          .CyberiaProceduralAudit.findOne({ jobItemId: entry.entryId, action: 'item.approval_withdrawn' })
           .lean(),
       ).toMatchObject({ actor: MODERATOR, reason: 'the resolution of violet-skin changed to author' });
 
@@ -736,7 +752,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const again = targetOf(await change(population._id, 'violet-skin', { resolution: 'author' }), 'violet-skin');
       expect(again).toMatchObject({ state: 'authored', definitionCid: definition.cid, observed: null });
       expect(await boundCid('violet-skin')).toBe(cids['violet-skin']);
-      expect(await models().CyberiaProceduralJobItem.countDocuments({ _id: entry.id })).toBe(1);
+      expect(await models().CyberiaProceduralJobItem.countDocuments({ _id: entry.entryId })).toBe(1);
       await deletePopulation({ models: all(), id: population._id, options: host });
     });
 
@@ -785,22 +801,21 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await deletePopulation({ models: all(), id: population._id, options: host });
     });
 
-    it('finds Object Layer definitions by item id with their status, and takes one a human authored', async () => {
+    it('lists the stored definitions of an item to continue from, and takes one a human authored', async () => {
       const draft = await ObjectLayerEngine.persistObjectLayerDocuments({
         models: catalogModels(host),
         objectLayerRenderFramesData: square(12),
         objectLayerData: { data: definitionOf('lantern-moss', 'floor') },
         persistOptions: { options: host, draft: true },
       });
-      const found = await findDefinitions(all(), { q: 'lantern', skip: 0, limit: 10 });
+      const population = await create('blank-room');
+      await addTarget({ models: all(), id: population._id, body: { itemId: 'lantern-moss', stage: 'floor' } });
+      const found = await targetDefinitions(all(), population._id, 'lantern-moss', { skip: 0, limit: 10 });
       expect(found.data).toEqual([
-        expect.objectContaining({ itemId: 'lantern-moss', itemType: 'floor', cid: draft.cid, boundCid: '' }),
+        expect.objectContaining({ itemId: 'lantern-moss', itemType: 'floor', cid: draft.cid }),
       ]);
       expect(['draft', 'published']).toContain(found.data[0].status);
-      const active = await findDefinitions(all(), { q: 'violet-moss', skip: 0, limit: 10 });
-      expect(active.data.find(({ cid }) => cid === cids['violet-moss']).status).toBe('active');
 
-      const population = await create('blank-room');
       const selected = await addTarget({
         models: all(),
         id: population._id,
@@ -811,7 +826,14 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
         resolution: 'author',
         state: 'authored',
         definitionCid: draft.cid,
+        drafts: [],
       });
+      expect((await targetDefinitions(all(), population._id, 'lantern-moss', { skip: 0, limit: 10 })).data).toEqual([
+        expect.objectContaining({ cid: draft.cid }),
+      ]);
+      expect((await resultsOf(population._id, 'lantern-moss')).map(({ source, state }) => [source, state])).toEqual([
+        ['stored', 'selected'],
+      ]);
       expect(await boundCid('lantern-moss')).toBeUndefined();
       expect(
         await rejection(
@@ -822,7 +844,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
     });
   });
 
-  describe('hand-authored drafts and the reset of an item', () => {
+  describe('the results of an item', () => {
     const authorSkin = (id, description) =>
       authorTarget({
         models: all(),
@@ -838,8 +860,12 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
         actor: MODERATOR,
         options: host,
       });
+    const stored = async (cid) => ({
+      definition: Boolean(await models().ObjectLayer.exists({ cid })),
+      frames: Boolean(await models().ObjectLayerRenderFrames.exists({ objectLayerCid: cid })),
+    });
 
-    it('lists the drafts of an item with their render and keeper, uses one at most once, and deletes only an unused one', async () => {
+    it('lists every generated result and every draft it stored with its source, state and actions', async () => {
       const population = await create('violet-hollow');
       const first = await authorSkin(population._id, 'first');
       const second = await authorSkin(population._id, 'second');
@@ -847,57 +873,342 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const blank = await authorSkin(population._id, 'no frames');
       await models().ObjectLayerRenderFrames.deleteOne({ objectLayerCid: blank.cid });
       await addTarget({ models: all(), id: population._id, body: { itemId: 'violet-skin', cid: second.cid } });
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin');
+      await change(population._id, 'violet-skin', { resolution: 'template' });
+      await generate(population._id, 'violet-skin');
+      await drain();
+      const kept = (await targetResults(all(), population._id, 'violet-skin')).results.find(
+        ({ cid }) => cid === second.cid,
+      );
+      expect(kept.state).toBe('saved');
+      expect(actionOf(kept, 'delete').reason).toBe(
+        'The item keeps it as its authored definition: reset the item, or author it and use another',
+      );
+      expect(actionOf(kept, 'use').available).toBe(true);
+      await change(population._id, 'violet-skin', { resolution: 'author' });
 
-      const listed = (await findDefinitions(all(), { itemId: 'violet-skin', skip: 0, limit: 20 })).data;
-      const row = (cid) => listed.find((entry) => entry.cid === cid);
-      expect(listed.every(({ itemId }) => itemId === 'violet-skin')).toBe(true);
-      expect(row(second.cid)).toMatchObject({ status: 'draft', hasRender: true, keptBy: 'a map population uses it' });
-      expect(row(first.cid)).toMatchObject({ status: 'draft', hasRender: true, keptBy: '' });
-      expect(row(blank.cid)).toMatchObject({ status: 'draft', hasRender: false, keptBy: '' });
-      expect(row(cids['violet-skin'])).toMatchObject({ status: 'active', keptBy: 'the catalog binds it' });
+      const { results, retained, limit } = await targetResults(all(), population._id, 'violet-skin');
+      expect([retained, limit]).toEqual([5, RESULT_LIMIT]);
+      expect(results.map(({ source }) => source)).toEqual(['template', 'render', 'author', 'author', 'author']);
+      const row = (cid) => results.find((result) => result.cid === cid);
+      expect(row(second.cid)).toMatchObject({ id: second.cid, state: 'selected', hasRender: true });
+      expect(row(blank.cid)).toMatchObject({ state: 'saved', hasRender: false });
+      expect(row(first.cid)).toMatchObject({ state: 'superseded', hasRender: true, keptBy: '' });
+      expect(actionOf(row(second.cid), 'delete')).toEqual({
+        id: 'delete',
+        available: false,
+        reason: 'It is the selected result: use another result or reset the item first',
+      });
+      expect(actionOf(row(blank.cid), 'use')).toMatchObject({
+        available: false,
+        reason: expect.stringContaining('no render'),
+      });
+      expect(actionOf(row(first.cid), 'use').available).toBe(true);
+      const [template, render] = results;
+      expect(template).toMatchObject({ state: 'ready', hasRender: true, entryId: expect.any(String) });
+      expect(render.actions.map(({ id, available }) => [id, available])).toEqual([
+        ['use', true],
+        ['edit', true],
+        ['delete', true],
+      ]);
+      const earlier = await create('blank-room');
+      await addTarget({ models: all(), id: earlier._id, body: { itemId: 'violet-skin' } });
+      await change(earlier._id, 'violet-skin', { resolution: 'render' });
+      await generate(earlier._id, 'violet-skin');
+      await drain();
+      const [elsewhere] = await entriesOf(earlier._id, 'violet-skin');
+      const sources = (await targetDefinitions(all(), population._id, 'violet-skin', { skip: 0, limit: 50 })).data;
+      expect(sources.map(({ cid }) => cid).sort()).toEqual([first.cid, second.cid, blank.cid, elsewhere.cid].sort());
+      expect(sources.find(({ cid }) => cid === blank.cid)).toMatchObject({ status: 'draft', hasRender: false });
+      expect(sources.some(({ cid }) => [cids['violet-skin'], template.cid, render.cid].includes(cid))).toBe(false);
+      await deletePopulation({ models: all(), id: earlier._id, options: host });
+      await deletePopulation({ models: all(), id: population._id, options: host });
+    });
 
+    it('uses a result once: a generated one of another start switches the resolution, and one with no render is refused', async () => {
+      const population = await create('violet-hollow');
+      const draft = await authorSkin(population._id, 'to leave');
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin', 2);
+      await drain();
+      const [newer, older] = await entriesOf(population._id, 'violet-skin');
+      await change(population._id, 'violet-skin', { resolution: 'author' });
+      const used = await select(population._id, 'violet-skin', older);
+      expect(targetOf(used, 'violet-skin')).toMatchObject({
+        resolution: 'render',
+        state: 'selected',
+        definitionCid: draft.cid,
+        selected: { id: older.entryId, cid: older.cid },
+      });
       const { revision } = await view(population._id);
-      await addTarget({ models: all(), id: population._id, body: { itemId: 'violet-skin', cid: second.cid } });
+      await select(population._id, 'violet-skin', { ...older, state: 'selected' });
       expect((await view(population._id)).revision).toBe(revision);
-      expect(
-        await rejection(
-          addTarget({ models: all(), id: population._id, body: { itemId: 'violet-skin', cid: blank.cid } }),
-        ),
-      ).toMatchObject({
+      await select(population._id, 'violet-skin', newer);
+      expect((await entriesOf(population._id, 'violet-skin')).map(({ state }) => state)).toEqual(['selected', 'ready']);
+      expect(await rejection(select(population._id, 'violet-skin', { ...older, cid: newer.cid }))).toMatchObject({
         status: 409,
-        message: `Definition ${blank.cid} has no render: continue editing it in the Studio, or choose another`,
       });
+      await models().ObjectLayerRenderFrames.deleteOne({ objectLayerCid: older.cid });
+      expect(await rejection(select(population._id, 'violet-skin', older))).toMatchObject({
+        status: 409,
+        message: `Result ${older.cid} has no render frames: delete it, or generate a new result`,
+      });
+      await deletePopulation({ models: all(), id: population._id, options: host });
+    });
 
-      const remove = (cid) =>
-        deleteDraft({ models: all(), id: population._id, itemId: 'violet-skin', cid, actor: MODERATOR, options: host });
-      expect(await rejection(remove(second.cid))).toMatchObject({
-        status: 409,
-        message: `violet-skin uses draft ${second.cid}: use another draft or reset the item first`,
-      });
-      expect(await rejection(remove(cids['violet-skin']))).toMatchObject({ status: 409 });
+    it('deletes unselected results with their storage, keeps the selected and the shared, and records each delete', async () => {
+      const population = await create('violet-hollow');
+      const own = await authorSkin(population._id, 'own');
+      const shared = await authorSkin(population._id, 'shared');
+      const latest = await authorSkin(population._id, 'latest');
       const other = await create('blank-room');
-      await addTarget({ models: all(), id: other._id, body: { itemId: 'violet-skin', cid: first.cid } });
-      expect(await rejection(remove(first.cid))).toMatchObject({
-        status: 409,
-        message: `Draft ${first.cid} stays: a map population uses it`,
-      });
-      await deletePopulation({ models: all(), id: other._id, options: host });
-      await remove(first.cid);
-      await remove(blank.cid);
-      for (const cid of [first.cid, blank.cid]) {
-        expect(await models().ObjectLayer.exists({ cid })).toBeNull();
-        expect(await models().ObjectLayerRenderFrames.exists({ objectLayerCid: cid })).toBeNull();
-      }
+      await addTarget({ models: all(), id: other._id, body: { itemId: 'violet-skin', cid: shared.cid } });
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin', 3);
+      await drain();
+      const [kept, discarded, plain] = await entriesOf(population._id, 'violet-skin');
+      await select(population._id, 'violet-skin', kept);
+      await rejectItem({ models: models(), jobId: discarded.jobId, id: discarded.entryId, actor: MODERATOR });
+      const listed = await entriesOf(population._id, 'violet-skin');
+      expect(listed.find(({ id }) => id === discarded.id)).toMatchObject({ state: 'discarded' });
+      expect(
+        actionOf(
+          listed.find(({ id }) => id === discarded.id),
+          'delete',
+        ).available,
+      ).toBe(true);
+      const answer = await remove(population._id, 'violet-skin', [
+        discarded.id,
+        plain.id,
+        kept.id,
+        own.cid,
+        shared.cid,
+        latest.cid,
+        cids['violet-skin'],
+      ]);
+      expect(answer.deleted.removed).toEqual([
+        `the generated result ${discarded.cid}`,
+        `the generated result ${plain.cid}`,
+        `the draft ${own.cid}`,
+      ]);
+      expect(answer.deleted.retained).toEqual([
+        `the generated result ${kept.cid}: It is the selected or published result: use another result or reset the item first`,
+        `the draft ${shared.cid}: Draft ${shared.cid} stays: a map population uses it`,
+        `the draft ${latest.cid}: The item keeps it as its authored definition: reset the item, or author it and use another`,
+        `the draft ${cids['violet-skin']}: Definition ${cids['violet-skin']} is not a draft this workflow stored: it stays`,
+      ]);
+      expect(answer.deleted.failures).toEqual([]);
+      expect(answer.deleted.purged.sort()).toEqual([discarded.cid, plain.cid, own.cid].sort());
+      for (const cid of [discarded.cid, plain.cid, own.cid])
+        expect(await stored(cid), cid).toEqual({ definition: false, frames: false });
+      for (const cid of [kept.cid, shared.cid, latest.cid, cids['violet-skin']])
+        expect(await stored(cid), cid).toEqual({ definition: true, frames: true });
+      expect(await models().CyberiaProceduralJob.countDocuments({ _id: { $in: [discarded.id, plain.id] } })).toBe(0);
+      expect(targetOf(answer, 'violet-skin').drafts).toEqual([shared.cid, latest.cid]);
       expect(
         await models().CyberiaProceduralAudit.countDocuments({
-          action: 'target.draft_deleted',
-          populationId: population._id,
-          itemId: 'violet-skin',
+          jobId: { $in: [discarded.id, plain.id] },
+          action: { $ne: 'target.entry_deleted' },
         }),
-      ).toBe(2);
-      expect(await models().ObjectLayer.exists({ cid: second.cid })).toBeTruthy();
-      expect(await boundCid('violet-skin')).toBe(cids['violet-skin']);
+      ).toBe(0);
+      expect(await models().CyberiaProceduralAudit.countDocuments({ jobId: kept.id })).toBeGreaterThan(0);
+      expect(
+        await models()
+          .CyberiaProceduralAudit.find(
+            { populationId: population._id, action: { $in: ['target.entry_deleted', 'target.draft_deleted'] } },
+            { action: 1, previousCid: 1, _id: 0 },
+          )
+          .sort({ createdAt: 1 })
+          .lean(),
+      ).toEqual([
+        { action: 'target.entry_deleted', previousCid: discarded.cid },
+        { action: 'target.entry_deleted', previousCid: plain.cid },
+        { action: 'target.draft_deleted', previousCid: own.cid },
+      ]);
+
+      const again = await remove(population._id, 'violet-skin', [plain.id, own.cid]);
+      expect(again.deleted).toMatchObject({ removed: [], purged: [] });
+      expect(again.deleted.failures).toEqual([
+        `the draft ${plain.id}: violet-skin has no generated result ${plain.id}`,
+        `the draft ${own.cid}: There is no Object Layer definition ${own.cid}`,
+      ]);
+      expect(await rejection(remove(population._id, 'violet-skin', []))).toMatchObject({ status: 400 });
+      await deletePopulation({ models: all(), id: other._id, options: host });
       await deletePopulation({ models: all(), id: population._id, options: host });
+    });
+
+    it('keeps at most the result limit: Generate and a Studio save refuse beyond it until a delete makes room', async () => {
+      const population = await create('violet-hollow');
+      const drafts = [];
+      for (let index = 0; index < RESULT_LIMIT - 1; index++)
+        drafts.push(await authorSkin(population._id, `draft ${index}`));
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      expect(await rejection(generate(population._id, 'violet-skin', 2))).toMatchObject({
+        status: 409,
+        message: `violet-skin keeps ${RESULT_LIMIT - 1} of ${RESULT_LIMIT} results: delete unselected results to add 2 more`,
+      });
+      await generate(population._id, 'violet-skin');
+      expect(await rejection(authorSkin(population._id, 'one more'))).toMatchObject({
+        status: 409,
+        message: `violet-skin keeps ${RESULT_LIMIT} of ${RESULT_LIMIT} results: delete unselected results to add 1 more`,
+      });
+      expect((await targetResults(all(), population._id, 'violet-skin')).retained).toBe(RESULT_LIMIT);
+      await remove(population._id, 'violet-skin', [drafts[0].cid]);
+      await authorSkin(population._id, 'one more');
+      expect((await targetResults(all(), population._id, 'violet-skin')).retained).toBe(RESULT_LIMIT);
+      await deletePopulation({ models: all(), id: population._id, options: host });
+    });
+
+    it('retries a failed result under its own seed and adds no result; a failure that repeats takes no retry', async () => {
+      const population = await create('violet-hollow');
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin');
+      await drain({
+        persist: async () => {
+          throw new Error('The store does not answer');
+        },
+      });
+      const [failed] = await entriesOf(population._id, 'violet-skin');
+      expect(failed).toMatchObject({ state: 'failed', retryable: true, error: 'The store does not answer' });
+      expect(actionOf(failed, 'retry')).toEqual({ id: 'retry', available: true, reason: '' });
+      const { seed } = await models().CyberiaProceduralJobItem.findById(failed.entryId).lean();
+      await retryEntry({
+        models: all(),
+        id: population._id,
+        itemId: 'violet-skin',
+        entryId: failed.entryId,
+        actor: MODERATOR,
+      });
+      await drain();
+      const [ready, ...rest] = await entriesOf(population._id, 'violet-skin');
+      expect(rest).toEqual([]);
+      expect(ready).toMatchObject({ id: failed.id, entryId: failed.entryId, state: 'ready', retryable: false });
+      expect((await models().CyberiaProceduralJobItem.findById(failed.entryId).lean()).seed).toBe(seed);
+      expect(
+        await models().CyberiaProceduralAudit.countDocuments({ jobItemId: failed.entryId, action: 'item.retried' }),
+      ).toBe(1);
+
+      await models().CyberiaProceduralJobItem.updateOne(
+        { _id: failed.entryId },
+        { $set: { status: 'failed', error: { message: 'Invalid render', retryable: false, at: new Date() } } },
+      );
+      const [repeats] = await entriesOf(population._id, 'violet-skin');
+      expect(actionOf(repeats, 'retry')).toMatchObject({ available: false });
+      expect(
+        await rejection(
+          retryEntry({
+            models: all(),
+            id: population._id,
+            itemId: 'violet-skin',
+            entryId: failed.entryId,
+            actor: MODERATOR,
+          }),
+        ),
+      ).toMatchObject({ status: 409 });
+      await deletePopulation({ models: all(), id: population._id, options: host });
+    });
+
+    it('fences a run its delete meets mid-generation: the worker purges what it stores afterwards and leaves no draft', async () => {
+      const population = await create('violet-hollow');
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin');
+      const item = await claimNextItem({ models: models(), holder: 'worker-b' });
+      const [running] = await entriesOf(population._id, 'violet-skin');
+      expect(running).toMatchObject({ state: 'generating', id: String(item.jobId) });
+      expect(actionOf(running, 'delete').available).toBe(true);
+      let written = '';
+      await runItem({
+        models: models(),
+        item,
+        holder: 'worker-b',
+        options: host,
+        persist: async () => {
+          await remove(population._id, 'violet-skin', [running.id]);
+          const definition = await ObjectLayerEngine.persistObjectLayerDocuments({
+            models: catalogModels(host),
+            objectLayerRenderFramesData: square(24),
+            objectLayerData: { data: definitionOf('violet-skin', 'skin') },
+            persistOptions: { options: host, draft: true },
+          });
+          written = definition.cid;
+          return definition;
+        },
+      });
+      expect(written).not.toBe('');
+      expect(await stored(written)).toEqual({ definition: false, frames: false });
+      expect(await entriesOf(population._id, 'violet-skin')).toEqual([]);
+      await deletePopulation({ models: all(), id: population._id, options: host });
+    });
+
+    it('resets the whole workflow: every result and draft it owns goes, what others use stays, and Generate gives new results', async () => {
+      const population = await create('violet-hollow');
+      const own = await authorSkin(population._id, 'own draft');
+      const shared = await authorSkin(population._id, 'shared draft');
+      const other = await create('blank-room');
+      await addTarget({ models: all(), id: other._id, body: { itemId: 'violet-skin', cid: shared.cid } });
+      await change(population._id, 'violet-skin', {
+        resolution: 'render',
+        palette: { slots: { 'hair.base': '#101010' } },
+      });
+      await generate(population._id, 'violet-skin', 2);
+      await drain();
+      await select(population._id, 'violet-skin');
+      const entries = await entriesOf(population._id, 'violet-skin');
+      await models().CyberiaProceduralJobItem.deleteOne({ _id: entries[1].entryId });
+      expect((await entriesOf(population._id, 'violet-skin'))[1]).toMatchObject({ state: 'missing', entryId: '' });
+      const seeds = (
+        await models()
+          .CyberiaProceduralJob.find({ _id: { $in: entries.map(({ id }) => id) } })
+          .lean()
+      ).map(({ spec }) => spec.seed.value);
+      const answer = await reset(population._id, 'violet-skin');
+      expect(targetOf(answer, 'violet-skin')).toMatchObject({
+        definitionCid: '',
+        drafts: [shared.cid],
+        palette: { slots: {} },
+        variation: null,
+        resolution: 'keep',
+        state: 'kept',
+      });
+      expect(answer.reset).toEqual({
+        removed: ['2 generated results', `the draft ${own.cid}`],
+        retained: [
+          `the draft ${shared.cid}: a map population uses it`,
+          'published definitions, bindings, placements, defaults and the population audit',
+        ],
+        failures: [],
+        purged: expect.arrayContaining([entries[0].cid, own.cid]),
+        remaining: { runs: 0, drafts: 1 },
+      });
+      expect(await stored(entries[0].cid)).toEqual({ definition: false, frames: false });
+      expect(await stored(own.cid)).toEqual({ definition: false, frames: false });
+      expect(await stored(shared.cid)).toEqual({ definition: true, frames: true });
+      expect(await models().CyberiaProceduralJob.countDocuments({ populationId: population._id })).toBe(0);
+      expect(
+        await models().CyberiaProceduralJobItem.countDocuments({ jobId: { $in: entries.map(({ id }) => id) } }),
+      ).toBe(0);
+      expect(
+        await models().CyberiaProceduralAudit.countDocuments({ jobId: { $in: entries.map(({ id }) => id) } }),
+      ).toBe(0);
+      expect(await boundCid('violet-skin')).toBe(cids['violet-skin']);
+
+      const { revision } = await view(population._id);
+      const twice = await reset(population._id, 'violet-skin');
+      expect(twice.reset).toMatchObject({ removed: [], failures: [], remaining: { runs: 0, drafts: 1 } });
+      expect(twice.revision).toBe(revision);
+      expect(
+        await models().CyberiaProceduralAudit.countDocuments({ action: 'target.reset', populationId: population._id }),
+      ).toBe(1);
+
+      await change(population._id, 'violet-skin', { resolution: 'render' });
+      await generate(population._id, 'violet-skin');
+      const [fresh] = await models().CyberiaProceduralJob.find({ populationId: population._id }).lean();
+      expect(seeds).not.toContain(fresh.spec.seed.value);
+      await deletePopulation({ models: all(), id: other._id, options: host });
+      const deleted = await deletePopulation({ models: all(), id: population._id, options: host });
+      expect(deleted).toMatchObject({ jobs: 1, drafts: 1 });
+      expect(await stored(shared.cid)).toEqual({ definition: false, frames: false });
     });
 
     it('answers the binding of each item a live map places with whether it has a render, for the Map Engine', async () => {
@@ -913,94 +1224,6 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       });
     });
 
-    it('resets the workflow of an item to a clean start, keeps what others use, records it, and changes nothing twice', async () => {
-      const population = await create('violet-hollow');
-      const draft = await authorSkin(population._id, 'to reset');
-      await change(population._id, 'violet-skin', {
-        resolution: 'render',
-        palette: { slots: { 'hair.base': '#101010' } },
-      });
-      await generate(population._id, 'violet-skin');
-      await drain();
-      await select(population._id, 'violet-skin');
-      const [entry] = await entriesOf(population._id, 'violet-skin');
-      const { runs } = targetOf(await view(population._id), 'violet-skin');
-
-      const reset = await resetTarget({
-        models: all(),
-        id: population._id,
-        itemId: 'violet-skin',
-        actor: MODERATOR,
-        options: host,
-      });
-      expect(targetOf(reset, 'violet-skin')).toMatchObject({
-        runs: [],
-        definitionCid: '',
-        palette: { slots: {} },
-        variation: null,
-        resolution: 'keep',
-        state: 'kept',
-      });
-      expect(reset.reset).toEqual({
-        removed: [
-          'the selection of entry 1',
-          '1 run from the item; jobs and audit stay',
-          `the use of the authored definition ${draft.cid}`,
-          `the draft ${draft.cid}`,
-        ],
-        retained: ['published definitions, bindings, placements, defaults, jobs and audit'],
-        failures: [],
-      });
-      expect(await models().ObjectLayer.exists({ cid: draft.cid })).toBeNull();
-      expect((await models().CyberiaProceduralJobItem.findById(entry.id).lean()).status).toBe('cancelled');
-      expect(await models().CyberiaProceduralJob.countDocuments({ _id: { $in: runs } })).toBe(runs.length);
-      expect(await boundCid('violet-skin')).toBe(cids['violet-skin']);
-      expect(
-        await models()
-          .CyberiaProceduralAudit.findOne({
-            action: 'target.reset',
-            populationId: population._id,
-            itemId: 'violet-skin',
-          })
-          .lean(),
-      ).toMatchObject({ actor: MODERATOR, reason: expect.stringContaining('removed: the selection of entry 1') });
-
-      const { revision } = await view(population._id);
-      const twice = await resetTarget({
-        models: all(),
-        id: population._id,
-        itemId: 'violet-skin',
-        actor: MODERATOR,
-        options: host,
-      });
-      expect(twice.reset).toEqual({
-        removed: [],
-        retained: ['published definitions, bindings, placements, defaults, jobs and audit'],
-        failures: [],
-      });
-      expect(twice.revision).toBe(revision);
-
-      const shared = await authorSkin(population._id, 'shared');
-      const other = await create('blank-room');
-      await addTarget({ models: all(), id: other._id, body: { itemId: 'violet-skin', cid: shared.cid } });
-      const third = await resetTarget({
-        models: all(),
-        id: population._id,
-        itemId: 'violet-skin',
-        actor: MODERATOR,
-        options: host,
-      });
-      expect(third.reset.retained).toContain(`the draft ${shared.cid}: a map population uses it`);
-      expect(await models().ObjectLayer.exists({ cid: shared.cid })).toBeTruthy();
-      expect(
-        await models().CyberiaProceduralAudit.countDocuments({ action: 'target.reset', populationId: population._id }),
-      ).toBe(2);
-      await deletePopulation({ models: all(), id: other._id, options: host });
-      await deletePopulation({ models: all(), id: population._id, options: host });
-    });
-  });
-
-  describe('entries and selection', () => {
     it('generates any item on its own, and nothing for an item whose binding moved', async () => {
       const population = await create('violet-hollow');
       await change(population._id, 'violet-skin', { resolution: 'render' });
@@ -1019,31 +1242,22 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await deletePopulation({ models: all(), id: population._id, options: host });
     });
 
-    it('selects one entry at a time, discards one, and an edit asks to select again', async () => {
+    it('selects one result at a time, deletes one, and an edit asks to use it again', async () => {
       const population = await create('violet-hollow');
       await change(population._id, 'violet-moss', { resolution: 'render' });
       await generate(population._id, 'violet-moss', 2);
       await drain();
       const [newer, older] = await entriesOf(population._id, 'violet-moss');
-      expect([newer.state, older.state, newer.run, older.run]).toEqual(['ready', 'ready', 1, 0]);
+      expect([newer.state, older.state]).toEqual(['ready', 'ready']);
       expect(targetOf(await view(population._id), 'violet-moss').state).toBe('choose');
       await select(population._id, 'violet-moss', older);
       const switched = await select(population._id, 'violet-moss', newer);
-      expect(targetOf(switched, 'violet-moss')).toMatchObject({ state: 'selected', selected: { id: newer.id } });
+      expect(targetOf(switched, 'violet-moss')).toMatchObject({ state: 'selected', selected: { id: newer.entryId } });
       expect((await entriesOf(population._id, 'violet-moss')).map(({ state }) => state)).toEqual(['selected', 'ready']);
-      expect(await rejection(select(population._id, 'violet-moss', { ...older, cid: newer.cid }))).toMatchObject({
-        status: 409,
-      });
-      await discardEntry({
-        models: all(),
-        id: population._id,
-        itemId: 'violet-moss',
-        entryId: older.id,
-        actor: MODERATOR,
-      });
-      expect((await entriesOf(population._id, 'violet-moss'))[1].state).toBe('discarded');
+      await remove(population._id, 'violet-moss', [older.id]);
+      expect((await entriesOf(population._id, 'violet-moss')).map(({ id }) => id)).toEqual([newer.id]);
 
-      const item = await models().CyberiaProceduralJobItem.findById(newer.id).lean();
+      const item = await models().CyberiaProceduralJobItem.findById(newer.entryId).lean();
       await saveRevision({
         models: models(),
         id: item._id,
@@ -1369,15 +1583,22 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await change(current._id, 'violet-moss', { resolution: 'render' });
       await generate(current._id, 'violet-moss');
       await generate(current._id, 'ghost-floor');
-      const stored = await Population.findById(current._id).lean();
+      const { nextRun, ...stored } = await Population.findById(current._id).lean();
+      const [mossRun] = await runIds(current._id, 'violet-moss');
+      const [ghostRun] = await runIds(current._id, 'ghost-floor');
       await Population.collection.deleteOne({ _id: stored._id });
+      await Job.collection.updateMany({ populationId: stored._id }, { $unset: { populationItemId: '' } });
       // A version 2 record as the earlier engine stored it, under the same id: its jobs name it.
       const v2 = {
         ...stored,
         version: 2,
         fingerprint: `v2-${stored.fingerprint}`,
-        targets: stored.targets.map(({ observed, resolution, ...target }) => ({
+        targets: stored.targets.map(({ observed, resolution, drafts, ...target }) => ({
           ...target,
+          runs:
+            { 'violet-moss': [mossRun], 'ghost-floor': [ghostRun] }[target.itemId]?.map(
+              (id) => new Types.ObjectId(id),
+            ) ?? [],
           strategies: ['keep', 'render', 'template'],
           recommended: 'keep',
           strategy: resolution === 'keep' ? 'render' : resolution === 'template' && !target.cid ? 'create' : resolution,
@@ -1430,7 +1651,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
 
       await migratePopulations(all(), { apply: true, palettes: paletteIds() });
       const moved = await view(String(v2._id));
-      expect(moved).toMatchObject({ version: POPULATION_VERSION, revision: 0, status: 'open' });
+      expect(moved).toMatchObject({ version: POPULATION_VERSION, revision: 0, status: 'open', nextRun });
       expect(moved.defaults.added.map(String)).toEqual([String(wardenRow._id)]);
       expect(targetOf(moved, 'small-skin')).toMatchObject({
         resolution: 'keep',
@@ -1455,9 +1676,9 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       ]);
       expect(moved.publication.status).toBe('cancelled_before_commit');
       expect(moved.migration).toMatchObject({ from: 2, legacyDefaults: dry.migrated[0].legacyDefaults });
-      const ghostRun = targetOf({ targets: stored.targets }, 'ghost-floor').runs[0];
       expect((await Job.findById(ghostRun).lean()).status).toBe('cancelled');
-      expect(await Job.exists({ _id: targetOf({ targets: stored.targets }, 'violet-moss').runs[0] })).not.toBeNull();
+      expect(await Job.exists({ _id: mossRun })).not.toBeNull();
+      expect((await entriesOf(String(v2._id), 'violet-moss')).map(({ id }) => id)).toEqual([mossRun]);
       expect((await all().CyberiaEntityTypeDefault.findById(wardenRow._id).lean()).behavior).toBe('passive');
 
       const again = await migratePopulations(all(), { apply: true, palettes: paletteIds() });
@@ -1465,7 +1686,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       expect(await view(String(v2._id))).toMatchObject({ version: POPULATION_VERSION, revision: 0 });
       const raw = await Population.findById(v2._id).lean();
       for (const target of [...raw.targets, ...raw.removed.map(({ target: removed }) => removed)])
-        for (const key of ['strategy', 'strategies', 'recommended', 'templates'])
+        for (const key of ['strategy', 'strategies', 'recommended', 'templates', 'runs'])
           expect(target).not.toHaveProperty(key);
       await rebind('violet-stone', cids['violet-stone']);
       await deletePopulation({ models: all(), id: String(v2._id), options: host });
@@ -1503,8 +1724,13 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const current = await create('violet-array');
       await change(current._id, 'violet-moss', { resolution: 'render' });
       await generate(current._id, 'violet-moss');
-      const stored = await Population.findById(current._id).lean();
+      const { nextRun, ...stored } = await Population.findById(current._id).lean();
+      const runs = await runIds(current._id, 'violet-moss');
       await Population.collection.deleteOne({ _id: stored._id });
+      await all().CyberiaProceduralJob.collection.updateMany(
+        { populationId: stored._id },
+        { $unset: { populationItemId: '' } },
+      );
       const strategyOf = { 'ghost-floor': 'create', 'violet-moss': 'render', atlas_pistol_mk2: null };
       const resolutionOf = (strategy) =>
         ({ create: 'template', definition: 'author' })[strategy] ?? strategy ?? 'author';
@@ -1519,8 +1745,9 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
         migration: { from: 3, at: new Date('2026-10-01T00:00:00Z'), kept: [], removed: [], legacyDefaults: [] },
         targets: stored.targets
           .filter(({ itemId }) => itemId !== 'iron-sword')
-          .map(({ resolution, ...target }) => ({
+          .map(({ resolution, drafts, ...target }) => ({
             ...target,
+            runs: target.itemId === 'violet-moss' ? runs.map((id) => new Types.ObjectId(id)) : [],
             strategies: [],
             recommended: null,
             templates: target.templateId ? [target.templateId] : [],
@@ -1559,6 +1786,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
             { itemId: 'violet-moss', from: 'floor.dark-basalt', to: 'dark-basalt', resolved: true },
             { itemId: 'iron-sword', from: 'skin.exotic-teal', to: 'exotic-teal', resolved: true },
           ],
+          nextRun,
         },
       ]);
       await migratePopulations(all(), { apply: true, palettes: paletteIds() });
@@ -1582,13 +1810,59 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
           palette: { paletteId: 'exotic-teal' },
         },
       });
-      expect(targetOf(raw, 'violet-moss').runs.map(String)).toEqual(targetOf(stored, 'violet-moss').runs.map(String));
+      expect(raw.nextRun).toBe(nextRun);
+      expect(raw.targets.every((target) => !('runs' in target) && target.drafts.length === 0)).toBe(true);
+      expect((await entriesOf(String(v4._id), 'violet-moss')).map(({ id }) => id)).toEqual(runs);
       const moved = await view(String(v4._id));
       expect(targetOf(moved, 'ghost-floor')).toMatchObject({ resolution: 'template', state: 'new' });
       expect(targetOf(moved, 'atlas_pistol_mk2')).toMatchObject({ resolution: 'author', state: 'author' });
       expect((await migratePopulations(all(), { apply: true, palettes: paletteIds() })).migrated).toEqual([]);
       expect(await Population.findById(v4._id).lean()).toEqual(raw);
       await deletePopulation({ models: all(), id: String(v4._id), options: host });
+    });
+
+    it('moves a version 6 record: its runs leave the targets, the population counts them, and no draft is claimed', async () => {
+      const { CyberiaProceduralPopulation: Population } = all();
+      const current = await create('violet-array');
+      await change(current._id, 'violet-moss', { resolution: 'render' });
+      await generate(current._id, 'violet-moss', 2);
+      const runs = await runIds(current._id, 'violet-moss');
+      const seeds = (
+        await models()
+          .CyberiaProceduralJob.find({ _id: { $in: runs } })
+          .lean()
+      ).map(({ spec }) => spec.seed.value);
+      const { nextRun, ...stored } = await Population.findById(current._id).lean();
+      await all().CyberiaProceduralJob.collection.updateMany(
+        { populationId: stored._id },
+        { $unset: { populationItemId: '' } },
+      );
+      await Population.collection.replaceOne(
+        { _id: stored._id },
+        {
+          ...stored,
+          version: 6,
+          targets: stored.targets.map(({ drafts, ...target }) => ({
+            ...target,
+            runs: target.itemId === 'violet-moss' ? [new Types.ObjectId(runs[1])] : [],
+          })),
+        },
+      );
+      const dry = await migratePopulations(all(), { apply: false, palettes: paletteIds() });
+      expect(dry.migrated).toEqual([{ id: String(stored._id), mapCode: 'violet-array', from: 6, nextRun: 2 }]);
+      await migratePopulations(all(), { apply: true, palettes: paletteIds() });
+      const raw = await Population.findById(stored._id).lean();
+      expect(raw).toMatchObject({ version: POPULATION_VERSION, nextRun: 2, revision: stored.revision });
+      expect(raw.targets.every((target) => !('runs' in target) && target.drafts.length === 0)).toBe(true);
+      expect((await entriesOf(String(stored._id), 'violet-moss')).map(({ id }) => id)).toEqual([...runs].reverse());
+      await generate(String(stored._id), 'violet-moss');
+      const [fresh] = await models()
+        .CyberiaProceduralJob.find({ populationId: stored._id })
+        .sort({ createdAt: -1, _id: -1 })
+        .lean();
+      expect(seeds).not.toContain(fresh.spec.seed.value);
+      expect((await migratePopulations(all(), { apply: true, palettes: paletteIds() })).migrated).toEqual([]);
+      await deletePopulation({ models: all(), id: String(stored._id), options: host });
     });
 
     it('moves a version 5 publication: each asset names its revision and result, and the publication resumes on its manifest', async () => {
@@ -1625,7 +1899,15 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       await Population.collection.updateOne({ _id: population._id }, { $set: { version: 5, publication: earlier } });
 
       const { migrated } = await migratePopulations(all(), { apply: true, palettes: paletteIds() });
-      expect(migrated).toEqual([{ id: String(population._id), mapCode: 'violet-array', from: 5, manifest: true }]);
+      expect(migrated).toEqual([
+        {
+          id: String(population._id),
+          mapCode: 'violet-array',
+          from: 5,
+          manifest: true,
+          nextRun: await all().CyberiaProceduralJob.countDocuments({ populationId: population._id }),
+        },
+      ]);
       const moved = (await Population.findById(population._id).lean()).publication;
       expect(
         moved.plan.assets.map(({ status, revisionCid, definitionCid, attempts }) => [

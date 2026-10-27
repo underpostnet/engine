@@ -346,65 +346,142 @@ definition, else the current artwork while it has a render, else a template, els
 hand. Generation is optional: an item with valid artwork starts kept. No resolution replaces artwork
 that the moderator did not select.
 
-**Authored by hand.** It works for every canonical item type, a type a generator draws too.
-**Create draft** opens the Object Layer Studio under the label "Procedural Engine" on a blank draft
-with the item id, the item type and one empty down idle frame: never template pixels and never a
-generation. A save stores a new draft definition through the Studio persistence and selects it; the
-same content saved again is the same draft. No CID or binding changes before the population
-publishes and binds it with the map. Back returns to the same item of the same population, and the
-view reads it again.
+**One editor.** Every item has the same editor, in two parts. First the resolution: the selector,
+the settings of the chosen resolution, and one primary action in the same place for all four:
 
-The item lists every stored definition of its item id, newest first, each with its state:
-**Selected** (the draft the item uses), **Saved draft**, **Superseded** (a draft saved before the
-selected one), **No render** (a draft with no frames: it cannot be used or published), **Runs now**
-and **Published**. **Use this draft** selects a draft or a published definition with a render; the
-selection is stored, so it stays after a reload. **Continue editing** opens a draft in the Studio.
-**Delete draft** deletes a draft nothing keeps; a kept draft names what keeps it. An item set to
-Authored by hand with no definition yet needs attention and blocks the publication, as an undecided
-item does.
+| Resolution                    | Settings                                      | Primary action           |
+| ----------------------------- | --------------------------------------------- | ------------------------ |
+| Keep current artwork          | The CID it runs and its binding revision      | Keep current artwork     |
+| Generate from current artwork | Template, palette, variation, results to make | Generate variants        |
+| Rebuild from template         | Template, palette, variation, results to make | Rebuild from template    |
+| Authored by hand              | Start from empty canvas, or existing artwork  | Open Object Layer Studio |
+
+A choice of resolution or setting stores nothing; the primary action stores it. Keep current artwork
+records the binding of this moment, and the item is ready at once. Generate variants and Rebuild
+from template store the settings, then generate. Open Object Layer Studio opens the start the editor
+names. There is no Save button. Second, the results of the item, in one gallery.
+
+**Ready.** An item is ready when its resolution has its artwork: it keeps its binding, it uses a
+result, or it uses an authored definition. Ready is not published: the population publishes and
+binds the artwork with the map, and only then the item shows Published.
+
+**Authored by hand.** It works for every canonical item type, a type a generator draws too. The
+draft starts from one of two choices. **Start from empty canvas** opens the Object Layer Studio under
+the label "Procedural Engine" on a blank draft with the item id, the item type and one empty down
+idle frame: never template pixels and never a generation. **Continue from existing artwork** opens
+the exact definition the moderator chooses: the definition the item runs now (**Current binding**),
+then every stored definition of the item id, newest first: its drafts, the definition it uses, and
+those any other workflow stored, published or not, with or without a render. The revisions of the
+runs of the item are left out, since each result continues its own. A save stores a new draft
+definition through the Studio persistence and selects it; the definition it started from stays, and
+the same content saved again is the same draft. A draft a save creates is a result of the item: the
+target lists it in `drafts`, which is how the workflow knows the drafts it owns. No CID or binding
+changes before the population publishes and binds it with the map. Back returns to the same item of
+the same population, and the view reads it again. An item set to Authored by hand with no
+definition yet needs attention and blocks the publication, as an undecided item does.
+
+**Results.** The Results card of an item shows every artifact its workflow made and keeps, in one
+gallery: each run of the item, labelled **Generated** (from its current artwork) or **Genesis
+Template**; each **Hand-authored** draft its Studio saves stored; and the **Stored definition** it
+uses when another workflow stored it. A **Runs now** label marks a result whose CID the item runs
+now. Each result shows its artwork, its state and its actions:
+
+| State              | Meaning                                                     |
+| ------------------ | ----------------------------------------------------------- |
+| Generating         | The worker runs it                                          |
+| Ready              | Generated and valid; it waits for a choice                  |
+| Open in the Studio | A moderator edits it                                        |
+| Selected           | The item publishes it                                       |
+| Published          | A publication bound it                                      |
+| Saved              | A draft saved after the selected one, or with none selected |
+| Superseded         | A draft saved before the selected one                       |
+| Discarded          | A review rejected it; it can only be deleted                |
+| Failed             | The generation failed; its error shows                      |
+| Cancelled          | Its run stopped before it finished                          |
+| Record missing     | Its run holds no candidate record                           |
+
+A **No render** badge marks a result whose definition has no render frames. The server derives each
+action and its availability; an action that does not apply names its reason on the card:
+
+| Action           | What it does                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| Use this result  | Makes its exact revision the artwork the item publishes, in one write: the item is ready |
+| Continue editing | Opens it in the Object Layer Studio; a save makes a new revision or draft to use         |
+| Retry            | Runs a failed result again under its own seed: the same result, never a new one          |
+| Delete           | Removes it with its frames, atlas and render files                                       |
+
+**Use this result** checks that the result belongs to the item, has its render, and is the
+revision the moderator saw; it never picks another revision. A generated result of another start
+switches the resolution in the same write. Using the selected result again changes nothing. The
+selection is stored, so it stays after a reload, and nothing else is saved after it. **Retry** is there only for a
+failure a second run can pass: a lost lease or a failing store. A generator that refuses its input,
+or a result that fails validation, fails the same way under the same seed; Generate makes a new
+result instead. **Delete** stops a run that still works first, so the worker makes nothing more for
+it, and a result the worker stores after the delete is purged at once. A generated result goes with
+its run, candidate and audit trail; a draft goes only when the item stored it. It refuses the
+selected result (use another result or reset the item first), published content and a definition
+something else keeps, and names the reason. **View
+details** shows the source, state, revision CID, run, template, palette, validation, times and what
+keeps it; for a generated result it reads the audit trail. **Delete unselected** deletes every
+result that is not selected and that nothing keeps. A delete asks first in a short confirmation that
+names each result; what stays is behind a disclosure, and the buttons stay in view on a small
+screen. Each delete is its own: one that fails leaves the others done, and deleting again is safe.
+
+**Retention.** An item keeps at most 16 results: four full Generate requests. One skin result stores
+about 240 KB (render frames, atlas and its renders), so an item holds under 4 MB, and its results
+fill a tenth of the 256 sprites the view caches. Generate and a Studio save refuse beyond the limit
+and say how many results the item keeps; the card shows the count. Nothing is deleted on its own:
+the moderator deletes unselected results to make room. A delete or a reset drops the sprites of the
+removed definitions from the page cache.
 
 **Reset item.** A workflow can end in a state nobody wants to repair by hand. **Reset item** returns
-the item to a clean start after a confirmation that lists what goes and what stays: the selection,
-the runs, the use of the authored draft, the palette choice and the variation go; the draft goes
-when nothing else keeps it. Published definitions, bindings, placements, defaults, jobs and audit
-stay. The reset reports what it removed, what it kept and what failed, and runs again safely.
-**Remove from population** is another action: it takes the item out of the population.
+the item to a clean start after a confirmation; what goes and what stays is behind a disclosure.
+Every generated
+result goes with its run and the revisions nothing else keeps, the selected one too; each draft the
+item stored goes when nothing else keeps it; the item no longer uses its definition and takes the
+recommendation now with no palette choice and no variation. Published definitions, bindings,
+placements, defaults, a definition another workflow stored and the population audit stay. The reset reports
+what it removed, what stayed and why, what failed, and what the workflow still owns; a reset of a
+clean item changes nothing, and running it again retries what failed. The next Generate gives new
+results: each run of a population takes a run index no other run took, and its seed derives from
+it. **Remove from population** is another action: it takes the item out of the population.
 
-**A change of resolution.** A switch deletes nothing: the entries, the authored definition, the
-binding and the audit stay. It takes the approval back from the selected entry, which stays ready
-for a later choice; the audit names the change. Keep records the binding of that moment again.
+**A change of resolution.** A switch deletes nothing: the results, the authored definition, the
+binding and the audit stay. It takes the approval back from the selected result, which stays ready
+for a later choice; the audit names the change. Keep records the binding of that moment again. The
+definition the item authored stays kept while it has another resolution: it shows as Saved, and
+Use this result authors the item with it again.
 
 **Keep.** A keep records the CID the item runs and its binding revision: how many bindings its
 catalog history holds. It needs no run and no revision. When the item is bound again, the item shows
-a conflict until the moderator keeps it again or chooses new artwork, and the publication checks the
-binding again in its transaction.
+a conflict until the moderator runs Keep current artwork again or chooses new artwork, and the
+publication checks the binding again in its transaction.
 
 **Remove from population.** One operation takes an item out, whatever its source: the foundation,
-a placement or the moderator. It cancels the active work of its runs and keeps its jobs, entries and
+a placement or the moderator. It cancels the active work of its runs and keeps its jobs, results and
 audit. The catalog, the definitions, the bindings, the placements and the Map Studio catalog stay as
 they are. A removed item stays in the Removed list, with who removed it, when and why. From there a
-moderator restores it, with its runs, or forgets it permanently.
+moderator restores it, with its results, or forgets it permanently.
 
 **Forget permanently.** It deletes only the entry of that item in the Removed list of this
 population, after a confirmation that names the item and that scope. The definitions, the CIDs, the
 bindings, the placements, the defaults, the other items, the jobs and the audit stay. Forgetting an
 item the list does not hold changes nothing, and the list changes only when the server confirms.
-Nothing remembers the item after that: a later read of the map, or a moderator, may add it again.
+A later read of the map, or a moderator, may add the item again; its earlier runs show again as its
+results, since each job names the population and the item it generates.
 
-**Configuration and entries.** The configuration of an item is saved on the server and changes at
-any time: the view shows whether it is saved, saving, or failed, and asks before it drops unsaved
-changes. Generate stores runs from the configuration as it is; each run has its own seed, so a new
-run gives new artwork and an old entry stays. Select publishes the exact revision of one entry; the
-entry selected before returns to ready. Edit artwork opens the entry in the Object Layer Studio, and
-a save there makes a new revision to select; the Studio then returns to the same item of the same
-population. Discard rejects an entry and keeps its revision. The gallery shows each entry as the
-game client draws it: its idle frames, animated.
+**Settings.** The settings of an item are stored on the server by its primary action and change at
+any time; the view asks before it drops settings no Generate stored. Generate stores runs from the
+settings as they are; each run has its own seed, so a new run gives new artwork and an earlier
+result stays. Continue editing opens a generated result in the Object
+Layer Studio, and a save there makes a new revision to use; the Studio then returns to the same item
+of the same population. Each result shows as the game client draws it: its idle frames, animated.
 
 **Artwork of an item.** One function on the server resolves the artwork every view shows, from the
 working state: a kept item shows its binding; else the definition it uses, its selected entry, its
-newest stored entry not selected yet, else the binding it runs now. An item none of these draws is
-missing. Each picture names its source (Kept, Definition, Selected entry, Newest entry not selected,
-Runs now, No artwork), so a draft never passes for published content. A CID names immutable content:
+newest stored result not selected yet, else the binding it runs now. An item none of these draws is
+missing. Each picture names its source (Kept, Authored, Selected result, Newest result not
+selected, Runs now, No artwork), so a draft never passes for published content. A CID names immutable content:
 a new revision has a new CID, so a picture never shows a stale revision.
 
 **Palettes for several items.** The moderator checks items and chooses one source, a Palette
@@ -520,8 +597,11 @@ waits: the worker tries it again with a longer wait each time. A second publish 
 runs answers the same publication.
 
 **Records of an earlier version.** A population keeps its version. A record of another version shows
-as outdated and read-only. `cyberia population migrate` reports what a move of each version 2, 3 or
-4 record would do, and writes nothing; `--apply` writes it. No deploy runs it. Every record: each
+as outdated and read-only. `cyberia population migrate` reports what a move of each version 2 to 6
+record would do, and writes nothing; `--apply` writes it. No deploy runs it. Every record: its
+targets drop their run lists, each job names the item of the target that listed it (or of its
+candidate when none did), and the population counts its jobs as its next run index; no draft is
+claimed, so an earlier draft is a stored definition to continue from, and a reset leaves it. Each
 earlier strategy takes its resolution (`create` is `template`, `definition` and none are `author`),
 the frozen lists of what a target allowed go, and each palette reference takes its global id
 (`skin.exotic-teal` is `exotic-teal`, with the same colors). Of a version 2 or 3 record, a kept item
@@ -690,8 +770,8 @@ approval is a human decision about quality.
 cancelled. Nothing is deleted. A result that a worker stores after its candidate is cancelled is
 purged at once.
 
-**Delete** removes a job in any status and everything it left: its candidates, its audit trail, and
-every revision no item runs or ran, with its render frames, atlas and pin records. Approved, edited
+**Delete** removes a job in any status and everything it left: its candidates, every revision no
+item runs or ran, with its render frames, atlas and pin records, and its audit trail. Approved, edited
 and rejected candidates go with it. A revision this host published, for example by a promotion whose
 bind failed, goes from the Object Layer authority too: the authority lets the domain that published a
 definition purge it. A job that still works stops first, as a cancel stops it, so the worker makes
@@ -728,7 +808,11 @@ edits `cyberia-content`.
 
 Every decision that shapes an asset is a record in `CyberiaProceduralAudit`: the action, the actor,
 the job, the candidate, the revisions and CIDs before and after, and the reason. A promotion is
-`item.promoted` for an update and `item.created` for a create.
+`item.promoted` for an update and `item.created` for a create. A job delete is a total cleanup: the
+audit trail of the job goes with it, so a permanent record never keeps heavy artwork alive. The
+population keeps its own record of each delete and reset (`target.entry_deleted`,
+`target.draft_deleted`, `target.reset`) with the actor, the item, the run and the CID; these stay
+after the job, the result and the population are gone.
 
 ## Code layout
 
@@ -744,7 +828,7 @@ src/projects/cyberia/procedural/
 ├── generators/sprite/     the sprite generator of skins and portals, its operators and hair growth
 ├── generators/floor/      the floor generator and its torus operators
 ├── jobs/                  job creation, the worker, review and promotion
-├── population/            map context, targets, draft, theme, entity defaults, publication
+├── population/            map context, targets, results, draft, theme, entity defaults, publication
 ├── profiles/registry.js   profile validation and the shipped profiles
 └── palettes/              the palette catalog from content, and palette resolution
 ```

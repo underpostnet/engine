@@ -1,8 +1,8 @@
 /**
- * The migration of map populations to the record version of the model. A version 2 to 5 record
+ * The migration of map populations to the record version of the model. A version 2 to 6 record
  * moves; a record of any other earlier version stays outdated and read-only, and a delete takes it.
  *
- * | earlier record                       | version 6                                                      |
+ * | earlier record                       | version 7                                                      |
  * | ------------------------------------ | -------------------------------------------------------------- |
  * | v2 target with `kept: true`          | resolution `keep` at the CID it read, at the revision it bound |
  * | v2 target with `excluded`            | a removed target, with who removed it, when and why           |
@@ -12,8 +12,13 @@
  * | strategy `create`, `definition`, none | resolution `template`, `author`, `author`                      |
  * | palette `<itemType>.<slug>`          | the global palette `<slug>`, with the same colors              |
  * | publication asset `cid`, `published` | `revisionCid`, its status and its definition; a manifest hash  |
+ * | target `runs`                        | none: each job names the item of the target that listed it, or |
+ * |                                      | of its candidate when none did; `nextRun` counts the jobs, so  |
+ * |                                      | no later run takes an earlier seed                             |
+ * | no list of stored drafts             | `drafts` empty: an earlier draft shows among the stored        |
+ * |                                      | definitions of its item, and a reset leaves it                 |
  *
- * A version 4 or 5 record keeps its revision, its defaults, its publication and the report of its
+ * A version 4 to 6 record keeps its revision, its defaults, its publication and the report of its
  * own migration. Nothing changes a binding, a CID, an entity-type default, a placement or a job. The jobs
  * of a removed target stop their active work and stay, with their audit. Running the migration
  * again changes nothing.
@@ -25,11 +30,11 @@ import {
   CLOSED_BEFORE_COMMIT,
   POPULATION_VERSION,
 } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
-import { stopJob } from './population.js';
+import { runsOf, stopJob } from './population.js';
 import { manifestHashOf } from './publication.js';
 
 /** The record versions this migration moves. */
-const FROM_VERSIONS = Object.freeze([2, 3, 4, 5]);
+const FROM_VERSIONS = Object.freeze([2, 3, 4, 5, 6]);
 
 /** The resolution of each earlier strategy; a target with none is authored by hand. */
 const RESOLUTION_OF = Object.freeze({
@@ -127,21 +132,10 @@ function currentPublication(publication) {
   };
 }
 
-/**
- * A version 2 to 5 population in version 6, and what the move changed and kept. Pure.
- * @param {Object} record - A lean version 2 to 5 population.
- * @param {Object} live
- * @param {Map<string,Object>} live.catalog - The catalog entry of each kept item, with its history.
- * @param {Set<string>} live.rows - The ids of the stored entity-type defaults among those the changes name.
- * @param {Set<string>} live.palettes - The ids of the global palettes.
- * @param {Date} live.now
- * @returns {{set:Object,report:Object}}
- * @memberof CyberiaPopulationMigration
- */
-export function migratedPopulation(record, { catalog, rows, palettes, now }) {
+/** A version 2 to 5 population in the form of version 6, and what the move changed and kept. */
+function sixOf(record, { catalog, rows, palettes, now }) {
   const publication = currentPublication(record.publication);
-  if (record.version === 5)
-    return { set: { version: POPULATION_VERSION, publication }, report: { manifest: Boolean(publication?.plan) } };
+  if (record.version === 5) return { set: { publication }, report: { manifest: Boolean(publication?.plan) } };
   const moved =
     record.version === 2
       ? keptTargets(record, catalog, now)
@@ -149,8 +143,7 @@ export function migratedPopulation(record, { catalog, rows, palettes, now }) {
   const moves = { resolutions: [], palettes: [] };
   const targets = moved.targets.map((target) => currentTarget(target, moves, palettes));
   const removed = moved.removed.map((entry) => ({ ...entry, target: currentTarget(entry.target, moves, palettes) }));
-  if (record.version === 4)
-    return { set: { version: POPULATION_VERSION, targets, removed, publication }, report: moves };
+  if (record.version === 4) return { set: { targets, removed, publication }, report: moves };
   const legacyDefaults = (record.defaults ?? []).map(({ rowId, action, row, expectedUpdatedAt }) => ({
     rowId: String(rowId),
     action,
@@ -174,7 +167,6 @@ export function migratedPopulation(record, { catalog, rows, palettes, now }) {
   };
   return {
     set: {
-      version: POPULATION_VERSION,
       revision: record.revision ?? 0,
       targets,
       removed,
@@ -194,7 +186,49 @@ export function migratedPopulation(record, { catalog, rows, palettes, now }) {
 }
 
 /**
- * Moves every version 2 to 5 population to version 6, or reports what a move would do with
+ * Names on each job of an earlier population the item it generates: the target whose runs list it,
+ * else the item its candidate names. A job that names its item already stays as it is.
+ */
+async function tagRuns(Job, record) {
+  const untagged = { populationId: record._id, populationItemId: { $in: ['', null] } };
+  for (const target of [...record.targets, ...(record.removed ?? []).map(({ target: removed }) => removed)])
+    if (target.runs?.length > 0)
+      await Job.collection.updateMany(
+        { ...untagged, _id: { $in: target.runs } },
+        { $set: { populationItemId: target.itemId } },
+      );
+  for (const { _id, spec } of await Job.find(untagged, { 'spec.candidates.targetItemId': 1 }).lean())
+    await Job.collection.updateOne(
+      { _id, ...untagged },
+      { $set: { populationItemId: spec.candidates?.[0]?.targetItemId ?? '' } },
+    );
+}
+
+/**
+ * A version 2 to 6 population in this version, and what the move changed and kept. Pure.
+ * @param {Object} record - A lean version 2 to 6 population.
+ * @param {Object} live
+ * @param {Map<string,Object>} live.catalog - The catalog entry of each kept item, with its history.
+ * @param {Set<string>} live.rows - The ids of the stored entity-type defaults among those the changes name.
+ * @param {Set<string>} live.palettes - The ids of the global palettes.
+ * @param {number} live.runs - The jobs that name the population.
+ * @param {Date} live.now
+ * @returns {{set:Object,report:Object}}
+ * @memberof CyberiaPopulationMigration
+ */
+export function migratedPopulation(record, live) {
+  const { set, report } = record.version === 6 ? { set: {}, report: {} } : sixOf(record, live);
+  const current = ({ runs, ...target }) => ({ ...target, drafts: [] });
+  const targets = (set.targets ?? record.targets).map(current);
+  const removed = (set.removed ?? record.removed ?? []).map((entry) => ({ ...entry, target: current(entry.target) }));
+  return {
+    set: { ...set, version: POPULATION_VERSION, nextRun: live.runs, targets, removed },
+    report: { ...report, nextRun: live.runs },
+  };
+}
+
+/**
+ * Moves every version 2 to 6 population to this version, or reports what a move would do with
  * `apply` false. A record of another earlier version stays outdated, with its recovery.
  * @param {Object} models - {@link populationModels}.
  * @param {Object} params
@@ -209,7 +243,12 @@ export async function migratePopulations(
   models,
   { apply, palettes, actor = 'population-migration', now = new Date() },
 ) {
-  const { CyberiaProceduralPopulation: Population, CyberiaItemCatalog, CyberiaEntityTypeDefault } = models;
+  const {
+    CyberiaProceduralPopulation: Population,
+    CyberiaProceduralJob,
+    CyberiaItemCatalog,
+    CyberiaEntityTypeDefault,
+  } = models;
   const records = await Population.find({ version: { $ne: POPULATION_VERSION } })
     .sort({ createdAt: 1 })
     .lean();
@@ -226,21 +265,24 @@ export async function migratePopulations(
     }
     const keptIds = record.version === 2 ? record.targets.filter(({ kept }) => kept).map(({ itemId }) => itemId) : [];
     const named = record.version >= 4 ? [] : (record.defaults ?? []).map(({ rowId }) => rowId);
-    const [entries, stored] = await Promise.all([
+    const [entries, stored, runs] = await Promise.all([
       CyberiaItemCatalog.find({ itemId: { $in: keptIds } }, { itemId: 1, objectLayerCid: 1, history: 1 }).lean(),
       CyberiaEntityTypeDefault.find({ _id: { $in: named } }, { _id: 1 }).lean(),
+      CyberiaProceduralJob.countDocuments({ populationId: record._id }),
     ]);
     const { set, report } = migratedPopulation(record, {
       catalog: new Map(entries.map((entry) => [entry.itemId, entry])),
       rows: new Set(stored.map(({ _id }) => String(_id))),
       palettes,
+      runs,
       now,
     });
     if (apply) {
+      await tagRuns(CyberiaProceduralJob, record);
       if (record.version === 2)
         for (const { target } of set.removed)
-          for (const jobId of target.runs ?? [])
-            await stopJob(models, jobId, {
+          for (const { _id } of await runsOf(models, record._id, target.itemId))
+            await stopJob(models, _id, {
               actor,
               reason: `${target.itemId} removed by the population migration`,
               now,

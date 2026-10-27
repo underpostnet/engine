@@ -94,7 +94,7 @@ const RevisionSchema = new Schema(
  * @property {Object} metrics - What the generator reported
  * @property {{score:number|null,nearest:string,metrics:Object}} diversity - How far the current generation stands from the source and its siblings
  * @property {Object|null} signature - The compact signature of the current generation, for the diversity of its siblings
- * @property {{message:string,at:Date}} error - Why the last run failed
+ * @property {{message:string,retryable:boolean,at:Date}} error - Why the last run failed, and whether a run under the same seed can succeed
  * @property {{ok:boolean,checkedAt:Date,problems:string[]}} validation - Technical validation of the current revision
  * @property {Array<Object>} revisions - Every revision, oldest first
  * @property {{cid:string,seed:number,revision:number}} predecessor - The generation a regeneration replaced
@@ -130,7 +130,11 @@ const CyberiaProceduralJobItemSchema = new Schema(
       metrics: { type: Schema.Types.Mixed, default: () => ({}) },
     },
     signature: { type: Schema.Types.Mixed, default: null },
-    error: { message: { type: String, default: '' }, at: { type: Date, default: null } },
+    error: {
+      message: { type: String, default: '' },
+      retryable: { type: Boolean, default: false },
+      at: { type: Date, default: null },
+    },
     validation: {
       ok: { type: Boolean, default: false },
       checkedAt: { type: Date, default: null },

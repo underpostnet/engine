@@ -195,22 +195,23 @@ export async function revisionKeepers(models, cids, besides) {
  * @param {Object} params.options - Router options.
  * @param {string[]} params.cids - Revisions to check.
  * @param {import('mongoose').Types.ObjectId|string} [params.besides] - A job whose candidates do not count.
- * @returns {Promise<number>} Revisions removed here.
+ * @returns {Promise<string[]>} The revisions removed here.
  * @throws {Error} When the authority refuses or does not answer: nothing here is removed yet.
  * @memberof CyberiaProceduralEngine
  */
 export async function purgeRevisions({ models, options, cids, besides }) {
-  if (cids.length === 0) return 0;
+  if (cids.length === 0) return [];
   const { ObjectLayer } = models;
   const kept = await revisionKeepers(models, cids, besides);
-  const leftover = cids.filter((cid) => !kept.has(cid));
-  if (leftover.length === 0) return 0;
+  const leftover = await ObjectLayer.distinct('cid', { cid: { $in: cids.filter((cid) => !kept.has(cid)) } });
+  if (leftover.length === 0) return [];
   if (!isObjectLayerAuthority(options)) {
     const published = await ObjectLayer.distinct('cid', { cid: { $in: leftover }, origin: 'cache' });
     const registered = await resolveRegisteredCids(published, options);
     for (const cid of published.filter((cid) => !registered.has(cid))) await purgeObjectLayer(cid);
   }
-  return (await purgeObjectLayers({ options, filter: { cid: { $in: leftover } } })).objectLayers;
+  const { kept: registered } = await purgeObjectLayers({ options, filter: { cid: { $in: leftover } } });
+  return leftover.filter((cid) => !registered.some((entry) => entry.cid === cid));
 }
 
 /**
@@ -223,7 +224,7 @@ export async function purgeRevisions({ models, options, cids, besides }) {
  * @param {import('mongoose').Types.ObjectId|string} params.jobId
  * @param {Object} params.options - Router options.
  * @param {Date} [params.now]
- * @returns {Promise<{stopped:number,candidates:number,drafts:number,audit:number}>} What was stopped and removed.
+ * @returns {Promise<{stopped:number,candidates:number,drafts:string[],audit:number}>} What was stopped and removed.
  * @throws {Error} 404 for an unknown job.
  * @memberof CyberiaProceduralEngine
  */

@@ -28,7 +28,8 @@ export const JOB_STATUS = Object.freeze(['queued', 'running', 'completed', 'canc
  * @property {Object} spec - The exact generation spec
  * @property {string} status - One of {@link JOB_STATUS}
  * @property {Object<string,number>} counts - Items by status, as of the last transition
- * @property {import('mongoose').Types.ObjectId|null} populationId - The map population whose stage the job runs; null for an item generation
+ * @property {import('mongoose').Types.ObjectId|null} populationId - The map population whose item the job generates; null for an item generation
+ * @property {string} populationItemId - The item of that population the job generates; empty for an item generation
  * @property {string} createdBy - User id of the moderator who created the job
  * @property {Date} startedAt - When the first item ran
  * @property {Date} finishedAt - When no item waited or ran
@@ -45,6 +46,7 @@ const CyberiaProceduralJobSchema = new Schema(
     status: { type: String, required: true, enum: JOB_STATUS, default: 'queued' },
     counts: { type: Schema.Types.Mixed, default: () => ({}) },
     populationId: { type: Schema.Types.ObjectId, default: null, immutable: true },
+    populationItemId: { type: String, default: '', immutable: true },
     createdBy: { type: String, default: '', trim: true, immutable: true },
     startedAt: { type: Date, default: null },
     finishedAt: { type: Date, default: null },
@@ -72,6 +74,7 @@ class CyberiaProceduralJobDto {
       status: 1,
       counts: 1,
       populationId: 1,
+      populationItemId: 1,
       createdBy: 1,
       startedAt: 1,
       finishedAt: 1,

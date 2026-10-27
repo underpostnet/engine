@@ -1003,7 +1003,7 @@ class ProceduralEngineCyberia {
     const { stopped, candidates, drafts } = response.data;
     const count = (n, noun) => `${n} ${noun}${n === 1 ? '' : 's'}`;
     notify(
-      `Run ${job.generationRunId} deleted: ${count(candidates, 'candidate')} and ${count(drafts, 'draft')} removed.${stopped > 0 ? ` It stopped ${count(stopped, 'active candidate')} first.` : ''}`,
+      `Run ${job.generationRunId} deleted: ${count(candidates, 'candidate')} and ${count(drafts.length, 'draft')} removed.${stopped > 0 ? ` It stopped ${count(stopped, 'active candidate')} first.` : ''}`,
       'success',
     );
     if (job._id === ProceduralEngineCyberia.jobId) await ProceduralEngineCyberia.select('');

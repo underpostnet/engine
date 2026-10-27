@@ -1,8 +1,9 @@
 /**
  * The Map Population workflow of the Procedural Engine view, in four steps that follow the work.
- * **Items**: each item the map needs, grouped by type, with its own starting point, template,
- * palette and variation; Generate adds entries to its gallery, and Select chooses the exact artwork
- * it publishes. **Entity type defaults**: the stored defaults that name the staged items. **Map**: the Map
+ * **Items**: each item the map needs, grouped by type. One resolution of four says how its artwork
+ * resolves, with its settings and one primary action; its results show in one gallery, where Use
+ * makes one result the artwork it publishes, and Delete or Reset remove what it no longer needs.
+ * **Entity type defaults**: the stored defaults that name the staged items. **Map**: the Map
  * Studio composes the draft, grid and placements, each item drawn by the CID it would run.
  * **Publish**: a check, then a background publication applies everything onto the same map.
  * A population stays on the server, so a reload, another browser or another moderator opens it as
@@ -12,7 +13,7 @@
  */
 import { Modal } from '../core/Modal.js';
 import { getProxyPath, getQueryParams, setPath, setQueryParams } from '../core/Router.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
 import { animationPace, drawEntities, mapMediaLabel } from './MapPlacementCyberia.js';
 import { ProceduralGrid } from './ProceduralGridCyberia.js';
@@ -42,7 +43,7 @@ const MAP_STUDIO = 'cyberia-map-engine';
 const ENTITY_STUDIO = 'cyberia-entity-engine';
 const MAPS_GRID = 'procedural-maps-grid';
 const POLL_MS = 3000;
-/** The most entries one Generate asks for. */
+/** The most results one Generate asks for. */
 const MAX_RUNS = 4;
 /** Pixels per cell of each zoom of the map preview; `fit` shows the whole map. */
 const ZOOMS = Object.freeze({ fit: 0, '1×': 8, '2×': 16 });
@@ -68,30 +69,32 @@ const STATUS = Object.freeze({
   cancelled: ['Cancelled', 'muted'],
   outdated: ['Outdated: migrate or delete it', 'bad'],
 });
+/** The state of an item: a ready one publishes with the population; `Published` is after that. */
 const ITEM_STATE = Object.freeze({
-  new: ['Not generated', 'muted'],
+  new: ['Not ready: no result', 'muted'],
   generating: ['Generating', 'pending'],
-  choose: ['Choose artwork', 'draft'],
-  failed: ['Generation failed', 'bad'],
-  author: ['Author it by hand', 'bad'],
-  selected: ['Artwork selected', 'good'],
+  choose: ['Not ready: use a result', 'draft'],
+  failed: ['Not ready: generation failed', 'bad'],
+  author: ['Not ready: author it', 'bad'],
+  selected: ['Ready · result selected', 'good'],
   published: ['Published', 'live'],
-  kept: ['Keeps current artwork', 'good'],
-  conflict: ['Rebound since kept', 'bad'],
-  authored: ['Authored by hand', 'good'],
+  kept: ['Ready · current artwork', 'good'],
+  conflict: ['Not ready: rebound since kept', 'bad'],
+  authored: ['Ready · hand-authored', 'good'],
 });
 /** Where the artwork an item shows comes from, as the server resolves it: a label and a tone. */
 const ARTWORK_SOURCE = Object.freeze({
   kept: ['Kept', 'good'],
   authored: ['Authored', 'good'],
-  selected: ['Selected entry', 'good'],
+  selected: ['Selected result', 'good'],
   published: ['Published', 'live'],
-  draft: ['Newest entry, not selected', 'draft'],
+  draft: ['Newest result, not selected', 'draft'],
   bound: ['Runs now', 'muted'],
   unrendered: ['Runs now: no render', 'bad'],
   missing: ['No artwork', 'bad'],
 });
-const ENTRY_STATE = Object.freeze({
+/** The state of a result of an item: a label and a tone. */
+const RESULT_STATE = Object.freeze({
   generating: ['Generating', 'pending'],
   ready: ['Ready', 'draft'],
   editing: ['Open in the Studio', 'pending'],
@@ -100,16 +103,57 @@ const ENTRY_STATE = Object.freeze({
   discarded: ['Discarded', 'muted'],
   failed: ['Failed', 'bad'],
   cancelled: ['Cancelled', 'muted'],
+  missing: ['Record missing', 'bad'],
+  saved: ['Saved', 'draft'],
+  superseded: ['Superseded', 'muted'],
 });
-/** The resolutions of an item, in the order the server lists them: a label and what each does. */
+/** Where a result of an item comes from. */
+const RESULT_SOURCE = Object.freeze({
+  render: 'Generated',
+  template: 'Genesis Template',
+  author: 'Hand-authored',
+  stored: 'Stored definition',
+});
+/** The label and icon of each action a result takes; the primary one comes first. */
+const RESULT_ACTION = Object.freeze({
+  use: ['Use this result', 'fa-solid fa-hand-pointer'],
+  edit: ['Continue editing', 'fa-solid fa-pen-ruler'],
+  retry: ['Retry', 'fa-solid fa-rotate-right'],
+  delete: ['Delete', 'fa-solid fa-trash-can'],
+});
+/**
+ * The resolutions of an item, in the order the server lists them: a label, what it does, and its
+ * primary action with its icon and title.
+ */
 const RESOLUTION = Object.freeze({
   keep: [
     'Keep current artwork',
-    'Nothing is generated, published or bound: the item keeps the definition it runs now.',
+    'Nothing is generated: the item keeps the definition it runs now.',
+    'Keep current artwork',
+    'fa-solid fa-thumbtack',
+    'Record the definition the item runs now, at its binding revision. The item is ready at once.',
   ],
-  render: ['Generate from current artwork', 'Generate variants of the artwork it runs now.'],
-  template: ['Rebuild from template', 'Draw new artwork from a Genesis Template; it replaces the current one.'],
-  author: ['Authored by hand', 'Create new artwork by hand from an empty canvas in the Object Layer Studio.'],
+  render: [
+    'Generate from current artwork',
+    'Variants of the artwork it runs now.',
+    'Generate variants',
+    'fa-solid fa-wand-magic-sparkles',
+    'Store these settings, then generate new results, each under a new seed.',
+  ],
+  template: [
+    'Rebuild from template',
+    'New artwork from a Genesis Template; it replaces the current one.',
+    'Rebuild from template',
+    'fa-solid fa-shapes',
+    'Store these settings, then generate new results, each under a new seed.',
+  ],
+  author: [
+    'Authored by hand',
+    'Draw it in the Object Layer Studio, on an empty canvas or from existing artwork.',
+    'Open Object Layer Studio',
+    'fa-solid fa-pen-ruler',
+    'Open the Object Layer Studio. A save stores a new draft that the item uses.',
+  ],
 });
 const GENERATING = Object.freeze(['render', 'template']);
 const IMPACT = Object.freeze({
@@ -123,19 +167,14 @@ const MAP_POPULATION = Object.freeze({
   cancelled: ['Cancelled', 'muted'],
   outdated: ['Outdated', 'bad'],
 });
-/** The state of a definition of an item in its authoring view. */
-const DRAFT_STATE = Object.freeze({
-  selected: ['Selected', 'good'],
-  saved: ['Saved draft', 'draft'],
-  superseded: ['Superseded', 'muted'],
-  unrendered: ['No render', 'bad'],
-  active: ['Runs now', 'live'],
+/** The status of a stored definition of an item. */
+const DEFINITION_STATE = Object.freeze({
   published: ['Published, unbound', 'good'],
-  candidate: ['Generated entry', 'pending'],
+  draft: ['Draft', 'draft'],
   archived: ['Archived', 'muted'],
 });
-/** The definitions of an item one read of its authoring view shows. */
-const DRAFT_PAGE = 10;
+/** The stored definitions of an item one read lists. */
+const DEFINITION_PAGE = 10;
 const MEDIA_STATE = Object.freeze({
   pending: 'pending',
   ready: 'ready',
@@ -363,12 +402,11 @@ class ProceduralPopulation {
   /** The item the editor shows and its unsaved configuration. */
   static itemId = '';
   static edit = null;
-  /** The entries of the item the editor shows. */
-  static entries = [];
+  /** The results of the item the editor shows, how many it keeps and the most it may keep. */
+  static results = { results: [], retained: 0, limit: 0 };
   /** The items checked for a bulk palette change, and the change it previews. */
   static checked = new Set();
   static palette = null;
-  static definitions = { q: '', page: 1, rows: [], total: 0 };
   static zoom = 'fit';
   static timer = null;
   static frameTimer = null;
@@ -655,8 +693,9 @@ class ProceduralPopulation {
     .procedural-population .procedural-radio:has(input:disabled) .procedural-radio-label {
       opacity: 0.55;
     }
-    .procedural-population .procedural-save-state {
-      font-size: 12px;
+    .procedural-population .procedural-source {
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
     }
     .procedural-population .procedural-gallery {
       display: grid;
@@ -680,6 +719,12 @@ class ProceduralPopulation {
     .procedural-population .procedural-entry .procedural-action {
       padding: 2px 6px;
       font-size: 12px;
+    }
+    .procedural-population .procedural-result-details {
+      overflow-wrap: anywhere;
+    }
+    .procedural-population .procedural-result-details summary {
+      cursor: pointer;
     }
     .procedural-population .procedural-preview-frame {
       overflow: auto;
@@ -734,10 +779,9 @@ class ProceduralPopulation {
       step: 'items',
       itemId: '',
       edit: null,
-      entries: [],
+      results: { results: [], retained: 0, limit: 0 },
       checked: new Set(),
       palette: null,
-      definitions: { q: '', page: 1, rows: [], total: 0 },
     });
     window.addEventListener('beforeunload', (event) => {
       if (ProceduralPopulation.edit?.dirty) event.preventDefault();
@@ -892,7 +936,7 @@ class ProceduralPopulation {
     await ProceduralPopulation.select(response.data._id);
   }
 
-  /** Asks before unsaved changes of the open item go; resolves whether to go on. */
+  /** Asks before changed settings of the open item go unused; resolves whether to go on. */
   static async leaveItem() {
     const { edit } = ProceduralPopulation;
     if (!edit?.dirty) return true;
@@ -900,7 +944,7 @@ class ProceduralPopulation {
       id: 'procedural-population-leave-confirm',
       html: async () =>
         html`<div class="in section-mp" style="text-align: center">
-          ${edit.itemId} has unsaved changes. Discard them?
+          ${edit.itemId} has changed settings that no Generate stored yet. Discard them?
         </div>`,
     });
     return answer.status === 'confirm';
@@ -923,7 +967,7 @@ class ProceduralPopulation {
       step: STEPS.some(([name]) => name === step) ? step : 'items',
       itemId: itemId ?? '',
       edit: null,
-      entries: [],
+      results: { results: [], retained: 0, limit: 0 },
       checked: new Set(),
       palette: null,
     });
@@ -981,7 +1025,7 @@ class ProceduralPopulation {
       button('fa-solid fa-rotate', 'Refresh', () => ProceduralPopulation.refresh()),
       cancel,
       button('fa-solid fa-trash', 'Delete', () => ProceduralPopulation.remove(population._id), {
-        title: 'Delete the population with its generated entries. What a publication wrote stays.',
+        title: 'Delete the population with its generated results. What a publication wrote stays.',
       }),
     );
   }
@@ -1200,40 +1244,54 @@ class ProceduralPopulation {
   static async openItem(itemId) {
     if (itemId === ProceduralPopulation.itemId) return;
     if (!(await ProceduralPopulation.leaveItem())) return;
-    Object.assign(ProceduralPopulation, { itemId, edit: null, entries: [] });
+    Object.assign(ProceduralPopulation, { itemId, edit: null, results: { results: [], retained: 0, limit: 0 } });
     setQueryParams({ item: itemId }, { replace: true });
     await ProceduralPopulation.paintItems();
   }
 
   /**
-   * The editor of the open item: what it is and where it runs, its artwork, its configuration with
-   * the save state, the generation, and its gallery. Unsaved changes survive a repaint.
+   * The editor of the open item, in two parts: how its artwork resolves, with the settings and the
+   * one primary action of that resolution, then its results. Changed settings survive a repaint.
    */
   static async paintEditor() {
     const { population, itemId } = ProceduralPopulation;
     const root = s('.procedural-item-editor');
     const target = ProceduralPopulation.targetOf(itemId);
     if (!target) return root.replaceChildren(element('div', 'procedural-muted', 'Add an item to start.'));
-    const response = await Population.getEntries({ id: population._id, itemId });
+    const response = await Population.getResults({ id: population._id, itemId });
     if (itemId !== ProceduralPopulation.itemId) return;
-    ProceduralPopulation.entries = response.status === 'success' ? response.data : [];
+    if (response.status !== 'success') refusal(response);
+    ProceduralPopulation.results =
+      response.status === 'success' ? response.data : { results: [], retained: 0, limit: 0 };
     const stored = {
       resolution: target.resolution,
       templateId: target.templateId,
       variation: target.variation,
       palette: target.palette,
     };
-    const version = JSON.stringify(stored);
+    const version = JSON.stringify({ ...stored, definitionCid: target.definitionCid, bound: target.binding?.cid });
     const { edit } = ProceduralPopulation;
     const current = edit?.itemId === itemId && (edit.dirty || edit.version === version);
-    if (!current) ProceduralPopulation.edit = { itemId, version, ...stored, dirty: false, saving: false, error: '' };
+    if (!current) {
+      const source = target.definitionCid || target.binding?.cid || '';
+      ProceduralPopulation.edit = {
+        itemId,
+        version,
+        ...stored,
+        dirty: false,
+        runs: 1,
+        start: source ? 'existing' : 'empty',
+        source,
+        definitions: { rows: [], total: null, reading: false },
+      };
+    }
     const editable = isOpen(population);
     const parts = {
       head: ProceduralPopulation.editorHead(target),
       artwork: ProceduralPopulation.editorArtwork(target),
       config: editable ? null : element('div'),
-      gallery: ProceduralPopulation.editorGallery(target),
-      footer: isOpen(population) ? ProceduralPopulation.editorFooter(target) : element('div'),
+      results: ProceduralPopulation.editorResults(target),
+      footer: editable ? ProceduralPopulation.editorFooter(target) : element('div'),
     };
     const card = root.querySelector('.procedural-editor');
     const config = card?.dataset.item === itemId && card.querySelector('[data-part="config"]');
@@ -1241,12 +1299,9 @@ class ProceduralPopulation {
     parts.config ??= keep ? config : ProceduralPopulation.editorConfig(target);
     for (const [name, node] of Object.entries(parts)) node.dataset.part = name;
     if (keep) {
-      for (const name of ['head', 'artwork', 'gallery', 'footer'])
+      for (const name of ['head', 'artwork', 'results', 'footer'])
         card.querySelector(`[data-part="${name}"]`).replaceWith(parts[name]);
-      // The authoring shows stored drafts, not the unsaved configuration: it reads them again.
-      if (ProceduralPopulation.edit.resolution === 'author')
-        ProceduralPopulation.paintConfigDetails(target, config.querySelector('.procedural-config-details'));
-      return;
+      return ProceduralPopulation.paintPrimary(target);
     }
     const next = element('div', 'procedural-card procedural-editor');
     next.dataset.item = itemId;
@@ -1294,7 +1349,7 @@ class ProceduralPopulation {
         element(
           'div',
           'procedural-bad',
-          `${target.itemId} was bound again after you kept it. Keep it again to keep what it runs now, or choose new artwork.`,
+          `${target.itemId} was bound again after you kept it. Keep current artwork records what it runs now; or choose new artwork.`,
         ),
       );
     if (cid && target.binding && cid !== target.binding.cid) {
@@ -1311,85 +1366,56 @@ class ProceduralPopulation {
   }
 
   /**
-   * The configuration of the item: one resolution of the four, each disabled with its reason while
-   * the item does not take it, then the fields of that resolution, with the save state.
+   * How the artwork of the item resolves: one resolution of those the server offers, each disabled
+   * with its reason while the item does not take it, then the settings of that resolution and its
+   * one primary action. Nothing is stored before the primary action runs.
    */
   static editorConfig(target) {
     const { edit } = ProceduralPopulation;
     const root = element('div', 'procedural-card');
-    root.append(element('div', 'procedural-card-head', 'Configuration'));
-    const state = element('span', 'procedural-save-state');
-    const save = button('fa-solid fa-floppy-disk', 'Save', () => ProceduralPopulation.saveItem(), { primary: true });
-    const revert = button('fa-solid fa-rotate-left', 'Revert', () => {
-      ProceduralPopulation.edit = null;
-      ProceduralPopulation.paintEditor();
+    const head = Object.assign(element('div', 'procedural-card-head', 'Resolution'), {
+      id: `resolution-${target.itemId}-label`,
     });
-    const sync = () => {
-      state.className = `procedural-save-state ${edit.error ? 'procedural-bad' : 'procedural-muted'}`;
-      state.textContent = edit.saving
-        ? 'Saving…'
-        : edit.error
-          ? `Save failed: ${edit.error}`
-          : edit.dirty
-            ? 'Unsaved changes'
-            : 'Saved';
-      save.disabled = !edit.dirty || edit.saving;
-      revert.disabled = !edit.dirty || edit.saving;
-    };
-    const changed = () => {
-      Object.assign(edit, { dirty: true, error: '' });
-      sync();
-    };
-    Object.assign(edit, { markDirty: changed, sync });
+    const details = element('div', 'procedural-config-details');
     const options = target.resolutions.map(({ id, available, reason }) => [
       id,
       RESOLUTION[id][0],
       available ? RESOLUTION[id][1] : reason,
       !available,
     ]);
-    const details = element('div', 'procedural-config-details');
-    const label = Object.assign(element('div', 'procedural-muted', 'Resolution'), {
-      id: `resolution-${target.itemId}-label`,
-    });
-    const withdraws = element('div', 'procedural-muted');
-    const warn = () => {
-      withdraws.textContent =
-        target.selected?.state === 'selected' && edit.resolution !== target.resolution
-          ? `Saving takes the selection back from entry ${shortCid(target.selected.cid)}; the entry stays.`
-          : '';
-    };
     const group = radios(`resolution-${target.itemId}`, options, edit.resolution, (resolution) => {
       edit.resolution = resolution;
-      changed();
-      warn();
       ProceduralPopulation.paintConfigDetails(target, details);
+      ProceduralPopulation.paintPrimary(target);
     });
-    group.setAttribute('aria-labelledby', label.id);
-    warn();
-    root.append(label, group, withdraws, details);
+    group.setAttribute('aria-labelledby', head.id);
+    root.append(head, group, details, ProceduralPopulation.primaryAction(target));
     ProceduralPopulation.paintConfigDetails(target, details);
-    const actions = element('div', 'procedural-buttons');
-    actions.append(save, revert, state);
-    root.append(actions);
-    sync();
     return root;
   }
 
-  /** The fields of a resolution: the template, the palette and the variation, or the authoring. */
+  /** The settings of a resolution: what it keeps, the template, palette and variation, or the start of a draft. */
   static paintConfigDetails(target, container) {
     const { edit } = ProceduralPopulation;
     container.replaceChildren();
     if (edit.resolution === 'author') return container.append(ProceduralPopulation.authoring(target));
-    if (!GENERATING.includes(edit.resolution)) return;
+    if (edit.resolution === 'keep')
+      return container.append(
+        element(
+          'div',
+          'procedural-muted',
+          target.binding
+            ? `${target.itemId} runs ${shortCid(target.binding.cid)} at binding revision ${target.binding.revision}${target.binding.hasRender ? '' : ', which has no render frames'}.`
+            : `${target.itemId} runs no definition.`,
+        ),
+      );
     const template = select(
       target.templates.map((id) => [id, ProceduralPalette.templates.find((entry) => entry.id === id)?.name ?? id]),
       edit.templateId,
       `Genesis Template of ${target.itemId}`,
     );
     template.onchange = () => {
-      edit.templateId = template.value;
-      edit.palette = { slots: {} };
-      edit.markDirty();
+      Object.assign(edit, { templateId: template.value, palette: { slots: {} }, dirty: true });
       ProceduralPopulation.paintConfigDetails(target, container);
     };
     const own = Object.assign(element('input'), { type: 'checkbox', checked: edit.variation !== null });
@@ -1405,14 +1431,12 @@ class ProceduralPopulation {
     const shown = element('span', '', edit.variation === null ? 'generator default' : String(edit.variation));
     own.onchange = () => {
       level.disabled = !own.checked;
-      edit.variation = own.checked ? Number(level.value) : null;
+      Object.assign(edit, { variation: own.checked ? Number(level.value) : null, dirty: true });
       shown.textContent = own.checked ? level.value : 'generator default';
-      edit.markDirty();
     };
     level.oninput = () => {
-      edit.variation = Number(level.value);
+      Object.assign(edit, { variation: Number(level.value), dirty: true });
       shown.textContent = level.value;
-      edit.markDirty();
     };
     const ownLabel = element('label', 'procedural-field', ' Own variation');
     ownLabel.prepend(own);
@@ -1428,7 +1452,7 @@ class ProceduralPopulation {
         )
       : element('div');
     container.append(field('Genesis Template', template), frames, ownLabel, variation, palette);
-    edit.editor = ProceduralPalette.editor(palette, {
+    ProceduralPalette.editor(palette, {
       key: `item-${target.itemId}`,
       title: 'Palette',
       paletteId: edit.palette.paletteId ?? '',
@@ -1445,189 +1469,228 @@ class ProceduralPopulation {
       describe: (resolved, palettes) =>
         `${resolved?.name ?? edit.templateId} · ${palettes.length > 0 ? `item colors: ${palettes.map(({ name }) => name).join(', ')}` : 'template colors'}`,
       defaultsLabel: 'Item defaults',
-      onChange: (entry) => {
-        edit.palette = ProceduralPalette.choice(entry);
-        edit.markDirty();
-      },
+      onChange: (entry) => Object.assign(edit, { palette: ProceduralPalette.choice(entry), dirty: true }),
     });
-  }
-
-  /** Saves the configuration of the open item; resolves whether it saved. */
-  static async saveItem() {
-    const { edit, population } = ProceduralPopulation;
-    if (!ProceduralPopulation.canMutate) return denied();
-    const generating = GENERATING.includes(edit.resolution);
-    Object.assign(edit, { saving: true, error: '' });
-    edit.sync();
-    const response = await Population.updateTarget({
-      id: population._id,
-      itemId: edit.itemId,
-      body: {
-        resolution: edit.resolution,
-        ...(generating && { templateId: edit.templateId, variation: edit.variation, palette: edit.palette }),
-      },
-    });
-    if (response.status !== 'success') {
-      Object.assign(edit, { saving: false, error: response.message });
-      edit.sync();
-      return false;
-    }
-    ProceduralPopulation.edit = null;
-    await ProceduralPopulation.refresh();
-    return true;
   }
 
   /**
-   * Authoring by hand: the draft the item uses, the actions its state allows, and every stored
-   * definition of the item id, newest first, with its state and what each one allows.
+   * The start of a hand-authored draft: an empty canvas of the item, or existing artwork the Studio
+   * opens by its exact CID.
    */
   static authoring(target) {
-    const { population } = ProceduralPopulation;
-    const root = element('div');
-    const selected = target.definitionCid;
-    root.append(
-      element(
-        'div',
-        'procedural-muted',
-        selected
-          ? `${target.itemId} uses the draft ${shortCid(selected)}. A save in the Studio stores a new draft and selects it; the earlier one stays in the list.`
-          : `No draft is selected. Create one on an empty ${target.itemType} canvas, or use a stored definition below.`,
-      ),
-    );
-    if (isOpen(population)) {
-      const actions = element('div', 'procedural-buttons');
-      if (selected)
-        actions.append(
-          button('fa-solid fa-pen-ruler', 'Continue editing', () => ProceduralPopulation.author(target, selected), {
-            primary: true,
-            title: 'Open the selected draft in the Object Layer Studio.',
-          }),
-        );
-      actions.append(
-        button('fa-solid fa-file-circle-plus', 'Create draft', () => ProceduralPopulation.author(target, ''), {
-          primary: !selected,
-          title: 'Open the Object Layer Studio on an empty down idle frame. Nothing comes from a template.',
-        }),
-      );
-      root.append(actions);
-    }
-    root.append(ProceduralPopulation.drafts(target));
-    return root;
-  }
-
-  /** The state of a definition of the item: the selection first, then its status and its render. */
-  static draftState(row, target, selectedAt) {
-    if (row.cid === target.definitionCid) return 'selected';
-    if (row.status !== 'draft') return row.status;
-    if (!row.hasRender) return 'unrendered';
-    return selectedAt && new Date(row.updatedAt) < new Date(selectedAt) ? 'superseded' : 'saved';
-  }
-
-  /** The stored definitions of the item id, a page at a time, each with what it allows. */
-  static drafts(target) {
-    const root = element('div', 'procedural-card');
-    root.append(element('div', 'procedural-card-head', `Drafts and definitions of ${target.itemId}`));
-    const body = element('div', 'procedural-muted', 'Loading…');
-    root.append(body);
-    const rows = [];
-    const read = async () => {
-      const response = await Population.getDefinitions({
-        itemId: target.itemId,
-        page: Math.floor(rows.length / DRAFT_PAGE) + 1,
-        limit: DRAFT_PAGE,
-      });
-      if (response.status !== 'success') return refusal(response);
-      rows.push(...response.data.data);
-      const selectedAt = rows.find(({ cid }) => cid === target.definitionCid)?.updatedAt;
-      const more =
-        rows.length < response.data.total
-          ? [button('fa-solid fa-angles-down', `Show older (${response.data.total - rows.length})`, read)]
-          : [];
-      body.className = '';
-      body.replaceChildren(
-        rows.length === 0
-          ? element('div', 'procedural-muted', `No Object Layer definition of ${target.itemId} is stored yet.`)
-          : table(
-              ['Artwork', 'State', 'Saved', 'CID', ''],
-              rows.map((row) => {
-                const state = ProceduralPopulation.draftState(row, target, selectedAt);
-                return [
-                  row.hasRender ? spriteView(row.cid, 40, row.cid) : spriteView('', 40, row.cid, 'No render'),
-                  [
-                    badge(DRAFT_STATE[state]),
-                    ...(state === 'selected' && !row.hasRender ? [badge(DRAFT_STATE.unrendered)] : []),
-                  ],
-                  stamp(row.updatedAt),
-                  shortCid(row.cid),
-                  ProceduralPopulation.draftActions(target, row, state),
-                ];
-              }),
-            ),
-        ...more,
-      );
+    const { edit } = ProceduralPopulation;
+    const sources = element('div');
+    const paint = () => {
+      sources.hidden = edit.start !== 'existing';
+      if (!sources.hidden) ProceduralPopulation.paintSources(target, sources);
     };
-    read();
+    const start = radios(
+      `author-start-${target.itemId}`,
+      [
+        [
+          'empty',
+          'Start from empty canvas',
+          `A blank ${target.itemType} item ${target.itemId}. Nothing comes from a template.`,
+        ],
+        [
+          'existing',
+          'Continue from existing artwork',
+          'A save stores a new draft; the definition it starts from stays.',
+        ],
+      ],
+      edit.start,
+      (choice) => {
+        edit.start = choice;
+        paint();
+        ProceduralPopulation.paintPrimary(target);
+      },
+    );
+    start.setAttribute('aria-label', `Start of the draft of ${target.itemId}`);
+    paint();
+    const root = element('div');
+    root.append(start, sources);
     return root;
   }
 
-  /** What a definition of the item allows now, or why it allows nothing. */
-  static draftActions(target, row, state) {
-    if (!isOpen(ProceduralPopulation.population)) return element('span', 'procedural-muted', '—');
-    const { population } = ProceduralPopulation;
-    const actions = element('div', 'procedural-buttons');
-    const usable = ['saved', 'superseded', 'published'].includes(state);
-    if (usable)
-      actions.append(
-        button(
-          'fa-solid fa-hand-pointer',
-          'Use this draft',
-          () =>
-            ProceduralPopulation.send(
-              () => Population.addTarget({ id: population._id, body: { itemId: target.itemId, cid: row.cid } }),
-              `${target.itemId} uses ${shortCid(row.cid)}. It publishes with the population; the live artwork stays until then.`,
-            ),
-          { primary: true, title: 'Select this definition for the item. Nothing is published or bound yet.' },
-        ),
-      );
-    if (row.status === 'draft')
-      actions.append(
-        button('fa-solid fa-pen-ruler', 'Continue editing', () => ProceduralPopulation.author(target, row.cid), {
-          title: 'Open this draft in the Object Layer Studio. A save stores a new draft and selects it.',
-        }),
-      );
-    if (row.status === 'draft' && state !== 'selected' && !row.keptBy)
-      actions.append(
-        button('fa-solid fa-trash-can', 'Delete draft', () => ProceduralPopulation.deleteDraft(target, row.cid), {
-          title: 'Delete this draft and its frames. Nothing else uses it.',
-        }),
-      );
-    if (state === 'unrendered' || (state === 'selected' && !row.hasRender))
-      actions.append(
-        element('span', 'procedural-bad', 'No render: it cannot be used or published. Continue editing to add frames.'),
-      );
-    else if (row.status === 'draft' && state !== 'selected' && row.keptBy)
-      actions.append(element('span', 'procedural-muted', `Kept: ${row.keptBy}.`));
-    return actions.children.length > 0 ? actions : element('span', 'procedural-muted', '—');
+  /**
+   * The artwork a draft continues from, one choice each: the definition the item runs now first, then
+   * the stored definitions of the item, newest first, a page at a time.
+   */
+  static paintSources(target, container) {
+    const { rows, total } = ProceduralPopulation.edit.definitions;
+    const choices = [
+      ...(target.binding
+        ? [
+            {
+              cid: target.binding.cid,
+              hasRender: target.binding.hasRender,
+              state: ['Current binding', 'live'],
+              detail: `binding revision ${target.binding.revision}`,
+            },
+          ]
+        : []),
+      ...rows.map(({ cid, hasRender, status, updatedAt }) => ({
+        cid,
+        hasRender,
+        state: DEFINITION_STATE[status],
+        detail: stamp(updatedAt),
+      })),
+    ];
+    const group = element('div', 'procedural-radios');
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', `Artwork of ${target.itemId} to continue from`);
+    for (const choice of choices) group.append(ProceduralPopulation.sourceChoice(target, choice));
+    const more =
+      total === null
+        ? [element('div', 'procedural-muted', 'Reading the stored definitions…')]
+        : rows.length < total
+          ? [
+              button('fa-solid fa-angles-down', `Show older (${total - rows.length})`, () =>
+                ProceduralPopulation.readDefinitions(target, container),
+              ),
+            ]
+          : choices.length === 0
+            ? [element('div', 'procedural-muted', `No definition of ${target.itemId} is stored.`)]
+            : [];
+    container.replaceChildren(group, ...more);
+    if (total === null) ProceduralPopulation.readDefinitions(target, container);
   }
 
-  /** Deletes a draft of the item after a confirmation that names it. */
-  static async deleteDraft(target, cid) {
-    if (!ProceduralPopulation.canMutate) return denied();
-    const answer = await Modal.RenderConfirm({
-      id: 'procedural-population-delete-draft-confirm',
-      html: async () =>
-        html`<div class="in section-mp" style="text-align: center">
-          Delete the draft ${shortCid(cid)} of ${target.itemId} and its frames? Nothing uses it; it cannot come back.
-        </div>`,
+  /** One artwork a draft may continue from: its frame, its state, and its CID. */
+  static sourceChoice(target, { cid, hasRender, state, detail }) {
+    const { edit } = ProceduralPopulation;
+    const input = Object.assign(element('input'), {
+      type: 'radio',
+      name: `author-source-${target.itemId}`,
+      value: cid,
+      checked: cid === edit.source,
     });
-    if (answer.status !== 'confirm') return;
+    input.onchange = () => {
+      edit.source = cid;
+      ProceduralPopulation.paintPrimary(target);
+    };
+    const text = element('span', 'procedural-buttons');
+    text.append(
+      badge(state),
+      ...(hasRender ? [] : [badge(['No render', 'bad'])]),
+      element('span', 'procedural-muted', `${shortCid(cid)} · ${detail}`),
+    );
+    const option = element('label', 'procedural-radio procedural-source');
+    option.append(input, spriteView(hasRender ? cid : '', 40, `${target.itemId} ${shortCid(cid)}`, 'No render'), text);
+    return option;
+  }
+
+  /** Reads the next page of the stored definitions of the item, then paints the choices again. */
+  static async readDefinitions(target, container) {
+    const { edit } = ProceduralPopulation;
+    const { definitions } = edit;
+    if (definitions.reading) return;
+    definitions.reading = true;
+    const response = await Population.getTargetDefinitions({
+      id: ProceduralPopulation.population._id,
+      itemId: target.itemId,
+      page: Math.floor(definitions.rows.length / DEFINITION_PAGE) + 1,
+      limit: DEFINITION_PAGE,
+    });
+    definitions.reading = false;
+    if (response.status !== 'success') {
+      definitions.total = definitions.rows.length;
+      refusal(response);
+    } else {
+      definitions.rows.push(...response.data.data);
+      definitions.total = response.data.total;
+    }
+    if (ProceduralPopulation.edit === edit && container.isConnected)
+      ProceduralPopulation.paintSources(target, container);
+  }
+
+  /**
+   * The one primary action of the resolution the editor shows, or why it does not run: Keep current
+   * artwork stores the binding of this moment; Generate variants and Rebuild from template store the
+   * settings, then generate; Open Object Layer Studio opens the start the editor names.
+   */
+  static primaryAction(target) {
+    const { edit, results } = ProceduralPopulation;
+    const { resolution } = edit;
+    const [, , label, icon, title] = RESOLUTION[resolution];
+    const row = element('div', 'procedural-buttons');
+    row.dataset.part = 'primary';
+    let blocked = target.resolutions.find(({ id }) => id === resolution)?.reason ?? '';
+    if (GENERATING.includes(resolution)) {
+      const runs = select(
+        [...Array(MAX_RUNS).keys()].map((index) => [String(index + 1), count(index + 1, 'result')]),
+        String(edit.runs),
+        'Results to generate',
+      );
+      runs.onchange = () => {
+        edit.runs = Number(runs.value);
+        ProceduralPopulation.paintPrimary(target);
+      };
+      row.append(runs);
+      if (!blocked && results.retained + edit.runs > results.limit)
+        blocked = `${target.itemId} keeps ${results.retained} of ${results.limit} results: delete unselected results first`;
+    }
+    if (!blocked && resolution === 'keep' && target.state === 'kept')
+      blocked = `It keeps ${shortCid(target.cid)} at binding revision ${target.observed.bindingRevision}`;
+    if (!blocked && resolution === 'author' && edit.start === 'existing' && !edit.source)
+      blocked = 'Choose the artwork to continue from';
+    const action = button(icon, label, () => ProceduralPopulation.primary(target), { primary: true, title });
+    action.disabled = Boolean(blocked);
+    const notes = [
+      blocked,
+      !blocked && resolution === 'author'
+        ? edit.start === 'existing'
+          ? `Opens ${shortCid(edit.source)}.`
+          : `Opens an empty ${target.itemType} canvas.`
+        : '',
+      !blocked && resolution !== 'author' && resolution !== target.resolution && target.selected?.state === 'selected'
+        ? `It takes the selection back from ${shortCid(target.selected.cid)}; the result stays.`
+        : '',
+    ].filter(Boolean);
+    row.append(action, ...notes.map((note) => element('span', 'procedural-muted', note)));
+    return row;
+  }
+
+  static paintPrimary(target) {
+    s('.procedural-editor [data-part="primary"]')?.replaceWith(ProceduralPopulation.primaryAction(target));
+  }
+
+  /** Runs the primary action of the resolution the editor shows; a generating one stores its settings first. */
+  static async primary(target) {
+    const { edit, population } = ProceduralPopulation;
+    const { itemId } = target;
+    if (edit.resolution === 'author')
+      return ProceduralPopulation.author(target, edit.start === 'existing' ? edit.source : '');
+    const keep = edit.resolution === 'keep';
+    const { runs } = edit;
     await ProceduralPopulation.send(
-      () => Population.deleteDraft({ id: ProceduralPopulation.population._id, itemId: target.itemId, cid }),
-      `The draft ${shortCid(cid)} is deleted.`,
+      async () => {
+        const stored =
+          keep || edit.dirty || edit.resolution !== target.resolution
+            ? await Population.updateTarget({
+                id: population._id,
+                itemId,
+                body: keep
+                  ? { resolution: 'keep' }
+                  : {
+                      resolution: edit.resolution,
+                      templateId: edit.templateId,
+                      variation: edit.variation,
+                      palette: edit.palette,
+                    },
+              })
+            : null;
+        if (stored?.status === 'success') Object.assign(edit, { dirty: false, version: '' });
+        if (keep || (stored && stored.status !== 'success')) return stored;
+        return await Population.generate({ id: population._id, itemId, count: runs });
+      },
+      keep
+        ? `${itemId} is ready: it keeps the artwork it runs now.`
+        : `${count(runs, 'result')} of ${itemId} generating.`,
     );
   }
 
-  /** Opens the Object Layer Studio for this population: on a definition of the item, or on an empty draft. */
+  /** Opens the Object Layer Studio for this population: on a definition of the item, or on an empty canvas. */
   static author(target, cid) {
     if (!ProceduralPopulation.canMutate) return denied();
     const review = authoringKey(ProceduralPopulation.population._id, target.itemId);
@@ -1635,154 +1698,251 @@ class ProceduralPopulation {
       notify('This host has no Object Layer Studio.', 'warning');
   }
 
-  /** Generate, and the entries of the item: each with its artwork, its state and what it allows. */
-  static editorGallery(target) {
-    const { population, entries, edit } = ProceduralPopulation;
-    const generates = target.resolutions.some(({ id, available }) => available && GENERATING.includes(id));
-    if (!generates && entries.length === 0) return element('div');
-    const root = element('div', 'procedural-card');
-    const head = element('div', 'procedural-card-head', 'Generated entries');
-    root.append(head);
+  /**
+   * The results of the item in one gallery: what its runs generated and the definitions it authored
+   * or uses, each with its source, its state and its actions; how many it keeps of the most it may
+   * keep, and a cleanup of the unselected ones.
+   */
+  static editorResults(target) {
+    const { population, results: inventory } = ProceduralPopulation;
+    const { results, retained, limit } = inventory;
     const open = isOpen(population);
-    if (open && GENERATING.includes(target.resolution)) {
-      const runs = select(
-        [...Array(MAX_RUNS).keys()].map((index) => [String(index + 1), count(index + 1, 'entry', 'entries')]),
-        '1',
-        'Entries to generate',
-      );
-      const generate = button(
-        'fa-solid fa-wand-magic-sparkles',
-        'Generate',
-        () => ProceduralPopulation.generate(Number(runs.value)),
-        {
-          primary: target.state === 'new' || target.state === 'failed',
-          title: 'Generate entries from the configuration; unsaved changes save first.',
-        },
-      );
+    const root = element('div', 'procedural-card');
+    const head = element('div', 'procedural-card-head', 'Results ');
+    const full = retained >= limit;
+    head.append(element('span', `procedural-chip${full ? ' procedural-bad' : ''}`, `${retained} of ${limit} kept`));
+    root.append(head);
+    const deletable = results.filter(({ actions }) =>
+      actions.some(({ id, available }) => id === 'delete' && available),
+    );
+    if (open && deletable.length > 0) {
       const line = element('div', 'procedural-buttons');
-      line.append(runs, generate);
+      line.append(
+        button(
+          'fa-solid fa-broom',
+          `Delete unselected (${deletable.length})`,
+          () => ProceduralPopulation.deleteResults(target, deletable),
+          { title: 'Delete every result that is not selected and that nothing else keeps.' },
+        ),
+      );
       root.append(line);
-    } else if (GENERATING.includes(edit?.resolution))
-      root.append(element('div', 'procedural-muted', 'Save the resolution to generate.'));
-    const shown = entries.filter(({ state }) => state !== 'discarded' && state !== 'cancelled');
-    const hidden = entries.length - shown.length;
-    if (entries.length === 0) {
-      root.append(element('div', 'procedural-muted', 'No entry yet.'));
+    }
+    if (open && full)
+      root.append(
+        element(
+          'div',
+          'procedural-bad',
+          `${target.itemId} keeps the most results it may keep. Delete unselected results to generate or save more.`,
+        ),
+      );
+    if (results.length === 0) {
+      root.append(element('div', 'procedural-muted', 'No result yet: run the resolution above.'));
       return root;
     }
     const gallery = element('div', 'procedural-gallery');
-    for (const entry of shown) gallery.append(ProceduralPopulation.entryCard(target, entry));
+    for (const row of results) gallery.append(ProceduralPopulation.resultCard(target, row));
     root.append(gallery);
-    if (hidden > 0) {
-      const details = element('details');
-      details.append(
-        element('summary', 'procedural-muted', `${count(hidden, 'discarded entry', 'discarded entries')}`),
-      );
-      const rest = element('div', 'procedural-gallery');
-      for (const entry of entries.filter((item) => !shown.includes(item)))
-        rest.append(ProceduralPopulation.entryCard(target, entry));
-      details.append(rest);
-      root.append(details);
-    }
     return root;
   }
 
-  static entryCard(target, entry) {
-    const open = isOpen(ProceduralPopulation.population);
+  /** One result: its artwork, where it comes from, its state, its actions, why an action is not available, and its details. */
+  static resultCard(target, row) {
     const card = element('div', 'procedural-entry');
-    card.dataset.state = entry.state;
+    card.dataset.state = row.state;
+    const generating = row.state === 'generating';
+    const chips = element('div', 'procedural-buttons');
+    chips.append(element('span', 'procedural-chip', RESULT_SOURCE[row.source]));
+    if (row.cid && row.cid === target.binding?.cid) chips.append(element('span', 'procedural-chip', 'Runs now'));
     card.append(
-      spriteView(entry.state === 'generating' ? '' : entry.cid, 96, `Entry ${entry.run + 1} of ${target.itemId}`),
-      badge(ENTRY_STATE[entry.state]),
+      spriteView(
+        generating || !row.hasRender ? '' : row.cid,
+        96,
+        `${RESULT_SOURCE[row.source]} of ${target.itemId}`,
+        generating ? 'Generating' : row.cid ? 'No render' : 'No artwork',
+      ),
+      chips,
+    );
+    const badges = element('div', 'procedural-buttons');
+    badges.append(badge(RESULT_STATE[row.state]));
+    if (row.cid && !row.hasRender && !generating) badges.append(badge(['No render', 'bad']));
+    card.append(
+      badges,
       element(
         'span',
         'procedural-muted',
-        `Entry ${entry.run + 1} · ${entry.cid ? shortCid(entry.cid) : 'no revision yet'}`,
+        `${row.cid ? shortCid(row.cid) : 'no revision yet'} · ${stamp(row.updatedAt)}`,
       ),
     );
-    if (entry.error) card.append(element('span', 'procedural-bad', entry.error));
-    if (!entry.valid && entry.problems.length > 0)
-      card.append(element('span', 'procedural-bad', entry.problems.join('; ')));
-    if (!open) return card;
-    const actions = element('div', 'procedural-buttons');
-    if (['ready', 'editing'].includes(entry.state))
-      actions.append(
-        button(
-          'fa-solid fa-check',
-          'Select',
-          () =>
-            ProceduralPopulation.send(
-              () =>
-                Population.select({
-                  id: ProceduralPopulation.population._id,
-                  itemId: target.itemId,
-                  body: { entryId: entry.id, cid: entry.cid },
-                }),
-              `${target.itemId} publishes entry ${entry.run + 1}.`,
-            ),
-          {
-            primary: true,
-            title: 'Publish this exact artwork for the item. The entry selected before returns to ready.',
-          },
-        ),
-      );
-    if (['ready', 'editing', 'selected'].includes(entry.state))
-      actions.append(
-        button(
-          'fa-solid fa-pen',
-          'Edit artwork',
-          () =>
-            decide(
-              { _id: entry.id, jobId: entry.jobId, targetItemId: target.itemId, candidateCid: entry.cid },
-              'edit',
-              null,
-            ),
-          { title: 'Open this entry in the Object Layer Studio. A save makes a new revision to select.' },
-        ),
-        button('fa-solid fa-xmark', 'Discard', () =>
-          ProceduralPopulation.send(
-            () =>
-              Population.discardEntry({
-                id: ProceduralPopulation.population._id,
-                itemId: target.itemId,
-                entryId: entry.id,
-              }),
-            `Entry ${entry.run + 1} of ${target.itemId} discarded.`,
-          ),
-        ),
-      );
-    card.append(actions);
+    if (row.error) card.append(element('span', 'procedural-bad', row.error));
+    else if (row.jobId && !row.valid && row.problems.length > 0)
+      card.append(element('span', 'procedural-bad', row.problems.join('; ')));
+    if (isOpen(ProceduralPopulation.population)) {
+      const actions = element('div', 'procedural-buttons');
+      for (const id of Object.keys(RESULT_ACTION))
+        if (row.actions.some((entry) => entry.id === id && entry.available))
+          actions.append(ProceduralPopulation.resultButton(target, row, id));
+      if (actions.children.length > 0) card.append(actions);
+      const decidable = ['ready', 'editing', 'saved', 'superseded'].includes(row.state);
+      for (const { id, available, reason } of row.actions)
+        if (!available && (id !== 'use' || decidable) && id !== 'edit')
+          card.append(element('span', 'procedural-muted', `${RESULT_ACTION[id][0]}: ${reason}`));
+    }
+    card.append(ProceduralPopulation.resultDetails(row));
     return card;
   }
 
-  /** Generates entries; unsaved changes save first. */
-  static async generate(runs) {
-    const { edit, population } = ProceduralPopulation;
-    if (edit?.dirty && !(await ProceduralPopulation.saveItem())) return;
+  /** The button of an action of a result. */
+  static resultButton(target, row, id) {
+    const { population } = ProceduralPopulation;
+    const [label, icon] = RESULT_ACTION[id];
+    const switches = row.jobId && row.source !== target.resolution;
+    const handlers = {
+      use: () => ProceduralPopulation.useResult(target, row),
+      edit: () =>
+        row.entryId
+          ? decide(
+              { _id: row.entryId, jobId: row.jobId, targetItemId: target.itemId, candidateCid: row.cid },
+              'edit',
+              null,
+            )
+          : ProceduralPopulation.author(target, row.cid),
+      retry: () =>
+        ProceduralPopulation.send(
+          () => Population.retryEntry({ id: population._id, itemId: target.itemId, entryId: row.entryId }),
+          `The result of ${target.itemId} runs again under its own seed.`,
+        ),
+      delete: () => ProceduralPopulation.deleteResults(target, [row]),
+    };
+    const titles = {
+      use: `Make this exact artwork the one the item publishes: the item is ready at once.${switches ? ` It switches the item to ${RESOLUTION[row.source][0]}.` : ''} Nothing is published or bound yet.`,
+      edit: 'Open it in the Object Layer Studio. A save stores a new revision; this one stays.',
+      retry: 'Run it again under the same seed: the same result, not a new one.',
+      delete: 'Delete it with its frames and atlas.',
+    };
+    return button(icon, label, handlers[id], { primary: id === 'use', title: titles[id] });
+  }
+
+  /** The details of a result; the audit trail of a generated one loads when they open. */
+  static resultDetails(row) {
+    const details = element('details', 'procedural-result-details');
+    details.append(element('summary', 'procedural-muted', 'View details'));
+    const facts = [
+      ['Source', RESULT_SOURCE[row.source]],
+      ['State', RESULT_STATE[row.state][0]],
+      ['Revision CID', row.cid || '—'],
+      ...(row.jobId
+        ? [
+            ['Revision', row.revision === null ? '—' : `${row.revision} of ${row.revisions} stored`],
+            ['Run', row.jobId],
+            ['Template', row.templateId || '—'],
+            ['Palette', row.paletteId || 'item defaults'],
+            ['Validation', row.valid ? 'Passes' : row.problems.join('; ') || 'Not checked'],
+            ['Diversity', row.diversity === null ? '—' : row.diversity.toFixed(3)],
+          ]
+        : [
+            ['Origin', row.origin],
+            ['Stored by', row.createdBy || '—'],
+          ]),
+      ['Created', stamp(row.createdAt)],
+      ['Modified', stamp(row.updatedAt)],
+      ['Render', row.hasRender ? 'Render frames stored' : 'No render frames'],
+      ...(row.keptBy ? [['Kept by', row.keptBy]] : []),
+    ];
+    for (const [label, value] of facts) details.append(fact(label, value));
+    if (!row.entryId) return details;
+    const audit = element('ul', 'procedural-list');
+    details.append(element('div', 'procedural-fact-label', 'Audit trail'), audit);
+    details.ontoggle = async () => {
+      if (!details.open || audit.children.length > 0) return;
+      const response = await CyberiaProceduralJobService.getItem({ jobId: row.jobId, itemId: row.entryId });
+      if (response.status !== 'success') return refusal(response);
+      for (const { action, actor, reason, createdAt } of response.data.audit)
+        audit.append(element('li', '', `${stamp(createdAt)} · ${action} · ${actor}${reason ? ` · ${reason}` : ''}`));
+    };
+    return details;
+  }
+
+  /** Uses a result in one write: a generated one by its exact revision, a definition as the one the item authors. */
+  static async useResult(target, row) {
+    const { population } = ProceduralPopulation;
     await ProceduralPopulation.send(
-      () => Population.generate({ id: population._id, itemId: ProceduralPopulation.itemId, count: runs }),
-      `${count(runs, 'entry', 'entries')} of ${ProceduralPopulation.itemId} generating.`,
+      () =>
+        row.entryId
+          ? Population.select({
+              id: population._id,
+              itemId: target.itemId,
+              body: { entryId: row.entryId, cid: row.cid },
+            })
+          : Population.addTarget({ id: population._id, body: { itemId: target.itemId, cid: row.cid } }),
+      `${target.itemId} is ready: it uses ${shortCid(row.cid)}. It publishes with the population.`,
     );
   }
 
-  /** Keep again after a rebind, reset the workflow of the item, or remove it from the population. */
-  static editorFooter(target) {
-    const { population } = ProceduralPopulation;
-    const actions = element('div', 'procedural-buttons');
-    const { itemId } = target;
-    if (target.state === 'conflict')
-      actions.append(
-        button(
-          'fa-solid fa-thumbtack',
-          'Keep again',
-          () =>
-            ProceduralPopulation.send(
-              () => Population.updateTarget({ id: population._id, itemId, body: { resolution: 'keep' } }),
-              `${itemId} keeps what it runs now.`,
-            ),
-          { primary: true, title: 'Keep the definition the item runs now, at its binding revision.' },
-        ),
+  /** What a confirmation names of a result: its source, item, revision and CID. */
+  static resultName(target, row) {
+    const revision = row.revision === null || row.revision === undefined ? '' : `revision ${row.revision} · `;
+    return `${RESULT_SOURCE[row.source]} · ${target.itemId} · ${revision}${row.cid ? shortCid(row.cid) : 'no revision'}`;
+  }
+
+  /**
+   * Deletes results of the item after a short confirmation, with what stays behind a disclosure;
+   * then tells what the server removed, kept and failed, and drops the sprites of what left storage.
+   */
+  static async deleteResults(target, rows) {
+    if (!ProceduralPopulation.canMutate) return denied();
+    const stays = ProceduralPopulation.results.results
+      .filter((row) => !rows.includes(row))
+      .map((row) => [row, row.actions.find(({ id }) => id === 'delete')])
+      .filter(([, remove]) => remove && !remove.available)
+      .map(([row, remove]) => `${ProceduralPopulation.resultName(target, row)}: ${remove.reason}`);
+    const one = rows.length === 1;
+    const answer = await Modal.RenderConfirm({
+      id: 'procedural-population-delete-results-confirm',
+      icon: html`<i class="fa-solid fa-trash-can"></i>`,
+      confirmLabel: one ? 'Delete result' : `Delete ${rows.length} results`,
+      danger: true,
+      html: async () =>
+        html`<div class="in section-mp" style="text-align: left">
+          <p><strong>${one ? 'Delete this result?' : `Delete ${rows.length} results?`}</strong></p>
+          <ul style="padding-left: 18px; overflow-wrap: anywhere">
+            ${rows.map((row) => `<li>${escapeHtml(ProceduralPopulation.resultName(target, row))}</li>`).join('')}
+          </ul>
+          <p>
+            ${one ? 'It leaves' : 'They leave'} the workflow of ${escapeHtml(target.itemId)} with their frames and
+            atlas. Published and shared content stays.
+          </p>
+          ${
+            stays.length > 0
+              ? `<details><summary>What stays (${stays.length})</summary><ul style="padding-left: 18px; overflow-wrap: anywhere">${stays.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul></details>`
+              : ''
+          }
+        </div>`,
+    });
+    if (answer.status !== 'confirm') return;
+    let report = null;
+    const sent = await ProceduralPopulation.send(async () => {
+      const response = await Population.deleteResults({
+        id: ProceduralPopulation.population._id,
+        itemId: target.itemId,
+        ids: rows.map(({ id }) => id),
+      });
+      report = response.data?.deleted ?? null;
+      return response;
+    });
+    if (!sent) return;
+    AtlasSpriteSheetService.dropSprites(report.purged);
+    if (report.removed.length > 0) notify(`Deleted from ${target.itemId}: ${report.removed.join('; ')}.`, 'success');
+    const left = [...report.retained, ...report.failures];
+    if (left.length > 0)
+      notify(
+        `Not deleted: ${left.join('; ')}.${report.failures.length > 0 ? ' Delete again to retry.' : ''}`,
+        'warning',
       );
+  }
+
+  /** Reset the workflow of the item, or remove it from the population. */
+  static editorFooter(target) {
+    const actions = element('div', 'procedural-buttons');
     actions.append(
       button('fa-solid fa-rotate', 'Reset item', () => ProceduralPopulation.reset(target), {
         title: 'Return the item to a clean start. Published content stays.',
@@ -1792,46 +1952,66 @@ class ProceduralPopulation {
     return actions;
   }
 
-  /** Resets the workflow of an item after a confirmation that lists what goes and what stays, then shows the report. */
+  /**
+   * Resets the workflow of an item after a short confirmation, with what goes and what stays behind
+   * a disclosure; then shows the report and drops the sprites of what left storage.
+   */
   static async reset(target) {
     if (!ProceduralPopulation.canMutate) return denied();
+    const { results } = ProceduralPopulation.results;
+    const generated = results.filter(({ jobId }) => jobId);
+    const drafts = results.filter(({ source }) => source === 'author');
     const goes = [
-      ...(target.selected ? ['the approval of its selected entry'] : []),
-      ...(target.runs.length > 0
-        ? [`${count(target.runs.length, 'run')}: generation stops and the entries leave the item`]
+      ...(generated.length > 0
+        ? [
+            `${count(generated.length, 'generated result')}${generated.some(({ state }) => state === 'selected') ? ', the selected one too' : ''}`,
+          ]
         : []),
-      ...(target.definitionCid
-        ? [`the use of the draft ${shortCid(target.definitionCid)}, deleted when nothing else uses it`]
-        : []),
+      ...drafts.filter(({ keptBy }) => !keptBy).map(({ cid }) => `the draft ${shortCid(cid)}`),
+      ...(target.definitionCid ? [`the use of ${shortCid(target.definitionCid)}`] : []),
       'its palette choice and variation: it takes the recommendation now',
     ];
+    const stays = [
+      ...drafts.filter(({ keptBy }) => keptBy).map(({ cid, keptBy }) => `the draft ${shortCid(cid)} (${keptBy})`),
+      ...results
+        .filter(({ source }) => source === 'stored')
+        .map(({ cid }) => `the definition ${shortCid(cid)}: this workflow did not store it`),
+      'published definitions, bindings, placements, defaults and the population audit',
+    ];
+    const list = (lines) =>
+      `<ul style="padding-left: 18px; overflow-wrap: anywhere">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`;
     const answer = await Modal.RenderConfirm({
       id: 'procedural-population-reset-confirm',
+      icon: html`<i class="fa-solid fa-rotate"></i>`,
+      confirmLabel: 'Reset item',
+      danger: true,
       html: async () =>
-        html`<div class="in section-mp">
-          <p>Reset the workflow of ${target.itemId}?</p>
-          <p>Goes: ${goes.join('; ')}.</p>
-          <p>
-            Stays: published definitions, bindings, placements, defaults, jobs and audit. A reset is safe to run again.
-          </p>
+        html`<div class="in section-mp" style="text-align: left">
+          <p><strong>Reset the workflow of ${escapeHtml(target.itemId)}?</strong></p>
+          <p>Its results and unpublished drafts go. Published and shared content stays.</p>
+          <details>
+            <summary>What goes and what stays</summary>
+            <p>Goes:</p>
+            ${list(goes)}
+            <p>Stays:</p>
+            ${list(stays)}
+          </details>
         </div>`,
     });
     if (answer.status !== 'confirm') return;
     let report = null;
-    await ProceduralPopulation.send(
-      async () => {
-        const response = await Population.resetTarget({
-          id: ProceduralPopulation.population._id,
-          itemId: target.itemId,
-        });
-        report = response.data?.reset ?? null;
-        return response;
-      },
-      () => `${target.itemId} starts clean. Removed: ${report.removed.join('; ') || 'nothing'}.`,
-    );
-    if (report?.failures.length > 0)
+    const sent = await ProceduralPopulation.send(async () => {
+      const response = await Population.resetTarget({ id: ProceduralPopulation.population._id, itemId: target.itemId });
+      report = response.data?.reset ?? null;
+      return response;
+    });
+    if (!sent) return;
+    AtlasSpriteSheetService.dropSprites(report.purged);
+    notify(`${target.itemId} starts clean. Removed: ${report.removed.join('; ') || 'nothing'}.`, 'success');
+    const { runs, drafts: left } = report.remaining;
+    if (report.failures.length > 0 || runs + left > 0)
       notify(
-        `The reset of ${target.itemId} is incomplete: ${report.failures.join('; ')}. Reset again to retry.`,
+        `The reset of ${target.itemId} left ${count(runs, 'run')} and ${count(left, 'draft')}: ${[...report.failures, ...report.retained.filter((line) => line.startsWith('the draft'))].join('; ') || 'kept by others'}. Reset again to retry.`,
         'warning',
       );
   }
@@ -1843,7 +2023,7 @@ class ProceduralPopulation {
       id: 'procedural-population-take-out-confirm',
       html: async () =>
         html`<div class="in section-mp" style="text-align: center">
-          Remove ${target.itemId} from this population? Generation in progress stops; its entries, the item, its
+          Remove ${target.itemId} from this population? Generation in progress stops; its results, the item, its
           definitions, its binding and its placements stay. You can add it back.
           <label class="procedural-field" style="display: flex; margin: 8px auto; max-width: 24rem;"
             >Reason <input class="procedural-remove-reason" maxlength="200"
@@ -1879,9 +2059,9 @@ class ProceduralPopulation {
               () =>
                 ProceduralPopulation.send(
                   () => Population.addTarget({ id: population._id, body: { itemId: target.itemId } }),
-                  `${target.itemId} is restored with its entries.`,
+                  `${target.itemId} is restored with its results.`,
                 ),
-              { title: 'Bring the item back with its configuration and entries.' },
+              { title: 'Bring the item back with its configuration and results.' },
             ),
             button('fa-solid fa-trash-can', 'Forget permanently', () => ProceduralPopulation.forget(target.itemId), {
               title: 'Delete only this entry of the Removed list.',
@@ -3062,7 +3242,7 @@ class ProceduralPopulation {
       id: 'procedural-population-delete-confirm',
       html: async () =>
         html`<div class="in section-mp" style="text-align: center">
-          Delete this population with its generated entries? What a publication wrote stays.
+          Delete this population with its generated results? What a publication wrote stays.
         </div>`,
     });
     if (answer.status !== 'confirm') return;

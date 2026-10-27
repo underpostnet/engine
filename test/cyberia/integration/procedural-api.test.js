@@ -371,7 +371,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     it('deletes a run for a moderator: one with a promoted candidate, and one that still works after it stops', async () => {
       expect((await call('user', `${JOBS}/${created._id}`, { method: 'DELETE' })).status).toBe(403);
       const deleted = await call('moderator', `${JOBS}/${created._id}`, { method: 'DELETE' });
-      expect(deleted.body.data).toMatchObject({ stopped: 0, candidates: 2, drafts: 1 });
+      expect(deleted.body.data).toMatchObject({ stopped: 0, candidates: 2, drafts: [expect.any(String)] });
       const live = (await post(createRequest({ output: { variants: 1, itemIdPrefix: 'http-live' } }))).body.data;
       const stopped = await call('moderator', `${JOBS}/${live._id}`, { method: 'DELETE' });
       expect(stopped.body.data).toMatchObject({ stopped: 1, candidates: 1 });

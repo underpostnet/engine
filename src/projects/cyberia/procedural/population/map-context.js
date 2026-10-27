@@ -345,7 +345,7 @@ export async function resolveTargets(models, entries) {
       observed: resolution === 'keep' ? observedOf(binding) : null,
       palette: { slots: {} },
       variation: null,
-      runs: [],
+      drafts: [],
     });
   }
   return { targets, findings: [...findings.values()] };

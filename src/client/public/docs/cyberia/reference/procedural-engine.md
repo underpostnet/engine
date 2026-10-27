@@ -22,7 +22,7 @@ is `/api/v1/<api>`.
 | `GET /:jobId/items`                     | `cyberia-procedural-job`      | Lists the candidates. Paginated.                                                            |
 | `GET /:jobId/items/:itemId`             | `cyberia-procedural-job`      | Answers the candidate, its job and its audit trail.                                         |
 | `POST /:jobId/cancel`                   | `cyberia-procedural-job`      | Cancels the workflow of the job.                                                            |
-| `DELETE /:jobId`                        | `cyberia-procedural-job`      | Deletes a job. Answers `{ stopped, candidates, drafts, audit }`.                            |
+| `DELETE /:jobId`                        | `cyberia-procedural-job`      | Deletes a job with its audit. Answers `{ stopped, candidates, drafts, audit }`.             |
 | `POST /:jobId/items/:itemId/regenerate` | `cyberia-procedural-job`      | Queues the candidate again under a new seed.                                                |
 | `POST /:jobId/items/:itemId/approve`    | `cyberia-procedural-job`      | Approves the revision `{ cid }` names.                                                      |
 | `POST /:jobId/items/:itemId/reject`     | `cyberia-procedural-job`      | Rejects the current revision.                                                               |
@@ -34,38 +34,38 @@ is `/api/v1/<api>`.
 
 The map population API is `cyberia-procedural-population`:
 
-| Method and path                                      | Does                                                                                          |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `GET /maps`                                          | Lists map summaries. Paginated.                                                               |
-| `GET /maps/:code`                                    | Answers the map context a population reads now. Stores nothing.                               |
-| `GET /definitions`                                   | Lists the Object Layer definitions of `?itemId=`, or whose item id holds `?q=`, newest first. |
-| `POST /`                                             | Creates a population of `{ mapCode, seed? }`. Equal inputs answer one population.             |
-| `GET /`, `GET /:id`                                  | Reads populations with each item, the item groups and the state of each step.                 |
-| `GET /:id/impact`                                    | Answers where each item runs now besides the map, and its impact.                             |
-| `POST /:id/targets`                                  | Adds `{ itemId, stage?, itemType?, cid? }`, or restores a removed item with its runs.         |
-| `PATCH /:id/targets/:itemId`                         | Sets `{ resolution?, templateId?, palette?, variation? }` of an item, at any time.            |
-| `DELETE /:id/targets/:itemId`                        | Removes an item from the population, from any source: `{ reason? }`. Its runs stop.           |
-| `DELETE /:id/removed/:itemId`                        | Forgets a removed item permanently: only its entry in the removed list goes.                  |
-| `POST /:id/targets/:itemId/reset`                    | Resets the workflow of an item to a clean start, and reports what went and what stayed.       |
-| `DELETE /:id/targets/:itemId/drafts/:cid`            | Deletes a draft definition of the item that the item does not use and nothing keeps.          |
-| `POST /:id/targets/:itemId/generate`                 | Stores `{ count? }` runs, 1 to 4, from the configuration as it is.                            |
-| `GET /:id/targets/:itemId/entries`                   | Lists the entries of an item, newest first.                                                   |
-| `POST /:id/targets/:itemId/select`                   | Selects the entry `{ entryId, cid }`; the entry selected before returns to ready.             |
-| `POST /:id/targets/:itemId/entries/:entryId/discard` | Discards an entry. Its revision stays stored.                                                 |
-| `POST /:id/palette/preview`                          | Answers what `{ itemIds, source, paletteId?, overrides }` gives each item.                    |
-| `POST /:id/palette`                                  | Applies that change, exactly as its preview answers.                                          |
-| `GET /:id/draft`, `PUT /:id/draft`                   | Reads or saves the map draft: grid and placements. The live map does not change.              |
-| `DELETE /:id/draft`                                  | Discards the draft. The composition starts again from the live map.                           |
-| `POST /:id/draft/rebase`                             | Moves the draft onto `{ mapRevision }` the moderator reviewed.                                |
-| `GET /:id/defaults`                                  | Answers the defaults workspace: the stored defaults that name the staged items.               |
-| `POST /:id/defaults`                                 | Adds the stored default `{ rowId }` to the workspace. The default does not change.            |
-| `DELETE /:id/defaults/:rowId`                        | Removes a default from the workspace. The default does not change.                            |
-| `POST /:id/validate`                                 | Answers what a publication would do now, or why it would stop. Stores nothing.                |
-| `POST /:id/publish`                                  | Starts the publication of the reviewed revision: `{ revision, acknowledged? }`.               |
-| `POST /:id/publication/retry`                        | Resumes the phase of the publication that failed.                                             |
-| `POST /:id/publication/cancel`                       | Cancels the publication before its commit.                                                    |
-| `POST /:id/cancel`                                   | Stops the active work of the job of each target. Deletes nothing.                             |
-| `DELETE /:id`                                        | Deletes the population and the jobs of its targets. A publication keeps what it wrote.        |
+| Method and path                                    | Does                                                                                          |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GET /maps`                                        | Lists map summaries. Paginated.                                                               |
+| `GET /maps/:code`                                  | Answers the map context a population reads now. Stores nothing.                               |
+| `POST /`                                           | Creates a population of `{ mapCode, seed? }`. Equal inputs answer one population.             |
+| `GET /`, `GET /:id`                                | Reads populations with each item, the item groups and the state of each step.                 |
+| `GET /:id/impact`                                  | Answers where each item runs now besides the map, and its impact.                             |
+| `POST /:id/targets`                                | Adds `{ itemId, stage?, itemType?, cid? }`, or restores a removed item with its results.      |
+| `PATCH /:id/targets/:itemId`                       | Sets `{ resolution?, templateId?, palette?, variation? }` of an item, at any time.            |
+| `DELETE /:id/targets/:itemId`                      | Removes an item from the population, from any source: `{ reason? }`. Its runs stop.           |
+| `DELETE /:id/removed/:itemId`                      | Forgets a removed item permanently: only its entry in the removed list goes.                  |
+| `POST /:id/targets/:itemId/reset`                  | Resets the workflow of an item to a clean start, and reports what went and what stayed.       |
+| `GET /:id/targets/:itemId/results`                 | Lists the results of an item with the actions each takes, and how many it keeps of the limit. |
+| `POST /:id/targets/:itemId/results/delete`         | Deletes the results `{ ids }`, and reports what went, what stayed and what failed.            |
+| `GET /:id/targets/:itemId/definitions`             | Lists the stored definitions a draft of the item can continue from, newest first. Paginated.  |
+| `POST /:id/targets/:itemId/generate`               | Stores `{ count? }` runs, 1 to 4, from the configuration as it is.                            |
+| `POST /:id/targets/:itemId/select`                 | Uses the generated result `{ entryId, cid }`; the result selected before returns to ready.    |
+| `POST /:id/targets/:itemId/entries/:entryId/retry` | Runs a failed result again under its own seed.                                                |
+| `POST /:id/palette/preview`                        | Answers what `{ itemIds, source, paletteId?, overrides }` gives each item.                    |
+| `POST /:id/palette`                                | Applies that change, exactly as its preview answers.                                          |
+| `GET /:id/draft`, `PUT /:id/draft`                 | Reads or saves the map draft: grid and placements. The live map does not change.              |
+| `DELETE /:id/draft`                                | Discards the draft. The composition starts again from the live map.                           |
+| `POST /:id/draft/rebase`                           | Moves the draft onto `{ mapRevision }` the moderator reviewed.                                |
+| `GET /:id/defaults`                                | Answers the defaults workspace: the stored defaults that name the staged items.               |
+| `POST /:id/defaults`                               | Adds the stored default `{ rowId }` to the workspace. The default does not change.            |
+| `DELETE /:id/defaults/:rowId`                      | Removes a default from the workspace. The default does not change.                            |
+| `POST /:id/validate`                               | Answers what a publication would do now, or why it would stop. Stores nothing.                |
+| `POST /:id/publish`                                | Starts the publication of the reviewed revision: `{ revision, acknowledged? }`.               |
+| `POST /:id/publication/retry`                      | Resumes the phase of the publication that failed.                                             |
+| `POST /:id/publication/cancel`                     | Cancels the publication before its commit.                                                    |
+| `POST /:id/cancel`                                 | Stops the active work of the job of each target. Deletes nothing.                             |
+| `DELETE /:id`                                      | Deletes the population and the jobs of its targets. A publication keeps what it wrote.        |
 
 The lists of jobs, sources and candidates filter and sort on the server. `filterModel` and
 `sortModel` are the AG Grid models, and `page` and `limit` page the answer. A column names its
@@ -95,9 +95,9 @@ item. `promote` answers 409 when the target item changed since the run (an updat
 proposed item id is taken (a create), when the approval does not cover the current revision, or when
 the authority answers another definition than the approved revision.
 `cancel` answers 409 when the job has no active work. `DELETE` takes a job in any status. It stops
-the active candidates of the job first (`stopped` counts them), then removes the candidates, the
-audit trail of the job, and every revision no item runs or ran with every record the Object Layer
-purge removes (`drafts` counts them). A revision this host published goes from the Object Layer
+the active candidates of the job first (`stopped` counts them), then removes the candidates and
+every revision no item runs or ran with every record the Object Layer purge removes (`drafts` lists
+their CIDs), and the audit trail of the job (`audit` counts it). A revision this host published goes from the Object Layer
 authority too, through `DELETE /api/v1/object-layer/purge/:cid` with the service key. A revision
 another job names, or that ItemLedger registers, stays.
 
@@ -367,14 +367,15 @@ item (a target) for each item its foundation composition and its placements name
 
 | Field         | Holds                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------- |
-| `version`     | The version of the record, 4. A record of another version is read-only                      |
+| `version`     | The version of the record, 7. A record of another version is read-only                      |
 | `revision`    | Writes of the targets, the removals, the defaults workspace and the draft                   |
+| `nextRun`     | The run index the next run of any item takes: no two runs of a population share a seed      |
 | `mapCode`     | The map the population reads and publishes onto                                             |
 | `mapRevision` | The revision of the map the population read                                                 |
 | `fingerprint` | SHA-256 of the version, the map and its revision, the content digest and the root seed      |
 | `rootSeed`    | The seed each run seed derives from                                                         |
 | `context`     | The frozen map context: map, instances, foundation, biome, palettes and findings            |
-| `targets`     | Each item id with its sources, decision, configuration and runs                             |
+| `targets`     | Each item id with its sources, decision, configuration and the drafts it stored             |
 | `removed`     | Each item removed from the population: `{ target, by, at, reason }`                         |
 | `draft`       | The map to publish: `{ grid, entities, baseRevision, revision, savedAt, savedBy }`, or null |
 | `defaults`    | The workspace membership: `{ added, removed }`, each a list of default ids                  |
@@ -395,7 +396,10 @@ An item has these fields:
 | `palette`, `variation`                 | Its own palette choice `{ paletteId?, slots }`, and its variation or null                        |
 | `definitionCid`                        | The definition authored by hand that it uses under `author`; it stays under any other resolution |
 | `observed`                             | For `keep`: the binding kept, `{ cid, bindingRevision }`; else null                              |
-| `runs`                                 | The jobs that generated its entries, in order                                                    |
+| `drafts`                               | The draft definitions its Studio saves created: the drafts the workflow owns                     |
+
+The runs of an item are the jobs whose `populationId` and `populationItemId` name the population and
+the item; nothing else lists them.
 
 A read of a population adds to each item `binding` (`{ cid, revision, hasRender }` it runs now, or
 null; `hasRender` tells whether that definition has stored render frames), `artwork` (`{ cid, source }`,
@@ -429,67 +433,105 @@ else `author`.
 `PATCH` takes `resolution`; one the item does not take now answers 400 with its reason. `keep`
 reads the binding of that moment, and keeping again after a rebind records the new one. The binding
 revision is how many bindings the catalog history of the item holds. A change of resolution takes
-the approval back from the selected entry (audit `item.approval_withdrawn`); the entries, the
+the approval back from the selected entry (audit `item.approval_withdrawn`); the results, the
 authored definition, the binding and the audit stay. A save of the Object Layer Studio under an
 authoring key, and `POST /:id/targets` with a `cid`, set `author` with that definition. A placed item
 no definition binds is a `template` item of the group its entity type gives; an item the moderator
 adds without a binding needs its group. A placed item id can have any form; a new item id is
 lowercase words joined by hyphens.
 
-Each row of `GET /definitions` has `cid`, `itemId`, `itemType`, `status` (`active` while the catalog
-binds it, `candidate`, `archived`, `draft` or `published`), `boundCid`, `hasRender` (it has stored
-render frames), `keptBy` (what keeps it from a delete, empty when nothing does), `createdBy` and
-`updatedAt`. What keeps a definition: the catalog binds or bound it, a generated entry names it, a
-map population uses it, a removed item of a map population uses it, or a publication plan names it
-(`revisionKeepers` in `src/projects/cyberia/procedural/engine.js`). An item takes a definition only
-when it has a render; a second request for the definition it uses changes nothing.
+`GET /:id/targets/:itemId/results` answers `{ results, retained, limit }`
+(`src/projects/cyberia/procedural/population/results.js`). `results` lists each generated result,
+newest first, then each draft the item stored and the definition it uses, newest first. `retained`
+counts the generated results and the drafts it stored; `limit` is 16. A result has these fields:
 
-`DELETE /:id/targets/:itemId/drafts/:cid` deletes a draft of the item with its render frames, and
-the audit records `target.draft_deleted`. It answers 409 for a definition that is not a draft of the
-item, for the draft the item uses, and for a draft something keeps, with what keeps it.
+| Field                                     | Holds                                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `id`                                      | The run id of a generated result, the CID of a definition: the id `delete` takes       |
+| `entryId`, `jobId`                        | The candidate and the run of a generated result; empty for a definition                |
+| `source`                                  | `render`, `template`, `author` (a draft the item stored) or `stored` (another one)     |
+| `state`                                   | See the states below                                                                   |
+| `cid`, `hasRender`                        | The revision it shows, and whether it has stored render frames                         |
+| `revision`, `revisions`                   | The number of the current revision of a generated result, and how many it stores       |
+| `templateId`, `paletteId`                 | The template and palette of a generated result                                         |
+| `valid`, `problems`, `error`, `retryable` | Its validation, the error of a failure, and whether a run under the same seed can pass |
+| `origin`, `createdBy`                     | The origin of a definition and who stored it                                           |
+| `keptBy`                                  | What keeps it from a delete besides the item, empty when nothing does                  |
+| `createdAt`, `updatedAt`                  | When it was stored and changed                                                         |
+| `actions`                                 | `use`, `edit`, `delete` and, for a failure, `retry`: each `{ id, available, reason }`  |
 
-`POST /:id/targets/:itemId/reset` takes an item back to a clean start: a selected entry gives back
-its approval, the runs stop and leave the item, the authored definition is no longer used and goes when
-nothing keeps it, and the item takes the recommendation now with no palette choice and no variation.
-Published definitions, bindings, placements, defaults, jobs and audit stay. It answers the
-population with `reset` `{ removed, retained, failures }`; a run that does not stop stays on the
-item as a failure, and the reset runs again safely. A reset of a clean item changes nothing. The
-audit records `target.reset` with the population, the item, the actor and the report.
+The state of a generated result comes from its candidate: `generating` (queued, running or
+generated), `ready` (in review), `editing`, `selected` (approved: the exact revision the item
+publishes), `published`, `discarded` (a review rejected it), `failed`, `cancelled`, or
+`missing` (its run holds no candidate record). A definition is `selected` (the item, authored by
+hand, uses it), `superseded` (saved before the definition the item uses) or `saved`. A definition the
+item keeps under another resolution is `saved`; `delete` refuses it and `use` authors the item with
+it again. A closed population answers every action unavailable, with the reason.
+
+`POST /:id/targets/:itemId/results/delete` takes `{ ids }`. A run id deletes that generated result
+through `DELETE /:jobId` of the job: its active work stops first, then its candidate, every revision
+nothing else keeps and the audit trail of the job go; the population audit records
+`target.entry_deleted`. A CID deletes a draft the item stored (`drafts`) that it does not use and
+nothing keeps, with its render frames and atlas; the population audit records `target.draft_deleted`.
+The selected result, a published result, a definition the item did not store as a draft, and a
+draft something keeps stay, each with its reason. It answers the population
+with `deleted` `{ removed, retained, failures, purged }`: what went, what stayed and why (a 409), what
+failed (an unknown id, or the authority does not answer), and the CIDs that left storage. Each id is
+its own; deleting again is safe.
+
+What keeps a definition: the catalog binds or bound it, a generated entry names it, a map population
+uses it, a removed item of a map population uses it, or a publication plan names it
+(`revisionKeepers` in `src/projects/cyberia/procedural/engine.js`). `GET /:id/targets/:itemId/definitions`
+lists the definitions of the item id a hand-authored draft can continue from: its drafts, the
+definition it uses, and those of any other workflow or run. The revisions of the runs of the item are
+left out, and so is the definition the item runs now, which the view shows first from
+`target.binding`. Each row has `cid`, `itemId`, `itemType`, `status` (`archived`, `draft` or
+`published`), `hasRender`, `keptBy`, `createdBy` and `updatedAt`. A row with no render
+still opens in the Studio. An item takes a definition only when it has a render; a second request for
+the definition it uses changes nothing.
+
+`POST /:id/targets/:itemId/reset` takes an item back to a clean start: every run of the item goes as
+a delete takes it, the selected one too; the item no longer uses its definition; each draft it stored
+goes when it is still a draft and nothing keeps it; and the item takes the recommendation now with
+no palette choice and no variation. Published definitions, bindings, placements, defaults, a
+definition another workflow stored and the population audit stay. It answers the population with `reset`
+`{ removed, retained, failures, purged, remaining: { runs, drafts } }`: `remaining` counts what the
+workflow still owns after it. A reset of a clean item changes nothing, and the reset runs again
+safely. The audit records `target.reset` with the population, the item, the actor and the report.
+
+A population delete also purges each draft its items stored that is still a draft and that nothing
+else keeps.
 
 A write over a population another write changed answers 409; the view reads the population again,
 and the moderator decides again on what is stored now.
 
 `DELETE /:id/targets/:itemId` means removal only. It cancels the active work of the runs of the item
-and keeps their jobs, entries and audit, and moves the item to `removed`. No catalog entry,
+and keeps their jobs, results and audit, and moves the item to `removed`. No catalog entry,
 definition, binding or placement changes. `POST /:id/targets` with the item id of a removed item
 restores it as it was. `DELETE /:id/removed/:itemId` forgets a removed item permanently: it deletes
 that entry of `removed` and nothing else, and raises the population revision. An item id `removed`
-does not hold changes nothing. A later read or add of the item makes a new item.
+does not hold changes nothing. A later read or add of the item makes a new item, and its earlier runs
+are its results again.
 
 The configuration of an item changes at any time. `POST /:id/targets/:itemId/generate` stores
-`count` runs (1 to 4) from the configuration as it is; run `n` runs under the seed
-`deriveSeed(rootSeed, fingerprint, itemId, n)`. The candidates of the runs are the entries of the
-item:
+`count` runs (1 to 4) from the configuration as it is. Each run takes the next run index `n` of the
+population (`nextRun`) and runs under the seed `deriveSeed(rootSeed, fingerprint, itemId, n)`, so no
+run, after a delete, a reset or a forgotten item, gives back an earlier result. It answers 409 when
+the item would keep more than 16 results; so does a save of the Studio under an authoring key.
 
-| Entry state  | The candidate is                                |
-| ------------ | ----------------------------------------------- |
-| `generating` | queued, running or generated                    |
-| `ready`      | in review                                       |
-| `editing`    | open in the Object Layer Studio                 |
-| `selected`   | approved: the exact revision the item publishes |
-| `published`  | promoted by a publication                       |
-| `discarded`  | rejected; its revision stays stored             |
-| `failed`     | failed after its tries                          |
-| `cancelled`  | stopped by a cancel                             |
-
-Select approves the exact revision of one entry, then takes the approval back from the entry
-selected before. A save in the Studio returns a selected entry to `ready`. The new item ids of one
-population belong to its runs, so a new item generates more than once.
+Select uses a generated result: it approves the exact revision, then takes the approval back from
+the result selected before. A result of another start switches the resolution of the item to that
+start first (`render` or `template`), when the item takes it now. A result with no render frames
+answers 409. A save in the Studio returns a selected result to `ready`. Retry queues a failed result
+again under its own seed when its `error.retryable` is true: the worker sets it for a lost lease and a
+failing store, not for a refusal of the generator or an invalid result; the audit records
+`item.retried`. The new item ids of one population belong to its runs, so a new item generates more
+than once.
 
 An item is `kept` (it runs the binding observed), `conflict` (it was bound again after the keep),
 `authored` (under `author`, with its definition), `author` (under `author`, before a moderator
-authors it), else from its entries: `published`, `selected`, `generating`,
-`choose` (an entry waits for a choice), `failed` (its newest entry failed) or `new`. An item is ready
+authors it), else from its results: `published`, `selected`, `generating`,
+`choose` (a result waits for a choice), `failed` (its newest result failed) or `new`. An item is ready
 to publish when it is `selected`, `published`, `kept` or `authored`. A population is `open`,
 `publishing` (a publication runs before its commit), `published`, `cancelled`, or, in a list,
 `outdated` (another version).
@@ -638,9 +680,10 @@ with `{ itemId, cid, bindingRevision }`, `assets`, `media` `{ mapCode, revision 
 
 ## Migration
 
-`node bin/cyberia population migrate` prints, as JSON, what moving every version 2, 3, 4 or 5
-population to version 6 would do, and writes nothing: `migrated` and `outdated` (each record of
-another version, with its recovery). Each version 2 to 4 `migrated` entry has `resolutions`
+`node bin/cyberia population migrate` prints, as JSON, what moving every version 2 to 6
+population to version 7 would do, and writes nothing: `migrated` and `outdated` (each record of
+another version, with its recovery). Each `migrated` entry has `nextRun`: the jobs the population
+stored, the run index its next run takes. Each version 2 to 4 entry has `resolutions`
 (`{ itemId, from, to }` for each strategy that changes its name) and `palettes`
 (`{ itemId, from, to, resolved }` for each palette reference that takes its global id; `resolved` is
 false when the library does not hold it); a version 2 or 3 entry also has `kept`, `removed`,
@@ -648,7 +691,7 @@ false when the library does not hold it); a version 2 or 3 entry also has `kept`
 a plan. `--apply` writes it. It reads the palette library of the served content artifact. No deploy
 runs it.
 
-| Earlier record                           | Version 6                                                                           |
+| Earlier record                           | Version 7                                                                           |
 | ---------------------------------------- | ----------------------------------------------------------------------------------- |
 | strategy `create`, `definition`, none    | resolution `template`, `author`, `author`; `keep`, `render` and `template` stay     |
 | `strategies`, `recommended`, `templates` | Removed: a read derives them                                                        |
@@ -659,8 +702,11 @@ runs it.
 | v2 or v3 publication before commit       | `cancelled_before_commit`: the moderator publishes again                            |
 | publication asset `cid`, `published`     | `revisionCid`, `status`, `definitionCid`, `attempts`; the plan takes `manifestHash` |
 | publication `error` with `conflict`      | `retryable` false; any other error `retryable` true                                 |
+| target `runs`                            | Removed: each job takes `populationItemId`, the item of the target that listed it,  |
+|                                          | else of its candidate; the population takes `nextRun`, the count of its jobs        |
+| no list of stored drafts                 | `drafts` empty: an earlier draft shows among the stored definitions of its item     |
 
-A version 4 or 5 record keeps its revision, defaults, publication and `migration`. An asset that
+A version 4 to 6 record keeps its revision, defaults, publication and `migration`. An asset that
 failed before version 6 retries: the exact publication can serve it now. The migration changes
 no binding, CID, default or placement. A kept item whose binding moved shows a conflict until the
 moderator keeps it again.

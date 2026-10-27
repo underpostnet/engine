@@ -95,11 +95,12 @@ async function ensureItems(models, job) {
  * @param {Object} params.spec - {@link resolveSpec}.
  * @param {string} params.actor - User id of the moderator.
  * @param {import('mongoose').Types.ObjectId|null} [params.populationId] - The map population whose item the job generates.
+ * @param {string} [params.populationItemId] - That item.
  * @returns {Promise<Object>} The job.
  * @throws {Error} 409 when a proposed item id is taken.
  * @memberof CyberiaProceduralJob
  */
-export async function storeJob({ models, spec, actor, populationId = null }) {
+export async function storeJob({ models, spec, actor, populationId = null, populationItemId = '' }) {
   const { CyberiaProceduralJob } = models;
   const requestFingerprint = createHash('sha256').update(canonicalize(spec)).digest('hex');
   let job = await CyberiaProceduralJob.findOne({ requestFingerprint }).lean();
@@ -120,6 +121,7 @@ export async function storeJob({ models, spec, actor, populationId = null }) {
           rootSeed: spec.seed.value,
           spec,
           populationId,
+          populationItemId,
           createdBy: actor,
         })
       ).toObject();

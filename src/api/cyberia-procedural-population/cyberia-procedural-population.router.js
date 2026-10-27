@@ -43,21 +43,6 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('mapContext')(req, res);
     });
-    router.get(`/definitions`, ...guards, async (req, res) => {
-      /*
-        #swagger.auto = false
-        #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Object Layer definitions for the target picker'
-        #swagger.description = 'Paginated definitions, newest first: those of the item ?itemId=, or those whose item id holds ?q=. Each has its item id, item type, cid, status (active, published, draft, candidate or archived), the cid its item id runs, hasRender, keptBy (what keeps it from a delete, empty when nothing), createdBy and updatedAt.'
-        #swagger.path = '/cyberia-procedural-population/definitions'
-        #swagger.method = 'get'
-        #swagger.produces = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-      */
-      return await handle('definitions')(req, res);
-    });
     router.post(`/`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
@@ -123,7 +108,7 @@ class CyberiaProceduralPopulationRouter {
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
         #swagger.summary = 'Add a target'
-        #swagger.description = 'Adds { itemId, stage?, itemType?, cid? }: an existing item, a new item id with its stage (and its item type in the other stage), or the Object Layer definition authored by hand that cid names. A removed target is restored with its runs. The item, its definitions and its binding do not change.'
+        #swagger.description = 'Adds { itemId, stage?, itemType?, cid? }: an existing item, a new item id with its stage (and its item type in the other stage), or the Object Layer definition authored by hand that cid names. A removed target is restored with its results. The item, its definitions and its binding do not change.'
         #swagger.path = '/cyberia-procedural-population/{id}/targets'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
@@ -183,7 +168,7 @@ class CyberiaProceduralPopulationRouter {
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
         #swagger.summary = 'Reset the workflow of an item'
-        #swagger.description = 'Resets the workflow of the item to a clean start: a selected entry gives back its approval, its runs stop and leave the item, its authored definition is no longer used and goes when nothing else keeps it, and it takes the recommendation now with no palette choice and no variation. Published definitions, bindings, placements, defaults, jobs and audit stay. Answers the population with reset { removed, retained, failures }; running it again is safe.'
+        #swagger.description = 'Resets the workflow of the item to a clean start: every generated result goes with its run and the revisions nothing else keeps, the selected one too; the item no longer uses its definition, each draft it stored goes when nothing else keeps it, and it takes the recommendation now with no palette choice and no variation. The next generation gives new results. Published definitions, bindings, placements, defaults, definitions another workflow stored and the audit stay. Answers the population with reset { removed, retained, failures, purged, remaining: { runs, drafts } }; running it again retries what failed.'
         #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/reset'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
@@ -193,27 +178,57 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('resetTarget')(req, res);
     });
-    router.delete(`/:id/targets/:itemId/drafts/:cid`, ...guards, async (req, res) => {
+    router.get(`/:id/targets/:itemId/results`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Delete a draft definition of an item'
-        #swagger.description = 'Deletes a stored draft of the item that the item does not use and nothing else keeps: no binding, generated entry, map population or publication plan. 409 names what keeps it.'
-        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/drafts/{cid}'
-        #swagger.method = 'delete'
+        #swagger.summary = 'The results of an item'
+        #swagger.description = 'Every generated result of the item, newest first, then each draft it stored and the definition it uses: source (render, template, author or stored), state, cid, render, what keeps it, and the actions use, edit, delete and retry, each with its availability and the reason when it is not available. Also how many results it keeps and the most it may keep.'
+        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/results'
+        #swagger.method = 'get'
         #swagger.produces = ['application/json']
         #swagger.security = [{
           'bearerAuth': []
         }]
       */
-      return await handle('deleteDraft')(req, res);
+      return await handle('results')(req, res);
+    });
+    router.post(`/:id/targets/:itemId/results/delete`, ...guards, async (req, res) => {
+      /*
+        #swagger.auto = false
+        #swagger.tags = ['cyberia-procedural-population']
+        #swagger.summary = 'Delete results of an item'
+        #swagger.description = 'Deletes { ids }: each is a generated result (its run id) or the cid of a draft of the item. A generated result goes with its run, its candidate and every revision nothing else keeps; a draft goes when the item does not use it and nothing keeps it. The selected result, published content and what others use stay. Answers the population with deleted { removed, retained, failures, purged }; the audit records each delete.'
+        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/results/delete'
+        #swagger.method = 'post'
+        #swagger.produces = ['application/json']
+        #swagger.security = [{
+          'bearerAuth': []
+        }]
+      */
+      return await handle('deleteResults')(req, res);
+    });
+    router.get(`/:id/targets/:itemId/definitions`, ...guards, async (req, res) => {
+      /*
+        #swagger.auto = false
+        #swagger.tags = ['cyberia-procedural-population']
+        #swagger.summary = 'Stored definitions of an item'
+        #swagger.description = 'Paginated definitions of the item its results do not show, newest first: published ones and drafts another workflow stored. Each has its cid, status (active, published, draft or archived), the cid the item runs, hasRender, keptBy (what keeps it from a delete, empty when nothing), createdBy and updatedAt.'
+        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/definitions'
+        #swagger.method = 'get'
+        #swagger.produces = ['application/json']
+        #swagger.security = [{
+          'bearerAuth': []
+        }]
+      */
+      return await handle('targetDefinitions')(req, res);
     });
     router.post(`/:id/targets/:itemId/generate`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Generate entries of an item'
-        #swagger.description = 'Stores { count? } new runs of the item from its configuration as it is, 1 to 4, each under the seed of its run. Its entries generate in the background.'
+        #swagger.summary = 'Generate results of an item'
+        #swagger.description = 'Stores { count? } new runs of the item from its configuration as it is, 1 to 4, each under the seed of a run index of the population no other run took. Its results generate in the background. 409 when the item keeps the most results it may keep.'
         #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/generate'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
@@ -223,27 +238,12 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('generate')(req, res);
     });
-    router.get(`/:id/targets/:itemId/entries`, ...guards, async (req, res) => {
-      /*
-        #swagger.auto = false
-        #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'The entries of an item'
-        #swagger.description = 'Every candidate of the runs of the item, newest first: its state (generating, ready, editing, selected, published, discarded, failed or cancelled), the CID it shows, its revision, template, palette, validation and diversity.'
-        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/entries'
-        #swagger.method = 'get'
-        #swagger.produces = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-      */
-      return await handle('entries')(req, res);
-    });
     router.post(`/:id/targets/:itemId/select`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Select an entry'
-        #swagger.description = 'Selects { entryId, cid }: approves that exact revision, then takes the approval back from the entry selected before.'
+        #swagger.summary = 'Use a generated result'
+        #swagger.description = 'Uses { entryId, cid }: a result of another start switches the resolution of the item to that start first; then it approves that exact revision and takes the approval back from the result selected before. Using the selected result again changes nothing.'
         #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/select'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
@@ -253,20 +253,20 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('select')(req, res);
     });
-    router.post(`/:id/targets/:itemId/entries/:entryId/discard`, ...guards, async (req, res) => {
+    router.post(`/:id/targets/:itemId/entries/:entryId/retry`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Discard an entry'
-        #swagger.description = 'Rejects the current revision of the entry. It stays stored.'
-        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/entries/{entryId}/discard'
+        #swagger.summary = 'Retry a failed result'
+        #swagger.description = 'Runs a failed generated result again under its own seed: the same result, never a new one. 409 when a run under the same seed fails the same way.'
+        #swagger.path = '/cyberia-procedural-population/{id}/targets/{itemId}/entries/{entryId}/retry'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
         #swagger.security = [{
           'bearerAuth': []
         }]
       */
-      return await handle('discardEntry')(req, res);
+      return await handle('retryEntry')(req, res);
     });
     router.post(`/:id/palette/preview`, ...guards, async (req, res) => {
       /*
@@ -483,7 +483,7 @@ class CyberiaProceduralPopulationRouter {
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
         #swagger.summary = 'Delete a population'
-        #swagger.description = 'Deletes the population and the job of each target with what it left. A publication keeps what it wrote.'
+        #swagger.description = 'Deletes the population, the job of each target with what it left, and each draft its items stored that nothing else keeps. A publication keeps what it wrote; the audit stays.'
         #swagger.path = '/cyberia-procedural-population/{id}'
         #swagger.method = 'delete'
         #swagger.produces = ['application/json']

@@ -675,7 +675,11 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
         },
       });
       const [failed] = await itemsOf(broken);
-      expect(failed).toMatchObject({ status: 'failed', attempt: MAX_ATTEMPTS, error: { message: 'disk is gone' } });
+      expect(failed).toMatchObject({
+        status: 'failed',
+        attempt: MAX_ATTEMPTS,
+        error: { message: 'disk is gone', retryable: true },
+      });
       expect((await models().CyberiaProceduralJob.findById(broken._id).lean()).status).toBe('completed');
       expect((await models().CyberiaProceduralJob.findById(broken._id).lean()).counts.failed).toBe(1);
     });
@@ -690,7 +694,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
           ),
       });
       const [item] = await itemsOf(unsound);
-      expect(item.status).toBe('failed');
+      expect(item).toMatchObject({ status: 'failed', error: { retryable: false } });
       expect(item.validation.problems).toEqual(['it names no render', 'its render frames are not stored']);
       const [event] = (await auditOf({ jobItemId: item._id })).filter(
         ({ action }) => action === 'item.validation_failed',
@@ -706,7 +710,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       );
       await drain();
       const [item] = await itemsOf(gone);
-      expect(item).toMatchObject({ status: 'failed', attempt: 1 });
+      expect(item).toMatchObject({ status: 'failed', attempt: 1, error: { retryable: false } });
       expect(item.error.message).toBe('Generator gone-variant is not available');
     });
   });
@@ -750,7 +754,7 @@ describe.skipIf(!mongodBinary)('the Procedural Engine on a real MongoDB', () => 
       const next = await claimNextItem({ models: models(), holder: 'e', now: later(9000) });
       expect(await itemOf(first._id)).toMatchObject({
         status: 'failed',
-        error: { message: 'The lease expired on the last attempt' },
+        error: { message: 'The lease expired on the last attempt', retryable: true },
       });
       expect(next).toMatchObject({ targetItemId: second.targetItemId, attempt: 1 });
       await models().CyberiaProceduralJobItem.updateOne({ _id: second._id }, { $set: { status: 'cancelled' } });

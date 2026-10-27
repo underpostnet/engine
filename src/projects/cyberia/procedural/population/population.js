@@ -8,12 +8,11 @@
  * any time. `keep` records the binding the item runs, with its revision, and generates nothing;
  * `author` uses a definition a moderator authors by hand. A change of resolution takes the approval
  * back from the selected entry; the entries, the authored definition and the audit stay.
- * Generate stores runs from the configuration as it is: each run is a job under its own seed, and
- * its candidates are the entries of the item. Selecting an entry approves its exact revision and
- * takes the approval back from the entry selected before. A moderator also adds a target, removes
- * one from the population, restores it, forgets a removed one, or resets a target to what is
- * recommended. A removal cancels the active work of its runs and keeps them. None of these touches the item, its
- * definition, its binding or a placement.
+ * Each run of a target is a job that names the population, and its candidate is an entry of the
+ * item: the results of an item live in {@link module:src/projects/cyberia/procedural/population/results.js}.
+ * A moderator also adds a target, removes one from the population, restores it or forgets a removed
+ * one. A removal cancels the active work of its runs and keeps them. None of these touches the item,
+ * its definition, its binding or a placement.
  *
  * The draft is the map to publish: its grid and placements, from the map revision it read. The
  * preview draws every placed item by the CID it would run: its selected entry, its authored
@@ -31,19 +30,16 @@ import {
 } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { runsAnother } from '../../../../api/cyberia-item-catalog/cyberia-item-catalog.model.js';
 import { ENTITY_TYPE_TO_ITEM_TYPES } from '../../../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { fromWire } from '../../../../client/components/objectlayer-studio/RenderSource.js';
 import { renderedCids } from '../../catalog/object-layer-catalog.js';
-import { ObjectLayerEngine } from '../../object-layer/object-layer.js';
 import { deriveSeed } from '../core/seed.js';
-import { cancelJob, deleteJob, purgeRevisions, recordAudit, requestError, revisionKeepers } from '../engine.js';
-import { storeJob } from '../jobs/job.js';
-import { approveItem, rejectItem, withdrawApproval } from '../jobs/review.js';
+import { cancelJob, deleteJob, purgeRevisions, requestError, revisionKeepers } from '../engine.js';
+import { withdrawApproval } from '../jobs/review.js';
 import { paletteOf } from '../palettes/catalog.js';
-import { RANDOM_PALETTE, choiceOf, resolveSpec, seedOf } from '../spec.js';
+import { RANDOM_PALETTE, choiceOf, seedOf } from '../spec.js';
 import { genesisTemplate, resolveTemplate } from '../templates.js';
 import { workspaceOf } from './defaults.js';
 import { observedOf, resolveMapContext, resolveTargets, targetUsage } from './map-context.js';
-import { GENERATING, checkResolution, itemSupport, recommendedOf, resolutionsOf } from './resolution.js';
+import { GENERATING, checkResolution, itemSupport, resolutionsOf } from './resolution.js';
 import { STAGES, stageOf } from './stages.js';
 import { themeSlots } from './theme.js';
 
@@ -64,8 +60,6 @@ const ENTRY_STATES = Object.freeze({
   failed: 'failed',
   cancelled: 'cancelled',
 });
-/** The most runs one Generate stores. */
-const MAX_RUNS = 4;
 const REQUEST_KEYS = Object.freeze(['mapCode', 'seed']);
 const TARGET_KEYS = Object.freeze(['resolution', 'templateId', 'palette', 'variation']);
 const GRID_KEYS = Object.freeze(['gridX', 'gridY', 'cellWidth', 'cellHeight']);
@@ -75,7 +69,16 @@ const PALETTE_OVERRIDES = Object.freeze(['keep', 'replace']);
 
 const isPlain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const sha256 = (value) => createHash('sha256').update(canonicalize(value)).digest('hex');
-const only = (value, keys, name) => {
+/**
+ * A request body that takes only some keys.
+ * @param {Object} value
+ * @param {string[]} keys
+ * @param {string} name - What the body is, for the refusal.
+ * @returns {Object} The body.
+ * @throws {Error} 400 for a body that is not an object, or a key it does not take.
+ * @memberof CyberiaPopulation
+ */
+export const only = (value, keys, name) => {
   if (!isPlain(value)) throw requestError(`${name} must be an object`);
   const unknown = Object.keys(value).filter((key) => !keys.includes(key));
   if (unknown.length > 0) throw requestError(`${name} does not take ${unknown.join(', ')}`);
@@ -132,57 +135,91 @@ export function targetRequest(target, { rootSeed, fingerprint }, run) {
   };
 }
 
-/** One entry of a target: a candidate of one of its runs, as a client shows it. */
-const entryOf = (item, run) => ({
-  id: String(item._id),
-  jobId: String(item.jobId),
-  run,
-  state: ENTRY_STATES[item.status],
-  cid: item.candidateCid ?? '',
-  revision: item.revision ?? null,
-  templateId: item.templateId ?? '',
-  paletteId: item.paletteId ?? '',
-  valid: item.validation?.ok ?? false,
-  problems: item.validation?.problems ?? [],
-  error: item.error?.message ?? '',
-  diversity: item.diversity?.score ?? null,
-  createdAt: item.createdAt,
+/** Where the artwork of a run starts: `template` for a Genesis Template, else `render`. */
+const runSource = (job) => (job.spec.mode === 'create-new' ? 'template' : (job.spec.sources[0]?.origin ?? 'render'));
+
+/**
+ * One entry of a target: the candidate of one of its runs, as a client shows it. A run that holds no
+ * candidate record is `missing`.
+ */
+const entryOf = (job, item) => ({
+  id: item ? String(item._id) : '',
+  jobId: String(job._id),
+  source: runSource(job),
+  state: item ? ENTRY_STATES[item.status] : 'missing',
+  cid: item?.candidateCid ?? '',
+  revision: item?.revision ?? null,
+  revisions: item?.revisions.length ?? 0,
+  templateId: item?.templateId ?? '',
+  paletteId: item?.paletteId ?? '',
+  valid: item?.validation?.ok ?? false,
+  problems: item?.validation?.problems ?? [],
+  error: item ? (item.error?.message ?? '') : 'The run holds no candidate record',
+  retryable: item?.error?.retryable ?? false,
+  diversity: item?.diversity?.score ?? null,
+  createdAt: item?.createdAt ?? job.createdAt,
+  updatedAt: item?.updatedAt ?? job.createdAt,
+});
+
+/** The projection of a run that {@link entryOf} reads. */
+const RUN_FIELDS = Object.freeze({
+  populationId: 1,
+  populationItemId: 1,
+  createdAt: 1,
+  'spec.mode': 1,
+  'spec.sources.origin': 1,
 });
 
 /**
- * The entries of each target of some populations, by population id and item id, newest first.
+ * The runs of one target: every job of its population that generates its item, newest first.
+ * @param {Object} models
+ * @param {import('mongoose').Types.ObjectId} populationId
+ * @param {string} itemId
+ * @returns {Promise<Object[]>} Lean jobs.
+ * @memberof CyberiaPopulation
+ */
+export const runsOf = async ({ CyberiaProceduralJob }, populationId, itemId) =>
+  await CyberiaProceduralJob.find({ populationId, populationItemId: itemId }, RUN_FIELDS)
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
+
+/**
+ * The entries of each target of some populations, by population id and item id, newest first: one
+ * for each run of the population that generates the item id.
  * @param {Object} models
  * @param {Object[]} populations
  * @returns {Promise<Map<string,Object[]>>} `<population id>|<item id>` → entries.
+ * @memberof CyberiaPopulation
  */
-async function entriesOf({ CyberiaProceduralJobItem }, populations) {
-  const runOf = new Map();
-  for (const population of populations)
-    for (const { itemId, runs = [] } of population.targets)
-      runs.forEach((jobId, run) => runOf.set(String(jobId), { key: `${population._id}|${itemId}`, run }));
+export async function entriesOf({ CyberiaProceduralJob, CyberiaProceduralJobItem }, populations) {
+  const jobs = await CyberiaProceduralJob.find({ populationId: { $in: populations.map(({ _id }) => _id) } }, RUN_FIELDS)
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
   const items = await CyberiaProceduralJobItem.find(
-    { jobId: { $in: [...runOf.keys()] } },
+    { jobId: { $in: jobs.map(({ _id }) => _id) } },
     {
       jobId: 1,
       status: 1,
       candidateCid: 1,
       revision: 1,
+      'revisions.cid': 1,
       templateId: 1,
       paletteId: 1,
       'validation.ok': 1,
       'validation.problems': 1,
       'error.message': 1,
+      'error.retryable': 1,
       'diversity.score': 1,
       createdAt: 1,
+      updatedAt: 1,
     },
-  )
-    .sort({ createdAt: -1, _id: -1 })
-    .lean();
+  ).lean();
+  const itemOf = new Map(items.map((item) => [String(item.jobId), item]));
   const entries = new Map();
-  for (const item of items) {
-    const { key, run } = runOf.get(String(item.jobId));
+  for (const job of jobs) {
+    const key = `${job.populationId}|${job.populationItemId}`;
     if (!entries.has(key)) entries.set(key, []);
-    entries.get(key).push(entryOf(item, run));
+    entries.get(key).push(entryOf(job, itemOf.get(String(job._id))));
   }
   return entries;
 }
@@ -300,7 +337,6 @@ function stateOf(population, entries, bindings) {
     const selected = own.find((entry) => entry.state === 'selected' || entry.state === 'published') ?? null;
     return {
       ...target,
-      runs: (target.runs ?? []).map(String),
       state: state === 'authored' && bound.has(target.itemId) ? 'published' : state,
       selected,
       latest: own[0] ?? null,
@@ -487,6 +523,20 @@ export async function findPopulation({ CyberiaProceduralPopulation }, id) {
 }
 
 /**
+ * Why a population takes no more changes: it was cancelled, or a publication runs or ran; empty
+ * while it is open.
+ * @param {Object} population
+ * @returns {string}
+ * @memberof CyberiaPopulation
+ */
+export function closedReason({ cancelledAt, publication }) {
+  if (cancelledAt) return 'The population was cancelled';
+  if (publication?.commit) return 'The population was published';
+  if (publication && !CLOSED_BEFORE_COMMIT.includes(publication.status)) return heldReason(publication);
+  return '';
+}
+
+/**
  * A population that still takes changes: not cancelled, and with no publication that runs or ran.
  * @param {Object} models
  * @param {string} id
@@ -496,21 +546,16 @@ export async function findPopulation({ CyberiaProceduralPopulation }, id) {
  */
 export async function openPopulation(models, id) {
   const population = await findPopulation(models, id);
-  if (population.cancelledAt) throw requestError('The population was cancelled', 409);
-  const { publication } = population;
-  if (publication?.commit) throw requestError('The population was published', 409);
-  if (publication && !CLOSED_BEFORE_COMMIT.includes(publication.status)) throw heldBy(publication);
+  const reason = closedReason(population);
+  if (reason) throw requestError(reason, 409);
   return population;
 }
 
 /** Why a publication before its commit holds its population: it runs, or it stopped on a failure. */
-const heldBy = ({ status }) =>
-  requestError(
-    status.endsWith('_failed')
-      ? 'The publication of this population stopped on a failure: retry it, or cancel it before its commit'
-      : 'A publication of this population runs: wait for it, or cancel it before its commit',
-    409,
-  );
+const heldReason = ({ status }) =>
+  status.endsWith('_failed')
+    ? 'The publication of this population stopped on a failure: retry it, or cancel it before its commit'
+    : 'A publication of this population runs: wait for it, or cancel it before its commit';
 
 /**
  * Writes fields of a population that nobody changed since it was read, one revision more.
@@ -530,18 +575,41 @@ export async function writePopulation({ CyberiaProceduralPopulation }, populatio
     throw requestError('The population changed meanwhile: review its current state and try again', 409);
 }
 
-/** Writes the targets of a population that nobody changed since it was read. */
-const writeTargets = (models, population, targets) => writePopulation(models, population, { targets });
+/**
+ * Writes the targets of a population that nobody changed since it was read.
+ * @param {Object} models
+ * @param {Object} population - The population as read.
+ * @param {Object[]} targets
+ * @returns {Promise<void>}
+ * @throws {Error} 409 when the population changed meanwhile.
+ * @memberof CyberiaPopulation
+ */
+export const writeTargets = (models, population, targets) => writePopulation(models, population, { targets });
 
-/** The target of an item id, with its index. */
-function targetOf(population, itemId) {
+/**
+ * The target of an item id, with its index.
+ * @param {Object} population
+ * @param {string} itemId
+ * @returns {{at:number,target:Object}}
+ * @throws {Error} 404 when the population has no such target.
+ * @memberof CyberiaPopulation
+ */
+export function targetOf(population, itemId) {
   const at = population.targets.findIndex((target) => target.itemId === itemId);
   if (at < 0) throw requestError(`The population has no item ${itemId}`, 404);
   return { at, target: population.targets[at] };
 }
 
-/** The targets with one target replaced. */
-const replaced = (population, at, target) => population.targets.map((entry, index) => (index === at ? target : entry));
+/**
+ * The targets with one target replaced.
+ * @param {Object} population
+ * @param {number} at
+ * @param {Object} target
+ * @returns {Object[]}
+ * @memberof CyberiaPopulation
+ */
+export const replaced = (population, at, target) =>
+  population.targets.map((entry, index) => (index === at ? target : entry));
 
 /**
  * Reads one population.
@@ -598,70 +666,38 @@ export async function createPopulation({ models, request, actor }) {
   return await populationView(models, population);
 }
 
-/**
- * The status of an Object Layer definition for the picker: `active` while the catalog binds it,
- * `candidate` while a job of the engine reviews it, `archived`, `draft` unpublished, else `published`.
- */
-function definitionStatus(definition, { bound, candidates }) {
-  if (bound.get(definition.data.item.id) === definition.cid) return 'active';
-  if (candidates.has(definition.cid)) return 'candidate';
-  if (definition.archivedAt) return 'archived';
-  return definition.origin === 'draft' ? 'draft' : 'published';
-}
-
-/** The classifying facts of some definitions: the bindings of their item ids and the candidate cids among them. */
-async function definitionFacts({ CyberiaItemCatalog, CyberiaProceduralJobItem }, definitions) {
-  const cids = definitions.map(({ cid }) => cid);
-  const [bound, items] = await Promise.all([
-    CyberiaItemCatalog.resolve([...new Set(definitions.map(({ data }) => data.item.id))]),
-    CyberiaProceduralJobItem.find(
-      { $or: [{ candidateCid: { $in: cids } }, { 'revisions.cid': { $in: cids } }] },
-      { candidateCid: 1, 'revisions.cid': 1 },
-    ).lean(),
-  ]);
-  const candidates = new Set(
-    items.flatMap(({ candidateCid, revisions = [] }) => [candidateCid, ...revisions.map(({ cid }) => cid)]),
-  );
-  return { bound, candidates };
-}
+/** The status of an Object Layer definition: `archived`, `draft` unpublished, else `published`. */
+const definitionStatus = ({ archivedAt, origin }) =>
+  archivedAt ? 'archived' : origin === 'draft' ? 'draft' : 'published';
 
 /**
- * A page of Object Layer definitions, newest first: those of one item id, or those whose item id holds
- * a text. Each has its item id, item type, CID, status, the CID its item id runs, whether it has a
- * render, what keeps it from a delete ({@link revisionKeepers}), who stored it and when.
+ * A page of the Object Layer definitions of an item id, newest first. Each has its item id, item
+ * type, CID, status, whether it has a render, what keeps it from a delete ({@link revisionKeepers}),
+ * who stored it and when.
  * @param {Object} models - {@link populationModels}.
- * @param {{itemId?:string,q?:string,skip:number,limit:number}} params
+ * @param {{itemId:string,exclude:string[],skip:number,limit:number}} params - `exclude` lists CIDs
+ *   the page leaves out.
  * @returns {Promise<{data:Object[],total:number}>}
  * @memberof CyberiaPopulation
  */
-export async function findDefinitions(models, { itemId, q, skip, limit }) {
-  const pattern = String(q ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const query = itemId
-    ? { 'data.item.id': String(itemId) }
-    : pattern
-      ? { 'data.item.id': { $regex: pattern, $options: 'i' } }
-      : {};
+export async function findDefinitions(models, { itemId, exclude, skip, limit }) {
+  const query = { 'data.item.id': itemId, cid: { $nin: exclude } };
   const [definitions, total] = await Promise.all([
     models.ObjectLayer.find(query, { cid: 1, origin: 1, archivedAt: 1, createdBy: 1, updatedAt: 1, 'data.item': 1 })
-      .sort({ 'data.item.id': 1, updatedAt: -1 })
+      .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
     models.ObjectLayer.countDocuments(query),
   ]);
   const cids = definitions.map(({ cid }) => cid);
-  const [facts, rendered, keepers] = await Promise.all([
-    definitionFacts(models, definitions),
-    renderedCids(models, cids),
-    revisionKeepers(models, cids),
-  ]);
+  const [rendered, keepers] = await Promise.all([renderedCids(models, cids), revisionKeepers(models, cids)]);
   return {
     data: definitions.map((definition) => ({
       cid: definition.cid,
       itemId: definition.data.item.id,
       itemType: definition.data.item.type,
-      status: definitionStatus(definition, facts),
-      boundCid: facts.bound.get(definition.data.item.id) ?? '',
+      status: definitionStatus(definition),
       hasRender: rendered.has(definition.cid),
       keptBy: keepers.get(definition.cid) ?? '',
       createdBy: definition.createdBy ?? '',
@@ -671,7 +707,7 @@ export async function findDefinitions(models, { itemId, q, skip, limit }) {
   };
 }
 
-/** A definition a target may use: of its item id, published or drafted, with a render, and no candidate of a job. */
+/** A definition a target may use: of its item id, not archived, with a render, and no revision of a generated entry. */
 async function selectableDefinition(models, itemId, cid) {
   const definition = await models.ObjectLayer.findOne(
     { cid },
@@ -680,19 +716,17 @@ async function selectableDefinition(models, itemId, cid) {
   if (!definition) throw requestError(`There is no Object Layer definition ${cid}`, 404);
   if (definition.data.item.id !== itemId)
     throw requestError(`Definition ${cid} is item ${definition.data.item.id}, not ${itemId}`);
-  const status = definitionStatus(definition, await definitionFacts(models, [definition]));
-  if (status === 'archived') throw requestError(`Definition ${cid} is archived`, 409);
-  if (status === 'candidate')
-    throw requestError(`Definition ${cid} is an entry of a generation: select it on its item instead`, 409);
+  if (definition.archivedAt) throw requestError(`Definition ${cid} is archived`, 409);
+  if (await models.CyberiaProceduralJobItem.exists({ 'revisions.cid': cid }))
+    throw requestError(`Definition ${cid} is an entry of a generation: use it from the results of its item`, 409);
   if (!(await renderedCids(models, [cid])).has(cid))
     throw requestError(`Definition ${cid} has no render: continue editing it in the Studio, or choose another`, 409);
-  return { cid, status };
 }
 
 /**
  * Adds a target: an existing item, a new item id with its stage (and its item type in the `other`
  * stage), or an Object Layer definition authored by hand that the item id takes. A removed target
- * comes back as it was, with its runs. Adding a target the population holds with a definition makes
+ * comes back as it was, with its entries. Adding a target the population holds with a definition makes
  * it the authored definition of the target, and takes back the approval of a selected entry.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
@@ -756,38 +790,6 @@ export async function addTarget({ models, id, body, actor }) {
 }
 
 /**
- * Stores the artwork a moderator authored for a target in the Object Layer Studio as a draft
- * definition, and makes it the definition the target uses. Nothing is published or bound before the
- * population publishes.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {{data:Object,objectLayerRenderFramesData:Object}} params.body - What the Studio sends.
- * @param {string} params.actor
- * @param {Object} params.options - Router options.
- * @returns {Promise<Object>} The stored definition.
- * @throws {Error} 400 when the save changes the item id or the item type, or has no render; 404 for an
- *   unknown target; 409 for a closed population.
- * @memberof CyberiaPopulation
- */
-export async function authorTarget({ models, id, itemId, body, actor, options }) {
-  const { target } = targetOf(await openPopulation(models, id), itemId);
-  if (body.data?.item?.id !== itemId) throw requestError(`The artwork of this item keeps the item id ${itemId}`);
-  if (body.data.item.type !== target.itemType)
-    throw requestError(`${itemId} is a ${target.itemType} item, not a ${body.data.item.type} item`);
-  if (!body.objectLayerRenderFramesData) throw requestError('The artwork needs its render frames');
-  const definition = await ObjectLayerEngine.persistObjectLayerDocuments({
-    models,
-    objectLayerRenderFramesData: fromWire(body.objectLayerRenderFramesData),
-    objectLayerData: { data: body.data, createdBy: actor },
-    persistOptions: { options, draft: true },
-  });
-  await addTarget({ models, id, body: { itemId, cid: definition.cid }, actor });
-  return definition;
-}
-
-/**
  * What a target keeps: the binding its item runs now and its revision, read again with its render.
  * @throws {Error} 400 when the item runs no definition.
  */
@@ -798,8 +800,14 @@ async function keptTarget(models, target) {
   return { ...target, resolution: 'keep', cid: binding.cid, hasRender, observed: observedOf(binding) };
 }
 
-/** A target with its binding now, and what its stage supports for its item type. */
-async function capabilitiesNow(models, target) {
+/**
+ * A target with its binding now, and what its stage supports for its item type.
+ * @param {Object} models
+ * @param {Object} target
+ * @returns {Promise<{own:Object,current:Object}>} `own` is the {@link itemSupport} of its stage and type.
+ * @memberof CyberiaPopulation
+ */
+export async function capabilitiesNow(models, target) {
   const [support, bindings] = await Promise.all([
     itemSupport(models),
     models.CyberiaItemCatalog.bindingsOf([target.itemId]),
@@ -827,8 +835,18 @@ async function withdrawSelection(models, population, target, { to, actor }) {
     });
 }
 
-/** A target in a resolution: `keep` records the binding of this moment; any other drops a kept binding. */
-async function resolvedTarget(models, population, target, resolution, actor) {
+/**
+ * A target in a resolution: `keep` records the binding of this moment; any other drops a kept
+ * binding. Leaving a resolution takes the approval back from the selected entry.
+ * @param {Object} models
+ * @param {Object} population
+ * @param {Object} target
+ * @param {string} resolution
+ * @param {string} actor
+ * @returns {Promise<Object>} The target to write.
+ * @memberof CyberiaPopulation
+ */
+export async function resolvedTarget(models, population, target, resolution, actor) {
   await withdrawSelection(models, population, target, { to: resolution, actor });
   return resolution === 'keep' ? await keptTarget(models, target) : { ...target, resolution, observed: null };
 }
@@ -884,137 +902,6 @@ export async function updateTarget({ models, id, itemId, body, actor }) {
 }
 
 /**
- * Resets the workflow of an item to a clean start. A selected entry gives back its approval, the runs
- * stop and leave the item, the authored definition is no longer used and goes when nothing else keeps
- * it ({@link revisionKeepers}), and the item takes the recommendation now with no palette choice and
- * no variation. Published definitions, bindings, placements, defaults, jobs and audit stay. A run
- * that does not stop stays on the item and is a failure: running the reset again retries it. A reset
- * of a clean item changes nothing. The audit records what went, what stayed and what failed.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {string} params.actor
- * @param {Object} params.options - Router options.
- * @param {Date} [params.now]
- * @returns {Promise<Object>} {@link populationView} with `reset` `{ removed, retained, failures }`.
- * @throws {Error} 404 for an unknown target; 409 for a closed population.
- * @memberof CyberiaPopulation
- */
-export async function resetTarget({ models, id, itemId, actor, options, now = new Date() }) {
-  const population = await openPopulation(models, id);
-  const { at, target } = targetOf(population, itemId);
-  const report = { removed: [], retained: [], failures: [] };
-  const reason = `${itemId} reset`;
-  const entries = (await entriesOf(models, [population])).get(`${population._id}|${itemId}`) ?? [];
-  for (const entry of entries.filter(({ state }) => state === 'selected'))
-    try {
-      await withdrawApproval({ models, jobId: entry.jobId, id: entry.id, actor, reason });
-      report.removed.push(`the selection of entry ${entry.run + 1}`);
-    } catch (error) {
-      report.failures.push(`the selection of entry ${entry.run + 1}: ${error.message}`);
-    }
-  const runs = [];
-  for (const jobId of target.runs ?? [])
-    try {
-      await stopJob(models, jobId, { actor, reason, now });
-    } catch (error) {
-      runs.push(jobId);
-      report.failures.push(`run ${jobId} did not stop: ${error.message}`);
-    }
-  const stopped = (target.runs?.length ?? 0) - runs.length;
-  if (stopped > 0)
-    report.removed.push(`${stopped} ${stopped === 1 ? 'run' : 'runs'} from the item; jobs and audit stay`);
-  const { own, current } = await capabilitiesNow(models, target);
-  const bound = current.binding?.cid;
-  const clean = {
-    ...target,
-    runs,
-    definitionCid: '',
-    templateId: own.usable[0] ?? '',
-    variation: null,
-    palette: { slots: {} },
-    hasRender: Boolean(bound) && (await renderedCids(models, [bound])).has(bound),
-  };
-  const next = await resolvedTarget(
-    models,
-    population,
-    clean,
-    recommendedOf(clean, resolutionsOf({ ...current, ...clean }, own)),
-    actor,
-  );
-  if (JSON.stringify(next) !== JSON.stringify(target))
-    await writeTargets(models, population, replaced(population, at, next));
-  const authored = target.definitionCid;
-  if (authored) {
-    report.removed.push(`the use of the authored definition ${authored}`);
-    const keeper = (await revisionKeepers(models, [authored])).get(authored);
-    if (!(await models.ObjectLayer.exists({ cid: authored, origin: 'draft' })))
-      report.retained.push(`the definition ${authored}: it is not a draft`);
-    else if (keeper) report.retained.push(`the draft ${authored}: ${keeper}`);
-    else
-      try {
-        if ((await purgeRevisions({ models, options, cids: [authored] })) > 0)
-          report.removed.push(`the draft ${authored}`);
-      } catch (error) {
-        report.failures.push(`the draft ${authored} stays: ${error.message}; delete it from the drafts of the item`);
-      }
-  }
-  report.retained.push('published definitions, bindings, placements, defaults, jobs and audit');
-  if (report.removed.length > 0 || report.failures.length > 0)
-    await recordAudit(models, {
-      action: 'target.reset',
-      actor,
-      populationId: population._id,
-      itemId,
-      reason: [
-        `removed: ${report.removed.join('; ') || 'nothing'}`,
-        `retained: ${report.retained.join('; ')}`,
-        ...(report.failures.length > 0 ? [`failures: ${report.failures.join('; ')}`] : []),
-      ].join(' · '),
-    });
-  return { ...(await getPopulation(models, id)), reset: report };
-}
-
-/**
- * Deletes a draft definition of an item, on request: a stored draft of that item id that the item
- * does not use and nothing else keeps ({@link revisionKeepers}). Published definitions and bindings
- * never go. The audit records it.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {string} params.cid
- * @param {string} params.actor
- * @param {Object} params.options - Router options.
- * @returns {Promise<Object>} {@link populationView}.
- * @throws {Error} 404 for an unknown target or definition; 409 for a closed population, a definition
- *   that is not a draft of the item, the definition the item uses, or a kept one.
- * @memberof CyberiaPopulation
- */
-export async function deleteDraft({ models, id, itemId, cid, actor, options }) {
-  const population = await openPopulation(models, id);
-  const { target } = targetOf(population, itemId);
-  const definition = await models.ObjectLayer.findOne({ cid }, { cid: 1, origin: 1, 'data.item.id': 1 }).lean();
-  if (!definition) throw requestError(`There is no Object Layer definition ${cid}`, 404);
-  if (definition.data.item.id !== itemId || definition.origin !== 'draft')
-    throw requestError(`Definition ${cid} is not a draft of ${itemId}: it stays`, 409);
-  if (target.definitionCid === cid)
-    throw requestError(`${itemId} uses draft ${cid}: use another draft or reset the item first`, 409);
-  const keeper = (await revisionKeepers(models, [cid])).get(cid);
-  if (keeper) throw requestError(`Draft ${cid} stays: ${keeper}`, 409);
-  await purgeRevisions({ models, options, cids: [cid] });
-  await recordAudit(models, {
-    action: 'target.draft_deleted',
-    actor,
-    populationId: population._id,
-    itemId,
-    previousCid: cid,
-  });
-  return await getPopulation(models, id);
-}
-
-/**
  * Removes a target from the population, from any source. The active work of its runs is cancelled;
  * its jobs, entries and audit stay. The removed target keeps who removed it, when and why, and stays
  * removed until a moderator adds it back. The item, its definitions, its binding, its placements and
@@ -1033,8 +920,8 @@ export async function deleteDraft({ models, id, itemId, cid, actor, options }) {
 export async function removeTarget({ models, id, itemId, reason = '', actor, now = new Date() }) {
   const population = await openPopulation(models, id);
   const { at, target } = targetOf(population, itemId);
-  for (const jobId of target.runs)
-    await stopJob(models, jobId, { actor, reason: `${itemId} removed from the population`, now });
+  for (const { _id } of await runsOf(models, population._id, itemId))
+    await stopJob(models, _id, { actor, reason: `${itemId} removed from the population`, now });
   await writePopulation(models, population, {
     targets: population.targets.filter((_, index) => index !== at),
     removed: [...population.removed, { target, by: actor, at: now, reason: String(reason) }],
@@ -1077,114 +964,6 @@ export async function stopJob(models, jobId, { actor, reason, now }) {
   } catch (error) {
     if (error.status !== 404 && error.status !== 409) throw error;
   }
-}
-
-/**
- * Generates new entries of a target from its configuration as it is: `count` runs, each a job under
- * the seed of its run. A target whose binding moved since the population read it generates nothing.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {number} [params.count] - 1 to {@link MAX_RUNS}.
- * @param {string} params.actor
- * @returns {Promise<Object>} {@link populationView}.
- * @throws {Error} 400 for a count out of range or a target no resolution generates; 409 for a closed
- *   population or a moved binding.
- * @memberof CyberiaPopulation
- */
-export async function generateTarget({ models, id, itemId, count = 1, actor }) {
-  const population = await openPopulation(models, id);
-  const { target } = targetOf(population, itemId);
-  if (!Number.isInteger(count) || count < 1 || count > MAX_RUNS)
-    throw requestError(`count is an integer from 1 to ${MAX_RUNS}`);
-  if (!GENERATING.includes(target.resolution))
-    throw requestError(`${itemId} generates nothing: choose a template or its current artwork as the start`);
-  const { own, current } = await capabilitiesNow(models, target);
-  checkResolution(itemId, current, own, target.resolution);
-  const binding = (await models.CyberiaItemCatalog.resolve([itemId])).get(itemId) ?? null;
-  if (binding !== target.cid)
-    throw requestError(
-      `${runsAnother(itemId, binding, target.cid)}. Keep it to read what it runs now, then choose how to generate it.`,
-      409,
-    );
-  for (let offset = 0; offset < count; offset++) {
-    const run = target.runs.length + offset;
-    const { spec } = await resolveSpec(models, targetRequest(target, population, run));
-    const job = await storeJob({ models, spec, actor, populationId: population._id });
-    await models.CyberiaProceduralPopulation.updateOne(
-      { _id: population._id, 'targets.itemId': itemId },
-      { $addToSet: { 'targets.$.runs': job._id }, $inc: { revision: 1 } },
-    );
-  }
-  return await getPopulation(models, id);
-}
-
-/**
- * The entries of one target: every candidate of its runs, newest first, with the CID each shows.
- * @param {Object} models
- * @param {string} id
- * @param {string} itemId
- * @returns {Promise<Object[]>}
- * @throws {Error} 404 for an unknown population or target.
- * @memberof CyberiaPopulation
- */
-export async function targetEntries(models, id, itemId) {
-  const population = await findPopulation(models, id);
-  targetOf(population, itemId);
-  return (await entriesOf(models, [population])).get(`${population._id}|${itemId}`) ?? [];
-}
-
-/** The entry of a target, by its candidate id. */
-async function entryOfTarget(models, population, itemId, entryId) {
-  const entries = (await entriesOf(models, [population])).get(`${population._id}|${itemId}`) ?? [];
-  const entry = entries.find(({ id }) => id === entryId);
-  if (!entry) throw requestError(`${itemId} has no entry ${entryId}`, 404);
-  return { entry, entries };
-}
-
-/**
- * Selects one entry of a target: it approves the exact revision the moderator saw, then takes the
- * approval back from the entry selected before. One entry of a target is selected at a time.
- * @param {Object} params
- * @param {Object} params.models
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {{entryId:string,cid:string}} params.body
- * @param {string} params.actor
- * @returns {Promise<Object>} {@link populationView}.
- * @throws {Error} 404 for an unknown entry; 409 for a closed population or a revision that is not the current one.
- * @memberof CyberiaPopulation
- */
-export async function selectEntry({ models, id, itemId, body, actor }) {
-  const population = await openPopulation(models, id);
-  const { entryId, cid } = only(body, ['entryId', 'cid'], 'A selection');
-  const { entry, entries } = await entryOfTarget(models, population, itemId, String(entryId));
-  if (entry.state !== 'selected')
-    await approveItem({ models, jobId: entry.jobId, id: entry.id, cid, actor, reason: 'selected in the population' });
-  for (const other of entries)
-    if (other.id !== entry.id && other.state === 'selected')
-      await withdrawApproval({ models, jobId: other.jobId, id: other.id, actor, reason: `${entry.id} is selected` });
-  return await getPopulation(models, id);
-}
-
-/**
- * Discards one entry of a target: its revision is rejected and stays stored.
- * @param {Object} params
- * @param {Object} params.models
- * @param {string} params.id
- * @param {string} params.itemId
- * @param {string} params.entryId
- * @param {string} params.actor
- * @returns {Promise<Object>} {@link populationView}.
- * @throws {Error} 404 for an unknown entry; 409 for a closed population or an entry no decision takes.
- * @memberof CyberiaPopulation
- */
-export async function discardEntry({ models, id, itemId, entryId, actor }) {
-  const population = await openPopulation(models, id);
-  const { entry } = await entryOfTarget(models, population, itemId, String(entryId));
-  await rejectItem({ models, jobId: entry.jobId, id: entry.id, actor, reason: 'discarded in the population' });
-  return await getPopulation(models, id);
 }
 
 /**
@@ -1635,8 +1414,9 @@ export async function cancelPopulation({ models, id, actor, now = new Date() }) 
 }
 
 /**
- * Deletes a population of any version and every job it stored, with everything they left. A
- * published item and a published map keep what the publication wrote.
+ * Deletes a population of any version, every job it stored with everything they left, and each draft
+ * its items stored that nothing else keeps. A published item and a published map keep what the
+ * publication wrote.
  * @param {Object} params
  * @param {Object} params.models
  * @param {string} params.id
@@ -1652,7 +1432,7 @@ export async function deletePopulation({ models, id, options, now = new Date() }
   if (!population) throw requestError('Population not found', 404);
   const { publication } = population;
   if (publication && !publication.commit && !CLOSED_BEFORE_COMMIT.includes(publication.status))
-    throw heldBy(publication);
+    throw requestError(heldReason(publication), 409);
   const removed = { jobs: 0, stopped: 0, candidates: 0, drafts: 0 };
   for (const jobId of await Job.distinct('_id', { populationId: population._id })) {
     try {
@@ -1661,11 +1441,22 @@ export async function deletePopulation({ models, id, options, now = new Date() }
         jobs: removed.jobs + 1,
         stopped: removed.stopped + stopped,
         candidates: removed.candidates + candidates,
-        drafts: removed.drafts + drafts,
+        drafts: removed.drafts + drafts.length,
       });
     } catch (error) {
       if (error.status !== 404) throw error;
     }
+  }
+  const owned = [...population.targets, ...population.removed.map(({ target }) => target)].flatMap(
+    ({ drafts = [] }) => drafts,
+  );
+  if (owned.length > 0) {
+    await Population.updateOne(
+      { _id: population._id },
+      { $set: { 'targets.$[].definitionCid': '', 'removed.$[].target.definitionCid': '' } },
+    );
+    const drafts = await models.ObjectLayer.distinct('cid', { cid: { $in: owned }, origin: 'draft' });
+    removed.drafts += (await purgeRevisions({ models, options, cids: drafts })).length;
   }
   await Population.deleteOne({ _id: population._id });
   return removed;

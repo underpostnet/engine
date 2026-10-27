@@ -43,7 +43,7 @@ import {
 import { proceduralModels } from './procedural/engine.js';
 import { saveRevision } from './procedural/jobs/review.js';
 import { populationModels } from './procedural/population/map-context.js';
-import { authorTarget } from './procedural/population/population.js';
+import { authorTarget } from './procedural/population/results.js';
 
 /**
  * Refuses an authored save whose stats leave its bounds, and names each one: the custom bounds the

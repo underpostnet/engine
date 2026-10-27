@@ -3,8 +3,9 @@
  * Engine, its items, its map draft, its entity-type defaults workspace and its publication.
  *
  * A population freezes the map context it read. Each target is one item id with its own resolution,
- * template, palette and variation, the definition authored by hand for it, and the runs that
- * generated its entries; the jobs, their
+ * template, palette and variation, the definition it uses, and the drafts its Studio saves stored.
+ * Each run is a job that names the population, under the seed of a run index of the population no
+ * other run took; the jobs, their
  * candidates, the review and the audit stay those of the Procedural Engine. The population adds the
  * item decisions, the targets a moderator removed, the map draft, the entity-type default rows of its
  * defaults workspace, and the publication onto the same map.
@@ -21,7 +22,7 @@ import { RESOLUTIONS } from '../../projects/cyberia/procedural/population/resolu
  * @constant {number}
  * @memberof CyberiaProceduralPopulationModel
  */
-export const POPULATION_VERSION = 6;
+export const POPULATION_VERSION = 7;
 
 /**
  * The statuses of a population: `open` while it takes changes, `publishing` while a publication runs
@@ -77,7 +78,7 @@ const TargetSchema = new Schema(
     observed: { type: Schema.Types.Mixed, default: null },
     palette: { type: Schema.Types.Mixed, default: () => ({ slots: {} }) },
     variation: { type: Number, default: null, min: 0, max: 1 },
-    runs: { type: [Schema.Types.ObjectId], default: [] },
+    drafts: { type: [String], default: [] },
   },
   { _id: false, minimize: false },
 );
@@ -109,8 +110,10 @@ const DefaultsSchema = new Schema(
  * @property {Object} context - The frozen map context
  * @property {number} version - {@link POPULATION_VERSION}
  * @property {number} revision - Writes of the targets, the removals, the default changes and the draft
- * @property {Object[]} targets - Each item id with its sources, decision, configuration and runs; a
- *   `keep` decision holds the `observed` binding `{cid, bindingRevision}`
+ * @property {number} nextRun - The run index the next run of any target takes: no two runs share a seed
+ * @property {Object[]} targets - Each item id with its sources, decision and configuration; a `keep`
+ *   decision holds the `observed` binding `{cid, bindingRevision}`; `drafts` lists the definitions its
+ *   Studio saves stored, and `definitionCid` the one it uses
  * @property {Object[]} removed - Each target a moderator removed, with who removed it, when and why
  * @property {{grid:{gridX:number,gridY:number,cellWidth:number,cellHeight:number},entities:Object[],baseRevision:number,revision:number,savedAt:Date,savedBy:string}|null} draft - The map to publish: its grid and placements, and the map revision they start from
  * @property {{added:ObjectId[],removed:ObjectId[]}} defaults - The entity-type default rows the moderator
@@ -130,6 +133,7 @@ const CyberiaProceduralPopulationSchema = new Schema(
     rootSeed: { type: Number, required: true, min: 0, immutable: true },
     context: { type: Schema.Types.Mixed, required: true, immutable: true },
     revision: { type: Number, default: 0, min: 0 },
+    nextRun: { type: Number, default: 0, min: 0 },
     targets: { type: [TargetSchema], default: [] },
     removed: { type: [RemovedSchema], default: [] },
     draft: { type: Schema.Types.Mixed, default: null },
@@ -170,7 +174,6 @@ class CyberiaProceduralPopulationDto {
       'targets.definitionCid': 1,
       'targets.observed': 1,
       'targets.cid': 1,
-      'targets.runs': 1,
     }),
   };
 }

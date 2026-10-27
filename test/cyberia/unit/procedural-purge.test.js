@@ -6,7 +6,8 @@ const calls = { authority: [], local: [] };
 vi.mock('../../../src/api/object-layer/object-layer.purge.js', () => ({
   purgeObjectLayers: async ({ filter }) => {
     calls.local.push(filter.cid.$in);
-    return { objectLayers: filter.cid.$in.length };
+    const kept = filter.cid.$in.filter((cid) => cid === 'registered').map((cid) => ({ cid, itemId: '' }));
+    return { objectLayers: filter.cid.$in.length - kept.length, kept };
   },
 }));
 vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
@@ -23,7 +24,7 @@ const { purgeRevisions } = await import('../../../src/projects/cyberia/procedura
 const consumer = { host: 'www.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
 const authority = { host: 'objectlayer.org', path: '/', consumes: {} };
 
-/** Fake models: `distinct` answers the values of a field among the CIDs a query names. */
+/** Fake models: `distinct` answers the values of a field among the CIDs a query names; every CID is stored. */
 const modelsOf = ({ otherJobs = [], bound = [], history = [], published = [], used = [] } = {}) => {
   const among = (values) => (field, query) => values.filter((cid) => Object.values(query)[0].$in.includes(cid));
   return {
@@ -31,7 +32,9 @@ const modelsOf = ({ otherJobs = [], bound = [], history = [], published = [], us
     CyberiaItemCatalog: {
       distinct: async (field, query) => among(field === 'objectLayerCid' ? bound : history)(field, query),
     },
-    ObjectLayer: { distinct: async (field, query) => among(published)(field, query) },
+    ObjectLayer: {
+      distinct: async (field, query) => (query.origin ? among(published)(field, query) : query.cid.$in),
+    },
     CyberiaProceduralPopulation: {
       distinct: async (field, query) => among(field === 'targets.definitionCid' ? used : [])(field, query),
     },
@@ -44,7 +47,7 @@ describe('the leftover revisions of a job', () => {
     calls.local.length = 0;
   });
 
-  it('keeps what an item runs or ran, what another job names and what a population uses, and purges the rest here and at the authority', async () => {
+  it('keeps what an item runs or ran, what another job names, what a population uses and what ItemLedger registers, and purges the rest here and at the authority', async () => {
     const models = modelsOf({
       otherJobs: ['shared'],
       bound: ['running'],
@@ -53,7 +56,7 @@ describe('the leftover revisions of a job', () => {
       used: ['authored'],
     });
     const cids = ['draft', 'published', 'registered', 'running', 'ran', 'shared', 'authored'];
-    expect(await purgeRevisions({ models, options: consumer, cids, besides: 'job' })).toBe(3);
+    expect(await purgeRevisions({ models, options: consumer, cids, besides: 'job' })).toEqual(['draft', 'published']);
     expect(calls.authority).toEqual(['published']);
     expect(calls.local).toEqual([['draft', 'published', 'registered']]);
   });

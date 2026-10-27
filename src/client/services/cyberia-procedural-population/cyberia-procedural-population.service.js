@@ -33,14 +33,6 @@ class CyberiaProceduralPopulationService {
   static getMapContext = (options = { code: '' }) =>
     send(getApiBaseUrl({ id: `maps/${encodeURIComponent(options.code)}`, endpoint }), 'GET');
 
-  /** A page of Object Layer definitions, newest first: those of `itemId`, or those whose item id holds `q`. */
-  static getDefinitions = (options = { q: '', itemId: '' }) => {
-    const url = buildQueryUrl(getApiBaseUrl({ id: 'definitions', endpoint }), options);
-    if (options.q) url.searchParams.set('q', options.q);
-    if (options.itemId) url.searchParams.set('itemId', options.itemId);
-    return send(url.toString(), 'GET');
-  };
-
   /** Creates the population of `{ mapCode, seed? }`; equal inputs answer the same population. */
   static post = (options = { body: {} }) => send(getApiBaseUrl({ endpoint }), 'POST', options.body);
 
@@ -70,25 +62,29 @@ class CyberiaProceduralPopulationService {
   static resetTarget = (options = { id: '', itemId: '' }) =>
     send(at(options.id, `${targetPath(options.itemId)}/reset`), 'POST', {});
 
-  /** Deletes a draft definition of an item that nothing keeps. */
-  static deleteDraft = (options = { id: '', itemId: '', cid: '' }) =>
-    send(at(options.id, `${targetPath(options.itemId)}/drafts/${encodeURIComponent(options.cid)}`), 'DELETE', {});
-
-  /** Generates `count` new entries of an item from its configuration. */
+  /** Generates `count` new results of an item from its configuration. */
   static generate = (options = { id: '', itemId: '', count: 1 }) =>
     send(at(options.id, `${targetPath(options.itemId)}/generate`), 'POST', { count: options.count ?? 1 });
 
-  /** The entries of an item, newest first. */
-  static getEntries = (options = { id: '', itemId: '' }) =>
-    send(at(options.id, `${targetPath(options.itemId)}/entries`), 'GET');
+  /** The results of an item with the actions each takes, how many it keeps and the most it may keep. */
+  static getResults = (options = { id: '', itemId: '' }) =>
+    send(at(options.id, `${targetPath(options.itemId)}/results`), 'GET');
 
-  /** Selects the entry `{ entryId, cid }` of an item. */
+  /** Deletes the results `ids` of an item: answers the population and its `deleted` report. */
+  static deleteResults = (options = { id: '', itemId: '', ids: [] }) =>
+    send(at(options.id, `${targetPath(options.itemId)}/results/delete`), 'POST', { ids: options.ids });
+
+  /** A page of the stored definitions of an item its results do not show. */
+  static getTargetDefinitions = (options = { id: '', itemId: '' }) =>
+    send(buildQueryUrl(at(options.id, `${targetPath(options.itemId)}/definitions`), options).toString(), 'GET');
+
+  /** Uses the generated result `{ entryId, cid }` of an item. */
   static select = (options = { id: '', itemId: '', body: {} }) =>
     send(at(options.id, `${targetPath(options.itemId)}/select`), 'POST', options.body);
 
-  /** Discards an entry of an item. */
-  static discardEntry = (options = { id: '', itemId: '', entryId: '' }) =>
-    send(at(options.id, `${targetPath(options.itemId)}/entries/${options.entryId}/discard`), 'POST', {});
+  /** Runs a failed result of an item again under its own seed. */
+  static retryEntry = (options = { id: '', itemId: '', entryId: '' }) =>
+    send(at(options.id, `${targetPath(options.itemId)}/entries/${options.entryId}/retry`), 'POST', {});
 
   /** What a bulk palette change `{ itemIds, source, paletteId?, overrides }` gives each item. */
   static previewPalette = (options = { id: '', body: {} }) =>

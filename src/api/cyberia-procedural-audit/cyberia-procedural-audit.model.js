@@ -21,6 +21,7 @@ export const AUDIT_ACTIONS = Object.freeze([
   'item.generated',
   'item.validation_failed',
   'item.regenerated',
+  'item.retried',
   'item.opened_for_edit',
   'item.revision_created',
   'item.approved',
@@ -30,6 +31,7 @@ export const AUDIT_ACTIONS = Object.freeze([
   'item.created',
   'target.reset',
   'target.draft_deleted',
+  'target.entry_deleted',
 ]);
 
 /** The actor of a transition no human made. */

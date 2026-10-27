@@ -129,7 +129,7 @@ export async function claimNextItem({ models, holder, now = new Date(), leaseMs 
       {
         $set: {
           status: 'failed',
-          error: { message: 'The lease expired on the last attempt', at: now },
+          error: { message: 'The lease expired on the last attempt', retryable: true, at: now },
           'lease.holder': '',
           'lease.expiresAt': null,
           finishedAt: now,
@@ -204,7 +204,11 @@ async function failValidation({ models, item, validation, now }) {
     from: ['generated'],
     to: 'failed',
     where: { candidateCid: item.candidateCid },
-    set: { validation, error: { message: validation.problems.join('; '), at: now }, finishedAt: now },
+    set: {
+      validation,
+      error: { message: validation.problems.join('; '), retryable: false, at: now },
+      finishedAt: now,
+    },
   });
   if (failed)
     await recordAudit(models, {
@@ -253,9 +257,10 @@ async function batchOf(models, job, item) {
 
 /**
  * Runs one claimed item: generates its variant, stores it, records the revision and validates it.
- * A run that fails queues the item again until {@link MAX_ATTEMPTS}, then fails it; a generator
- * that refuses the input with a RangeError fails it at once, since a retry gives the same answer.
- * A result whose item was cancelled or deleted meanwhile is purged, so it leaves no draft.
+ * A run that fails queues the item again until {@link MAX_ATTEMPTS}, then fails it as retryable; a
+ * generator that refuses the input with a RangeError fails it at once and for good, since a run
+ * under the same seed gives the same answer. A result whose item was cancelled or deleted meanwhile
+ * is purged, so it leaves no draft.
  * @param {Object} params
  * @param {Object} params.models
  * @param {Object} params.item - A claimed item.
@@ -318,7 +323,7 @@ export async function runItem({ models, item, holder, options, persist = persist
           metrics: result.diversity.metrics,
         },
         signature: result.diversity.signature,
-        error: { message: '', at: null },
+        error: { message: '', retryable: false, at: null },
         validation: { ok: false, checkedAt: null, problems: [] },
         review: EMPTY_REVIEW,
         'lease.holder': '',
@@ -355,12 +360,17 @@ export async function runItem({ models, item, holder, options, persist = persist
     await validateGenerated({ models, item: generated, now });
   } catch (error) {
     logger.warn(`Item ${item.targetItemId} failed attempt ${item.attempt}: ${messageOf(error)}`);
+    const refused = error instanceof RangeError;
     await Item.advance({
       id: item._id,
       from: ['running'],
-      to: error instanceof RangeError || item.attempt >= MAX_ATTEMPTS ? 'failed' : 'queued',
+      to: refused || item.attempt >= MAX_ATTEMPTS ? 'failed' : 'queued',
       where,
-      set: { error: { message: messageOf(error), at: now }, 'lease.holder': '', 'lease.expiresAt': null },
+      set: {
+        error: { message: messageOf(error), retryable: !refused, at: now },
+        'lease.holder': '',
+        'lease.expiresAt': null,
+      },
     });
   } finally {
     await syncJob({ models, jobId: item.jobId, now });

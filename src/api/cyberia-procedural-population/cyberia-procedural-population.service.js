@@ -1,8 +1,8 @@
 /**
  * CyberiaProceduralPopulation service: the map population API of the Procedural Engine. A moderator
- * reads a map context, creates a population, configures each item, generates its entries and selects
- * one, reviews the entity-type defaults of its items, composes the map draft in the Map Studio, validates, and
- * publishes onto the same map in the background.
+ * reads a map context, creates a population, configures each item, generates or authors its results,
+ * uses one and deletes the rest, reviews the entity-type defaults of its items, composes the map draft
+ * in the Map Studio, validates, and publishes onto the same map in the background.
  *
  * @module src/api/cyberia-procedural-population/cyberia-procedural-population.service.js
  * @namespace CyberiaProceduralPopulationService
@@ -20,11 +20,7 @@ import {
   createPopulation,
   deletePopulation,
   discardDraft,
-  discardEntry,
-  deleteDraft,
-  findDefinitions,
   forgetRemoved,
-  generateTarget,
   getDraft,
   getPopulation,
   listPopulations,
@@ -32,12 +28,18 @@ import {
   previewPalette,
   rebaseDraft,
   removeTarget,
-  resetTarget,
   saveDraft,
-  selectEntry,
-  targetEntries,
   updateTarget,
 } from '../../projects/cyberia/procedural/population/population.js';
+import {
+  deleteResults,
+  generateTarget,
+  resetTarget,
+  retryEntry,
+  selectEntry,
+  targetDefinitions,
+  targetResults,
+} from '../../projects/cyberia/procedural/population/results.js';
 import {
   addDefault,
   populationDefaults,
@@ -74,22 +76,6 @@ class CyberiaProceduralPopulationService {
    * @returns {Promise<Object>}
    */
   static mapContext = async (req, res, options) => await resolveMapContext(populationModels(options), req.params.code);
-
-  /**
-   * GET `/definitions` (paginated): the Object Layer definitions whose item id holds `?q=`, with
-   * their status, for the target picker.
-   * @param {Object} req - Express request.
-   * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
-   * @returns {Promise<{data:Object[],total:number,page:number,totalPages:number}>}
-   */
-  static definitions = async (req, res, options) => {
-    const page = DataQuery.parse(req.query);
-    return paged(
-      page,
-      await findDefinitions(populationModels(options), { itemId: req.query.itemId, q: req.query.q, ...page }),
-    );
-  };
 
   /**
    * POST `/`: creates a population, or answers the one equal inputs created.
@@ -184,23 +170,6 @@ class CyberiaProceduralPopulationService {
     });
 
   /**
-   * DELETE `/:id/targets/:itemId/drafts/:cid`: deletes a draft definition of the item that nothing keeps.
-   * @param {Object} req - Express request.
-   * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
-   * @returns {Promise<Object>}
-   */
-  static deleteDraft = async (req, res, options) =>
-    await deleteDraft({
-      models: populationModels(options),
-      id: req.params.id,
-      itemId: req.params.itemId,
-      cid: req.params.cid,
-      actor: actorOf(req),
-      options,
-    });
-
-  /**
    * DELETE `/:id/removed/:itemId`: forgets a removed target permanently; nothing else changes.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
@@ -211,7 +180,7 @@ class CyberiaProceduralPopulationService {
     await forgetRemoved({ models: populationModels(options), id: req.params.id, itemId: req.params.itemId });
 
   /**
-   * POST `/:id/targets/:itemId/generate`: generates `{ count? }` new entries from the configuration.
+   * POST `/:id/targets/:itemId/generate`: generates `{ count? }` new results from the configuration.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -227,17 +196,49 @@ class CyberiaProceduralPopulationService {
     });
 
   /**
-   * GET `/:id/targets/:itemId/entries`: the entries of an item, newest first.
+   * GET `/:id/targets/:itemId/results`: the results of an item with the actions each takes, how many
+   * it keeps and the most it may keep.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
-   * @returns {Promise<Object[]>}
+   * @returns {Promise<{results:Object[],retained:number,limit:number}>}
    */
-  static entries = async (req, res, options) =>
-    await targetEntries(populationModels(options), req.params.id, req.params.itemId);
+  static results = async (req, res, options) =>
+    await targetResults(populationModels(options), req.params.id, req.params.itemId);
 
   /**
-   * POST `/:id/targets/:itemId/select`: selects the entry `{ entryId, cid }` of an item.
+   * POST `/:id/targets/:itemId/results/delete`: deletes the results `{ ids }` of an item, and reports
+   * what went, what stayed and what failed.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static deleteResults = async (req, res, options) =>
+    await deleteResults({
+      models: populationModels(options),
+      id: req.params.id,
+      itemId: req.params.itemId,
+      body: req.body,
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * GET `/:id/targets/:itemId/definitions` (paginated): the stored definitions of the item its results
+   * do not show.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<{data:Object[],total:number,page:number,totalPages:number}>}
+   */
+  static targetDefinitions = async (req, res, options) => {
+    const page = DataQuery.parse(req.query);
+    return paged(page, await targetDefinitions(populationModels(options), req.params.id, req.params.itemId, page));
+  };
+
+  /**
+   * POST `/:id/targets/:itemId/select`: uses the generated result `{ entryId, cid }` of an item.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -253,14 +254,14 @@ class CyberiaProceduralPopulationService {
     });
 
   /**
-   * POST `/:id/targets/:itemId/entries/:entryId/discard`: discards an entry of an item.
+   * POST `/:id/targets/:itemId/entries/:entryId/retry`: runs a failed result again under its own seed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
    * @returns {Promise<Object>}
    */
-  static discardEntry = async (req, res, options) =>
-    await discardEntry({
+  static retryEntry = async (req, res, options) =>
+    await retryEntry({
       models: populationModels(options),
       id: req.params.id,
       itemId: req.params.itemId,
