@@ -8,8 +8,10 @@ OpenAPI document the deploy publishes; this states which question each route ans
 No domain reads another domain's database. `src/server/domain/domain-client.js` is the one
 transport: `<origin>/api/v1/<api>/…`, 5 s timeout, two retries of transient failures only, a 30 s
 read cache, `null` for a missing resource, and `DOMAIN_API_SERVICE_KEY` on writes (never retried).
-Origins come from `OBJECT_LAYER_API_ORIGIN`, `ITEM_LEDGER_API_ORIGIN` and `CYBERIA_API_ORIGIN`. When
-one is not set, the client reaches the owner host of the same deploy on its local port.
+The client holds no list of domains: a domain is named by the API its owner host serves.
+`<DOMAIN>_API_ORIGIN` sets its origin, for example `OBJECT_LAYER_API_ORIGIN`. When it is not set,
+the client reaches the owner host of the same deploy on its local port. Provenance names the public
+host of the domain (`domainHost`), never that local port.
 
 Every first-party API, browser and cross-domain alike, lives under one versioned contract:
 `/api/v1/<api>`. `DOMAIN_API_VERSION` in `src/server/domain/api-contract.js` is its only
@@ -29,3 +31,6 @@ authority. No configuration sets the path or the version, and no unversioned pat
 | token → owners                                  | `GET /api/v1/item-ledger-balance/token/:chainId/:contractAddress/:tokenId`                                                                      |
 | token → provenance                              | `GET /api/v1/item-ledger-transfer/token/:chainId/:contractAddress/:tokenId`                                                                     |
 | Cyberia content → Object Layers                 | pinned `objectLayerCid` in the content, and `GET /api/v1/cyberia-item-catalog/:itemId` for the alias                                            |
+
+`GET /api/v1/object-layer/:cid` answers the whole canonical content, `data.stats` included, and its
+`createdAt`. A consumer hashes the answer and refuses it when the hash is not the CID.

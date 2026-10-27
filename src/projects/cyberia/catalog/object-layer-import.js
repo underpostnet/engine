@@ -24,7 +24,7 @@ import { cacheCanonical } from '../../../api/object-layer/object-layer.publicati
 import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { fromWire, toWire } from '../../../client/components/objectlayer-studio/RenderSource.js';
-import { domainOrigin, domainRead } from '../../../server/domain/domain-client.js';
+import { domainHost, domainRead } from '../../../server/domain/domain-client.js';
 import { bindItem } from './object-layer-catalog.js';
 
 /** The domain whose authority an import reads. */
@@ -47,12 +47,6 @@ const PREVIEW_KEYFRAMES = Object.freeze(['down_idle', 'default_idle', 'none_idle
 
 const failure = (status, message) => Object.assign(new Error(message), { status, expected: true });
 const model = (name, options) => DataBaseProviderService.getModel(name, options);
-
-/** The host of the authority, as provenance names it. */
-const authorityHost = () => {
-  const origin = domainOrigin(AUTHORITY);
-  return origin ? new URL(origin).host : '';
-};
 
 /** One definition of the authority, as a search lists it. */
 const rowOf = ({ cid, profile, data, createdAt, archivedAt }) => ({
@@ -215,7 +209,7 @@ export async function previewImport(models, request, options) {
   return {
     cid: request.cid,
     source: {
-      domain: authorityHost(),
+      domain: domainHost(AUTHORITY),
       createdBy: definition.createdBy ?? '',
       createdAt: definition.createdAt ?? null,
     },
@@ -314,7 +308,7 @@ export async function importDefinition(models, request, options, reload) {
         source: 'import',
         by: String(actor),
         provenance: {
-          domain: authorityHost(),
+          domain: domainHost(AUTHORITY),
           createdBy: definition.createdBy ?? '',
           createdAt: definition.createdAt ?? null,
           warnings,

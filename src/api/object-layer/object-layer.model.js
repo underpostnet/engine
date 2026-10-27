@@ -375,21 +375,6 @@ class ObjectLayerDto {
         schemaVersion: 1,
         profile: 1,
         'data.item': 1,
-        'data.render': 1,
-        cid: 1,
-        contentHash: 1,
-        published: 1,
-        origin: 1,
-        createdBy: 1,
-        archivedAt: 1,
-      };
-    },
-    getMetadata: () => {
-      return {
-        _id: 1,
-        schemaVersion: 1,
-        profile: 1,
-        'data.item': 1,
         'data.stats': 1,
         'data.render': 1,
         cid: 1,
@@ -399,7 +384,6 @@ class ObjectLayerDto {
         createdBy: 1,
         archivedAt: 1,
         createdAt: 1,
-        updatedAt: 1,
       };
     },
   };
