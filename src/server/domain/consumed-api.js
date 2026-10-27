@@ -12,12 +12,12 @@
 import fs from 'fs-extra';
 import { loadConfServerJson } from '../runtime/conf.js';
 
-/** Domains a host may consume. */
-export const DOMAINS = Object.freeze(['object-layer', 'item-ledger', 'cyberia']);
+/** A domain is named by the API its owner host serves: lowercase words joined by hyphens. */
+const DOMAIN_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * The consumed-API declarations of a host, validated: every consumed API is mounted, and every
- * owner is a known domain.
+ * owner is a domain name.
  * @param {{apis?:string[],consumes?:Object<string,string>}} hostConf - One host entry of the server conf.
  * @returns {Object<string,string>} api → owning domain.
  * @throws {Error} On a declaration that cannot be served.
@@ -28,7 +28,7 @@ export function consumedApisOf(hostConf = {}) {
   const apis = hostConf.apis ?? [];
   for (const [api, domain] of Object.entries(consumes)) {
     if (!apis.includes(api)) throw new Error(`Consumed API "${api}" is not in the host's apis`);
-    if (!DOMAINS.includes(domain)) throw new Error(`Consumed API "${api}" names an unknown domain "${domain}"`);
+    if (!DOMAIN_NAME.test(domain)) throw new Error(`Consumed API "${api}" names no domain: "${domain}"`);
   }
   return { ...consumes };
 }

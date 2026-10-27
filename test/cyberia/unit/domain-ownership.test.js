@@ -274,8 +274,10 @@ describe('API ownership of one host', () => {
     expect(() => consumedApisOf({ apis: [], consumes: { 'object-layer': 'object-layer' } })).toThrow(
       /not in the host's apis/,
     );
-    expect(() => consumedApisOf({ apis: ['object-layer'], consumes: { 'object-layer': 'objectlayer' } })).toThrow(
-      /unknown domain/,
+    const conf = fixture();
+    conf.confServer['www.cyberiaonline.com']['/'].consumes['object-layer'] = 'objectlayer';
+    expect(validateDomainConf(conf).join('\n')).toMatch(
+      /consumes object-layer from objectlayer, which does not own it/,
     );
   });
 });

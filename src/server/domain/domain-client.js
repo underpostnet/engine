@@ -5,6 +5,10 @@
  * module holds the one transport: origin per domain, timeout, bounded retry of transient
  * failures, and a short read cache. Reads are public; writes carry the service key.
  *
+ * It holds no list of domains. A domain is named by the API its owner host serves, as `consumes`
+ * names it in the server conf. `<DOMAIN>_API_ORIGIN` sets the origin of a domain; when it is not
+ * set, the host of this deploy that owns the API answers on its local port.
+ *
  * @module src/server/domain/domain-client.js
  * @namespace DomainClient
  */
@@ -21,12 +25,11 @@ const DEFAULTS = {
   cacheTtlMs: Number(process.env.DOMAIN_API_CACHE_TTL_MS || 30000),
 };
 
-/** The API a domain is known by: the host that owns it serves the domain. */
-const DOMAIN_API = Object.freeze({
-  'object-layer': 'object-layer',
-  'item-ledger': 'item-ledger',
-  cyberia: 'cyberia-instance',
-});
+/** The variable that sets the origin of a domain: `OBJECT_LAYER_API_ORIGIN` for `object-layer`. */
+const originVariableOf = (domain) => `${String(domain).toUpperCase().replaceAll('-', '_')}_API_ORIGIN`;
+
+/** The host of this deploy that owns the API a domain is named by, or '' when none does. */
+const ownerHost = (domain) => ownerHostOf(deployConfServer(), domain);
 
 /**
  * The local origin of a domain this deploy serves itself: the port its owning host listens on,
@@ -35,11 +38,8 @@ const DOMAIN_API = Object.freeze({
  * @returns {string}
  */
 const localDomainUrl = (domain) => {
-  const confServer = deployConfServer();
-  const api = DOMAIN_API[domain];
-  if (!confServer || !api || !process.env.PORT) return '';
-  const host = ownerHostOf(confServer, api);
-  const port = host ? hostPortsFactory(confServer)[`${host}/`] : undefined;
+  const host = process.env.PORT ? ownerHost(domain) : '';
+  const port = host ? hostPortsFactory(deployConfServer())[`${host}/`] : undefined;
   return port ? `http://127.0.0.1:${port}` : '';
 };
 
@@ -47,16 +47,24 @@ const localDomainUrl = (domain) => {
  * Origin of each domain's API: the configured one, else the local origin of the host of this
  * deploy that owns it. A domain with neither is unreachable, never a database. The contract path
  * (`/api/v1`) is the client's, never configuration.
- * @param {string} domain - `object-layer`, `item-ledger` or `cyberia`.
+ * @param {string} domain - The API the domain is named by, such as `object-layer`.
  * @returns {string}
  * @memberof DomainClient
  */
-export const domainOrigin = (domain) =>
-  ({
-    'object-layer': process.env.OBJECT_LAYER_API_ORIGIN,
-    'item-ledger': process.env.ITEM_LEDGER_API_ORIGIN,
-    cyberia: process.env.CYBERIA_API_ORIGIN,
-  })[domain] || localDomainUrl(domain);
+export const domainOrigin = (domain) => process.env[originVariableOf(domain)] || localDomainUrl(domain);
+
+/**
+ * The public host of a domain, as provenance names it: the host of the configured origin, else the
+ * host of this deploy that owns the domain. Never the local address {@link domainOrigin} reads by.
+ * @param {string} domain - The API the domain is named by.
+ * @returns {string} '' when the domain is unreachable.
+ * @memberof DomainClient
+ */
+export const domainHost = (domain) => {
+  const origin = process.env[originVariableOf(domain)];
+  if (origin) return new URL(origin).host;
+  return localDomainUrl(domain) ? ownerHost(domain) : '';
+};
 
 /** A domain that did not answer: the caller reads it as unavailable, never as an empty answer. */
 const unavailable = (domain, path, reason, retryable) =>
@@ -103,7 +111,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * the answer to a 404, never an exception.
  *
  * @param {Object} params
- * @param {string} params.domain - `object-layer`, `item-ledger` or `cyberia`.
+ * @param {string} params.domain - The API the domain is named by.
  * @param {string} params.path - Path under the domain's API base, without a leading slash.
  * @param {Object} [params.query] - Query parameters.
  * @param {number} [params.cacheTtlMs] - Read cache lifetime; 0 disables the cache.

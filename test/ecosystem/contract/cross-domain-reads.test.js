@@ -26,7 +26,7 @@ const objectLayerModule = async (path) => (objectLayerDomain ? await import(path
 
 const { resolveLedgerBindings, resolveObjectLayer, resolveRegisteredCids, resolveTokenSupply, publishObjectLayer } =
   await objectLayerModule('../../../src/server/domain/object-layer-resolver.js');
-const { clearDomainCache, domainOrigin } = await import('../../../src/server/domain/domain-client.js');
+const { clearDomainCache, domainHost, domainOrigin } = await import('../../../src/server/domain/domain-client.js');
 const { loadApiExtension } = await import('../../../src/server/domain/consumed-api.js');
 const { developmentOrigins, hostPortsFactory, localHostAddress } =
   await import('../../../src/server/network/router.js');
@@ -275,6 +275,37 @@ describe.skipIf(!objectLayerDomain)('one canonical writer', () => {
     await expect(get(unknown)).rejects.toMatchObject({ status: 404 });
   });
 
+  it('answers the cross-domain read with content that hashes to its cid', async () => {
+    const content = { ...definition, data: { ...definition.data, stats: { effect: 3 } } };
+    const stored = {
+      ...content,
+      ...objectLayerIdentity(content),
+      origin: 'canonical',
+      createdBy: 'service:www.cyberiaonline.com',
+      createdAt: '2026-10-27T00:00:00.000Z',
+    };
+    /** The fields of `stored` an inclusion projection keeps. */
+    const project = (fields) => {
+      const kept = {};
+      for (const field of Object.keys(fields)) {
+        const keys = field.split('.');
+        const value = keys.reduce((at, key) => at?.[key], stored);
+        if (value !== undefined) keys.slice(0, -1).reduce((at, key) => (at[key] ??= {}), kept)[keys.at(-1)] = value;
+      }
+      return kept;
+    };
+    models.ObjectLayer = {
+      findByCid: () => ({ select: async (fields) => ({ toJSON: () => project(fields) }) }),
+    };
+    const answer = await ObjectLayerService.get(
+      { path: `/${stored.cid}`, params: { id: stored.cid }, query: {} },
+      {},
+      authority,
+    );
+    expect(objectLayerIdentity(answer).cid).toBe(stored.cid);
+    expect(answer.createdAt).toBe(stored.createdAt);
+  });
+
   it('keeps a draft when no authority is configured', async () => {
     const ObjectLayer = store();
     const publish = vi.fn();
@@ -348,6 +379,7 @@ describe('local domain addresses', () => {
   };
   const port = process.env.PORT;
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (port === undefined) delete process.env.PORT;
     else process.env.PORT = port;
   });
@@ -358,7 +390,17 @@ describe('local domain addresses', () => {
     const ports = hostPortsFactory(conf);
     expect(domainOrigin('object-layer')).toBe(`http://127.0.0.1:${ports['objectlayer.org/']}`);
     expect(domainOrigin('item-ledger')).toBe(`http://127.0.0.1:${ports['itemledger.com/']}`);
-    expect(domainOrigin('cyberia')).toBe(`http://127.0.0.1:${ports['www.cyberiaonline.com/']}`);
+  });
+
+  it('resolves any domain by the API its owner serves, with no list of domains', () => {
+    process.env.PORT = '4000';
+    deploy.conf = conf;
+    const ports = hostPortsFactory(conf);
+    expect(domainOrigin('cyberia-instance')).toBe(`http://127.0.0.1:${ports['www.cyberiaonline.com/']}`);
+    expect(domainHost('cyberia-instance')).toBe('www.cyberiaonline.com');
+    vi.stubEnv('CYBERIA_INSTANCE_API_ORIGIN', 'https://www.cyberiaonline.com');
+    expect(domainOrigin('cyberia-instance')).toBe('https://www.cyberiaonline.com');
+    expect(domainOrigin('cyberia')).toBe('');
   });
 
   it('prefers the configured address, and has none for a deploy that owns nothing', () => {
@@ -368,6 +410,16 @@ describe('local domain addresses', () => {
     expect(domainOrigin('object-layer')).toBe('https://objectlayer.org');
     deploy.conf = { 'www.underpost.net': { '/': { apis: ['core'] } } };
     expect(domainOrigin('item-ledger')).toBe('');
+  });
+
+  it('names a domain by its public host, never by the local address it reads by', () => {
+    process.env.PORT = '4000';
+    deploy.conf = conf;
+    expect(domainHost('object-layer')).toBe('objectlayer.org');
+    process.env.OBJECT_LAYER_API_ORIGIN = 'https://authority.example:8443';
+    expect(domainHost('object-layer')).toBe('authority.example:8443');
+    deploy.conf = { 'www.underpost.net': { '/': { apis: ['core'] } } };
+    expect(domainHost('item-ledger')).toBe('');
   });
 
   it('gives a development browser the same port map, and no address for an unserved host', () => {

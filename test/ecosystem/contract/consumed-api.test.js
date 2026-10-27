@@ -5,7 +5,6 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  DOMAINS,
   apiExtensionUrl,
   consumedApisOf,
   consumesOf,
@@ -31,10 +30,9 @@ describe('consumed API declarations', () => {
     expect(() => consumedApisOf({ apis: [], consumes: { 'object-layer': 'object-layer' } })).to.throw(
       'Consumed API "object-layer" is not in the host\'s apis',
     );
-    expect(() => consumedApisOf({ apis: ['user'], consumes: { user: 'accounts' } })).to.throw(
-      'Consumed API "user" names an unknown domain "accounts"',
+    expect(() => consumedApisOf({ apis: ['user'], consumes: { user: 'Object Layer' } })).to.throw(
+      'Consumed API "user" names no domain: "Object Layer"',
     );
-    expect(DOMAINS).to.deep.equal(['object-layer', 'item-ledger', 'cyberia']);
   });
 
   it('owns an API that the host mounts and does not consume', () => {
