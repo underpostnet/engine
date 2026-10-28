@@ -541,14 +541,29 @@ no default names is a warning, never a blocker; Create default opens a new defau
 | Overridden in `code`            | a variant of that instance runs in its place                 |
 | Variant of …`id`                | a copy one instance runs, saved to the Procedural Draft      |
 | Edit saved to Procedural Draft  | the population holds an edit of the stored default           |
-| New · Saved to Procedural Draft | a new global default the publication creates                 |
+| New · Saved to Procedural Draft | a new default the publication creates                        |
 
-**References.** Use in instance and Stop using in instance write the reference into the conf of
-the instance draft (`PUT` and `DELETE /:id/instances/:code/defaults/:rowId`); the stored conf
-changes at the publication. One instance references many defaults, and many instances reference one.
-A global default that an instance draft starts to reference runs only in that instance after the
-publication: the checks warn, and every world reloads. A default that loses its last reference would
-run in every world: the checks refuse it.
+**One editor.** The Entity Studio is the one editor of a default and of the instances that run it.
+Edit and Create default in the defaults step open it under the label "Procedural Engine · Entity Type
+Default"; the defaults step has no form of its own. The Studio reads the default from the working
+graph (`GET /:id/default-drafts/:ref`, where `ref` is a row id, a draft key or `new`): the row, the
+instances that run it now and as stored, and the population revision. Its banner names the state
+(Persisted, Saved to Procedural Draft, New, Unsaved changes) and the scope (Instance, Shared, Global).
+A new default starts linked to the instance it comes from, else to the one instance that lists the
+map; with none, the moderator links one or chooses Global. One instance references many defaults, and
+many instances reference one.
+
+**One save.** "Save to Procedural Draft" (`POST /:id/default-drafts`) writes the row and its
+references in one write of the population, at the population revision and the draft revision the
+Studio read: the default draft, and the reference in the conf of each instance draft. A new row is
+referenced as `draft:<key>` until the publication creates it. The stored default and the stored confs
+do not change. A save that brings the row and its links back to the stored state drops the draft, and
+an instance draft left equal to its base goes with it. Discard (`DELETE /:id/default-drafts/:ref`)
+removes the default draft and each `draft:` reference to it. A default that no instance runs any more
+would run in every world: the save needs the explicit Global choice, the Studio confirms it, and
+without it the checks refuse the publication. A shared default stays shared: an edit changes each
+instance that runs it, and only Make variant gives one instance its own copy. Back reopens the
+defaults step; with unsaved changes it asks first. Reopened, the Studio shows what the draft holds.
 
 **Variants.** To change a default for one instance, Make variant copies a shared or a global default
 into the draft of that instance (`POST /:id/instances/:code/variants`). For a shared default the copy
@@ -559,16 +574,10 @@ variant: its edit changes that instance only. Edit variant opens the copy in the
 variant gives the instance the default back. The publication creates each variant with its reference
 in one transaction, so a copy never runs as a global default.
 
-Edit opens the default in the Entity Studio, under the label "Procedural Engine · Entity Type
-Default", with where it runs. Its save is "Save to Procedural Draft": a default draft holds the edit of
-a stored default (`POST /:id/default-drafts` with the `updatedAt` the editor read), or a new global
-default, and a later save writes the same draft (`PUT /:id/default-drafts/:key`). The stored default
-does not change. One draft edits one stored default; a stored default that changed since the editor
-read it refuses the draft (409), and one that changed after the draft stops the publication until
-the moderator discards the edit. The instance links show where the default runs; the references
-change in the defaults step. The publication writes each edit at the `updatedAt` it read and creates
-each new default, in the commit transaction, and reloads every world that runs one: a global default
-reaches every world. "Back without saving" returns with no change.
+One draft edits one stored default, at the `updatedAt` the Studio read: a stored default that changed
+since refuses the save (409), and one that changed after the draft stops the publication until the
+moderator discards the edit. The publication writes each edit at that `updatedAt`, creates each new
+default and puts its id in place of each `draft:` reference, all in the commit transaction.
 
 **Map media.** The preview of a map is the picture `map-preview-generator.js` draws from its placed
 entities, by the first idle frame of each item, as the node background of the Instance Map. Every
@@ -596,7 +605,7 @@ on a player). A global change needs the explicit acceptance of the moderator.
 artwork it shows, its state and what publishing does to it (kept, publish a definition, publish the
 selected entry, or not ready); the entity type defaults; the map draft drawn by the artwork of its
 items, with the live preview and the custom thumbnail; and the plan: the instances, universes and
-variants it writes and the worlds it reloads. Each item, the defaults, the map and the runtime context
+variants it writes, the defaults it writes and the worlds it reloads. Each item, the defaults, the map and the runtime context
 open their step or their Studio. Errors stop the publication; warnings, such as a missing default or an
 item no artwork draws, stop nothing. Nothing in the review publishes or stores anything. Publish
 names the population revision the review showed: a population that changed since asks for a new
@@ -615,7 +624,10 @@ queued → preflight → publishing_objects → committing_runtime → refreshin
    binding revision each replaces, the map revision,
    the draft revision and its grid, the map revision whose media the refresh draws, each instance and
    universe draft with the stored revision it starts from, each variant, and the worlds the commit
-   changes. The plan holds only what changes: a kept item publishes and binds nothing.
+   changes. The plan holds only what changes: a kept item publishes and binds nothing. Each drafted
+   world names an Economy (`economyCode`, `standard` when empty): the check reads it from the content
+   database the server serves, as the runtime does, and a missing or retired Economy stops the
+   publication. A conf that names no stored Economy is never repaired by a new one.
 2. **Objects.** Each selected revision goes to the Object Layer authority, one at a time. The
    authority must answer the selected CID. Each published revision is recorded, so a retry skips it.
 3. **Commit.** One MongoDB transaction checks the population and every binding of the plan, binds
@@ -628,7 +640,9 @@ queued → preflight → publishing_objects → committing_runtime → refreshin
 4. **Refresh.** After the commit, the engine clears the map cache, draws the preview of the map
    revision it wrote, refreshes the previews of the maps the assets reach, and reloads the game
    servers. Each world the commit changed reloads in full: a drafted instance, an instance that
-   lists the map draft before or after, and each world that runs an edited or new default. Every
+   lists the map draft before or after, and each world where a placed entity resolves to another
+   default, or that runs a changed default of a type the runtime spawns (player, skill, coin, loot).
+   A world whose entities resolve as before does not reload. Every
    world reloads its object layers after a binding. A map no instance lists reloads no world, and a
    universe change reloads none: tickets and sessions read universes when they need them. The
    publication completes once the media is
@@ -928,12 +942,22 @@ are then copies, and a population that publishes or is cancelled takes no write 
 | Eligible | closed for longer                                                         |
 | Cleaned  | `draftsPrunedAt` is set: the copies are gone, the record and targets stay |
 
-`cyberia population prune` clears the copies of every eligible population, with the draft thumbnails
-no stored instance shows, and reports what it cleared, with the bytes each record held, and what the
-window keeps. It writes nothing without `--apply`, never touches an open population or a publication
-that runs or waits for its reload, and a second run finds nothing to clear. A draft revision of an
-Object Layer stays under the existing references (`revisionKeepers`): a job, the catalog, a
-population target or a publication plan keeps it.
+`cyberia population prune` clears the copies of every eligible population and reports what it
+clears: the bytes each record held, its drafts, and the files it deletes and keeps; and what the
+window keeps. `--retention-days` sets the window. It writes nothing without `--apply`, and the dry
+run reports the same as the apply. It never touches an open population, a publication that runs or
+waits for its reload, or one a live worker lease holds; the write checks each condition again. A
+thumbnail of a draft, or of the stored document a draft started from, goes only when no instance or
+map of the base, declared, served or ledger release databases and no draft of any population
+references it. A second run finds nothing to clear. A draft revision of an Object Layer stays under
+the existing references (`revisionKeepers`): a job, the catalog, a population target or a publication
+plan keeps it.
+
+**Rollback to an older engine.** An engine that predates the new default references (`draft:<key>`)
+and the Global choice (`global`) refuses each write over them, and its commit of such a draft fails
+in its transaction, so it loses or corrupts nothing. It cannot open a population that references a
+new default. Before a rollback, publish or cancel those populations, or discard their new defaults; on
+the older engine, discard the default draft, then the instance draft that references it.
 
 ## Review and human finalization
 

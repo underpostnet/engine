@@ -41,7 +41,6 @@ import { Types } from 'mongoose';
 import { loggerFactory } from '../../../../server/ops/logger.js';
 import { CacheService } from '../../../../server/storage/cache.js';
 import { revisionGuard } from '../../../../server/storage/revision.js';
-import { DataBaseProviderService } from '../../../../db/DataBaseProvider.js';
 import { instanceCache } from '../../../../api/cyberia-instance/cyberia-instance.service.js';
 import { CLOSED_BEFORE_COMMIT } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { runsAnother } from '../../../../api/cyberia-item-catalog/cyberia-item-catalog.model.js';
@@ -62,7 +61,16 @@ import {
   liveMap,
   populationView,
 } from './population.js';
-import { changedWorlds, graphProblems, variantKeyOf, variantRef, workingGraph } from './working-graph.js';
+import {
+  changedWorlds,
+  defaultKeyOf,
+  graphProblems,
+  servedModel,
+  variantKeyOf,
+  variantRef,
+  workingGraph,
+} from './working-graph.js';
+import { defaultWorlds } from './defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -357,7 +365,7 @@ export async function preflight(models, population, options) {
       baseUpdatedAt,
       revision,
     })),
-    worlds: changedWorlds(graph),
+    worlds: [...new Set([...changedWorlds(graph), ...(await defaultWorlds(models, population))])].sort(),
   };
   return { plan: { ...plan, manifestHash: manifestHashOf(plan) }, problems, warnings };
 }
@@ -494,7 +502,8 @@ const conflictOf = (error) =>
 
 /**
  * Writes the default, instance and universe drafts of a population in the commit transaction: each
- * edit of a stored default row at the `updatedAt` it read, each new global row, and each instance and
+ * edit of a stored default row at the `updatedAt` it read, each new row with the references the
+ * instance drafts hold to it (`draft:<key>`), and each instance and
  * universe at the revision its draft starts from, a new one only where no document holds its code.
  * Each variant an instance references becomes an entity-type default in the same write as its
  * reference, so none runs as a global row. The map registry then follows the maps and instances, and a
@@ -505,6 +514,7 @@ async function commitDocuments(models, population, { session, actor, options }) 
   const registry = registryModels(options);
   const before = new Set((await reconcileMapRegistry(registry, { session })).defects);
   const written = { defaults: [], instances: [], universes: [], variants: [] };
+  const createdRows = new Map();
   for (const { key, rowId, baseUpdatedAt, row } of population.defaultDrafts ?? []) {
     if (rowId) {
       // The draft save checked the row over this stored row, which the `updatedAt` guard keeps as it was.
@@ -517,6 +527,7 @@ async function commitDocuments(models, population, { session, actor, options }) 
       written.defaults.push({ key, rowId, created: false });
     } else {
       const [created] = await models.CyberiaEntityTypeDefault.create([row], { session });
+      createdRows.set(key, created._id);
       written.defaults.push({ key, rowId: String(created._id), created: true });
     }
   }
@@ -531,7 +542,11 @@ async function commitDocuments(models, population, { session, actor, options }) 
       aoiRadius: entry.conf.aoiRadius,
       economyCode: entry.conf.economyCode,
       entityDefaults: entry.conf.entityDefaults.map((ref) =>
-        variantKeyOf(ref) ? ids.get(variantKeyOf(ref)) : new Types.ObjectId(ref),
+        variantKeyOf(ref)
+          ? ids.get(variantKeyOf(ref))
+          : defaultKeyOf(ref)
+            ? createdRows.get(defaultKeyOf(ref))
+            : new Types.ObjectId(ref),
       ),
     };
     const stored = await models.CyberiaInstance.findOne({ code: entry.code }).session(session).lean();
@@ -558,11 +573,9 @@ async function commitDocuments(models, population, { session, actor, options }) 
       { session, runValidators: true },
     );
     if (!updated.modifiedCount) throw requestError(`Instance ${entry.code} moved after the preflight`, 409);
-    if (stored.thumbnail && String(stored.thumbnail) !== String(entry.document.thumbnail ?? ''))
-      await DataBaseProviderService.getModel('File', options).deleteOne({ _id: stored.thumbnail }, { session });
     written.instances.push({ code: entry.code, from: entry.baseRevision, to: next });
   }
-  const Universe = DataBaseProviderService.getProvider(options, 'mongoose').models.CyberiaUniverse;
+  const Universe = servedModel('CyberiaUniverse', options);
   for (const entry of population.universeDrafts ?? []) {
     if (entry.baseRevision === null)
       await Universe.create([{ ...entry.document, code: entry.code, creator: actor, revision: 1 }], { session });

@@ -47,6 +47,9 @@ export const APIS = [
   'cyberia-entity-type-default',
   'cyberia-instance-conf',
   'cyberia-universe',
+  'cyberia-economy',
+  'cyberia-economic-item-policy',
+  'cyberia-content-release',
   'cyberia-global-map-code-registry',
   'cyberia-server-registry',
   ...PROCEDURAL_APIS,
@@ -201,8 +204,9 @@ export async function publishItem(itemId, { render = true, type = 'skin', render
  * @param {Object} [world.maps]
  * @param {Object[]} [world.entities]
  * @param {Object[]} [world.baseline]
+ * @param {Object} [world.partitions] - Partition databases of the host, as a deploy declares them.
  */
-export async function startEngine({ maps = {}, entities = [], baseline = [] } = {}) {
+export async function startEngine({ maps = {}, entities = [], baseline = [], partitions } = {}) {
   for (const key of ['DB_USER', 'DB_PASSWORD', 'DB_AUTH_SOURCE', 'DB_REPLICA_SET', 'DEFAULT_DEPLOY_ID'])
     delete process.env[key];
   process.env.CYBERIA_CONTENT_ROOT = writeProceduralArtifact(FOUNDATION_ITEMS, { maps, entities, baseline });
@@ -212,7 +216,13 @@ export async function startEngine({ maps = {}, entities = [], baseline = [] } = 
   await DataBaseProviderService.load({
     apis: APIS,
     ...host,
-    db: { provider: 'mongoose', host: mongod.host, replicaSet: 'proceduralset', name: 'cyberia-procedural' },
+    db: {
+      provider: 'mongoose',
+      host: mongod.host,
+      replicaSet: 'proceduralset',
+      name: 'cyberia-procedural',
+      partitions,
+    },
   });
   for (const model of Object.values(models())) await model.init();
   await ensureDefaultProfiles(models());

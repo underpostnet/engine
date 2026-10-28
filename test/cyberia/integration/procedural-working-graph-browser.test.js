@@ -9,6 +9,8 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { findBinary } from '../../support/binary.js';
 import { mongodBinary } from '../../support/mongod.js';
+import { resolveEntityDefaultBuild } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
+import { CyberiaEntityTypeDefaultService } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { MODERATOR, host, publishItem, startEngine, stopEngine } from '../../support/procedural-engine.js';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
@@ -58,6 +60,7 @@ const ROUTES = Object.freeze({
   engine: 'cyberia-procedural-engine',
   instance: 'cyberia-instance-engine',
   universe: 'cyberia-universe-engine',
+  entity: 'cyberia-entity-engine',
 });
 const GRID = { gridX: 8, gridY: 8, cellWidth: 16, cellHeight: 16 };
 const entity = (entityType, objectLayerItemIds, x, y) => ({
@@ -74,7 +77,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
   const errors = [];
   const reloads = [];
   const refused = [];
-  let browser, server, page, base, id, row;
+  let browser, server, page, base, id, row, nextId;
   const all = () => populationModels(host);
   const until = async (check, ms = 30000) => {
     const end = Date.now() + ms;
@@ -85,12 +88,11 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
     return false;
   };
   const text = (selector) => page.evaluate((selector) => document.querySelector(selector)?.innerText ?? '', selector);
-  const press = (selector, label) =>
-    page.evaluate(
-      ([selector, label]) =>
-        [...document.querySelectorAll(selector)].find((node) => node.textContent.includes(label)).click(),
-      [selector, label],
-    );
+  const press = async (selector, label) => {
+    const target = `[...document.querySelectorAll(${JSON.stringify(selector)})].find((node) => node.textContent.includes(${JSON.stringify(label)}))`;
+    expect(await until(() => page.evaluate(`Boolean(${target})`))).toBe(true);
+    await page.evaluate(`${target}.click()`);
+  };
   const shot = async (name) => {
     if (!process.env.CYBERIA_UI_SCREENSHOTS) return;
     mkdirSync(process.env.CYBERIA_UI_SCREENSHOTS, { recursive: true });
@@ -127,13 +129,14 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
       ...GRID,
       worldX: 0,
       worldY: 0,
-      entities: [entity('floor', ['moss'], 1, 0), entity('portal', [], 1, 1)],
+      entities: [entity('floor', ['moss'], 1, 0), entity('portal', [], 1, 1), entity('bot', ['guard-skin'], 3, 3)],
     });
     row = await CyberiaEntityTypeDefault.create({
       entityType: 'bot',
       liveItemIds: ['guard-skin'],
       behavior: 'passive',
     });
+    await DataBaseProviderService.getModel('CyberiaEconomy', host).create({ code: 'standard', name: 'Standard' });
     await CyberiaInstance.create({ code: 'home', name: 'Home', cyberiaMapCodes: ['cave'] });
     await CyberiaInstanceConf.create({ instanceCode: 'home', entityDefaults: [row._id] });
     await DataBaseProviderService.getModel('CyberiaUniverse', host).create({
@@ -173,7 +176,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
     app.get('/api/v1/cyberia-instance/map-sources', (req, res) =>
       res.json({ status: 'success', data: { foundation: [], sagas: [] } }),
     );
-    app.post('/game/home/api/v1/hot-reload', (req, res) => {
+    app.post(/^\/game\/[\w-]+\/api\/v1\/hot-reload$/, (req, res) => {
       reloads.push({ instanceCode: req.body.instanceCode, mode: req.body.mode });
       res.json({ message: 'reloading' });
     });
@@ -198,6 +201,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
         contents: `import {ProceduralEngineCyberia} from './src/client/components/cyberia/ProceduralEngineCyberia.js';
         import {InstanceEngineCyberia} from './src/client/components/cyberia/InstanceEngineCyberia.js';
         import {UniverseEngineCyberia} from './src/client/components/cyberia/UniverseEngineCyberia.js';
+        import {EntityEngineCyberia} from './src/client/components/cyberia/EntityEngineCyberia.js';
         import {NotificationManager} from './src/client/components/core/NotificationManager.js';
         import {Modal} from './src/client/components/core/Modal.js';
         import {Auth} from './src/client/components/core/Auth.js';
@@ -214,6 +218,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
           '${ROUTES.engine}': ProceduralEngineCyberia,
           '${ROUTES.instance}': InstanceEngineCyberia,
           '${ROUTES.universe}': UniverseEngineCyberia,
+          '${ROUTES.entity}': EntityEngineCyberia,
         };
         const show = async (route) => {
           window.mounted = false;
@@ -408,6 +413,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
       request: { mapCode: 'glade', seed: { mode: 'fixed', value: 6 } },
       actor: MODERATOR,
     });
+    nextId = String(next._id);
     expect(instanceDraftView(await populationGraph(all(), next._id, host), 'home')).toMatchObject({
       state: 'persisted',
       revision: 2,
@@ -416,4 +422,181 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
     expect(refused).toEqual([]);
     expect(errors).toEqual([]);
   }, 180000);
+  it('edits a shared default and links a world in the Entity Studio, keeps both across a return and a reopen, and publishes them with the economy each world names', async () => {
+    const { CyberiaInstance, CyberiaInstanceConf, CyberiaEntityTypeDefault } = all();
+    // A second world on the cave map, and the item decision the publication needs.
+    await CyberiaInstance.create({ code: 'outpost', name: 'Outpost', cyberiaMapCodes: ['cave'] });
+    await CyberiaInstanceConf.create({ instanceCode: 'outpost' });
+    const now = new Date();
+    await DataBaseProviderService.getModel('CyberiaServerRegistry', host).create({
+      serverId: 'server-outpost',
+      url: `${base}/game/outpost`,
+      instanceCode: 'outpost',
+      state: 'ready',
+      seq: 1,
+      startedAt: now,
+      lastSeen: now,
+    });
+    await updateTarget({ models: all(), id: nextId, itemId: 'moss', body: { resolution: 'keep' }, actor: MODERATOR });
+    reloads.length = 0;
+    const pictures = [];
+    page.on('request', (request) => {
+      const match = request.url().match(/\/world-preview\/([\w-]+)\?revision=(\d+)/);
+      if (match) pictures.push({ code: match[1], revision: Number(match[2]) });
+    });
+    const rowId = String(row._id);
+    const workspaceRow = () =>
+      page.evaluate(
+        (rowId) =>
+          [...document.querySelectorAll('.procedural-defaults tr')].find((line) =>
+            line.innerText.includes('guard-skin'),
+          )?.innerText ?? '',
+        rowId,
+      );
+    const scope = () => page.locator('.entity-engine-population').innerText();
+
+    // 1–2. The population of the map, with the economy its world names.
+    await page.goto(`${base}/${ROUTES.engine}?workflow=map&population=${nextId}&step=context`);
+    await context((shown) => shown.includes('Economy · standard') && shown.includes('Checks · 0 errors'));
+    await shot('defaults-1-context');
+
+    // 3. The defaults step: the stored default joins the workspace, with the item it runs on and where it runs.
+    await press('.procedural-stepper button', 'Entity type defaults');
+    expect(await until(async () => (await text('.procedural-defaults')).includes('Add an existing default'))).toBe(
+      true,
+    );
+    await page.locator('.procedural-defaults summary', { hasText: 'Add an existing default' }).click();
+    await page.locator('.procedural-defaults input[aria-label="Live item id of the default"]').fill('guard-skin');
+    await press('.procedural-defaults button', 'Find');
+    expect(await until(async () => (await text('.procedural-defaults')).includes('passive'))).toBe(true);
+    await press('.procedural-defaults button', 'Add');
+    expect(await until(async () => (await workspaceRow()).includes('Instance · home'))).toBe(true);
+    await shot('defaults-2-workspace');
+
+    // 4–6. Edit opens the Entity Studio on the row as the working graph holds it: behavior and links change there.
+    await page.evaluate(() =>
+      [...document.querySelectorAll('.procedural-defaults tr')]
+        .find((line) => line.innerText.includes('guard-skin'))
+        .querySelector('button')
+        .click(),
+    );
+    expect(await routed(ROUTES.entity)).toBe(true);
+    await expect.poll(scope).toContain('Persisted · Instance · home');
+    expect(await page.evaluate(() => new URLSearchParams(location.search).get('population'))).toBe(nextId);
+    await page.evaluate(() =>
+      [...document.querySelectorAll('[class*="dropdown-option-entity-engine-behavior-"]')]
+        .find((option) => /hostile/i.test(option.textContent))
+        .click(),
+    );
+    await page.evaluate(() => {
+      const search = document.querySelector('.search-box-entity-engine-instance-picker');
+      search.value = 'outpost';
+      search.dispatchEvent(new Event('input'));
+    });
+    const option = () =>
+      [...document.querySelectorAll('[class*="dropdown-option-entity-engine-instance-picker-"]')].find(
+        (option) => option.textContent.trim() === 'outpost',
+      );
+    expect(await until(() => page.evaluate(`Boolean((${option})())`))).toBe(true);
+    await page.evaluate(`(${option})().click()`);
+    await page.locator('.btn-entity-engine-add-instance').click();
+    await expect.poll(scope).toContain('Persisted · Shared · 2 instances: home, outpost · Unsaved changes');
+    expect(await text('.entity-engine-instance-list')).toContain('outpost · pending association');
+    await shot('defaults-3-entity-studio');
+
+    // 7–8. Save to the Procedural Draft: one write of the row and its links, then back to the defaults step.
+    await page.locator('.entity-engine-crud [data-crud="save"]').click();
+    expect(await routed(ROUTES.engine)).toBe(true);
+    expect(await until(async () => (await workspaceRow()).includes('Pending association · outpost'))).toBe(true);
+    const shown = await workspaceRow();
+    for (const part of ['hostile', 'Edit saved to Procedural Draft', 'Shared · 2 instances', 'home, outpost'])
+      expect(shown).toContain(part);
+    const record = await all().CyberiaProceduralPopulation.findById(nextId).lean();
+    expect(record.defaultDrafts).toHaveLength(1);
+    expect(record.defaultDrafts[0]).toMatchObject({ rowId, row: { behavior: 'hostile' }, global: false });
+    expect(record.instanceDrafts.find(({ code }) => code === 'outpost').conf.entityDefaults).toEqual([rowId]);
+    expect(await CyberiaEntityTypeDefault.findById(rowId).lean()).toMatchObject({ behavior: 'passive' });
+    expect(await CyberiaInstanceConf.findOne({ instanceCode: 'outpost' }).lean()).toMatchObject({ entityDefaults: [] });
+    await shot('defaults-4-returned');
+
+    // 9. The runtime context draws each world at the revision the population holds, with its links.
+    pictures.length = 0;
+    await press('.procedural-stepper button', 'Runtime context');
+    await context((shown) => shown.includes('Outpost') && shown.includes('Draft preview'));
+    const revision = (await all().CyberiaProceduralPopulation.findById(nextId, { revision: 1 }).lean()).revision;
+    expect(await until(() => pictures.some(({ code }) => code === 'outpost'))).toBe(true);
+    expect(pictures.every((picture) => picture.revision === revision)).toBe(true);
+    expect(await text('.procedural-context')).not.toContain('Preview unavailable');
+    await shot('defaults-5-context');
+
+    // 10. Reopened, the Entity Studio shows the draft: the edit and both links.
+    await press('.procedural-stepper button', 'Entity type defaults');
+    expect(await until(async () => (await workspaceRow()).includes('hostile'))).toBe(true);
+    await page.evaluate(() =>
+      [...document.querySelectorAll('.procedural-defaults tr')]
+        .find((line) => line.innerText.includes('guard-skin'))
+        .querySelector('button')
+        .click(),
+    );
+    expect(await routed(ROUTES.entity)).toBe(true);
+    await expect.poll(scope).toContain('Saved to Procedural Draft · Shared · 2 instances: home, outpost');
+    expect(await scope()).not.toContain('Unsaved changes');
+    expect(await text('.entity-engine-instance-list')).toContain('outpost · pending association');
+    expect(await text('.dropdown-current-entity-engine-behavior')).toMatch(/hostile/i);
+    await shot('defaults-6-reopened');
+    await page.locator('.entity-engine-population').getByRole('button', { name: 'Back without saving' }).click();
+    expect(await routed(ROUTES.engine)).toBe(true);
+
+    // 11–12. The review: the edited default, the world that joins it, both reloads, and no economy defect.
+    await press('.procedural-stepper button', 'Publish');
+    expect(await until(async () => (await text('.procedural-publish')).includes('Ready to publish'))).toBe(true);
+    const review = await text('.procedural-publish');
+    for (const line of [
+      `Defaults to write: edit of …${rowId.slice(-6)}`,
+      'Instances: outpost (revision 1 → 2)',
+      'Worlds to reload after the commit: home, outpost',
+    ])
+      expect(review).toContain(line);
+    expect(review).not.toMatch(/economy/i);
+    await shot('defaults-7-review');
+
+    // 13. Publish; the worker commits in one transaction and reloads each world that runs the row.
+    stopProceduralWorkers();
+    await press('.procedural-publish .procedural-action', 'Publish');
+    expect(
+      await until(async () => Boolean((await all().CyberiaProceduralPopulation.findById(nextId).lean()).publication)),
+    ).toBe(true);
+    for (let step = 0; step < 6; step++) {
+      const claimed = await claimPublication({ models: all(), holder: 'browser-worker' });
+      if (!claimed) break;
+      await advancePublication({
+        models: all(),
+        population: claimed,
+        holder: 'browser-worker',
+        options: host,
+        refresh: refreshPublication,
+      });
+    }
+    const { publication } = await getPopulation(all(), nextId);
+    expect(publication.status, JSON.stringify(publication.error)).toBe('completed');
+
+    // 14. The stored row, both references and the economy, and what the runtime resolves in each world.
+    expect(await CyberiaEntityTypeDefault.findById(rowId).lean()).toMatchObject({ behavior: 'hostile' });
+    for (const instanceCode of ['home', 'outpost']) {
+      const conf = await CyberiaInstanceConf.findOne({ instanceCode }).lean();
+      expect(conf.entityDefaults.map(String)).toEqual([rowId]);
+      expect(conf.economyCode).toBe('standard');
+      const running = await CyberiaEntityTypeDefaultService.resolveWithCanonical(conf.entityDefaults, host);
+      expect(resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['guard-skin'] }, running)).toMatchObject({
+        behavior: 'hostile',
+        liveItemIds: ['guard-skin'],
+      });
+    }
+    expect(await CyberiaEntityTypeDefault.countDocuments()).toBe(1);
+
+    // 15. Each world that runs the edited row reloads, and no other.
+    expect(reloads.map(({ instanceCode }) => instanceCode).sort()).toEqual(['home', 'outpost']);
+    expect(refused).toEqual([]);
+    expect(errors).toEqual([]);
+  }, 240000);
 });

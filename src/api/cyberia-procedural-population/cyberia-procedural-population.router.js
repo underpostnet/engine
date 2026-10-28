@@ -298,42 +298,12 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('portalConnect')(req, res);
     });
-    router.put(`/:id/instances/:code/defaults/:rowId`, ...guards, async (req, res) => {
-      /*
-        #swagger.auto = false
-        #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Reference a default in an instance draft'
-        #swagger.description = 'The draft of the instance references the stored entity-type default. The stored conf changes at the publication.'
-        #swagger.path = '/cyberia-procedural-population/{id}/instances/{code}/defaults/{rowId}'
-        #swagger.method = 'put'
-        #swagger.produces = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-      */
-      return await handle('defaultReference')(req, res);
-    });
-    router.delete(`/:id/instances/:code/defaults/:rowId`, ...guards, async (req, res) => {
-      /*
-        #swagger.auto = false
-        #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Drop a default reference in an instance draft'
-        #swagger.description = 'The draft of the instance stops referencing the stored entity-type default. The stored conf changes at the publication.'
-        #swagger.path = '/cyberia-procedural-population/{id}/instances/{code}/defaults/{rowId}'
-        #swagger.method = 'delete'
-        #swagger.produces = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-      */
-      return await handle('defaultReference')(req, res);
-    });
     router.post(`/:id/default-drafts`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Start a default draft'
-        #swagger.description = 'Starts an edit of the stored entity-type default rowId at the updatedAt the editor read, or a new global row. Stored defaults change at the publication.'
+        #swagger.summary = 'Save a default'
+        #swagger.description = 'Saves the row of a default and the instances that run it to the drafts of the population, in one write at the revision the editor read. Stored defaults and confs change at the publication.'
         #swagger.path = '/cyberia-procedural-population/{id}/default-drafts'
         #swagger.method = 'post'
         #swagger.produces = ['application/json']
@@ -343,13 +313,13 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('defaultDrafts')(req, res);
     });
-    router.get(`/:id/default-drafts/:key`, ...guards, async (req, res) => {
+    router.get(`/:id/default-drafts/:ref`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'A default draft'
-        #swagger.description = 'The default draft with the instances whose working draft references the row it edits.'
-        #swagger.path = '/cyberia-procedural-population/{id}/default-drafts/{key}'
+        #swagger.summary = 'A default in the working graph'
+        #swagger.description = 'A stored row, a draft key or new, as the Entity Studio of the population edits it: the row, the instances that run it now and as stored, and the instances of the graph.'
+        #swagger.path = '/cyberia-procedural-population/{id}/default-drafts/{ref}'
         #swagger.method = 'get'
         #swagger.produces = ['application/json']
         #swagger.security = [{
@@ -358,28 +328,13 @@ class CyberiaProceduralPopulationRouter {
       */
       return await handle('defaultDrafts')(req, res);
     });
-    router.put(`/:id/default-drafts/:key`, ...guards, async (req, res) => {
-      /*
-        #swagger.auto = false
-        #swagger.tags = ['cyberia-procedural-population']
-        #swagger.summary = 'Save a default draft'
-        #swagger.description = 'Saves the row of a default draft at the revision the editor read.'
-        #swagger.path = '/cyberia-procedural-population/{id}/default-drafts/{key}'
-        #swagger.method = 'put'
-        #swagger.produces = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-      */
-      return await handle('defaultDrafts')(req, res);
-    });
-    router.delete(`/:id/default-drafts/:key`, ...guards, async (req, res) => {
+    router.delete(`/:id/default-drafts/:ref`, ...guards, async (req, res) => {
       /*
         #swagger.auto = false
         #swagger.tags = ['cyberia-procedural-population']
         #swagger.summary = 'Discard a default draft'
         #swagger.description = 'Discards a default draft: the workspace shows the stored row again.'
-        #swagger.path = '/cyberia-procedural-population/{id}/default-drafts/{key}'
+        #swagger.path = '/cyberia-procedural-population/{id}/default-drafts/{ref}'
         #swagger.method = 'delete'
         #swagger.produces = ['application/json']
         #swagger.security = [{

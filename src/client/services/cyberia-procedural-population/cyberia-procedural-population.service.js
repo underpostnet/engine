@@ -142,24 +142,18 @@ class CyberiaProceduralPopulationService {
   static portalConnect = (options = { id: '', body: {} }) =>
     send(at(options.id, 'portal-connect'), 'POST', options.body);
 
-  /** Makes the draft of an instance reference the stored default `rowId`, or stop referencing it. */
-  static setDefaultReference = (options = { id: '', code: '', rowId: '', linked: true }) =>
-    send(
-      at(options.id, `instances/${encodeURIComponent(options.code)}/defaults/${options.rowId}`),
-      options.linked ? 'PUT' : 'DELETE',
-    );
+  /**
+   * A default as the Entity Studio of a population edits it: `ref` is a row id, a draft key, or `new`. It
+   * carries the row, the instances that run it, every instance of the working graph and the instances
+   * that list the map of the population.
+   */
+  static getDefault = (options = { id: '', ref: '' }) => send(at(options.id, `default-drafts/${options.ref}`), 'GET');
 
-  /** Starts a default draft: `body` is `{ rowId, baseUpdatedAt, row }`, or `{ row }` for a new global row. */
-  static createDefaultDraft = (options = { id: '', body: {} }) =>
-    send(at(options.id, 'default-drafts'), 'POST', options.body);
-
-  /** A default draft (`key`) with the instances that reference the row it edits. */
-  static getDefaultDraft = (options = { id: '', key: '' }) =>
-    send(at(options.id, `default-drafts/${options.key}`), 'GET');
-
-  /** Saves a default draft: `body` is `{ row, revision }`. */
-  static saveDefaultDraft = (options = { id: '', key: '', body: {} }) =>
-    send(at(options.id, `default-drafts/${options.key}`), 'PUT', options.body);
+  /**
+   * Saves a default and the instances that run it to the drafts of a population: `body` is `{ rowId, key,
+   * baseUpdatedAt, revision, row, instanceCodes, global, populationRevision }`.
+   */
+  static saveDefault = (options = { id: '', body: {} }) => send(at(options.id, 'default-drafts'), 'POST', options.body);
 
   /** Discards a default draft. */
   static discardDefaultDraft = (options = { id: '', key: '' }) =>

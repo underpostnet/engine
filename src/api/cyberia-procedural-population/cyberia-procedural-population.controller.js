@@ -19,7 +19,6 @@ const CyberiaProceduralPopulationController = {
   saveUniverseDraft: serviceHandler(Service.saveUniverseDraft),
   topology: serviceHandler(Service.topology),
   portalConnect: serviceHandler(Service.portalConnect),
-  defaultReference: serviceHandler(Service.defaultReference),
   defaultDrafts: serviceHandler(Service.defaultDrafts),
   mapPreview: pictureHandler(Service.mapPreview, (req) => `population-${req.params.id}-map.png`),
   worldPreview: pictureHandler(Service.worldPreview, (req) => `population-${req.params.id}-${req.params.code}.png`),

@@ -44,15 +44,21 @@ import { liveEndpoints } from '../../../../api/cyberia-server-registry/cyberia-s
 import { registryDefects } from '../../instance/map-registry.js';
 import { renderMapPreviewPng } from '../../instance/map-preview-generator.js';
 import { composeWorldPreview, storedMapsWithPictures, storedPictures } from '../../instance/world-preview.js';
-import { universeWalletDefect } from '../../economy/economy-policy.js';
+import { confEconomyCode, universeWalletDefect } from '../../economy/economy-policy.js';
 import { requestError } from '../engine.js';
 import { STILL_OPEN, dropDraftThumbnails, findPopulation, only, openPopulation } from './population.js';
 
-/** The reference an instance conf holds to a variant its draft proposes. */
-const VARIANT_PREFIX = 'variant:';
-export const variantRef = (key) => `${VARIANT_PREFIX}${key}`;
-export const variantKeyOf = (ref) =>
-  String(ref).startsWith(VARIANT_PREFIX) ? String(ref).slice(VARIANT_PREFIX.length) : '';
+/** The reference to a row a draft proposes, and the key a reference of that form names ('' for another form). */
+const keyedRef = (prefix) => [
+  (key) => `${prefix}${key}`,
+  (ref) => (String(ref).startsWith(prefix) ? String(ref).slice(prefix.length) : ''),
+];
+/** An instance conf draft references a variant it proposes as `variant:<key>`. */
+export const [variantRef, variantKeyOf] = keyedRef('variant:');
+/** An instance conf draft references a new row a default draft proposes as `draft:<key>`. */
+export const [defaultRef, defaultKeyOf] = keyedRef('draft:');
+/** Whether a reference names a stored row. */
+export const storedRef = (ref) => /^[0-9a-f]{24}$/.test(String(ref));
 
 const MAP_FIELDS = Object.freeze({
   code: 1,
@@ -71,7 +77,15 @@ const MAP_FIELDS = Object.freeze({
   'entities.portalSubtype': 1,
 });
 
-const hostModel = (name, options) => DataBaseProviderService.getProvider(options, 'mongoose')?.models?.[name] ?? null;
+/**
+ * A model of the host as its readers read it, from the database each partition serves; null when the host
+ * loads no such model.
+ * @param {string} name - Model name.
+ * @param {Object} options - Router options.
+ * @returns {import('mongoose').Model|null}
+ * @memberof CyberiaPopulationWorkingGraph
+ */
+export const servedModel = (name, options) => DataBaseProviderService.servedModels(options)[name] ?? null;
 const pick = (value, fields) =>
   Object.fromEntries(fields.filter((field) => field in value).map((field) => [field, value[field]]));
 const plain = (value) => JSON.parse(JSON.stringify(value ?? null));
@@ -157,7 +171,7 @@ export async function workingInstances(models, population) {
  * @memberof CyberiaPopulationWorkingGraph
  */
 export async function workingGraph(models, population, options) {
-  const Universe = hostModel('CyberiaUniverse', options);
+  const Universe = servedModel('CyberiaUniverse', options);
   const [maps, instances, universes] = await Promise.all([
     models.CyberiaMap.find({}, MAP_FIELDS).sort({ code: 1 }).lean(),
     workingInstances(models, population),
@@ -216,29 +230,21 @@ export const universeOf = (universes, instanceCode) =>
 const localizedRows = (graph) => {
   const referenced = (instances) => new Set([...instances.values()].flatMap(({ conf }) => conf.entityDefaults));
   const before = referenced(graph.persisted.instances);
-  return [...referenced(graph.instances)].filter((ref) => !variantKeyOf(ref) && !before.has(ref));
+  return [...referenced(graph.instances)].filter((ref) => storedRef(ref) && !before.has(ref));
 };
 
 /**
- * The instances whose world the population changes: a drafted or new instance; each instance that
- * lists a drafted map now or did before; each instance that runs a drafted default row; and every
- * instance for a drafted row no instance references, which is global, or for a global row an instance
- * draft starts to reference, which every other world loses.
+ * The instances whose world the population changes through its instance and map drafts: a drafted or
+ * new instance, and each instance that lists a drafted map now or did before. `defaultWorlds` adds the
+ * worlds its entity-type defaults change.
  */
 export function changedWorlds(graph) {
   const drafted = [...graph.maps.values()].filter(({ state }) => state === 'draft').map(({ code }) => code);
   const lists = (instance) => instance?.cyberiaMapCodes?.some((code) => drafted.includes(code));
-  const runs = (rowId) =>
-    [...graph.instances.values()].filter(({ conf }) => conf.entityDefaults.includes(rowId)).map(({ code }) => code);
   const codes = new Set();
   for (const instance of graph.instances.values())
     if (instance.state !== 'persisted' || lists(instance) || lists(graph.persisted.instances.get(instance.code)))
       codes.add(instance.code);
-  for (const { rowId } of graph.defaults) {
-    const consumers = rowId ? runs(rowId) : [];
-    for (const code of consumers.length > 0 ? consumers : graph.instances.keys()) codes.add(code);
-  }
-  if (localizedRows(graph).length > 0) for (const code of graph.instances.keys()) codes.add(code);
   return [...codes].sort();
 }
 
@@ -330,15 +336,18 @@ export async function graphProblems(models, graph, options) {
     const rows = new Set(
       (
         await models.CyberiaEntityTypeDefault.find(
-          { _id: { $in: instance.conf.entityDefaults.filter((ref) => Types.ObjectId.isValid(ref)) } },
+          { _id: { $in: instance.conf.entityDefaults.filter(storedRef) } },
           { _id: 1 },
         ).lean()
       ).map(({ _id }) => String(_id)),
     );
     for (const ref of instance.conf.entityDefaults) {
-      const key = variantKeyOf(ref);
-      if (key ? !instance.variants.some((variant) => variant.key === key) : !rows.has(ref))
-        errors.push(`Instance ${code} references entity-type default ${ref}, which does not exist`);
+      const exists = variantKeyOf(ref)
+        ? instance.variants.some(({ key }) => key === variantKeyOf(ref))
+        : defaultKeyOf(ref)
+          ? graph.defaults.some(({ key, rowId }) => !rowId && key === defaultKeyOf(ref))
+          : rows.has(ref);
+      if (!exists) errors.push(`Instance ${code} references entity-type default ${ref}, which does not exist`);
     }
   }
 
@@ -369,11 +378,36 @@ export async function graphProblems(models, graph, options) {
 
   const referenced = (instances) => new Set([...instances.values()].flatMap(({ conf }) => conf.entityDefaults));
   const kept = referenced(graph.instances);
+  const chosenGlobal = new Set(graph.defaults.filter(({ global }) => global).map(({ rowId }) => rowId));
   for (const ref of referenced(graph.persisted.instances))
-    if (!kept.has(ref))
+    if (!kept.has(ref) && !chosenGlobal.has(ref))
       errors.push(
         `Entity-type default ${ref} loses its last instance reference and would run in every world: drop the variant that replaces it`,
       );
+
+  const CyberiaEconomy = servedModel('CyberiaEconomy', options);
+  const economies = Object.fromEntries(
+    [...graph.instances.values()]
+      .filter(({ state }) => state !== 'persisted')
+      .map(({ code, conf }) => [code, confEconomyCode(conf)]),
+  );
+  if (CyberiaEconomy && Object.keys(economies).length > 0) {
+    const held = new Map(
+      (
+        await CyberiaEconomy.find(
+          { code: { $in: [...new Set(Object.values(economies))] } },
+          { code: 1, status: 1 },
+        ).lean()
+      ).map(({ code, status }) => [code, status]),
+    );
+    for (const [code, economy] of Object.entries(economies)) {
+      const status = held.get(economy);
+      if (status !== 'active')
+        errors.push(
+          `Instance ${code}: its draft conf names economy ${economy}, which content database ${CyberiaEconomy.db.name} ${status ? `holds ${status}` : 'does not hold'}`,
+        );
+    }
+  }
 
   const owners = new Map();
   for (const universe of graph.universes.values()) {
@@ -389,12 +423,6 @@ export async function graphProblems(models, graph, options) {
     for (const code of codes.filter((member) => !graph.instances.has(member)))
       errors.push(`Universe ${universe.code} names instance ${code}, which neither exists nor is drafted`);
   }
-  const CyberiaEconomy = hostModel('CyberiaEconomy', options);
-  const economies = Object.fromEntries(
-    [...graph.instances.values()]
-      .filter(({ state }) => state !== 'persisted')
-      .map(({ code, conf }) => [code, conf.economyCode]),
-  );
   for (const universe of CyberiaEconomy ? graph.universes.values() : []) {
     const codes = universe.instances
       .map(({ instanceCode }) => instanceCode)
@@ -403,9 +431,7 @@ export async function graphProblems(models, graph, options) {
     const defect = await universeWalletDefect(
       { CyberiaInstanceConf: models.CyberiaInstanceConf, CyberiaEconomy },
       codes,
-      {
-        confs: economies,
-      },
+      { confs: economies, pending: 'in its draft conf' },
     );
     if (defect) errors.push(`Universe ${universe.code}: ${defect}`);
   }
@@ -449,8 +475,8 @@ const draftsWorld = (graph, instance) =>
 /**
  * The runtime context of the map of a population, from its working graph: each instance that lists
  * the map now or did before, and each instance the population drafts, with how its association with
- * the map and its universe membership change, the source of its preview, its live servers and its
- * entity-type defaults; each universe of those instances and each universe the population drafts,
+ * the map and its universe membership change, the source of its preview, its live servers, the economy
+ * its conf names and its entity-type defaults; each universe of those instances and each universe the population drafts,
  * with the members it gains and loses.
  * @param {Object} graph - {@link workingGraph}.
  * @param {Object} options - Router options of the host: its server registry.
@@ -461,7 +487,7 @@ export async function runtimeContextOf(graph, options) {
   const { mapCode } = graph.population;
   const codes = mapInstances(graph);
   const endpoints =
-    codes.length && hostModel('CyberiaServerRegistry', options)
+    codes.length && servedModel('CyberiaServerRegistry', options)
       ? await liveEndpoints(options, { instanceCodes: codes })
       : [];
   const instances = codes.map((code) => {
@@ -478,6 +504,7 @@ export async function runtimeContextOf(graph, options) {
       status: now.status,
       ...documentState(now),
       maps: now.cyberiaMapCodes.length,
+      economy: confEconomyCode(now.conf),
       thumbnail: now.thumbnail ?? null,
       association: lists === listed ? (lists ? 'listed' : 'none') : lists ? 'adds' : 'removes',
       universe: universe && { code: universe.code, name: universe.name || universe.code, state: universe.state },
@@ -609,7 +636,7 @@ function objectOf(body, name) {
  * @param {Object} entry
  * @returns {Promise<Object>}
  */
-async function checkedEntry(models, field, entry) {
+export async function checkedEntry(models, field, entry) {
   try {
     const population = new models.CyberiaProceduralPopulation({ [field]: [entry] });
     await population.validate([field]);
@@ -746,7 +773,7 @@ export async function saveInstanceDraft({ models, id, code, body, actor, options
   if (defect) throw requestError(`Invalid map layout: ${defect}`);
   await writeDraft({ models, population, field: 'instanceDrafts', identity: { code }, revision: body.revision, next });
   if (current && String(current.document.thumbnail ?? '') !== String(next.document.thumbnail ?? ''))
-    await dropDraftThumbnails(models, [current], options);
+    await dropDraftThumbnails(models, [current], { options });
   return instanceDraftView(await populationGraph(models, id, options), code);
 }
 
@@ -766,7 +793,7 @@ export async function saveInstanceDraft({ models, id, code, body, actor, options
  * @memberof CyberiaPopulationWorkingGraph
  */
 export async function saveUniverseDraft({ models, id, code, body, actor, options }) {
-  const Universe = hostModel('CyberiaUniverse', options);
+  const Universe = servedModel('CyberiaUniverse', options);
   if (!Universe) throw requestError('This host serves no universes', 503);
   const population = await openPopulation(models, id);
   only(body, ['document', 'baseRevision', 'revision'], 'A universe draft');
@@ -789,6 +816,22 @@ export async function saveUniverseDraft({ models, id, code, body, actor, options
   return universeDraftView(await populationGraph(models, id, options), code);
 }
 
+/** Whether two values hold the same data. */
+const same = (a, b) => canonicalize(plain(a)) === canonicalize(plain(b));
+
+/**
+ * Whether an instance draft proposes no change: it holds the document and conf of the stored instance it
+ * starts from, and no variant. Such a draft publishes nothing, so a write that leaves it drops it.
+ * @param {Object} entry - An instance draft.
+ * @returns {boolean}
+ * @memberof CyberiaPopulationWorkingGraph
+ */
+export const unchangedDraft = (entry) =>
+  entry.baseRevision !== null &&
+  entry.variants.length === 0 &&
+  same(entry.document, entry.base.document) &&
+  same(entry.conf, entry.base.conf);
+
 /** The base of a draft of a stored instance: its document and conf when the draft started. */
 const instanceBase = (models, stored, conf) => {
   const { conf: storedConf, ...document } = persistedInstance(models, stored, conf);
@@ -802,7 +845,6 @@ const instanceBase = (models, stored, conf) => {
  * @returns {{merged:Object, conflicts:string[]}}
  */
 function mergeFields(base, draft, stored, prefer, prefix = '') {
-  const same = (a, b) => canonicalize(plain(a)) === canonicalize(plain(b));
   const merged = {};
   const conflicts = [];
   for (const field of new Set([...Object.keys(draft), ...Object.keys(stored)])) {
@@ -840,7 +882,7 @@ export async function rebaseDocumentDraft({ models, id, kind, code, body = {}, a
   if (!current) throw requestError(`The population drafts no ${kind} ${code}`, 404);
   if (current.baseRevision === null) throw requestError(`${code} is new: it has no stored revision to rebase on`, 409);
   const stored = universe
-    ? await hostModel('CyberiaUniverse', options).findOne({ code }).lean()
+    ? await servedModel('CyberiaUniverse', options).findOne({ code }).lean()
     : await models.CyberiaInstance.findOne({ code }).lean();
   if (!stored) throw requestError(`${code} was deleted after the draft`, 409);
   const revision = stored.revision ?? 1;
@@ -898,7 +940,7 @@ export async function discardDocumentDraft({ models, id, kind, code, options }) 
     { $pull: { [field]: { code } }, $inc: { revision: 1 } },
   );
   const entry = (population[field] ?? []).find((draft) => draft.code === code);
-  if (written.modifiedCount > 0 && kind === 'instance') await dropDraftThumbnails(models, [entry], options);
+  if (written.modifiedCount > 0 && kind === 'instance') await dropDraftThumbnails(models, [entry], { options });
   return { discarded: written.modifiedCount > 0 };
 }
 
@@ -907,7 +949,7 @@ export async function discardDocumentDraft({ models, id, kind, code, options }) 
  * of the stored instance, with the fields `change` gives from the instance as the graph holds it.
  * @returns {{revision:number, next:Object}} The draft revision the write names, and the entry.
  */
-function nextInstanceDraft(population, graph, code, change, actor) {
+export function nextInstanceDraft(population, graph, code, change, actor) {
   const instance = instanceDraftView(graph, code);
   const current = (population.instanceDrafts ?? []).find((entry) => entry.code === code);
   const stored = graph.persisted.instances.get(code);
@@ -955,12 +997,13 @@ export async function proposeVariant({ models, id, code, rowId, actor, options }
   const population = await openPopulation(models, id);
   const graph = await workingGraph(models, population, options);
   instanceDraftView(graph, code);
-  const row = await storedDefault(models, rowId);
+  const stored = await storedDefault(models, rowId);
+  const row = graph.defaults.find((draft) => draft.rowId === String(rowId))?.row ?? stored;
   const runs = [...graph.instances.values()]
     .filter(({ conf }) => conf.entityDefaults.includes(String(rowId)))
     .map((entry) => entry.code);
   const orphan = await models.CyberiaInstanceConf.exists({
-    entityDefaults: row._id,
+    entityDefaults: stored._id,
     instanceCode: { $nin: [...graph.instances.keys()] },
   });
   const scope = runs.length === 0 && !orphan ? 'global' : 'shared';
@@ -993,44 +1036,6 @@ export async function proposeVariant({ models, id, code, rowId, actor, options }
   );
   await writeDraft({ models, population, field: 'instanceDrafts', identity: { code }, revision, next });
   return { ...instanceDraftView(await populationGraph(models, id, options), code), key };
-}
-
-/**
- * Makes the draft of an instance reference a stored entity-type default, or stop referencing it. The
- * stored conf does not change: the publication writes the reference. A row the change leaves with no
- * reference turns global, which the checks of the graph refuse.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id - Population id.
- * @param {string} params.code - Instance code.
- * @param {string} params.rowId - A stored row.
- * @param {boolean} params.linked - Whether the instance references the row.
- * @param {string} params.actor
- * @param {Object} params.options - Router options.
- * @returns {Promise<Object>} {@link instanceDraftView}.
- * @throws {Error} 404 for an unknown instance or row; 409 for a closed population.
- * @memberof CyberiaPopulationWorkingGraph
- */
-export async function setDefaultReference({ models, id, code, rowId, linked, actor, options }) {
-  const population = await openPopulation(models, id);
-  const graph = await workingGraph(models, population, options);
-  await storedDefault(models, rowId);
-  const refs = instanceDraftView(graph, code).conf.entityDefaults;
-  if (refs.includes(String(rowId)) === linked) return instanceDraftView(graph, code);
-  const { revision, next } = nextInstanceDraft(
-    population,
-    graph,
-    code,
-    (instance) => ({
-      conf: {
-        ...instance.conf,
-        entityDefaults: linked ? [...refs, String(rowId)] : refs.filter((ref) => ref !== String(rowId)),
-      },
-    }),
-    actor,
-  );
-  await writeDraft({ models, population, field: 'instanceDrafts', identity: { code }, revision, next });
-  return instanceDraftView(await populationGraph(models, id, options), code);
 }
 
 /**

@@ -6,6 +6,7 @@ import express from 'express';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { findBinary } from '../../support/binary.js';
+import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { mongodBinary } from '../../support/mongod.js';
 import { VIOLET_STRATA } from '../../support/procedural-content.js';
 import {
@@ -410,8 +411,9 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     expect(plan).toMatch(/Review · population revision \d+/);
     expect(plan).toContain('Items · 2 of 2 ready');
     expect(plan).toContain('Publish the selected entry, then bind it');
-    expect(plan).toContain('A publication changes no stored default');
+    expect(plan).toContain('A publication writes each default the population edits or creates');
     expect(plan).toContain('Instances: no change');
+    expect(plan).toContain('Defaults to write: none');
     expect(plan).toContain('Variants to create: none');
     expect(plan).toContain('Worlds to reload after the commit: none');
     expect(plan).toContain('Map moss-hollow');
@@ -576,6 +578,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     expect(await until(async () => (await text('.procedural-publish')).includes('Review'))).toBe(true);
 
     await all().CyberiaInstance.create({ code: 'moss-world', name: 'Moss World', cyberiaMapCodes: ['moss-hollow'] });
+    const economy = await DataBaseProviderService.getModel('CyberiaEconomy', host).create({ code: 'standard' });
     try {
       await visit('&step=context');
       expect(await until(async () => (await text('.procedural-context')).includes('Moss World'))).toBe(true);
@@ -649,6 +652,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
       expect(await all().CyberiaInstance.findOne({ code: 'moss-world' }).lean()).toMatchObject({ name: 'Moss World' });
     } finally {
       await all().CyberiaInstance.deleteOne({ code: 'moss-world' });
+      await economy.deleteOne();
     }
   });
 

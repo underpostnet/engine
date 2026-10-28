@@ -34,60 +34,57 @@ is `/api/v1/<api>`.
 
 The map population API is `cyberia-procedural-population`:
 
-| Method and path                                    | Does                                                                                                                                          |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /maps`                                        | Lists map summaries. Paginated.                                                                                                               |
-| `GET /maps/:code`                                  | Answers the map context a population reads now. Stores nothing.                                                                               |
-| `POST /`                                           | Creates a population of `{ mapCode, seed? }`. Equal inputs answer one population.                                                             |
-| `GET /`, `GET /:id`                                | Reads populations with each item, the item groups and the state of each step.                                                                 |
-| `GET /:id/impact`                                  | Answers where each item runs now besides the map, and its impact.                                                                             |
-| `GET /:id/runtime-context`                         | Answers where the map runs once the population publishes, from its working graph, and its checks.                                             |
-| `GET /:id/instances/:code`                         | Answers the instance as the working graph holds it: document, conf, variants, state, revisions.                                               |
-| `PUT /:id/instances/:code`                         | Saves the instance draft `{ document, conf, baseRevision, revision }`. The instance does not change.                                          |
-| `DELETE /:id/instances/:code`                      | Discards the instance draft.                                                                                                                  |
-| `POST /:id/instances/:code/rebase`                 | Moves the instance draft onto its stored revision; `{ prefer: 'draft' }` keeps the draft values.                                              |
-| `POST /:id/instances/:code/variants`               | Copies the shared or global default `{ rowId }` into a variant of the instance draft.                                                         |
-| `PUT /:id/instances/:code/variants/:key`           | Saves the variant `{ row, revision }`.                                                                                                        |
-| `DELETE /:id/instances/:code/variants/:key`        | Drops the variant: the instance runs the default it copies again.                                                                             |
-| `GET /:id/universes/:code`                         | Answers the universe as the working graph holds it, with the view of its members.                                                             |
-| `PUT /:id/universes/:code`                         | Saves the universe draft `{ document, baseRevision, revision }`. The universe does not change.                                                |
-| `DELETE /:id/universes/:code`                      | Discards the universe draft.                                                                                                                  |
-| `POST /:id/universes/:code/rebase`                 | Moves the universe draft onto its stored revision; `{ prefer: 'draft' }` keeps the draft values.                                              |
-| `POST /:id/topology`                               | Answers what `{ mapCodes, portals }` connect, with the maps as the working graph holds them.                                                  |
-| `POST /:id/portal-connect`                         | Answers the portals the Portal Connector proposes for `{ mapCodes }` in the working graph. Stores nothing.                                    |
-| `PUT /:id/instances/:code/defaults/:rowId`         | The draft of the instance references the stored default. The stored conf changes at the publication.                                          |
-| `DELETE /:id/instances/:code/defaults/:rowId`      | The draft of the instance stops referencing the stored default.                                                                               |
-| `POST /:id/default-drafts`                         | Starts a default draft: `{ rowId, baseUpdatedAt, row }`, or `{ row }` for a new global default.                                               |
-| `GET /:id/default-drafts/:key`                     | Answers a default draft with the instances that reference the default it edits.                                                               |
-| `PUT /:id/default-drafts/:key`                     | Saves the `{ row, revision }` of a default draft.                                                                                             |
-| `DELETE /:id/default-drafts/:key`                  | Discards a default draft.                                                                                                                     |
-| `GET /:id/map-preview`                             | Answers the picture of the map draft at `?revision=` of the draft, or 409 for another revision. Stores nothing.                               |
-| `GET /:id/world-preview/:code`                     | Answers the world preview of an instance in the working graph at `?revision=` of the population, or 409 for another revision. Stores nothing. |
-| `POST /:id/targets`                                | Adds `{ itemId, stage?, itemType?, cid? }`, or restores a removed item with its results.                                                      |
-| `PATCH /:id/targets/:itemId`                       | Sets `{ resolution?, templateId?, palette?, variation? }` of an item, at any time.                                                            |
-| `DELETE /:id/targets/:itemId`                      | Removes an item from the population, from any source: `{ reason? }`. Its runs stop.                                                           |
-| `DELETE /:id/removed/:itemId`                      | Forgets a removed item permanently: only its entry in the removed list goes.                                                                  |
-| `POST /:id/targets/:itemId/reset`                  | Resets the workflow of an item to a clean start, and reports what went and what stayed.                                                       |
-| `GET /:id/targets/:itemId/results`                 | Lists the results of an item with the actions each takes, and how many it keeps of the limit.                                                 |
-| `POST /:id/targets/:itemId/results/delete`         | Deletes the results `{ ids }`, and reports what went, what stayed and what failed.                                                            |
-| `GET /:id/targets/:itemId/definitions`             | Lists the stored definitions a draft of the item can continue from, newest first. Paginated.                                                  |
-| `POST /:id/targets/:itemId/generate`               | Stores `{ count? }` runs, 1 to 4, from the configuration as it is.                                                                            |
-| `POST /:id/targets/:itemId/select`                 | Uses the generated result `{ entryId, cid }`; the result selected before returns to ready.                                                    |
-| `POST /:id/targets/:itemId/entries/:entryId/retry` | Runs a failed result again under its own seed.                                                                                                |
-| `POST /:id/palette/preview`                        | Answers what `{ itemIds, source, paletteId?, overrides }` gives each item.                                                                    |
-| `POST /:id/palette`                                | Applies that change, exactly as its preview answers.                                                                                          |
-| `GET /:id/draft`, `PUT /:id/draft`                 | Reads or saves the map draft: grid and placements. The live map does not change.                                                              |
-| `DELETE /:id/draft`                                | Discards the draft. The composition starts again from the live map.                                                                           |
-| `POST /:id/draft/rebase`                           | Moves the draft onto `{ mapRevision }` the moderator reviewed.                                                                                |
-| `GET /:id/defaults`                                | Answers the defaults workspace: the stored defaults that name the staged items.                                                               |
-| `POST /:id/defaults`                               | Adds the stored default `{ rowId }` to the workspace. The default does not change.                                                            |
-| `DELETE /:id/defaults/:rowId`                      | Removes a default from the workspace. The default does not change.                                                                            |
-| `POST /:id/validate`                               | Answers what a publication would do now, or why it would stop. Stores nothing.                                                                |
-| `POST /:id/publish`                                | Starts the publication of the reviewed revision: `{ revision, acknowledged? }`.                                                               |
-| `POST /:id/publication/retry`                      | Resumes the phase of the publication that failed.                                                                                             |
-| `POST /:id/publication/cancel`                     | Cancels the publication before its commit.                                                                                                    |
-| `POST /:id/cancel`                                 | Stops the active work of the job of each target. Deletes nothing.                                                                             |
-| `DELETE /:id`                                      | Deletes the population and the jobs of its targets. A publication keeps what it wrote.                                                        |
+| Method and path                                    | Does                                                                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /maps`                                        | Lists map summaries. Paginated.                                                                                                                         |
+| `GET /maps/:code`                                  | Answers the map context a population reads now. Stores nothing.                                                                                         |
+| `POST /`                                           | Creates a population of `{ mapCode, seed? }`. Equal inputs answer one population.                                                                       |
+| `GET /`, `GET /:id`                                | Reads populations with each item, the item groups and the state of each step.                                                                           |
+| `GET /:id/impact`                                  | Answers where each item runs now besides the map, and its impact.                                                                                       |
+| `GET /:id/runtime-context`                         | Answers where the map runs once the population publishes, from its working graph, and its checks.                                                       |
+| `GET /:id/instances/:code`                         | Answers the instance as the working graph holds it: document, conf, variants, state, revisions.                                                         |
+| `PUT /:id/instances/:code`                         | Saves the instance draft `{ document, conf, baseRevision, revision }`. The instance does not change.                                                    |
+| `DELETE /:id/instances/:code`                      | Discards the instance draft.                                                                                                                            |
+| `POST /:id/instances/:code/rebase`                 | Moves the instance draft onto its stored revision; `{ prefer: 'draft' }` keeps the draft values.                                                        |
+| `POST /:id/instances/:code/variants`               | Copies the shared or global default `{ rowId }` into a variant of the instance draft.                                                                   |
+| `PUT /:id/instances/:code/variants/:key`           | Saves the variant `{ row, revision }`.                                                                                                                  |
+| `DELETE /:id/instances/:code/variants/:key`        | Drops the variant: the instance runs the default it copies again.                                                                                       |
+| `GET /:id/universes/:code`                         | Answers the universe as the working graph holds it, with the view of its members.                                                                       |
+| `PUT /:id/universes/:code`                         | Saves the universe draft `{ document, baseRevision, revision }`. The universe does not change.                                                          |
+| `DELETE /:id/universes/:code`                      | Discards the universe draft.                                                                                                                            |
+| `POST /:id/universes/:code/rebase`                 | Moves the universe draft onto its stored revision; `{ prefer: 'draft' }` keeps the draft values.                                                        |
+| `POST /:id/topology`                               | Answers what `{ mapCodes, portals }` connect, with the maps as the working graph holds them.                                                            |
+| `POST /:id/portal-connect`                         | Answers the portals the Portal Connector proposes for `{ mapCodes }` in the working graph. Stores nothing.                                              |
+| `POST /:id/default-drafts`                         | Saves a default and the instances that run it in one write: the default draft and the references of the instance drafts. Stores no default and no conf. |
+| `GET /:id/default-drafts/:ref`                     | Answers the default `ref` (a row id, a draft key or `new`) as the working graph holds it.                                                               |
+| `DELETE /:id/default-drafts/:ref`                  | Discards the default draft and each `draft:` reference to it.                                                                                           |
+| `GET /:id/map-preview`                             | Answers the picture of the map draft at `?revision=` of the draft, or 409 for another revision. Stores nothing.                                         |
+| `GET /:id/world-preview/:code`                     | Answers the world preview of an instance in the working graph at `?revision=` of the population, or 409 for another revision. Stores nothing.           |
+| `POST /:id/targets`                                | Adds `{ itemId, stage?, itemType?, cid? }`, or restores a removed item with its results.                                                                |
+| `PATCH /:id/targets/:itemId`                       | Sets `{ resolution?, templateId?, palette?, variation? }` of an item, at any time.                                                                      |
+| `DELETE /:id/targets/:itemId`                      | Removes an item from the population, from any source: `{ reason? }`. Its runs stop.                                                                     |
+| `DELETE /:id/removed/:itemId`                      | Forgets a removed item permanently: only its entry in the removed list goes.                                                                            |
+| `POST /:id/targets/:itemId/reset`                  | Resets the workflow of an item to a clean start, and reports what went and what stayed.                                                                 |
+| `GET /:id/targets/:itemId/results`                 | Lists the results of an item with the actions each takes, and how many it keeps of the limit.                                                           |
+| `POST /:id/targets/:itemId/results/delete`         | Deletes the results `{ ids }`, and reports what went, what stayed and what failed.                                                                      |
+| `GET /:id/targets/:itemId/definitions`             | Lists the stored definitions a draft of the item can continue from, newest first. Paginated.                                                            |
+| `POST /:id/targets/:itemId/generate`               | Stores `{ count? }` runs, 1 to 4, from the configuration as it is.                                                                                      |
+| `POST /:id/targets/:itemId/select`                 | Uses the generated result `{ entryId, cid }`; the result selected before returns to ready.                                                              |
+| `POST /:id/targets/:itemId/entries/:entryId/retry` | Runs a failed result again under its own seed.                                                                                                          |
+| `POST /:id/palette/preview`                        | Answers what `{ itemIds, source, paletteId?, overrides }` gives each item.                                                                              |
+| `POST /:id/palette`                                | Applies that change, exactly as its preview answers.                                                                                                    |
+| `GET /:id/draft`, `PUT /:id/draft`                 | Reads or saves the map draft: grid and placements. The live map does not change.                                                                        |
+| `DELETE /:id/draft`                                | Discards the draft. The composition starts again from the live map.                                                                                     |
+| `POST /:id/draft/rebase`                           | Moves the draft onto `{ mapRevision }` the moderator reviewed.                                                                                          |
+| `GET /:id/defaults`                                | Answers the defaults workspace: the stored defaults that name the staged items.                                                                         |
+| `POST /:id/defaults`                               | Adds the stored default `{ rowId }` to the workspace. The default does not change.                                                                      |
+| `DELETE /:id/defaults/:rowId`                      | Removes a default from the workspace. The default does not change.                                                                                      |
+| `POST /:id/validate`                               | Answers what a publication would do now, or why it would stop. Stores nothing.                                                                          |
+| `POST /:id/publish`                                | Starts the publication of the reviewed revision: `{ revision, acknowledged? }`.                                                                         |
+| `POST /:id/publication/retry`                      | Resumes the phase of the publication that failed.                                                                                                       |
+| `POST /:id/publication/cancel`                     | Cancels the publication before its commit.                                                                                                              |
+| `POST /:id/cancel`                                 | Stops the active work of the job of each target. Deletes nothing.                                                                                       |
+| `DELETE /:id`                                      | Deletes the population and the jobs of its targets. A publication keeps what it wrote.                                                                  |
 
 The lists of jobs, sources and candidates filter and sort on the server. `filterModel` and
 `sortModel` are the AG Grid models, and `page` and `limit` page the answer. A column names its
@@ -607,9 +604,33 @@ it), `instances` (the instances whose conf names it; none for a global default) 
 the [Procedural Engine](../explanation/procedural-engine.md#map-population).
 
 `POST /:id/defaults` and `DELETE /:id/defaults/:rowId` change only the workspace; a stored default
-they do not find answers 404. The Entity Studio edits a default: `PUT
-/api/v1/cyberia-entity-type-default/:id` takes the `updatedAt` it read, and answers 409 when the
-stored default changed since. A publication never changes a default.
+they do not find answers 404.
+
+`GET /:id/default-drafts/:ref` answers what the Entity Studio of a population edits:
+
+| Field                 | Holds                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `rowId`, `key`        | The stored default, null for a new one, and the default draft, null for none          |
+| `state`               | `persisted`, `draft` (an edit of the stored default), `new`, or `unsaved` for `new`   |
+| `row`                 | The stored fields as the draft holds them, else as stored; null for `unsaved`         |
+| `revision`            | The revision of the default draft; 0 for none                                         |
+| `baseUpdatedAt`       | The `updatedAt` of the stored default the draft starts from                           |
+| `global`              | The moderator chose that every world runs the default                                 |
+| `instanceCodes`       | The instances that run it once the population publishes                               |
+| `storedInstanceCodes` | The instances whose stored conf references it                                         |
+| `instances`           | Every instance of the working graph                                                   |
+| `mapInstances`        | The instances that list the map of the population: a new default starts linked to one |
+| `populationRevision`  | The population revision the answer read                                               |
+
+`POST /:id/default-drafts` takes `{ rowId, key, baseUpdatedAt, revision, row, instanceCodes, global,
+populationRevision }` as the Studio read them, with the `row`, `instanceCodes` and `global` it saves.
+It answers the same view, or 400 for a row the canonical model refuses, an unknown instance, or no
+instance without `global`; 409 when the population, the draft or the stored default changed since the
+read, or for a closed population. A new default is referenced as `draft:<key>` until the publication
+creates it. The publication writes each default draft in its commit transaction.
+
+`GET /:id/runtime-context` gives each instance its `economy`: the Economy code its conf names in the
+working graph, `standard` when empty. The checks read it from the content database the server serves.
 
 Impact: `local` runs on this map only; `shared` also runs on maps of the same biome; `global` also
 runs on a map of another biome or with no biome, or a player entity-type default carries it.

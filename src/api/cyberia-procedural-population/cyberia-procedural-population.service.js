@@ -29,7 +29,6 @@ import {
   saveInstanceDraft,
   saveUniverseDraft,
   saveVariant,
-  setDefaultReference,
   universeContent,
   universeDraftView,
 } from '../../projects/cyberia/procedural/population/working-graph.js';
@@ -63,12 +62,11 @@ import {
 } from '../../projects/cyberia/procedural/population/results.js';
 import {
   addDefault,
-  createDefaultDraft,
-  defaultDraftView,
+  defaultView,
   discardDefaultDraft,
   populationDefaults,
   removeDefault,
-  saveDefaultDraft,
+  saveDefault,
 } from '../../projects/cyberia/procedural/population/defaults.js';
 import {
   cancelPublication,
@@ -363,27 +361,10 @@ class CyberiaProceduralPopulationService {
   };
 
   /**
-   * PUT and DELETE `/:id/instances/:code/defaults/:rowId`: the draft of the instance references the
-   * stored entity-type default, or stops referencing it. The stored conf changes at the publication.
-   * @param {Object} req - Express request.
-   * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
-   * @returns {Promise<Object>}
-   */
-  static defaultReference = async (req, res, options) =>
-    await setDefaultReference({
-      models: populationModels(options),
-      id: req.params.id,
-      code: req.params.code,
-      rowId: req.params.rowId,
-      linked: req.method === 'PUT',
-      actor: actorOf(req),
-      options,
-    });
-
-  /**
-   * `/:id/default-drafts[/:key]`: POST starts a default draft `{ rowId, baseUpdatedAt, row }`, GET reads
-   * one, PUT saves its `{ row, revision }`, DELETE discards it. Stored defaults change at the publication.
+   * `/:id/default-drafts[/:ref]`: GET reads a default as the Entity Studio of the population edits it (a
+   * row id, a draft key, or `new`), POST saves its row and the instances that run it `{ rowId, key,
+   * baseUpdatedAt, revision, row, instanceCodes, global, populationRevision }`, DELETE discards the draft
+   * `ref` names. Stored defaults and confs change at the publication.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
    * @param {import('../types.js').RouterOptions} options - Router options.
@@ -391,12 +372,10 @@ class CyberiaProceduralPopulationService {
    */
   static defaultDrafts = async (req, res, options) => {
     const models = populationModels(options);
-    const { id, key } = req.params;
-    const actor = actorOf(req);
-    if (req.method === 'POST') return await createDefaultDraft({ models, id, body: req.body ?? {}, actor });
-    if (req.method === 'GET') return await defaultDraftView(models, id, key);
-    if (req.method === 'DELETE') return await discardDefaultDraft({ models, id, key });
-    return await saveDefaultDraft({ models, id, key, body: req.body ?? {}, actor });
+    const { id, ref } = req.params;
+    if (req.method === 'GET') return await defaultView(models, id, ref, options);
+    if (req.method === 'DELETE') return await discardDefaultDraft({ models, id, key: ref });
+    return await saveDefault({ models, id, body: req.body ?? {}, actor: actorOf(req), options });
   };
 
   /**

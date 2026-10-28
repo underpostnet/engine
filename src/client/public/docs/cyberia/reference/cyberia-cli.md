@@ -669,11 +669,13 @@ cyberia population prune [--apply] [--retention-days <days>] --dev
 ```
 
 Clears the working copies of every map population closed for longer than the retention window (14
-days by default): its map draft and its instance, universe and default drafts, with the draft
-thumbnails no stored instance shows. A published population keeps its publication record and its
-targets, and takes `draftsPrunedAt`. An open population, or one whose publication runs or waits for
-its reload, stays as it is. Prints what it cleared, with the bytes each record held, and what the
-window keeps, as JSON; writes nothing without `--apply`. A second run clears nothing. See
+days by default): its map draft and its instance, universe and default drafts, with each draft
+thumbnail that no content or release database and no population draft references. A published
+population keeps its publication record and its targets, and takes `draftsPrunedAt`. An open
+population, one whose publication runs or waits for its reload, or one a live worker lease holds,
+stays as it is; `--apply` checks each condition again in its write. Prints what it clears, with the
+bytes each record held and the files it deletes and keeps, and what the window keeps, as JSON; writes
+nothing without `--apply`. A second run clears nothing. See
 [Working copies after publication](../explanation/procedural-engine.md#working-copies-after-publication).
 
 ## `cyberia runtime-indexes` — runtime record indexes

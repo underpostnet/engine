@@ -11,9 +11,11 @@
  * | eligible  | closed for longer: a cleanup clears its working copies                    |
  * | cleaned   | `draftsPrunedAt` is set: the publication record and the targets stay      |
  *
- * An open population, or one whose publication still runs or waits for its reload, is never touched.
- * The cleanup deletes a draft thumbnail only when no stored instance shows it, so a thumbnail the
- * publication wrote stays. It is idempotent: a second run finds nothing to clear.
+ * An open population, one whose publication still runs or waits for its reload, or one a worker lease
+ * holds, is never touched; the write checks it again. The cleanup deletes a thumbnail of a draft, or of
+ * the stored document it started from, only when no instance or map of any content database or kept
+ * release and no draft of any population references it, so a thumbnail the publication wrote stays. It
+ * is idempotent: a second run finds nothing to clear.
  *
  * @module src/projects/cyberia/procedural/population/retention.js
  * @namespace CyberiaPopulationRetention
@@ -38,8 +40,8 @@ const closedAt = ({ cancelledAt, publication }) => {
 
 /**
  * Clears the working copies of every closed population past the retention window: the map draft and
- * the instance, universe and default drafts, with the draft thumbnails no stored instance shows. Writes
- * nothing without `apply`.
+ * the instance, universe and default drafts, with the thumbnails nothing references any more. Writes
+ * nothing without `apply`, and reports the same either way.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
  * @param {Object} params.options - Router options: the File model of the host.
@@ -47,7 +49,8 @@ const closedAt = ({ cancelledAt, publication }) => {
  * @param {number} [params.retentionDays] - {@link DRAFT_RETENTION_DAYS} by default.
  * @param {Date} [params.now]
  * @returns {Promise<{cleaned:Object[], retained:Object[]}>} Each population cleaned (or to clean without
- *   `apply`) with the bytes and drafts it held, and each closed population the window still keeps.
+ *   `apply`) with the bytes and drafts it held and the files it deletes and keeps, and each closed
+ *   population the window still keeps.
  * @memberof CyberiaPopulationRetention
  */
 export async function pruneClosedDrafts({
@@ -67,7 +70,14 @@ export async function pruneClosedDrafts({
       { 'defaultDrafts.0': { $exists: true } },
     ],
   };
-  const closing = { $or: [{ 'publication.status': 'completed' }, { cancelledAt: { $ne: null } }] };
+  const closing = {
+    $and: [
+      { $or: [{ 'publication.status': 'completed' }, { cancelledAt: { $ne: null } }] },
+      {
+        $or: [{ publication: null }, { 'publication.lease': null }, { 'publication.lease.expiresAt': { $lt: now } }],
+      },
+    ],
+  };
   const closed = await Population.aggregate([
     { $match: { $and: [holding, closing] } },
     { $addFields: { bytes: { $bsonSize: '$$ROOT' } } },
@@ -93,15 +103,16 @@ export async function pruneClosedDrafts({
       universes: population.universeDrafts.length,
       defaults: population.defaultDrafts.length,
     };
+    const exclude = { populationId: population._id, codes: population.instanceDrafts.map(({ code }) => code) };
     if (apply) {
       const written = await Population.updateOne(
-        { _id: population._id, ...holding },
+        { _id: population._id, $and: [holding, closing] },
         { $set: { draft: null, instanceDrafts: [], universeDrafts: [], defaultDrafts: [], draftsPrunedAt: now } },
       );
       if (!written.modifiedCount) continue;
-      await dropDraftThumbnails(models, population.instanceDrafts, options);
     }
-    report.cleaned.push({ ...entry, drafts, bytes: population.bytes });
+    const files = await dropDraftThumbnails(models, population.instanceDrafts, { options, exclude, apply });
+    report.cleaned.push({ ...entry, drafts, files, bytes: population.bytes });
   }
   return report;
 }

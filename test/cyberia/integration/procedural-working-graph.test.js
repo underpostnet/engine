@@ -152,6 +152,7 @@ describe.skipIf(!mongodBinary)('the working graph of a map population', () => {
       behavior: 'passive',
     });
     await CyberiaEntityTypeDefault.create({ entityType: 'bot', liveItemIds: ['wolf-skin'], behavior: 'hostile' });
+    await DataBaseProviderService.getModel('CyberiaEconomy', host).create({ code: 'standard', name: 'Standard' });
     await CyberiaInstance.create([
       { code: 'home', name: 'Home', cyberiaMapCodes: ['cave'] },
       { code: 'far-world', name: 'Far World', cyberiaMapCodes: ['dune'] },

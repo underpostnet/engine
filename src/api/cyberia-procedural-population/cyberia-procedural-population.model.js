@@ -119,8 +119,8 @@ export const DEFAULT_ROW_FIELDS = Object.freeze([
   'behavior',
 ]);
 
-/** The reference an instance conf draft holds: a stored row id, or a variant the draft proposes. */
-const DEFAULT_REF = /^([0-9a-f]{24}|variant:[0-9a-f-]{36})$/;
+/** The reference an instance conf draft holds: a stored row id, a variant it proposes, or a new row a default draft proposes. */
+const DEFAULT_REF = /^([0-9a-f]{24}|(variant|draft):[0-9a-f-]{36})$/;
 
 const STRICT = Object.freeze({ _id: false, strict: 'throw' });
 
@@ -166,7 +166,7 @@ InstanceConfSchema.add({
     default: [],
     validate: {
       validator: (refs) => refs.every((ref) => DEFAULT_REF.test(ref)),
-      message: 'An entity-type default reference is a row id or a variant of the draft',
+      message: 'An entity-type default reference is a row id, a variant of the draft or a new row of the population',
     },
   },
 });
@@ -215,7 +215,11 @@ const UniverseDraftSchema = new Schema(
   STRICT,
 );
 
-/** A change of a stored entity-type default (`rowId`), or a new global row: written at the publication. */
+/**
+ * A change of a stored entity-type default (`rowId`), or a new row: written at the publication. An
+ * instance draft references a new row as `draft:<key>`. `global` records that the moderator chose to
+ * have every world run a row no instance references.
+ */
 const DefaultDraftSchema = new Schema(
   {
     key: { type: String, required: true },
@@ -223,6 +227,7 @@ const DefaultDraftSchema = new Schema(
     baseUpdatedAt: { type: Date, default: null },
     revision: draftRevision(),
     row: { type: DefaultRowSchema, required: true },
+    global: { type: Boolean, default: false },
     ...saved(),
   },
   STRICT,
@@ -277,6 +282,33 @@ const DefaultsSchema = new Schema(
 );
 
 /**
+ * The publication record. `requestPublication` writes it as `queued`; a moderator writes only
+ * `cancelRequestedAt`, a retry and an idle cancel. Every other write is the worker's, by path, under
+ * a filter on `id`, `status` and `lease.holder`, so a worker that lost its lease changes nothing.
+ * @typedef {Object} PopulationPublication
+ * @property {string} id - One publication of the population
+ * @property {string} status - {@link PUBLICATION_STATUS}
+ * @property {Date} requestedAt
+ * @property {string} requestedBy - User id of the moderator
+ * @property {string[]} acknowledged - The item ids whose global change the moderator accepted
+ * @property {{holder:string,expiresAt:Date}|null} lease - The worker that runs it, until `expiresAt`
+ * @property {Date|null} cancelRequestedAt - A cancel the worker applies at its next phase, before the commit
+ * @property {number} reloadTries - Reloads of the game servers tried; see `RELOAD_TRIES`
+ * @property {Date|null} nextAttemptAt - When the next reload is due
+ * @property {Object|null} plan - Frozen by the preflight: the population, map and draft revisions, the
+ *   kept bindings, the assets, the instance, universe, variant and default drafts with the revision each
+ *   starts from, the worlds to reload and the `manifestHash`
+ * @property {Object|null} commit - Written once, in the commit transaction: what it wrote, from which
+ *   revision to which, and the rows it created
+ * @property {{cache:boolean,media:Object|null,previews:string,servers:Object[],at:Date}|null} refresh - The
+ *   last refresh of the runtime
+ * @property {{phase:string,message:string,problems?:string[],retryable?:boolean,at:Date}|null} error - The
+ *   failure of the last phase
+ * @property {{status:string,at:Date}[]} history - Each status, in order
+ * @memberof CyberiaProceduralPopulationModel
+ */
+
+/**
  * @typedef {Object} CyberiaProceduralPopulation
  * @property {string} mapCode - The map the population reads and publishes onto
  * @property {number} mapRevision - The revision of the map it read
@@ -296,11 +328,12 @@ const DefaultsSchema = new Schema(
  *   the stored `base` it started from and its own `revision`; see `population/working-graph.js`
  * @property {Object[]} universeDrafts - The universes to publish, one entry per code, in the same form
  * @property {Object[]} defaultDrafts - The entity-type defaults to publish, one entry per key: the `row`,
- *   the stored row it changes (`rowId`, null for a new global row) with the `updatedAt` it read
+ *   the stored row it changes (`rowId`, null for a new row) with the `updatedAt` it read, and whether
+ *   the moderator chose that every world runs it (`global`)
  * @property {{added:ObjectId[],removed:ObjectId[]}} defaults - The entity-type default rows the moderator
  *   added to the defaults workspace, and the rows of the staged items the moderator removed from it
  * @property {Object|null} migration - What the migration from an earlier version changed and kept
- * @property {Object|null} publication - The publication that runs or ran
+ * @property {PopulationPublication|null} publication - The publication that runs or ran
  * @property {Date|null} cancelledAt - When a moderator cancelled it
  * @property {Date|null} draftsPrunedAt - When a cleanup cleared the working copies of the closed population
  * @property {string} createdBy - User id of the moderator who created it
@@ -323,6 +356,7 @@ const CyberiaProceduralPopulationSchema = new Schema(
     universeDrafts: { type: [UniverseDraftSchema], default: [] },
     defaultDrafts: { type: [DefaultDraftSchema], default: [] },
     defaults: { type: DefaultsSchema, default: () => ({ added: [], removed: [] }) },
+    // TODO: give `publication` a typed contract; its writers set it by path under the lease filter.
     publication: { type: Schema.Types.Mixed, default: null },
     migration: { type: Schema.Types.Mixed, default: null },
     cancelledAt: { type: Date, default: null },

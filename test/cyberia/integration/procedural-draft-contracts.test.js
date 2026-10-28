@@ -20,9 +20,11 @@ import {
 } from '../../../src/projects/cyberia/procedural/population/population.js';
 import {
   addDefault,
-  createDefaultDraft,
+  defaultView,
+  defaultWorlds,
   discardDefaultDraft,
   populationDefaults,
+  saveDefault,
 } from '../../../src/projects/cyberia/procedural/population/defaults.js';
 import {
   advancePublication,
@@ -42,10 +44,10 @@ import {
   populationGraph,
   saveInstanceDraft,
   saveUniverseDraft,
-  setDefaultReference,
   writeDraft,
 } from '../../../src/projects/cyberia/procedural/population/working-graph.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
+import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
 import { mongodBinary } from '../../support/mongod.js';
 import { MODERATOR, host, publishItem, rejection, startEngine, stopEngine } from '../../support/procedural-engine.js';
 
@@ -97,8 +99,26 @@ const draftInstance = async (id, code, change, body = {}) => {
     options: host,
   });
 };
-const reference = (id, code, rowId, linked) =>
-  setDefaultReference({ models: all(), id, code, rowId: String(rowId), linked, actor: MODERATOR, options: host });
+/** Saves a default as the Entity Studio does: from the view it read, with a changed row or instances. */
+const saveAs = async (id, ref, { row = {}, instanceCodes, global = false } = {}) => {
+  const view = await defaultView(all(), id, String(ref), host);
+  return await saveDefault({
+    models: all(),
+    id,
+    body: {
+      rowId: view.rowId,
+      key: view.key,
+      baseUpdatedAt: view.baseUpdatedAt,
+      revision: view.revision,
+      row: { ...view.row, ...row },
+      instanceCodes: instanceCodes ?? view.instanceCodes,
+      global,
+      populationRevision: view.populationRevision,
+    },
+    actor: MODERATOR,
+    options: host,
+  });
+};
 const populate = async (seed) =>
   await createPopulation({
     models: all(),
@@ -154,7 +174,7 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
       },
       { code: 'cave', name: 'Cave', ...GRID, worldX: 100, worldY: 0, entities: [entity('portal', [], 1, 1)] },
       { code: 'peak', name: 'Peak', ...GRID, worldX: 200, worldY: 0 },
-      { code: 'dune', name: 'Dune', ...GRID, worldX: 300, worldY: 0 },
+      { code: 'dune', name: 'Dune', ...GRID, worldX: 300, worldY: 0, entities: [entity('bot', ['guard-skin'], 1, 1)] },
       { code: 'moor', name: 'Moor', ...GRID, worldX: 400, worldY: 0, entities: [entity('portal', [], 3, 3)] },
     ]);
     Object.assign(rows, {
@@ -174,6 +194,7 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
         behavior: 'passive',
       }),
     });
+    await DataBaseProviderService.getModel('CyberiaEconomy', host).create({ code: 'standard', name: 'Standard' });
     await CyberiaInstance.create([
       { code: 'home', name: 'Home', cyberiaMapCodes: ['cave'] },
       { code: 'far-world', name: 'Far World', cyberiaMapCodes: ['dune'] },
@@ -224,7 +245,7 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     });
     expect(await rejection(save({}, { conf: { ...view.conf, entityDefaults: ['not-a-row'] } }))).toMatchObject({
       status: 400,
-      message: expect.stringContaining('row id or a variant'),
+      message: expect.stringContaining('a row id, a variant of the draft or a new row of the population'),
     });
     expect(await rejection(save({}, { baseRevision: 7 }))).toMatchObject({ status: 409 });
     expect(await save({ name: 'Home typed' })).toMatchObject({ state: 'draft', draftRevision: 1 });
@@ -265,20 +286,12 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     expect((await recordOf(id)).instanceDrafts.filter(({ code }) => code === 'twin')).toHaveLength(1);
     await discardDocumentDraft({ models: all(), id, kind: 'instance', code: 'twin', options: host });
 
-    const stored = await all().CyberiaEntityTypeDefault.findById(rows.shared._id).lean();
-    const edit = () =>
-      createDefaultDraft({
-        models: all(),
-        id,
-        body: {
-          rowId: String(rows.shared._id),
-          baseUpdatedAt: stored.updatedAt,
-          row: pick(stored, DEFAULT_ROW_FIELDS),
-        },
-        actor: MODERATOR,
-      });
-    const edits = await Promise.allSettled([edit(), edit()]);
+    const edits = await Promise.allSettled([
+      saveAs(id, rows.shared._id, { row: { behavior: 'hostile' } }),
+      saveAs(id, rows.shared._id, { row: { behavior: 'hostile' } }),
+    ]);
     expect(edits.map(({ status }) => status).sort()).toEqual(['fulfilled', 'rejected']);
+    expect(edits.find(({ status }) => status === 'rejected').reason.status).toBe(409);
     expect((await recordOf(id)).defaultDrafts).toHaveLength(1);
     await discardDefaultDraft({ models: all(), id, key: edits.find(({ status }) => status === 'fulfilled').value.key });
 
@@ -309,7 +322,7 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     await all().CyberiaProceduralPopulation.updateOne({ _id: id }, { $set: { publication: null } });
   });
 
-  it('reads and saves over a draft written before the typed contracts', async () => {
+  it('reads and saves over drafts written before the typed contracts and before the global choice', async () => {
     const id = population._id;
     const far = await instanceOf('far-world');
     const document = { name: 'Far written raw', cyberiaMapCodes: ['dune'], portals: [], mapLayout: [], tags: [] };
@@ -342,6 +355,32 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
       conf: { aoiRadius: 12 },
     });
     await discardDocumentDraft({ models: all(), id, kind: 'instance', code: 'far-world', options: host });
+
+    const solo = await all().CyberiaEntityTypeDefault.findById(rows.solo._id).lean();
+    await all().CyberiaProceduralPopulation.collection.updateOne(
+      { _id: id },
+      {
+        $push: {
+          defaultDrafts: {
+            key: 'legacy-solo',
+            rowId: String(solo._id),
+            baseUpdatedAt: solo.updatedAt,
+            revision: 1,
+            row: pick({ ...solo, behavior: 'hostile' }, DEFAULT_ROW_FIELDS),
+            savedAt: new Date(),
+            savedBy: MODERATOR,
+          },
+        },
+      },
+    );
+    expect(await defaultView(all(), id, 'legacy-solo', host)).toMatchObject({
+      revision: 1,
+      global: false,
+      instanceCodes: ['other'],
+      row: { behavior: 'hostile' },
+    });
+    expect(await saveAs(id, 'legacy-solo')).toMatchObject({ revision: 2, global: false, instanceCodes: ['other'] });
+    await discardDefaultDraft({ models: all(), id, key: 'legacy-solo' });
   });
 
   it('connects portals through the map draft, between stored and drafted maps, and keeps the stored instance as it is', async () => {
@@ -378,7 +417,7 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     expect(await instanceOf('home')).toMatchObject({ cyberiaMapCodes: ['cave'], portals: [] });
   });
 
-  it('draws each preview at the revision asked, and refuses one of an older revision', async () => {
+  it('draws each preview at the revision asked, refuses one of an older revision, and never draws another revision under a racing save', async () => {
     const id = population._id;
     const { draft, revision } = await recordOf(id);
     expect(Buffer.isBuffer(await draftMapPicture(all(), id, host, draft.revision))).toBe(true);
@@ -388,65 +427,89 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     expect(await rejection(draftWorldPicture(all(), id, 'home', host, revision - 1))).toMatchObject({ status: 409 });
     const kept = ['cave', 'glade'];
     const { portals } = instanceDraftView(await graphOf(id), 'home').document;
-    await draftInstance(id, 'home', {
+    const layout = {
       cyberiaMapCodes: kept,
       mapLayout: kept.map((mapCode, x) => ({ mapCode, x, y: 0 })),
       portals: portals.filter(
         ({ sourceMapCode, targetMapCode }) => kept.includes(sourceMapCode) && kept.includes(targetMapCode),
       ),
-    });
-    const moved = await draftWorldPicture(all(), id, 'home', host, (await recordOf(id)).revision);
+    };
+    await draftInstance(id, 'home', layout);
+    const at = (await recordOf(id)).revision;
+    const moved = await draftWorldPicture(all(), id, 'home', host, at);
     expect(moved.equals(world)).toBe(false);
+
+    const racing = await Promise.allSettled([
+      draftWorldPicture(all(), id, 'home', host, at),
+      draftInstance(id, 'home', {
+        cyberiaMapCodes: ['cave'],
+        mapLayout: [{ mapCode: 'cave', x: 0, y: 0 }],
+        portals: [],
+      }),
+      draftWorldPicture(all(), id, 'home', host, at + 1),
+    ]);
+    const next = await draftWorldPicture(all(), id, 'home', host, at + 1);
+    for (const [result, drawn] of [
+      [racing[0], moved],
+      [racing[2], next],
+    ])
+      if (result.status === 'fulfilled') expect(result.value.equals(drawn)).toBe(true);
+      else expect(result.reason.status).toBe(409);
+    expect(racing[1].status).toBe('fulfilled');
+    await draftInstance(id, 'home', layout);
   });
 
-  it('references defaults in instance drafts, edits a shared default in the draft, and tells which worlds it changes', async () => {
+  it('edits a default and the instances that run it in one save, and keeps a row global only by choice', async () => {
     const id = population._id;
     const [shared, wolf, solo] = [rows.shared, rows.wolf, rows.solo].map(({ _id }) => String(_id));
     for (const rowId of [shared, wolf]) await addDefault({ models: all(), id, rowId });
-    expect((await reference(id, 'home', wolf, true)).conf.entityDefaults).toEqual([shared, wolf]);
+
+    const linked = await saveAs(id, wolf, { instanceCodes: ['home'] });
+    expect(linked).toMatchObject({ state: 'persisted', instanceCodes: ['home'], storedInstanceCodes: [] });
+    expect(instanceDraftView(await graphOf(id), 'home').conf.entityDefaults).toEqual([shared, wolf]);
     expect((await problemsOf(id)).warnings).toContain(
       `Entity-type default ${wolf} runs in every world now; once home references it, only home runs it`,
     );
-    expect(changedWorlds(await graphOf(id))).toEqual(['far-world', 'home', 'other']);
     const workspace = await populationDefaults(all(), id);
     expect(workspace.rows.find(({ rowId }) => rowId === wolf)).toMatchObject({ instances: ['home'], joins: ['home'] });
-    expect((await reference(id, 'home', wolf, false)).conf.entityDefaults).toEqual([shared]);
+    expect(await defaultWorlds(all(), await recordOf(id))).toEqual([]);
+    expect(await rejection(saveAs(id, wolf, { instanceCodes: [] }))).toMatchObject({
+      status: 400,
+      message: 'Choose the instances that run this default, or make it global: every world runs it',
+    });
+    expect(await saveAs(id, wolf, { instanceCodes: [], global: true })).toMatchObject({ instanceCodes: [] });
+    expect(instanceDraftView(await graphOf(id), 'home').conf.entityDefaults).toEqual([shared]);
 
-    await reference(id, 'other', solo, false);
+    const madeGlobal = await saveAs(id, solo, { instanceCodes: [], global: true });
+    expect(madeGlobal).toMatchObject({
+      state: 'draft',
+      global: true,
+      instanceCodes: [],
+      storedInstanceCodes: ['other'],
+    });
+    expect((await problemsOf(id)).errors).toEqual([]);
+    await discardDefaultDraft({ models: all(), id, key: madeGlobal.key });
     expect((await problemsOf(id)).errors).toContain(
       `Entity-type default ${solo} loses its last instance reference and would run in every world: drop the variant that replaces it`,
     );
     await discardDocumentDraft({ models: all(), id, kind: 'instance', code: 'other', options: host });
 
-    const stored = await all().CyberiaEntityTypeDefault.findById(shared).lean();
-    const edit = await createDefaultDraft({
-      models: all(),
-      id,
-      body: {
-        rowId: shared,
-        baseUpdatedAt: stored.updatedAt,
-        row: { ...pick(stored, DEFAULT_ROW_FIELDS), behavior: 'hostile' },
-      },
-      actor: MODERATOR,
+    const edit = await saveAs(id, shared, { row: { behavior: 'hostile' } });
+    expect(edit).toMatchObject({
+      state: 'draft',
+      revision: 1,
+      instanceCodes: ['far-world', 'home'],
+      row: { behavior: 'hostile' },
     });
-    expect(edit).toMatchObject({ rowId: shared, revision: 1, instanceCodes: ['far-world', 'home'] });
     expect((await populationDefaults(all(), id)).rows.find(({ rowId }) => rowId === shared)).toMatchObject({
       behavior: 'hostile',
       draft: { key: edit.key, state: 'draft' },
       instances: ['far-world', 'home'],
     });
-    expect(changedWorlds(await graphOf(id))).toEqual(['far-world', 'home']);
     expect(await all().CyberiaEntityTypeDefault.findById(shared).lean()).toMatchObject({ behavior: 'passive' });
+    expect(await defaultWorlds(all(), await recordOf(id))).toEqual(['far-world']);
 
-    const fresh = await createDefaultDraft({
-      models: all(),
-      id,
-      body: { row: { entityType: 'bot', liveItemIds: ['moth-skin'] } },
-      actor: MODERATOR,
-    });
-    expect(changedWorlds(await graphOf(id))).toEqual(['far-world', 'home', 'other']);
-    await discardDefaultDraft({ models: all(), id, key: fresh.key });
-
+    const stored = await all().CyberiaEntityTypeDefault.findById(shared).lean();
     await all().CyberiaEntityTypeDefault.updateOne(
       { _id: shared },
       { $set: { updatedAt: new Date(Date.now() + 1000) } },
@@ -463,6 +526,30 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     expect((await problemsOf(id)).errors).toEqual([]);
   });
 
+  it('starts a new default with the instance it comes from, shows the same links when reopened, and discards them with it', async () => {
+    const id = population._id;
+    const moth = { entityType: 'bot', liveItemIds: ['moth-skin'], behavior: 'hostile' };
+    expect(await rejection(saveAs(id, 'new', { row: moth, instanceCodes: [] }))).toMatchObject({ status: 400 });
+    const created = await saveAs(id, 'new', { row: moth, instanceCodes: ['home'] });
+    expect(created).toMatchObject({ state: 'new', rowId: null, revision: 1, instanceCodes: ['home'] });
+    const ref = `draft:${created.key}`;
+    expect(instanceDraftView(await graphOf(id), 'home').conf.entityDefaults).toContain(ref);
+    expect(await defaultView(all(), id, created.key, host)).toMatchObject({ instanceCodes: ['home'], row: moth });
+    expect((await populationDefaults(all(), id)).rows.find(({ rowId }) => rowId === ref)).toMatchObject({
+      instances: ['home'],
+      draft: { state: 'new' },
+    });
+    expect((await problemsOf(id)).errors).toEqual([]);
+
+    const extra = await saveAs(id, 'new', {
+      row: { ...moth, liveItemIds: ['gnat-skin'] },
+      instanceCodes: ['far-world'],
+    });
+    await discardDefaultDraft({ models: all(), id, key: extra.key });
+    expect(instanceDraftView(await graphOf(id), 'far-world').conf.entityDefaults).not.toContain(`draft:${extra.key}`);
+    expect((await problemsOf(id)).errors).toEqual([]);
+  });
+
   it('publishes the reviewed graph, reloads every consumer of the edited default and no other world, and runs what the workspace showed', async () => {
     const id = population._id;
     const shared = String(rows.shared._id);
@@ -472,10 +559,17 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     const publication = await publish(id);
     expect(publication.status, JSON.stringify(publication.error)).toBe('completed');
     expect(publication.commit).toMatchObject({
-      defaults: [{ rowId: shared, created: false }],
+      defaults: [
+        { rowId: shared, created: false },
+        { created: true, rowId: expect.stringMatching(/^[0-9a-f]{24}$/) },
+      ],
       instances: [{ code: 'home', from: 1, to: 2 }],
       worlds: ['far-world', 'home'],
     });
+    const moth = publication.commit.defaults[1].rowId;
+    expect(
+      (await all().CyberiaInstanceConf.findOne({ instanceCode: 'home' }).lean()).entityDefaults.map(String),
+    ).toEqual([shared, moth]);
     expect(reloads.map(({ instanceCode }) => instanceCode).sort()).toEqual(['far-world', 'home']);
     expect((await instanceOf('home')).portals).toEqual(proposed);
     expect(await all().CyberiaEntityTypeDefault.findById(shared).lean()).toMatchObject({ behavior: 'hostile' });
@@ -486,6 +580,8 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
         behavior: predicted.behavior,
         liveItemIds: predicted.liveItemIds,
       });
+      const mothRunner = resolveEntityDefaultBuild({ entityType: 'bot', itemIds: ['moth-skin'] }, running);
+      expect(mothRunner.liveItemIds.includes('moth-skin')).toBe(code === 'home');
     }
   });
 
@@ -493,12 +589,25 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
     const published = await recordOf(population._id);
     const closedAt = published.publication.history.findLast(({ status }) => status === 'completed').at;
     const File = DataBaseProviderService.getModel('File', host);
-    const [orphan] = await File.create([{ name: 'draft-only', data: Buffer.from('x'), mimetype: 'image/png' }]);
+    const file = (name) => ({ name, data: Buffer.from(name), mimetype: 'image/png' });
+    const [orphan, shared, released] = await File.create([file('draft-only'), file('shared'), file('released')]);
     const cancelled = await populate(2);
     await draftInstance(cancelled._id, 'other', { thumbnail: String(orphan._id) });
+    await draftInstance(cancelled._id, 'far-world', { thumbnail: String(shared._id) });
+    await draftInstance(cancelled._id, 'home', { thumbnail: String(released._id) });
     await cancelPopulation({ models: all(), id: cancelled._id, actor: MODERATOR, now: closedAt });
     const open = await populate(3);
-    await draftInstance(open._id, 'far-world', { name: 'Far in an open population' });
+    await draftInstance(open._id, 'far-world', { name: 'Far in an open population', thumbnail: String(shared._id) });
+    const releaseDatabase = 'cyberia-procedural-release-kept';
+    await DataBaseProviderService.getModel('CyberiaContentRelease', host).create({
+      releaseId: 'kept',
+      database: releaseDatabase,
+      status: 'retired',
+    });
+    const { connection } = DataBaseProviderService.getProvider(host);
+    await (
+      await MongooseDB.bindModel(connection.useDb(releaseDatabase, { useCache: true }), 'cyberia-instance')
+    ).create({ code: 'home', thumbnail: released._id });
 
     const prune = (days, apply = false) =>
       pruneClosedDrafts({ models: all(), options: host, apply, now: new Date(closedAt.getTime() + days * DAY_MS) });
@@ -514,6 +623,11 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
       ].sort(),
     );
     expect(dry.cleaned.every(({ bytes }) => bytes > 0)).toBe(true);
+    expect(dry.cleaned.find(({ id }) => id === String(cancelled._id)).files).toEqual({
+      deleted: [String(orphan._id)],
+      kept: expect.arrayContaining([String(shared._id), String(released._id)]),
+    });
+    expect(await File.exists({ _id: orphan._id })).not.toBeNull();
     expect((await recordOf(published._id)).instanceDrafts).toHaveLength(1);
 
     const applied = await prune(15, true);
@@ -521,14 +635,32 @@ describe.skipIf(!mongodBinary)('the typed drafts of a map population', () => {
       map: 1,
       instances: 1,
       universes: 0,
-      defaults: 1,
+      defaults: 2,
     });
     const cleaned = await recordOf(published._id);
     expect(cleaned).toMatchObject({ draft: null, instanceDrafts: [], universeDrafts: [], defaultDrafts: [] });
     expect(cleaned.draftsPrunedAt).toBeInstanceOf(Date);
     expect(cleaned.publication).toMatchObject({ status: 'completed', commit: published.publication.commit });
     expect(await File.exists({ _id: orphan._id })).toBeNull();
+    expect(await File.exists({ _id: shared._id })).not.toBeNull();
+    expect(await File.exists({ _id: released._id })).not.toBeNull();
     expect((await recordOf(open._id)).instanceDrafts).toHaveLength(1);
+
+    await all().CyberiaProceduralPopulation.updateOne(
+      { _id: open._id },
+      {
+        $set: {
+          cancelledAt: closedAt,
+          publication: {
+            id: 'held',
+            status: 'queued',
+            lease: { holder: 'w', expiresAt: new Date(closedAt.getTime() + 60 * DAY_MS) },
+            history: [],
+          },
+        },
+      },
+    );
+    expect((await prune(30)).cleaned.map(({ id }) => id)).not.toContain(String(open._id));
     expect((await prune(30, true)).cleaned).toEqual([]);
   });
 });

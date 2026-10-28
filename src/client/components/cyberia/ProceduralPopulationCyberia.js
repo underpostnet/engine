@@ -2358,6 +2358,7 @@ class ProceduralPopulation {
    */
   static async paintDefaults() {
     const { population } = ProceduralPopulation;
+    const root = s('.procedural-defaults');
     const response = await Population.getDefaults({ id: population._id });
     if (response.status !== 'success') return refusal(response);
     const { rows, items, missing, removed } = response.data;
@@ -2366,10 +2367,10 @@ class ProceduralPopulation {
       element(
         'div',
         'procedural-muted',
-        'What an entity that carries the items of this population runs on in the game once it publishes. A global default runs in every world, an instance default only in its instance, a shared default in each instance that references it. Edit opens the Entity Studio and saves to the Procedural Draft: the publication changes the stored default for every world that runs it. A variant changes one instance only.',
+        'What an entity that carries the items of this population runs on in the game once it publishes. A global default runs in every world, an instance default only in its instance, a shared default in each instance that references it. Edit opens the Entity Studio, where the default, the instances that run it and its variants change; its save writes the Procedural Draft.',
       ),
     ];
-    if (missing.length > 0) parts.push(ProceduralPopulation.missingDefaults(missing, open));
+    if (missing.length > 0) parts.push(ProceduralPopulation.missingDefaults(missing, open, response.data.mapInstances));
     parts.push(
       rows.length === 0
         ? element('div', 'procedural-muted', 'No stored default names an item of this population.')
@@ -2404,7 +2405,7 @@ class ProceduralPopulation {
     if (removed.length > 0) parts.push(ProceduralPopulation.removedDefaults(removed, open));
     const legacy = population.migration?.legacyDefaults ?? [];
     if (legacy.length > 0) parts.push(ProceduralPopulation.legacyDefaults(legacy, open));
-    s('.procedural-defaults').replaceChildren(...parts);
+    root.replaceChildren(...parts);
   }
 
   /** Items as tiles: the idle 08 artwork each shows now, its id, its item type and where the artwork comes from. */
@@ -2429,8 +2430,11 @@ class ProceduralPopulation {
     return tile;
   }
 
-  /** The items no default names: a warning that blocks nothing, with a way to create one. */
-  static missingDefaults(missing, open) {
+  /**
+   * The items no default names: a warning that blocks nothing, with a way to create one. A new default
+   * starts linked to the one instance that lists the map; with none or several, the Entity Studio asks.
+   */
+  static missingDefaults(missing, open, mapInstances) {
     const card = element('div', 'procedural-card');
     card.setAttribute('role', 'status');
     card.append(
@@ -2448,7 +2452,11 @@ class ProceduralPopulation {
       if (open)
         line.append(
           button('fa-solid fa-plus', 'Create default', () =>
-            ProceduralPopulation.openEntityStudio({ entityType, liveItemIds: [itemId] }),
+            ProceduralPopulation.openEntityStudio({
+              entityType,
+              liveItemIds: [itemId],
+              instanceCode: mapInstances.length === 1 ? mapInstances[0] : '',
+            }),
           ),
         );
       list.append(line);
@@ -2484,9 +2492,9 @@ class ProceduralPopulation {
   }
 
   /**
-   * What a row of the workspace offers. A stored row opens in the Entity Studio, whose save writes the
-   * Procedural Draft; leaves the workspace; and, for one instance, is referenced, stops being referenced
-   * or gets a variant. A new row a draft proposes opens and is discarded; a variant opens and drops.
+   * What a row of the workspace offers: Edit opens it in the Entity Studio, the one editor of a default,
+   * its instances and its variants, whose save writes the Procedural Draft; a draft is discarded; a stored
+   * row leaves the workspace; a variant opens and drops.
    */
   static defaultActions(row, open) {
     const { population } = ProceduralPopulation;
@@ -2549,53 +2557,7 @@ class ProceduralPopulation {
         { title: 'Remove from this population only. The default and every world that runs it stay as they are.' },
       ),
     );
-    const references = element('details', 'procedural-references');
-    references.append(element('summary', '', `Instances · ${instances.length}`));
-    const instance = Object.assign(element('input'), { placeholder: 'Instance code', value: instances[0] ?? '' });
-    instance.setAttribute('aria-label', 'The instance the reference or the variant is for');
-    const reference = (linked) => () => {
-      const code = instance.value.trim();
-      if (!code) return notify('Name the instance first.', 'warning');
-      return ProceduralPopulation.send(
-        () => Population.setDefaultReference({ id: population._id, code, rowId, linked }),
-        linked
-          ? `${code} references the default in the Procedural Draft.`
-          : `${code} stops referencing the default in the Procedural Draft.`,
-      );
-    };
-    references.append(
-      instance,
-      button('fa-solid fa-link', 'Use in instance', reference(true), {
-        title: 'The draft of the instance references this default. The publication writes the reference.',
-      }),
-      button('fa-solid fa-link-slash', 'Stop using in instance', reference(false), {
-        title: 'The draft of the instance stops referencing this default. The publication writes the change.',
-      }),
-      button(
-        'fa-solid fa-code-branch',
-        'Make variant',
-        () => ProceduralPopulation.makeVariant(rowId, instance.value.trim()),
-        { title: 'A copy of this default that only the instance runs. The publication creates it.' },
-      ),
-    );
-    actions.append(references);
     return actions;
-  }
-
-  /** Proposes a variant of a stored row for one instance, then opens it in the Entity Studio. */
-  static async makeVariant(rowId, instanceCode) {
-    if (!instanceCode) return notify('Name the instance the variant is for.', 'warning');
-    let key = '';
-    const made = await ProceduralPopulation.send(async () => {
-      const response = await Population.proposeVariant({
-        id: ProceduralPopulation.population._id,
-        code: instanceCode,
-        rowId,
-      });
-      key = response.data?.key ?? '';
-      return response;
-    }, `Saved a variant for ${instanceCode} to the Procedural Draft.`);
-    if (made) ProceduralPopulation.openEntityStudio({ instanceCode, variant: key });
   }
 
   /** Finds stored defaults by an item id they run on, to add one to the population. */
@@ -2805,6 +2767,7 @@ class ProceduralPopulation {
               element('code', 'procedural-muted', instance.code),
               ...ProceduralPopulation.documentBadges(instance),
               element('div', 'procedural-muted', `${count(instance.maps, 'map')} · ${instance.status}`),
+              element('div', 'procedural-muted', `Economy · ${instance.economy}`),
             ],
             badge(ASSOCIATION[instance.association]),
             [
@@ -3453,7 +3416,7 @@ class ProceduralPopulation {
       element(
         'div',
         'procedural-muted',
-        'A publication changes no stored default: it creates each variant an instance draft proposes, with its reference. A missing default is a warning: it stops nothing.',
+        'A publication writes each default the population edits or creates, with the instances that run it, and each variant an instance draft proposes. A missing default is a warning: it stops nothing.',
       ),
       actions,
     );
@@ -3537,6 +3500,7 @@ class ProceduralPopulation {
         : 'Media: no change',
       `Instances: ${plan.instances.map(revisionLine).join(', ') || 'no change'}`,
       `Universes: ${plan.universes.map(revisionLine).join(', ') || 'no change'}`,
+      `Defaults to write: ${plan.defaults.map(({ rowId }) => (rowId ? `edit of …${rowId.slice(-6)}` : 'a new default')).join(', ') || 'none'}`,
       `Variants to create: ${plan.variants.map(({ instanceCode, from }) => `${instanceCode} (copy of …${from.slice(-6)})`).join(', ') || 'none'}`,
       `Worlds to reload after the commit: ${plan.worlds.join(', ') || 'none'}`,
     ];

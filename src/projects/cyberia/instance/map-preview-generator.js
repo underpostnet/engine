@@ -18,6 +18,7 @@
 import sharp from 'sharp';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
+import { counter, gauge } from '../../../server/ops/metrics.js';
 import { CacheService } from '../../../server/storage/cache.js';
 import { renderFileBytes } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { mapCache } from '../../../api/cyberia-map/cyberia-map.service.js';
@@ -60,8 +61,19 @@ async function idlePreviewFileIds(map, options) {
 /** The most frames and fills a process keeps: the least recently drawn goes first. */
 const MAX_CACHED_FRAMES = 512;
 
+const cachedEntries = gauge({
+  name: 'cyberia_map_preview_cache_entries',
+  help: 'Frames and fills the map preview keeps in this process',
+  labelNames: ['cache'],
+});
+const cacheEvictions = counter({
+  name: 'cyberia_map_preview_cache_evictions_total',
+  help: 'Frames and fills the map preview dropped to stay in its bound',
+  labelNames: ['cache'],
+});
+
 /** A map of at most {@link MAX_CACHED_FRAMES} entries that keeps the most recently read. */
-const boundedCache = () => {
+const boundedCache = (cache) => {
   const entries = new Map();
   return {
     has: (key) => entries.has(key),
@@ -73,13 +85,17 @@ const boundedCache = () => {
     },
     set: (key, value) => {
       entries.set(key, value);
-      if (entries.size > MAX_CACHED_FRAMES) entries.delete(entries.keys().next().value);
+      if (entries.size > MAX_CACHED_FRAMES) {
+        entries.delete(entries.keys().next().value);
+        cacheEvictions.inc({ cache });
+      }
+      cachedEntries.set({ cache }, entries.size);
     },
   };
 };
 
 /** Frames by File id and size: a File id names immutable bytes. A failed read is not kept, so the next draw tries again. */
-const frameCache = boundedCache();
+const frameCache = boundedCache('frame');
 
 async function resizedFrame(fileId, width, height, options) {
   if (!fileId) return null;
@@ -139,7 +155,7 @@ function parseEntityColor(color) {
  * Entities without object layers all fall back to a flat rect, so the same few
  * palette colours repeat across the whole map.
  */
-const solidCache = boundedCache();
+const solidCache = boundedCache('solid');
 
 async function solidFrame(color, width, height) {
   const rgba = parseEntityColor(color);

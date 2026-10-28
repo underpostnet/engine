@@ -17,15 +17,28 @@
  */
 import { randomUUID } from 'node:crypto';
 import { Types } from 'mongoose';
-import { ENTITY_TYPE_TO_ITEM_TYPES } from '../../../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  ENTITY_TYPES,
+  ENTITY_TYPE_TO_ITEM_TYPES,
+} from '../../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { DEFAULT_ROW_FIELDS } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { runtimeEntityDefaults } from '../../../../api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { resolveEntityDefaultBuild } from '../../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { contentArtifact } from '../../content/content-artifact.js';
 import { requestError } from '../engine.js';
-import { findPopulation, itemArtwork, only, openPopulation, targetsOf } from './population.js';
+import { STILL_OPEN, findPopulation, itemArtwork, only, openPopulation, targetsOf } from './population.js';
 import { stageOf } from './stages.js';
-import { checkedRow, variantKeyOf, variantRef, workingInstances, writeDraft } from './working-graph.js';
+import {
+  checkedEntry,
+  checkedRow,
+  defaultRef,
+  nextInstanceDraft,
+  storedRef,
+  unchangedDraft,
+  variantRef,
+  workingGraph,
+  workingInstances,
+} from './working-graph.js';
 
 /** The item lists of a row that the runtime draws: alive, dead, and the drops it scatters. */
 const ARTWORK_LISTS = Object.freeze(['liveItemIds', 'deadItemIds', 'dropItemIds']);
@@ -33,8 +46,9 @@ const ARTWORK_LISTS = Object.freeze(['liveItemIds', 'deadItemIds', 'dropItemIds'
 /** The item ids a row draws, in the order of its lists. */
 const drawnBy = (row) => [...new Set(ARTWORK_LISTS.flatMap((list) => row[list] ?? []))];
 
-/** The id a new row a default draft proposes shows under until the publication creates it. */
-const draftRowId = (key) => `draft:${key}`;
+/** The working instances that list the map of a population: the owners a new row of the map starts with. */
+const mapInstancesOf = (instances, mapCode) =>
+  [...instances.values()].filter(({ cyberiaMapCodes }) => cyberiaMapCodes.includes(mapCode)).map(({ code }) => code);
 
 /** The rows of the default drafts of a population: each stored row with its edit over it, and the new rows. */
 function draftedRows(population) {
@@ -46,7 +60,7 @@ function draftedRows(population) {
       const draft = edits.get(String(doc._id));
       return draft ? { ...doc, ...draft.row, draft } : doc;
     },
-    created: drafts.filter(({ rowId }) => !rowId).map((draft) => ({ _id: draftRowId(draft.key), ...draft.row, draft })),
+    created: drafts.filter(({ rowId }) => !rowId).map((draft) => ({ _id: defaultRef(draft.key), ...draft.row, draft })),
   };
 }
 
@@ -67,10 +81,7 @@ async function worldsOf(models, population) {
     instanceCode: { $nin: [...instances.keys()] },
   });
   const ids = [
-    ...new Set([
-      ...own.flatMap(({ conf }) => conf.entityDefaults.filter((ref) => !variantKeyOf(ref))),
-      ...orphans.map(String),
-    ]),
+    ...new Set([...own.flatMap(({ conf }) => conf.entityDefaults.filter(storedRef)), ...orphans.map(String)]),
   ];
   const [referenced, stored] = await Promise.all([
     CyberiaEntityTypeDefault.find({ _id: { $in: ids } }).lean(),
@@ -79,11 +90,15 @@ async function worldsOf(models, population) {
       .lean(),
   ]);
   const { overlaid, created } = draftedRows(population);
-  const global = [...stored.map(overlaid), ...created];
-  const rowOf = new Map(referenced.map((doc) => [String(doc._id), overlaid(doc)]));
+  const refs = new Set([...instances.values()].flatMap(({ conf }) => conf.entityDefaults));
+  const global = [...stored.map(overlaid), ...created.filter(({ _id }) => !refs.has(_id))];
+  const rowOf = new Map([
+    ...referenced.map((doc) => [String(doc._id), overlaid(doc)]),
+    ...created.filter(({ _id }) => refs.has(_id)).map((doc) => [doc._id, doc]),
+  ]);
   const { baseline } = contentArtifact();
   const order = (rows) => runtimeEntityDefaults({ instance: rows, baseline, global }).map(({ row }) => row);
-  return [
+  const worlds = [
     ...own.map(({ code, conf, variants }) => {
       const copies = variants.map(({ key, from, scope, row }) => ({
         _id: variantRef(key),
@@ -101,6 +116,10 @@ async function worldsOf(models, population) {
     }),
     { instanceCode: null, rowIds: [], storedIds: [], variants: [], rows: order([]) },
   ];
+  return {
+    worlds,
+    mapInstances: mapInstancesOf(instances, population.mapCode),
+  };
 }
 
 /**
@@ -136,11 +155,11 @@ function runtimeOf(doc, worlds) {
  * the variants that override it; each variant the instance drafts propose for a row of the workspace;
  * each new row a default draft proposes; the artwork of each live, dead and drop item of a row
  * ({@link itemArtwork}); the staged items no row names, with the entity type a new row of each takes;
- * and the rows removed from the workspace.
+ * the rows removed from the workspace; and the instances that list the map of the population.
  * @param {Object} models - {@link populationModels}.
  * @param {Object} population - A lean population.
  * @param {Object[]} targets - Its targets with their artwork ({@link targetsOf}).
- * @returns {Promise<{rows:Object[],items:Object<string,{itemType:string,cid:string,source:string}>,missing:Array<{itemId:string,entityType:string}>,removed:Object[]}>}
+ * @returns {Promise<{rows:Object[],items:Object<string,{itemType:string,cid:string,source:string}>,missing:Array<{itemId:string,entityType:string}>,removed:Object[],mapInstances:string[]}>}
  * @memberof CyberiaPopulationDefaults
  */
 export async function workspaceOf(models, population, targets) {
@@ -148,7 +167,7 @@ export async function workspaceOf(models, population, targets) {
   const { added, removed } = population.defaults;
   const hidden = new Set(removed.map(String));
   const { edited, overlaid, created } = draftedRows(population);
-  const [docs, worlds, removedDocs] = await Promise.all([
+  const [docs, { worlds, mapInstances }, removedDocs] = await Promise.all([
     models.CyberiaEntityTypeDefault.find({
       $or: [
         ...ARTWORK_LISTS.map((list) => ({ [list]: { $in: staged } })),
@@ -195,7 +214,91 @@ export async function workspaceOf(models, population, targets) {
         entityType: stageOf(stage).entityTypes.find((type) => ENTITY_TYPE_TO_ITEM_TYPES[type].includes(itemType)),
       })),
     removed: removedDocs.map(({ _id, entityType, liveItemIds }) => ({ rowId: String(_id), entityType, liveItemIds })),
+    mapInstances,
   };
+}
+
+/** The entity types the runtime spawns: no map places them, so a row of these reaches every world that runs it. */
+const SPAWNED = new Set([
+  ENTITY_TYPES.player,
+  ENTITY_TYPES.other_player,
+  ENTITY_TYPES.skill,
+  ENTITY_TYPES.coin,
+  ENTITY_TYPES.loot,
+]);
+
+/**
+ * The worlds a publication changes through entity-type defaults, by the order and the resolver the
+ * runtime applies: each world where an entity its maps place resolves to another row, or to a row the
+ * population edits, and each world whose rows of a spawned type change. A world no change reaches stays
+ * as it is, so a change of a global row reloads only the worlds that run it.
+ * @param {Object} models - {@link populationModels}.
+ * @param {Object} population - A lean population.
+ * @returns {Promise<string[]>} Instance codes, sorted.
+ * @memberof CyberiaPopulationDefaults
+ */
+export async function defaultWorlds(models, population) {
+  const { persisted, instances } = await workingInstances(models, population);
+  const codes = [...new Set([...persisted.keys(), ...instances.keys()])];
+  const [stored, orphans] = await Promise.all([
+    models.CyberiaEntityTypeDefault.find({}).sort({ _id: 1 }).lean(),
+    models.CyberiaInstanceConf.distinct('entityDefaults', { instanceCode: { $nin: codes } }),
+  ]);
+  const { overlaid, created } = draftedRows(population);
+  const before = new Map(stored.map((row) => [String(row._id), row]));
+  const after = new Map([
+    ...stored.map((row) => [String(row._id), overlaid(row)]),
+    ...created.map((row) => [row._id, row]),
+  ]);
+  const globalOf = (rows, documents) => {
+    const referenced = new Set([
+      ...[...documents.values()].flatMap(({ conf }) => conf.entityDefaults),
+      ...orphans.map(String),
+    ]);
+    return [...rows.values()].filter((row) => !referenced.has(String(row._id)));
+  };
+  const { baseline } = contentArtifact();
+  const orderOf = (instance, rows, global) =>
+    runtimeEntityDefaults({
+      instance: (instance?.conf.entityDefaults ?? []).map((ref) => rows.get(ref)).filter(Boolean),
+      baseline,
+      global,
+    }).map(({ row }) => row);
+  const [globalBefore, globalAfter] = [globalOf(before, persisted), globalOf(after, instances)];
+  const mapCodes = [
+    ...new Set([...persisted.values(), ...instances.values()].flatMap(({ cyberiaMapCodes }) => cyberiaMapCodes)),
+  ];
+  const placed = new Map(
+    (
+      await models.CyberiaMap.find(
+        { code: { $in: mapCodes } },
+        { code: 1, 'entities.entityType': 1, 'entities.objectLayerItemIds': 1 },
+      ).lean()
+    ).map(({ code, entities }) => [code, entities]),
+  );
+  if (population.draft) placed.set(population.mapCode, population.draft.entities);
+  const spawned = (rows) => rows.filter(({ entityType }) => SPAWNED.has(entityType));
+  return codes
+    .filter((code) => {
+      const was = orderOf(persisted.get(code), before, globalBefore);
+      const variants = (instances.get(code)?.variants ?? []).map(({ key, row }) => [variantRef(key), { ...row }]);
+      const now = orderOf(instances.get(code), new Map([...after, ...variants]), globalAfter);
+      const entities = (instances.get(code) ?? persisted.get(code)).cyberiaMapCodes.flatMap(
+        (mapCode) => placed.get(mapCode) ?? [],
+      );
+      const resolve = (rows) =>
+        entities.map(({ entityType, objectLayerItemIds }) =>
+          resolveEntityDefaultBuild({ entityType, itemIds: objectLayerItemIds }, rows),
+        );
+      const [wasPlaced, nowPlaced] = [resolve(was), resolve(now)];
+      const [wasSpawned, nowSpawned] = [spawned(was), spawned(now)];
+      return (
+        wasPlaced.some((row, at) => row !== nowPlaced[at]) ||
+        wasSpawned.length !== nowSpawned.length ||
+        wasSpawned.some((row, at) => row !== nowSpawned[at])
+      );
+    })
+    .sort();
 }
 
 /**
@@ -259,13 +362,6 @@ export async function removeDefault({ models, id, rowId }) {
   return await populationDefaults(models, id);
 }
 
-/** The default draft of a population a key names, or a 404. */
-function draftOf(population, key) {
-  const draft = (population.defaultDrafts ?? []).find((entry) => entry.key === key);
-  if (!draft) throw requestError(`The population drafts no entity-type default ${key}`, 404);
-  return draft;
-}
-
 /** The fields of a row a request names: an object of the row fields only. */
 function rowOf(body) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) throw requestError('A row is an object');
@@ -273,124 +369,185 @@ function rowOf(body) {
   return JSON.parse(JSON.stringify(body));
 }
 
+/** The codes of the instances of a working graph that reference `ref`, now and as stored. */
+const runnersOf = (graph, ref) => ({
+  instanceCodes: [...graph.instances.values()]
+    .filter(({ conf }) => conf.entityDefaults.includes(ref))
+    .map(({ code }) => code),
+  storedInstanceCodes: [...graph.persisted.instances.values()]
+    .filter(({ conf }) => conf.entityDefaults.includes(ref))
+    .map(({ code }) => code),
+});
+
 /**
- * A default draft of a population, with the instances whose working draft references the row it edits.
+ * An entity-type default as the Entity Studio of a population edits it, from the working graph: the
+ * stored row `ref` names (a row id) with the draft of the population over it, the new row a default
+ * draft proposes (its key), or nothing yet (`new`). It carries the instances that run it now and as
+ * stored, every instance of the graph, and the instances that list the map of the population.
  * @param {Object} models - {@link populationModels}.
  * @param {string} id - Population id.
- * @param {string} key - Draft key.
- * @returns {Promise<Object>} `{ key, rowId, baseUpdatedAt, revision, row, instanceCodes }`.
- * @throws {Error} 404 for an unknown population or draft.
+ * @param {string} ref - A row id, a draft key, or `new`.
+ * @param {Object} options - Router options.
+ * @returns {Promise<Object>}
+ * @throws {Error} 404 for an unknown population, row or draft.
  * @memberof CyberiaPopulationDefaults
  */
-export async function defaultDraftView(models, id, key) {
+export async function defaultView(models, id, ref, options) {
   const population = await findPopulation(models, id);
-  const { rowId, baseUpdatedAt, revision, row } = draftOf(population, key);
-  const { instances } = rowId ? await workingInstances(models, population) : { instances: new Map() };
+  const graph = await workingGraph(models, population, options);
+  const draft = graph.defaults.find(({ key, rowId }) => key === ref || rowId === ref) ?? null;
+  const rowId = draft?.rowId ?? (storedRef(ref) ? ref : null);
+  const stored = rowId ? await models.CyberiaEntityTypeDefault.findById(await storedRow(models, rowId)).lean() : null;
+  if (!draft && !stored && ref !== 'new')
+    throw requestError(`The population drafts no entity-type default ${ref}`, 404);
+  const runners = draft || stored ? runnersOf(graph, rowId ?? defaultRef(draft.key)) : null;
   return {
-    key,
     rowId,
-    baseUpdatedAt,
-    revision,
-    row,
-    instanceCodes: [...instances.values()]
-      .filter(({ conf }) => conf.entityDefaults.includes(rowId))
-      .map(({ code }) => code),
+    key: draft?.key ?? null,
+    revision: draft?.revision ?? 0,
+    baseUpdatedAt: draft?.baseUpdatedAt ?? stored?.updatedAt ?? null,
+    state: draft ? (rowId ? 'draft' : 'new') : stored ? 'persisted' : 'unsaved',
+    row: draft?.row ?? (stored && Object.fromEntries(DEFAULT_ROW_FIELDS.map((field) => [field, stored[field]]))),
+    global: draft?.global ?? false,
+    instanceCodes: runners?.instanceCodes ?? [],
+    storedInstanceCodes: runners?.storedInstanceCodes ?? [],
+    instances: [...graph.instances.keys()].sort(),
+    mapInstances: mapInstancesOf(graph.instances, graph.population.mapCode),
+    populationRevision: population.revision,
   };
 }
 
 /**
- * Starts a default draft, `{ rowId, baseUpdatedAt, row }`: an edit of the stored row `rowId` at the
- * `updatedAt` the editor read, or a new global row with no `rowId`. Nothing stored changes: the
- * publication writes it. One draft per stored row.
+ * Saves a default from the Entity Studio of a population, `{ rowId, key, baseUpdatedAt, revision, row,
+ * instanceCodes, global, populationRevision }`: the row, as an edit of the stored row `rowId` or as a new
+ * row, and the instances that run it, as references in their drafts. A row no instance runs needs
+ * `global`: every world then runs it. Both land in one write of the population at the revision the
+ * editor read, so the row and its references never part. Nothing stored changes: the publication
+ * writes them.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
  * @param {string} params.id - Population id.
  * @param {Object} params.body
  * @param {string} params.actor
- * @returns {Promise<Object>} {@link defaultDraftView}.
- * @throws {Error} 400 for a row the canonical model refuses; 404 for an unknown row; 409 for a row that
- *   changed since the editor read it, one the population drafts already, or a closed population.
+ * @param {Object} params.options - Router options.
+ * @returns {Promise<Object>} {@link defaultView}.
+ * @throws {Error} 400 for a row the canonical model refuses, an unknown instance, or no instance and no
+ *   `global`; 404 for an unknown row; 409 when the population, the draft or the stored row changed since
+ *   the editor read it, or for a closed population.
  * @memberof CyberiaPopulationDefaults
  */
-export async function createDefaultDraft({ models, id, body, actor }) {
+export async function saveDefault({ models, id, body, actor, options }) {
   const population = await openPopulation(models, id);
-  only(body, ['rowId', 'baseUpdatedAt', 'row'], 'A default draft');
-  const rowId = body.rowId ? String(body.rowId) : null;
-  const stored = rowId && (await models.CyberiaEntityTypeDefault.findById(await storedRow(models, rowId)).lean());
-  if (stored && new Date(body.baseUpdatedAt).getTime() !== stored.updatedAt?.getTime())
+  only(
+    body,
+    ['rowId', 'key', 'baseUpdatedAt', 'revision', 'row', 'instanceCodes', 'global', 'populationRevision'],
+    'A default',
+  );
+  if (body.populationRevision !== population.revision)
+    throw requestError('The population changed since you opened this default: reopen it', 409);
+  const graph = await workingGraph(models, population, options);
+  const current = graph.defaults.find(({ key, rowId }) => key === body.key || (body.rowId && rowId === body.rowId));
+  if ((current?.revision ?? 0) !== (body.revision ?? 0))
+    throw requestError('The draft of this default changed since you opened it: reopen it', 409);
+  const rowId = current?.rowId ?? (body.rowId ? String(body.rowId) : null);
+  const stored = rowId ? await models.CyberiaEntityTypeDefault.findById(await storedRow(models, rowId)).lean() : null;
+  if (stored && !current && new Date(body.baseUpdatedAt).getTime() !== stored.updatedAt?.getTime())
     throw requestError('This entity default changed since you opened it: reload it, then save again', 409);
-  if (rowId && (population.defaultDrafts ?? []).some((draft) => draft.rowId === rowId))
-    throw requestError(`The population drafts an edit of entity-type default ${rowId} already: open it`, 409);
-  const key = randomUUID();
-  await writeDraft({
-    models,
-    population,
-    field: 'defaultDrafts',
-    identity: { key },
-    exclusive: { key, rowId },
-    revision: 0,
-    next: {
-      key,
-      rowId,
-      baseUpdatedAt: stored?.updatedAt ?? null,
-      revision: 1,
-      row: await checkedRow(models, rowOf(body.row), stored ?? {}),
-      savedAt: new Date(),
-      savedBy: actor,
+  const codes = [...new Set((body.instanceCodes ?? []).map(String))];
+  const unknown = codes.find((code) => !graph.instances.has(code));
+  if (unknown) throw requestError(`There is no instance ${unknown}`);
+  if (codes.length === 0 && !body.global)
+    throw requestError('Choose the instances that run this default, or make it global: every world runs it');
+  const key = current?.key ?? randomUUID();
+  const ref = rowId ?? defaultRef(key);
+  const row = await checkedRow(models, rowOf(body.row), stored ?? {});
+  const runners = runnersOf(graph, ref);
+  const unchanged =
+    stored &&
+    DEFAULT_ROW_FIELDS.every((field) => JSON.stringify(row[field] ?? null) === JSON.stringify(stored[field] ?? null));
+  const keepsDraft = !unchanged || (codes.length === 0 && runners.storedInstanceCodes.length > 0);
+  const defaultDrafts = (population.defaultDrafts ?? []).filter((draft) => draft.key !== key);
+  if (keepsDraft)
+    defaultDrafts.push(
+      await checkedEntry(models, 'defaultDrafts', {
+        key,
+        rowId,
+        baseUpdatedAt: current?.baseUpdatedAt ?? stored?.updatedAt ?? null,
+        revision: (current?.revision ?? 0) + 1,
+        row,
+        global: codes.length === 0,
+        savedAt: new Date(),
+        savedBy: actor,
+      }),
+    );
+  const instanceDrafts = [...(population.instanceDrafts ?? [])];
+  for (const code of new Set([...codes, ...runners.instanceCodes])) {
+    const linked = codes.includes(code);
+    if (linked === runners.instanceCodes.includes(code)) continue;
+    const { next } = nextInstanceDraft(
+      population,
+      graph,
+      code,
+      (instance) => ({
+        conf: {
+          ...instance.conf,
+          entityDefaults: linked
+            ? [...instance.conf.entityDefaults, ref]
+            : instance.conf.entityDefaults.filter((held) => held !== ref),
+        },
+      }),
+      actor,
+    );
+    const entry = await checkedEntry(models, 'instanceDrafts', next);
+    const at = instanceDrafts.findIndex((held) => held.code === code);
+    if (unchangedDraft(entry)) {
+      if (at >= 0) instanceDrafts.splice(at, 1);
+    } else if (at < 0) instanceDrafts.push(entry);
+    else instanceDrafts[at] = entry;
+  }
+  const written = await models.CyberiaProceduralPopulation.updateOne(
+    { _id: population._id, revision: population.revision, ...STILL_OPEN },
+    {
+      $set: { defaultDrafts, instanceDrafts },
+      $inc: { revision: 1 },
     },
-  });
-  return await defaultDraftView(models, id, key);
+  );
+  if (!written.matchedCount) throw requestError('The population changed while saving: reopen this default', 409);
+  return await defaultView(models, id, keepsDraft ? key : rowId, options);
 }
 
 /**
- * Saves the row of a default draft, `{ row, revision }`, checked as a canonical write checks it.
- * @param {Object} params
- * @param {Object} params.models - {@link populationModels}.
- * @param {string} params.id - Population id.
- * @param {string} params.key - Draft key.
- * @param {Object} params.body
- * @param {string} params.actor
- * @returns {Promise<Object>} {@link defaultDraftView}.
- * @throws {Error} 400 for a row the canonical model refuses; 404 for an unknown draft; 409 for a stale revision.
- * @memberof CyberiaPopulationDefaults
- */
-export async function saveDefaultDraft({ models, id, key, body, actor }) {
-  const population = await openPopulation(models, id);
-  only(body, ['row', 'revision'], 'A default draft');
-  const current = draftOf(population, key);
-  const stored = current.rowId ? await models.CyberiaEntityTypeDefault.findById(current.rowId).lean() : null;
-  await writeDraft({
-    models,
-    population,
-    field: 'defaultDrafts',
-    identity: { key },
-    revision: body.revision,
-    next: {
-      ...current,
-      revision: current.revision + 1,
-      row: await checkedRow(models, rowOf(body.row), stored ?? {}),
-      savedAt: new Date(),
-      savedBy: actor,
-    },
-  });
-  return await defaultDraftView(models, id, key);
-}
-
-/**
- * Discards a default draft: the workspace shows the stored row again, or no new row.
+ * Discards a default draft: the workspace shows the stored row again, or no new row, and every instance
+ * draft stops referencing a new row it proposed.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
  * @param {string} params.id - Population id.
  * @param {string} params.key - Draft key.
  * @returns {Promise<{discarded:boolean}>}
- * @throws {Error} 409 for a closed population.
+ * @throws {Error} 409 for a closed population, or one that changed meanwhile.
  * @memberof CyberiaPopulationDefaults
  */
 export async function discardDefaultDraft({ models, id, key }) {
   const population = await openPopulation(models, id);
+  if (!(population.defaultDrafts ?? []).some((draft) => draft.key === key)) return { discarded: false };
+  const ref = defaultRef(key);
   const written = await models.CyberiaProceduralPopulation.updateOne(
-    { _id: population._id, 'defaultDrafts.key': key },
-    { $pull: { defaultDrafts: { key } }, $inc: { revision: 1 } },
+    { _id: population._id, revision: population.revision, ...STILL_OPEN },
+    {
+      $set: {
+        defaultDrafts: population.defaultDrafts.filter((draft) => draft.key !== key),
+        instanceDrafts: (population.instanceDrafts ?? []).flatMap((entry) => {
+          if (!entry.conf.entityDefaults.includes(ref)) return [entry];
+          const next = {
+            ...entry,
+            conf: { ...entry.conf, entityDefaults: entry.conf.entityDefaults.filter((held) => held !== ref) },
+          };
+          return unchangedDraft(next) ? [] : [next];
+        }),
+      },
+      $inc: { revision: 1 },
+    },
   );
-  return { discarded: written.modifiedCount > 0 };
+  if (!written.matchedCount) throw requestError('The population changed meanwhile: try again', 409);
+  return { discarded: true };
 }
