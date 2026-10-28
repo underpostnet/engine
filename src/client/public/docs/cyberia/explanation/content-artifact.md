@@ -56,8 +56,8 @@ The deployment contains no public asset tree. Public source directories have no 
 ## The artifact
 
 The artifact is `dist/`: the compiled document families of the foundation and of each saga, the
-procedural templates, the instance backups and a manifest. It holds no code; the engine reads and
-verifies it.
+procedural templates, the instance backups, the global content and a manifest. It holds no code;
+the engine reads and verifies it.
 
 | Path                                | Holds                                                                        |
 | ----------------------------------- | ---------------------------------------------------------------------------- |
@@ -71,6 +71,7 @@ verifies it.
 | `sagas/<code>/saga.json`            | Its `CyberiaSaga` record                                                     |
 | `sagas/<code>/instance.json`        | The shell of its instance                                                    |
 | `instances/<code>/`                 | Each instance backup                                                         |
+| `global/<cid>.json`                 | Each global content definition: payload, render, bound item ids and its row  |
 
 The Procedural Engine verifies the templates when it reads them. See
 [Procedural Engine](procedural-engine.md).
@@ -87,6 +88,7 @@ The manifest names:
 | `build`          | The definition schema version and the digest of the runtime contract |
 | `instances`      | The instance codes it carries                                        |
 | `sagas`          | The saga codes it carries                                            |
+| `global`         | The CIDs of the global content it carries                            |
 
 The same commit always builds the same bytes. A build refuses uncommitted content.
 
@@ -134,7 +136,8 @@ Every file is verified when it is read. The runtime data is frozen: one process 
 ## The release copy
 
 A release database holds a copy of the files a running engine reads: the manifest, the context
-index, the foundation and the sagas. It holds no instance backup: only an import reads them.
+index, the foundation and the sagas. It holds no instance backup and no global content file: only
+an import reads them.
 
 A running engine reads the artifact of the content it serves:
 
@@ -215,6 +218,15 @@ foundation in the store:
   backup replaces the stored document of its key.
 - An entity-type default of the backup replaces each stored default of the same entity type and
   live items that no other instance conf references. Another world keeps its own default.
+
+`cyberia content import --global` restores the global content, after the foundation and the sagas
+and before the instances. Each `global/<cid>.json` goes through the checks of an Object Layer
+import: its payload must hash to its CID, and its render bytes must be the render the payload
+names; the import rebuilds the render frames and the atlas from them, reading neither IPFS nor the
+authority render route. The definition is cached from the authority, or published there under the
+same CID. The row is restored as the file holds it, and each item id the file lists is bound to the
+CID, as a snapshot binds it. A definition with no world needs no entity-type default. The restore is
+idempotent.
 
 ## Release content
 

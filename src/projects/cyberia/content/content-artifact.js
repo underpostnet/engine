@@ -17,7 +17,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { objectLayerIdentity } from '../../../api/object-layer/object-layer.identity.js';
+import { isObjectLayerCid, objectLayerIdentity } from '../../../api/object-layer/object-layer.identity.js';
 import {
   collectInstanceItemIds,
   collectSummonedItemIds,
@@ -34,7 +34,7 @@ import {
 import { readEconomy, replaceEconomy } from '../economy/economy-policy.js';
 
 /** The artifact layout and document shapes this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 10;
+export const CONTENT_SCHEMA_VERSION = 11;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what
@@ -98,6 +98,13 @@ export function contentSources() {
 export const instanceSourceDir = (code) => path.join(contentSources(), 'content', 'instances', code);
 
 /**
+ * The source directory of the global content: where its export lands, one file per definition.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const globalContentSourceDir = () => path.join(contentSources(), 'content', 'global');
+
+/**
  * Whether the content root holds a built artifact. Callers that only run in a full workspace skip
  * without one, as they do without the other sibling checkouts.
  * @returns {boolean}
@@ -131,10 +138,13 @@ export const RELEASE_ARTIFACT_COLLECTION = 'cyberia-content-artifact';
 
 const MANIFEST_FILE = 'manifest.json';
 
-/** The files a running engine reads: every file but the instance backups, which only an import reads. */
+/** The files only an import reads: the instance backups and the global content. */
+const IMPORT_ONLY = Object.freeze(['instances/', 'global/']);
+
+/** The files a running engine reads: every file an import alone does not read. */
 const runtimeFiles = (manifest) =>
   Object.keys(manifest.files)
-    .filter((file) => !file.startsWith('instances/'))
+    .filter((file) => !IMPORT_ONLY.some((prefix) => file.startsWith(prefix)))
     .sort();
 
 /** The reason a manifest is invalid, or '' when it is valid. */
@@ -146,6 +156,8 @@ function manifestDefect(manifest) {
   if (!DIGEST_PATTERN.test(manifest.contentDigest ?? '')) return 'contentDigest is not a sha256 digest';
   if (!isPlainObject(manifest.build)) return 'build is missing';
   if (!isCodeList(manifest.instances) || !isCodeList(manifest.sagas)) return 'instances and sagas must be code lists';
+  if (!Array.isArray(manifest.global) || !manifest.global.every(isObjectLayerCid))
+    return 'global must list Object Layer CIDs';
   if (!isPlainObject(manifest.files) || !Object.values(manifest.files).every((digest) => DIGEST_PATTERN.test(digest)))
     return 'files must map each artifact path to a sha256 digest';
   return '';
@@ -190,6 +202,10 @@ function artifactReader(manifest, bytesOf, instanceDir) {
       if (!manifest.instances.includes(code)) throw new Error(`The content artifact holds no instance ${code}`);
       return instanceDir(code, read);
     },
+    globalContent(cid) {
+      if (!manifest.global.includes(cid)) throw new Error(`The content artifact holds no global content ${cid}`);
+      return read(`global/${cid}.json`).toString('utf8');
+    },
   };
 }
 
@@ -221,7 +237,7 @@ export function openContentArtifact(root = contentRoot()) {
 
 /**
  * Stores the files a running engine reads in a release database: the manifest and every file but
- * the instance backups, one document per file. Replaces what the database held.
+ * the instance backups and the global content, one document per file. Replaces what the database held.
  * @param {import('mongodb').Db} db - The release database.
  * @param {Object} opened - {@link openContentArtifact} output.
  * @returns {Promise<number>} The files stored, the manifest included.
@@ -240,7 +256,8 @@ export async function storeContentArtifact(db, opened) {
 
 /**
  * Opens the content artifact a release database holds. It is verified as the artifact on disk is,
- * every file at once, and it must be the content the release records. It holds no instance backups.
+ * every file at once, and it must be the content the release records. It holds no instance backups
+ * and no global content.
  * @param {import('mongodb').Db} db - The release database.
  * @param {string} digest - The content digest the release records.
  * @returns {Promise<Object>} An opened artifact, as {@link openContentArtifact} returns one, and
@@ -311,6 +328,7 @@ function runtimeArtifact(opened) {
       };
     },
     instanceDir: opened.instanceDir,
+    globalContent: opened.globalContent,
   });
 }
 
@@ -321,10 +339,11 @@ function runtimeArtifact(opened) {
  * @returns {{manifest:Object, foundation:Object<string,Object[]>, baseline:ReadonlyArray<Object>,
  *   itemBaseline:Object<string,string>, byItemId:Map<string,Object>, context:Object,
  *   procedural:{templates:Object[], families:string[], palettes:Object[]}, saga:(code:string)=>{saga:Object,
- *   instance:Object, families:Object<string,Object[]>}, instanceDir:(code:string)=>string}} `baseline` holds the
- *   entity-type defaults every world resolves against; `itemBaseline` the item label a new item of each type
- *   takes its function from; `context` is the index of every definition and its references; `procedural`
- *   the Genesis Templates and the palette families and templates.
+ *   instance:Object, families:Object<string,Object[]>}, instanceDir:(code:string)=>string,
+ *   globalContent:(cid:string)=>string}} `baseline` holds the entity-type defaults every world resolves
+ *   against; `itemBaseline` the item label a new item of each type takes its function from; `context` is
+ *   the index of every definition and its references; `procedural` the Genesis Templates and the palette
+ *   families and templates; `globalContent` the text of one `global/<cid>.json` file.
  * @throws {Error} When the artifact is missing, invalid, altered or of an unsupported schema.
  * @memberof CyberiaContentArtifact
  */

@@ -59,7 +59,8 @@ partition with the host database.
    node bin db dd-cyberia --export --git --primary-pod --preserveUUID
    ```
 
-3. On the local machine, import the same backup. The export reads the Files from the host database:
+3. On the local machine, import the same backup. The export reads the Files and the player profiles
+   from the host database:
 
    ```bash
    node bin db dd-cyberia --import --git --hosts www.cyberiaonline.com --paths / --drop --preserveUUID --primary-pod
@@ -81,9 +82,19 @@ release database, `<content partition>-capture-<timestamp>`. It then imports the
 the content artifact: the documents a newer schema adds, such as economies and markets. A document
 production holds stays as production holds it. Every check of `content-release validate` runs,
 except the canonical check, because nothing is published. Each world is exported into a temporary
-directory, and the change against `cyberia-content` is printed. `--apply` replaces the instance
-directories, and refuses while one of them has uncommitted changes. The scratch database and its
-map registry rows are removed at the end.
+directory.
+
+The scratch copy then takes the global content production must keep: each definition an item
+binding or a player stack names that no exported world snapshot and no artifact composition
+carries. A definition the copy lacks is imported from the Object Layer authority, with its render
+from IPFS, by the checks of an import. The export prints each definition it adds and why, each one
+it cannot resolve, and how many published definitions nothing keeps; those stay out. Production and
+the backup stay as they are: the next release carries the rows.
+
+The change of each world and of `global/` against `cyberia-content` is printed. `--apply` replaces
+the instance directories and `src/content/global/`, and refuses while one of them has uncommitted
+changes. A second run with no change in production writes the same files. The scratch database and
+its map registry rows are removed at the end.
 
 A dump is consistent per collection, not at one point in time. Step 1 keeps the collections
 consistent with each other, and the checks refuse a reference that does not resolve.

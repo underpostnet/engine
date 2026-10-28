@@ -102,12 +102,14 @@ describe('release selection', () => {
   const manifest = {
     sagas: ['amethyst-strata-expansion', 'another-saga'],
     instances: ['amethyst-strata-expansion', 'fallback', 'test'],
+    global: [`bafkrei${'a'.repeat(52)}`],
   };
 
   it('imports the declared sagas and instances, and leaves every other one of the artifact out', () => {
     expect(selectReleaseContent({ manifest })).toEqual({
       sagas: ['amethyst-strata-expansion'],
       instances: ['amethyst-strata-expansion', 'test'],
+      globalContent: manifest.global,
     });
   });
 

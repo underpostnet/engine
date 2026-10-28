@@ -67,22 +67,24 @@ const MAX_FINDINGS = 25;
 export const releaseDatabaseName = (base, releaseId) => `${base}-${assertReleaseId(releaseId)}`;
 
 /**
- * Imports the content artifact in dependency order: the foundation, the sagas, then each instance.
- * Each saga moves what it holds to the artifact, and each instance restores what it holds. Each
- * import starts only once the one before it succeeded, so no instance reaches a store that lacks
- * its foundation.
+ * Imports the content artifact in dependency order: the foundation, the sagas, the global content,
+ * then each instance. Each saga moves what it holds to the artifact; the global content and each
+ * instance restore what they hold. Each import starts only once the one before it succeeded, so no
+ * instance reaches a store that lacks its foundation.
  * @param {Object} params
  * @param {(args:string)=>Promise<void>} params.run - Runs one `cyberia` command line; rejects when it fails.
  * @param {string[]} params.instances - Instance codes.
  * @param {string[]} [params.sagas=[]] - Saga codes.
+ * @param {string[]} [params.globalContent=[]] - The CIDs of the global content of the artifact.
  * @param {string} [params.releaseId] - The release database to import into; the workspace without one.
  * @returns {Promise<void>}
  * @memberof CyberiaContentRelease
  */
-export async function importArtifactContent({ run, instances, sagas = [], releaseId = '' }) {
+export async function importArtifactContent({ run, instances, sagas = [], globalContent = [], releaseId = '' }) {
   const target = releaseId ? ` --release ${assertReleaseId(releaseId)}` : '';
   await run(`content import${target}`);
   for (const code of sagas) await run(`content import --saga ${code} --rebind${target}`);
+  if (globalContent.length > 0) await run(`content import --global${target}`);
   for (const code of instances) await run(`instance ${code} --import${target}`);
 }
 
@@ -182,19 +184,23 @@ const identityDefect = (doc) => {
  *   release records. Skipped, and said so, for the workspace, which holds none.
  * - `catalog`: every bound label names a published definition in the release, under the Cyberia
  *   runtime's profile, whose identity is its content's.
- * - `canonical`: every bound cid resolves at the Object Layer authority, with the same digest.
+ * - `canonical`: every bound cid and every global content cid resolves at the Object Layer
+ *   authority, with the same digest.
  *   Skipped, and said so, when this deployment is the authority.
  * - `labels`: every label a map entity or entity default uses is bound in the catalog.
  * - `skills`: every skill document can run: see `skillDefect`.
  * - `render`: the atlas each bound definition points at holds the render it names: its primary
  *   render and its layout address `data.render`.
+ * - `global`: every global content row names a published definition in the release, whose identity
+ *   is its content's, with the atlas of the render it names. No world, entity default or binding is
+ *   needed.
  * - `instances`: every instance has its conf and every map it lists.
  * - `economy`: every conf names an active economy, every item policy is valid and names bound labels,
  *   and the worlds of each universe of the host hold one wallet.
  * - `schema`: every content document passes its schema.
  *
- * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`,
- *   `AtlasSpriteSheet`, `File`, `CyberiaQuest`, `CyberiaAction`, `CyberiaMap`,
+ * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `CyberiaGlobalContent`,
+ *   `ObjectLayer`, `AtlasSpriteSheet`, `File`, `CyberiaQuest`, `CyberiaAction`, `CyberiaMap`,
  *   `CyberiaEntityTypeDefault`, `CyberiaSkill`, `CyberiaInstance`, `CyberiaInstanceConf`.
  * @param {Object} [params]
  * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host, for the canonical resolver.
@@ -220,8 +226,10 @@ export async function validateContentRelease(models, { options, resolveCanonical
 
   const catalog = await models.CyberiaItemCatalog.find({}, { itemId: 1, objectLayerCid: 1 }).lean();
   const boundCids = [...new Set(catalog.map((entry) => entry.objectLayerCid))];
+  const globalCids = models.CyberiaGlobalContent ? await models.CyberiaGlobalContent.distinct('objectLayerCid') : [];
+  const releasedCids = [...new Set([...boundCids, ...globalCids])];
   const cached = new Map(
-    (await models.ObjectLayer.find({ cid: { $in: boundCids } }).lean()).map((doc) => [doc.cid, doc]),
+    (await models.ObjectLayer.find({ cid: { $in: releasedCids } }).lean()).map((doc) => [doc.cid, doc]),
   );
 
   const catalogCheck = check('catalog');
@@ -254,8 +262,8 @@ export async function validateContentRelease(models, { options, resolveCanonical
   } else if (!resolve) {
     canonicalCheck.findings.push(`skipped: ${authoritySkipReason(options)}`);
   } else {
-    canonicalCheck.count = boundCids.length;
-    for (const cid of boundCids) {
+    canonicalCheck.count = releasedCids.length;
+    for (const cid of releasedCids) {
       try {
         const canonical = await resolve(cid);
         if (!canonical) fail(canonicalCheck, `${cid}: unknown to the Object Layer authority`);
@@ -303,29 +311,39 @@ export async function validateContentRelease(models, { options, resolveCanonical
   // The runtime fetches the primary render of the atlas a bound definition points at
   // (`/atlas-sprite-sheet/blob/<label>`): its bytes and its layout must address `data.render`.
   const renderCheck = check('render');
+  const renderDefect = async (doc) => {
+    const atlas = await models.AtlasSpriteSheet.findOne({ objectLayerCid: doc.cid }, { fileId: 1, metadata: 1 }).lean();
+    // Hydrated, not lean: a lean read hands back a BSON Binary the hash cannot read.
+    const primary = atlas?.fileId ? await models.File.findById(atlas.fileId, { data: 1 }) : null;
+    if (!primary?.data) return 'no stored primary render';
+    const stored = renderContractOf({ primary: Buffer.from(primary.data), metadata: atlas.metadata });
+    const named = doc.data.render;
+    return stored.cid !== named.cid || stored.metadataCid !== named.metadataCid
+      ? `the atlas holds render ${stored.cid} + ${stored.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`
+      : '';
+  };
   const rendering = catalog.filter((entry) => cached.get(entry.objectLayerCid)?.data?.render?.cid);
   renderCheck.count = rendering.length;
   for (const entry of rendering) {
-    const { data } = cached.get(entry.objectLayerCid);
-    const atlas = await models.AtlasSpriteSheet.findOne(
-      { objectLayerCid: entry.objectLayerCid },
-      { fileId: 1, metadata: 1 },
-    ).lean();
-    // Hydrated, not lean: a lean read hands back a BSON Binary the hash cannot read.
-    const primary = atlas?.fileId ? await models.File.findById(atlas.fileId, { data: 1 }) : null;
-    if (!primary?.data) {
-      fail(renderCheck, `${entry.itemId} (${entry.objectLayerCid}): no stored primary render`);
-      continue;
-    }
-    const stored = renderContractOf({ primary: Buffer.from(primary.data), metadata: atlas.metadata });
-    const named = data.render;
-    if (stored.cid !== named.cid || stored.metadataCid !== named.metadataCid)
-      fail(
-        renderCheck,
-        `${entry.itemId}: the atlas holds render ${stored.cid} + ${stored.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`,
-      );
+    const defect = await renderDefect(cached.get(entry.objectLayerCid));
+    if (defect) fail(renderCheck, `${entry.itemId} (${entry.objectLayerCid}): ${defect}`);
   }
   checks.push(renderCheck);
+
+  const globalCheck = check('global');
+  if (!models.CyberiaGlobalContent) globalCheck.findings.push('skipped: the host loads no global content model');
+  globalCheck.count = globalCids.length;
+  for (const cid of globalCids) {
+    const doc = cached.get(cid);
+    if (!doc) fail(globalCheck, `${cid}: not in the release cache`);
+    else if (doc.origin === 'draft') fail(globalCheck, `${cid}: a draft, never published`);
+    else if (identityDefect(doc)) fail(globalCheck, identityDefect(doc));
+    else if (doc.data?.render?.cid) {
+      const defect = await renderDefect(doc);
+      if (defect) fail(globalCheck, `${cid}: ${defect}`);
+    }
+  }
+  checks.push(globalCheck);
 
   const instancesCheck = check('instances');
   const instances = await models.CyberiaInstance.find({}, { code: 1, conf: 1, cyberiaMapCodes: 1 }).lean();
@@ -387,6 +405,7 @@ export async function validateContentRelease(models, { options, resolveCanonical
     'CyberiaQuest',
     'CyberiaAction',
     'CyberiaItemCatalog',
+    'CyberiaGlobalContent',
     'ObjectLayer',
   ]) {
     const Model = models[name];
@@ -402,18 +421,22 @@ export async function validateContentRelease(models, { options, resolveCanonical
   }
   checks.push(schemaCheck);
 
-  const dependencies = [...boundCids].sort();
+  const dependencies = [...releasedCids].sort();
   const manifest = {
     instances: instances.map((instance) => instance.code).sort(),
     maps: maps.length,
     bindings: catalog.length,
+    global: globalCids.length,
     quests: await models.CyberiaQuest.countDocuments(),
     actions: await models.CyberiaAction.countDocuments(),
   };
   return { ok: checks.every((entry) => entry.ok), checkedAt: new Date(), checks, manifest, dependencies };
 }
 
-/** The content a live change can alter: the worlds and their item bindings, which `instance --export` writes out. */
+/**
+ * The content a live change can alter: the worlds and their item bindings, which `instance --export`
+ * writes out, and the global content, which `content-release export-live` writes out.
+ */
 const LIVE_CONTENT_APIS = Object.freeze([
   'cyberia-instance',
   'cyberia-instance-conf',
@@ -427,6 +450,7 @@ const LIVE_CONTENT_APIS = Object.freeze([
   'cyberia-entity-type-default',
   'cyberia-saga',
   'cyberia-item-catalog',
+  'cyberia-global-content',
   'cyberia-economy',
   'cyberia-economic-item-policy',
   'cyberia-market',
@@ -478,10 +502,10 @@ export async function liveChanges({ CyberiaContentRelease, connection }) {
 }
 
 /**
- * Stores every definition a release binds that the Object Layer authority does not hold yet, so
- * the canonical pool holds all the content the release will serve. Idempotent: a definition the
+ * Stores every definition a release binds or keeps as global content that the Object Layer
+ * authority does not hold yet, so the canonical pool holds all the content the release will serve. Idempotent: a definition the
  * authority holds with the same content is not sent again. A no-op when this deployment is the authority.
- * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `ObjectLayer`.
+ * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `CyberiaGlobalContent`, `ObjectLayer`.
  * @param {Object} [params]
  * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host.
  * @param {(definition:Object)=>Promise<{cid:string,created:boolean}>} [params.publish] - Defaults to the domain publisher.
@@ -498,7 +522,12 @@ export async function publishContentRelease(models, { options, publish, resolveC
     return entry;
   }
   const resolve = resolveCanonical ?? (authority ? (cid) => resolveObjectLayer(cid, options) : async () => null);
-  const cids = [...new Set(await models.CyberiaItemCatalog.distinct('objectLayerCid'))];
+  const cids = [
+    ...new Set([
+      ...(await models.CyberiaItemCatalog.distinct('objectLayerCid')),
+      ...(models.CyberiaGlobalContent ? await models.CyberiaGlobalContent.distinct('objectLayerCid') : []),
+    ]),
+  ];
   let sent = false;
   for (const doc of await models.ObjectLayer.find({ cid: { $in: cids } }).lean()) {
     entry.count++;

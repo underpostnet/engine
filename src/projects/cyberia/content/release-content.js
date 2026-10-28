@@ -70,13 +70,13 @@ const releaseInstanceCodes = (requested = [], content = RELEASE_CONTENT) =>
   requested.length > 0 ? [...requested] : content.instances.map(({ instanceCode }) => instanceCode);
 
 /**
- * What a release imports from a content artifact: the release sagas and the selected instances.
- * Any other saga or instance of the artifact stays out.
+ * What a release imports from a content artifact: the release sagas, the selected instances and all
+ * the global content. Any other saga or instance of the artifact stays out.
  * @param {Object} params
- * @param {{sagas: string[], instances: string[]}} params.manifest - The content artifact manifest.
+ * @param {{sagas: string[], instances: string[], global: string[]}} params.manifest - The content artifact manifest.
  * @param {string[]} [params.instances=[]] - Instance codes to import; the release instances when empty.
  * @param {Object} [params.content=RELEASE_CONTENT]
- * @returns {{sagas: string[], instances: string[]}}
+ * @returns {{sagas: string[], instances: string[], globalContent: string[]}}
  * @throws {Error} When the content set is invalid, or the artifact lacks a selected saga or instance.
  * @memberof CyberiaReleaseContent
  */
@@ -93,6 +93,7 @@ const selectReleaseContent = ({ manifest, instances = [], content = RELEASE_CONT
   return {
     sagas: held('saga', [...content.sagas], manifest.sagas),
     instances: held('instance', releaseInstanceCodes(instances, content), manifest.instances),
+    globalContent: [...manifest.global],
   };
 };
 

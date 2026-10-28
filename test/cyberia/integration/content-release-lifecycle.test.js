@@ -27,6 +27,7 @@ import {
   reconcileItemCatalog,
   seedItemCatalog,
 } from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
+import { registerGlobalContent } from '../../../src/projects/cyberia/catalog/global-content.js';
 import {
   CONTENT_PARTITION,
   activateContentRelease,
@@ -57,6 +58,7 @@ import { mongodBinary, startMongod } from '../../support/mongod.js';
 const SERVICE_KEY = 'test-service-key';
 const CONTENT_APIS = [
   'cyberia-item-catalog',
+  'cyberia-global-content',
   'object-layer',
   'object-layer-render-frames',
   'atlas-sprite-sheet',
@@ -278,6 +280,7 @@ const writeArtifact = (releaseId) => {
     build: {},
     instances: ['FOREST'],
     sagas: [],
+    global: [],
     files: digests,
   });
   return openContentArtifact(root);
@@ -560,9 +563,17 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
 
     it('never lets a candidate build touch the active release', async () => {
       await authorWorkspace({ mapCode: 'forest-2' });
+      // A definition no world, entity default or binding names: the release carries it as global content.
+      const banner = await publishItemDefinition({
+        models: catalogModels(cyberia),
+        payload: payload('banner', 2),
+        options: cyberia,
+      });
+      await registerGlobalContent(cyberia, { cid: banner.cid, reason: 'import', by: 'test' });
       const validation = await buildRelease('r2');
       expect(validation.ok).toBe(true);
-      expect(validation.manifest.maps).toBe(2);
+      expect(validation.manifest).toMatchObject({ maps: 2, global: 1 });
+      expect(validation.dependencies).toContain(banner.cid);
 
       expect(await snapshot(releaseDb('r1'))).toEqual(r1Snapshot);
       expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
@@ -572,6 +583,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       await promoteContentRelease(model('CyberiaContentRelease'), 'r2');
       await activateContentRelease(runtime);
       expect(await model('CyberiaMap', runtime).countDocuments()).toBe(2);
+      expect(await model('CyberiaGlobalContent', runtime).countDocuments()).toBe(1);
       expect(servedArtifactName()).toBe('r2');
       expect(await model('CyberiaContentRelease').countDocuments({ status: 'active' })).toBe(1);
     });
@@ -585,6 +597,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       expect((await rollbackContentRelease(ledger)).active.releaseId).toBe('r1');
       await activateContentRelease(runtime);
       expect(await model('CyberiaMap', runtime).countDocuments()).toBe(1);
+      expect(await model('CyberiaGlobalContent', runtime).countDocuments()).toBe(0);
       expect(servedArtifactName()).toBe('r1');
     });
 

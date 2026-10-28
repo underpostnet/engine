@@ -217,6 +217,7 @@ const content = () => {
       CyberiaEconomicItemPolicy: new FakeModel([
         { economyCode: 'standard', itemId: 'sword', buyback: true, buybackPayout: 2 },
       ]),
+      CyberiaGlobalContent: new FakeModel([]),
     },
   };
 };
@@ -296,12 +297,50 @@ describe('candidate validation', () => {
       'labels',
       'skills',
       'render',
+      'global',
       'instances',
       'economy',
       'schema',
     ]);
-    expect(validation.manifest).toEqual({ instances: ['FOREST'], maps: 1, bindings: 2, quests: 1, actions: 1 });
+    expect(validation.manifest).toEqual({
+      instances: ['FOREST'],
+      maps: 1,
+      bindings: 2,
+      global: 0,
+      quests: 1,
+      actions: 1,
+    });
     expect(validation.dependencies).toEqual([hatchet.cid, sword.cid].sort());
+  });
+
+  it('passes global content no world, entity default or binding names, and fails one the release cannot serve', async () => {
+    const { models, hatchet, sword } = content();
+    const lantern = definition('lantern', 3, true);
+    const banner = definition('banner', 1);
+    const fileId = new Types.ObjectId();
+    models.ObjectLayer.docs.push(clone(lantern), clone(banner));
+    models.AtlasSpriteSheet.docs.push({ objectLayerCid: lantern.cid, fileId, metadata: layoutOf('lantern') });
+    models.File.docs.push({ _id: fileId, data: primaryOf('lantern') });
+    models.CyberiaGlobalContent.docs.push({ objectLayerCid: lantern.cid }, { objectLayerCid: banner.cid });
+    const resolveCanonical = canonicalFrom([hatchet, sword, lantern, banner]);
+    const passed = await validateContentRelease(models, { resolveCanonical });
+    expect(failing(passed)).toEqual({});
+    expect(passed.checks.find(({ name }) => name === 'global').count).toBe(2);
+    expect(passed.checks.find(({ name }) => name === 'canonical').count).toBe(4);
+    expect(passed.manifest.global).toBe(2);
+    expect(passed.dependencies).toEqual([hatchet.cid, sword.cid, lantern.cid, banner.cid].sort());
+
+    const absent = definition('absent', 2);
+    models.CyberiaGlobalContent.docs.push({ objectLayerCid: absent.cid });
+    models.File.docs.find(({ _id }) => _id === fileId).data = Buffer.from('another image');
+    models.ObjectLayer.docs.find(({ cid }) => cid === banner.cid).origin = 'draft';
+    const failed = failing(await validateContentRelease(models, { resolveCanonical }));
+    expect(failed.global).toEqual([
+      expect.stringMatching(new RegExp(`^${lantern.cid}: the atlas holds render \\w+`)),
+      `${banner.cid}: a draft, never published`,
+      `${absent.cid}: not in the release cache`,
+    ]);
+    expect(failed.canonical).toEqual([`${absent.cid}: unknown to the Object Layer authority`]);
   });
 
   it('fails on a world without an active economy, or an item policy of an unbound label', async () => {
@@ -431,7 +470,7 @@ describe('candidate validation', () => {
     models.File.docs[0].data = Buffer.from('another image');
     const other = renderContractOf({ primary: Buffer.from('another image'), metadata: layoutOf('hatchet') });
     expect(await validate()).toEqual([
-      `hatchet: the atlas holds render ${other.cid} + ${named.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`,
+      `hatchet (${hatchet.cid}): the atlas holds render ${other.cid} + ${named.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`,
     ]);
 
     models.File.docs[0].data = primaryOf('hatchet');
@@ -441,7 +480,7 @@ describe('candidate validation', () => {
       metadata: models.AtlasSpriteSheet.docs[0].metadata,
     });
     expect(await validate()).toEqual([
-      `hatchet: the atlas holds render ${named.cid} + ${relaid.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`,
+      `hatchet (${hatchet.cid}): the atlas holds render ${named.cid} + ${relaid.metadataCid}, the definition names ${named.cid} + ${named.metadataCid}`,
     ]);
   });
 
@@ -519,6 +558,12 @@ describe('publication to the Object Layer authority', () => {
     const again = await publishContentRelease(models, { publish, resolveCanonical });
     expect(again).toMatchObject({ ok: true, count: 2, created: 0 });
     expect(sent).toEqual([sword.cid]);
+
+    const lantern = definition('lantern', 3);
+    models.ObjectLayer.docs.push(clone(lantern));
+    models.CyberiaGlobalContent.docs.push({ objectLayerCid: lantern.cid }, { objectLayerCid: hatchet.cid });
+    expect(await publishContentRelease(models, { publish, resolveCanonical })).toMatchObject({ count: 3, created: 1 });
+    expect(sent).toEqual([sword.cid, lantern.cid]);
   });
 
   it('fails when the authority stores the content under another identity', async () => {
@@ -784,10 +829,27 @@ describe('artifact import order', () => {
     ]);
   });
 
+  it('imports the global content after the sagas and before the instances, whatever instances it selects', async () => {
+    const { ran, run } = recorder();
+    const manifest = {
+      sagas: ['amethyst-strata-expansion'],
+      instances: ['test'],
+      global: [`bafkrei${'a'.repeat(52)}`],
+    };
+    await importArtifactContent({ run, ...selectReleaseContent({ manifest, instances: ['test'] }), releaseId: 'v1' });
+    expect(ran).toEqual([
+      'content import --release v1',
+      'content import --saga amethyst-strata-expansion --rebind --release v1',
+      'content import --global --release v1',
+      'instance test --import --release v1',
+    ]);
+  });
+
   it('runs the same import for the same artifact and content set, and leaves undeclared instances out', async () => {
     const manifest = {
       sagas: ['amethyst-strata-expansion'],
       instances: ['amethyst-strata-expansion', 'fallback', 'test'],
+      global: [],
     };
     const imported = async () => {
       const { ran, run } = recorder();

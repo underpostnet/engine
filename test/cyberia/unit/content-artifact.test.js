@@ -107,6 +107,7 @@ const writeArtifact = (files, edit = () => {}) => {
     build: {},
     instances: ['X'],
     sagas: [],
+    global: [],
     files: digests,
   };
   edit(manifest);

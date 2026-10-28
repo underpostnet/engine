@@ -55,18 +55,18 @@ building ──▶ candidate ──validate──▶ validated ──promote─�
     └────────────┴──▶ failed (with the stage)                 └──────── rollback ────────┘
 ```
 
-| Step      | What happens                                                                                                                                                                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prepare   | On the host, `content-release prepare <id> --channel <channel>` fetches the locked revision into a read-only workspace                                                                                                        |
-| Contract  | In the Release Job, the repository's own `npm ci`, `npm test` and `npm pack` build a copy of the workspace, with no Secret                                                                                                    |
-| Verify    | The built artifact has the locked digest and revision                                                                                                                                                                         |
-| Ingest    | The release copy of the artifact is stored, then the foundation, the release sagas and each served world are imported into the release database: the release is a `candidate`. A failed foundation import imports no world    |
-| Validate  | Definitions the Object Layer authority does not hold are published to it, then `artifact`, `catalog`, `canonical`, `labels`, `skills`, `render`, `instances`, `economy`, `schema`                                             |
-| Promote   | One transaction retires the active release and activates the new one. A unique index allows one active release                                                                                                                |
-| Serve     | Each engine follows the ledger, reads the release copy of the artifact, rebinds the partition and hot-reloads the game servers ([Serving a release](#serving-a-release))                                                      |
-| Roll back | `cyberia content-release rollback` re-promotes the previous release                                                                                                                                                           |
-| Retire    | `cyberia content-release retire` retires the active release with no successor: the workspace serves until a promotion                                                                                                         |
-| Prune     | A Release Job drops old releases: database and ledger entry. A building, validated or active release, the rollback target and the renders players own stay. The host then removes every release workspace but the current one |
+| Step      | What happens                                                                                                                                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prepare   | On the host, `content-release prepare <id> --channel <channel>` fetches the locked revision into a read-only workspace                                                                                                                         |
+| Contract  | In the Release Job, the repository's own `npm ci`, `npm test` and `npm pack` build a copy of the workspace, with no Secret                                                                                                                     |
+| Verify    | The built artifact has the locked digest and revision                                                                                                                                                                                          |
+| Ingest    | The release copy of the artifact is stored, then the foundation, the release sagas, the global content and each served world are imported into the release database: the release is a `candidate`. A failed foundation import imports no world |
+| Validate  | Definitions the Object Layer authority does not hold are published to it, then `artifact`, `catalog`, `canonical`, `labels`, `skills`, `render`, `global`, `instances`, `economy`, `schema`                                                    |
+| Promote   | One transaction retires the active release and activates the new one. A unique index allows one active release                                                                                                                                 |
+| Serve     | Each engine follows the ledger, reads the release copy of the artifact, rebinds the partition and hot-reloads the game servers ([Serving a release](#serving-a-release))                                                                       |
+| Roll back | `cyberia content-release rollback` re-promotes the previous release                                                                                                                                                                            |
+| Retire    | `cyberia content-release retire` retires the active release with no successor: the workspace serves until a promotion                                                                                                                          |
+| Prune     | A Release Job drops old releases: database and ledger entry. A building, validated or active release, the rollback target and the renders players own stay. The host then removes every release workspace but the current one                  |
 
 The source channel is provenance: a release from the private channel runs the same steps and may
 serve production. One release executes at a time; a second one waits for its own run. A production
@@ -78,12 +78,13 @@ altered or of another content than the release records, a cid missing from the r
 whose hash is not its cid, a draft, a profile other than the Cyberia runtime's, a cid the authority
 does not hold, a quest or an action that still pins a definition, a map label the catalog does not
 bind, a skill document that cannot run, a bound definition with no stored primary render or with a primary render or metadata that is
-not the pair its `data.render` names, an instance without its conf or maps.
+not the pair its `data.render` names, a global content definition the release does not store, does
+not publish, or whose atlas is not the render it names, an instance without its conf or maps.
 
 The ledger records for each release its source (the channel, the repository and the revision),
 every source the deploy resolved, the content artifact, its provenance (engine version and commit,
-builder, Release Job), its manifest (instances, maps, bindings, quests, actions) and its Object
-Layer dependencies (every bound CID). A failed release names the stage that failed.
+builder, Release Job), its manifest (instances, maps, bindings, global content, quests, actions) and
+its Object Layer dependencies (every bound CID and every global content CID). A failed release names the stage that failed.
 
 A rerun of the same deploy resumes the same release: a validated or promoted one is left as it is,
 and a failed one is built again. Every build starts from an empty candidate database, the first one
@@ -155,13 +156,14 @@ The next release replaces the baseline with the content of `cyberia-content`, an
 change. A change that must outlive its release goes into `cyberia-content` on purpose:
 `cyberia content-release export-live` writes it out from a host backup, and a commit makes it source.
 An item binding is such a change: the export freezes the definition each item runs into the
-snapshot, and the next release restores it. Nothing writes Git on its own, and no release reads
+snapshot, and the next release restores it. So is [global content](runtime-binding.md#global-content):
+the export writes each definition no world carries, and the next release imports it. Nothing writes Git on its own, and no release reads
 the previous database. See [Runtime binding](runtime-binding.md#releases). A rollback serves the previous release with the live changes it held
 when it retired.
 
 A release records the fingerprint of its content as it was built: one digest per content API of
 the worlds and their bindings (instances, confs, maps, quests, actions, dialogues, skills, entity
-defaults and the item catalog). Timestamps, version keys, save revisions and generated map
+defaults, the item catalog and the global content). Timestamps, version keys, save revisions and generated map
 pictures do not count. `content-release live-changes` compares the active release with its
 fingerprint and names each API that changed. `promote` and `build --promote` refuse while there
 is a change, because the promotion stops serving it. Export the changed worlds, commit them to
