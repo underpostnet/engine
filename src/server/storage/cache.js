@@ -9,8 +9,9 @@
  * Key: `cache:{environment}:{domain}:{resource}:{scope}:{identifier}:{variant}`, where the
  * scope carries the content data of the context (the databases it serves) and any user scope
  * the caller adds. The namespace (`environment:domain:resource`) holds a version; an
- * invalidation bumps it, so keys of the old version are never read again and expire by their
- * TTL. No mutation scans keys.
+ * invalidation gives it a version no earlier value holds, so keys of the old version are never
+ * read again and expire by their TTL. A namespace whose version key expired or was evicted takes
+ * a fresh version too, so no old value comes back. No mutation scans keys.
  *
  * @module src/server/storage/cache.js
  * @namespace CacheService
@@ -40,6 +41,29 @@ export const CACHE_POLICY = Object.freeze({
 
 /** Versions outlive every value of their namespace. */
 const VERSION_TTL_MS = 30 * 24 * 60 * MINUTE;
+
+/** A version no earlier value of a namespace holds. */
+const freshVersion = () => `${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`;
+
+/** Version reads in flight, by version key: concurrent reads of a namespace with no version take one. */
+const versionReads = new Map();
+
+/** The version of a namespace; a namespace with none takes a fresh one. */
+const versionOf = (namespace) => {
+  const versionKey = `${namespace.prefix}:version`;
+  if (!versionReads.has(versionKey))
+    versionReads.set(
+      versionKey,
+      (async () => {
+        const stored = await ValkeyAPI.get(namespace.instance, versionKey);
+        if (stored !== null) return stored;
+        const version = freshVersion();
+        await ValkeyAPI.set(namespace.instance, versionKey, version, VERSION_TTL_MS);
+        return version;
+      })().finally(() => versionReads.delete(versionKey)),
+    );
+  return versionReads.get(versionKey);
+};
 
 const environment = () => process.env.NODE_ENV || 'development';
 
@@ -129,7 +153,7 @@ class CacheService {
     }
     let key;
     try {
-      const version = Number(await ValkeyAPI.get(namespace.instance, `${namespace.prefix}:version`)) || 0;
+      const version = await versionOf(namespace);
       key = local.replace(`${namespace.prefix}:`, `${namespace.prefix}:v${version}:`);
       const hit = await ValkeyAPI.get(namespace.instance, key);
       if (hit !== null) {
@@ -159,7 +183,7 @@ class CacheService {
   }
 
   /**
-   * Invalidates every value of a namespace, in every scope and variant, by bumping its
+   * Invalidates every value of a namespace, in every scope and variant, by giving it a fresh
    * version. Idempotent and safe when the provider is down: the values then expire on their own.
    * @param {CacheNamespace} namespace
    * @returns {Promise<void>}
@@ -167,7 +191,7 @@ class CacheService {
   static async invalidate(namespace) {
     if (!ValkeyAPI.isConnected(namespace.instance)) return;
     try {
-      await ValkeyAPI.incr(namespace.instance, `${namespace.prefix}:version`, VERSION_TTL_MS);
+      await ValkeyAPI.set(namespace.instance, `${namespace.prefix}:version`, freshVersion(), VERSION_TTL_MS);
       operations.inc({ namespace: namespace.label, result: 'invalidate' });
     } catch (error) {
       operations.inc({ namespace: namespace.label, result: 'error' });

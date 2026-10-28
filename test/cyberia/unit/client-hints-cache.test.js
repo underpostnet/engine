@@ -7,11 +7,6 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
     isConnected: () => true,
     get: async (_options, key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
     set: async (_options, key, value) => store.set(key, JSON.stringify(value)),
-    incr: async (_options, key) => {
-      const next = Number(JSON.parse(store.get(key) ?? '"0"')) + 1;
-      store.set(key, JSON.stringify(String(next)));
-      return next;
-    },
   },
 }));
 

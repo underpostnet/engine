@@ -27,11 +27,6 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
       store.set(key, typeof payload === 'string' ? JSON.stringify(payload) : JSON.stringify(payload));
       return 'OK';
     }),
-    incr: command(async (_options, key) => {
-      const next = (Number(JSON.parse(store.get(key) ?? '0')) || 0) + 1;
-      store.set(key, JSON.stringify(String(next)));
-      return next;
-    }),
     client: () => client,
   },
 }));
@@ -79,13 +74,23 @@ describe('a cache-aside read', () => {
     expect(await read()).toEqual({ data: [1, 2] });
     expect(await read()).toEqual({ data: [1, 2] });
     expect(load).toHaveBeenCalledTimes(1);
-    expect([...store.keys()].some((key) => key.includes(':v0:base.public:list:a'))).toBe(true);
+    const version = JSON.parse(store.get(`${namespace.prefix}:version`));
+    expect([...store.keys()].some((key) => key.includes(`:v${version}:base.public:list:a`))).toBe(true);
   });
 
   it('shares one load between concurrent misses', async () => {
     const load = vi.fn(() => new Promise((resolve) => setTimeout(() => resolve('value'), 20)));
     const reads = [1, 2, 3].map(() => CacheService.getOrLoad(namespace, { identifier: 'slow', load }));
     expect(await Promise.all(reads)).toEqual(['value', 'value', 'value']);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the concurrent first reads of a namespace one version, so the next read is a hit', async () => {
+    const fresh = CacheService.namespace(options, 'first-reads', CACHE_POLICY.registry);
+    const load = vi.fn(() => new Promise((resolve) => setTimeout(() => resolve('drawn'), 20)));
+    const read = () => CacheService.getOrLoad(fresh, { identifier: 'picture', load });
+    expect(await Promise.all([read(), read(), read()])).toEqual(['drawn', 'drawn', 'drawn']);
+    expect(await read()).toBe('drawn');
     expect(load).toHaveBeenCalledTimes(1);
   });
 
@@ -136,13 +141,34 @@ describe('invalidation', () => {
     const load = loader('old');
     await CacheService.getOrLoad(namespace, { identifier: 'list', variant: 'a', load });
     await CacheService.getOrLoad(namespace, { identifier: 'list', variant: 'b', load });
+    const before = JSON.parse(store.get(`${namespace.prefix}:version`));
     await CacheService.invalidate(namespace);
     const fresh = loader('new');
     expect(await CacheService.getOrLoad(namespace, { identifier: 'list', variant: 'a', load: fresh })).toBe('new');
     expect(await CacheService.getOrLoad(namespace, { identifier: 'list', variant: 'b', load: fresh })).toBe('new');
     expect(fresh).toHaveBeenCalledTimes(2);
-    expect(store.get(`${namespace.prefix}:version`)).toBe(JSON.stringify('1'));
-    expect([...store.keys()].filter((key) => key.includes(':v0:')).length).toBe(2);
+    expect(JSON.parse(store.get(`${namespace.prefix}:version`))).not.toBe(before);
+    expect([...store.keys()].filter((key) => key.includes(`:v${before}:`)).length).toBe(2);
+  });
+
+  it('never reads an old value again once the version key expires or is evicted, and the next invalidation finds none either', async () => {
+    const versionKey = `${namespace.prefix}:version`;
+    await CacheService.getOrLoad(namespace, { identifier: 'list', load: loader('first') });
+    await CacheService.invalidate(namespace);
+    await CacheService.getOrLoad(namespace, { identifier: 'list', load: loader('second') });
+    const versions = new Set([JSON.parse(store.get(versionKey))]);
+    for (let evictions = 0; evictions < 3; evictions++) {
+      store.delete(versionKey);
+      const reload = loader('current');
+      expect(await CacheService.getOrLoad(namespace, { identifier: 'list', load: reload })).toBe('current');
+      expect(reload).toHaveBeenCalledTimes(1);
+      await CacheService.invalidate(namespace);
+      const after = loader('after');
+      expect(await CacheService.getOrLoad(namespace, { identifier: 'list', load: after })).toBe('after');
+      expect(after).toHaveBeenCalledTimes(1);
+      expect(versions.has(JSON.parse(store.get(versionKey)))).toBe(false);
+      versions.add(JSON.parse(store.get(versionKey)));
+    }
   });
 
   it('leaves another resource untouched', async () => {
@@ -158,8 +184,9 @@ describe('invalidation', () => {
     const elsewhere = CacheService.namespace({ host: 'www.cyberiaonline.com', path: '/' }, 'cyberia-map');
     await CacheService.getOrLoad(namespace, { identifier: 'list', load: loader(1) });
     await CacheService.getOrLoad(elsewhere, { identifier: 'list', load: loader(2) });
-    expect(await CacheService.clear(options)).toBe(1);
-    expect([...store.keys()]).toEqual([`${elsewhere.prefix}:v0:base.public:list:`]);
+    expect(await CacheService.clear(options)).toBe(2);
+    expect([...store.keys()].every((key) => key.startsWith(elsewhere.prefix))).toBe(true);
+    expect([...store.keys()].some((key) => key.endsWith(':base.public:list:'))).toBe(true);
   });
 });
 

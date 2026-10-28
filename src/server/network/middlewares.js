@@ -236,6 +236,27 @@ const controllerHandler =
   };
 
 /**
+ * Builds a controller method that answers the PNG a service draws, or 204 when it draws nothing.
+ * @method pictureHandler
+ * @param {(req, res, options) => Promise<Buffer|null>} draw
+ * @param {(req) => string} filename
+ * @returns {Function} Async Express-compatible controller handler.
+ * @memberof Middlewares
+ */
+const pictureHandler = (draw, filename) =>
+  controllerHandler(
+    async (req, res, options) => {
+      const buffer = await draw(req, res, options);
+      if (!buffer) {
+        setCrossOriginHeaders(req, res);
+        return res.status(204).end();
+      }
+      return sendBlob(req, res, { buffer, mimetype: 'image/png', filename: filename(req) });
+    },
+    { errorStatus: 404 },
+  );
+
+/**
  * Builds a controller method that delegates to a service method and wraps the
  * result in the success envelope.
  * @method serviceHandler
@@ -332,6 +353,7 @@ export {
   ssrViewHeaderRoutes,
   sendBlob,
   controllerHandler,
+  pictureHandler,
   serviceHandler,
   buildCrudController,
   registerCrudRoutes,

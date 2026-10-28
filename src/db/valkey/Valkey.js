@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *  - Manage per-instance Valkey connections keyed by `${host}${path}`: open and close.
- *  - Provide a thin, typed surface: get / set / del / incr and the raw client.
+ *  - Provide a thin, typed surface: get / set / del and the raw client.
  *  - Expose connection status helpers.
  *
  * Out of scope: domain model factories, DTO projection — those belong in
@@ -185,22 +185,6 @@ const set = async (options, key, payload, ttlMs) => {
  */
 const del = async (options, key) => _client(options).del(key);
 
-/**
- * Increments an integer key atomically, giving it an expiry.
- *
- * @param {{ host?: string, path?: string }} options
- * @param {string} key
- * @param {number} ttlMs
- * @returns {Promise<number>} The value after the increment.
- * @memberof ValkeyService
- */
-const incr = async (options, key, ttlMs) => {
-  const client = _client(options);
-  const value = await client.incr(key);
-  await client.pexpire(key, ttlMs);
-  return value;
-};
-
 // ─── Public API class ─────────────────────────────────────────────────────────
 
 /**
@@ -213,11 +197,10 @@ class ValkeyAPI {
   static get = get;
   static set = set;
   static del = del;
-  static incr = incr;
   /** The connected raw client of an instance; throws when it is not connected. */
   static client = _client;
   static createValkeyConnection = createValkeyConnection;
   static closeValkeyConnection = closeValkeyConnection;
 }
 
-export { isValkeyEnable, createValkeyConnection, closeValkeyConnection, get, set, del, incr, ValkeyAPI };
+export { isValkeyEnable, createValkeyConnection, closeValkeyConnection, get, set, del, ValkeyAPI };
