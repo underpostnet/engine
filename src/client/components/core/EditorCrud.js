@@ -140,8 +140,9 @@ class EditorCrud {
    * Wires the bar under `root`. A running action locks the bar, so a double click never saves twice.
    * @param {Element} root - The element that `render` produced.
    * @param {() => {subject: string, id?: string, name?: string, new?: Function, save?: Function,
-   *   clone?: Function, reset?: Function, delete?: Function}} state - The loaded document (`id`,
-   *   and the `name` to show) and the handler of each action the editor offers now.
+   *   clone?: Function, reset?: Function, delete?: Function, labels?: Object<string,string>}} state - The
+   *   loaded document (`id`, and the `name` to show), the handler of each action the editor offers now,
+   *   and the label of an action that says more than its default, such as where a save writes.
    * @returns {{refresh: () => void}}
    */
   static bind(root, state) {
@@ -164,6 +165,7 @@ class EditorCrud {
       for (const { button, action } of buttons) {
         button.hidden = typeof current[action.id] !== 'function';
         button.disabled = busy || (!!action.loaded && !current.id);
+        button.lastChild.textContent = current.labels?.[action.id] ?? action.label;
       }
     };
     for (const { button, action } of buttons)

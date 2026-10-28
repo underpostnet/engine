@@ -33,6 +33,7 @@ const fixture = () => {
     dataset: { crud: action },
     hidden: true,
     disabled: false,
+    lastChild: { textContent: '' },
   }));
   const root = {
     offsetHeight: 48,
@@ -80,6 +81,19 @@ describe('editor CRUD bar', () => {
     crud.refresh();
     expect(status.innerHTML).toContain('&lt;forest>');
     expect([button('reset'), button('delete')].map(({ disabled }) => disabled)).toEqual([false, false]);
+  });
+
+  it('names an action by the label the editor gives it, and by its own label otherwise', () => {
+    const { root, button } = fixture();
+    const state = { subject: 'instance', save: vi.fn(), reset: vi.fn(), labels: { save: 'Save to Procedural Draft' } };
+    const crud = EditorCrud.bind(root, () => state);
+    expect([button('save'), button('reset')].map(({ lastChild }) => lastChild.textContent)).toEqual([
+      'Save to Procedural Draft',
+      'Reset',
+    ]);
+    delete state.labels;
+    crud.refresh();
+    expect(button('save').lastChild.textContent).toBe('Save');
   });
 
   it('asks before New and Reset, and runs neither without a confirmation', async () => {
