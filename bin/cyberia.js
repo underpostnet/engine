@@ -160,6 +160,7 @@ import { runtimeModels, syncRuntimeIndexes } from '../src/projects/cyberia/runti
 import { PROCEDURAL_APIS } from '../src/projects/cyberia/procedural/engine.js';
 import { populationModels } from '../src/projects/cyberia/procedural/population/map-context.js';
 import { migratePopulations } from '../src/projects/cyberia/procedural/population/migration.js';
+import { DRAFT_RETENTION_DAYS, pruneClosedDrafts } from '../src/projects/cyberia/procedural/population/retention.js';
 import { paletteCatalog } from '../src/projects/cyberia/procedural/palettes/catalog.js';
 import { migrateJobs } from '../src/projects/cyberia/procedural/jobs/migration.js';
 import { genesisTemplates } from '../src/projects/cyberia/procedural/templates.js';
@@ -178,6 +179,7 @@ import {
   contentRoot,
   deploymentRoot,
   entityTypeDefaultKey,
+  globalContentSourceDir,
   importContent,
   importSaga,
   instanceSourceDir,
@@ -187,6 +189,13 @@ import {
   readDatabaseContent,
   storeContentArtifact,
 } from '../src/projects/cyberia/content/content-artifact.js';
+import {
+  GLOBAL_CONTENT_DIR,
+  exportGlobalContent,
+  reconcileGlobalContent,
+  representedCids,
+  restoreGlobalContent,
+} from '../src/projects/cyberia/content/global-content-source.js';
 
 import { ITEM_TYPES as itemTypes } from '../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { balanceStats, resolveStatBounds, statPolicyActive } from '../src/projects/cyberia/stats/stat-balance.js';
@@ -3854,8 +3863,11 @@ try {
     'cyberia-universe',
     'file',
     'cyberia-item-catalog',
+    'cyberia-global-content',
     'object-layer',
+    'object-layer-render-frames',
     'atlas-sprite-sheet',
+    'ipfs',
     'cyberia-quest',
     'cyberia-action',
     'cyberia-map',
@@ -4330,11 +4342,12 @@ try {
     contentRelease
       .command('export-live')
       .option('--backup <dir>', 'One backup of this host, a timestamp folder (default: its latest backup)')
-      .option('--apply', 'Write the exported instances to cyberia-content')
+      .option('--apply', 'Write the exported instances and the global content to cyberia-content')
       .description(
-        'Export every world a host backup served into cyberia-content, read by the current models and completed ' +
-          'with the content the artifact adds. Import the same backup first: its Files are read from the host ' +
-          'database. Writes nothing without --apply',
+        'Export every world a host backup served, and its global content, into cyberia-content, read by the ' +
+          'current models and completed with the content the artifact adds. The global content also takes each ' +
+          'definition an item binding or a player stack keeps that no world carries. Import the same backup ' +
+          'first: its Files and player profiles are read from the host database. Writes nothing without --apply',
       ),
   ).action(async (options = {}) => {
     const { deployId, host, path } = resolveDeployDb(options);
@@ -4377,10 +4390,44 @@ try {
       );
       for (const code of codes)
         await run(`instance ${code} --export ${nodePath.join(exportDir, code)} --release ${stagingId}`);
-      for (const code of codes) {
-        const changes = treeChanges(instanceSourceDir(code), nodePath.join(exportDir, code));
+
+      // The staging copy takes what must stay but no world carries; the backup and the host stay as they are.
+      const store = { host: context.host, path: context.path, consumes: context.consumes };
+      const reconciled = await reconcileGlobalContent(catalogModels(store), {
+        options: store,
+        represented: representedCids({
+          artifact: contentArtifact(),
+          snapshots: codes.map((code) => nodePath.join(exportDir, code)),
+        }),
+        apply: true,
+        by: `export-live ${stamp}`,
+      });
+      logger.info(
+        `Global content: ${reconciled.registered} registered, ${reconciled.added.length} added, ` +
+          `${reconciled.represented} carried by a world or the artifact, ${reconciled.invalid.length} invalid, ` +
+          `${reconciled.unreferenced.count} kept by nothing`,
+      );
+      for (const { cid, reason, itemIds } of reconciled.added)
+        console.log(`added ${cid} (${reason}${itemIds.length ? `: ${itemIds.join(', ')}` : ''})`);
+      for (const { cid, reason, problem } of reconciled.invalid) logger.error(`invalid ${cid} (${reason}): ${problem}`);
+      for (const cid of reconciled.unreferenced.cids) console.log(`kept by nothing ${cid}`);
+      await exportGlobalContent(catalogModels(store), {
+        dir: nodePath.join(exportDir, GLOBAL_CONTENT_DIR),
+        options: store,
+      });
+
+      const exported = [
+        ...codes.map((code) => ({ name: code, source: instanceSourceDir(code), dir: nodePath.join(exportDir, code) })),
+        {
+          name: GLOBAL_CONTENT_DIR,
+          source: globalContentSourceDir(),
+          dir: nodePath.join(exportDir, GLOBAL_CONTENT_DIR),
+        },
+      ];
+      for (const { name, source, dir } of exported) {
+        const changes = treeChanges(source, dir);
         logger.info(
-          `${code}: ${changes.created.length} created, ${changes.modified.length} modified, ` +
+          `${name}: ${changes.created.length} created, ${changes.modified.length} modified, ` +
             `${changes.removed.length} removed, ${changes.unchanged} unchanged`,
         );
         // File paths are data, so they go to stdout plainly, never through the logger.
@@ -4389,21 +4436,23 @@ try {
           ['~', changes.modified],
           ['-', changes.removed],
         ])
-          for (const file of files) console.log(`${mark} ${code}/${file}`);
+          for (const file of files) console.log(`${mark} ${name}/${file}`);
       }
       if (options.apply) {
-        const targets = codes.map(instanceSourceDir);
         const dirty = shellExec(
-          `git -C ${shellArgumentFactory(contentRoot())} status --porcelain -- ${targets.map(shellArgumentFactory).join(' ')}`,
+          `git -C ${shellArgumentFactory(contentRoot())} status --porcelain -- ${exported.map(({ source }) => shellArgumentFactory(source)).join(' ')}`,
           { stdout: true, silent: true },
         ).trim();
         if (dirty) throw new Error(`Commit or discard these changes before the export replaces them:\n${dirty}`);
-        for (const [index, code] of codes.entries()) {
-          fs.removeSync(targets[index]);
-          fs.copySync(nodePath.join(exportDir, code), targets[index]);
+        for (const { source, dir } of exported) {
+          fs.removeSync(source);
+          fs.copySync(dir, source);
         }
-        logger.info(`Wrote ${codes.join(', ')} to ${contentRoot()}: review the change with git diff`);
-      } else logger.info('Nothing written: pass --apply to write the exported instances to cyberia-content');
+        logger.info(
+          `Wrote ${exported.map(({ name }) => name).join(', ')} to ${contentRoot()}: review the change with git diff`,
+        );
+      } else
+        logger.info('Nothing written: pass --apply to write the exported instances and global content to cyberia-content');
       ok = true;
     } catch (error) {
       logger.error(error.message);
@@ -4604,6 +4653,53 @@ try {
     }
   });
 
+  releaseEnvOptions(
+    population
+      .command('prune')
+      .description(
+        `Clear the working copies of every map population closed for longer than the retention window ` +
+          `(${DRAFT_RETENTION_DAYS} days by default): its map draft and its instance, universe and default drafts, ` +
+          'with the draft thumbnails no stored instance shows. A published population keeps its publication record ' +
+          'and its targets; an open population, or one whose publication runs or waits for its reload, stays as it ' +
+          'is. Prints what it cleared and what the window keeps as JSON; writes nothing without --apply',
+      )
+      .option('--apply', 'Clear the working copies')
+      .option(
+        '--retention-days <days>',
+        'Days a closed population keeps its working copies',
+        String(DRAFT_RETENTION_DAYS),
+      ),
+  ).action(async (options = {}) => {
+    const { host, path, db } = resolveDeployDb(options);
+    await DataBaseProviderService.load({
+      apis: [
+        ...PROCEDURAL_APIS,
+        'file',
+        'cyberia-map',
+        'cyberia-instance',
+        'cyberia-instance-conf',
+        'cyberia-entity-type-default',
+      ],
+      host,
+      path,
+      db,
+    });
+    try {
+      const retentionDays = Number(options.retentionDays);
+      if (!Number.isFinite(retentionDays) || retentionDays < 0)
+        throw new Error('--retention-days takes a number of days');
+      const report = await pruneClosedDrafts({
+        models: populationModels({ host, path }),
+        options: { host, path },
+        apply: !!options.apply,
+        retentionDays,
+      });
+      console.log(JSON.stringify(report, null, 2));
+    } finally {
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    }
+  });
+
   // ─── Runtime indexes ────────────────────────────────────────────────────────
   releaseEnvOptions(
     program
@@ -4695,6 +4791,7 @@ try {
     'cyberia-saga',
     'cyberia-instance',
     'cyberia-instance-conf',
+    'cyberia-global-content',
     ...ITEM_DEFINITION_APIS,
   ];
 
@@ -4823,15 +4920,32 @@ try {
     content
       .command('import')
       .option('--saga <code>', 'Import this saga of the artifact instead of the foundation')
+      .option('--global', 'Import the global content of the artifact instead of the foundation')
       .option('--release <release-id>', 'Import into the content release database of this id instead of the workspace')
       .option('--rebind', 'Move differing labels and documents to the artifact; render and placement stay')
       .option('--dry-run', 'Plan only; write nothing')
       .description(
         'Import the content artifact: Object Layer definitions and their catalog bindings, entity-type ' +
-          'defaults, skills, maps, quests, dialogues, markets, actions and economies of the foundation, or of one saga. Idempotent',
+          'defaults, skills, maps, quests, dialogues, markets, actions and economies of the foundation, or of one ' +
+          'saga; or the global content: each definition, its render, its row and the item ids bound to it. Idempotent',
       ),
   ).action(async (options = {}) => {
     const artifact = contentArtifact();
+    if (options.global) {
+      if (options.saga || options.dryRun || options.rebind) {
+        logger.error('--global imports the global content as the artifact holds it: no --saga, --dry-run or --rebind');
+        process.exit(1);
+      }
+      const { host, path, valkey, consumes, provider } = await openContent(options);
+      if (!options.release) await connectEngineCache({ host, path, valkey });
+      const restored = await restoreGlobalContent(catalogModels({ host, path }), {
+        artifact,
+        options: { host, path, consumes },
+      });
+      logger.info(`Imported the global content: ${restored.length} definition(s)`);
+      await provider.close();
+      process.exit(0);
+    }
     const saga = options.saga ? artifact.saga(options.saga) : null;
     const families = saga ? saga.families : artifact.foundation;
     const rebind = !!options.rebind;

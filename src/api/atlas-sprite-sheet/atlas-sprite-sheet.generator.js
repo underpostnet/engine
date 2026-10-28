@@ -40,6 +40,9 @@ export const PRIMARY_CELL_PIXEL_DIM = 1;
 /** Longest side, in cells, of an atlas. */
 const MAX_ATLAS_DIM = 4096;
 
+/** The first bytes of every PNG file. */
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 /**
  * Longer side, in pixels, of the idle preview every client shows as an item's picture.
  * @memberof CyberiaAtlasSpriteSheetGenerator
@@ -257,17 +260,21 @@ export class AtlasSpriteSheetGenerator {
    * @param {Buffer} render - PNG bytes of the primary render.
    * @param {Object} metadata - Layout of the render.
    * @param {Object} [limits]
-   * @param {number} [limits.maxPixels=Infinity] - The most pixels its frames may hold.
+   * @param {number} [limits.maxPixels=Infinity] - The most pixels its atlas may hold.
    * @returns {Promise<Object>} A render source (`RenderSource.js`).
-   * @throws {Error} When the layout does not describe the render, or its frames exceed the limits.
+   * @throws {Error} When the render is not a PNG, the layout does not describe the render, or the
+   *   render exceeds the limits. Every check runs before the render is decoded.
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
   static async sourceFromRender(render, metadata, { maxPixels = Infinity } = {}) {
     const { atlasWidth, atlasHeight, cellPixelDim, frame_duration: frameDurationMs, frames } = metadata ?? {};
+    if (!Buffer.isBuffer(render) || !render.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE))
+      throw new Error('The render is not a PNG');
     if (cellPixelDim !== PRIMARY_CELL_PIXEL_DIM)
       throw new Error(`A primary render holds ${PRIMARY_CELL_PIXEL_DIM} pixel per cell, not ${cellPixelDim}`);
     if (![atlasWidth, atlasHeight].every((side) => Number.isInteger(side) && side >= 1 && side <= MAX_ATLAS_DIM))
       throw new Error(`An atlas is 1 to ${MAX_ATLAS_DIM} cells a side`);
+    if (atlasWidth * atlasHeight > maxPixels) throw new Error(`The atlas holds over ${maxPixels} pixels`);
     if (!Number.isFinite(frameDurationMs) || frameDurationMs < 0)
       throw new Error('A layout names its frame duration in milliseconds');
     if (frames === null || typeof frames !== 'object' || Array.isArray(frames))
@@ -286,8 +293,7 @@ export class AtlasSpriteSheetGenerator {
       return [keyframe, boxes];
     });
     const pixels = keyframes.flatMap(([, boxes]) => boxes).reduce((sum, box) => sum + box.width * box.height, 0);
-    if (pixels > Math.min(maxPixels, atlasWidth * atlasHeight))
-      throw new Error(`The frames of the layout hold ${pixels} pixels`);
+    if (pixels > atlasWidth * atlasHeight) throw new Error(`The frames of the layout hold ${pixels} pixels`);
 
     const { data, info } = await sharp(render, { limitInputPixels: atlasWidth * atlasHeight })
       .ensureAlpha()

@@ -3,6 +3,7 @@ import {
   animationPace,
   drawEntities,
   entityKey,
+  mapMediaDrawing,
   trackComposition,
 } from '../../../src/client/components/cyberia/MapPlacementCyberia.js';
 
@@ -97,5 +98,21 @@ describe('the drawing of placed entities', () => {
     expect(animationPace([floor, portal], (itemId) => (itemId === 'gate' ? vortex : still))).toBe(200);
     expect(animationPace([floor], () => still)).toBe(0);
     expect(animationPace([floor], () => ({ missing: 'no atlas' }))).toBe(0);
+  });
+});
+
+describe('the preview state of a map revision', () => {
+  const media = (revision, status) => ({ revision, status, error: '' });
+
+  it('runs a draw only while the media of the revision the map is at is pending', () => {
+    expect(mapMediaDrawing(media(3, 'pending'), 3)).toBe(true);
+    expect(mapMediaDrawing(media(3, 'ready'), 3)).toBe(false);
+    expect(mapMediaDrawing(media(3, 'failed'), 3)).toBe(false);
+  });
+
+  it('runs no draw for a map with no media or media of another revision', () => {
+    expect(mapMediaDrawing(null, 1)).toBe(false);
+    expect(mapMediaDrawing(media(2, 'pending'), 3)).toBe(false);
+    expect(mapMediaDrawing(media(4, 'pending'), 3)).toBe(false);
   });
 });

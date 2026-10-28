@@ -572,7 +572,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const other = await publishItem('small-twin', { renderSource: square(24) });
       await rebind('small-skin', other);
       expect(targetOf(await view(population._id), 'small-skin').state).toBe('conflict');
-      expect((await validatePublication({ models: all(), id: population._id })).problems).toContain(
+      expect((await validatePublication({ models: all(), id: population._id, options: host })).problems).toContain(
         'The binding of small-skin moved since it was kept: keep it again or choose new artwork',
       );
       const again = await keep(population._id, 'small-skin');
@@ -1278,24 +1278,30 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
         items: { state: 'ready', detail: '3 of 3 items ready' },
         defaults: { state: 'ready', detail: '1 default · no default names violet-moss' },
         map: { state: 'not-started', detail: 'No map changes: the map stays as it is' },
+        context: { state: 'ready', detail: 'Run by 1 instance' },
         publish: { state: 'not-started', detail: 'Not published' },
       });
-      const reuse = await validatePublication({ models: all(), id: population._id });
+      const reuse = await validatePublication({ models: all(), id: population._id, options: host });
       expect(reuse).toMatchObject({ ready: true, problems: [], plan: { assets: [], media: null } });
       expect(reuse.plan.kept.map(({ itemId }) => itemId)).toEqual(['iron-sword', 'violet-moss', 'violet-skin']);
       const regenerate = await change(population._id, 'violet-moss', { resolution: 'render' });
       expect(regenerate.steps.items).toEqual({ state: 'in-progress', detail: '2 of 3 items ready' });
-      expect(await validatePublication({ models: all(), id: population._id })).toMatchObject({
+      expect(await validatePublication({ models: all(), id: population._id, options: host })).toMatchObject({
         ready: false,
         problems: ['Keep the current artwork, select new artwork, author it by hand or remove: violet-moss'],
       });
       const decided = await decideAll(population._id);
       expect(decided.steps.items).toEqual({ state: 'ready', detail: '3 of 3 items ready' });
-      expect((await validatePublication({ models: all(), id: population._id })).problems).toEqual([
+      expect((await validatePublication({ models: all(), id: population._id, options: host })).problems).toEqual([
         'Accept the change of violet-moss: each runs beyond map violet-hollow too',
       ]);
       expect(
-        await validatePublication({ models: all(), id: population._id, body: { acknowledged: ['violet-moss'] } }),
+        await validatePublication({
+          models: all(),
+          id: population._id,
+          body: { acknowledged: ['violet-moss'] },
+          options: host,
+        }),
       ).toMatchObject({ ready: true, problems: [] });
       const request = (revision) =>
         requestPublication({
@@ -1996,7 +2002,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       const conf = await all().CyberiaInstanceConf.findOne({ instanceCode: 'violet-world' }).lean();
       expect(conf.entityDefaults.map(String)).toEqual([String(wardenRow._id)]);
       expect(await all().CyberiaEntityTypeDefault.find({}).sort({ _id: 1 }).lean()).toEqual(defaults);
-      expect(published.publication.commit).not.toHaveProperty('defaults');
+      expect(published.publication.commit.defaults).toEqual([]);
       expect(published.publication.plan.media).toEqual({ mapCode: 'violet-hollow', revision: before.revision + 1 });
       expect(after.media).toMatchObject({ revision: before.revision + 1, status: 'pending' });
       expect(await rejection(publish(population._id))).toMatchObject({ status: 409 });

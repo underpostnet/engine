@@ -1,11 +1,14 @@
 /**
- * The Map Population workflow of the Procedural Engine view, in four steps that follow the work.
+ * The Map Population workflow of the Procedural Engine view, in five steps that follow the work.
  * **Items**: each item the map needs, grouped by type. One resolution of four says how its artwork
  * resolves, with its settings and one primary action; its results show in one gallery, where Use
  * makes one result the artwork it publishes, and Delete or Reset remove what it no longer needs.
- * **Entity type defaults**: the stored defaults that name the staged items. **Map**: the Map
- * Studio composes the draft, grid and placements, each item drawn by the CID it would run.
- * **Publish**: a check, then a background publication applies everything onto the same map.
+ * **Entity type defaults**: the stored defaults that name the staged items, where each runs, and the
+ * variants the instance drafts propose. **Map**: the Map Studio composes the draft, grid and
+ * placements, each item drawn by the CID it would run. **Runtime context** (optional): the working
+ * graph of the instances and universes around the map, each opened in its own Studio, whose save
+ * writes the draft of the population and returns here. **Publish**: a check, then a background
+ * publication applies everything in one commit.
  * A population stays on the server, so a reload, another browser or another moderator opens it as
  * it was saved. Every state this view shows comes from the server; it computes none.
  *
@@ -19,6 +22,7 @@ import { animationPace, drawEntities, mapMediaLabel } from './MapPlacementCyberi
 import { ProceduralGrid } from './ProceduralGridCyberia.js';
 import { ProceduralPalette, swatches } from './ProceduralPaletteCyberia.js';
 import { authoringKey } from './SharedDefaultsCyberia.js';
+import { StudioCyberia } from './StudioCyberia.js';
 import {
   column,
   decide,
@@ -34,6 +38,7 @@ import {
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
+import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
 import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
@@ -41,6 +46,8 @@ import { CyberiaProceduralProfileService } from '../../services/cyberia-procedur
 
 const MAP_STUDIO = 'cyberia-map-engine';
 const ENTITY_STUDIO = 'cyberia-entity-engine';
+const INSTANCE_STUDIO = 'cyberia-instance-engine';
+const UNIVERSE_STUDIO = 'cyberia-universe-engine';
 const MAPS_GRID = 'procedural-maps-grid';
 const POLL_MS = 3000;
 /** The most results one Generate asks for. */
@@ -53,10 +60,12 @@ const STEPS = Object.freeze([
   ['items', 'Items', 'fa-solid fa-cubes'],
   ['defaults', 'Entity type defaults', 'fa-solid fa-diagram-project'],
   ['map', 'Map', 'fa-solid fa-map-location-dot'],
+  ['context', 'Runtime context', 'fa-solid fa-sitemap'],
   ['publish', 'Publish', 'fa-solid fa-cloud-arrow-up'],
 ]);
 const STEP_STATES = Object.freeze({
   'not-started': ['fa-regular fa-circle', 'procedural-muted', 'Not started'],
+  optional: ['fa-regular fa-circle-dot', 'procedural-muted', 'Optional'],
   'in-progress': ['fa-solid fa-circle-half-stroke', '', 'In progress'],
   attention: ['fa-solid fa-triangle-exclamation', 'procedural-bad', 'Needs attention'],
   ready: ['fa-solid fa-circle-check', 'procedural-good', 'Ready'],
@@ -161,6 +170,21 @@ const IMPACT = Object.freeze({
   shared: ['Shared · same biome', 'pending'],
   global: ['Global change', 'bad'],
 });
+/** The state of an instance or a universe in the working graph of the population. */
+const DOCUMENT_STATE = Object.freeze({
+  persisted: ['Persisted', 'muted'],
+  draft: ['Saved to Procedural Draft', 'draft'],
+  new: ['New · Saved to Procedural Draft', 'draft'],
+});
+/** How the association of an instance with the map of the population changes at the publication. */
+const ASSOCIATION = Object.freeze({
+  listed: ['Runs this map', 'live'],
+  adds: ['Pending association', 'pending'],
+  removes: ['Leaves this map', 'bad'],
+  none: ['Does not list this map', 'muted'],
+});
+/** How the universe of an instance changes at the publication. */
+const MEMBERSHIP = Object.freeze({ joins: 'Joins', moves: 'Moves to', leaves: 'Leaves its universe' });
 const MAP_POPULATION = Object.freeze({
   open: ['Open', 'draft'],
   published: ['Published', 'live'],
@@ -242,6 +266,18 @@ const previewFigure = (fileId, caption) => {
     }),
     element('figcaption', 'procedural-muted', caption),
   );
+  return figure;
+};
+/** A preview of the working graph: its label while it loads, then the picture `load` answers and where it comes from. */
+const pictureFigure = (alt, source, load) => {
+  const figure = element('figure', 'procedural-figure');
+  const image = Object.assign(element('img', 'procedural-world-preview'), { alt, hidden: true });
+  const caption = element('figcaption', 'procedural-muted', StudioCyberia.previewLabel(null));
+  figure.append(image, caption);
+  load().then((picture) => {
+    if (picture.url) Object.assign(image, { src: picture.url, hidden: false });
+    caption.textContent = StudioCyberia.previewLabel(picture, source);
+  });
   return figure;
 };
 const button = (icon, label, onclick, { primary = false, title = '' } = {}) => {
@@ -578,6 +614,14 @@ class ProceduralPopulation {
     .procedural-population .procedural-figure {
       margin: 8px 0;
     }
+    .procedural-population .procedural-world-preview {
+      display: block;
+      width: 96px;
+      height: 54px;
+      object-fit: cover;
+      border: 1px solid var(--studio-subtle-border);
+      border-radius: 4px;
+    }
     .procedural-population .procedural-map-preview {
       display: block;
       max-width: min(100%, 360px);
@@ -829,6 +873,7 @@ class ProceduralPopulation {
         )}
         ${panel('defaults', html`<div class="procedural-defaults"></div>`)}
         ${panel('map', html`<div class="procedural-map"></div>`)}
+        ${panel('context', html`<div class="procedural-context"></div>`)}
         ${panel('publish', html`<div class="procedural-publish"></div>`)}
       </div>
     </div>`;
@@ -1139,6 +1184,7 @@ class ProceduralPopulation {
       items: () => ProceduralPopulation.paintItems(),
       defaults: () => ProceduralPopulation.paintDefaults(),
       map: () => ProceduralPopulation.paintMap(),
+      context: () => ProceduralPopulation.paintContext(),
       publish: () => ProceduralPopulation.paintPublish(),
     }[ProceduralPopulation.step];
     await paint();
@@ -2320,7 +2366,7 @@ class ProceduralPopulation {
       element(
         'div',
         'procedural-muted',
-        'What an entity that carries the items of this population runs on in the game. A global default runs in every world, an instance default only in its instance. Edit opens the Entity Studio; a save there returns here.',
+        'What an entity that carries the items of this population runs on in the game once it publishes. A global default runs in every world, an instance default only in its instance, a shared default in each instance that references it. Edit opens the Entity Studio and saves to the Procedural Draft: the publication changes the stored default for every world that runs it. A variant changes one instance only.',
       ),
     ];
     if (missing.length > 0) parts.push(ProceduralPopulation.missingDefaults(missing, open));
@@ -2330,7 +2376,21 @@ class ProceduralPopulation {
         : table(
             ['Entity', 'Live items', 'Dead items', 'Drops', 'Behavior', 'Runs in', ''],
             rows.map((row) => [
-              [element('div', '', row.entityType), ...(row.added ? [badge(['Added by hand', 'muted'])] : [])],
+              [
+                element('div', '', row.entityType),
+                ...(row.added ? [badge(['Added by hand', 'muted'])] : []),
+                ...(row.variant ? [badge([`Variant of …${row.variant.from.slice(-6)}`, 'draft'])] : []),
+                ...(row.draft
+                  ? [
+                      badge([
+                        row.draft.state === 'new'
+                          ? 'New · Saved to Procedural Draft'
+                          : 'Edit saved to Procedural Draft',
+                        'draft',
+                      ]),
+                    ]
+                  : []),
+              ],
               ProceduralPopulation.itemTiles(row.liveItemIds, items),
               ProceduralPopulation.itemTiles(row.deadItemIds, items),
               ProceduralPopulation.itemTiles(row.dropItemIds, items),
@@ -2398,10 +2458,21 @@ class ProceduralPopulation {
   }
 
   /** Where the game runs a default, when it was saved, and which default runs in its place. */
-  static runtimeNote({ instances, shadowedBy, updatedAt }) {
+  static runtimeNote({ instances, joins, leaves, shadowedBy, overriddenBy, variant, draft, updatedAt }) {
+    const sharing = variant
+      ? [`Instance · ${variant.instanceCode}`, 'draft']
+      : instances.length === 0
+        ? ['Global · every world', 'pending']
+        : instances.length === 1
+          ? [`Instance · ${instances[0]}`, 'good']
+          : [`Shared · ${count(instances.length, 'instance')}`, 'pending'];
     return [
-      element('div', '', instances.length > 0 ? `Instance ${instances.join(', ')}` : 'Every world (global)'),
-      element('div', 'procedural-muted', `Saved ${stamp(updatedAt)}`),
+      badge(sharing),
+      ...(instances.length > 1 ? [element('div', 'procedural-muted', instances.join(', '))] : []),
+      element('div', 'procedural-muted', variant || draft ? 'Saved to Procedural Draft' : `Saved ${stamp(updatedAt)}`),
+      ...joins.map((code) => badge([`Pending association · ${code}`, 'pending'])),
+      ...leaves.map((code) => badge([`Leaves ${code} at the publication`, 'bad'])),
+      ...overriddenBy.map(({ instanceCode }) => badge([`Overridden in ${instanceCode} by a variant`, 'muted'])),
       ...shadowedBy.map(({ instanceCode, rowId }) =>
         element(
           'div',
@@ -2412,12 +2483,61 @@ class ProceduralPopulation {
     ];
   }
 
-  static defaultActions({ rowId }, open) {
+  /**
+   * What a row of the workspace offers. A stored row opens in the Entity Studio, whose save writes the
+   * Procedural Draft; leaves the workspace; and, for one instance, is referenced, stops being referenced
+   * or gets a variant. A new row a draft proposes opens and is discarded; a variant opens and drops.
+   */
+  static defaultActions(row, open) {
     const { population } = ProceduralPopulation;
     const actions = element('div', 'procedural-buttons');
     if (!open) return actions;
+    if (row.variant) {
+      const { instanceCode, key } = row.variant;
+      actions.append(
+        button('fa-solid fa-pen', 'Edit variant', () =>
+          ProceduralPopulation.openEntityStudio({ instanceCode, variant: key }),
+        ),
+        button(
+          'fa-solid fa-xmark',
+          'Drop variant',
+          () =>
+            ProceduralPopulation.send(
+              () => Population.dropVariant({ id: population._id, code: instanceCode, key }),
+              `Dropped the variant. ${instanceCode} runs the default it copies again.`,
+            ),
+          { title: `${instanceCode} runs the default the variant copies again.` },
+        ),
+      );
+      return actions;
+    }
+    const { rowId, instances, draft } = row;
     actions.append(
-      button('fa-solid fa-pen', 'Edit', () => ProceduralPopulation.openEntityStudio({ rowId })),
+      button(
+        'fa-solid fa-pen',
+        'Edit',
+        () => ProceduralPopulation.openEntityStudio(draft ? { draft: draft.key } : { rowId }),
+        {
+          title:
+            instances.length === 1
+              ? `Edit the default ${instances[0]} runs. The publication writes it.`
+              : 'Edit the default. The publication writes it for every world that runs it.',
+        },
+      ),
+    );
+    if (draft)
+      actions.append(
+        button('fa-solid fa-eraser', draft.state === 'new' ? 'Discard' : 'Discard edit', () =>
+          ProceduralPopulation.send(
+            () => Population.discardDefaultDraft({ id: population._id, key: draft.key }),
+            draft.state === 'new'
+              ? 'Discarded the new default.'
+              : 'Discarded the edit. The stored default shows again.',
+          ),
+        ),
+      );
+    if (draft?.state === 'new') return actions;
+    actions.append(
       button(
         'fa-solid fa-xmark',
         'Remove',
@@ -2429,7 +2549,53 @@ class ProceduralPopulation {
         { title: 'Remove from this population only. The default and every world that runs it stay as they are.' },
       ),
     );
+    const references = element('details', 'procedural-references');
+    references.append(element('summary', '', `Instances · ${instances.length}`));
+    const instance = Object.assign(element('input'), { placeholder: 'Instance code', value: instances[0] ?? '' });
+    instance.setAttribute('aria-label', 'The instance the reference or the variant is for');
+    const reference = (linked) => () => {
+      const code = instance.value.trim();
+      if (!code) return notify('Name the instance first.', 'warning');
+      return ProceduralPopulation.send(
+        () => Population.setDefaultReference({ id: population._id, code, rowId, linked }),
+        linked
+          ? `${code} references the default in the Procedural Draft.`
+          : `${code} stops referencing the default in the Procedural Draft.`,
+      );
+    };
+    references.append(
+      instance,
+      button('fa-solid fa-link', 'Use in instance', reference(true), {
+        title: 'The draft of the instance references this default. The publication writes the reference.',
+      }),
+      button('fa-solid fa-link-slash', 'Stop using in instance', reference(false), {
+        title: 'The draft of the instance stops referencing this default. The publication writes the change.',
+      }),
+      button(
+        'fa-solid fa-code-branch',
+        'Make variant',
+        () => ProceduralPopulation.makeVariant(rowId, instance.value.trim()),
+        { title: 'A copy of this default that only the instance runs. The publication creates it.' },
+      ),
+    );
+    actions.append(references);
     return actions;
+  }
+
+  /** Proposes a variant of a stored row for one instance, then opens it in the Entity Studio. */
+  static async makeVariant(rowId, instanceCode) {
+    if (!instanceCode) return notify('Name the instance the variant is for.', 'warning');
+    let key = '';
+    const made = await ProceduralPopulation.send(async () => {
+      const response = await Population.proposeVariant({
+        id: ProceduralPopulation.population._id,
+        code: instanceCode,
+        rowId,
+      });
+      key = response.data?.key ?? '';
+      return response;
+    }, `Saved a variant for ${instanceCode} to the Procedural Draft.`);
+    if (made) ProceduralPopulation.openEntityStudio({ instanceCode, variant: key });
   }
 
   /** Finds stored defaults by an item id they run on, to add one to the population. */
@@ -2505,7 +2671,14 @@ class ProceduralPopulation {
   }
 
   /** Opens the Entity Studio on a stored default, or on a new default of a build, for this population. */
-  static openEntityStudio({ rowId = '', entityType = '', liveItemIds = [] }) {
+  static openEntityStudio({
+    rowId = '',
+    draft = '',
+    entityType = '',
+    liveItemIds = [],
+    instanceCode = '',
+    variant = '',
+  }) {
     const entry = s(`.main-btn-${ENTITY_STUDIO}`);
     if (!entry) return notify('This host has no Entity Studio.', 'warning');
     setPath(`${getProxyPath()}${ENTITY_STUDIO}`);
@@ -2513,8 +2686,11 @@ class ProceduralPopulation {
       {
         population: ProceduralPopulation.population._id,
         row: rowId || null,
+        draft: draft || null,
         entityType: entityType || null,
         liveItemIds: liveItemIds.length > 0 ? liveItemIds.join(',') : null,
+        instance: instanceCode || null,
+        variant: variant || null,
         step: null,
         item: null,
         workflow: null,
@@ -2523,6 +2699,337 @@ class ProceduralPopulation {
       { replace: true },
     );
     entry.click();
+  }
+
+  // ── Runtime context ─────────────────────────────────────────────────────
+
+  /**
+   * The runtime context step, optional: where the map runs once the population publishes. Each instance
+   * that lists the map, listed it, or has a draft in the population, with its state, its association,
+   * its universe, its preview and its live servers; each universe of those instances and each universe
+   * the population drafts; and the checks of the working graph that the publication applies. A change
+   * happens in the Instance Studio or the Universe Studio, whose save writes the draft of the population.
+   */
+  static async paintContext() {
+    const { population } = ProceduralPopulation;
+    const root = s('.procedural-context');
+    root.replaceChildren(element('div', 'procedural-muted', 'Reading the working graph…'));
+    const response = await Population.getRuntimeContext({ id: population._id });
+    if (response.status !== 'success') return refusal(response);
+    const { mapCode, populationRevision, map, instances, universes, problems } = response.data;
+    const open = isOpen(population) && ProceduralPopulation.canMutate;
+    const previewOf = (code) => {
+      const instance = instances.find((entry) => entry.code === code);
+      return pictureFigure(`World preview of ${instance?.name || code}`, instance?.preview ?? 'persisted', () =>
+        Population.worldPicture({ id: population._id, code, revision: populationRevision }),
+      );
+    };
+
+    const head = element('div', 'procedural-card');
+    head.append(
+      element('div', 'procedural-card-head', 'Runtime context · optional'),
+      element(
+        'div',
+        'procedural-muted',
+        `Where map ${mapCode} runs once the population publishes. A change in the Instance Studio or the Universe Studio saves to the Procedural Draft and returns here; the stored records change at the publication. A publication needs no instance.`,
+      ),
+      map.state === 'draft'
+        ? pictureFigure(`Map preview of ${mapCode}`, 'draft', () =>
+            Population.mapPicture({ id: population._id, revision: map.draftRevision }),
+          )
+        : pictureFigure(`Map preview of ${mapCode}`, 'persisted', async () => ({
+            state: 'ready',
+            url: CyberiaMapService.previewUrl(mapCode),
+          })),
+    );
+    const actions = element('div', 'procedural-buttons');
+    const code = Object.assign(element('input'), { placeholder: 'Instance code' });
+    code.setAttribute('list', 'procedural-context-instances');
+    code.setAttribute('aria-label', 'The instance that adds the map');
+    const suggestions = Object.assign(element('datalist'), { id: 'procedural-context-instances' });
+    code.oninput = () => ProceduralPopulation.suggestInstances(code, suggestions, instances);
+    actions.append(
+      button(
+        'fa-solid fa-plus',
+        'Create instance with this map',
+        () => ProceduralPopulation.openInstanceStudio({ mapCode }),
+        { title: 'The Instance Studio opens a new instance with this map selected.' },
+      ),
+      code,
+      suggestions,
+      button(
+        'fa-solid fa-link',
+        'Add map to existing instance',
+        () =>
+          code.value.trim()
+            ? ProceduralPopulation.openInstanceStudio({ mapCode, instanceCode: code.value.trim() })
+            : notify('Name the instance that adds the map.', 'warning'),
+        { title: 'The Instance Studio opens the instance with this map added to its maps.' },
+      ),
+    );
+    for (const control of actions.querySelectorAll('button, input')) control.disabled = !open;
+    head.append(actions);
+
+    const checks = element('div', 'procedural-card');
+    checks.setAttribute('role', 'status');
+    checks.append(
+      element(
+        'div',
+        'procedural-card-head',
+        `Checks · ${count(problems.errors.length, 'error')} · ${count(problems.warnings.length, 'warning')}`,
+      ),
+    );
+    if (problems.errors.length + problems.warnings.length === 0)
+      checks.append(
+        element('div', 'procedural-muted', 'Maps, instances, universes and portals resolve in the working graph.'),
+      );
+    for (const problem of problems.errors) checks.append(badge([problem, 'bad']));
+    for (const problem of problems.warnings) checks.append(badge([problem, 'pending']));
+    if (problems.errors.length)
+      checks.append(
+        element('div', 'procedural-muted', 'The publication refuses the population until each error goes.'),
+      );
+
+    const runsOn = element('div', 'procedural-card');
+    runsOn.append(element('div', 'procedural-card-head', `Instances · ${instances.length}`));
+    if (instances.length === 0)
+      runsOn.append(element('div', 'procedural-muted', 'This map is not assigned to an instance or universe.'));
+    else
+      runsOn.append(
+        table(
+          ['Preview', 'Instance', 'This map', 'Universe', 'Servers', 'Defaults', ''],
+          instances.map((instance) => [
+            previewOf(instance.code),
+            [
+              element('div', '', instance.name || instance.code),
+              element('code', 'procedural-muted', instance.code),
+              ...ProceduralPopulation.documentBadges(instance),
+              element('div', 'procedural-muted', `${count(instance.maps, 'map')} · ${instance.status}`),
+            ],
+            badge(ASSOCIATION[instance.association]),
+            [
+              instance.universe ? instance.universe.name || instance.universe.code : 'No universe',
+              ...(instance.membership === 'same'
+                ? []
+                : [
+                    badge([
+                      `${MEMBERSHIP[instance.membership]}${instance.universe ? ` ${instance.universe.code}` : ''}`,
+                      'pending',
+                    ]),
+                  ]),
+            ],
+            instance.servers.total
+              ? `${instance.servers.available} of ${instance.servers.total} available`
+              : 'No live server',
+            `${count(instance.defaults.rows, 'row')}${instance.defaults.variants ? ` · ${count(instance.defaults.variants, 'variant')}` : ''}`,
+            ProceduralPopulation.instanceActions(instance, open),
+          ]),
+        ),
+      );
+
+    const grouped = element('div', 'procedural-card');
+    grouped.append(element('div', 'procedural-card-head', `Universes · ${universes.length}`));
+    if (universes.length === 0)
+      grouped.append(
+        element(
+          'div',
+          'procedural-muted',
+          instances.length
+            ? 'No instance of this map belongs to a universe.'
+            : 'A map joins a universe through an instance.',
+        ),
+      );
+    else
+      grouped.append(
+        table(
+          ['Universe', 'Instances of this map', 'Members', ''],
+          universes.map((universe) => {
+            const strip = element('div', 'procedural-buttons');
+            strip.hidden = true;
+            const preview = button('fa-solid fa-eye', 'Preview', () => {
+              if (!strip.childElementCount) strip.append(...universe.members.map(previewOf));
+              strip.hidden = !strip.hidden;
+            });
+            const studio = button('fa-solid fa-up-right-from-square', 'Open Universe Studio', () =>
+              ProceduralPopulation.openUniverseStudio({ universeCode: universe.code }),
+            );
+            studio.disabled = !open;
+            return [
+              [
+                element('div', '', universe.name || universe.code),
+                element('code', 'procedural-muted', universe.code),
+                ...ProceduralPopulation.documentBadges(universe),
+              ],
+              universe.instances.join(', ') || '—',
+              [
+                count(universe.members.length, 'world'),
+                ...universe.joins.map((member) => badge([`Pending association · ${member}`, 'pending'])),
+                ...universe.leaves.map((member) => badge([`Leaves · ${member}`, 'bad'])),
+              ],
+              [preview, studio, ...ProceduralPopulation.draftActions('universe', universe, open), strip],
+            ];
+          }),
+        ),
+      );
+
+    const next = element('div', 'procedural-buttons');
+    next.append(
+      button('fa-solid fa-arrow-right', 'Continue to Publish', () => ProceduralPopulation.show('publish'), {
+        primary: true,
+        title: 'This step is optional.',
+      }),
+    );
+    root.replaceChildren(head, checks, runsOn, grouped, next);
+  }
+
+  /** The state of an instance or a universe in the working graph, and whether its draft is stale. */
+  static documentBadges({ state, revision, baseRevision }) {
+    return [
+      badge(DOCUMENT_STATE[state]),
+      ...(state === 'draft' && revision !== baseRevision
+        ? [badge([`Stale · stored at revision ${revision}, draft from ${baseRevision}`, 'bad'])]
+        : []),
+    ];
+  }
+
+  /** The actions on the draft of an instance or a universe: rebase a stale one, and discard it. */
+  static draftActions(kind, entry, open) {
+    if (entry.state === 'persisted') return [];
+    const actions = [];
+    if (entry.state === 'draft' && entry.revision !== entry.baseRevision)
+      actions.push(
+        button('fa-solid fa-code-merge', `Rebase on revision ${entry.revision}`, () =>
+          ProceduralPopulation.rebaseDocument(kind, entry.code),
+        ),
+      );
+    actions.push(
+      button('fa-solid fa-eraser', 'Discard draft', () => ProceduralPopulation.discardDocument(kind, entry.code), {
+        title: `The working graph shows the ${kind} as it is stored again.`,
+      }),
+    );
+    for (const action of actions) action.disabled = !open;
+    return actions;
+  }
+
+  /** Moves the draft of an instance or a universe onto its stored revision; a field both changed asks first. */
+  static async rebaseDocument(kind, code) {
+    if (!ProceduralPopulation.canMutate) return denied();
+    const { _id: id } = ProceduralPopulation.population;
+    const rebase = (body) => Population.rebaseDocumentDraft({ id, kind: `${kind}s`, code, body });
+    const response = await rebase({});
+    if (response.code !== 409)
+      return await ProceduralPopulation.send(async () => response, `Rebased the draft of ${code}.`);
+    const answer = await Modal.RenderConfirm({
+      id: 'procedural-population-rebase-confirm',
+      html: async () => html`<div class="in section-mp">${escapeHtml(response.message)}</div>`,
+      confirmLabel: 'Keep the draft values',
+    });
+    if (answer.status === 'confirm')
+      await ProceduralPopulation.send(() => rebase({ prefer: 'draft' }), `Rebased the draft of ${code}.`);
+  }
+
+  static async discardDocument(kind, code) {
+    if (!ProceduralPopulation.canMutate) return denied();
+    const answer = await Modal.RenderConfirm({
+      id: 'procedural-population-document-discard-confirm',
+      html: async () =>
+        html`<div class="in section-mp" style="text-align: center">
+          Discard the draft of ${escapeHtml(code)}? The working graph shows the stored ${kind} again.
+        </div>`,
+      confirmLabel: 'Discard draft',
+      danger: true,
+    });
+    if (answer.status !== 'confirm') return;
+    await ProceduralPopulation.send(
+      () => Population.discardDocumentDraft({ id: ProceduralPopulation.population._id, kind: `${kind}s`, code }),
+      `Discarded the draft of ${code}.`,
+    );
+  }
+
+  /** What one instance of the map offers: its Studio, its draft, and its universe or the ways to give it one. */
+  static instanceActions(instance, open) {
+    const actions = [
+      button('fa-solid fa-up-right-from-square', 'Open Instance Studio', () =>
+        ProceduralPopulation.openInstanceStudio({ instanceCode: instance.code }),
+      ),
+    ];
+    if (instance.universe)
+      actions.push(
+        button('fa-solid fa-circle-nodes', 'Open Universe Studio', () =>
+          ProceduralPopulation.openUniverseStudio({ universeCode: instance.universe.code }),
+        ),
+      );
+    else {
+      const universe = Object.assign(element('input'), { placeholder: 'Universe code' });
+      universe.setAttribute('aria-label', `The universe ${instance.code} joins`);
+      actions.push(
+        button('fa-solid fa-plus', 'Create universe for this instance', () =>
+          ProceduralPopulation.openUniverseStudio({ instanceCode: instance.code }),
+        ),
+        universe,
+        button('fa-solid fa-link', 'Add instance to existing universe', () =>
+          universe.value.trim()
+            ? ProceduralPopulation.openUniverseStudio({
+                instanceCode: instance.code,
+                universeCode: universe.value.trim(),
+              })
+            : notify('Name the universe the instance joins.', 'warning'),
+        ),
+      );
+    }
+    const cell = element('div', 'procedural-buttons');
+    cell.append(...actions);
+    for (const control of cell.querySelectorAll('button, input')) control.disabled = !open;
+    cell.append(...ProceduralPopulation.draftActions('instance', instance, open));
+    return cell;
+  }
+
+  /** Offers the instance codes that hold a part of what the field names, and do not list the map yet. */
+  static async suggestInstances(field, list, listed) {
+    const q = field.value.trim();
+    const response = await CyberiaInstanceService.get({
+      limit: 20,
+      filterModel: q ? { code: { filterType: 'text', type: 'contains', filter: q } } : undefined,
+    });
+    if (response.status !== 'success' || field.value.trim() !== q) return;
+    const codes = response.data.data.map((instance) => instance.code);
+    list.replaceChildren(
+      ...codes
+        .filter((code) => !listed.some((instance) => instance.code === code))
+        .map((code) => Object.assign(element('option'), { value: code })),
+    );
+  }
+
+  /** Opens the Instance Studio for this population: an instance, a new one with the map, or one that adds it. */
+  static openInstanceStudio({ instanceCode = '', mapCode = '' }) {
+    if (
+      !StudioCyberia.open(INSTANCE_STUDIO, {
+        population: ProceduralPopulation.population._id,
+        instanceCode: instanceCode || null,
+        mapCode: mapCode || null,
+        step: null,
+        item: null,
+        workflow: null,
+        job: null,
+      })
+    )
+      notify('This host has no Instance Studio.', 'warning');
+  }
+
+  /** Opens the Universe Studio for this population: a universe, a new one with an instance, or one it joins. */
+  static openUniverseStudio({ universeCode = '', instanceCode = '' }) {
+    if (
+      !StudioCyberia.open(UNIVERSE_STUDIO, {
+        population: ProceduralPopulation.population._id,
+        universeCode: universeCode || null,
+        instanceCode: instanceCode || null,
+        step: null,
+        item: null,
+        workflow: null,
+        job: null,
+      })
+    )
+      notify('This host has no Universe Studio.', 'warning');
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────
@@ -2838,6 +3345,7 @@ class ProceduralPopulation {
       const warnings = [
         ...(population.steps.defaults.detail.includes('no default names') ? [population.steps.defaults.detail] : []),
         ...draft.missing.map(({ reason }) => reason),
+        ...checked.data.warnings,
       ];
       const list = (lines, tone) => {
         const node = element('ul', 'procedural-list');
@@ -2945,7 +3453,7 @@ class ProceduralPopulation {
       element(
         'div',
         'procedural-muted',
-        'A publication changes no default. A missing default is a warning: it stops nothing.',
+        'A publication changes no stored default: it creates each variant an instance draft proposes, with its reference. A missing default is a warning: it stops nothing.',
       ),
       actions,
     );
@@ -2953,8 +3461,8 @@ class ProceduralPopulation {
   }
 
   /**
-   * The map the publication writes: its draft drawn by the artwork of its items, the live pictures,
-   * and the instances that run it; `paint` starts the draft once the card is in the page.
+   * The map the publication writes: its draft drawn by the artwork of its items and the live pictures;
+   * `paint` starts the draft once the card is in the page.
    * @returns {{card:HTMLElement,paint:()=>void}}
    */
   static reviewMap(draft) {
@@ -2979,19 +3487,17 @@ class ProceduralPopulation {
     const preview = population.draft ? ProceduralPopulation.draftCanvas(draft, 'fit') : null;
     if (preview)
       card.append(element('div', 'procedural-muted', 'The draft, as the items it places show now:'), preview.frame);
-    const instances = population.context.instances;
-    card.append(
-      element(
-        'div',
-        'procedural-muted',
-        instances.length > 0
-          ? `Run by ${instances.map(({ name, code }) => name || code).join(', ')}: a publication that writes the map reloads them.`
-          : 'No instance runs this map yet.',
-      ),
-    );
     const actions = element('div', 'procedural-buttons');
     actions.append(
       button('fa-solid fa-up-right-from-square', 'Open the map step', () => ProceduralPopulation.openReviewed('map')),
+      button(
+        'fa-solid fa-circle-nodes',
+        'Open the runtime context',
+        () => ProceduralPopulation.openReviewed('context'),
+        {
+          title: 'The instances and universes the population drafts, and where the map runs.',
+        },
+      ),
       button('fa-solid fa-pen-ruler', 'Open in Map Studio', () => ProceduralPopulation.openMapStudio(true), {
         title: 'Edit the grid and the placements of the draft. The live map does not change.',
       }),
@@ -3012,6 +3518,8 @@ class ProceduralPopulation {
   /** What a plan publishes, operation by operation. */
   static planList(plan) {
     const kinds = (kind) => plan.assets.filter((asset) => asset.kind === kind);
+    const revisionLine = ({ code, baseRevision }) =>
+      baseRevision === null ? `${code} (new)` : `${code} (revision ${baseRevision} → ${baseRevision + 1})`;
     const fresh = [...kinds('create'), ...kinds('update')];
     const lines = [
       `Kept: ${plan.kept.map(({ itemId }) => itemId).join(', ') || 'none'}`,
@@ -3027,6 +3535,10 @@ class ProceduralPopulation {
       plan.media
         ? `Media: the preview of revision ${plan.media.revision} is drawn before the publication completes`
         : 'Media: no change',
+      `Instances: ${plan.instances.map(revisionLine).join(', ') || 'no change'}`,
+      `Universes: ${plan.universes.map(revisionLine).join(', ') || 'no change'}`,
+      `Variants to create: ${plan.variants.map(({ instanceCode, from }) => `${instanceCode} (copy of …${from.slice(-6)})`).join(', ') || 'none'}`,
+      `Worlds to reload after the commit: ${plan.worlds.join(', ') || 'none'}`,
     ];
     const list = element('ul', 'procedural-list');
     for (const line of lines) list.append(element('li', '', line));

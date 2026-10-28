@@ -23,6 +23,9 @@ export function mapMediaLabel(media, revision) {
   return { text: `Preview of revision ${revision} pending`, tone: 'pending', retry: true };
 }
 
+/** Whether a draw of the revision runs: only a write sets the media `pending` at the revision it stores. */
+export const mapMediaDrawing = (media, revision) => media?.revision === revision && media.status === 'pending';
+
 /** The identity of a map entity: its type and the items it holds, in order. */
 export const entityKey = ({ entityType, objectLayerItemIds = [] }) => `${entityType}|${objectLayerItemIds.join(',')}`;
 

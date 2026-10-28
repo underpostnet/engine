@@ -1,13 +1,13 @@
 /**
  * The Cyberia Studio menu: its editors, the icon of each one, the drawer entry whose submenu opens
- * them, and the landing that shows them as cards.
+ * them, the landing that shows them as cards, and the banner of an editor the Procedural Engine opens.
  *
  * @module src/client/components/cyberia/StudioCyberia.js
  */
 import { Modal } from '../core/Modal.js';
 import { getProxyPath, setPath, setQueryParams } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
-import { s } from '../core/VanillaJs.js';
+import { escapeHtml, s } from '../core/VanillaJs.js';
 
 const STUDIO_ROUTE = 'cyberia-studio';
 const STUDIO_ICON = 'cyberia-red-white.png';
@@ -108,6 +108,64 @@ class StudioCyberia {
     setQueryParams(queryParams, { replace: true });
     entry.click();
     return true;
+  }
+
+  /**
+   * Shows the banner of an editor the Procedural Engine opened: what it edits, the state of what it
+   * shows, what a save does, its actions and the way back without a save. No context hides it.
+   * @param {HTMLElement|null} banner - A `.studio-context` element of the editor.
+   * @param {{label:string, note:string, state?:{text:string, tone?:'warn'|'good'}, actions?:Array<{label:string,
+   *   icon:string, run:()=>void}>, back:()=>void}|null} context
+   */
+  static paintContext(banner, context) {
+    if (!banner) return;
+    banner.hidden = !context;
+    banner.context = context;
+    if (!context) return;
+    const { label, note, state, actions = [] } = context;
+    // A repaint keeps the buttons in place, so a click that blurs a field of the form still lands.
+    const structure = JSON.stringify([label, note, actions.map(({ label: text, icon }) => [text, icon])]);
+    if (banner.dataset.structure !== structure) {
+      banner.dataset.structure = structure;
+      banner.innerHTML = html`<span class="studio-context-label"
+          ><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> ${escapeHtml(label)}</span
+        >
+        <span class="studio-context-state"></span>
+        <span class="studio-context-note">${escapeHtml(note)}</span>
+        ${actions
+          .map(
+            ({ label: text, icon }, index) =>
+              html`<button type="button" class="studio-context-action" data-action="${index}">
+                <i class="${icon}" aria-hidden="true"></i> ${escapeHtml(text)}
+              </button>`,
+          )
+          .join('')}
+        <button type="button" class="studio-context-back">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back without saving
+        </button>`;
+      for (const button of banner.querySelectorAll('.studio-context-action'))
+        button.onclick = () => banner.context.actions[Number(button.dataset.action)].run();
+      banner.querySelector('.studio-context-back').onclick = () => banner.context.back();
+    }
+    const badge = banner.querySelector('.studio-context-state');
+    badge.hidden = !state;
+    badge.textContent = state?.text ?? '';
+    badge.className = `studio-context-state${state?.tone ? ` studio-context-${state.tone}` : ''}`;
+  }
+
+  /**
+   * The label of a preview a Studio shows in the context of a population: where its picture comes from,
+   * or why there is none. `picture` is what the population service answers, or null while it loads.
+   * @param {{state:'ready'|'empty'|'stale'|'failed', message?:string}|null} picture
+   * @param {'draft'|'persisted'} source - The source of the preview in the working graph.
+   * @returns {string}
+   */
+  static previewLabel(picture, source) {
+    if (!picture) return 'Loading preview…';
+    if (picture.state === 'ready') return source === 'draft' ? 'Draft preview' : 'Persisted preview';
+    if (picture.state === 'empty') return source === 'draft' ? 'Draft preview · empty' : 'Persisted preview · empty';
+    if (picture.state === 'stale') return 'Preview pending: the population moved on';
+    return `Preview unavailable${picture.message ? ` · ${picture.message}` : ''}`;
   }
 
   /** Renders each open editor again, so what it offers follows the role of the session. */

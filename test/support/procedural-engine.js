@@ -46,6 +46,9 @@ export const APIS = [
   'cyberia-instance',
   'cyberia-entity-type-default',
   'cyberia-instance-conf',
+  'cyberia-universe',
+  'cyberia-global-map-code-registry',
+  'cyberia-server-registry',
   ...PROCEDURAL_APIS,
 ];
 export const MODERATOR = '64b000000000000000000001';

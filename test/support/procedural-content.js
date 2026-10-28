@@ -595,6 +595,7 @@ export function writeProceduralArtifact(items = {}, { maps = {}, entities = [], 
     build: {},
     instances: [],
     sagas: [],
+    global: [],
     files: digests,
   };
   fs.writeFileSync(path.join(root, 'dist', 'manifest.json'), JSON.stringify(manifest));

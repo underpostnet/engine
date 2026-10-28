@@ -7,7 +7,7 @@ import {
 } from '../core/Router.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { commonModeratorGuard } from '../core/CommonJs.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
@@ -20,7 +20,9 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf/cyberia-instance-conf.service.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
+import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
 import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
+import { StudioCyberia } from './StudioCyberia.js';
 import { ENTITY_TYPES, SELECTABLE_ENTITY_BEHAVIORS, isAssignableEntityBehavior } from './SharedDefaultsCyberia.js';
 
 // DropDown invokes optionData.onClick on selection, so every option must carry one.
@@ -46,7 +48,9 @@ class EntityEngineCyberia {
   static bindings = new Map();
   static currentId = null;
   static crud = null;
-  // The Procedural Engine population the form edits a default for: { id, rowId }; null otherwise.
+  // The Procedural Engine population the form edits a default for: { id, rowId, draft, variant }; null
+  // otherwise. `draft` is { key, revision } of a default draft; `variant` is { instanceCode, key, from,
+  // revision } of a variant an instance draft proposes.
   static population = null;
   // The `updatedAt` of the loaded default: a save names it, so it never overwrites a newer version.
   static currentUpdatedAt = null;
@@ -373,11 +377,15 @@ class EntityEngineCyberia {
         style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">${EntityEngineCyberia.instanceCodes[i]}</div>
-        ${await BtnIcon.instance({
-          class: `btn-entity-engine-rm-instance-${i}`,
-          label: html`<i class="fa-solid fa-xmark"></i>`,
-          style: 'min-width:30px;padding:2px 8px;',
-        })}
+        ${
+          EntityEngineCyberia.population
+            ? ''
+            : await BtnIcon.instance({
+                class: `btn-entity-engine-rm-instance-${i}`,
+                label: html`<i class="fa-solid fa-xmark"></i>`,
+                style: 'min-width:30px;padding:2px 8px;',
+              })
+        }
       </div>`;
     }
     if (!out) {
@@ -662,7 +670,8 @@ class EntityEngineCyberia {
 
   /** The loaded default as the CRUD bar names it: its entity type and live item ids. */
   static currentName() {
-    if (!EntityEngineCyberia.currentId) return '';
+    const { population } = EntityEngineCyberia;
+    if (!EntityEngineCyberia.currentId && !population?.variant && !population?.draft) return '';
     const entityType = EntityEngineCyberia.getSingleDropdownValue(EntityEngineCyberia.ids.entityType);
     return `${entityType} (${EntityEngineCyberia.liveItemIds.join(', ')})`;
   }
@@ -677,6 +686,7 @@ class EntityEngineCyberia {
   static async save() {
     const body = EntityEngineCyberia.getPayload();
     if (!EntityEngineCyberia.validate(body)) return;
+    if (EntityEngineCyberia.population) return await EntityEngineCyberia.saveToDraft(body);
     const { currentId, currentUpdatedAt } = EntityEngineCyberia;
     const result = await EditorCrud.save(CyberiaEntityTypeDefaultService, {
       id: currentId,
@@ -686,8 +696,39 @@ class EntityEngineCyberia {
     EntityEngineCyberia.currentId = result.data?._id ?? currentId;
     EntityEngineCyberia.currentUpdatedAt = result.data?.updatedAt ?? null;
     await EntityEngineCyberia.persistInstanceLinks();
-    if (EntityEngineCyberia.population) return EntityEngineCyberia.returnToPopulation();
     await EntityEngineCyberia.refreshList();
+  }
+
+  /**
+   * Saves the form to the draft of the population, never to the stored defaults, and goes back: the
+   * variant of an instance, the draft the population holds, or a new draft of the stored row or of a
+   * new row.
+   */
+  static async saveToDraft(row) {
+    const { id, rowId, draft, variant } = EntityEngineCyberia.population;
+    const result = variant
+      ? await Population.saveVariant({
+          id,
+          code: variant.instanceCode,
+          key: variant.key,
+          body: { row, revision: variant.revision },
+        })
+      : draft
+        ? await Population.saveDefaultDraft({ id, key: draft.key, body: { row, revision: draft.revision } })
+        : await Population.createDefaultDraft({
+            id,
+            body: rowId ? { rowId, baseUpdatedAt: EntityEngineCyberia.currentUpdatedAt, row } : { row },
+          });
+    if (result.status !== 'success')
+      return NotificationManager.Push({
+        html: escapeHtml(result.code === 409 ? `Conflict detected. ${result.message}` : result.message),
+        status: result.code === 409 ? 'warning' : 'error',
+      });
+    NotificationManager.Push({
+      html: 'Saved to the Procedural Draft. The stored defaults change when the population publishes.',
+      status: 'success',
+    });
+    EntityEngineCyberia.returnToPopulation();
   }
 
   // Update: explicitly persist the loaded row (PUT). Requires a loaded document.
@@ -715,19 +756,58 @@ class EntityEngineCyberia {
   }
 
   // ── Procedural Engine context ────────────────────────────────────────────
-  // ?population=<id> opens a default for the Procedural Engine: the stored row ?row=, or a new row of
-  // ?entityType= and ?liveItemIds=. A save stores the row and returns to the population.
-  static async enterPopulation({ population: id, row: rowId = '', entityType = '', liveItemIds = '' }) {
-    if (rowId) {
+  // ?population=<id> opens a default for the Procedural Engine: the stored row ?row=, the default draft
+  // ?draft=, a new row of ?entityType= and ?liveItemIds=, or the variant ?variant= that the draft of
+  // instance ?instance= proposes. A save writes the draft of the population and returns to it. The
+  // instance links show where the row runs; the Procedural Engine changes them.
+  static async enterPopulation({
+    population: id,
+    row: rowId = '',
+    draft = '',
+    entityType = '',
+    liveItemIds = '',
+    instance = '',
+    variant = '',
+  }) {
+    if (variant) {
+      const { status, data, message } = await Population.getDocumentDraft({ id, kind: 'instances', code: instance });
+      const copy = data?.variants?.find(({ key }) => key === variant);
+      if (status !== 'success' || !copy)
+        return NotificationManager.Push({
+          html: escapeHtml(message || `Instance ${instance} proposes no variant ${variant}.`),
+          status: 'error',
+        });
+      EntityEngineCyberia.population = {
+        id,
+        rowId: '',
+        draft: null,
+        variant: { instanceCode: instance, key: variant, from: copy.from, revision: data.draftRevision },
+      };
+      EntityEngineCyberia.load({ ...copy.row, instanceCodes: [instance] });
+    } else if (draft) {
+      const { status, data, message } = await Population.getDefaultDraft({ id, key: draft });
+      if (status !== 'success') return NotificationManager.Push({ html: escapeHtml(message), status: 'error' });
+      EntityEngineCyberia.population = {
+        id,
+        rowId: data.rowId ?? '',
+        draft: { key: draft, revision: data.revision },
+        variant: null,
+      };
+      EntityEngineCyberia.load({ ...data.row, instanceCodes: data.instanceCodes });
+    } else if (rowId) {
       const { status, data, message } = await CyberiaEntityTypeDefaultService.get({ id: rowId });
       if (status !== 'success' || !data)
-        return NotificationManager.Push({ html: message || `There is no entity default ${rowId}.`, status: 'error' });
+        return NotificationManager.Push({
+          html: escapeHtml(message || `There is no entity default ${rowId}.`),
+          status: 'error',
+        });
+      EntityEngineCyberia.population = { id, rowId, draft: null, variant: null };
       EntityEngineCyberia.load(data);
     } else {
+      EntityEngineCyberia.population = { id, rowId, draft: null, variant: null };
       EntityEngineCyberia.newDefault();
       EntityEngineCyberia.load({ entityType, liveItemIds: liveItemIds ? liveItemIds.split(',') : [] });
     }
-    EntityEngineCyberia.population = { id, rowId };
     EntityEngineCyberia.paintPopulation();
   }
 
@@ -742,29 +822,42 @@ class EntityEngineCyberia {
     const { id } = EntityEngineCyberia.population;
     EntityEngineCyberia.population = null;
     EntityEngineCyberia.paintPopulation();
-    setQueryParams({ population: null, row: null, entityType: null, liveItemIds: null }, { replace: true });
+    setQueryParams(
+      { population: null, row: null, draft: null, entityType: null, liveItemIds: null, instance: null, variant: null },
+      { replace: true },
+    );
     ProceduralEngineCyberia.open({ populationId: id, step: 'defaults' });
+  }
+
+  /** Where the default the publication writes runs: a variant in its instance only, a row in each world that runs it. */
+  static populationScope() {
+    const { population, instanceCodes } = EntityEngineCyberia;
+    const saved = population.draft ? 'Saved to Procedural Draft · ' : '';
+    if (population.variant)
+      return { text: `Saved to Procedural Draft · Variant · ${population.variant.instanceCode}`, tone: 'good' };
+    if (!population.rowId) return { text: `${saved}New default · global: every world runs it`, tone: 'warn' };
+    if (instanceCodes.length === 0) return { text: `${saved}Global · every world runs it`, tone: 'warn' };
+    if (instanceCodes.length === 1) return { text: `${saved}Instance · ${instanceCodes[0]}` };
+    return { text: `${saved}Shared · ${instanceCodes.length} instances: ${instanceCodes.join(', ')}`, tone: 'warn' };
   }
 
   static paintPopulation() {
     EntityEngineCyberia.crud?.refresh();
-    const banner = s('.entity-engine-population');
-    if (!banner) return;
     const { population } = EntityEngineCyberia;
-    banner.hidden = !population;
-    if (!population) return;
-    banner.innerHTML = html`<span class="entity-engine-population-label"
-        ><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Procedural Engine · Entity Type
-        Default</span
-      >
-      <span class="entity-engine-population-note"
-        >${population.rowId ? 'Editing a stored default.' : 'A new default.'} Save stores it and returns to the
-        Procedural Engine.</span
-      >
-      <button type="button" class="entity-engine-population-back">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back without saving
-      </button>`;
-    banner.querySelector('.entity-engine-population-back').onclick = () => EntityEngineCyberia.returnToPopulation();
+    for (const control of document.querySelectorAll('.entity-engine-instance-links'))
+      control.hidden = Boolean(population);
+    EntityEngineCyberia.renderInstanceList();
+    StudioCyberia.paintContext(
+      s('.entity-engine-population'),
+      population && {
+        label: 'Procedural Engine · Entity Type Default',
+        state: EntityEngineCyberia.populationScope(),
+        note: population.variant
+          ? `A copy of default …${population.variant.from.slice(-6)} that only ${population.variant.instanceCode} runs. Save to Procedural Draft keeps it in the population; the publication creates it with its reference.`
+          : 'Save to Procedural Draft keeps the change in the population; the publication writes it and reloads every world that runs it. To change one instance only, make a variant in the Procedural Engine.',
+        back: () => EntityEngineCyberia.returnToPopulation(),
+      },
+    );
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -891,14 +984,21 @@ class EntityEngineCyberia {
       if (s('.btn-entity-engine-add-instance'))
         s('.btn-entity-engine-add-instance').onclick = () => EntityEngineCyberia.addInstance();
       EntityEngineCyberia.crud = EditorCrud.bind(container.querySelector('.entity-engine-crud'), () => ({
-        subject: 'entity default',
-        id: EntityEngineCyberia.currentId,
+        subject: EntityEngineCyberia.population?.variant ? 'entity default variant' : 'entity default',
+        id:
+          EntityEngineCyberia.currentId ??
+          EntityEngineCyberia.population?.variant?.key ??
+          EntityEngineCyberia.population?.draft?.key ??
+          null,
         name: EntityEngineCyberia.currentName(),
         ...(!EntityEngineCyberia.population && { new: () => EntityEngineCyberia.newDefault() }),
         reset: () =>
           EntityEngineCyberia.population
             ? EntityEngineCyberia.enterPopulation(getQueryParams())
             : EntityEngineCyberia.reset(),
+        ...(EntityEngineCyberia.population && {
+          labels: { save: 'Save to Procedural Draft', reset: 'Reset to saved draft' },
+        }),
         ...(EntityEngineCyberia.canMutate &&
           (EntityEngineCyberia.population
             ? { save: () => EntityEngineCyberia.save() }
@@ -929,31 +1029,7 @@ class EntityEngineCyberia {
     });
 
     return html`<div class="in section-mp studio-editor entity-engine-container">
-      <style>
-        .entity-engine-population {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px 12px;
-          align-items: center;
-          padding: 8px 10px;
-          margin-bottom: 8px;
-          border: 1px solid var(--studio-accent);
-          border-radius: 6px;
-        }
-        .entity-engine-population[hidden] {
-          display: none;
-        }
-        .entity-engine-population-label {
-          font-weight: bold;
-          color: var(--studio-accent);
-        }
-        .entity-engine-population-note {
-          font-size: 12px;
-          opacity: 0.8;
-          flex-basis: 100%;
-        }
-      </style>
-      <div class="in entity-engine-population" role="status" aria-live="polite" hidden></div>
+      <div class="in studio-context entity-engine-population" role="status" aria-live="polite" hidden></div>
       ${EditorLayout.render({
         subject: 'table',
         readout: html`<div class="in studio-group-title" style="margin:0;">
@@ -1053,7 +1129,7 @@ class EntityEngineCyberia {
                 A world runs on this default only while its conf references it, and the reference is what scopes it — an
                 instance never picks up another's wiring by sharing item ids.
               </div>
-              <div class="fl" style="align-items:flex-end;">
+              <div class="fl entity-engine-instance-links" style="align-items:flex-end;">
                 <div class="in fll" style="flex:1;">
                   ${await EntityEngineCyberia.buildInstanceDropdown(ids.instancePicker)}
                 </div>

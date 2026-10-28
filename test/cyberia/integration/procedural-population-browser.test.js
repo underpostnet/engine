@@ -29,6 +29,11 @@ import {
 } from '../../../src/projects/cyberia/procedural/population/population.js';
 import { authorTarget } from '../../../src/projects/cyberia/procedural/population/results.js';
 import {
+  instanceDraftView,
+  populationGraph,
+  saveInstanceDraft,
+} from '../../../src/projects/cyberia/procedural/population/working-graph.js';
+import {
   advancePublication,
   claimPublication,
 } from '../../../src/projects/cyberia/procedural/population/publication.js';
@@ -222,7 +227,9 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
   const visit = async (query) => {
     await page.goto(`http://127.0.0.1:${server.address().port}/?workflow=map&population=${id}${query}`);
     expect(
-      await until(() => page.evaluate(() => Boolean(window.mounted && document.querySelector('.procedural-stepper li')))),
+      await until(() =>
+        page.evaluate(() => Boolean(window.mounted && document.querySelector('.procedural-stepper li'))),
+      ),
     ).toBe(true);
   };
 
@@ -403,7 +410,10 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     expect(plan).toMatch(/Review · population revision \d+/);
     expect(plan).toContain('Items · 2 of 2 ready');
     expect(plan).toContain('Publish the selected entry, then bind it');
-    expect(plan).toContain('A publication changes no default');
+    expect(plan).toContain('A publication changes no stored default');
+    expect(plan).toContain('Instances: no change');
+    expect(plan).toContain('Variants to create: none');
+    expect(plan).toContain('Worlds to reload after the commit: none');
     expect(plan).toContain('Map moss-hollow');
     expect(plan).toContain('Warnings: they stop nothing');
     expect(await page.$$('.procedural-publish .procedural-tile canvas')).toHaveLength(2);
@@ -552,6 +562,95 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     expect(await until(async () => (await text('.procedural-editor')).includes('Kept ·'))).toBe(true);
     expect(errors, errors.join(' | ')).toEqual([]);
   }, 120000);
+
+  it('shows where the map runs, opens each Studio on it for this population, and goes on to publish with no instance', async () => {
+    await visit('&step=context');
+    expect(
+      await until(async () =>
+        (await text('.procedural-context')).includes('This map is not assigned to an instance or universe.'),
+      ),
+    ).toBe(true);
+    expect(await text('.procedural-stepper')).toMatch(/Runtime context\s+Optional/);
+    await shot('population-runtime-context-unassigned', '.procedural-context');
+    await press('.procedural-context .procedural-action', 'Continue to Publish');
+    expect(await until(async () => (await text('.procedural-publish')).includes('Review'))).toBe(true);
+
+    await all().CyberiaInstance.create({ code: 'moss-world', name: 'Moss World', cyberiaMapCodes: ['moss-hollow'] });
+    try {
+      await visit('&step=context');
+      expect(await until(async () => (await text('.procedural-context')).includes('Moss World'))).toBe(true);
+      expect(await text('.procedural-stepper')).toMatch(/Runtime context\s+Ready/);
+      const shown = await text('.procedural-context');
+      for (const fact of ['Instances · 1', 'No universe', 'No live server', 'Universes · 0'])
+        expect(shown).toContain(fact);
+      await shot('population-runtime-context', '.procedural-context');
+      // The app shell entries of the two Studios: each records the route and query it opened with.
+      await page.evaluate(() => {
+        window.opened = [];
+        for (const route of ['cyberia-instance-engine', 'cyberia-universe-engine']) {
+          const entry = Object.assign(document.createElement('button'), { className: `main-btn-${route}` });
+          entry.onclick = () => {
+            window.opened.push({
+              path: location.pathname,
+              query: Object.fromEntries(new URLSearchParams(location.search)),
+            });
+            history.replaceState(null, '', `/${location.search}`);
+          };
+          document.body.append(entry);
+        }
+      });
+      const opened = () => page.evaluate(() => window.opened.at(-1));
+      await press('.procedural-context .procedural-action', 'Create instance with this map');
+      expect(await opened()).toEqual({
+        path: '/cyberia-instance-engine',
+        query: { population: id, mapCode: 'moss-hollow' },
+      });
+      await press('.procedural-context .procedural-action', 'Open Instance Studio');
+      expect(await opened()).toEqual({
+        path: '/cyberia-instance-engine',
+        query: { population: id, instanceCode: 'moss-world' },
+      });
+      await press('.procedural-context .procedural-action', 'Create universe for this instance');
+      expect(await opened()).toEqual({
+        path: '/cyberia-universe-engine',
+        query: { population: id, instanceCode: 'moss-world' },
+      });
+      expect(await all().CyberiaInstance.countDocuments()).toBe(1);
+
+      const view = instanceDraftView(await populationGraph(all(), id, host), 'moss-world');
+      await saveInstanceDraft({
+        models: all(),
+        id,
+        code: 'moss-world',
+        body: {
+          document: { ...view.document, name: 'Moss World draft' },
+          conf: view.conf,
+          baseRevision: 1,
+          revision: 0,
+        },
+        actor: MODERATOR,
+        options: host,
+      });
+      await visit('&step=context');
+      expect(await until(async () => (await text('.procedural-context')).includes('Moss World draft'))).toBe(true);
+      const drafted = await text('.procedural-context');
+      for (const fact of [
+        'Saved to Procedural Draft',
+        'Draft preview',
+        'Runs this map',
+        'Checks · 0 errors · 0 warnings',
+      ])
+        expect(drafted).toContain(fact);
+      await shot('population-runtime-context-draft', '.procedural-context');
+      await press('.procedural-context .procedural-action', 'Discard draft');
+      expect(await until(async () => !(await text('.procedural-context')).includes('Moss World draft'))).toBe(true);
+      expect(await text('.procedural-context')).toContain('Moss World');
+      expect(await text('.procedural-context')).not.toContain('Saved to Procedural Draft');
+      expect(await all().CyberiaInstance.findOne({ code: 'moss-world' }).lean()).toMatchObject({ name: 'Moss World' });
+    } finally {
+      await all().CyberiaInstance.deleteOne({ code: 'moss-world' });
+    }
+  });
 
   it('keeps the actions of a long confirmation in view on a small screen', async () => {
     await page.setViewportSize({ width: 360, height: 560 });

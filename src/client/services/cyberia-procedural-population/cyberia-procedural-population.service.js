@@ -20,6 +20,67 @@ const send = (url, method, body) =>
 const at = (id, path) => getApiBaseUrl({ id: `${id}/${path}`, endpoint });
 const targetPath = (itemId) => `targets/${encodeURIComponent(itemId)}`;
 
+/* Draft pictures by `{population}/{path}@{revision}`, oldest first: object URLs, revoked when dropped. */
+const pictures = new Map();
+const pictureLoads = new Map();
+/* The newest revision asked for each picture: an older answer is dropped, never shown. */
+const newest = new Map();
+/* The most draft pictures a page keeps. */
+const MAX_PICTURES = 48;
+
+const revoke = (picture) => picture?.url && URL.revokeObjectURL(picture.url);
+
+/* Reads a draft picture with the session headers: a route of a moderator answers no bare image request. */
+const readPicture = async (url) => {
+  try {
+    const res = await fetch(url, { headers: headersFactory(), credentials: 'include' });
+    if (res.status === 204) return { state: 'empty' };
+    if (res.status === 409) return { state: 'stale' };
+    if (!res.ok) return { state: 'failed', message: (await readResponse(res)).message ?? `HTTP ${res.status}` };
+    return { state: 'ready', url: URL.createObjectURL(await res.blob()) };
+  } catch (error) {
+    return { state: 'failed', message: error.message };
+  }
+};
+
+/* One draft picture of a revision, shared by every view of the page; each newer revision drops the older. */
+const picture = ({ id, path, revision }) => {
+  const name = `${id}/${path}`;
+  const key = `${name}@${revision}`;
+  if (pictures.has(key)) {
+    const held = pictures.get(key);
+    pictures.delete(key);
+    pictures.set(key, held);
+    return Promise.resolve(held);
+  }
+  newest.set(name, Math.max(newest.get(name) ?? 0, revision));
+  if (!pictureLoads.has(key))
+    pictureLoads.set(
+      key,
+      readPicture(`${at(id, path)}?revision=${revision}`)
+        .then((read) => {
+          if (revision < newest.get(name)) {
+            revoke(read);
+            return { state: 'stale' };
+          }
+          for (const [other, held] of pictures)
+            if (other.startsWith(`${name}@`)) {
+              revoke(held);
+              pictures.delete(other);
+            }
+          if (read.state === 'ready' || read.state === 'empty') pictures.set(key, read);
+          while (pictures.size > MAX_PICTURES) {
+            const [oldest, held] = pictures.entries().next().value;
+            revoke(held);
+            pictures.delete(oldest);
+          }
+          return read;
+        })
+        .finally(() => pictureLoads.delete(key)),
+    );
+  return pictureLoads.get(key);
+};
+
 /**
  * The map population API of the Procedural Engine: map contexts, populations, their items and
  * entries, the map draft, the entity-type defaults and the publication.
@@ -42,6 +103,77 @@ class CyberiaProceduralPopulationService {
 
   /** Where each target of a population runs now besides its map. */
   static getImpact = (options = { id: '' }) => send(at(options.id, 'impact'), 'GET');
+
+  /** Where the map runs in the working graph of a population: its instances and universes, with their states and problems. */
+  static getRuntimeContext = (options = { id: '' }) => send(at(options.id, 'runtime-context'), 'GET');
+
+  /** An instance or a universe (`kind`) as the working graph of a population holds it. */
+  static getDocumentDraft = (options = { id: '', kind: 'instances', code: '' }) =>
+    send(at(options.id, `${options.kind}/${encodeURIComponent(options.code)}`), 'GET');
+
+  /** Saves the draft of an instance or a universe: `body` is `{ document, conf?, baseRevision, revision }`. */
+  static saveDocumentDraft = (options = { id: '', kind: 'instances', code: '', body: {} }) =>
+    send(at(options.id, `${options.kind}/${encodeURIComponent(options.code)}`), 'PUT', options.body);
+
+  /** Discards the draft of an instance or a universe. */
+  static discardDocumentDraft = (options = { id: '', kind: 'instances', code: '' }) =>
+    send(at(options.id, `${options.kind}/${encodeURIComponent(options.code)}`), 'DELETE');
+
+  /** Moves a draft onto the revision its stored document is at now; `body` is `{ prefer? }`. */
+  static rebaseDocumentDraft = (options = { id: '', kind: 'instances', code: '', body: {} }) =>
+    send(at(options.id, `${options.kind}/${encodeURIComponent(options.code)}/rebase`), 'POST', options.body ?? {});
+
+  /** Proposes an instance-specific variant of the entity-type default `rowId` the instance references. */
+  static proposeVariant = (options = { id: '', code: '', rowId: '' }) =>
+    send(at(options.id, `instances/${encodeURIComponent(options.code)}/variants`), 'POST', { rowId: options.rowId });
+
+  /** Saves the fields of a variant: `body` is `{ row, revision }`. */
+  static saveVariant = (options = { id: '', code: '', key: '', body: {} }) =>
+    send(at(options.id, `instances/${encodeURIComponent(options.code)}/variants/${options.key}`), 'PUT', options.body);
+
+  /** Drops a variant: the instance references the row it copies again. */
+  static dropVariant = (options = { id: '', code: '', key: '' }) =>
+    send(at(options.id, `instances/${encodeURIComponent(options.code)}/variants/${options.key}`), 'DELETE');
+
+  /** What `{ mapCodes, portals }` connect, with the maps as the population drafts them. */
+  static topology = (options = { id: '', body: {} }) => send(at(options.id, 'topology'), 'POST', options.body);
+
+  /** The portals the Portal Connector proposes for `{ mapCodes }`, with the maps as the population drafts them. */
+  static portalConnect = (options = { id: '', body: {} }) =>
+    send(at(options.id, 'portal-connect'), 'POST', options.body);
+
+  /** Makes the draft of an instance reference the stored default `rowId`, or stop referencing it. */
+  static setDefaultReference = (options = { id: '', code: '', rowId: '', linked: true }) =>
+    send(
+      at(options.id, `instances/${encodeURIComponent(options.code)}/defaults/${options.rowId}`),
+      options.linked ? 'PUT' : 'DELETE',
+    );
+
+  /** Starts a default draft: `body` is `{ rowId, baseUpdatedAt, row }`, or `{ row }` for a new global row. */
+  static createDefaultDraft = (options = { id: '', body: {} }) =>
+    send(at(options.id, 'default-drafts'), 'POST', options.body);
+
+  /** A default draft (`key`) with the instances that reference the row it edits. */
+  static getDefaultDraft = (options = { id: '', key: '' }) =>
+    send(at(options.id, `default-drafts/${options.key}`), 'GET');
+
+  /** Saves a default draft: `body` is `{ row, revision }`. */
+  static saveDefaultDraft = (options = { id: '', key: '', body: {} }) =>
+    send(at(options.id, `default-drafts/${options.key}`), 'PUT', options.body);
+
+  /** Discards a default draft. */
+  static discardDefaultDraft = (options = { id: '', key: '' }) =>
+    send(at(options.id, `default-drafts/${options.key}`), 'DELETE');
+
+  /**
+   * The picture of the map draft of a population at a draft revision: `{ state, url?, message? }`, where
+   * `state` is `ready`, `empty` (it draws nothing), `stale` (the draft moved on) or `failed`.
+   */
+  static mapPicture = ({ id, revision }) => picture({ id, path: 'map-preview', revision });
+
+  /** The preview of the world of an instance in the working graph of a population at a population revision, as {@link mapPicture} answers. */
+  static worldPicture = ({ id, code, revision }) =>
+    picture({ id, path: `world-preview/${encodeURIComponent(code)}`, revision });
 
   /** Adds an item `{ itemId, stage?, itemType?, cid? }`, or restores a removed one. */
   static addTarget = (options = { id: '', body: {} }) => send(at(options.id, 'targets'), 'POST', options.body);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Jimp } from 'jimp';
+import sharp from 'sharp';
 import {
   AtlasSpriteSheetGenerator as Atlas,
   IDLE_PREVIEW_SIZE,
@@ -119,10 +120,39 @@ describe('Cyberia render sources from a primary render', () => {
     );
     await expect(cut({ frames: { down_idle: [{ ...box, x: metadata.atlasWidth - 1 }] } })).rejects.toThrow('outside');
     await expect(cut({ frames: { down_idle: Array(8).fill(box) } })).rejects.toThrow('hold 32 pixels');
-    await expect(cut({}, { maxPixels: 4 })).rejects.toThrow('hold 12 pixels');
+    await expect(cut({}, { maxPixels: 4 })).rejects.toThrow('The atlas holds over 4 pixels');
     await expect(cut({ cellPixelDim: 20 })).rejects.toThrow('1 pixel per cell');
     await expect(cut({ atlasWidth: metadata.atlasWidth + 1 })).rejects.toThrow('its layout');
     await expect(cut({ frame_duration: 'slow' })).rejects.toThrow('frame duration');
+  });
+
+  it('refuses bytes that are not a PNG, and a PNG that does not decode, before any frame is cut', async () => {
+    const { primary, metadata } = await Atlas.generateAtlas(source, 'not-png');
+    const webp = await sharp(primary).webp({ lossless: true }).toBuffer();
+    await expect(Atlas.sourceFromRender(webp, metadata)).rejects.toThrow('not a PNG');
+    await expect(Atlas.sourceFromRender(Buffer.from('<svg/>'), metadata)).rejects.toThrow('not a PNG');
+    const torn = Buffer.concat([primary.subarray(0, 16), Buffer.alloc(32)]);
+    await expect(Atlas.sourceFromRender(torn, metadata)).rejects.toThrow();
+  });
+
+  it('cuts every direction and frame, transparent pixels and frames on the edge of the atlas', async () => {
+    const clear = [
+      [2, 2],
+      [2, 1],
+    ];
+    const directions = indexed({
+      down_idle: [frame],
+      up_idle: [clear],
+      left_walking: [frame, clear],
+      right_idle: [clear],
+    });
+    const atlas = await Atlas.generateAtlas(directions, 'directions', 2);
+    const cut = await Atlas.sourceFromRender(atlas.primary, atlas.metadata, { maxPixels: 4096 });
+    expect(sameSource(cut, directions)).toBe(true);
+    const edge = Object.values(atlas.metadata.frames)
+      .flat()
+      .some(({ x, width }) => x + width === atlas.metadata.atlasWidth);
+    expect(edge).toBe(true);
   });
 });
 

@@ -57,23 +57,45 @@ async function idlePreviewFileIds(map, options) {
  * bytes, so an entry never goes stale. A map tiles thousands of floor cells from a handful of
  * distinct items, so resizing once per (picture, size) is the difference between fast and unusable.
  */
-const frameCache = new Map();
+/** The most frames and fills a process keeps: the least recently drawn goes first. */
+const MAX_CACHED_FRAMES = 512;
+
+/** A map of at most {@link MAX_CACHED_FRAMES} entries that keeps the most recently read. */
+const boundedCache = () => {
+  const entries = new Map();
+  return {
+    has: (key) => entries.has(key),
+    get: (key) => {
+      const value = entries.get(key);
+      entries.delete(key);
+      entries.set(key, value);
+      return value;
+    },
+    set: (key, value) => {
+      entries.set(key, value);
+      if (entries.size > MAX_CACHED_FRAMES) entries.delete(entries.keys().next().value);
+    },
+  };
+};
+
+/** Frames by File id and size: a File id names immutable bytes. A failed read is not kept, so the next draw tries again. */
+const frameCache = boundedCache();
 
 async function resizedFrame(fileId, width, height, options) {
   if (!fileId) return null;
   const key = `${fileId}:${width}x${height}`;
   if (frameCache.has(key)) return frameCache.get(key);
 
-  let buffer = null;
   try {
     const still = await renderFileBytes(fileId, options);
     // `nearest` keeps the pixel-art edges crisp at small sizes.
-    if (still) buffer = await sharp(still).resize(width, height, { kernel: 'nearest' }).png().toBuffer();
+    const buffer = still ? await sharp(still).resize(width, height, { kernel: 'nearest' }).png().toBuffer() : null;
+    frameCache.set(key, buffer);
+    return buffer;
   } catch (error) {
     logger.warn(`map preview: frame render failed for File ${fileId}: ${error.message}`);
+    return null;
   }
-  frameCache.set(key, buffer);
-  return buffer;
 }
 
 const clamp255 = (n) => Math.min(255, Math.max(0, Math.round(Number(n) || 0)));
@@ -117,7 +139,7 @@ function parseEntityColor(color) {
  * Entities without object layers all fall back to a flat rect, so the same few
  * palette colours repeat across the whole map.
  */
-const solidCache = new Map();
+const solidCache = boundedCache();
 
 async function solidFrame(color, width, height) {
   const rgba = parseEntityColor(color);

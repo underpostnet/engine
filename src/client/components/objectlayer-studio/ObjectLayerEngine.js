@@ -1013,7 +1013,6 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._updateSelectionUI();
     this._setupContextsAndSize();
     this.render();
-    this.dispatchEvent(new CustomEvent('matrixload', { detail: { width: w, height: h } }));
   }
 
   clear(fill = [0, 0, 0, 0]) {
@@ -2234,7 +2233,6 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._updateSelectionUI();
     this._setupContextsAndSize();
     this.render();
-    this.dispatchEvent(new CustomEvent('matrixload', { detail: { width: this._width, height: this._height } }));
   }
 
   _matricesEqual(a, b) {

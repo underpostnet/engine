@@ -193,6 +193,43 @@ const CssCommonCyberia = async () => {
         font-size: 12px;
         line-height: 18px;
       }
+      .studio-context {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        align-items: center;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        border: 1px solid var(--studio-accent);
+        border-radius: 6px;
+      }
+      .studio-context[hidden] {
+        display: none;
+      }
+      .studio-context-label {
+        font-weight: bold;
+        color: var(--studio-accent);
+      }
+      .studio-context-note {
+        font-size: 12px;
+        opacity: 0.8;
+        flex-basis: 100%;
+      }
+      .studio-context-state {
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid var(--studio-subtle-border);
+        font-size: 12px;
+        line-height: 20px;
+      }
+      .studio-context-warn {
+        border-color: #b26a00;
+        color: #ffb74d;
+      }
+      .studio-context-good {
+        border-color: var(--studio-positive);
+        color: var(--studio-positive);
+      }
       .studio-group {
         border: 1px solid var(--studio-border);
         border-radius: 8px;

@@ -539,7 +539,7 @@ into its own database, validates it, and promotes it by pointer.
 | `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance) and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace` |
 | `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                              |
 | `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                 |
-| `export-live [--backup <dir>] [--apply]`   | Export every world of the release a host backup served into `cyberia-content`, read by the current models; writes only with `--apply`                                                |
+| `export-live [--backup <dir>] [--apply]`   | Export every world and the global content of the release a host backup served into `cyberia-content`, read by the current models; writes only with `--apply`                         |
 | `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                    |
 | `rollback`                                 | Serve the release that was active before the current one                                                                                                                             |
 | `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                               |
@@ -664,6 +664,18 @@ artifact. Prints the report as JSON and writes nothing without `--apply`. Exits 
 stays outdated or a job waits or cannot be mapped. A second run changes nothing. See
 [the Procedural Engine reference](procedural-engine.md#migration).
 
+```
+cyberia population prune [--apply] [--retention-days <days>] --dev
+```
+
+Clears the working copies of every map population closed for longer than the retention window (14
+days by default): its map draft and its instance, universe and default drafts, with the draft
+thumbnails no stored instance shows. A published population keeps its publication record and its
+targets, and takes `draftsPrunedAt`. An open population, or one whose publication runs or waits for
+its reload, stays as it is. Prints what it cleared, with the bytes each record held, and what the
+window keeps, as JSON; writes nothing without `--apply`. A second run clears nothing. See
+[Working copies after publication](../explanation/procedural-engine.md#working-copies-after-publication).
+
 ## `cyberia runtime-indexes` — runtime record indexes
 
 ```
@@ -729,11 +741,11 @@ cyberia content import --dev
 cyberia content import --saga amethyst-strata-expansion --dev
 ```
 
-| Subcommand | Description                                                                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `status`   | Print the artifact identity                                                                                                                                    |
-| `audit`    | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label                                                         |
-| `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance; `--release <id>` writes into that release database |
+| Subcommand | Description                                                                                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `status`   | Print the artifact identity                                                                                                                                                                            |
+| `audit`    | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label                                                                                                 |
+| `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance; `--global` restores the global content; `--release <id>` writes into that release database |
 
 `import` writes Object Layer definitions and their catalog bindings, entity-type defaults, skills,
 maps, quests, dialogues, market profiles and actions, in that order. An Object Layer item is planned by identity

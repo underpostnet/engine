@@ -55,12 +55,47 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
   let browser, server, page, base, script;
   let failure = false;
   const errors = [];
+  const saved = [];
+  const drafts = [];
+  const rebases = [];
+  const pictures = [];
+  // The universe demo as the population drafts it: stored at revision 3, the draft starts from revision 2.
+  const draftOf = (baseRevision) => ({
+    code: 'demo',
+    document: { name: 'Cyberia draft', description: topology.description, instances: topology.instances, links: [] },
+    state: 'draft',
+    revision: 3,
+    baseRevision,
+    draftRevision: 4,
+    populationRevision: 9,
+    persistedMembers: ['forest'],
+    members: [
+      { instanceCode: 'forest', state: 'persisted', preview: 'persisted' },
+      { instanceCode: 'coast', state: 'new', preview: 'draft' },
+    ],
+    view: {
+      ...view,
+      instances: view.instances.map((node) => ({
+        ...node,
+        state: node.instanceCode === 'coast' ? 'new' : 'persisted',
+        preview: node.instanceCode === 'coast' ? 'draft' : 'persisted',
+      })),
+    },
+  });
+  let draftBase = 2;
   beforeAll(async () => {
     const result = await build({
       stdin: {
         contents: `import {UniverseEngineCyberia} from './src/client/components/cyberia/UniverseEngineCyberia.js';
         import {GraphLayoutCyberia} from './src/client/components/cyberia/GraphLayoutCyberia.js';
+        import {NotificationManager} from './src/client/components/core/NotificationManager.js';
+        import {Modal} from './src/client/components/core/Modal.js';
+        import {Auth} from './src/client/components/core/Auth.js';
+        Auth.setToken('studio-test');
         window.GraphLayoutCyberia = GraphLayoutCyberia;
+        NotificationManager.Push = async () => {};
+        window.confirms = [];
+        Modal.RenderConfirm = async ({ id }) => (window.confirms.push(id), { status: 'confirm' });
         document.querySelector('#mount').innerHTML = await UniverseEngineCyberia.render({
           appStore: {Data: {user: {main: {model: {user: {role: 'moderator'}}}}}}
         });`,
@@ -78,7 +113,7 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
       },
     });
     script = result.outputFiles[0].text;
-    server = createServer((req, res) => {
+    server = createServer(async (req, res) => {
       const path = new URL(req.url, 'http://localhost').pathname;
       if (path === '/studio.js') {
         res.setHeader('Content-Type', 'text/javascript');
@@ -92,6 +127,17 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
           <style>body{margin:12px;font:16px sans-serif;background:#111b2b;color:#e5efff;--studio-card:#16233a;--studio-border:#52647e}</style>
           <div id="mount"></div><script type="module" src="/studio.js"></script></html>`);
       }
+      if (path.includes('/cyberia-procedural-population/pop-1/world-preview/')) {
+        pictures.push({ url: req.url, authorized: req.headers.authorization === 'Bearer studio-test' });
+        if (!pictures.at(-1).authorized) {
+          res.statusCode = 401;
+          return res.end();
+        }
+        res.setHeader('Content-Type', 'image/svg+xml');
+        return res.end(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#463428"/></svg>',
+        );
+      }
       if (path === '/missing-preview.png') {
         res.setHeader('Content-Type', 'image/svg+xml');
         return res.end(
@@ -104,6 +150,33 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
       }
       res.setHeader('Content-Type', 'application/json');
       const send = (data) => res.end(JSON.stringify({ status: 'success', data }));
+      const body = async () => {
+        let text = '';
+        for await (const chunk of req) text += chunk;
+        return JSON.parse(text || '{}');
+      };
+      if (path.endsWith('/cyberia-procedural-population/pop-1/universes/lake-reach') && req.method === 'PUT') {
+        drafts.push({ code: 'lake-reach', ...(await body()) });
+        return send({ code: 'lake-reach', state: 'new', draftRevision: 1 });
+      }
+      if (path.endsWith('/cyberia-procedural-population/pop-1/universes/demo/rebase')) {
+        rebases.push(await body());
+        if (!rebases.at(-1).prefer) {
+          res.statusCode = 409;
+          return res.end(
+            JSON.stringify({
+              status: 'error',
+              message: 'demo changed name in the draft and at revision 3: keep the draft values, or discard the draft',
+            }),
+          );
+        }
+        draftBase = 3;
+        return send(draftOf(3));
+      }
+      if (path.endsWith('/cyberia-procedural-population/pop-1/universes/demo')) return send(draftOf(draftBase));
+      if (path.endsWith('/cyberia-procedural-population/pop-1/instances/lake'))
+        return send({ code: 'lake', state: 'persisted', preview: 'persisted' });
+      if (path.endsWith('/cyberia-procedural-population/pop-1')) return send({ _id: 'pop-1', revision: 5 });
       if (path.endsWith('/cyberia-server-registry')) {
         if (failure) {
           res.statusCode = 503;
@@ -134,6 +207,17 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
           })),
         });
       if (path.endsWith('/distant')) return send(distant);
+      if (path.endsWith('/lake-reach/view'))
+        return send({
+          ...saved.at(-1),
+          instances: saved.at(-1).instances.map((node) => ({ ...node, name: node.instanceCode, mapCodes: [] })),
+        });
+      if (path.endsWith('/cyberia-universe') && req.method === 'POST') {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        saved.push(JSON.parse(body));
+        return send({ ...JSON.parse(body), _id: 'universe-new', revision: 1 });
+      }
       if (path.endsWith('/cyberia-universe')) return send({ data: [topology, distant], total: 2 });
       return send({ data: [], total: 0 });
     });
@@ -299,6 +383,88 @@ describe.skipIf(!driver || !browserBinary)('Universe Studio in a browser', () =>
       return { transforms, edges, unchanged: before === JSON.stringify(nodes) };
     });
     expect(result).toEqual({ transforms: ['translate(0 0)', 'translate(200 0)'], edges: 1, unchanged: true });
+  });
+
+  it('opens for the Procedural Engine with its world as a member, and saves to the Procedural Draft, not the stored universes', async () => {
+    await page.goto(`${base}/?population=pop-1&instanceCode=lake`);
+    await page.waitForSelector('.graph-layout-node[data-code="lake"]');
+    const banner = await page.locator('.universe-engine-population').innerText();
+    expect(banner).toContain('Procedural Engine · Universe');
+    expect(banner).toContain('New universe · not saved · Unsaved changes');
+    expect(banner).toContain('World lake is among its members.');
+    await expect
+      .poll(() => page.locator('.graph-layout-node[data-code="lake"]').textContent())
+      .toContain('Persisted preview · Pending association');
+    expect(pictures).toContainEqual({
+      url: '/api/v1/cyberia-procedural-population/pop-1/world-preview/lake?revision=5',
+      authorized: true,
+    });
+    expect(await page.locator('.universe-engine-crud [data-crud="new"]').isHidden()).toBe(true);
+    expect(await page.locator('.universe-engine-crud [data-crud="delete"]').isHidden()).toBe(true);
+    expect(await page.locator('.universe-engine-crud [data-crud="save"]').innerText()).toContain(
+      'Save to Procedural Draft',
+    );
+    await page.evaluate(() => {
+      window.opened = [];
+      const entry = Object.assign(document.createElement('button'), {
+        className: 'main-btn-cyberia-procedural-engine',
+      });
+      entry.onclick = () =>
+        window.opened.push({
+          path: location.pathname,
+          query: Object.fromEntries(new URLSearchParams(location.search)),
+        });
+      document.body.append(entry);
+    });
+    await page.getByRole('tab', { name: 'Universe', exact: true }).click();
+    await page.locator('.universe-engine-input-code').fill('lake-reach');
+    await page.locator('.universe-engine-crud [data-crud="save"]').click();
+    await page.waitForFunction(() => window.opened.length === 1);
+    expect(saved).toEqual([]);
+    expect(drafts).toEqual([
+      {
+        code: 'lake-reach',
+        document: { name: '', description: '', instances: [{ instanceCode: 'lake', x: 0, y: 0 }], links: [] },
+        baseRevision: null,
+        revision: 0,
+      },
+    ]);
+    expect(await page.evaluate(() => window.opened[0])).toEqual({
+      path: '/cyberia-procedural-engine',
+      query: { population: 'pop-1', workflow: 'map', step: 'context' },
+    });
+    expect(await page.locator('.universe-engine-population').isHidden()).toBe(true);
+    await page.goto(`${base}/?universeCode=demo`);
+    await page.waitForSelector('.graph-layout-node');
+    expect(errors).toEqual([]);
+  });
+
+  it('shows a stale universe draft with its draft previews, and a rebase that asks before it keeps the draft values', async () => {
+    await page.goto(`${base}/?population=pop-1&universeCode=demo`);
+    await page.waitForSelector('.graph-layout-node[data-code="coast"]');
+    const banner = page.locator('.universe-engine-population');
+    await expect.poll(() => banner.innerText()).toContain('the stored universe moved to revision 3');
+    expect(await page.locator('.universe-engine-input-code').isDisabled()).toBe(true);
+    await expect
+      .poll(() => page.locator('.graph-layout-node[data-code="coast"]').textContent())
+      .toContain('Draft preview');
+    const coast = await page.locator('.graph-layout-node[data-code="coast"]').textContent();
+    expect(await page.locator('.graph-layout-node[data-code="coast"] image').getAttribute('href')).toMatch(/^blob:/);
+    expect(pictures).toContainEqual({
+      url: '/api/v1/cyberia-procedural-population/pop-1/world-preview/coast?revision=9',
+      authorized: true,
+    });
+    expect(coast).toContain('Saved to Procedural Draft');
+    expect(coast).toContain('Pending association');
+    expect(await page.locator('.graph-layout-node[data-code="forest"]').textContent()).not.toContain('Pending');
+    await banner.getByRole('button', { name: 'Rebase on revision 3' }).click();
+    await expect.poll(() => banner.innerText()).toContain('Saved to Procedural Draft · starts from revision 3');
+    expect(rebases).toEqual([{}, { prefer: 'draft' }]);
+    expect(await page.evaluate(() => window.confirms)).toEqual(['universe-engine-rebase-confirm']);
+    expect(await banner.getByRole('button', { name: /Rebase/ }).count()).toBe(0);
+    await page.goto(`${base}/?universeCode=demo`);
+    await page.waitForSelector('.graph-layout-node');
+    expect(errors).toEqual([]);
   });
 
   it('frames the new topology when the library opens another universe', async () => {

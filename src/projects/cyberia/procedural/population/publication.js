@@ -7,12 +7,15 @@
  * | `queued`             | nothing yet                                                        |
  * | `preflight`          | the checks; the plan freezes what the commit writes and checks       |
  * | `publishing_objects` | each approved revision goes to the Object Layer authority            |
- * | `committing_runtime` | one transaction: bindings, the map, the record                       |
+ * | `committing_runtime` | one transaction: bindings, the map, instances, universes, the record |
  * | `refreshing_runtime` | caches, the map media, previews and the reload of the game servers   |
  * | `completed`          | everything converged                                                |
  *
  * The plan is the manifest of the publication: it freezes at the end of the preflight, with its hash,
- * and every later phase reads it, never the population. It holds only what the publication
+ * and every later phase reads it, never the population. Beside the artwork and the map, it names each
+ * instance and universe draft with the revision it starts from, and the worlds the commit changes,
+ * which the refresh reloads: the preflight checks the working graph (`working-graph.js`) by the rules
+ * the canonical writes apply. It holds only what the publication
  * changes: a kept item publishes and binds nothing, and the commit only checks that it still runs
  * the binding observed. Each asset names the revision it publishes (`revisionCid`), the definition
  * its item runs (`previousCid`) and, once published, the definition the authority holds
@@ -34,14 +37,19 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import canonicalize from 'canonicalize';
+import { Types } from 'mongoose';
 import { loggerFactory } from '../../../../server/ops/logger.js';
 import { CacheService } from '../../../../server/storage/cache.js';
+import { revisionGuard } from '../../../../server/storage/revision.js';
+import { DataBaseProviderService } from '../../../../db/DataBaseProvider.js';
+import { instanceCache } from '../../../../api/cyberia-instance/cyberia-instance.service.js';
 import { CLOSED_BEFORE_COMMIT } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { runsAnother } from '../../../../api/cyberia-item-catalog/cyberia-item-catalog.model.js';
 import { mapCache, pendingMedia } from '../../../../api/cyberia-map/cyberia-map.service.js';
 import { bindItem, exactDefinitionCid, renderedCids } from '../../catalog/object-layer-catalog.js';
 import { reloadContentServers } from '../../content/content-release.js';
 import { refreshMapMedia, refreshMapPreviews } from '../../instance/map-preview-generator.js';
+import { reconcileMapRegistry, registryModels } from '../../instance/map-registry.js';
 import { integrityError, requestError, syncJob } from '../engine.js';
 import { commitPromotion, publishRevision } from '../jobs/promotion.js';
 import { targetUsage } from './map-context.js';
@@ -54,6 +62,7 @@ import {
   liveMap,
   populationView,
 } from './population.js';
+import { changedWorlds, graphProblems, variantKeyOf, variantRef, workingGraph } from './working-graph.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -113,14 +122,19 @@ function acknowledgementsOf({ acknowledged = [] }) {
  * @param {Object} params.models - {@link populationModels}.
  * @param {string} params.id
  * @param {{acknowledged?:string[]}} [params.body]
- * @returns {Promise<{ready:boolean,problems:string[],plan:Object|null}>}
+ * @param {Object} params.options - Router options.
+ * @returns {Promise<{ready:boolean,problems:string[],warnings:string[],plan:Object|null}>}
  * @throws {Error} 400 for an invalid acknowledgement; 404 for an unknown population.
  * @memberof CyberiaPopulationPublication
  */
-export async function validatePublication({ models, id, body = {} }) {
+export async function validatePublication({ models, id, body = {}, options }) {
   const population = await findPopulation(models, id);
-  const { plan, problems } = await preflight(models, { ...population, publication: acknowledgementsOf(body) });
-  return { ready: problems.length === 0, problems, plan };
+  const { plan, problems, warnings } = await preflight(
+    models,
+    { ...population, publication: acknowledgementsOf(body) },
+    options,
+  );
+  return { ready: problems.length === 0, problems, warnings, plan };
 }
 
 /**
@@ -213,15 +227,18 @@ async function transition(models, population, { holder, from, to, set = {}, now 
  * The plan of a publication, or why it cannot run: every item is decided; each kept item runs the
  * binding observed; the map is at the revision the draft starts from; each selection covers the
  * exact revision of its entry; each binding is the one its item read; the draft places only items
- * that run; each global change is accepted; each revision has its render. The plan freezes the
- * population revision, the kept bindings, the assets with the binding revision each replaces, the
- * map and draft revisions, the grid, and the map revision whose media the refresh draws.
+ * that run; each global change is accepted; each revision has its render; the working graph has no
+ * defect ({@link graphProblems}). The plan freezes the population revision, the kept bindings, the
+ * assets with the binding revision each replaces, the map and draft revisions, the grid, the map
+ * revision whose media the refresh draws, each instance and universe draft with the revision it starts
+ * from, and the worlds the commit changes.
  * @param {Object} models
  * @param {Object} population
- * @returns {Promise<{plan:Object|null,problems:string[]}>}
+ * @param {Object} options - Router options.
+ * @returns {Promise<{plan:Object|null,problems:string[],warnings:string[]}>}
  * @memberof CyberiaPopulationPublication
  */
-export async function preflight(models, population) {
+export async function preflight(models, population, options) {
   const { publication, draft } = population;
   const view = await populationView(models, { ...population, publication: null });
   const problems = [];
@@ -313,7 +330,11 @@ export async function preflight(models, population) {
   );
   if (unaccepted.length > 0)
     problems.push(`Accept the change of ${unaccepted.join(', ')}: each runs beyond map ${population.mapCode} too`);
-  if (problems.length > 0) return { plan: null, problems };
+  const graph = await workingGraph(models, population, options);
+  const { errors, warnings } = await graphProblems(models, graph, options);
+  problems.push(...errors);
+  if (problems.length > 0) return { plan: null, problems, warnings };
+  const drafts = (entries) => entries.map(({ code, baseRevision, revision }) => ({ code, baseRevision, revision }));
   const plan = {
     populationRevision: population.revision,
     mapRevision: map.revision,
@@ -323,8 +344,22 @@ export async function preflight(models, population) {
     kept,
     assets,
     media: draft ? { mapCode: map.code, revision: map.revision + 1 } : null,
+    instances: drafts(population.instanceDrafts ?? []),
+    universes: drafts(population.universeDrafts ?? []),
+    variants: (population.instanceDrafts ?? []).flatMap(({ code, conf, variants = [] }) =>
+      variants
+        .filter(({ key }) => conf.entityDefaults.includes(variantRef(key)))
+        .map(({ key, from }) => ({ instanceCode: code, key, from })),
+    ),
+    defaults: (population.defaultDrafts ?? []).map(({ key, rowId, baseUpdatedAt, revision }) => ({
+      key,
+      rowId,
+      baseUpdatedAt,
+      revision,
+    })),
+    worlds: changedWorlds(graph),
   };
-  return { plan: { ...plan, manifestHash: manifestHashOf(plan) }, problems };
+  return { plan: { ...plan, manifestHash: manifestHashOf(plan) }, problems, warnings };
 }
 
 /**
@@ -366,8 +401,8 @@ export const manifestHashOf = ({ assets, manifestHash, ...plan }) =>
     .digest('hex');
 
 /** Runs the preflight of a publication and moves it to its next status. */
-async function runPreflight(models, population, { holder }) {
-  const { plan, problems } = await preflight(models, population);
+async function runPreflight(models, population, { holder, options }) {
+  const { plan, problems } = await preflight(models, population, options);
   if (plan)
     return await transition(models, population, { holder, from: 'preflight', to: 'publishing_objects', set: { plan } });
   return await transition(models, population, {
@@ -451,10 +486,113 @@ async function movedBindings(models, plan, session) {
   ];
 }
 
+/** A write the unique index of a code or a universe member refused: another write took it after the preflight. */
+const conflictOf = (error) =>
+  error?.code === 11000
+    ? requestError(`A code or a universe member was taken after the preflight: ${messageOf(error)}`, 409)
+    : error;
+
+/**
+ * Writes the default, instance and universe drafts of a population in the commit transaction: each
+ * edit of a stored default row at the `updatedAt` it read, each new global row, and each instance and
+ * universe at the revision its draft starts from, a new one only where no document holds its code.
+ * Each variant an instance references becomes an entity-type default in the same write as its
+ * reference, so none runs as a global row. The map registry then follows the maps and instances, and a
+ * defect it did not hold before stops the commit.
+ * @returns {Promise<{defaults:Object[], instances:Object[], universes:Object[], variants:Object[]}>} What was written.
+ */
+async function commitDocuments(models, population, { session, actor, options }) {
+  const registry = registryModels(options);
+  const before = new Set((await reconcileMapRegistry(registry, { session })).defects);
+  const written = { defaults: [], instances: [], universes: [], variants: [] };
+  for (const { key, rowId, baseUpdatedAt, row } of population.defaultDrafts ?? []) {
+    if (rowId) {
+      // The draft save checked the row over this stored row, which the `updatedAt` guard keeps as it was.
+      const updated = await models.CyberiaEntityTypeDefault.updateOne(
+        { _id: rowId, updatedAt: baseUpdatedAt },
+        { $set: row },
+        { session },
+      );
+      if (!updated.matchedCount) throw requestError(`Entity-type default ${rowId} changed after the preflight`, 409);
+      written.defaults.push({ key, rowId, created: false });
+    } else {
+      const [created] = await models.CyberiaEntityTypeDefault.create([row], { session });
+      written.defaults.push({ key, rowId: String(created._id), created: true });
+    }
+  }
+  for (const entry of population.instanceDrafts ?? []) {
+    const ids = new Map();
+    for (const variant of entry.variants.filter(({ key }) => entry.conf.entityDefaults.includes(variantRef(key)))) {
+      const [row] = await models.CyberiaEntityTypeDefault.create([variant.row], { session });
+      ids.set(variant.key, row._id);
+      written.variants.push({ instanceCode: entry.code, key: variant.key, from: variant.from, rowId: String(row._id) });
+    }
+    const conf = {
+      aoiRadius: entry.conf.aoiRadius,
+      economyCode: entry.conf.economyCode,
+      entityDefaults: entry.conf.entityDefaults.map((ref) =>
+        variantKeyOf(ref) ? ids.get(variantKeyOf(ref)) : new Types.ObjectId(ref),
+      ),
+    };
+    const stored = await models.CyberiaInstance.findOne({ code: entry.code }).session(session).lean();
+    const { _id: confId } = await models.CyberiaInstanceConf.findOneAndUpdate(
+      { instanceCode: entry.code },
+      { $set: conf, $setOnInsert: { instanceCode: entry.code } },
+      { upsert: true, returnDocument: 'after', runValidators: true, session },
+    );
+    if (entry.baseRevision === null) {
+      if (stored) throw requestError(`Instance ${entry.code} was created after the preflight`, 409);
+      await models.CyberiaInstance.create(
+        [{ ...entry.document, code: entry.code, creator: actor, conf: confId, revision: 1 }],
+        { session },
+      );
+      written.instances.push({ code: entry.code, from: null, to: 1 });
+      continue;
+    }
+    if (!stored || (stored.revision ?? 1) !== entry.baseRevision)
+      throw requestError(`Instance ${entry.code} moved after the preflight`, 409);
+    const { filter, next } = revisionGuard(stored);
+    const updated = await models.CyberiaInstance.updateOne(
+      filter,
+      { $set: { ...entry.document, conf: confId, revision: next } },
+      { session, runValidators: true },
+    );
+    if (!updated.modifiedCount) throw requestError(`Instance ${entry.code} moved after the preflight`, 409);
+    if (stored.thumbnail && String(stored.thumbnail) !== String(entry.document.thumbnail ?? ''))
+      await DataBaseProviderService.getModel('File', options).deleteOne({ _id: stored.thumbnail }, { session });
+    written.instances.push({ code: entry.code, from: entry.baseRevision, to: next });
+  }
+  const Universe = DataBaseProviderService.getProvider(options, 'mongoose').models.CyberiaUniverse;
+  for (const entry of population.universeDrafts ?? []) {
+    if (entry.baseRevision === null)
+      await Universe.create([{ ...entry.document, code: entry.code, creator: actor, revision: 1 }], { session });
+    else {
+      const updated = await Universe.updateOne(
+        { code: entry.code, revision: entry.baseRevision },
+        { $set: entry.document, $inc: { revision: 1 } },
+        { session, runValidators: true },
+      );
+      if (!updated.modifiedCount) throw requestError(`Universe ${entry.code} moved after the preflight`, 409);
+    }
+    written.universes.push({
+      code: entry.code,
+      from: entry.baseRevision,
+      to: entry.baseRevision === null ? 1 : entry.baseRevision + 1,
+    });
+  }
+  const added = (await reconcileMapRegistry(registry, { apply: true, session })).defects.filter(
+    (defect) => !before.has(defect),
+  );
+  if (added.length > 0) throw requestError(added.join('; '), 409);
+  return written;
+}
+
 /**
  * Commits a publication in one transaction: checks the population and every binding of the plan,
- * binds each asset at the binding its target read, writes the draft onto the same map at the revision of the plan with one revision more and its media pending,
- * and records the commit. All of it applies, or none of it does.
+ * binds each asset at the binding its target read, writes the draft onto the same map at the revision
+ * of the plan with one revision more and its media pending, writes the instance and universe drafts
+ * ({@link commitDocuments}), and records the commit with the worlds it changed. All of it applies, or
+ * none of it does.
  */
 async function commitRuntime(models, population, { holder, options }) {
   const { publication, draft } = population;
@@ -507,6 +645,13 @@ async function commitRuntime(models, population, { holder, options }) {
         );
         if (!written.modifiedCount) throw requestError(`Map ${map.code} changed after the preflight`, 409);
       }
+      const documents = await commitDocuments(models, population, {
+        session,
+        actor: publication.requestedBy,
+        options,
+      }).catch((error) => {
+        throw conflictOf(error);
+      });
       const commit = {
         at: now,
         kept: plan.kept,
@@ -527,6 +672,8 @@ async function commitRuntime(models, population, { holder, options }) {
               placements: plan.placements,
             }
           : null,
+        ...documents,
+        worlds: plan.worlds,
       };
       const recorded = await models.CyberiaProceduralPopulation.updateOne(
         {
@@ -578,9 +725,10 @@ async function mediaOfCommit(media, options) {
 }
 
 /**
- * Refreshes what a commit leaves to refresh: the map cache, the media of the map revision it wrote,
- * the previews of every map the assets reach, and the game servers: the worlds of the map rebuild
- * after a map change, and every world reloads its object layers after a binding.
+ * Refreshes what a commit leaves to refresh: the map and instance caches, the media of the map
+ * revision it wrote, the previews of every map the assets reach, and the game servers: each world the
+ * commit changed rebuilds, and every world reloads its object layers after a binding. A map no
+ * instance lists rebuilds no world.
  * @param {Object} params
  * @param {Object} params.models
  * @param {Object} params.population
@@ -592,6 +740,7 @@ export async function refreshPublication({ models, population, options }) {
   const { commit, plan } = population.publication;
   const itemIds = commit.assets.map(({ itemId }) => itemId);
   await CacheService.invalidate(mapCache(options));
+  await CacheService.invalidate(instanceCache(options));
   const media = plan.media ? await mediaOfCommit(plan.media, options) : null;
   let previews = 'refreshed';
   try {
@@ -600,15 +749,11 @@ export async function refreshPublication({ models, population, options }) {
     previews = messageOf(error);
   }
   const servers = [
-    ...(commit.map
-      ? (
-          await Promise.all(
-            population.context.instances.map(({ code }) =>
-              reloadContentServers(options, { mode: 'full', instanceCode: code }),
-            ),
-          )
-        ).flat()
-      : []),
+    ...(
+      await Promise.all(
+        commit.worlds.map((code) => reloadContentServers(options, { mode: 'full', instanceCode: code })),
+      )
+    ).flat(),
     ...(itemIds.length > 0 ? await reloadContentServers(options, { mode: 'incremental' }) : []),
   ];
   return { cache: true, media, previews, servers };
@@ -719,7 +864,7 @@ export async function advancePublication({
     if (cancelRequestedAt && CANCELLABLE.includes(status))
       await transition(models, current, { holder, from: status, to: 'cancelled_before_commit', set: { lease: null } });
     else if (status === 'queued') await transition(models, current, { holder, from: 'queued', to: 'preflight' });
-    else if (status === 'preflight') await runPreflight(models, current, { holder });
+    else if (status === 'preflight') await runPreflight(models, current, { holder, options });
     else if (status === 'publishing_objects') await publishObjects(models, current, { holder, options, publish });
     else if (status === 'committing_runtime') await commitRuntime(models, current, { holder, options });
     else await refreshRuntime(models, current, { holder, options, refresh });

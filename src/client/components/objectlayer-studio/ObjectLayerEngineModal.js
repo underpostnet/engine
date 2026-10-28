@@ -94,7 +94,6 @@ const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
-const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
 /* The template that clears the canvas. */
 const EMPTY_TEMPLATE = Object.freeze({ id: 'empty', label: 'empty', itemTypes: [] });
@@ -535,7 +534,6 @@ class ObjectLayerEngineModal {
   static existingObjectLayerId = null;
   static selectedDistortionType = DEFAULT_DISTORTION_TYPE;
   static distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
-  static uniformOpacityEnabled = false;
   /** Whether a frame import mutates the contour of the frames it brings, and by how much, 0 to 1. */
   static mutateFrames = false;
   static mutationFactor = 0;
@@ -580,7 +578,6 @@ class ObjectLayerEngineModal {
     this.existingObjectLayerId = null;
     this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
     this.distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
-    this.uniformOpacityEnabled = false;
     this.mutateFrames = false;
     this.mutationFactor = 0;
     this.templates = [EMPTY_TEMPLATE];
@@ -830,58 +827,6 @@ class ObjectLayerEngineModal {
       checkStatInputs();
       if (changes.length > 0)
         NotificationManager.Push({ html: `Stats corrected: ${changes.join(', ')}.`, status: 'success' });
-    };
-
-    let uniformOpacitySyncInProgress = false;
-
-    const buildUniformOpacityMatrix = (matrix = [], targetAlpha = 255) => {
-      const clampedAlpha = clampNumber(Number(targetAlpha) || 0, 0, 255);
-      let changedCells = 0;
-      const nextMatrix = matrix.map((row) =>
-        row.map((cell) => {
-          const nextCell = cell.slice();
-          if (isVisibleCell(nextCell) && nextCell[3] !== clampedAlpha) {
-            nextCell[3] = clampedAlpha;
-            changedCells++;
-          }
-          return nextCell;
-        }),
-      );
-
-      return { matrix: nextMatrix, changedCells, alpha: clampedAlpha };
-    };
-
-    const applyUniformOpacityToEditor = ({ captureUndo = false } = {}) => {
-      const ole = s('object-layer-engine');
-      if (!ole || !ObjectLayerEngineModal.uniformOpacityEnabled || uniformOpacitySyncInProgress) return false;
-
-      let currentFrame = null;
-      try {
-        const exportedMatrix = ole.exportMatrixJSON();
-        currentFrame = typeof exportedMatrix === 'string' ? JSON.parse(exportedMatrix) : exportedMatrix;
-      } catch (error) {
-        return false;
-      }
-
-      const currentMatrix = currentFrame?.matrix;
-      if (!Array.isArray(currentMatrix) || !currentMatrix.length || !currentMatrix[0]?.length) {
-        return false;
-      }
-
-      const targetAlpha = clampNumber(ole.getBrushAlpha?.() ?? ole.getBrushColor?.()?.[3] ?? 255, 0, 255);
-      const nextFrame = buildUniformOpacityMatrix(currentMatrix, targetAlpha);
-      if (!nextFrame.changedCells) return false;
-
-      uniformOpacitySyncInProgress = true;
-      try {
-        const load = () => ole.loadMatrix(nextFrame.matrix);
-        if (captureUndo) ole.command('UniformOpacity', load);
-        else load();
-      } finally {
-        uniformOpacitySyncInProgress = false;
-      }
-
-      return true;
     };
 
     // Helper function to update UI when entering edit mode
@@ -1578,15 +1523,6 @@ class ObjectLayerEngineModal {
       if (editor) {
         editor.addEventListener('brushcolorchange', syncPaletteFromEditor);
       }
-
-      const syncUniformOpacityFromEditor = () => {
-        applyUniformOpacityToEditor();
-      };
-
-      if (editor) {
-        editor.addEventListener('brushcolorchange', syncUniformOpacityFromEditor);
-        editor.addEventListener('matrixload', syncUniformOpacityFromEditor);
-      }
       syncPaletteFromEditor();
 
       // The foundation context of the item: by the key the editor opened, then by the item id an
@@ -2160,27 +2096,6 @@ class ObjectLayerEngineModal {
                     <div class="in section-mp-border" style="margin-top: 10px;">
                       <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
                       <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
-                      <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
-                        ${await ToggleSwitch.instance({
-                          id: UNIFORM_OPACITY_TOGGLE_ID,
-                          type: 'checkbox',
-                          displayMode: 'checkbox',
-                          containerClass: 'in fll',
-                          checked: ObjectLayerEngineModal.uniformOpacityEnabled,
-                          on: {
-                            checked: () => {
-                              ObjectLayerEngineModal.uniformOpacityEnabled = true;
-                              applyUniformOpacityToEditor({ captureUndo: true });
-                            },
-                            unchecked: () => {
-                              ObjectLayerEngineModal.uniformOpacityEnabled = false;
-                            },
-                          },
-                        })}
-                        <div class="section-mp" style="font-size: 14px;">
-                          Keep all visible cells at the current opacity bar value
-                        </div>
-                      </div>
                     </div>
 
                     <div class="in section-mp section-mp-border">

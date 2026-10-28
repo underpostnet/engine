@@ -107,28 +107,32 @@ const pictureUrl = (picture) => (picture ? `${apiPathOf()}/${picture.endpoint}/$
 
 /**
  * The universe with what each member is now: its content name, its preview with the size of its card
- * (`w`, `h`, its longest side 1), the thumbnail its author set, its entry spawn, whether the served
- * content holds it, and the best live endpoint of its world.
+ * (`w`, `h`, its longest side 1), the thumbnail its author set, its entry spawn, whether the content
+ * holds it, and the best live endpoint of its world. The content is the served one, or the one given:
+ * the instances and maps of a working graph.
  * @param {Object} universe - Lean `CyberiaUniverse`.
  * @param {object} options Router options (host/path context).
+ * @param {{instances:Object[], maps:Object[]}} [content] - The members and their maps; read from the served content without it.
  */
-const universeView = async (universe, options) => {
+const universeView = async (universe, options, content) => {
   const codes = universe.instances.map(({ instanceCode }) => instanceCode);
-  const [instances, endpoints] = await Promise.all([
-    model('CyberiaInstance', options)
+  const endpoints = await liveEndpoints(options, { instanceCodes: codes });
+  const instances =
+    content?.instances ??
+    (await model('CyberiaInstance', options)
       .find(
         { code: { $in: codes } },
         { code: 1, name: 1, description: 1, thumbnail: 1, cyberiaMapCodes: 1, mapLayout: 1, playerSpawn: 1 },
       )
-      .lean(),
-    liveEndpoints(options, { instanceCodes: codes }),
-  ]);
-  const maps = await model('CyberiaMap', options)
-    .find(
-      { code: { $in: instances.flatMap(({ cyberiaMapCodes }) => cyberiaMapCodes ?? []) } },
-      { code: 1, name: 1, gridX: 1, gridY: 1, worldX: 1, worldY: 1 },
-    )
-    .lean();
+      .lean());
+  const maps =
+    content?.maps ??
+    (await model('CyberiaMap', options)
+      .find(
+        { code: { $in: instances.flatMap(({ cyberiaMapCodes }) => cyberiaMapCodes ?? []) } },
+        { code: 1, name: 1, gridX: 1, gridY: 1, worldX: 1, worldY: 1 },
+      )
+      .lean());
   const contentOf = new Map(instances.map((instance) => [instance.code, instance]));
   const rank = { available: 2, draining: 1 };
   const endpointOf = new Map();
@@ -282,4 +286,12 @@ class CyberiaUniverseService {
   };
 }
 
-export { CyberiaUniverseService, removeUniverseMember, routeLeads, universeCodeOf, universeDefect, universeView };
+export {
+  CyberiaUniverseService,
+  removeUniverseMember,
+  routeLeads,
+  topologyOf,
+  universeCodeOf,
+  universeDefect,
+  universeView,
+};

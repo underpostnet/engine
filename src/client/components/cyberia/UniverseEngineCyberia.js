@@ -13,16 +13,28 @@ import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
 import { Input } from '../core/Input.js';
 import { ListPager } from '../core/ListPager.js';
+import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { getQueryParams, listenQueryParamsChange, setQueryParams, unlistenQueryParamsChange } from '../core/Router.js';
+import {
+  getQueryParams,
+  isCurrentRoute,
+  listenQueryParamsChange,
+  setQueryParams,
+  unlistenQueryParamsChange,
+} from '../core/Router.js';
 import { Tabs } from '../core/Tabs.js';
 import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
+import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
 import { CyberiaServerRegistryService } from '../../services/cyberia-server-registry/cyberia-server-registry.service.js';
 import { CyberiaUniverseService } from '../../services/cyberia-universe/cyberia-universe.service.js';
 import { GraphLayoutCyberia } from './GraphLayoutCyberia.js';
 import { InstanceEngineCyberia } from './InstanceEngineCyberia.js';
+import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
 import { CONTENT_CODE_PATTERN, resolveGraphLayout } from './SharedDefaultsCyberia.js';
+import { StudioCyberia } from './StudioCyberia.js';
+
+const EDITOR_ROUTE = 'cyberia-universe-engine';
 
 const ROUTES = Object.freeze([
   { id: 'none', label: 'No route' },
@@ -195,6 +207,10 @@ class UniverseEngineCyberia {
       refresh: 0,
       load: 0,
       runtime: 'loading',
+      // The Procedural Engine population the form edits a universe for: its id and revision, the universe and
+      // world the URL names, the universe as its working graph holds it, and each member as the graph holds
+      // it with its world picture.
+      population: null,
     };
 
     const dirty = () => topologyKey(readForm()) !== state.saved;
@@ -220,14 +236,27 @@ class UniverseEngineCyberia {
       state.graph.update({
         nodes: instances.map(({ instanceCode, x, y }) => {
           const member = state.members.get(instanceCode);
+          const graphed = state.population?.members.get(instanceCode);
+          const picture = state.population?.pictures.get(instanceCode);
           return {
             code: instanceCode,
             label: member?.name || instanceCode,
             sublabel: member?.name && member.name !== instanceCode ? instanceCode : '',
-            note: member?.served === false ? 'Not in the served content' : '',
+            note: [
+              graphed?.state === 'missing'
+                ? 'Invalid reference'
+                : state.population && StudioCyberia.previewLabel(picture ?? null, graphed?.preview ?? 'persisted'),
+              ['draft', 'new'].includes(graphed?.state) && 'Saved to Procedural Draft',
+              state.population &&
+                !(state.population.view?.persistedMembers ?? []).includes(instanceCode) &&
+                'Pending association',
+              member?.served === false && 'Not in the served content',
+            ]
+              .filter(Boolean)
+              .join(' · '),
             x,
             y,
-            image: member?.previewUrl || '',
+            image: state.population ? (picture?.url ?? '') : member?.previewUrl || '',
             status: state.runtime === 'ready' ? (member?.status ?? '') : '',
             muted: member?.served === false,
           };
@@ -243,8 +272,13 @@ class UniverseEngineCyberia {
       });
       htmls(
         '.universe-engine-dirty-slot',
-        dirty() ? html`<div class="universe-engine-dirty" role="status">Unsaved changes. Save to keep them.</div>` : '',
+        dirty()
+          ? html`<div class="universe-engine-dirty" role="status">
+              Unsaved changes. ${state.population ? 'Save to Procedural Draft to keep them.' : 'Save to keep them.'}
+            </div>`
+          : '',
       );
+      if (state.population) paintPopulation();
       renderSide();
     };
 
@@ -368,7 +402,10 @@ class UniverseEngineCyberia {
           state.draft.links = withRoute(state.draft.links, code, select.dataset.target, select.value);
           renderGraph();
         };
-      s('.universe-engine-open-instance').onclick = () => InstanceEngineCyberia.open({ instanceCode: code });
+      s('.universe-engine-open-instance').onclick = () =>
+        state.population
+          ? InstanceEngineCyberia.open({ instanceCode: code, population: state.population.id })
+          : InstanceEngineCyberia.open({ instanceCode: code });
       if (s('.universe-engine-remove'))
         s('.universe-engine-remove').onclick = () => {
           state.draft.instances = state.draft.instances.filter(({ instanceCode }) => instanceCode !== code);
@@ -385,15 +422,23 @@ class UniverseEngineCyberia {
       const refresh = ++state.refresh;
       state.runtime = 'loading';
       renderGraph();
+      const { population } = state;
+      const viewed = population ? Boolean(population.view) : Boolean(state.id);
       const [viewResult, endpointsResult] = await Promise.allSettled([
-        state.id ? CyberiaUniverseService.view({ code: state.draft.code }) : null,
+        population?.view
+          ? Population.getDocumentDraft({ id: population.id, kind: 'universes', code: population.view.code }).then(
+              (result) => ({ ...result, data: result.data?.view }),
+            )
+          : state.id
+            ? CyberiaUniverseService.view({ code: state.draft.code })
+            : null,
         CyberiaServerRegistryService.endpoints(),
       ]);
       if (!state.active || refresh !== state.refresh) return;
       const view = viewResult.status === 'fulfilled' ? viewResult.value : null;
       const endpoints = endpointsResult.status === 'fulfilled' ? endpointsResult.value : null;
       state.runtime =
-        endpoints?.status === 'success' && (!state.id || view?.status === 'success')
+        endpoints?.status === 'success' && (!viewed || view?.status === 'success')
           ? 'ready'
           : state.members.size
             ? 'stale'
@@ -437,7 +482,7 @@ class UniverseEngineCyberia {
       state.selected = null;
       if (s(`.${idCode}`)) {
         s(`.${idCode}`).value = state.draft.code;
-        s(`.${idCode}`).disabled = !!state.id;
+        s(`.${idCode}`).disabled = Boolean(state.id || universe?.code);
       }
       if (s(`.${idName}`)) s(`.${idName}`).value = state.draft.name;
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = state.draft.description;
@@ -462,6 +507,7 @@ class UniverseEngineCyberia {
 
     const save = async () => {
       const body = readForm();
+      if (state.population) return await saveToDraft(body);
       if (!CONTENT_CODE_PATTERN.test(body.code)) {
         NotificationManager.Push({
           html: 'The code takes letters, digits, dots, dashes and underscores.',
@@ -481,6 +527,50 @@ class UniverseEngineCyberia {
         });
     };
 
+    /**
+     * Reads each member of the form as the working graph of the population holds it, and its world picture
+     * at the revision of the population: the same picture the Instance Studio and the runtime context show.
+     */
+    const loadPictures = async () => {
+      const { population } = state;
+      if (!population) return;
+      await Promise.all(
+        state.draft.instances.map(async ({ instanceCode }) => {
+          if (!population.members.has(instanceCode)) {
+            const read = await Population.getDocumentDraft({
+              id: population.id,
+              kind: 'instances',
+              code: instanceCode,
+            }).catch((error) => ({ status: 'error', message: error.message }));
+            population.members.set(
+              instanceCode,
+              read.status === 'success' ? read.data : { instanceCode, state: read.code === 404 ? 'missing' : 'unread' },
+            );
+            if (read.status !== 'success' && read.code !== 404)
+              population.pictures.set(instanceCode, { state: 'failed', message: read.message });
+          }
+          if (population.members.get(instanceCode).state === 'missing' || population.pictures.has(instanceCode)) return;
+          const picture = await Population.worldPicture({
+            id: population.id,
+            code: instanceCode,
+            revision: population.revision,
+          });
+          if (state.population === population) population.pictures.set(instanceCode, picture);
+        }),
+      );
+      if (state.population === population) renderGraph();
+    };
+
+    /** Adds a world to the draft on the first free cell; a save keeps it. */
+    const join = (code) => {
+      const codes = [...state.draft.instances.map(({ instanceCode }) => instanceCode), code];
+      state.draft.instances = resolveGraphLayout(codes, state.draft.instances, 'instanceCode');
+      state.selected = code;
+      renderGraph();
+      void loadPictures();
+      return refreshRuntime();
+    };
+
     const addMember = () => {
       const code = s(`.${idAdd}`)?.value?.trim();
       if (!code) return;
@@ -488,12 +578,147 @@ class UniverseEngineCyberia {
         return NotificationManager.Push({ html: `"${escapeHtml(code)}" is not an instance code.`, status: 'error' });
       if (state.draft.instances.some(({ instanceCode }) => instanceCode === code))
         return NotificationManager.Push({ html: `${escapeHtml(code)} is a member already.`, status: 'warning' });
-      const codes = [...state.draft.instances.map(({ instanceCode }) => instanceCode), code];
-      state.draft.instances = resolveGraphLayout(codes, state.draft.instances, 'instanceCode');
       s(`.${idAdd}`).value = '';
-      state.selected = code;
-      renderGraph();
-      return refreshRuntime();
+      return join(code);
+    };
+
+    /** Saves the form to the draft of the population, never to the stored universe, and goes back to it. */
+    const saveToDraft = async ({ code, ...document }) => {
+      if (!CONTENT_CODE_PATTERN.test(code))
+        return NotificationManager.Push({
+          html: 'The code takes letters, digits, dots, dashes and underscores.',
+          status: 'error',
+        });
+      const { view } = state.population;
+      const result = await Population.saveDocumentDraft({
+        id: state.population.id,
+        kind: 'universes',
+        code,
+        body: { document, baseRevision: view ? view.revision : null, revision: view?.draftRevision ?? 0 },
+      });
+      if (result.status !== 'success')
+        return NotificationManager.Push({
+          html: escapeHtml(result.code === 409 ? `Conflict detected. ${result.message}` : result.message),
+          status: result.code === 409 ? 'warning' : 'error',
+        });
+      NotificationManager.Push({
+        html: `Saved ${escapeHtml(code)} to the Procedural Draft. The stored universe does not change.`,
+        status: 'success',
+      });
+      state.saved = topologyKey(readForm());
+      returnToPopulation();
+    };
+
+    // ?population=<id> opens the form for the Procedural Engine on the universe ?universeCode= as the
+    // working graph of the population holds it, else on a new universe, with the world ?instanceCode= among
+    // its members. A save writes the draft of the population and returns to it.
+    const enterPopulation = async (
+      { population: id, universeCode = '', instanceCode = '' },
+      { force = false } = {},
+    ) => {
+      const current = state.population;
+      if (
+        !force &&
+        current?.id === id &&
+        current.universeCode === universeCode &&
+        current.instanceCode === instanceCode
+      )
+        return;
+      const request = ++state.load;
+      const result = universeCode
+        ? await Population.getDocumentDraft({ id, kind: 'universes', code: universeCode })
+        : null;
+      if (!state.active || request !== state.load) return;
+      if (result && result.status !== 'success')
+        return NotificationManager.Push({ html: escapeHtml(result.message), status: 'error' });
+      const view = result?.data ?? null;
+      const revision = view?.populationRevision ?? (await Population.get({ id })).data?.revision;
+      if (!state.active || request !== state.load) return;
+      state.population = {
+        id,
+        universeCode,
+        instanceCode,
+        view,
+        revision,
+        members: new Map((view?.members ?? []).map((member) => [member.instanceCode, member])),
+        pictures: new Map(),
+      };
+      await load(view && { code: view.code, ...view.document, revision: view.revision ?? 1 });
+      if (instanceCode && !state.draft.instances.some((member) => member.instanceCode === instanceCode))
+        await join(instanceCode);
+      void loadPictures();
+      state.crud?.refresh();
+      paintPopulation();
+    };
+
+    /** Back to the runtime context of the population. Unsaved changes go once the moderator confirms; the saved draft stays. */
+    const returnToPopulation = async () => {
+      if (dirty()) {
+        const answer = await Modal.RenderConfirm({
+          id: 'universe-engine-leave-confirm',
+          html: async () =>
+            html`<div class="in section-mp">
+              Leave without saving? Your unsaved changes go. What the Procedural Draft holds stays.
+            </div>`,
+          confirmLabel: 'Leave without saving',
+          danger: true,
+        });
+        if (answer.status !== 'confirm') return;
+      }
+      const { id } = state.population;
+      state.population = null;
+      state.crud?.refresh();
+      paintPopulation();
+      setQueryParams({ population: null, universeCode: null, instanceCode: null }, { replace: true });
+      ProceduralEngineCyberia.open({ populationId: id, step: 'context' });
+    };
+
+    /** Moves the saved draft onto the revision the stored universe is at now; a field both changed asks first. */
+    const rebasePopulation = async () => {
+      const { id, universeCode, instanceCode, view } = state.population;
+      const rebase = (body) => Population.rebaseDocumentDraft({ id, kind: 'universes', code: view.code, body });
+      let result = await rebase({});
+      if (result.code === 409) {
+        const answer = await Modal.RenderConfirm({
+          id: 'universe-engine-rebase-confirm',
+          html: async () => html`<div class="in section-mp">${escapeHtml(result.message)}</div>`,
+          confirmLabel: 'Keep the draft values',
+        });
+        if (answer.status !== 'confirm') return;
+        result = await rebase({ prefer: 'draft' });
+      }
+      if (result.status !== 'success')
+        return NotificationManager.Push({ html: escapeHtml(result.message), status: 'error' });
+      await enterPopulation({ population: id, universeCode, instanceCode }, { force: true });
+    };
+
+    const paintPopulation = () => {
+      const view = state.population?.view;
+      const stale = view?.state === 'draft' && view.revision !== view.baseRevision;
+      const status = !view
+        ? 'New universe · not saved'
+        : view.state === 'persisted'
+          ? `Persisted · revision ${view.revision}`
+          : view.state === 'new'
+            ? 'Saved to Procedural Draft · new universe'
+            : stale
+              ? `Saved to Procedural Draft · the stored universe moved to revision ${view.revision}`
+              : `Saved to Procedural Draft · starts from revision ${view.baseRevision}`;
+      StudioCyberia.paintContext(
+        s('.universe-engine-population'),
+        state.population && {
+          label: 'Procedural Engine · Universe',
+          state: {
+            text: dirty() ? `${status} · Unsaved changes` : status,
+            tone: stale || dirty() ? 'warn' : view && view.state !== 'persisted' ? 'good' : undefined,
+          },
+          note: `${state.population.instanceCode ? `World ${state.population.instanceCode} is among its members. ` : ''}Save to Procedural Draft keeps the change in the population and returns to it; the stored universe changes when the population publishes.`,
+          actions: stale
+            ? [{ label: `Rebase on revision ${view.revision}`, icon: 'fa-solid fa-code-merge', run: rebasePopulation }]
+            : [],
+          back: returnToPopulation,
+        },
+      );
     };
 
     /** Places every member on the default cells: an explicit operation, saved only with Save. */
@@ -519,7 +744,13 @@ class UniverseEngineCyberia {
     };
 
     const onQuery = async (queryParams) => {
-      if (!s('.universe-engine-container')) return;
+      if (!s('.universe-engine-container') || !isCurrentRoute(EDITOR_ROUTE)) return;
+      if (queryParams.population) return await enterPopulation(queryParams);
+      if (state.population) {
+        state.population = null;
+        state.crud?.refresh();
+        paintPopulation();
+      }
       if (queryParams.universeCode) await loadByCode(queryParams.universeCode);
     };
     listenQueryParamsChange({ id: 'cyberia-universe-engine-query-listener', event: onQuery });
@@ -557,28 +788,31 @@ class UniverseEngineCyberia {
       });
       state.crud = EditorCrud.bind(s('.universe-engine-crud'), () => ({
         subject: 'universe',
-        id: state.id,
+        id: state.id ?? state.population?.view?.code ?? null,
         name: state.draft.code,
-        new: () => load(null),
+        ...(!state.population && { new: () => load(null) }),
         reset: async () => {
+          if (state.population) return await enterPopulation(getQueryParams(), { force: true });
           const { status, data, message } = await CyberiaUniverseService.get({ id: state.draft.code });
           if (status === 'success' && data) await load(data);
           else NotificationManager.Push({ html: message, status: 'error' });
         },
-        ...(canMutate && {
-          save,
-          delete: async () => {
-            const result = await EditorCrud.remove(CyberiaUniverseService, {
-              id: state.id,
-              subject: 'universe',
-              name: state.draft.code,
-            });
-            if (result?.status === 'success') {
-              await load(null);
-              await ListPager.load(libraryId);
-            }
-          },
-        }),
+        ...(state.population && { labels: { save: 'Save to Procedural Draft', reset: 'Reset to saved draft' } }),
+        ...(canMutate && { save }),
+        ...(canMutate &&
+          !state.population && {
+            delete: async () => {
+              const result = await EditorCrud.remove(CyberiaUniverseService, {
+                id: state.id,
+                subject: 'universe',
+                name: state.draft.code,
+              });
+              if (result?.status === 'success') {
+                await load(null);
+                await ListPager.load(libraryId);
+              }
+            },
+          }),
       }));
       for (const id of [idName, idDescription]) if (s(`.${id}`)) s(`.${id}`).addEventListener('input', renderGraph);
       if (s('.universe-engine-add')) s('.universe-engine-add').onclick = addMember;
@@ -589,8 +823,9 @@ class UniverseEngineCyberia {
       if (s('.universe-engine-arrange')) s('.universe-engine-arrange').onclick = arrange;
       s('.universe-engine-refresh').onclick = refreshRuntime;
       await ListPager.load(libraryId);
-      const code = getQueryParams().universeCode;
-      if (code) await loadByCode(code);
+      const query = getQueryParams();
+      if (query.population) await enterPopulation(query);
+      else if (query.universeCode) await loadByCode(query.universeCode);
       else await load(null);
     });
 
@@ -627,7 +862,9 @@ class UniverseEngineCyberia {
         );
         for (const button of document.querySelectorAll('.universe-engine-library-open'))
           button.onclick = async () => {
-            await loadByCode(button.dataset.code);
+            if (state.population)
+              setQueryParams({ universeCode: button.dataset.code, instanceCode: null }, { replace: true });
+            else await loadByCode(button.dataset.code);
             Tabs.select(s('.universe-engine-tabs'), 'graph');
           };
       },
@@ -638,6 +875,7 @@ class UniverseEngineCyberia {
         ${UniverseEngineCyberia.style}
       </style>
       <div class="in section-mp studio-editor universe-engine-container">
+        <div class="in studio-context universe-engine-population" role="status" aria-live="polite" hidden></div>
         ${EditorCrud.render({ id: 'universe-engine-crud', label: 'Universe' })}
         ${Tabs.render({
           id: 'universe-engine-tabs',

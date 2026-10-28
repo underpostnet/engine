@@ -202,6 +202,51 @@ const composeWorldPreview = async ({ maps, cells, portals, pictures }) => {
 };
 
 /**
+ * The stored maps of some codes, in their order, each with a stored picture: a map with none is drawn
+ * and stored first.
+ * @param {string[]} codes
+ * @param {{host: string, path: string}} options - Router options.
+ * @returns {Promise<Object[]>} Lean maps with `preview`, `worldX` and `worldY`; a code with no map is left out.
+ * @memberof CyberiaWorldPreview
+ */
+const storedMapsWithPictures = async (codes, options) => {
+  const model = (name) => DataBaseProviderService.getModel(name, options);
+  const stored = await model('CyberiaMap')
+    .find({ code: { $in: codes } })
+    .select(`${PREVIEW_FIELDS} worldX worldY`)
+    .lean();
+  const maps = codes.map((code) => stored.find((map) => map.code === code)).filter(Boolean);
+  const kept = new Set(
+    (
+      await model('File')
+        .find({ _id: { $in: maps.map(({ preview }) => preview).filter(Boolean) } }, { _id: 1 })
+        .lean()
+    ).map(({ _id }) => String(_id)),
+  );
+  for (const map of maps) {
+    if (map.preview && kept.has(String(map.preview))) continue;
+    await refreshMapPreview(map, options);
+    map.preview = (await model('CyberiaMap').findOne({ code: map.code }, { preview: 1 }).lean())?.preview;
+  }
+  return maps;
+};
+
+/**
+ * The stored picture of each map, null where it has none.
+ * @param {Object[]} maps - With `preview`.
+ * @param {{host: string, path: string}} options - Router options.
+ * @returns {Promise<Array<Buffer|null>>}
+ * @memberof CyberiaWorldPreview
+ */
+const storedPictures = async (maps, options) => {
+  const files = await DataBaseProviderService.getModel('File', options).find(
+    { _id: { $in: maps.map(({ preview }) => preview).filter(Boolean) } },
+    { data: 1 },
+  );
+  return maps.map((map) => files.find(({ _id }) => String(_id) === String(map.preview))?.data ?? null);
+};
+
+/**
  * The preview of a world. The stored one serves while its key is the key of the world now; else the
  * world is drawn and stored, and the File it replaced goes once nothing names it. A map with no
  * stored picture is drawn first, so the key names every picture the preview shows.
@@ -220,26 +265,8 @@ const worldPreview = async (instanceCode, options) => {
     )
     .lean();
   if (!instance) throw failure(404, `No world ${instanceCode}`);
-  const codes = instance.cyberiaMapCodes ?? [];
-  const stored = await model('CyberiaMap')
-    .find({ code: { $in: codes } })
-    .select(`${PREVIEW_FIELDS} worldX worldY`)
-    .lean();
-  const maps = codes.map((code) => stored.find((map) => map.code === code)).filter(Boolean);
+  const maps = await storedMapsWithPictures(instance.cyberiaMapCodes ?? [], options);
   if (maps.length === 0) throw failure(404, `World ${instanceCode} has no map`);
-
-  const kept = new Set(
-    (
-      await model('File')
-        .find({ _id: { $in: maps.map(({ preview }) => preview).filter(Boolean) } }, { _id: 1 })
-        .lean()
-    ).map(({ _id }) => String(_id)),
-  );
-  for (const map of maps) {
-    if (map.preview && kept.has(String(map.preview))) continue;
-    await refreshMapPreview(map, options);
-    map.preview = (await model('CyberiaMap').findOne({ code: map.code }, { preview: 1 }).lean())?.preview;
-  }
   const cells = resolveGraphLayout(
     maps.map(({ code }) => code),
     instance.mapLayout ?? [],
@@ -253,9 +280,7 @@ const worldPreview = async (instanceCode, options) => {
     const current = await File.findOne({ _id: instance.preview }, { data: 1 });
     if (current?.data) return { key, png: current.data };
   }
-  const files = await File.find({ _id: { $in: maps.map(({ preview }) => preview).filter(Boolean) } }, { data: 1 });
-  const pictures = maps.map((map) => files.find(({ _id }) => String(_id) === String(map.preview))?.data ?? null);
-  const png = await composeWorldPreview({ maps, cells, portals, pictures });
+  const png = await composeWorldPreview({ maps, cells, portals, pictures: await storedPictures(maps, options) });
 
   const file = await new File(FileFactory.create(png, `${instance.code}-world-preview.png`)).save();
   const { matchedCount } = await model('CyberiaInstance').updateOne(
@@ -298,6 +323,8 @@ const refreshWorldPreviews = async ({ mapCodes, options }) => {
 
 export {
   composeWorldPreview,
+  storedMapsWithPictures,
+  storedPictures,
   refreshWorldPreviews,
   worldPreview,
   worldPreviewGeometry,

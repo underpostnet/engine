@@ -8,7 +8,6 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
     isConnected: () => true,
     get: async (_options, key) => (valkey.has(key) ? JSON.parse(valkey.get(key)) : null),
     set: async (_options, key, value) => valkey.set(key, JSON.stringify(value)),
-    incr: async () => 1,
   },
 }));
 

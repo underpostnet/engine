@@ -1,4 +1,4 @@
-import { serviceHandler } from '../../server/network/middlewares.js';
+import { pictureHandler, serviceHandler } from '../../server/network/middlewares.js';
 import { CyberiaProceduralPopulationService as Service } from './cyberia-procedural-population.service.js';
 
 const CyberiaProceduralPopulationController = {
@@ -7,6 +7,22 @@ const CyberiaProceduralPopulationController = {
   post: serviceHandler(Service.post),
   get: serviceHandler(Service.get, { pagination: true }),
   impact: serviceHandler(Service.impact),
+  runtimeContext: serviceHandler(Service.runtimeContext),
+  instanceDraft: serviceHandler(Service.instanceDraft),
+  saveInstanceDraft: serviceHandler(Service.saveInstanceDraft),
+  discardDocumentDraft: serviceHandler(Service.discardDocumentDraft),
+  rebaseDocumentDraft: serviceHandler(Service.rebaseDocumentDraft),
+  proposeVariant: serviceHandler(Service.proposeVariant),
+  saveVariant: serviceHandler(Service.saveVariant),
+  dropVariant: serviceHandler(Service.dropVariant),
+  universeDraft: serviceHandler(Service.universeDraft),
+  saveUniverseDraft: serviceHandler(Service.saveUniverseDraft),
+  topology: serviceHandler(Service.topology),
+  portalConnect: serviceHandler(Service.portalConnect),
+  defaultReference: serviceHandler(Service.defaultReference),
+  defaultDrafts: serviceHandler(Service.defaultDrafts),
+  mapPreview: pictureHandler(Service.mapPreview, (req) => `population-${req.params.id}-map.png`),
+  worldPreview: pictureHandler(Service.worldPreview, (req) => `population-${req.params.id}-${req.params.code}.png`),
   addTarget: serviceHandler(Service.addTarget),
   updateTarget: serviceHandler(Service.updateTarget),
   removeTarget: serviceHandler(Service.removeTarget),

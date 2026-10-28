@@ -14,6 +14,27 @@ import {
   resolveMapContext,
 } from '../../projects/cyberia/procedural/population/map-context.js';
 import {
+  discardDocumentDraft,
+  draftMapPicture,
+  draftWorldPicture,
+  dropVariant,
+  graphPortals,
+  graphProblems,
+  graphTopology,
+  instanceDraftView,
+  populationGraph,
+  proposeVariant,
+  rebaseDocumentDraft,
+  runtimeContextOf,
+  saveInstanceDraft,
+  saveUniverseDraft,
+  saveVariant,
+  setDefaultReference,
+  universeContent,
+  universeDraftView,
+} from '../../projects/cyberia/procedural/population/working-graph.js';
+import { universeView } from '../cyberia-universe/cyberia-universe.service.js';
+import {
   addTarget,
   applyPalette,
   cancelPopulation,
@@ -42,8 +63,12 @@ import {
 } from '../../projects/cyberia/procedural/population/results.js';
 import {
   addDefault,
+  createDefaultDraft,
+  defaultDraftView,
+  discardDefaultDraft,
   populationDefaults,
   removeDefault,
+  saveDefaultDraft,
 } from '../../projects/cyberia/procedural/population/defaults.js';
 import {
   cancelPublication,
@@ -109,6 +134,270 @@ class CyberiaProceduralPopulationService {
    * @returns {Promise<Object[]>}
    */
   static impact = async (req, res, options) => await populationImpact(populationModels(options), req.params.id);
+
+  /**
+   * GET `/:id/runtime-context`: where the map of the population runs now: its instances, their
+   * universes and live servers. Writes nothing.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static runtimeContext = async (req, res, options) => {
+    const models = populationModels(options);
+    const graph = await populationGraph(models, req.params.id, options);
+    return { ...(await runtimeContextOf(graph, options)), problems: await graphProblems(models, graph, options) };
+  };
+
+  /**
+   * GET `/:id/instances/:code`: the instance as the working graph of the population holds it: the
+   * document the Instance Studio edits, its state and revisions.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static instanceDraft = async (req, res, options) =>
+    instanceDraftView(await populationGraph(populationModels(options), req.params.id, options), req.params.code);
+
+  /**
+   * PUT `/:id/instances/:code`: saves the draft of an instance in the population, `{ document, conf,
+   * baseRevision, revision }`. The canonical instance changes only at the publication.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static saveInstanceDraft = async (req, res, options) =>
+    await saveInstanceDraft({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      body: req.body ?? {},
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * DELETE `/:id/instances/:code` and `/:id/universes/:code`: discards a draft; the persisted document shows again.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<{discarded:boolean}>}
+   */
+  static discardDocumentDraft = async (req, res, options) =>
+    await discardDocumentDraft({
+      models: populationModels(options),
+      id: req.params.id,
+      kind: req.path.includes('/universes/') ? 'universe' : 'instance',
+      code: req.params.code,
+      options,
+    });
+
+  /**
+   * POST `/:id/instances/:code/rebase` and `/:id/universes/:code/rebase`: moves a draft onto the
+   * revision its stored document is at now, keeping the fields it changed; `{ prefer: 'draft' }` keeps
+   * the draft value of a field both changed.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static rebaseDocumentDraft = async (req, res, options) =>
+    await rebaseDocumentDraft({
+      models: populationModels(options),
+      id: req.params.id,
+      kind: req.path.includes('/universes/') ? 'universe' : 'instance',
+      code: req.params.code,
+      body: req.body ?? {},
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * POST `/:id/instances/:code/variants`: proposes an instance-specific variant of the entity-type
+   * default `{ rowId }` the instance references.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static proposeVariant = async (req, res, options) =>
+    await proposeVariant({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      rowId: req.body?.rowId,
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * PUT `/:id/instances/:code/variants/:key`: saves the fields of a variant, `{ row, revision }`.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static saveVariant = async (req, res, options) =>
+    await saveVariant({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      key: req.params.key,
+      body: req.body ?? {},
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * DELETE `/:id/instances/:code/variants/:key`: drops a variant; the instance references the row it copies again.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static dropVariant = async (req, res, options) =>
+    await dropVariant({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      key: req.params.key,
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * GET `/:id/universes/:code`: the universe as the working graph of the population holds it, with
+   * each member as the Universe Studio shows it: a drafted member previews its draft world.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static universeDraft = async (req, res, options) => {
+    const graph = await populationGraph(populationModels(options), req.params.id, options);
+    const draft = universeDraftView(graph, req.params.code);
+    const view = await universeView(
+      { code: draft.code, ...graph.universes.get(draft.code), revision: draft.revision },
+      options,
+      universeContent(graph),
+    );
+    return {
+      ...draft,
+      view: {
+        ...view,
+        instances: view.instances.map((member, index) => ({ ...member, ...draft.members[index] })),
+      },
+    };
+  };
+
+  /**
+   * PUT `/:id/universes/:code`: saves the draft of a universe in the population, `{ document,
+   * baseRevision, revision }`. The canonical universe changes only at the publication.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static saveUniverseDraft = async (req, res, options) =>
+    await saveUniverseDraft({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      body: req.body ?? {},
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * POST `/:id/topology`: what `{ mapCodes, portals }` connect in the working graph: the maps as the
+   * population drafts them. Nothing is stored.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static topology = async (req, res, options) => {
+    const { mapCodes, portals } = req.body ?? {};
+    if (!Array.isArray(mapCodes) || !Array.isArray(portals))
+      throw Object.assign(new Error('A topology names mapCodes and portals'), { status: 400 });
+    return graphTopology(await populationGraph(populationModels(options), req.params.id, options), {
+      mapCodes,
+      portals,
+    });
+  };
+
+  /**
+   * GET `/:id/map-preview`: the picture of the map draft of the population.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Buffer|null>}
+   */
+  static mapPreview = async (req, res, options) =>
+    await draftMapPicture(populationModels(options), req.params.id, options, req.query.revision);
+
+  /**
+   * GET `/:id/world-preview/:code`: the preview of the world of an instance as the working graph holds it.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Buffer>}
+   */
+  static worldPreview = async (req, res, options) =>
+    await draftWorldPicture(populationModels(options), req.params.id, req.params.code, options, req.query.revision);
+
+  /**
+   * POST `/:id/portal-connect`: the portals the Portal Connector proposes for `{ mapCodes }`, with the
+   * maps as the population drafts them. Nothing is stored.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static portalConnect = async (req, res, options) => {
+    const { mapCodes } = req.body ?? {};
+    if (!Array.isArray(mapCodes)) throw Object.assign(new Error('A portal connection names mapCodes'), { status: 400 });
+    return graphPortals(await populationGraph(populationModels(options), req.params.id, options), mapCodes);
+  };
+
+  /**
+   * PUT and DELETE `/:id/instances/:code/defaults/:rowId`: the draft of the instance references the
+   * stored entity-type default, or stops referencing it. The stored conf changes at the publication.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static defaultReference = async (req, res, options) =>
+    await setDefaultReference({
+      models: populationModels(options),
+      id: req.params.id,
+      code: req.params.code,
+      rowId: req.params.rowId,
+      linked: req.method === 'PUT',
+      actor: actorOf(req),
+      options,
+    });
+
+  /**
+   * `/:id/default-drafts[/:key]`: POST starts a default draft `{ rowId, baseUpdatedAt, row }`, GET reads
+   * one, PUT saves its `{ row, revision }`, DELETE discards it. Stored defaults change at the publication.
+   * @param {Object} req - Express request.
+   * @param {Object} res - Express response.
+   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @returns {Promise<Object>}
+   */
+  static defaultDrafts = async (req, res, options) => {
+    const models = populationModels(options);
+    const { id, key } = req.params;
+    const actor = actorOf(req);
+    if (req.method === 'POST') return await createDefaultDraft({ models, id, body: req.body ?? {}, actor });
+    if (req.method === 'GET') return await defaultDraftView(models, id, key);
+    if (req.method === 'DELETE') return await discardDefaultDraft({ models, id, key });
+    return await saveDefaultDraft({ models, id, key, body: req.body ?? {}, actor });
+  };
 
   /**
    * POST `/:id/targets`: adds a target, `{ itemId, stage?, itemType?, cid? }`, or restores a removed one.
@@ -330,7 +619,7 @@ class CyberiaProceduralPopulationService {
    * @returns {Promise<{ready:boolean,problems:string[],plan:Object|null}>}
    */
   static validate = async (req, res, options) =>
-    await validatePublication({ models: populationModels(options), id: req.params.id, body: req.body ?? {} });
+    await validatePublication({ models: populationModels(options), id: req.params.id, body: req.body ?? {}, options });
 
   /**
    * POST `/:id/publish`: starts the publication of the population revision the moderator reviewed,

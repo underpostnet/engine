@@ -289,18 +289,22 @@ A map population prepares the items of one map, their entity type defaults and t
 publishes them onto that map (`src/projects/cyberia/procedural/population/`). Each item keeps its own
 identity, configuration and entries. The map orchestrates the items, the moderator owns the
 composition, and the publication applies the selected content in a fixed order. The view follows the
-work in four steps:
+work in five steps:
 
 1. **Items.** Each item the map needs, grouped as floors, NPC skins, portals, obstacles and other.
    An item has an editor: its resolution, template, palette and variation, Generate, and its gallery
    of entries; an item no generator draws has the way to the Object Layer Studio instead.
 2. **Entity type defaults.** The stored entity-type defaults that name the staged items.
 3. **Map.** The Map Studio composes the draft: the grid and the placements.
-4. **Publish.** The review of everything the publication applies, then the publication in the
+4. **Runtime context.** Optional. Where the map runs now: each instance that lists it, with its
+   universe and live servers, and each universe of those instances, read from the canonical records
+   each time. It edits nothing: each action opens the Instance Studio or the Universe Studio on this
+   population, and their save returns here.
+5. **Publish.** The review of everything the publication applies, then the publication in the
    background.
 
-Each step shows a state the server derives from what is stored: not started, in progress, needs
-attention, ready or published. Opening a step, a default template or a run is not progress.
+Each step shows a state the server derives from what is stored: not started, optional, in progress,
+needs attention, ready or published. Opening a step, a default template or a run is not progress.
 
 **Three states.** The asset source is the definition an item has: from the foundation, an Object
 Layer revision, or a definition a human made. The population item is what one population does with
@@ -521,16 +525,50 @@ drop items name a staged item. The moderator adds any other stored default, and 
 from the workspace; neither changes the default. Each default shows its entity type; its live, dead
 and drop items, each as a tile with its idle 08 artwork, its item type and the source of the
 artwork; its behavior; and where the game runs it: every world for a global default, else the
-instances whose conf names it. A staged item shows its artwork from the working state, so a new
-entry shows before any publication. The step also names each world that runs another default in its
-place, for example an instance default over a global one. A staged item that no default names is a
-warning, never a blocker; Create default opens a new default for it.
+instances whose conf names it. The workspace reads the confs from the working graph, so it shows
+where each default runs once the population publishes. A staged item shows its artwork from the
+working state, so a new entry shows before any publication. The step also names each world that runs
+another default in its place, for example an instance default over a global one. A staged item that
+no default names is a warning, never a blocker; Create default opens a new default for it.
 
-Edit opens the stored default in the Entity Studio, in edit mode, under the label "Procedural
-Engine · Entity Type Default". Save stores it through the Entity Studio and returns to the defaults
-step of the same population. A save names the version it read: when another save changed the
-default since, the server refuses it (409) and the moderator reloads it. "Back without saving"
-returns with no change. A publication never changes a default.
+| Label                           | Meaning                                                      |
+| ------------------------------- | ------------------------------------------------------------ |
+| Global · every world            | no instance conf references the default                      |
+| Instance · `code`               | one instance references it                                   |
+| Shared · N instances            | several instances reference it: an edit changes each of them |
+| Pending association · `code`    | the draft of the instance starts to reference it             |
+| Leaves `code`                   | the draft of the instance stops referencing it               |
+| Overridden in `code`            | a variant of that instance runs in its place                 |
+| Variant of …`id`                | a copy one instance runs, saved to the Procedural Draft      |
+| Edit saved to Procedural Draft  | the population holds an edit of the stored default           |
+| New · Saved to Procedural Draft | a new global default the publication creates                 |
+
+**References.** Use in instance and Stop using in instance write the reference into the conf of
+the instance draft (`PUT` and `DELETE /:id/instances/:code/defaults/:rowId`); the stored conf
+changes at the publication. One instance references many defaults, and many instances reference one.
+A global default that an instance draft starts to reference runs only in that instance after the
+publication: the checks warn, and every world reloads. A default that loses its last reference would
+run in every world: the checks refuse it.
+
+**Variants.** To change a default for one instance, Make variant copies a shared or a global default
+into the draft of that instance (`POST /:id/instances/:code/variants`). For a shared default the copy
+takes the place of its reference in that conf; for a global default the conf gains a reference to the
+copy. Every other instance keeps the default. A default that one instance runs alone takes no
+variant: its edit changes that instance only. Edit variant opens the copy in the Entity Studio
+(`?population=&instance=&variant=`), whose save writes the draft (`PUT .../variants/:key`); Drop
+variant gives the instance the default back. The publication creates each variant with its reference
+in one transaction, so a copy never runs as a global default.
+
+Edit opens the default in the Entity Studio, under the label "Procedural Engine · Entity Type
+Default", with where it runs. Its save is "Save to Procedural Draft": a default draft holds the edit of
+a stored default (`POST /:id/default-drafts` with the `updatedAt` the editor read), or a new global
+default, and a later save writes the same draft (`PUT /:id/default-drafts/:key`). The stored default
+does not change. One draft edits one stored default; a stored default that changed since the editor
+read it refuses the draft (409), and one that changed after the draft stops the publication until
+the moderator discards the edit. The instance links show where the default runs; the references
+change in the defaults step. The publication writes each edit at the `updatedAt` it read and creates
+each new default, in the commit transaction, and reloads every world that runs one: a global default
+reaches every world. "Back without saving" returns with no change.
 
 **Map media.** The preview of a map is the picture `map-preview-generator.js` draws from its placed
 entities, by the first idle frame of each item, as the node background of the Instance Map. Every
@@ -557,8 +595,9 @@ on a player). A global change needs the explicit acceptance of the moderator.
 **Review.** Before a publication, the publish step shows everything it applies: each item with the
 artwork it shows, its state and what publishing does to it (kept, publish a definition, publish the
 selected entry, or not ready); the entity type defaults; the map draft drawn by the artwork of its
-items, with the live preview and the custom thumbnail; and the instances that run the map. Each item, the
-defaults and the map open their step or their Studio. Errors stop the publication; warnings, such as a missing default or an
+items, with the live preview and the custom thumbnail; and the plan: the instances, universes and
+variants it writes and the worlds it reloads. Each item, the defaults, the map and the runtime context
+open their step or their Studio. Errors stop the publication; warnings, such as a missing default or an
 item no artwork draws, stop nothing. Nothing in the review publishes or stores anything. Publish
 names the population revision the review showed: a population that changed since asks for a new
 review (409).
@@ -574,19 +613,25 @@ queued → preflight → publishing_objects → committing_runtime → refreshin
 1. **Preflight** checks every condition again and freezes the plan: the population revision, the
    kept items with their observed CIDs and binding revisions, the assets with their CIDs and the
    binding revision each replaces, the map revision,
-   the draft revision and its grid, and the map revision whose media the refresh draws. The plan
-   holds only what changes: a kept item publishes and binds nothing.
+   the draft revision and its grid, the map revision whose media the refresh draws, each instance and
+   universe draft with the stored revision it starts from, each variant, and the worlds the commit
+   changes. The plan holds only what changes: a kept item publishes and binds nothing.
 2. **Objects.** Each selected revision goes to the Object Layer authority, one at a time. The
    authority must answer the selected CID. Each published revision is recorded, so a retry skips it.
 3. **Commit.** One MongoDB transaction checks the population and every binding of the plan, binds
    each item at the CID its item read, writes the draft
    grid and placements onto the same map document at the revision of the plan with its media
-   pending, and records the commit. The map keeps its id, code and metadata; its revision grows by
-   one. If one check or write fails, nothing applies. The transaction holds no network call.
+   pending, writes each default edit and new default, variant, conf, instance and universe of the plan at the revision it starts
+   from, reconciles the map registry, and records the commit. The map keeps its id, code and
+   metadata; its revision grows by one. If one check or write fails, nothing applies. The
+   transaction holds no network call.
 4. **Refresh.** After the commit, the engine clears the map cache, draws the preview of the map
    revision it wrote, refreshes the previews of the maps the assets reach, and reloads the game
-   servers. The worlds of the instances of the map reload in full after a map change, and every
-   world reloads its object layers after a binding. The publication completes once the media is
+   servers. Each world the commit changed reloads in full: a drafted instance, an instance that
+   lists the map draft before or after, and each world that runs an edited or new default. Every
+   world reloads its object layers after a binding. A map no instance lists reloads no world, and a
+   universe change reloads none: tickets and sessions read universes when they need them. The
+   publication completes once the media is
    ready and every server reloaded. The publish step then shows the preview.
 
 A failed phase stops the publication with its error, and Retry resumes that phase. Cancel stops a
@@ -742,6 +787,153 @@ that lost its lease cannot write a result.
 A result is stored as a draft Object Layer by the one persistence path of the Studio: a complete
 definition with its render, never a fragment. A draft binds nothing, so the target keeps its
 definition until a promotion.
+
+## Working graph
+
+A population changes its map, and the instances and universes around the map, before anything
+runs. Each document is in one of four states:
+
+| State                     | Where it lives                                                               | Written by                                 |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------ |
+| Persisted                 | the stored map, instance, conf, universe and default records                 | a Studio outside a population; publication |
+| Saved to Procedural Draft | the population: `draft`, `instanceDrafts`, `universeDrafts`, `defaultDrafts` | a Studio save opened from the population   |
+| Unsaved changes           | the form of the editor                                                       | nothing, until a save                      |
+| Published                 | the stored records, after the commit of the publication                      | the publication                            |
+
+`workingGraph` (`population/working-graph.js`) reads the stored documents and puts the drafts of the
+population over them. Each document carries its state: `persisted`, `draft` (a draft of a stored
+document) or `new` (a draft with no stored document). Every reader takes the graph from this one
+function: the runtime context, the draft views of the Studios, the previews, the portal topology,
+the defaults workspace, the checks, the preflight and the commit. A stored record changes only at
+the commit.
+
+An instance draft holds the fields the Instance Studio edits and its conf fields (`aoiRadius`,
+`economyCode`, `entityDefaults`); a universe draft holds name, description, members and links. Each
+draft records the revision of the stored document it starts from and a copy of that document. When
+the stored document moves on, the draft is stale and the publication refuses it. **Rebase** moves the
+draft onto the stored revision: a field only one side changed takes that change; a field both changed
+stops the rebase (409) until the moderator keeps the draft values (`prefer: 'draft'`) or discards the
+draft. **Discard** removes the draft, and the graph shows the stored document again. A thumbnail
+that only a draft shows goes with the draft.
+
+**Typed drafts.** Each draft is a typed subdocument of the population model, copied from the fields of
+its canonical schema (`draftContract`): an instance draft from `CyberiaInstance` and
+`CyberiaInstanceConf`, a universe draft from `CyberiaUniverse`, a variant and a default draft from
+`CyberiaEntityTypeDefault`, the map draft from `CyberiaMap`. A copy keeps the types, defaults and
+validators of the canonical paths, adds no index to the population, and refuses a field the canonical
+document does not have at any depth (400). Every write of a draft goes through `writeDraft`: it checks
+the entry against its contract, names the draft revision the editor read, keeps one draft per code
+(and one default draft per stored default) in the same update, and lands only while the population
+takes changes. Each write is one population revision more, and the publication commits only the
+population revision its review read.
+
+| Field                                                        | Contract                              | Why                                                                |
+| ------------------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------ |
+| `draft`, `instanceDrafts`, `universeDrafts`, `defaultDrafts` | typed copies of the canonical schemas | working documents the Studios write and the commit reads           |
+| `context`                                                    | flexible, frozen                      | the map context the population read, under `version`               |
+| `migration`                                                  | flexible, frozen                      | the report of a migration, kept for review                         |
+| `publication`                                                | flexible, written by status           | the worker moves it under its lease; its plan names `manifestHash` |
+
+`graphProblems` checks the graph as the stored records are checked. An error stops the publication:
+
+- a draft whose stored document was created, deleted or moved after the draft started;
+- a map that two instances list, or that two worlds overlap with, as the map registry refuses it;
+- a portal of a changed world to a map outside its instance or to a deleted map;
+- a reference to an entity-type default that does not exist;
+- a stored default that loses its last instance reference, because it would run in every world;
+- an edit of a stored default that changed or was deleted after the draft;
+- an instance in two universes, a universe member that neither exists nor is drafted, an invalid
+  universe, or a universe whose worlds use different wallets.
+
+A warning stops nothing: a portal with no portal entity at its source cell, or a global default that
+an instance draft starts to reference.
+
+## Runtime context
+
+A map reaches players only through an instance, and an instance joins a universe; a map has no
+universe of its own. The runtime context step shows these relationships as the publication leaves
+them. `GET /cyberia-procedural-population/:id/runtime-context` reads the working graph each time
+(`runtimeContextOf`): each instance that lists the map now or before, and each drafted instance,
+with its state, its association with the map, its universe, its preview, its live servers and its
+defaults; each universe of those instances and each drafted universe, with the members it gains and
+loses; and the checks of the graph.
+
+| Label                     | Meaning                                                              |
+| ------------------------- | -------------------------------------------------------------------- |
+| Persisted                 | the stored document, unchanged by the population                     |
+| Saved to Procedural Draft | the population holds a draft of it                                   |
+| Stale                     | the stored document moved after the draft started: rebase or discard |
+| Runs this map             | it lists the map, stored and in the graph                            |
+| Pending association       | the graph adds the map, or the member, at the publication            |
+| Leaves this map           | the graph removes the map at the publication                         |
+| Draft preview             | the preview draws the graph, not the stored world                    |
+
+| Action                            | Opens                                                              |
+| --------------------------------- | ------------------------------------------------------------------ |
+| Create instance with this map     | Instance Studio: a new instance with the map selected              |
+| Add map to existing instance      | Instance Studio: the named instance with the map added to its maps |
+| Open Instance Studio              | Instance Studio: the instance as the graph holds it                |
+| Create universe for this instance | Universe Studio: a new universe with the instance as a member      |
+| Add instance to existing universe | Universe Studio: the named universe with the instance added        |
+| Open Universe Studio              | Universe Studio: the universe as the graph holds it                |
+| Rebase on revision N              | Moves a stale draft onto the stored revision                       |
+| Discard draft                     | Removes the draft of the instance or universe                      |
+
+The Studio opens with `?population=<id>` and a banner, "Procedural Engine · Instance" or
+"Procedural Engine · Universe", with the state of the document and a stale draft's Rebase. It
+loads the document from the graph (`GET /:id/instances/:code`, `GET /:id/universes/:code`). Its save
+action is "Save to Procedural Draft": it writes the draft (`PUT`) and returns to this step; the
+stored record does not change. The Portal Connector of the Instance Studio proposes its ring from the
+maps of the graph (`POST /:id/portal-connect`), so a portal entity the map draft adds takes a portal
+before it is published, and a portal may join a stored map and a drafted one either way, or two cells
+of the drafted map. The portals land in the form, and Save to Procedural Draft keeps them. The
+Instance Studio checks the portals against the graph (`POST /:id/topology`). Its Runtime tab offers
+no hot reload and no default sync: the publication reloads every world it changes, and the defaults
+step sets the references; the tab opens both steps. "Back without saving" asks first when the form
+holds unsaved changes. A map no
+instance lists shows "This map is not assigned to an instance or universe." and publishes as well:
+the step is optional, and nothing is created to make the map look assigned.
+
+**Previews.** Every preview of the population comes from the same graph, through the same route, so
+the runtime context, the Instance Studio and the Universe Studio show the same picture: the map draft
+(`GET /:id/map-preview?revision=<draft revision>`) and the world of each instance, drafted or persisted
+(`GET /:id/world-preview/:code?revision=<population revision>`). A picture is drawn for the revision
+it names; a request for another revision answers 409, so an older picture never stands for a newer
+draft. The routes answer a moderator only, and an image tag sends no session token: the client
+service fetches each picture with the session headers and shows it as an object URL. It keeps at most
+48 pictures, revokes the URL of each one it drops, drops every older revision of a picture once a
+newer one arrives, and discards an answer older than the newest asked. Each preview names its state:
+
+| Label               | Meaning                                                       |
+| ------------------- | ------------------------------------------------------------- |
+| Loading preview…    | the picture is on its way                                     |
+| Draft preview       | it draws the graph, with a change of the population           |
+| Persisted preview   | it draws the stored documents: the population changes nothing |
+| Preview pending     | the population moved on: the next read draws the new revision |
+| Preview unavailable | the draw failed, with its reason                              |
+
+A stored map node in the Instance Studio shows its stored preview, "Preview pending" while its media
+draws, and "Empty map" when it draws nothing.
+
+## Working copies after publication
+
+A population that published holds its publication record: the reviewed plan and what the commit
+wrote. The stored maps, instances, universes and defaults hold what it published, and a new
+population of the map starts from them. Its map draft and its instance, universe and default drafts
+are then copies, and a population that publishes or is cancelled takes no write again.
+
+| State    | The population                                                            |
+| -------- | ------------------------------------------------------------------------- |
+| Retained | closed for less than the retention window (14 days): its copies stay      |
+| Eligible | closed for longer                                                         |
+| Cleaned  | `draftsPrunedAt` is set: the copies are gone, the record and targets stay |
+
+`cyberia population prune` clears the copies of every eligible population, with the draft thumbnails
+no stored instance shows, and reports what it cleared, with the bytes each record held, and what the
+window keeps. It writes nothing without `--apply`, never touches an open population or a publication
+that runs or waits for its reload, and a second run finds nothing to clear. A draft revision of an
+Object Layer stays under the existing references (`revisionKeepers`): a job, the catalog, a
+population target or a publication plan keeps it.
 
 ## Review and human finalization
 

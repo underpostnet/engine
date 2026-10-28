@@ -5,7 +5,7 @@ import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
 import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 import { AtlasSpriteSheetStore } from './atlas-sprite-sheet.store.js';
-import { objectLayerMfsPaths } from '../object-layer/object-layer.ipfs.js';
+import { objectLayerMfsPaths, readNamedBytes } from '../object-layer/object-layer.ipfs.js';
 import { AtlasSpriteSheetGenerator, IDLE_PREVIEW_SIZE } from './atlas-sprite-sheet.generator.js';
 import {
   MAX_CANONICAL_BYTES,
@@ -166,8 +166,9 @@ class AtlasSpriteSheetService {
 
   /**
    * The render a definition names: the primary render (`cid`) and its layout (`metadataCid`).
-   * Read from this host's atlas when its bytes are the ones the cids name, else from IPFS, so
-   * every host that holds the definition can serve it. Both are kept for good by cid.
+   * Read from this host's atlas when its bytes are the ones the cids name, else from IPFS, whose
+   * bytes must hash to the cids too, so every host that holds the definition can serve it. Both
+   * are kept for good by cid.
    * @param {string} cid - Canonical Object Layer cid.
    * @param {Object} options - Router options.
    * @param {{png?: boolean}} [read] - `png: false` reads the layout only.
@@ -194,7 +195,7 @@ class AtlasSpriteSheetService {
               const local = await storedBytes((await materialized())?.fileId, options);
               // A payload over one block never pins under a raw CID, so it is not the named render.
               const named = local && local.length <= MAX_CANONICAL_BYTES && payloadCid(local) === renderCid;
-              return named ? local : await IpfsClient.getFromIpfs(renderCid);
+              return named ? local : await readNamedBytes(renderCid);
             },
           })
         : null,
@@ -203,7 +204,7 @@ class AtlasSpriteSheetService {
         load: async () => {
           const local = (await materialized())?.metadata;
           if (local && renderMetadataCid(local) === metadataCid) return local;
-          const raw = await IpfsClient.getFromIpfs(metadataCid);
+          const raw = await readNamedBytes(metadataCid);
           return raw ? parseIdentityJson(raw.toString('utf8')) : null;
         },
       }),

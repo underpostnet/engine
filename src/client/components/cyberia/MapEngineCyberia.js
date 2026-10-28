@@ -35,7 +35,7 @@ import { MapStudioCyberia } from './MapStudioCyberia.js';
 import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
 import { CyberiaProceduralPopulationService } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
 import { MapAudioCyberia } from './MapAudioCyberia.js';
-import { animationPace, drawEntities, mapMediaLabel } from './MapPlacementCyberia.js';
+import { animationPace, drawEntities, mapMediaDrawing, mapMediaLabel } from './MapPlacementCyberia.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -824,12 +824,11 @@ class MapEngineCyberia {
     MapEngineCyberia.renderMedia();
   }
 
-  /** Reads the media of a saved map again while its preview is pending, then shows the stored preview. */
+  /** Reads the media of a saved map again while a draw of its revision runs, then shows the stored preview. */
   static followMedia(reads = 0) {
     clearTimeout(MapEngineCyberia.mediaTimer);
     const { currentMapId: id, currentMedia, currentRevision } = MapEngineCyberia;
-    const pending = !currentMedia || currentMedia.revision !== currentRevision || currentMedia.status === 'pending';
-    if (!id || !pending || reads >= MapEngineCyberia.MEDIA_READS) return;
+    if (!id || !mapMediaDrawing(currentMedia, currentRevision) || reads >= MapEngineCyberia.MEDIA_READS) return;
     MapEngineCyberia.mediaTimer = setTimeout(async () => {
       const response = await CyberiaMapService.readMedia({ id });
       if (response.status !== 'success' || id !== MapEngineCyberia.currentMapId) return;

@@ -5,8 +5,10 @@
  * could run, its binding history and how its definition is stored on IPFS. Add binding opens the same view for an item with no binding. A bind names the
  * definition the moderator saw the item run, so a concurrent bind answers 409 and changes nothing.
  * Import from Object Layer takes a definition found at the Object Layer authority or given as a
- * document, shows what the server checked and stores, and imports it into the live content once the
- * moderator confirms its warnings. A bind is optional and decides any replacement.
+ * document, shows what the server checked and stores, and imports it once the moderator confirms its
+ * warnings: as global content, or as global content bound to a Cyberia item, which decides any
+ * replacement. Global content lists the definitions the next content release carries with no world:
+ * each one can be bound to an item later, or removed while nothing holds it.
  *
  * @module src/client/components/cyberia/ItemCatalogCyberia.js
  */
@@ -16,10 +18,12 @@ import { darkTheme } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { ListPager } from '../core/ListPager.js';
 import { firstPage, pageQuery } from '../core/Pagination.js';
 import { isCurrentRoute, listenQueryParamsChange } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
+import { OBJECT_LAYER_SCHEMA_VERSION, profileRef } from '../objectlayer-studio/ObjectLayerProtocol.js';
 import { fromWire, rgbaFrame } from '../objectlayer-studio/RenderSource.js';
 import {
   CyberiaObjectLayerProfile,
@@ -28,8 +32,10 @@ import {
 } from './ObjectLayerProfileCyberia.js';
 import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { CyberiaGlobalContentService } from '../../services/cyberia-global-content/cyberia-global-content.service.js';
 
 const GRID = 'item-catalog-grid';
+const GLOBAL_LIST = 'item-catalog-global';
 const ROUTE = 'cyberia-item-catalog';
 const STATUSES = Object.freeze({
   bound: { label: 'bound', tone: 'ok' },
@@ -37,6 +43,19 @@ const STATUSES = Object.freeze({
   draft: { label: 'draft', tone: 'bad' },
   archived: { label: 'archived', tone: 'bad' },
   missing: { label: 'not stored', tone: 'bad' },
+});
+/** Whether this host serves a global content definition, as `GET /cyberia-global-content` says. */
+const AVAILABILITY = Object.freeze({
+  available: { label: 'available', tone: 'ok' },
+  unrendered: { label: 'no render', tone: 'warn' },
+  incomplete: { label: 'no atlas', tone: 'bad' },
+  missing: { label: 'not stored', tone: 'bad' },
+});
+/** Why the next release carries a definition as global content. */
+const KEPT_FOR = Object.freeze({
+  import: 'Imported',
+  catalog: 'Kept for an item binding no world carries',
+  owned: 'Kept for stacks players own',
 });
 /** Where a binding comes from: the release content, or a change made while the release runs. */
 const ORIGINS = Object.freeze({
@@ -99,17 +118,22 @@ const busy = async (node, label, work) => {
 /** The format of a definition document, as the document field shows it. */
 const DOCUMENT_EXAMPLE = JSON.stringify(
   {
-    item: { id: 'item-id', type: 'skin', description: '', activable: false },
-    stats: Object.fromEntries(CyberiaObjectLayerProfile.statTypes.map((key) => [key, 0])),
-    render: { cid: 'bafkrei…', metadataCid: 'bafkrei…' },
+    schemaVersion: OBJECT_LAYER_SCHEMA_VERSION,
+    profile: profileRef(CyberiaObjectLayerProfile),
+    data: {
+      item: { id: 'item-id', type: 'skin', description: '', activable: false },
+      stats: Object.fromEntries(CyberiaObjectLayerProfile.statTypes.map((key) => [key, 0])),
+      render: { cid: 'bafkrei…', metadataCid: 'bafkrei…' },
+    },
   },
   null,
   2,
 );
-const statusBadge = (status) => {
-  const { label, tone } = STATUSES[status] ?? { label: status, tone: 'warn' };
+const badge = (states, status) => {
+  const { label, tone } = states[status] ?? { label: status, tone: 'warn' };
   return element('span', `item-catalog-status item-catalog-status-${tone}`, label);
 };
+const statusBadge = (status) => badge(STATUSES, status);
 
 class ItemCatalogCyberia {
   static canBind = false;
@@ -119,7 +143,7 @@ class ItemCatalogCyberia {
   static loadedPage = null;
   /** The definition the import panel previews: `{ cid }` or `{ document }`. */
   static importRequest = null;
-  /** Whether the moderator asks the import to bind an item. */
+  /** Whether the moderator imports and binds a Cyberia item, rather than import as global content only. */
   static importBind = false;
 
   static style = css`
@@ -270,6 +294,11 @@ class ItemCatalogCyberia {
       gap: 8px;
       align-items: center;
     }
+    .item-catalog fieldset.item-catalog-import-facts {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
     .item-catalog .item-catalog-import-run {
       justify-self: start;
       padding: 6px 16px;
@@ -368,6 +397,23 @@ class ItemCatalogCyberia {
           </button>
         </div>`
       : '';
+    const globalContent = ItemCatalogCyberia.canBind
+      ? html`<div class="in studio-group">
+          <div class="in studio-group-title"><i class="fa-solid fa-globe"></i> Global content</div>
+          <div class="in item-catalog-muted" style="margin-bottom: 8px;">
+            The definitions the next content release carries with no world. An import, an item binding no world carries,
+            or stacks players own keep each one. Its artwork needs no world and no entity type default.
+          </div>
+          <div class="in item-catalog-global" aria-live="polite"></div>
+          ${await ListPager.instance({
+            id: GLOBAL_LIST,
+            limit: 10,
+            unit: 'definitions',
+            fetch: (query) => ItemCatalogCyberia.globalPage(query),
+            render: (rows) => ItemCatalogCyberia.showGlobal(rows),
+          })}
+        </div>`
+      : '';
     const grid = await AgGrid.instance({
       id: GRID,
       ownerRoute: ROUTE,
@@ -389,6 +435,7 @@ class ItemCatalogCyberia {
     });
     setTimeout(async () => {
       s('.item-catalog-import-open')?.addEventListener('click', () => ItemCatalogCyberia.openImport());
+      if (ItemCatalogCyberia.canBind) ListPager.load(GLOBAL_LIST, 1);
       await ItemCatalogCyberia.refreshList();
       listenQueryParamsChange({ id: 'item-catalog-page', event: () => ItemCatalogCyberia.followPageQuery() });
     });
@@ -405,6 +452,7 @@ class ItemCatalogCyberia {
           ${addBinding} ${grid}
         </div>
         <div class="in studio-group item-catalog-import" hidden></div>
+        ${globalContent}
         <div class="in studio-group">
           <div class="in studio-group-title"><i class="fa-solid fa-clock-rotate-left"></i> Item</div>
           <div class="in item-catalog-details item-catalog-muted">
@@ -536,6 +584,96 @@ class ItemCatalogCyberia {
     await Promise.all([ItemCatalogCyberia.refreshList(), ItemCatalogCyberia.showItem(itemId)]);
   }
 
+  /** Reads one page of global content, newest first. */
+  static async globalPage({ page, limit }) {
+    const response = await CyberiaGlobalContentService.get({
+      page,
+      limit,
+      sortModel: [{ colId: 'registeredAt', sort: 'desc' }],
+    });
+    if (response.status === 'success') return response.data;
+    refusal(response);
+    return null;
+  }
+
+  /**
+   * Shows a page of global content: each definition with its artwork, its availability, why the next
+   * release carries it, the items bound to it, and the way to bind it or remove it.
+   */
+  static showGlobal(rows) {
+    const holder = s('.item-catalog-global');
+    if (!holder) return;
+    if (rows.length === 0)
+      return holder.replaceChildren(
+        element('div', 'item-catalog-muted', 'No global content yet: an import adds its definition here.'),
+      );
+    holder.replaceChildren(
+      ...rows.map(({ objectLayerCid: cid, item, availability, reason, by, registeredAt, provenance, itemIds }) => {
+        const row = element('div', 'item-catalog-row');
+        const facts = element('div', 'item-catalog-import-facts');
+        facts.append(
+          element('strong', '', `${item.id || 'Unknown item'}${item.type ? ` · ${item.type}` : ''}`),
+          element('code', '', cid),
+          element(
+            'span',
+            'item-catalog-muted',
+            `${KEPT_FOR[reason] ?? reason}${by ? ` by ${by}` : ''} · ${stamp(registeredAt)}${provenance?.domain ? ` · from ${provenance.domain}` : ''}`,
+          ),
+          element(
+            'span',
+            'item-catalog-muted',
+            itemIds.length ? `Bound to ${itemIds.join(', ')}` : 'No item binding: it shows by its CID only.',
+          ),
+        );
+        if (availability === 'available' || availability === 'incomplete') {
+          const preview = element('img', 'item-catalog-preview');
+          preview.alt = `${item.id || cid} idle frame`;
+          preview.onerror = () => preview.replaceWith(element('span', 'item-catalog-muted', '—'));
+          preview.src = AtlasSpriteSheetService.idlePreviewUrl(cid);
+          row.append(preview);
+        } else row.append(element('span', 'item-catalog-muted', '—'));
+        const remove = button('Remove', () => ItemCatalogCyberia.removeGlobal(cid), 'fa-solid fa-trash');
+        remove.disabled = itemIds.length > 0;
+        remove.title = itemIds.length
+          ? `Bound to ${itemIds.join(', ')}: unbind it first`
+          : 'The next release no longer carries it. The definition stays stored.';
+        const actions = element('div', 'item-catalog-cell-actions');
+        actions.append(
+          button('Open', () => ItemCatalogCyberia.openStudio(cid), 'fa-solid fa-pen'),
+          button('Bind to an item', () => ItemCatalogCyberia.bindGlobal(cid), 'fa-solid fa-link'),
+          remove,
+        );
+        row.append(facts, badge(AVAILABILITY, availability), actions);
+        return row;
+      }),
+    );
+  }
+
+  /** Opens the import preview of a global content definition, set to bind it to an item. */
+  static bindGlobal(cid) {
+    ItemCatalogCyberia.importBind = true;
+    ItemCatalogCyberia.openImport();
+    ItemCatalogCyberia.previewImport({ cid }, '');
+    s('.item-catalog-import')?.scrollIntoView({ block: 'start' });
+  }
+
+  /** Removes a definition from global content once the moderator confirms. */
+  static async removeGlobal(cid) {
+    const answer = await Modal.RenderConfirm({
+      id: 'item-catalog-global-remove-confirm',
+      html: async () =>
+        html`<div class="in section-mp" style="text-align: center">
+          Remove ${shortCid(cid)} from the global content? The next content release no longer carries it. The definition
+          stays stored here.
+        </div>`,
+    });
+    if (answer.status !== 'confirm') return;
+    const response = await CyberiaGlobalContentService.delete({ cid });
+    if (response.status !== 'success') refusal(response);
+    else notify(`${shortCid(cid)} is no longer global content.`, 'success');
+    await ListPager.load(GLOBAL_LIST);
+  }
+
   /**
    * Opens the import panel: a search of the Object Layer authority, a definition document to paste
    * or attach, and the preview of the definition either names.
@@ -566,7 +704,7 @@ class ItemCatalogCyberia {
       element(
         'div',
         'item-catalog-muted',
-        'Find a definition at the Object Layer authority, or give its document. The server checks it and rebuilds its render frames and atlas from the render it names. The import adds it to the live content here; a bind is optional.',
+        'Find a definition at the Object Layer authority, or give its document. The server checks it and rebuilds its render frames and atlas from the render it names. The import adds it to the global content: the next release carries it with no world. A bind to a Cyberia item is optional.',
       ),
       element('h3', 'item-catalog-import-heading', 'Search the authority'),
       search,
@@ -593,7 +731,7 @@ class ItemCatalogCyberia {
     const hint = element(
       'div',
       'item-catalog-muted',
-      'The data of one definition: exactly { item, stats, render }, every field and no other. Its render names the primary render and the layout on IPFS by CID.',
+      `The canonical payload of one definition: exactly { schemaVersion, profile, data }, every field and no other, so its bytes hash to its CID. It follows Object Layer schema ${OBJECT_LAYER_SCHEMA_VERSION} and the Cyberia profile version ${CyberiaObjectLayerProfile.version}. Its render names the primary render and the layout on IPFS by CID.`,
     );
     hint.id = 'item-catalog-import-hint';
     field.setAttribute('aria-describedby', hint.id);
@@ -709,13 +847,14 @@ class ItemCatalogCyberia {
 
   /**
    * The preview of an import: the frame, the source and identity, what the import stores here, what
-   * the server checked, and the optional binding. Import stays off until the warnings are confirmed,
-   * there is something to do, and a replacement is decided.
+   * the server checked, and its outcome: global content only, or global content bound to a Cyberia
+   * item. Import stays off until the warnings are confirmed, there is something to do, and a
+   * replacement is decided.
    */
   static showImportPreview(preview) {
     const holder = s('.item-catalog-import-preview');
     if (!holder) return;
-    const { cid, source, item, profile, render, stores, validation, target } = preview;
+    const { cid, source, item, profile, render, stores, global, validation, target } = preview;
     const frames = render ? Object.values(render.frames).reduce((sum, value) => sum + value, 0) : 0;
     const added = [
       stores.definition && 'its definition',
@@ -733,7 +872,7 @@ class ItemCatalogCyberia {
         'span',
         'item-catalog-muted',
         source.at === 'document'
-          ? `From the document: ${source.domain} does not hold it yet, so the import publishes it there.`
+          ? `From the document: ${source.domain} does not hold it yet, so the import publishes it there under the same CID, or not at all.`
           : `From ${source.domain}${source.createdBy ? `, stored there by ${source.createdBy}` : ''} · ${stamp(source.createdAt)}`,
       ),
       element('span', 'item-catalog-muted', `Profile ${profile.id} v${profile.version}`),
@@ -749,6 +888,13 @@ class ItemCatalogCyberia {
         'item-catalog-muted',
         added ? `The import stores ${added} here.` : 'This host stores all of it already.',
       ),
+      element(
+        'span',
+        'item-catalog-muted',
+        global
+          ? 'It is global content already: the next release carries it.'
+          : 'The import adds it to the global content: the next release carries it with no world.',
+      ),
     );
     const head = element('div', 'item-catalog-row');
     head.append(ItemCatalogCyberia.frameCanvas(render?.preview), facts);
@@ -760,13 +906,31 @@ class ItemCatalogCyberia {
     confirmLabel.append(confirm, element('span', 'item-catalog-warn', `I confirm: ${validation.warnings.join('; ')}`));
     checks.append(validation.ok ? confirmLabel : element('span', 'item-catalog-bad', 'It does not import.'));
 
-    const bind = Object.assign(element('input'), { type: 'checkbox', checked: ItemCatalogCyberia.importBind });
-    const bindLabel = element('label', 'item-catalog-check');
-    bindLabel.append(bind, element('span', '', 'Bind an item to it now'));
-    const bindHint = element(
-      'span',
-      'item-catalog-muted',
-      'Without a bind, the import only adds it to the live content: no item runs it until a bind.',
+    const outcome = element('fieldset', 'item-catalog-import-facts');
+    outcome.append(element('legend', 'item-catalog-import-heading', 'Outcome'));
+    const choice = (value, label, hint) => {
+      const input = Object.assign(element('input'), {
+        type: 'radio',
+        name: 'item-catalog-import-outcome',
+        value,
+        checked: (value === 'bind') === ItemCatalogCyberia.importBind,
+      });
+      const option = element('label', 'item-catalog-check');
+      const text = element('span');
+      text.append(element('span', '', label), element('br'), element('span', 'item-catalog-muted', hint));
+      option.append(input, text);
+      outcome.append(option);
+      return input;
+    };
+    choice(
+      'global',
+      'Import as global content',
+      'Available by its CID with no item binding and no world. A bind can follow later.',
+    );
+    const bind = choice(
+      'bind',
+      'Import and bind to a Cyberia item',
+      'Global content too, and the item you name runs it after its next reload.',
     );
 
     const targetRow = element('form', 'item-catalog-row');
@@ -813,19 +977,22 @@ class ItemCatalogCyberia {
     const sync = () => {
       const binds = bind.checked && !target.unchanged;
       bindPanel.hidden = !bind.checked;
-      bindHint.hidden = bind.checked;
-      run.disabled = !validation.ok || !confirm.checked || (binds ? target.replaces && !replace.checked : !added);
-      run.replaceChildren(element('i', 'fa-solid fa-cloud-arrow-down'), binds ? ' Import and bind' : ' Import');
+      run.disabled =
+        !validation.ok || !confirm.checked || (binds ? target.replaces && !replace.checked : !added && global);
+      run.replaceChildren(
+        element('i', 'fa-solid fa-cloud-arrow-down'),
+        binds ? ' Import and bind' : ' Import as global content',
+      );
     };
     confirm.onchange = sync;
     replace.onchange = sync;
-    bind.onchange = () => {
+    outcome.onchange = () => {
       ItemCatalogCyberia.importBind = bind.checked;
       sync();
     };
     sync();
     const card = element('div', 'item-catalog-import-card');
-    card.append(head, checks, bindLabel, bindHint, bindPanel, run);
+    card.append(head, checks, outcome, bindPanel, run);
     holder.replaceChildren(card);
   }
 
@@ -840,7 +1007,7 @@ class ItemCatalogCyberia {
           ${
             binds
               ? `Import ${shortCid(cid)} and bind ${target.itemId} to it? Every world that names ${target.itemId} runs it after its next reload.`
-              : `Import ${shortCid(cid)} into the live content? No item binding changes.`
+              : `Import ${shortCid(cid)} as global content? No item binding changes; the next content release carries it.`
           }
         </div>`,
     });
@@ -862,12 +1029,13 @@ class ItemCatalogCyberia {
     const { binding } = response.data;
     notify(
       binding === 'bound' || binding === 'replaced'
-        ? `${target.itemId} runs ${shortCid(cid)}, imported into the live content.`
-        : `${shortCid(cid)} is in the live content${binding === 'unchanged' ? `, and ${target.itemId} runs it` : ''}.`,
+        ? `${target.itemId} runs ${shortCid(cid)}, imported as global content.`
+        : `${shortCid(cid)} is global content${binding === 'unchanged' ? `, and ${target.itemId} runs it` : ''}.`,
       'success',
     );
     await Promise.all([
       ItemCatalogCyberia.refreshList(),
+      ListPager.load(GLOBAL_LIST),
       ...(binding === 'none' ? [] : [ItemCatalogCyberia.showItem(target.itemId)]),
       ItemCatalogCyberia.previewImport(request, target.itemId),
     ]);

@@ -14,7 +14,7 @@ import { registryModels, registryTransaction } from '../../projects/cyberia/inst
 const logger = loggerFactory(import.meta);
 
 /** Instance lists and reads by code; every instance write invalidates them. */
-const instanceCache = (options) => CacheService.namespace(options, 'cyberia-instance');
+export const instanceCache = (options) => CacheService.namespace(options, 'cyberia-instance');
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 

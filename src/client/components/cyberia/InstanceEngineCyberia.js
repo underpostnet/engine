@@ -8,6 +8,7 @@ import { dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EditorCrud } from '../core/EditorCrud.js';
 import { EditorLayout } from '../core/EditorLayout.js';
+import { Modal } from '../core/Modal.js';
 import { Tabs } from '../core/Tabs.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
@@ -15,11 +16,13 @@ import { CyberiaInstanceConfService } from '../../services/cyberia-instance-conf
 import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { CyberiaEconomyService } from '../../services/cyberia-economy/cyberia-economy.service.js';
+import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
+import { getQueryParams, isCurrentRoute, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { GraphLayoutCyberia } from './GraphLayoutCyberia.js';
+import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';
 import { StudioCyberia } from './StudioCyberia.js';
 import { resolveGraphLayout, worldPreviewPicture } from './SharedDefaultsCyberia.js';
 
@@ -41,32 +44,68 @@ class InstanceEngineCyberia {
   static mapCards = new Map();
   // The map codes whose card is being read.
   static cardLoads = new Set();
+  // The Procedural Engine population the form edits an instance for: its id, the instance and map the URL
+  // names, the draft of its map, the instance as its working graph holds it, and the form as it loaded.
+  static population = null;
+  // The population, instance and map the form opens or has open; a newer request wins.
+  static populationKey = null;
+  static populationLoad = 0;
+  // Repaints what follows the form: the Procedural Engine banner.
+  static onFormChange = null;
 
   /**
-   * Opens the editor on an instance.
-   * @param {{instanceCode: string}} params
+   * Opens the editor on an instance, in the context of a population when one is named.
+   * @param {{instanceCode: string, population?: string|null}} params
    * @returns {boolean} Whether the host offers the editor.
    */
-  static open({ instanceCode }) {
-    return StudioCyberia.open(ROUTE, { instanceCode });
+  static open({ instanceCode, population = null }) {
+    return StudioCyberia.open(ROUTE, { instanceCode, population });
   }
 
-  /** The world preview the engine draws from the saved maps, cells and portals: what the universe shows. */
+  /**
+   * The world preview the engine draws from the saved maps, cells and portals: what the universe shows.
+   * Opened from the Procedural Engine, it is the world as the working graph of the population holds it.
+   */
   static renderWorldPreview() {
     const slot = s('.instance-engine-world-preview');
     if (!slot) return;
+    const { population } = InstanceEngineCyberia;
     const code = InstanceEngineCyberia.currentInstanceCode;
-    const src = code ? `${getApiBaseUrl(worldPreviewPicture(code))}?revision=${InstanceEngineCyberia.currentRevision}` : '';
-    if (slot.dataset.src === src) return;
-    slot.dataset.src = src;
-    slot.innerHTML = src
-      ? html`<img
-          src="${src}"
-          alt="World preview of ${code}"
-          style="max-width:100%;max-height:220px;image-rendering:pixelated;border:1px solid var(--studio-subtle-border);"
-          onerror="this.style.display='none';"
-        />`
-      : html`<span>Save the instance to draw its world preview.</span>`;
+    const view = population?.view;
+    const key = population
+      ? view
+        ? `${population.id}:${code}:${view.populationRevision}`
+        : ''
+      : code
+        ? `${code}:${InstanceEngineCyberia.currentRevision}`
+        : '';
+    if (slot.dataset.key === key) return;
+    slot.dataset.key = key;
+    const paint = (src, caption) => {
+      slot.innerHTML = src
+        ? html`<img
+            src="${src}"
+            alt="World preview of ${code}"
+            style="max-width:100%;max-height:220px;image-rendering:pixelated;border:1px solid var(--studio-subtle-border);"
+            onerror="this.style.display='none';"
+          />`
+        : '';
+      if (caption)
+        slot.insertAdjacentHTML('beforeend', html`<div style="font-size:12px;opacity:0.8;">${caption}</div>`);
+    };
+    if (!key)
+      return paint(
+        '',
+        population
+          ? 'Save to Procedural Draft to draw its world preview.'
+          : 'Save the instance to draw its world preview.',
+      );
+    if (!population)
+      return paint(`${getApiBaseUrl(worldPreviewPicture(code))}?revision=${InstanceEngineCyberia.currentRevision}`);
+    paint('', StudioCyberia.previewLabel(null));
+    Population.worldPicture({ id: population.id, code, revision: view.populationRevision }).then((picture) => {
+      if (slot.dataset.key === key) paint(picture.url ?? '', StudioCyberia.previewLabel(picture, view.preview));
+    });
   }
   /**
    * Reads the card of each map a code names: its name and its stored preview, from the stored map.
@@ -83,13 +122,33 @@ class InstanceEngineCyberia {
     for (const code of mapCodes) InstanceEngineCyberia.cardLoads.delete(code);
     if (result.status !== 'success') return;
     const stored = new Map(result.data.data.map((map) => [map.code, map]));
+    const { population } = InstanceEngineCyberia;
+    const drafted = population?.map;
     for (const code of mapCodes) {
       const map = stored.get(code);
       const preview = map?.preview?._id ?? map?.preview;
       const empty = Boolean(map) && !preview && map.media?.status === 'ready';
+      const media = { pending: 'Preview pending', failed: 'Preview unavailable' }[map?.media?.status];
+      const name = map?.name || code;
+      if (drafted?.code === code && drafted.draftRevision) {
+        InstanceEngineCyberia.mapCards.set(code, { name, note: StudioCyberia.previewLabel(null), previewUrl: '' });
+        Population.mapPicture({ id: population.id, revision: drafted.draftRevision }).then((picture) => {
+          if (InstanceEngineCyberia.population !== population) return;
+          InstanceEngineCyberia.mapCards.set(code, {
+            name,
+            note: StudioCyberia.previewLabel(picture, 'draft'),
+            previewUrl: picture.url ?? '',
+          });
+          InstanceEngineCyberia.renderLayout();
+        });
+        continue;
+      }
       InstanceEngineCyberia.mapCards.set(code, {
-        name: map?.name || code,
-        note: !map ? 'Not stored here' : empty ? 'Empty map' : '',
+        name,
+        note: !map
+          ? 'Not stored here'
+          : (media ??
+            (empty ? 'Empty map' : population ? StudioCyberia.previewLabel({ state: 'ready' }, 'persisted') : '')),
         previewUrl: preview
           ? getApiBaseUrl({ id: preview, endpoint: 'file/blob' })
           : map && !empty
@@ -124,6 +183,10 @@ class InstanceEngineCyberia {
       else pair.back++;
       pairs.set(key, pair);
     }
+    const { population } = InstanceEngineCyberia;
+    const persisted = population && (population.view?.persistedMapCodes ?? []);
+    const pending = (code) => (persisted && !persisted.includes(code) ? 'Pending association' : '');
+    InstanceEngineCyberia.onFormChange?.();
     graph.update({
       nodes: cells.map(({ mapCode, x, y }) => {
         const card = InstanceEngineCyberia.mapCards.get(mapCode);
@@ -131,7 +194,7 @@ class InstanceEngineCyberia {
           code: mapCode,
           label: card?.name || mapCode,
           sublabel: card?.name && card.name !== mapCode ? mapCode : '',
-          note: card ? card.note : 'Reading the map',
+          note: card ? [card.note, pending(mapCode)].filter(Boolean).join(' · ') : 'Reading the map',
           x,
           y,
           image: card?.previewUrl ?? '',
@@ -158,9 +221,11 @@ class InstanceEngineCyberia {
       const mapCodes = [...(DropDown.Tokens['instance-engine-map-codes-dropdown']?.value ?? [])];
       if (!panel) return;
       if (mapCodes.length === 0) return (panel.innerHTML = '');
-      const result = await CyberiaInstanceService.getTopology({
-        body: { mapCodes, portals: InstanceEngineCyberia.portals },
-      });
+      const body = { mapCodes, portals: InstanceEngineCyberia.portals };
+      const { population } = InstanceEngineCyberia;
+      const result = population
+        ? await Population.topology({ id: population.id, body })
+        : await CyberiaInstanceService.getTopology({ body });
       if (result.status !== 'success') return (panel.textContent = result.message);
       const { maps, portalEntities, connections, unreachable, unresolved, invalid, unconnected } = result.data;
       const cell = ({ sourceMapCode, sourceCellX, sourceCellY }) => `${sourceMapCode} (${sourceCellX}, ${sourceCellY})`;
@@ -312,6 +377,7 @@ class InstanceEngineCyberia {
     InstanceEngineCyberia.currentThumbnailId = null;
     InstanceEngineCyberia.thumbnailDirty = false;
     InstanceEngineCyberia.portals = [];
+    InstanceEngineCyberia.population = null;
 
     const getInstancePayload = () => {
       const tagsRaw = s(`.${idTags}`)?.value || '';
@@ -388,8 +454,8 @@ class InstanceEngineCyberia {
         .join('');
     };
 
-    const persistInstance = async ({ notify = true } = {}) => {
-      // Upload thumbnail file only if user selected a new one
+    /** Uploads the thumbnail the form holds when it is new. Answers the failed upload, or null. */
+    const uploadThumbnail = async (notify) => {
       const thumbnailInput = s(`.${idThumbnail}`);
       if (
         InstanceEngineCyberia.thumbnailDirty &&
@@ -402,6 +468,7 @@ class InstanceEngineCyberia {
         const uploadResult = await FileService.post({ body: formData });
         if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
           InstanceEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+          InstanceEngineCyberia.thumbnailDirty = false;
         } else {
           if (notify) {
             NotificationManager.Push({
@@ -412,6 +479,12 @@ class InstanceEngineCyberia {
           return uploadResult;
         }
       }
+      return null;
+    };
+
+    const persistInstance = async ({ notify = true } = {}) => {
+      const failed = await uploadThumbnail(notify);
+      if (failed) return failed;
 
       const body = getInstancePayload();
       const isUpdate = !!InstanceEngineCyberia.currentInstanceId;
@@ -441,7 +514,53 @@ class InstanceEngineCyberia {
     };
 
     const saveInstance = async () => {
+      if (InstanceEngineCyberia.population) return await saveToDraft();
       await persistInstance({ notify: true });
+    };
+
+    /** The form as a draft of the population takes it: the instance fields and the conf fields it edits. */
+    const draftOfForm = () => {
+      const { code, ...document } = getInstancePayload();
+      const aoiRadius = parseFloat(s(`.${idAoiRadius}`)?.value ?? '');
+      return {
+        code,
+        document,
+        conf: {
+          ...(Number.isFinite(aoiRadius) && { aoiRadius }),
+          ...(s(`.${idEconomy}`)?.value && { economyCode: s(`.${idEconomy}`).value }),
+        },
+      };
+    };
+    const formKey = () => JSON.stringify(draftOfForm());
+    const unsaved = () =>
+      Boolean(InstanceEngineCyberia.population) &&
+      (InstanceEngineCyberia.thumbnailDirty || InstanceEngineCyberia.population.loaded !== formKey());
+
+    /** Saves the form to the draft of the population, never to the stored instance, and goes back to it. */
+    const saveToDraft = async () => {
+      const { population } = InstanceEngineCyberia;
+      const failed = await uploadThumbnail(true);
+      if (failed) return;
+      const { code, document, conf } = draftOfForm();
+      if (!code) return NotificationManager.Push({ html: 'Name the instance code first.', status: 'error' });
+      const { view } = population;
+      const result = await Population.saveDocumentDraft({
+        id: population.id,
+        kind: 'instances',
+        code,
+        body: { document, conf, baseRevision: view ? view.revision : null, revision: view?.draftRevision ?? 0 },
+      });
+      if (result.status !== 'success')
+        return NotificationManager.Push({
+          html: escapeHtml(result.code === 409 ? `Conflict detected. ${result.message}` : result.message),
+          status: result.code === 409 ? 'warning' : 'error',
+        });
+      NotificationManager.Push({
+        html: `Saved ${escapeHtml(code)} to the Procedural Draft. The stored instance does not change.`,
+        status: 'success',
+      });
+      population.loaded = formKey();
+      returnToPopulation();
     };
 
     // The maps of the instance, as the map codes dropdown shows them.
@@ -685,10 +804,138 @@ class InstanceEngineCyberia {
       NotificationManager.Push({ html: `Instance "${data.name || data.code}" loaded`, status: 'success' });
     };
 
+    // ?population=<id> opens the form for the Procedural Engine on the instance ?instanceCode= as the working
+    // graph of the population holds it, else on a new instance, with the map ?mapCode= among its maps. A save
+    // writes the draft of the population and returns to it; the stored instance changes at the publication.
+    const enterPopulation = async ({ population: id, instanceCode = '', mapCode = '' }, { force = false } = {}) => {
+      const key = JSON.stringify([id, instanceCode, mapCode]);
+      if (!force && InstanceEngineCyberia.populationKey === key) return;
+      InstanceEngineCyberia.populationKey = key;
+      const request = ++InstanceEngineCyberia.populationLoad;
+      const [read, draft] = await Promise.all([
+        Population.get({ id }),
+        instanceCode ? Population.getDocumentDraft({ id, kind: 'instances', code: instanceCode }) : null,
+      ]);
+      if (request !== InstanceEngineCyberia.populationLoad) return;
+      const failure = [read, draft].find((result) => result && result.status !== 'success');
+      if (failure) return NotificationManager.Push({ html: escapeHtml(failure.message), status: 'error' });
+      const view = draft?.data ?? null;
+      InstanceEngineCyberia.population = {
+        id,
+        instanceCode,
+        mapCode,
+        map: { code: read.data.mapCode, draftRevision: read.data.draft?.revision ?? null },
+        view,
+        loaded: null,
+      };
+      InstanceEngineCyberia.mapCards = new Map();
+      if (view) await loadInstance({ code: view.code, ...view.document, revision: view.revision ?? 1 });
+      else if (InstanceEngineCyberia.currentInstanceCode) newInstance();
+      InstanceEngineCyberia.currentInstanceId = null;
+      if (s(`.${idCode}`)) s(`.${idCode}`).disabled = Boolean(view);
+      if (view) {
+        if (s(`.${idAoiRadius}`)) s(`.${idAoiRadius}`).value = view.conf.aoiRadius ?? '';
+        await renderEconomyOptions(view.conf.economyCode ?? '');
+      }
+      InstanceEngineCyberia.population.loaded = formKey();
+      const mapCodes = DropDown.Tokens[idMapCodesDropdown]?.value ?? [];
+      if (mapCode && !mapCodes.includes(mapCode)) setMapCodes([...mapCodes, mapCode]);
+      InstanceEngineCyberia.loadCards(DropDown.Tokens[idMapCodesDropdown]?.value ?? []);
+      InstanceEngineCyberia.crud?.refresh();
+      paintPopulation();
+    };
+
+    /** Back to the runtime context of the population. Unsaved changes go once the moderator confirms; the saved draft stays. */
+    const returnToPopulation = async (step = 'context') => {
+      const { population } = InstanceEngineCyberia;
+      if (unsaved()) {
+        const answer = await Modal.RenderConfirm({
+          id: 'instance-engine-leave-confirm',
+          html: async () =>
+            html`<div class="in section-mp">
+              Leave without saving? Your unsaved changes go. What the Procedural Draft holds stays.
+            </div>`,
+          confirmLabel: 'Leave without saving',
+          danger: true,
+        });
+        if (answer.status !== 'confirm') return;
+      }
+      InstanceEngineCyberia.population = null;
+      InstanceEngineCyberia.populationKey = null;
+      InstanceEngineCyberia.crud?.refresh();
+      paintPopulation();
+      setQueryParams({ population: null, mapCode: null, instanceCode: null }, { replace: true });
+      ProceduralEngineCyberia.open({ populationId: population.id, step });
+    };
+
+    /** Moves the saved draft onto the revision the stored instance is at now; a field both changed asks first. */
+    const rebasePopulation = async () => {
+      const { population } = InstanceEngineCyberia;
+      const rebase = (body) =>
+        Population.rebaseDocumentDraft({ id: population.id, kind: 'instances', code: population.view.code, body });
+      let result = await rebase({});
+      if (result.code === 409) {
+        const answer = await Modal.RenderConfirm({
+          id: 'instance-engine-rebase-confirm',
+          html: async () => html`<div class="in section-mp">${escapeHtml(result.message)}</div>`,
+          confirmLabel: 'Keep the draft values',
+        });
+        if (answer.status !== 'confirm') return;
+        result = await rebase({ prefer: 'draft' });
+      }
+      if (result.status !== 'success')
+        return NotificationManager.Push({ html: escapeHtml(result.message), status: 'error' });
+      await enterPopulation(
+        { population: population.id, instanceCode: population.instanceCode, mapCode: population.mapCode },
+        { force: true },
+      );
+    };
+
+    const paintPopulation = () => {
+      const { population } = InstanceEngineCyberia;
+      const view = population?.view;
+      const stale = view?.state === 'draft' && view.revision !== view.baseRevision;
+      const state = !view
+        ? 'New instance · not saved'
+        : view.state === 'persisted'
+          ? `Persisted · revision ${view.revision}`
+          : view.state === 'new'
+            ? 'Saved to Procedural Draft · new instance'
+            : stale
+              ? `Saved to Procedural Draft · the stored instance moved to revision ${view.revision}`
+              : `Saved to Procedural Draft · starts from revision ${view.baseRevision}`;
+      StudioCyberia.paintContext(
+        s('.instance-engine-population'),
+        population && {
+          label: 'Procedural Engine · Instance',
+          state: {
+            text: unsaved() ? `${state} · Unsaved changes` : state,
+            tone: stale || unsaved() ? 'warn' : view && view.state !== 'persisted' ? 'good' : undefined,
+          },
+          note: `${population.mapCode ? `Map ${population.mapCode} is among its maps. ` : ''}Save to Procedural Draft keeps the change in the population and returns to it; the stored instance changes when the population publishes.`,
+          actions: stale
+            ? [{ label: `Rebase on revision ${view.revision}`, icon: 'fa-solid fa-code-merge', run: rebasePopulation }]
+            : [],
+          back: () => returnToPopulation(),
+        },
+      );
+      for (const section of document.querySelectorAll('.instance-engine-runtime-standalone'))
+        section.hidden = Boolean(population);
+      if (s('.instance-engine-runtime-population')) s('.instance-engine-runtime-population').hidden = !population;
+    };
+    InstanceEngineCyberia.onFormChange = () =>
+      InstanceEngineCyberia.population && InstanceEngineCyberia.population.loaded !== null && paintPopulation();
+
     listenQueryParamsChange({
       id: 'cyberia-instance-engine-query-listener',
       event: async (queryParams) => {
-        if (!s(`.${idCode}`)) return;
+        if (!s(`.${idCode}`) || !isCurrentRoute(ROUTE)) return;
+        if (queryParams.population) return await enterPopulation(queryParams);
+        if (InstanceEngineCyberia.population) {
+          InstanceEngineCyberia.population = null;
+          InstanceEngineCyberia.populationKey = null;
+          paintPopulation();
+        }
         const code = queryParams.instanceCode || null;
         if (code) await loadInstanceByCode(code);
         else if (InstanceEngineCyberia.currentInstanceCode) newInstance();
@@ -716,16 +963,26 @@ class InstanceEngineCyberia {
       });
       InstanceEngineCyberia.crud = EditorCrud.bind(s('.instance-engine-crud'), () => ({
         subject: 'instance',
-        id: InstanceEngineCyberia.currentInstanceId,
+        id: InstanceEngineCyberia.currentInstanceId ?? InstanceEngineCyberia.population?.view?.code ?? null,
         name: InstanceEngineCyberia.currentInstanceCode,
-        new: () => {
-          newInstance();
-          Tabs.select(s('.instance-engine-tabs'), 'instance');
-        },
-        reset: resetInstance,
+        ...(!InstanceEngineCyberia.population && {
+          new: () => {
+            newInstance();
+            Tabs.select(s('.instance-engine-tabs'), 'instance');
+          },
+        }),
+        reset: () =>
+          InstanceEngineCyberia.population ? enterPopulation(getQueryParams(), { force: true }) : resetInstance(),
         ...(canMutate && { save: saveInstance }),
+        ...(InstanceEngineCyberia.population && {
+          labels: { save: 'Save to Procedural Draft', reset: 'Reset to saved draft' },
+        }),
       }));
-      await loadInstanceByCode(getQueryParams().instanceCode);
+      const container = s('.instance-engine-container');
+      for (const event of ['input', 'change'])
+        container?.addEventListener(event, () => InstanceEngineCyberia.onFormChange?.());
+      if (getQueryParams().population) await enterPopulation(getQueryParams());
+      else await loadInstanceByCode(getQueryParams().instanceCode);
       if (!InstanceEngineCyberia.currentInstanceCode) await renderEconomyOptions('');
       if (s('.btn-instance-engine-open-economy'))
         s('.btn-instance-engine-open-economy').onclick = () =>
@@ -900,21 +1157,35 @@ class InstanceEngineCyberia {
           InstanceEngineCyberia.layoutGraph?.fit();
         };
 
+      if (s('.btn-instance-engine-population-defaults'))
+        s('.btn-instance-engine-population-defaults').onclick = () => returnToPopulation('defaults');
+      if (s('.btn-instance-engine-population-publish'))
+        s('.btn-instance-engine-population-publish').onclick = () => returnToPopulation('publish');
+
       // Portal management
       if (s(`.btn-instance-engine-portal-connect`))
         s(`.btn-instance-engine-portal-connect`).onclick = async () => {
           const btn = s(`.btn-instance-engine-portal-connect`);
           if (btn) btn.disabled = true;
           try {
-            const persistResult = await persistInstance({ notify: false });
-            if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
-              NotificationManager.Push({
-                html: persistResult?.message || Translate.instance('save-instance-first') || 'Save the instance first.',
-                status: persistResult?.status === 'error' ? 'error' : 'warning',
-              });
-              return;
+            const { population } = InstanceEngineCyberia;
+            if (!population) {
+              const persistResult = await persistInstance({ notify: false });
+              if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
+                NotificationManager.Push({
+                  html:
+                    persistResult?.message || Translate.instance('save-instance-first') || 'Save the instance first.',
+                  status: persistResult?.status === 'error' ? 'error' : 'warning',
+                });
+                return;
+              }
             }
-            const result = await CyberiaInstanceService.portalConnect({ id: InstanceEngineCyberia.currentInstanceId });
+            const result = population
+              ? await Population.portalConnect({
+                  id: population.id,
+                  body: { mapCodes: [...(DropDown.Tokens[idMapCodesDropdown]?.value ?? [])] },
+                })
+              : await CyberiaInstanceService.portalConnect({ id: InstanceEngineCyberia.currentInstanceId });
             if (result.status === 'error') {
               NotificationManager.Push({ html: result.message, status: 'error' });
               return;
@@ -940,7 +1211,9 @@ class InstanceEngineCyberia {
             }));
             InstanceEngineCyberia.renderPortalList(portalListId);
             NotificationManager.Push({
-              html: `${topology} — ${generated.length} portal(s) generated.`,
+              html: population
+                ? `${topology} — ${generated.length} portal(s) from the maps as the population drafts them. Save to Procedural Draft to keep them.`
+                : `${topology} — ${generated.length} portal(s) generated.`,
               status: 'success',
             });
           } catch (e) {
@@ -1020,6 +1293,7 @@ class InstanceEngineCyberia {
     const dcSpawn = 'instance-engine-dc-spawn';
 
     return html`<div class="in section-mp studio-editor instance-engine-container">
+      <div class="in studio-context instance-engine-population" role="status" aria-live="polite" hidden></div>
       ${EditorCrud.render({ id: 'instance-engine-crud', label: 'Instance' })}
       ${Tabs.render({
         id: 'instance-engine-tabs',
@@ -1384,7 +1658,28 @@ class InstanceEngineCyberia {
                   id: 'runtime',
                   label: 'Runtime',
                   icon: 'fa-solid fa-server',
-                  content: html`<div class="in section-mp" style="margin-top: 10px;">
+                  content: html`<div
+                      class="in section-mp instance-engine-runtime-population"
+                      style="margin-top: 10px;"
+                      hidden
+                    >
+                      <div class="in" style="color:#888;font-size:12px;margin-bottom:6px;">
+                        Opened from the Procedural Engine: the stored instance changes at the publication, which reloads
+                        every world it changes. The Defaults step of the population sets the entity-type defaults this
+                        instance references.
+                      </div>
+                      <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;">
+                        ${await BtnIcon.instance({
+                          class: 'btn-instance-engine-population-defaults',
+                          label: html`<i class="fa-solid fa-table-list"></i> Open the Defaults step`,
+                        })}
+                        ${await BtnIcon.instance({
+                          class: 'btn-instance-engine-population-publish',
+                          label: html`<i class="fa-solid fa-cloud-arrow-up"></i> Open the Publish step`,
+                        })}
+                      </div>
+                    </div>
+                    <div class="in section-mp instance-engine-runtime-standalone" style="margin-top: 10px;">
                       <div class="in" style="color:#888;font-size:12px;margin-bottom:6px;">
                         Points this instance's conf at every entity-type default the maps of the Maps tab actually place
                         — matched the way the runtime matches them, by live item ids — and at every skill their items
@@ -1397,7 +1692,7 @@ class InstanceEngineCyberia {
                       })}
                       <div class="in instance-engine-sync-entities-status" style="margin-top:5px;font-size:12px;"></div>
                     </div>
-                    <div class="in section-mp" style="margin-top: 10px;">
+                    <div class="in section-mp instance-engine-runtime-standalone" style="margin-top: 10px;">
                       ${await BtnIcon.instance({
                         class: 'wfa btn-instance-engine-toggle-hot-reload',
                         label: html`<i class="fa-solid fa-caret-right instance-engine-hot-reload-caret"></i> Hot Reload`,
