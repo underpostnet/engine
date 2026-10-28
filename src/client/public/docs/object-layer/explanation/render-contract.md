@@ -64,8 +64,10 @@ CID, so a new definition.
 ## Routes
 
 Every host that holds the definition answers these routes by the CIDs in `data.render`: from its
-own atlas when that atlas holds the bytes the CIDs name, else from IPFS. A route never needs a
-local materialization, and its answer is immutable.
+own atlas when that atlas holds the bytes the CIDs name, else from IPFS. An IPFS answer counts only
+when its bytes hash to the CID asked for, and the read stops past one block
+(`readNamedBytes` in `src/api/object-layer/object-layer.ipfs.js`); other bytes answer 503. A route
+never needs a local materialization, and its answer is immutable.
 
 | route                                                   | answer                                              |
 | ------------------------------------------------------- | --------------------------------------------------- |

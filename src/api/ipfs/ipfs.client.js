@@ -249,12 +249,36 @@ const unpinCid = async (cid) => {
 //  Retrieval
 // ─────────────────────────────────────────────────────────
 /**
+ * Reads a response body up to a byte limit. A body over the limit is cancelled, never buffered whole.
+ * @param {Response} res
+ * @param {number} maxBytes
+ * @returns {Promise<Buffer|null>} Null when the body is over the limit.
+ */
+const boundedBody = async (res, maxBytes) => {
+  if (Number(res.headers.get('content-length')) > maxBytes) {
+    await res.body?.cancel();
+    return null;
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of res.body ?? []) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      await res.body.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+};
+/**
  * Retrieve raw bytes for a CID from the IPFS HTTP Gateway (port 8080).
  *
  * @param {string} cid
+ * @param {{maxBytes?: number}} [limits] - `maxBytes`: the most bytes to read; a larger body answers null.
  * @returns {Promise<Buffer|null>}
  */
-const getFromIpfs = async (cid) => {
+const getFromIpfs = async (cid, { maxBytes = Infinity } = {}) => {
   const url = getGatewayUrl();
   try {
     const res = await fetchWithTimeout(
@@ -269,8 +293,9 @@ const getFromIpfs = async (cid) => {
       logger.error(`IPFS gateway GET failed (${res.status}) for ${cid}`);
       return null;
     }
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const bytes = await boundedBody(res, maxBytes);
+    if (!bytes) logger.warn(`IPFS gateway answered ${cid} with over ${maxBytes} bytes`);
+    return bytes;
   } catch (err) {
     logger.warn(`IPFS gateway unreachable at ${url}: ${err.message}`);
     return null;

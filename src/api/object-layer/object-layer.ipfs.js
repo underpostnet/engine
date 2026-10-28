@@ -128,10 +128,19 @@ export async function publishObjectLayerBundle({ definition, canonical = false, 
   return { objectLayerCid: definition.cid, root: paths.root, resources };
 }
 
-/** The bytes IPFS holds under a raw CID: null when it holds none, or bytes the CID does not name. */
-const readNamedBytes = async (cid) => {
-  const bytes = await IpfsClient.getFromIpfs(cid);
-  return bytes && bytes.length <= MAX_CANONICAL_BYTES && payloadCid(bytes) === cid ? bytes : null;
+/**
+ * The bytes IPFS holds under a raw CID: at most one block, and only bytes that hash to the CID.
+ * Every render read from IPFS goes through here.
+ * @param {string} cid - A raw CID (`bafkrei…`).
+ * @returns {Promise<Buffer|null>} Null when IPFS holds none, more than one block, or other bytes.
+ * @memberof ObjectLayerIpfs
+ */
+export const readNamedBytes = async (cid) => {
+  const bytes = await IpfsClient.getFromIpfs(cid, { maxBytes: MAX_CANONICAL_BYTES });
+  if (!bytes) return null;
+  if (payloadCid(bytes) === cid) return bytes;
+  logger.warn(`IPFS answered ${cid} with bytes that hash to ${payloadCid(bytes)}`);
+  return null;
 };
 
 /**

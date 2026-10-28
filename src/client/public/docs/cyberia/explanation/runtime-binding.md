@@ -113,18 +113,60 @@ A quest or an action inside a snapshot may still carry `objectLayerCid`, as froz
 content repository accepts such a pin only when it equals the binding of the snapshot itself. The
 import drops it: ordinary documents name items by item id.
 
+## Global content
+
+A definition is visual content: it needs no world to stay available. An item a player owns, an
+equipped item, or a definition a moderator imported and bound to no item can belong to no
+foundation, saga or instance snapshot. `CyberiaGlobalContent` keeps such a definition: one row per
+CID with why it stays (`import`, `catalog` or `owned`), who registered it, when, and where it came
+from. The definition, its render, its bindings and the stacks that hold it stay with their owners;
+a row only references the CID.
+
+| Concept                       | Owns                                                                |
+| ----------------------------- | ------------------------------------------------------------------- |
+| Object Layer definition       | The immutable visual content and its render                         |
+| Global content                | That Cyberia keeps a definition with no world                       |
+| `CyberiaItemCatalog`          | The definition each item id runs                                    |
+| Player stack                  | The definition the stack was granted with (`olCid`)                 |
+| Entity type default           | How a placed world entity behaves                                   |
+| Foundation, saga and snapshot | Content inheritance, thematic dependency and instance configuration |
+
+An entity type default is never a way to keep a definition: it configures a placed entity, and a
+visual definition does not make one. A global definition with no binding shows by its CID; a moderator
+binds it to an item id later. A stack keeps its `olCid`: a later bind of its item id never rewrites
+it, so the stack shows what it was granted with.
+
+An import registers the definition it imports. `cyberia content-release export-live` registers, on
+its scratch copy of the backup, each definition an item binding or a player stack names that no
+world snapshot and no artifact composition carries, then writes every row to
+`src/content/global/<cid>.json` of `cyberia-content`: the canonical payload, the render bytes the
+definition names, the item ids bound to it, and the row. Nothing else is registered: a definition
+nothing keeps stays out.
+
 ## Releases
 
 A release starts from an empty database and imports its content: the foundation, the release
-sagas, then the release instances. Each snapshot sets the bindings of what it holds. The previous
-database is never an input. To keep a binding a moderator made while a release ran, export the
-instance before the next release:
+sagas, the global content, then the release instances. The global content and each snapshot set
+the bindings of what they hold, after the foundation and the sagas: a frozen binding replaces a
+composition. The previous database is never an input. To keep a binding a moderator made while a
+release ran, export it before the next release:
 
 ```text
 runtime: coin → CID-B  →  instance --export  →  snapshot: coin → CID-B  →  release  →  coin → CID-B
 ```
 
 Without an export, the next release runs what its snapshot holds, and the binding made live goes.
+
+## Resolution by CID
+
+A world warms the definitions its content names. An item a world does not warm resolves when it
+arrives: the game server asks the engine for the item content (`GetItemContent`), and the client
+draws any definition by CID through `/atlas-sprite-sheet/layout/:cid` and `/render/:cid`. The
+engine answers from the atlas of the release, else from IPFS, and accepts IPFS bytes only when they
+hash to the CID the definition names, within one block. A render is kept by its CID in the cache,
+and concurrent reads of one CID share one load. A global definition resolves with no instance, no
+entity type default and no request to the Object Layer authority. Its gameplay stays with the world:
+stats, actions, drops and behavior come from the content of the world that runs the item.
 
 ## Consistency
 

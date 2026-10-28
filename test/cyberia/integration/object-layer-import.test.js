@@ -3,8 +3,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import express from 'express';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import {
+  canonicalJsonBytes,
   canonicalRender,
   objectLayerIdentity,
+  payloadCid,
   renderContractOf,
 } from '../../../src/api/object-layer/object-layer.identity.js';
 import { ObjectLayerService } from '../../../src/api/object-layer/object-layer.service.js';
@@ -20,7 +22,10 @@ import {
 } from '../../../src/projects/cyberia/catalog/object-layer-import.js';
 import { CyberiaObjectLayerProfile } from '../../../src/client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { STAT_DEFAULTS } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
-import { profileRef } from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
+import {
+  canonicalObjectLayer,
+  profileRef,
+} from '../../../src/client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
@@ -32,6 +37,7 @@ const APIS = [
   'file',
   'ipfs',
   'cyberia-item-catalog',
+  'cyberia-global-content',
 ];
 const MODERATOR = '64b000000000000000000009';
 const model = (name) => DataBaseProviderService.getModel(name, host);
@@ -94,7 +100,8 @@ const importOf = (request) =>
     host,
     reload,
   );
-const documentOf = ({ data }) => JSON.stringify(data);
+const documentOf = (entry) => JSON.stringify(canonicalObjectLayer(entry.definition ?? entry));
+const globalRow = (cid) => model('CyberiaGlobalContent').findOne({ objectLayerCid: cid }).lean();
 const listen = (app) =>
   new Promise((done) => {
     const started = app.listen(0, '127.0.0.1', () => done(started));
@@ -334,33 +341,147 @@ describe.skipIf(!mongodBinary)('an import from the Object Layer authority', () =
   });
 
   it('accepts a document only in the definition format, and asks nothing for a document it refuses', async () => {
-    const { data } = await canonical('lantern-skin');
+    const lantern = await canonical('lantern-skin');
+    const payload = canonicalObjectLayer(lantern.definition);
+    const { data } = payload;
     const refusal = (document) => previewImport(models(), { document }, host);
     const message = async (document) => (await refusal(document).catch((error) => error)).message;
-    const withItem = (item) => JSON.stringify({ ...data, item: { ...data.item, ...item } });
-    expect(await message(JSON.stringify({ ...data, ledger: {} }))).toContain('ledger is not in the format');
-    expect(await message(JSON.stringify({ item: data.item, render: data.render }))).toContain('stats is missing');
+    const withData = (changes) => JSON.stringify({ ...payload, data: { ...data, ...changes } });
+    const withItem = (item) => withData({ item: { ...data.item, ...item } });
+    expect(await message(JSON.stringify(data))).toContain(
+      'schemaVersion is null: this host reads Object Layer schema 1',
+    );
+    expect(await message(JSON.stringify({ ...payload, schemaVersion: 2 }))).toContain('schemaVersion is 2');
+    expect(await message(JSON.stringify({ ...payload, profile: { id: 'cyberia', version: 1 } }))).toContain(
+      'profile.version is',
+    );
+    expect(await message(JSON.stringify({ ...payload, ledger: {} }))).toContain('ledger is not in the format');
+    expect(await message(withData({ stats: undefined }))).toContain('data.stats is missing');
     const { effect, ...fewer } = data.stats;
-    expect(await message(JSON.stringify({ ...data, stats: fewer }))).toContain('stats.effect is missing');
-    expect(await message(JSON.stringify({ ...data, stats: { ...data.stats, effect: 1.5 } }))).toContain(
-      'stats.effect is an integer',
+    expect(await message(withData({ stats: fewer }))).toContain('data.stats.effect is missing');
+    expect(await message(withData({ stats: { ...data.stats, effect: 1.5 } }))).toContain(
+      'data.stats.effect is an integer',
     );
-    expect(await message(withItem({ id: '<img src=x onerror=alert(1)>' }))).toContain('item.id is 1 to 128');
-    expect(await message(withItem({ type: 'relic' }))).toContain('item.type is one of');
-    expect(await message(withItem({ activable: 'yes' }))).toContain('item.activable is true or false');
-    expect(
-      await message(JSON.stringify({ ...data, render: { cid: 'http://169.254.169.254/', metadataCid: '' } })),
-    ).toContain('render.cid is a CID');
-    expect(await message(documentOf({ data }).replace('"item":', '"item":{},"item":'))).toContain(
-      'Duplicate property "item"',
+    expect(await message(withItem({ id: '<img src=x onerror=alert(1)>' }))).toContain('data.item.id is 1 to 128');
+    expect(await message(withItem({ type: 'relic' }))).toContain('data.item.type is one of');
+    expect(await message(withItem({ activable: 'yes' }))).toContain('data.item.activable is true or false');
+    expect(await message(withData({ render: { cid: 'http://169.254.169.254/', metadataCid: '' } }))).toContain(
+      'data.render.cid is a CID',
     );
-    expect(await message('{"item":')).toContain('The document is not JSON');
-    expect(await message(JSON.stringify({ ...data, pad: 'x'.repeat(70 * 1024) }))).toContain('at most 64 KB');
+    expect(await message(documentOf(lantern).replace('"data":', '"data":{},"data":'))).toContain(
+      'Duplicate property "data"',
+    );
+    expect(await message('{"data":')).toContain('The document is not JSON');
+    expect(await message(JSON.stringify({ ...payload, pad: 'x'.repeat(70 * 1024) }))).toContain('at most 64 KB');
     await expect(
-      importDefinition(models(), { cid: 'bafkrei', document: documentOf({ data }) }, host),
+      importDefinition(models(), { cid: 'bafkrei', document: documentOf(lantern) }, host),
     ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('not both') });
     expect(authority.requests).toEqual([]);
     expect(gateway.requests).toEqual([]);
+  });
+
+  it('imports a document under the exact identity its bytes give, and refuses a render that is not the one it names', async () => {
+    const ember = await canonical('ember-skin');
+    const preview = await previewImport(models(), { document: documentOf(ember) }, host);
+    expect(preview.cid).toBe(ember.cid);
+    expect(objectLayerIdentity(JSON.parse(documentOf(ember))).cid).toBe(ember.cid);
+
+    const wrongRender = await canonical('wrong-render', { render: false });
+    const unpinned = payloadCid(Buffer.from('a render nobody pinned'));
+    const named = (render) =>
+      canonicalObjectLayer({ ...wrongRender.definition, data: { ...wrongRender.data, render } });
+    const problemsOf = async (render) =>
+      (await previewImport(models(), { document: JSON.stringify(named(render)) }, host)).validation.problems;
+    expect(await problemsOf({ cid: unpinned, metadataCid: ember.data.render.metadataCid })).toEqual([
+      `IPFS holds no render ${unpinned} with its layout ${ember.data.render.metadataCid}`,
+    ]);
+    expect(await problemsOf({ cid: ember.data.render.cid, metadataCid: unpinned })).toEqual([
+      `IPFS holds no render ${ember.data.render.cid} with its layout ${unpinned}`,
+    ]);
+  });
+
+  it('refuses a render that is not a PNG, a layout frame outside the atlas, and an atlas over the limits', async () => {
+    const base = await canonical('limits-skin');
+    const pin = (bytes) => {
+      const cid = payloadCid(bytes);
+      ipfs.set(cid, bytes);
+      return cid;
+    };
+    const problemOf = async (primary, metadata) => {
+      const render = { cid: pin(primary), metadataCid: pin(canonicalJsonBytes(metadata)) };
+      const document = canonicalObjectLayer({ ...base.definition, data: { ...base.data, render } });
+      const { validation } = await previewImport(models(), { document: JSON.stringify(document) }, host);
+      expect(validation.ok).toBe(false);
+      return validation.problems.join('; ');
+    };
+    const { primary, metadata } = base.atlas;
+    expect(await problemOf(Buffer.from('GIF89a, not a render'), metadata)).toContain('not a PNG');
+    expect(await problemOf(Buffer.concat([primary.subarray(0, 24), Buffer.alloc(40)]), metadata)).toContain(
+      'does not decode',
+    );
+    const [first] = metadata.frames.down_idle;
+    expect(
+      await problemOf(primary, {
+        ...metadata,
+        frames: { ...metadata.frames, down_idle: [{ ...first, x: metadata.atlasWidth }] },
+      }),
+    ).toContain('lies outside the render');
+    expect(await problemOf(primary, { ...metadata, atlasWidth: 4096, atlasHeight: 4096 })).toContain(
+      'The atlas holds over',
+    );
+    const large = Buffer.alloc(300 * 1024, 1);
+    const largeCid = `bafkrei${'q'.repeat(52)}`;
+    ipfs.set(largeCid, large);
+    const render = { cid: largeCid, metadataCid: pin(canonicalJsonBytes(metadata)) };
+    const document = canonicalObjectLayer({ ...base.definition, data: { ...base.data, render } });
+    const { validation } = await previewImport(models(), { document: JSON.stringify(document) }, host);
+    expect(validation.problems).toEqual([`IPFS holds no render ${largeCid} with its layout ${render.metadataCid}`]);
+  });
+
+  it('registers every import as global content once, with its provenance, bound or not', async () => {
+    const quartz = await canonical('quartz-skin');
+    serve(quartz);
+    expect(await previewImport(models(), { cid: quartz.cid }, host)).toMatchObject({ global: false });
+    expect(await importOf({ cid: quartz.cid, bind: false })).toMatchObject({ binding: 'none', global: true });
+    expect(await globalRow(quartz.cid)).toMatchObject({
+      reason: 'import',
+      by: MODERATOR,
+      provenance: { domain: new URL(origin).host, createdBy: 'service:objectlayer' },
+    });
+    const registeredAt = (await globalRow(quartz.cid)).registeredAt;
+    expect(await previewImport(models(), { cid: quartz.cid }, host)).toMatchObject({ global: true });
+    expect(await importOf({ cid: quartz.cid })).toMatchObject({ binding: 'bound', global: false });
+    expect(await importOf({ cid: quartz.cid, expectedCid: quartz.cid })).toMatchObject({ global: false });
+    expect(await model('CyberiaGlobalContent').countDocuments({ objectLayerCid: quartz.cid })).toBe(1);
+    expect((await globalRow(quartz.cid)).registeredAt).toEqual(registeredAt);
+  });
+
+  it('imports a definition given whole with its render, reading neither the authority render route nor IPFS', async () => {
+    const given = await canonical('given-skin');
+    ipfs.delete(given.data.render.cid);
+    ipfs.delete(given.data.render.metadataCid);
+    const render = { primary: given.atlas.primary, metadata: given.atlas.metadata };
+    const definition = canonicalObjectLayer(given.definition);
+    const registration = { reason: 'owned', by: 'export-live', registeredAt: '2026-01-02T00:00:00.000Z' };
+    const imported = await importDefinition(
+      models(),
+      { definition, render, acknowledged: true, actor: 'release', registration },
+      host,
+    );
+    expect(imported).toMatchObject({ cid: given.cid, stored: { definition: true, frames: true, atlas: true } });
+    expect(gateway.requests).toEqual([]);
+    expect(await globalRow(given.cid)).toMatchObject({ reason: 'owned', by: 'export-live' });
+    expect((await globalRow(given.cid)).registeredAt.toISOString()).toBe(registration.registeredAt);
+
+    const other = await canonical('given-other');
+    const mismatch = await previewImport(
+      models(),
+      { definition: canonicalObjectLayer(other.definition), render },
+      host,
+    );
+    expect(mismatch.validation.problems).toEqual([
+      expect.stringMatching(/^The render given is \w+ with its layout \w+$/),
+    ]);
   });
 
   it('refuses a render IPFS does not hold, or bytes that are not the render the definition names', async () => {

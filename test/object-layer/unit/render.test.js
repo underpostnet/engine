@@ -6,11 +6,18 @@ import { cyberiaContext } from '../../support/product-context.js';
 // the definition names, cut by the real generator.
 const models = {};
 const ipfs = new Map();
+const ipfsReads = [];
 vi.mock('../../../src/db/DataBaseProvider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({
-  IpfsClient: { getFromIpfs: async (cid) => ipfs.get(cid) ?? null },
+  IpfsClient: {
+    getFromIpfs: async (cid, { maxBytes = Infinity } = {}) => {
+      ipfsReads.push(cid);
+      const bytes = ipfs.get(cid);
+      return bytes && bytes.length <= maxBytes ? bytes : null;
+    },
+  },
 }));
 // The definitions the Object Layer authority holds beyond this host's cache.
 const authority = new Map();
@@ -23,16 +30,19 @@ vi.mock(import('../../../src/server/domain/object-layer-resolver.js'), async (im
 const { AtlasSpriteSheetService } = cyberiaContext
   ? await import('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.service.js')
   : {};
-const { renderContractOf } = await import('../../../src/api/object-layer/object-layer.identity.js');
+const { canonicalJsonBytes, payloadCid, renderContractOf } = await import(
+  '../../../src/api/object-layer/object-layer.identity.js'
+);
 
 const CID = 'bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
 // A definition whose render is an upscaled render: its bytes carry 3 px per cell.
 const UPSCALED_CID = `bafkrei${'a'.repeat(52)}`;
 // A definition this host materializes: its atlas holds the bytes its render cids name.
 const LOCAL_CID = `bafkrei${'b'.repeat(52)}`;
-const RENDER = 'bafkreirender';
-const UPSCALED_RENDER = 'bafkreiupscaledrender';
-const LAYOUT = 'bafkreilayout';
+// The render CIDs: the CIDs of the bytes IPFS holds, set once the bytes exist.
+let RENDER;
+let UPSCALED_RENDER;
+let LAYOUT;
 const cell = { width: 2, height: 2 };
 // Two 2×2-cell frames, one pixel per cell, upscale 3: one for down idle (08), two for down walk (18).
 const layout = {
@@ -80,19 +90,22 @@ const renderAt = async (pixelsPerCell) => {
 };
 const pixels = async (png) => await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 
-beforeAll(async () => {
-  ipfs.set(RENDER, await renderAt(1));
-  ipfs.set(UPSCALED_RENDER, await renderAt(3));
-  ipfs.set(LAYOUT, Buffer.from(JSON.stringify(layout)));
-});
-
-const definitions = {
-  [CID]: { cid: CID, data: { render: { cid: RENDER, metadataCid: LAYOUT } } },
-  [UPSCALED_CID]: {
-    cid: UPSCALED_CID,
-    data: { render: { cid: UPSCALED_RENDER, metadataCid: LAYOUT } },
-  },
+/** Pins bytes on the IPFS double under the CID they hash to. */
+const pin = (bytes) => {
+  const cid = payloadCid(bytes);
+  ipfs.set(cid, bytes);
+  return cid;
 };
+
+const definitions = {};
+
+beforeAll(async () => {
+  RENDER = pin(await renderAt(1));
+  UPSCALED_RENDER = pin(await renderAt(3));
+  LAYOUT = pin(canonicalJsonBytes(layout));
+  definitions[CID] = { cid: CID, data: { render: { cid: RENDER, metadataCid: LAYOUT } } };
+  definitions[UPSCALED_CID] = { cid: UPSCALED_CID, data: { render: { cid: UPSCALED_RENDER, metadataCid: LAYOUT } } };
+});
 
 beforeEach(() => {
   models.ObjectLayer = { findByCid: (cid) => lean(definitions[cid] ?? null) };
@@ -140,13 +153,14 @@ describe.skipIf(!cyberiaContext)('the render of a definition', () => {
     };
     models.File = { findById: async (id) => (id === 'f-local' ? { data: primary } : null) };
 
+    ipfsReads.length = 0;
     const pinned = request({ cid: LOCAL_CID });
     expect((await AtlasSpriteSheetService.definitionRender(pinned.req, pinned.res, {})).buffer.equals(primary)).toBe(
       true,
     );
     const answer = request({ cid: LOCAL_CID });
     expect((await AtlasSpriteSheetService.layout(answer.req, answer.res, {})).layout).toEqual(layout);
-    expect(ipfs.has(render.cid) || ipfs.has(render.metadataCid)).toBe(false);
+    expect(ipfsReads).toEqual([]);
   });
 
   it('reads IPFS when the atlas of this host holds other bytes than the definition names', async () => {
@@ -241,10 +255,39 @@ describe.skipIf(!cyberiaContext)('the render of a definition', () => {
       status: 404,
     });
 
+    const layoutBytes = ipfs.get(LAYOUT);
     ipfs.delete(LAYOUT);
     const down = request({ cid: CID });
     await expect(AtlasSpriteSheetService.frameCounts(down.req, down.res, {})).rejects.toMatchObject({ status: 503 });
-    ipfs.set(LAYOUT, Buffer.from(JSON.stringify(layout)));
+    ipfs.set(LAYOUT, layoutBytes);
+  });
+
+  it('refuses IPFS bytes that do not hash to the CIDs the definition names, and a body over one block', async () => {
+    const primary = ipfs.get(RENDER);
+    const tampered = `bafkrei${'d'.repeat(52)}`;
+    definitions[tampered] = { cid: tampered, data: { render: { cid: RENDER, metadataCid: LAYOUT } } };
+    try {
+      ipfs.set(RENDER, Buffer.concat([primary, Buffer.from('tampered')]));
+      const render = request({ cid: tampered });
+      await expect(AtlasSpriteSheetService.definitionRender(render.req, render.res, {})).rejects.toMatchObject({
+        status: 503,
+      });
+      ipfs.set(RENDER, primary);
+      ipfs.set(LAYOUT, Buffer.from(JSON.stringify({ ...layout, frame_duration: 1 })));
+      const counts = request({ cid: tampered });
+      await expect(AtlasSpriteSheetService.frameCounts(counts.req, counts.res, {})).rejects.toMatchObject({
+        status: 503,
+      });
+      ipfs.set(RENDER, Buffer.alloc(300 * 1024));
+      const large = request({ cid: tampered });
+      await expect(AtlasSpriteSheetService.definitionRender(large.req, large.res, {})).rejects.toMatchObject({
+        status: 503,
+      });
+    } finally {
+      ipfs.set(RENDER, primary);
+      ipfs.set(LAYOUT, canonicalJsonBytes(layout));
+      delete definitions[tampered];
+    }
   });
 });
 
