@@ -11,7 +11,10 @@
  * the caller adds. The namespace (`environment:domain:resource`) holds a version; an
  * invalidation gives it a version no earlier value holds, so keys of the old version are never
  * read again and expire by their TTL. A namespace whose version key expired or was evicted takes
- * a fresh version too, so no old value comes back. No mutation scans keys.
+ * a fresh version too, so no old value comes back. No mutation scans keys. A read that starts after
+ * an invalidation never joins a version read or a load that started before it. An invalidation the
+ * provider misses is kept in the process and applied once the provider answers again; until then
+ * reads of that namespace go to the loader.
  *
  * @module src/server/storage/cache.js
  * @namespace CacheService
@@ -45,31 +48,41 @@ const VERSION_TTL_MS = 30 * 24 * 60 * MINUTE;
 /** A version no earlier value of a namespace holds. */
 const freshVersion = () => `${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`;
 
+/** Runs `start` once per key while it is in flight; concurrent callers of the key share it. */
+const shared = (pending, key, start) => {
+  if (!pending.has(key)) {
+    const run = start().finally(() => pending.get(key) === run && pending.delete(key));
+    pending.set(key, run);
+  }
+  return pending.get(key);
+};
+
 /** Version reads in flight, by version key: concurrent reads of a namespace with no version take one. */
 const versionReads = new Map();
 
+/** Loads in flight, by key: concurrent misses share one loader call. */
+const inflight = new Map();
+
+/** Namespaces whose invalidation the provider missed, by version key. */
+const missed = new Map();
+
+const versionKeyOf = (namespace) => `${namespace.prefix}:version`;
+
 /** The version of a namespace; a namespace with none takes a fresh one. */
-const versionOf = (namespace) => {
-  const versionKey = `${namespace.prefix}:version`;
-  if (!versionReads.has(versionKey))
-    versionReads.set(
-      versionKey,
-      (async () => {
-        const stored = await ValkeyAPI.get(namespace.instance, versionKey);
-        if (stored !== null) return stored;
-        const version = freshVersion();
-        await ValkeyAPI.set(namespace.instance, versionKey, version, VERSION_TTL_MS);
-        return version;
-      })().finally(() => versionReads.delete(versionKey)),
-    );
-  return versionReads.get(versionKey);
-};
+const versionOf = (namespace) =>
+  shared(versionReads, versionKeyOf(namespace), async () => {
+    const stored = await ValkeyAPI.get(namespace.instance, versionKeyOf(namespace));
+    if (stored !== null) return stored;
+    const version = freshVersion();
+    await ValkeyAPI.set(namespace.instance, versionKeyOf(namespace), version, VERSION_TTL_MS);
+    return version;
+  });
 
 const environment = () => process.env.NODE_ENV || 'development';
 
 const operations = counter({
   name: 'underpost_cache_operations_total',
-  help: 'Cache reads by outcome, writes, invalidations and provider errors',
+  help: 'Cache reads by outcome, writes, invalidations, deferred invalidations and provider errors',
   labelNames: ['namespace', 'result'],
 });
 const loadSeconds = histogram({
@@ -82,9 +95,6 @@ const writeSeconds = histogram({
   help: 'Time a cache write takes',
   labelNames: ['namespace'],
 });
-
-/** Loads in flight, by key: concurrent misses share one loader call. */
-const inflight = new Map();
 
 const segment = (value) => String(value ?? '').replace(/:/g, '_');
 
@@ -147,9 +157,10 @@ class CacheService {
   static async getOrLoad(namespace, { identifier, scope = 'public', variant = '', load, binary = false }) {
     const data = `${contentDataKey(`${namespace.instance.host}${namespace.instance.path}`)}.${segment(scope)}`;
     const local = `${namespace.prefix}:${data}:${segment(identifier)}:${segment(variant)}`;
-    if (!ValkeyAPI.isConnected(namespace.instance)) {
+    if (ValkeyAPI.isConnected(namespace.instance) && missed.size > 0) await applyMissed();
+    if (!ValkeyAPI.isConnected(namespace.instance) || missed.has(versionKeyOf(namespace))) {
       operations.inc({ namespace: namespace.label, result: 'bypass' });
-      return await coalesce(local, load);
+      return await shared(inflight, local, load);
     }
     let key;
     try {
@@ -163,10 +174,10 @@ class CacheService {
     } catch (error) {
       operations.inc({ namespace: namespace.label, result: 'error' });
       logger.warn(`Cache read failed for ${namespace.label}: ${error.message}`);
-      return await coalesce(local, load);
+      return await shared(inflight, local, load);
     }
     operations.inc({ namespace: namespace.label, result: 'miss' });
-    return await coalesce(local, async () => {
+    return await shared(inflight, key, async () => {
       const value = await timed(loadSeconds, namespace.label, load);
       if (value === undefined || value === null) return value;
       try {
@@ -184,19 +195,17 @@ class CacheService {
 
   /**
    * Invalidates every value of a namespace, in every scope and variant, by giving it a fresh
-   * version. Idempotent and safe when the provider is down: the values then expire on their own.
+   * version. Idempotent and safe when the provider is down: the process applies it once the
+   * provider answers again.
    * @param {CacheNamespace} namespace
    * @returns {Promise<void>}
    */
   static async invalidate(namespace) {
-    if (!ValkeyAPI.isConnected(namespace.instance)) return;
-    try {
-      await ValkeyAPI.set(namespace.instance, `${namespace.prefix}:version`, freshVersion(), VERSION_TTL_MS);
-      operations.inc({ namespace: namespace.label, result: 'invalidate' });
-    } catch (error) {
-      operations.inc({ namespace: namespace.label, result: 'error' });
-      logger.warn(`Cache invalidation failed for ${namespace.label}: ${error.message}`);
-    }
+    versionReads.delete(versionKeyOf(namespace));
+    for (const key of inflight.keys()) if (key.startsWith(`${namespace.prefix}:`)) inflight.delete(key);
+    missed.set(versionKeyOf(namespace), namespace);
+    await applyMissed();
+    if (missed.has(versionKeyOf(namespace))) operations.inc({ namespace: namespace.label, result: 'deferred' });
   }
 
   /**
@@ -220,11 +229,20 @@ class CacheService {
   }
 }
 
-const coalesce = async (key, load) => {
-  if (inflight.has(key)) return await inflight.get(key);
-  const pending = load().finally(() => inflight.delete(key));
-  inflight.set(key, pending);
-  return await pending;
+/** Gives each namespace whose invalidation the provider missed a fresh version, once its provider answers. */
+const applyMissed = async () => {
+  for (const [versionKey, namespace] of missed) {
+    if (!ValkeyAPI.isConnected(namespace.instance)) continue;
+    try {
+      await ValkeyAPI.set(namespace.instance, versionKey, freshVersion(), VERSION_TTL_MS);
+      versionReads.delete(versionKey);
+      missed.delete(versionKey);
+      operations.inc({ namespace: namespace.label, result: 'invalidate' });
+    } catch (error) {
+      operations.inc({ namespace: namespace.label, result: 'error' });
+      logger.warn(`Cache invalidation failed for ${namespace.label}: ${error.message}`);
+    }
+  }
 };
 
 const timed = async (histogram, namespace, fn) => {

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // The provider under the cache: an in-memory Valkey with the commands the cache uses.
 const store = new Map();
-const valkey = { connected: true, failing: false };
+// `versionGate` holds the answer of a version read, taken when the command runs, until it opens.
+const valkey = { connected: true, failing: false, versionGate: null };
 const command =
   (fn) =>
   (...args) => {
@@ -21,6 +22,7 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
     isConnected: () => valkey.connected,
     get: command(async (_options, key) => {
       const raw = store.get(key);
+      if (valkey.versionGate && key.endsWith(':version')) await valkey.versionGate;
       return raw === undefined ? null : JSON.parse(raw);
     }),
     set: command(async (_options, key, payload) => {
@@ -41,6 +43,7 @@ beforeEach(() => {
   store.clear();
   valkey.connected = true;
   valkey.failing = false;
+  valkey.versionGate = null;
 });
 
 describe('a cache namespace', () => {
@@ -187,6 +190,62 @@ describe('invalidation', () => {
     expect(await CacheService.clear(options)).toBe(2);
     expect([...store.keys()].every((key) => key.startsWith(elsewhere.prefix))).toBe(true);
     expect([...store.keys()].some((key) => key.endsWith(':base.public:list:'))).toBe(true);
+  });
+});
+
+describe('reads concurrent with an invalidation', () => {
+  const read = (namespace, load) => CacheService.getOrLoad(namespace, { identifier: 'list', load });
+  const gate = () => {
+    let open;
+    const opened = new Promise((resolve) => (open = resolve));
+    return { opened, open };
+  };
+
+  it('never gives a read that starts after an invalidation the load of a read before it, and keeps the old value off the new version', async () => {
+    const namespace = CacheService.namespace(options, 'slow-load', CACHE_POLICY.registry);
+    const slow = gate();
+    const before = read(namespace, () => slow.opened.then(() => 'old'));
+    await vi.waitFor(() => expect([...store.keys()].some((key) => key.endsWith(':version'))).toBe(true));
+    await CacheService.invalidate(namespace);
+    const after = read(namespace, loader('new'));
+    slow.open();
+    expect(await before).toBe('old');
+    expect(await after).toBe('new');
+    const later = loader('later');
+    expect(await read(namespace, later)).toBe('new');
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  it('never gives a read that starts after an invalidation the version a read before it took', async () => {
+    const namespace = CacheService.namespace(options, 'slow-version', CACHE_POLICY.registry);
+    await read(namespace, loader('old'));
+    const slow = gate();
+    valkey.versionGate = slow.opened;
+    const before = read(namespace, loader('unused'));
+    await CacheService.invalidate(namespace);
+    const after = read(namespace, loader('new'));
+    slow.open();
+    expect(await before).toBe('old');
+    expect(await after).toBe('new');
+  });
+
+  it('applies an invalidation the provider missed once it answers again, and answers from the loader until then', async () => {
+    for (const outage of ['connected', 'failing']) {
+      const namespace = CacheService.namespace(options, `outage-${outage}`, CACHE_POLICY.registry);
+      const versionKey = `${namespace.prefix}:version`;
+      await read(namespace, loader('old'));
+      const stored = store.get(versionKey);
+      valkey[outage] = outage === 'failing';
+      await CacheService.invalidate(namespace);
+      expect(await read(namespace, loader('during'))).toBe('during');
+      expect(store.get(versionKey)).toBe(stored);
+      Object.assign(valkey, { connected: true, failing: false });
+      const fresh = loader('new');
+      expect(await read(namespace, fresh)).toBe('new');
+      expect(await read(namespace, fresh)).toBe('new');
+      expect(fresh).toHaveBeenCalledTimes(1);
+      expect(store.get(versionKey)).not.toBe(stored);
+    }
   });
 });
 
