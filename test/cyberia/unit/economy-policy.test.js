@@ -199,7 +199,12 @@ describe('universe wallet', () => {
     expect(await universeWalletDefect(models, ['a', 'c'], { economies: { frontier: { maxBalance: 10 } } })).toMatch(
       'hold different wallets',
     );
-    expect(await universeWalletDefect(models, ['a', 'e'])).toBe('world e names economy gone, which is not stored');
+    expect(await universeWalletDefect(models, ['a', 'e'])).toBe(
+      'world e names economy gone in its stored conf, which the content database does not hold',
+    );
+    expect(await universeWalletDefect(models, ['a', 'b'], { confs: { b: 'gone' }, pending: 'in its draft conf' })).toBe(
+      'world b names economy gone in its draft conf, which the content database does not hold',
+    );
   });
 
   it('runs the economy a conf names, else the default profile', () => {

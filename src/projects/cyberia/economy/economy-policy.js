@@ -151,13 +151,17 @@ export const confEconomyCode = (conf) => conf?.economyCode || ECONOMY_DEFAULT_CO
  * one maximum. Their other rules, fees and item policies may differ.
  * @param {Object} models - Content models with `CyberiaInstanceConf` and `CyberiaEconomy`.
  * @param {string[]} instanceCodes - The members.
- * @param {{confs?: Object<string,string>, economies?: Object<string,Object>}} [planned={}] - The
- *   economy code a pending conf write gives a member, and the currency a pending profile write gives
- *   an economy.
+ * @param {{confs?: Object<string,string>, economies?: Object<string,Object>, pending?: string}} [planned={}] - The
+ *   economy code a pending conf write gives a member, the currency a pending profile write gives an
+ *   economy, and how a defect names the pending conf.
  * @returns {Promise<string>}
  * @memberof CyberiaEconomyPolicy
  */
-export async function universeWalletDefect(models, instanceCodes, { confs = {}, economies = {} } = {}) {
+export async function universeWalletDefect(
+  models,
+  instanceCodes,
+  { confs = {}, economies = {}, pending = 'in the conf it is saved with' } = {},
+) {
   if (instanceCodes.length < 2) return '';
   const stored = await models.CyberiaInstanceConf.find(
     { instanceCode: { $in: instanceCodes } },
@@ -167,7 +171,9 @@ export async function universeWalletDefect(models, instanceCodes, { confs = {}, 
   const members = instanceCodes.map((instanceCode) => ({
     instanceCode,
     economyCode: confs[instanceCode] ?? codeOf.get(instanceCode) ?? ECONOMY_DEFAULT_CODE,
+    source: instanceCode in confs ? pending : codeOf.has(instanceCode) ? 'in its stored conf' : 'by default',
   }));
+  const database = models.CyberiaEconomy.db?.name;
   const profiles = new Map(
     (
       await models.CyberiaEconomy.find(
@@ -183,7 +189,8 @@ export async function universeWalletDefect(models, instanceCodes, { confs = {}, 
   let first = null;
   for (const member of members) {
     const wallet = walletOf(member.economyCode);
-    if (!wallet) return `world ${member.instanceCode} names economy ${member.economyCode}, which is not stored`;
+    if (!wallet)
+      return `world ${member.instanceCode} names economy ${member.economyCode} ${member.source}, which ${database ? `content database ${database}` : 'the content database'} does not hold`;
     if (!first) first = { member, wallet };
     else if (wallet.code !== first.wallet.code || wallet.maxBalance !== first.wallet.maxBalance)
       return `worlds ${named(first.member, first.wallet)} and ${named(member, wallet)} hold different wallets`;
