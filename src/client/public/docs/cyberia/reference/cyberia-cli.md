@@ -587,16 +587,16 @@ holds the workflow.
 ## `cyberia release` — product repositories
 
 Builds the product repositories, pins them in the deployment lock and publishes them. Each
-repository and its release profile come from `releaseRepositories` in
+repository, its release profile and its code graph directory come from `releaseRepositories` in
 `src/projects/cyberia/catalog-cyberia.js`.
 
-| Repository           | Profile             | `release build` writes                                                                                     |
-| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `cyberia-content`    | `data-release`      | `dist/` and `artifacts/cyberia-content-<version>.tgz`, with its own `pack`                                 |
-| `cyberia-audio`      | `source-sync`       | nothing                                                                                                    |
-| `cyberia-deployment` | `source-sync`       | the `dd-cyberia` conf and package manifest, the runtime images and the manifests                           |
-| `cyberia-server`     | `container-release` | status pages, instance manifests, the dashboard, deploy scripts, `README.md`, Dockerfiles, the CD workflow |
-| `cyberia-client`     | `container-release` | status pages, instance manifests, deploy scripts, `README.md`, Dockerfiles, the CD workflow                |
+| Repository           | Profile             | `release build` writes                                                                                                     |
+| -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `cyberia-content`    | `data-release`      | the code graph, then `dist/` and `artifacts/cyberia-content-<version>.tgz`, with its own `pack`                            |
+| `cyberia-audio`      | `source-sync`       | the code graph                                                                                                             |
+| `cyberia-deployment` | `source-sync`       | the `dd-cyberia` conf and package manifest, the runtime images and the manifests                                           |
+| `cyberia-server`     | `container-release` | the code graph, status pages, instance manifests, the dashboard, deploy scripts, `README.md`, Dockerfiles, the CD workflow |
+| `cyberia-client`     | `container-release` | the code graph, status pages, instance manifests, deploy scripts, `README.md`, Dockerfiles, the CD workflow                |
 
 | Subcommand                        | Description                                                                                                                                                                                                                                                  |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -614,8 +614,9 @@ cyberia release publish --private                     # to the private mirrors
 cyberia release publish cyberia-server                 # one checkout, to its public repository
 cyberia release -f publish cyberia-server --private     # force push: it can rewrite the history
 cyberia release list --locked                         # <name> <repository> <profile> <revision>
-cyberia release build cyberia-server cyberia-client   # what a deploy node builds
+cyberia release build cyberia-server cyberia-client --no-graphify   # what a deploy node builds
 cyberia release verify                                # the content check of the image build
+cyberia release build cyberia-audio --commit          # only the code graph of cyberia-audio
 ```
 
 `-f`, before or after the subcommand, forces the operation; only `publish` reads it, and pushes with
@@ -625,6 +626,14 @@ holds the lock and pins no revision of its own: a deploy takes it at its branch 
 other repository at the revision it pins. `publish` pushes the deployment only after every
 other checkout it publishes. The lock format is the platform
 [source lock](../../nexodev/explanation/source-releases.md#the-source-lock).
+
+The code graphs are on for Cyberia. `build` builds each graph that is not fresh, in
+`docs/graphify-out/`, and commits it with `--commit`. `lock` refuses a graph that is stale at the
+revision it pins. `publish`, also with `--dry-run`, refuses a graph that is stale at the revision the
+lock pins, and pushes nothing. `--no-graphify`, before or after the subcommand, skips the graphs for
+that stage; `--graphify` turns them on. See
+[Generate Code Graphs](../../nexodev/how-to/generate-code-graphs.md) for the toolchain, the
+freshness rules and the fixes.
 
 ## `cyberia catalog` — item bindings
 

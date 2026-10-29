@@ -39,6 +39,7 @@ const EMPTY_CATALOG = {
   packageDependencies: {},
   packageScripts: {},
   releaseRepositories: [],
+  graphify: false,
 };
 
 /**

@@ -50,7 +50,8 @@
 | [`lxd`](#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
 | [`package`](#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
-| [`socketsecurity`](#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
+| [`socketsecurity`](#underpost-socketsecurity) | Security audit through the Socket.dev free plan: dependency security (advisories, supply chain alerts, free security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
+| [`graphify`](#underpost-graphify) | Builds the code graph of this checkout with the pinned Graphify release, code only. It commits GRAPH_REPORT.md and its stamp in docs/graphify-out. |
 | [`release`](#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
 | [`source-release`](#underpost-source-release) | Source channels, the Release Job and the release store. |
 
@@ -1410,7 +1411,7 @@ Generates the package manifests a deploy id owns, from the engine manifest and t
 
 ## underpost socketsecurity
 
-Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).
+Security audit through the Socket.dev free plan: dependency security (advisories, supply chain alerts, free security patches in .socket/manifest.json) and source code risk (alerts on this project's own code).
 
 **Usage:** `underpost socketsecurity [options]`
 
@@ -1419,17 +1420,31 @@ Security audit through Socket.dev: dependency security (advisories, supply chain
 | Option | Description |
 | --- | --- |
 | `--audit` | Audits the checkout (default). Dependency security: segregation, npm audit, the Socket patch scan and, with SOCKET_CLI_API_TOKEN set, the Socket full scan of the dependency manifests. Source code risk: with SOCKET_CLI_API_TOKEN set, the alerts Socket's registry analysis raises on this project's own published package, as refactoring tasks. Writes the JSON and Markdown reports. |
-| `--reach` | Runs the full application reachability analysis over the local working tree with the Socket scan (tier 1 evidence); no pushed commit is needed. |
-| `--ci` | Audits, then exits non-zero when the Socket scan violates the organization policy or a finding remains at --fail-on. |
+| `--ci` | Audits, then exits non-zero when the Socket scan fails or violates the organization policy, or a finding the policy does not ignore or monitor remains at --fail-on. |
 | `--fail-on <severity>` | Severity --ci fails at. One of: critical, high, moderate, low, info. Defaults to high. |
-| `--fix` | Runs the remediation pass before the audit: npm audit fix, every available Socket patch, socket fix without major upgrades, socket patch apply. |
-| `--major` | With --fix: lets socket fix apply major upgrades. |
-| `--patch-scan` | Lists the Socket patches available for the installed packages. |
+| `--fix` | Runs the remediation pass before the audit: npm audit fix, every available free Socket patch, socket patch apply. |
+| `--patch-scan` | Lists the free Socket patches available for the installed packages. |
 | `--patch-get <identifier>` | Downloads one patch (UUID, CVE, GHSA or PURL) into .socket/manifest.json and applies it. |
 | `--patch-apply` | Applies the patch manifest; the prepare hook. A host without the Socket CLI skips it. |
 | `--patch-setup` | Installs the prepare hook in package.json. |
 | `--out <dir>` | Report directory (default: security-reports). |
 | `--dry-run` | Previews --patch-setup; verifies --patch-apply without writing. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost graphify
+
+Builds the code graph of this checkout with the pinned Graphify release, code only. It commits GRAPH_REPORT.md and its stamp in docs/graphify-out.
+
+**Usage:** `underpost graphify [options]`
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--check` | Checks the code graph against the work tree, without Graphify and without a write; fails when it is stale. |
+| `--revision <revision>` | Checks the code graph that this commit holds, instead of the work tree. |
 | `-h, --help` | display help for command |
 
 ---
@@ -1460,6 +1475,7 @@ Release orchestrator for building new versions and deploying releases of the Und
 | `--mongo-user <user>` | For --build: override DB_USER in the template .env.example for the smoke test. |
 | `--mongo-password <password>` | For --build: override DB_PASSWORD in the template .env.example for the smoke test. |
 | `--valkey-host <host>` | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82"). |
+| `--no-graphify` | For --build: builds no code graph (see `underpost graphify`). |
 | `-h, --help` | display help for command |
 
 ---

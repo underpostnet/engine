@@ -11,3 +11,4 @@
 /grafana_data
 .nyc_output
 .cache
+/docs/graphify-out

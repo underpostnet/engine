@@ -17,7 +17,8 @@
  *   - `packageBin`        — bin map of the standalone product CLI.
  *   - `packageDependencies` — runtime dependencies this product adds to the engine's.
  *   - `packageScripts`    — npm scripts this product adds to the engine's.
- *   - `releaseRepositories` — each product repository and its release profile.
+ *   - `releaseRepositories` — each product repository, its release profile and the directory of its code graph.
+ *   - `graphify`          — whether release stages build and check the code graphs.
  *
  * The `package*` fields are the single declaration of what this product's manifests carry:
  * every generated manifest — the deploy's `engine-private/conf/<id>/package.json`, the product
@@ -59,12 +60,33 @@ export default {
   },
   // The release profile of each product repository; its build stays in its own scripts and Dockerfile.
   releaseRepositories: [
-    { name: 'cyberia-content', repository: 'underpostnet/cyberia-content', profile: 'data-release' },
-    { name: 'cyberia-audio', repository: 'underpostnet/cyberia-audio', profile: 'source-sync' },
+    {
+      name: 'cyberia-content',
+      repository: 'underpostnet/cyberia-content',
+      profile: 'data-release',
+      graph: 'docs/graphify-out',
+    },
+    {
+      name: 'cyberia-audio',
+      repository: 'underpostnet/cyberia-audio',
+      profile: 'source-sync',
+      graph: 'docs/graphify-out',
+    },
     { name: 'cyberia-deployment', repository: 'underpostnet/cyberia-deployment', profile: 'source-sync' },
-    { name: 'cyberia-server', repository: 'underpostnet/cyberia-server', profile: 'container-release' },
-    { name: 'cyberia-client', repository: 'underpostnet/cyberia-client', profile: 'container-release' },
+    {
+      name: 'cyberia-server',
+      repository: 'underpostnet/cyberia-server',
+      profile: 'container-release',
+      graph: 'docs/graphify-out',
+    },
+    {
+      name: 'cyberia-client',
+      repository: 'underpostnet/cyberia-client',
+      profile: 'container-release',
+      graph: 'docs/graphify-out',
+    },
   ],
+  graphify: true,
   sourceMoves: [],
   privateConfPaths: [],
   templatePaths: [

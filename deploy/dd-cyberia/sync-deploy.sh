@@ -112,8 +112,9 @@ stage_configuration() {
     deploy_step "Validate $DEPLOY_ID domain configuration" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/cyberia run-workflow validate-domains --env $DEPLOY_ENV"
+    # The code graphs are release preparation: the pinned checkouts already carry them.
     deploy_step "Build the game checkouts" \
-        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin/cyberia release build cyberia-server cyberia-client"
+        sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin/cyberia release build cyberia-server cyberia-client --no-graphify"
 
     # Follows the game build: the client renders from the conf.ssr.json that build reads, so a
     # bundle pushed before it would ship the previous SSR views. The uploaded keys

@@ -139,6 +139,13 @@ import {
 import { RELEASE_PROFILES, assertReleaseId, assertSourceChannel } from '../src/server/release/source-release.js';
 import { RELEASE_STORE_ROOT, ReleaseWorkspace, fetchRevision } from '../src/server/release/release-workspace.js';
 import { resumeTasks, taskSummary } from '../src/server/release/release-tasks.js';
+import {
+  graphPaths,
+  graphifyEnabled,
+  releaseGraphs,
+  staleGraphs,
+  writeGraph,
+} from '../src/server/release/graphify.js';
 import { pruneBackups, readVerifications, recordVerification, verifyBackup } from '../src/server/storage/backup.js';
 import { objectStore } from '../src/server/storage/object-store.js';
 import { inspectMongoArchive, restoreMongoArchive } from '../src/server/storage/mongo-archive.js';
@@ -552,6 +559,35 @@ const releaseRepository = (name) => {
 
 /** The product repositories the deployment lock pins: every one but the deployment, which holds it. */
 const lockedRepositories = () => cyberiaCatalog.releaseRepositories.filter(({ name }) => name !== DEPLOYMENT_SOURCE);
+
+/**
+ * The code graph directory of each product repository, by name, while Graphify is on.
+ * @param {boolean} [flag] - `--graphify` or `--no-graphify`.
+ * @returns {Object<string,string>}
+ */
+const codeGraphs = (flag) =>
+  releaseGraphs(cyberiaCatalog.releaseRepositories, graphifyEnabled(flag, cyberiaCatalog.graphify));
+
+/**
+ * Refuses a release whose code graphs are not fresh at the revisions it ships.
+ * @param {Object<string,string>} revisions - The revision to check, by repository name.
+ * @param {boolean} [flag] - `--graphify` or `--no-graphify`.
+ */
+const assertFreshGraphs = (revisions, flag) => {
+  const stale = staleGraphs(
+    Object.entries(codeGraphs(flag))
+      .filter(([name]) => revisions[name])
+      .map(([name, out]) => ({ name, root: checkoutDir(name), out, revision: revisions[name] })),
+  );
+  if (!stale.length) return;
+  throw new Error(
+    [
+      ...stale.map(({ name, root, out, reason }) => `${name}: the code graph ${nodePath.join(root, out)} ${reason}`),
+      `Run cyberia release build ${stale.map(({ name }) => name).join(' ')} --commit, then cyberia release lock ` +
+        '--commit; --no-graphify releases without code graphs',
+    ].join('\n'),
+  );
+};
 
 /**
  * The repository a checkout tracks, as `owner/repo`: its origin.
@@ -5646,7 +5682,7 @@ try {
       const builds = Object.keys(RELEASE_BUILDS).filter((name) =>
         ids.some((id) => STACK_IMAGE_BUILDS[id].includes(name)),
       );
-      shellExec(`node bin/cyberia release build ${builds.join(' ')} --dev`);
+      shellExec(`node bin/cyberia release build ${builds.join(' ')} --dev --no-graphify`);
     }
     const lock =
       source === 'clone' && ids.some((id) => id !== 'engine-cyberia')
@@ -6116,6 +6152,7 @@ node bin test cyberia --grep 'Cyberia load'`);
   };
 
   const GAME_BUILD_MESSAGE = 'Update build and deployment manifests';
+  const CODE_GRAPH_MESSAGE = 'Update the code graph';
 
   /**
    * The build of each product repository, in build order: the deployment copies the game manifests. A
@@ -6149,18 +6186,21 @@ node bin test cyberia --grep 'Cyberia load'`);
   };
 
   /**
-   * Commits the changes of a checkout under a path, when there are any.
+   * Commits the changes of a checkout under the given paths, when there are any.
    * @param {string} dir
    * @param {string} message
-   * @param {string} [path='.']
+   * @param {string|string[]} [paths='.']
    */
-  const commitCheckout = (dir, message, path = '.') => {
+  const commitCheckout = (dir, message, paths = '.') => {
+    const pathspec = [paths].flat().map(shellArgumentFactory).join(' ');
     Underpost.repo.declareSafeDirectory(dir);
     if (
-      !shellExec(`git -C ${dir} status --porcelain -- ${path}`, { stdout: true, silent: true, disableLog: true }).trim()
+      !shellExec(`git -C ${dir} status --porcelain -- ${pathspec}`, { stdout: true, silent: true, disableLog: true }).trim()
     )
       return;
-    shellExec(`git -C ${dir} add -- ${path} && git -C ${dir} commit -q -m ${shellArgumentFactory(message)} -- ${path}`);
+    shellExec(
+      `git -C ${dir} add -- ${pathspec} && git -C ${dir} commit -q -m ${shellArgumentFactory(message)} -- ${pathspec}`,
+    );
     logger.info(`Committed ${dir}: ${message.split('\n')[0]}`);
   };
 
@@ -6183,6 +6223,8 @@ node bin test cyberia --grep 'Cyberia load'`);
   const release = program
     .command('release')
     .option('-f, --force', 'Force the operation: publish pushes with -f')
+    .option('--graphify', 'Build (build) and check (lock, publish) the code graphs, whatever the catalog sets')
+    .option('--no-graphify', 'Neither build nor check the code graphs')
     .description(`The product repositories: profiles, builds, the deployment ${SOURCE_LOCK_FILE} and publication`);
 
   release
@@ -6214,22 +6256,36 @@ node bin test cyberia --grep 'Cyberia load'`);
       '--node-name <node-name>',
       'The node the hostPath volumes of the game manifests bind to (default: UNDERPOST_DEPLOY_NODE, then the control node of deploy/nodes, then this host)',
     )
-    .option('--commit', 'Commit what each build writes to the game and deployment checkouts')
+    .option('--commit', 'Commit what each build writes to the game and deployment checkouts, and each code graph')
     .option('--from-n-commit <n>', 'The engine commits the deployment commit message sums up', '1')
     .description(
-      'Set the release instances in conf.instances.json, then build the named product repositories. ' +
-        'With no names: the shared runtime contract, every repository, then the secret scan',
+      'Set the release instances in conf.instances.json, then build the named product repositories and their ' +
+        'code graphs. With no names: the shared runtime contract, every repository, then the secret scan',
     )
-    .action(async (names = [], options = {}) => {
+    .action(async (names = [], options = {}, command) => {
       try {
+        const graphs = codeGraphs(command.optsWithGlobals().graphify);
         for (const name of names)
-          if (!RELEASE_BUILDS[name]) throw new Error(`${releaseRepository(name).name} has nothing to build`);
+          if (!RELEASE_BUILDS[name] && !graphs[name])
+            throw new Error(`${releaseRepository(name).name} has nothing to build`);
         writeReleaseVariants();
         if (!names.length) logger.info('Runtime contract', await generateStatContract());
-        for (const [name, { build, message }] of Object.entries(RELEASE_BUILDS)) {
+        for (const name of new Set([...Object.keys(RELEASE_BUILDS), ...Object.keys(graphs)])) {
           if (names.length && !names.includes(name)) continue;
+          const dir = checkoutDir(name);
+          const { build, message } = RELEASE_BUILDS[name] ?? {};
+          // The graph comes first: a content pack records the commit it builds from.
+          if (graphs[name]) {
+            try {
+              logger.info(`Code graph ${name}`, writeGraph({ root: dir, out: graphs[name] }));
+            } catch (error) {
+              throw new Error(`${name}: ${error.message}; --no-graphify builds without the code graph`);
+            }
+            if (options.commit && !message) commitCheckout(dir, CODE_GRAPH_MESSAGE, graphPaths(graphs[name]));
+          }
+          if (!build) continue;
           await build(options);
-          if (options.commit && message) commitCheckout(checkoutDir(name), message(options));
+          if (options.commit && message) commitCheckout(dir, message(options));
         }
         if (!names.length) shellExec('npm run security:secrets:ci');
       } catch (error) {
@@ -6244,7 +6300,7 @@ node bin test cyberia --grep 'Cyberia load'`);
     .description(
       `Pin the committed revision of each product repository, and the content artifact, in the deployment ${SOURCE_LOCK_FILE}`,
     )
-    .action((options = {}) => {
+    .action((options = {}, command) => {
       try {
         const sources = {};
         for (const { name, repository } of lockedRepositories()) {
@@ -6260,6 +6316,10 @@ node bin test cyberia --grep 'Cyberia load'`);
           throw new Error(
             `The content artifact is ${content.repository} at ${content.revision}, not ${checkout.revision}: build ${CONTENT_SOURCE} first`,
           );
+        assertFreshGraphs(
+          Object.fromEntries(Object.entries(sources).map(([name, { revision }]) => [name, revision])),
+          command.optsWithGlobals().graphify,
+        );
         sources[CONTENT_SOURCE] = content;
         const lock = writeSourceLockFile(deploymentLockPath(), sources);
         logger.info(
@@ -6298,16 +6358,27 @@ node bin test cyberia --grep 'Cyberia load'`);
         'track it as origin. The deployment goes last, once every other named checkout is pushed',
     )
     .action((names = [], options = {}, command) => {
-      const { force } = command.optsWithGlobals();
+      const { force, graphify } = command.optsWithGlobals();
+      const published = (name) => !names.length || names.includes(name);
       try {
         for (const name of names) releaseRepository(name);
+        // The graphs are checked at the revisions the lock pins, and nothing is pushed while one is stale.
+        if (Object.keys(codeGraphs(graphify)).some(published))
+          assertFreshGraphs(
+            Object.fromEntries(
+              Object.entries(deploymentLock().sources)
+                .filter(([name]) => published(name))
+                .map(([name, { revision }]) => [name, revision]),
+            ),
+            graphify,
+          );
       } catch (error) {
         logger.error(error.message);
         process.exit(1);
       }
       const channel = options.private ? 'private' : 'public';
       const checkouts = [...lockedRepositories(), releaseRepository(DEPLOYMENT_SOURCE)]
-        .filter(({ name }) => !names.length || names.includes(name))
+        .filter(({ name }) => published(name))
         .map(({ name, repository }) => ({
           name,
           dir: checkoutDir(name),

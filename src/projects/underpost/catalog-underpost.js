@@ -68,4 +68,12 @@ const TEMPLATE_KEYWORDS = [
 const TEMPLATE_DESCRIPTION =
   'Underpost Platform — end-to-end CI/CD and application-delivery toolchain CLI. Covers bare metal, Kubernetes, K3s, kubeadm, LXD, container/image orchestration, secrets, databases, cron jobs, monitoring, SSH, runners, PWA + Workbox delivery, and release orchestration. Extensible via downstream CLIs.';
 
-export { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION };
+/**
+ * The code graph of the engine: its directory and the graph files it commits. `graph.json` stays
+ * local. The template carries no engine graph: it describes the engine tree.
+ * @constant {{out: string, files: string[]}}
+ * @memberof UnderpostCatalog
+ */
+const ENGINE_GRAPH = Object.freeze({ out: 'docs/graphify-out', files: Object.freeze(['GRAPH_REPORT.md']) });
+
+export { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION, ENGINE_GRAPH };

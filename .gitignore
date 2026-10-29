@@ -62,6 +62,11 @@ gitleaks-report.json
 /underpost-cli.tgz
 /src/runtime/engine-cyberia/underpost-cli.tgz
 
+# graphify: share only the engine report and its stamp.
+/docs/graphify-out/*
+!/docs/graphify-out/GRAPH_REPORT.md
+!/docs/graphify-out/graph.stamp.json
+
 # Ignore ERP / CRM custom prototypes src
 /src/api/**/*healthcare*
 /src/client/public/bymyelectrics

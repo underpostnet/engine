@@ -17,6 +17,7 @@ import UnderpostDockerCompose from './cli/docker-compose.js';
 import UnderpostEvent from './cli/event.js';
 import UnderpostKubectl from './cli/kubectl.js';
 import UnderpostFileStorage from './cli/fs.js';
+import UnderpostGraphify from './cli/graphify.js';
 import UnderpostIPFS from './cli/ipfs.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostLxd from './cli/lxd.js';
@@ -406,6 +407,16 @@ class Underpost {
   static get socketSecurity() {
     return UnderpostSocketSecurity.API;
   }
+
+  /**
+   * Graphify code graph cli API
+   * @static
+   * @type {UnderpostGraphify.API}
+   * @memberof Underpost
+   */
+  static get graphify() {
+    return UnderpostGraphify.API;
+  }
 }
 
 if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
@@ -430,6 +441,7 @@ export {
   UnderpostEvent,
   UnderpostKubectl,
   UnderpostFileStorage,
+  UnderpostGraphify,
   UnderpostImage,
   UnderpostStatic,
   UnderpostTest,

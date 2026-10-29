@@ -147,7 +147,8 @@ npm run dev
 | [`lxd`](CLI-HELP.md#underpost-lxd) | Manages LXD virtual machines as K3s nodes (control plane or workers). |
 | [`baremetal`](CLI-HELP.md#underpost-baremetal) | Manages baremetal server operations, including installation, database setup, commissioning, and user management. |
 | [`package`](CLI-HELP.md#underpost-package) | Generates the package manifests a deploy id owns, from the engine manifest and the deploy's product catalog, and installs the dependencies that catalog pins. |
-| [`socketsecurity`](CLI-HELP.md#underpost-socketsecurity) | Security audit through Socket.dev: dependency security (advisories, supply chain alerts, reachability, security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
+| [`socketsecurity`](CLI-HELP.md#underpost-socketsecurity) | Security audit through the Socket.dev free plan: dependency security (advisories, supply chain alerts, free security patches in .socket/manifest.json) and source code risk (alerts on this project's own code). |
+| [`graphify`](CLI-HELP.md#underpost-graphify) | Builds the code graph of this checkout with the pinned Graphify release, code only. It commits GRAPH_REPORT.md and its stamp in docs/graphify-out. |
 | [`release`](CLI-HELP.md#underpost-release) | Release orchestrator for building new versions and deploying releases of the Underpost CLI. |
 | [`source-release`](CLI-HELP.md#underpost-source-release) | Source channels, the Release Job and the release store. |
 

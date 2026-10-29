@@ -421,14 +421,16 @@ class UnderpostRelease {
      *    version — narrative references like `(v3.2.9, v3.2.10, …)` are preserved.
      * 5. Rebuilds CLI docs, deps, client bundle, deploy manifests, default confs.
      * 6. Syncs cron setup-start scripts and builds the changelog.
+     * 7. Builds the code graph of the engine (`underpost graphify`), unless `--no-graphify`.
      *
      * With `options.dryRun: true`, steps 3–4 print a per-file substitution report and exit
-     * without writing files or running steps 5–6.
+     * without writing files or running steps 5–7.
      *
      * @method build
      * @param {string} [newVersion] - The new version string to set. Defaults to current version if not provided.
-     * @param {{dryRun?: boolean, mongoHost?: string, mongoUser?: string, mongoPassword?: string, valkeyHost?: string}} [options] - Commander options.
+     * @param {{dryRun?: boolean, graphify?: boolean, mongoHost?: string, mongoUser?: string, mongoPassword?: string, valkeyHost?: string}} [options] - Commander options.
      *   `--dry-run` previews changes without writing files.
+     *   `--no-graphify` builds no code graph.
      *   `--mongo-host` overrides `DB_HOST` in the template `.env.example` smoke test.
      *   `--mongo-user` overrides `DB_USER` in the template `.env.example` smoke test.
      *   `--mongo-password` overrides `DB_PASSWORD` in the template `.env.example` smoke test.
@@ -505,7 +507,14 @@ class UnderpostRelease {
       shellExec(`node bin cmt --changelog-build`);
       shellExec(`npm run security`);
       shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
-      return { from: version, to: newVersion, files: report.map((r) => r.file), dryRun: false };
+      let graph;
+      if (options.graphify !== false)
+        try {
+          graph = Underpost.graphify.build();
+        } catch (error) {
+          throw new Error(`${error.message}; --no-graphify builds without the code graph`);
+        }
+      return { from: version, to: newVersion, files: report.map((r) => r.file), dryRun: false, graph };
     },
 
     /**

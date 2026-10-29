@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import shell from 'shelljs';
 
+import UnderpostGraphify from '../../../src/cli/graphify.js';
 import UnderpostRelease, { bumpAuxiliaryFiles } from '../../../src/cli/release.js';
 import UnderpostRepository from '../../../src/cli/repository.js';
 import { Dns } from '../../../src/server/network/dns.js';
@@ -137,6 +138,7 @@ describe('release version bump targets', () => {
 describe('release pipeline commands', () => {
   let commands;
   let directories;
+  let graph;
 
   const PACKAGE = { version: '3.2.9' };
 
@@ -155,6 +157,7 @@ describe('release pipeline commands', () => {
     vi.spyOn(dotenv, 'config').mockReturnValue({ parsed: {} });
     vi.spyOn(UnderpostRepository.API, 'clean').mockImplementation(() => undefined);
     vi.spyOn(UnderpostRepository.API, 'initLocalRepo').mockImplementation(() => undefined);
+    graph = vi.spyOn(UnderpostGraphify.API, 'build').mockReturnValue({ built: true, version: '0.9.97' });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -166,11 +169,26 @@ describe('release pipeline commands', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
     try {
       const pending = UnderpostRelease.API.build(...args);
+      // The caller gets a rejection: it must not surface while the timers run.
+      pending.catch(() => undefined);
       await vi.advanceTimersByTimeAsync(6000);
       return await pending;
     } finally {
       vi.useRealTimers();
     }
+  };
+
+  const stubStartingTemplate = () => {
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.endsWith('logs/start.js/all.log'));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
+      if (`${filePath}` === 'package.json') return JSON.stringify(PACKAGE);
+      if (`${filePath}`.endsWith('all.log')) return 'server listening\n';
+      return '';
+    });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined);
+    vi.spyOn(Dns, 'getLocalIPv4Address').mockReturnValue('10.0.0.8');
   };
 
   const stubPackageJson = () => {
@@ -192,6 +210,7 @@ describe('release pipeline commands', () => {
       expect(bumpped.length).to.equal(0);
       expect(written.mock.calls.length).to.equal(0);
       expect(commands.length).to.equal(0);
+      expect(graph).not.toHaveBeenCalled();
     });
 
     it('lists the manifests whose canonical version would move', async () => {
@@ -279,6 +298,32 @@ describe('release pipeline commands', () => {
       // makes the next `dd` fan-out build a deploy the release never declared.
       expect(commands.filter((command) => command.includes('rm -rf ./engine-private/conf/dd-default')).length).to.equal(
         2,
+      );
+      // The code graph describes the release tree: it runs once, after every other regeneration.
+      expect(result.graph).to.deep.equal({ built: true, version: '0.9.97' });
+      expect(graph).toHaveBeenCalledTimes(1);
+      expect(graph.mock.invocationCallOrder[0]).to.be.greaterThan(Math.max(...shell.exec.mock.invocationCallOrder));
+    });
+
+    it('builds no code graph with --no-graphify', async () => {
+      stubStartingTemplate();
+
+      const result = await runTemplateBuild('3.3.0', { graphify: false });
+
+      expect(result).to.include({ dryRun: false, graph: undefined });
+      expect(graph).not.toHaveBeenCalled();
+    });
+
+    it('fails on a code graph error and names --no-graphify', async () => {
+      stubStartingTemplate();
+      graph.mockImplementation(() => {
+        throw new Error('graphify is not on the PATH: run pipx install --force graphifyy==0.9.97');
+      });
+
+      const error = await runTemplateBuild('3.3.0').catch((thrown) => thrown);
+
+      expect(error?.message).to.equal(
+        'graphify is not on the PATH: run pipx install --force graphifyy==0.9.97; --no-graphify builds without the code graph',
       );
     });
 

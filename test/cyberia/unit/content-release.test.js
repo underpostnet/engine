@@ -1315,9 +1315,9 @@ describe('deploy pipeline', () => {
     }
   });
 
-  it('builds only the game checkouts on the host, and only `release lock` writes the lock', () => {
+  it('builds only the game checkouts on the host, without code graphs, and only `release lock` writes the lock', () => {
     expect(script).not.toMatch(/cyberia-content\.js|npm ci|merge-base|release lock/);
-    expect(script).toContain('node bin/cyberia release build cyberia-server cyberia-client');
+    expect(script).toContain('node bin/cyberia release build cyberia-server cyberia-client --no-graphify');
     expect(cli.match(/writeSourceLockFile\(/g)).toHaveLength(1);
   });
 });
