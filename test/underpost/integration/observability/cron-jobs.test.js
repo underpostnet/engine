@@ -263,8 +263,8 @@ describe('CronJob manifest', () => {
   });
 
   it('forwards every cluster and execution flag to the containerised command', () => {
-    const yaml = render({ git: true, dev: true, dryRun: true, k3s: true, kind: true, kubeadm: true });
-    expect(yaml).to.include('node bin cron dd-core dns --git --dev --dry-run --k3s --kind --kubeadm');
+    const yaml = render({ dev: true, dryRun: true, k3s: true, kind: true, kubeadm: true });
+    expect(yaml).to.include('node bin cron dd-core dns --dev --dry-run --k3s --kind --kubeadm');
   });
 
   it('runs a pre-script before the cron command', () => {

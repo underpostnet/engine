@@ -608,7 +608,7 @@ class UnderpostRepository {
      * @param {string} [options.subConf=''] - The sub-configuration to create.
      * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./underpost.config.js` and returns; no project or deploy ID scaffolding runs.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
-     * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private, engine-*-cron-backups).
+     * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private).
      * @param {boolean} [options.purge=false] - If true, removes the deploy ID conf and all related repositories (requires deployId).
      * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
      * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
@@ -681,7 +681,6 @@ class UnderpostRepository {
               const suffix = deployId.split('dd-')[1];
               const repoName = `engine-${suffix}`;
               const privateRepoName = `engine-${suffix}-private`;
-              const cronRepoName = `engine-${suffix}-cron-backups`;
               const confFolder = `./engine-private/conf/${deployId}`;
 
               // Remove conf folder
@@ -696,7 +695,6 @@ class UnderpostRepository {
               const repos = [
                 { path: `../${repoName}`, name: repoName },
                 { path: `../${privateRepoName}`, name: privateRepoName },
-                { path: `../${cronRepoName}`, name: cronRepoName },
               ];
 
               for (const repo of repos) {
@@ -735,11 +733,9 @@ class UnderpostRepository {
               const suffix = normalizedDeployId.split('dd-')[1];
               const repoName = `engine-${suffix}`;
               const privateRepoName = `engine-${suffix}-private`;
-              const cronRepoName = `engine-${suffix}-cron-backups`;
               const repos = [
                 { path: `../${repoName}`, name: repoName },
                 { path: `../${privateRepoName}`, name: privateRepoName },
-                { path: `../${cronRepoName}`, name: cronRepoName },
               ];
 
               const username = process.env.GITHUB_USERNAME;
@@ -1786,87 +1782,6 @@ Prevent build private config repo.`,
       }
     },
     /**
-     * Manages a cron-backup Git repository: clone, pull, commit, or push.
-     * Resolves the repository path as `../<repoName>` relative to the CWD.
-     * Requires the `GITHUB_USERNAME` environment variable to be set.
-     * @param {object} params
-     * @param {string} params.repoName - Repository name (e.g. `engine-cyberia-cron-backups`).
-     * @param {'clone'|'pull'|'commit'|'push'} params.operation - Git operation to perform.
-     * @param {string} [params.message=''] - Commit message (used by the `commit` operation).
-     * @param {boolean} [params.forceClone=false] - Remove existing clone before re-cloning.
-     * @returns {boolean} `true` on success, `false` if GITHUB_USERNAME is unset or on error.
-     * @memberof UnderpostRepository
-     */
-    manageBackupRepo({ repoName, operation, message = '', forceClone = false }) {
-      try {
-        const username = process.env.GITHUB_USERNAME;
-        if (!username) {
-          logger.error('GITHUB_USERNAME environment variable not set');
-          return false;
-        }
-
-        const repoPath = `../${repoName}`;
-
-        switch (operation) {
-          case 'clone':
-            if (forceClone && fs.existsSync(repoPath)) {
-              logger.info(`Force clone: removing existing repository: ${repoName}`);
-              fs.removeSync(repoPath);
-            }
-            if (!fs.existsSync(repoPath)) {
-              shellExec(`cd .. && underpost clone ${username}/${repoName}`);
-              logger.info(`Cloned repository: ${repoName}`);
-            }
-            break;
-
-          case 'pull':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && git checkout . && git clean -f -d`);
-              shellExec(`cd ${repoPath} && underpost pull . ${username}/${repoName}`, { silent: true });
-              logger.info(`Pulled repository: ${repoName}`);
-            }
-            break;
-
-          case 'commit':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && git add .`);
-              // A backup run that produced no new bytes is a normal outcome, not a
-              // failure: committing anyway exits non-zero and buries real errors.
-              const pending = shellExec(`cd ${repoPath} && git status --porcelain`, {
-                stdout: true,
-                silent: true,
-                disableLog: true,
-                silentOnError: true,
-              });
-              if (!`${pending || ''}`.trim()) {
-                logger.info(`No changes to commit: ${repoName}`, { message });
-                break;
-              }
-              shellExec(`underpost cmt ${repoPath} backup '' '${message}'`);
-              logger.info(`Committed to repository: ${repoName}`, { message });
-            }
-            break;
-
-          case 'push':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName}`, { silent: true });
-              logger.info(`Pushed repository: ${repoName}`);
-            }
-            break;
-
-          default:
-            logger.warn(`Unknown git operation: ${operation}`);
-            return false;
-        }
-
-        return true;
-      } catch (error) {
-        logger.error(`Git operation failed`, { repoName, operation, error: error.message });
-        return false;
-      }
-    },
-
-    /**
      * Reports whether a path already sits inside a git work tree, so callers can skip
      * initializing a repository that would nest inside an existing one.
      * @param {string} repoPath - Directory to probe.
@@ -2029,13 +1944,72 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Backs up all repositories defined in a deployment's conf.server.json by executing
-     * git commit+push inside the running deployment pod via `kubectl exec`.
+     * The site roots of a deployment's repository entries in its live pod: one per
+     * `server[host][path]` entry with a `repository`, where that pod holds a git repository.
+     * An entry without a site-root mapping or without a provisioned repository is skipped.
      *
-     * Scans every `server[host][path]` entry for a `repository` field. For each match
-     * the runtime-specific site root is resolved and a git backup script is executed
-     * inside the pod. GITHUB_TOKEN and GITHUB_USERNAME are injected as ephemeral
-     * environment variables in the exec command — never persisted to the pod filesystem.
+     * @param {object} opts
+     * @param {string}  opts.deployId - Deployment ID.
+     * @param {string}  [opts.namespace='default'] - Kubernetes namespace.
+     * @param {string}  [opts.env='production'] - Deployment environment.
+     * @returns {Array<{host:string, path:string, runtime:string, repository:string, podName:string, siteRoot:string}>}
+     * @memberof UnderpostRepository
+     */
+    podSiteRoots({ deployId, namespace = 'default', env = 'production' }) {
+      const confServer = readConfJson(deployId, 'server', { resolve: true });
+      const entries = Object.entries(confServer).flatMap(([host, paths]) =>
+        Object.entries(paths)
+          .filter(([, entry]) => entry.repository)
+          .map(([routePath, entry]) => ({ host, routePath, entry })),
+      );
+      if (!entries.length) return [];
+
+      // The active blue/green colour names the pod that serves the site.
+      const traffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace, env });
+      if (!traffic) {
+        logger.warn(`podSiteRoots: could not resolve current traffic for ${deployId} — skipping`);
+        return [];
+      }
+      const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
+      const runningPod = pods.find((p) => p.STATUS === 'Running');
+      if (!runningPod) {
+        logger.warn(`podSiteRoots: no running ${traffic} pod found for ${deployId} in namespace ${namespace}`);
+        return [];
+      }
+      const podName = runningPod.NAME;
+
+      const roots = [];
+      for (const { host, routePath, entry } of entries) {
+        const siteRootArgs = { runtime: entry.runtime, host, directory: entry.directory };
+        const repoRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath });
+        if (!repoRoot) {
+          logger.warn(`podSiteRoots: no site-root mapping for runtime '${entry.runtime}' (${host})`);
+          continue;
+        }
+        // The vhost directory (root route) covers conf/path drift.
+        const vhostRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath: '/' });
+        const candidates = [...new Set([repoRoot, vhostRoot].filter(Boolean))];
+        const siteRoot = Underpost.repo.podRepoDir({ podName, namespace, candidates });
+        if (!siteRoot) {
+          logger.warn(
+            `podSiteRoots: no git repository found in pod ${podName} for ${host} (checked ${candidates.join(
+              ', ',
+            )}) — site may not be provisioned yet; skipping`,
+          );
+          continue;
+        }
+        roots.push({ host, path: routePath, runtime: entry.runtime, repository: entry.repository, podName, siteRoot });
+      }
+      return roots;
+    },
+
+    /**
+     * Pushes the site repositories of a deployment from its live pod: `git commit` and `git push`
+     * inside the pod via `kubectl exec`, before a redeploy replaces the pod. This is the source
+     * workflow of a site repository; data backups go to the object store.
+     *
+     * GITHUB_TOKEN and GITHUB_USERNAME are injected as ephemeral environment variables in the exec
+     * command — never persisted to the pod filesystem.
      *
      * @param {object} opts
      * @param {string}  opts.deployId   - Deployment ID (used to read conf.server.json and find pods).
@@ -2045,7 +2019,6 @@ Prevent build private config repo.`,
      * @memberof UnderpostRepository
      */
     backupPodRepositories({ deployId, namespace = 'default', env = 'production' }) {
-      const confServer = readConfJson(deployId, 'server', { resolve: true });
       const githubToken = process.env.GITHUB_TOKEN || '';
       const githubUsername = repositoryIdentityFactory().owner;
 
@@ -2053,69 +2026,29 @@ Prevent build private config repo.`,
         logger.warn('backupPodRepositories: GITHUB_TOKEN not available — git push will fail');
       }
 
-      // Resolve the active blue/green traffic colour so we target the correct pod
-      const traffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace, env });
-      if (!traffic) {
-        logger.warn(`backupPodRepositories: could not resolve current traffic for ${deployId} — skipping`);
-        return;
-      }
+      for (const { host, runtime, repository, podName, siteRoot } of Underpost.repo.podSiteRoots({
+        deployId,
+        namespace,
+        env,
+      })) {
+        const repoName = repository.split('/').pop().split('.')[0];
 
-      // Find a running pod that matches the active traffic colour
-      const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
-      const runningPod = pods.find((p) => p.STATUS === 'Running');
-      if (!runningPod) {
-        logger.warn(`backupPodRepositories: no running ${traffic} pod found for ${deployId} in namespace ${namespace}`);
-        return;
-      }
-      const podName = runningPod.NAME;
+        // Secrets are injected as env vars in the exec, never written to the filesystem.
+        const backupScript = [
+          `export GITHUB_TOKEN='${githubToken.replace(/'/g, "'\\''")}'`,
+          `export GITHUB_USERNAME='${githubUsername.replace(/'/g, "'\\''")}'`,
+          `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
+          `cd '${siteRoot}' && git add -A && git commit -m "backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`,
+          `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
+          `cd /home/dd/engine && node bin host clean --force`,
+        ].join(' && ');
 
-      for (const host of Object.keys(confServer)) {
-        for (const routePath of Object.keys(confServer[host])) {
-          const entry = confServer[host][routePath];
-          if (!entry.repository) continue;
-
-          const siteRootArgs = { runtime: entry.runtime, host, directory: entry.directory };
-          const repoRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath });
-          if (!repoRoot) {
-            logger.warn(`backupPodRepositories: no site-root mapping for runtime '${entry.runtime}' (${host})`);
-            continue;
-          }
-
-          // Probe the pod for the actual git repo so an unprovisioned/missing site root is
-          // detected and skipped cleanly instead of failing the in-pod `cd` with exit 1.
-          // Fall back to the vhost dir (root route) to cover conf/path drift.
-          const vhostRoot = Underpost.repo.runtimeSiteRoot({ ...siteRootArgs, routePath: '/' });
-          const candidates = [...new Set([repoRoot, vhostRoot].filter(Boolean))];
-          const siteRoot = Underpost.repo.podRepoDir({ podName, namespace, candidates });
-          if (!siteRoot) {
-            logger.warn(
-              `backupPodRepositories: no git repository found in pod ${podName} for ${host} (checked ${candidates.join(
-                ', ',
-              )}) — site may not be provisioned yet; skipping`,
-            );
-            continue;
-          }
-
-          const repoName = entry.repository.split('/').pop().split('.')[0];
-
-          // Build the backup script — secrets are injected as env vars in the exec,
-          // never written to filesystem. The shell process inherits them ephemerally.
-          const backupScript = [
-            `export GITHUB_TOKEN='${githubToken.replace(/'/g, "'\\''")}'`,
-            `export GITHUB_USERNAME='${githubUsername.replace(/'/g, "'\\''")}'`,
-            `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
-            `cd '${siteRoot}' && git add -A && git commit -m "backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`,
-            `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
-            `cd /home/dd/engine && node bin host clean --force`,
-          ].join(' && ');
-
-          try {
-            logger.info(`backupPodRepositories: backing up ${host} (${entry.runtime}) in pod ${podName}`);
-            Underpost.kubectl.exec({ podName, namespace, command: backupScript });
-            logger.info(`backupPodRepositories: git push done for ${host}`);
-          } catch (err) {
-            logger.error(`backupPodRepositories: backup failed for ${host}`, err.message);
-          }
+        try {
+          logger.info(`backupPodRepositories: backing up ${host} (${runtime}) in pod ${podName}`);
+          Underpost.kubectl.exec({ podName, namespace, command: backupScript });
+          logger.info(`backupPodRepositories: git push done for ${host}`);
+        } catch (err) {
+          logger.error(`backupPodRepositories: backup failed for ${host}`, err.message);
         }
       }
     },

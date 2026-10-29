@@ -501,7 +501,7 @@ class UnderpostRelease {
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
-      shellExec(`node bin cron --kubeadm --setup-start --git`); // --apply
+      shellExec(`node bin cron --kubeadm --setup-start`); // --apply
       shellExec(`node bin cmt --changelog-build`);
       shellExec(`npm run security`);
       shellExec(`sudo rm -rf ./underpost.config.dd*.js`);

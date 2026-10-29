@@ -1596,7 +1596,7 @@ describe('engine sync', () => {
     // The pod bodies run the checkout the switch replaced, so the manifests are republished — but
     // only where they can be. Regression: a worker carrying kubectl without cluster access
     // rewrote the cron deploy's manifests and relabeled host directories before failing.
-    expect(cron('control').command).to.equal('node bin cron --setup-start --git --apply');
+    expect(cron('control').command).to.equal('node bin cron --setup-start --apply');
     expect(cron('control').halt).to.equal(false);
     for (const nodeRole of ['worker', 'hub', '']) expect(cron(nodeRole), nodeRole).to.equal(undefined);
   });

@@ -232,7 +232,7 @@ const EDGE_NODE_ROLES = Object.freeze(['control', 'worker', 'hub']);
  */
 const NODE_ROLE_STEPS = Object.freeze({
   control: {
-    '<cron-reconcile-command>': 'node bin cron --setup-start --git --apply',
+    '<cron-reconcile-command>': 'node bin cron --setup-start --apply',
     '<event-service-command>': 'node bin event --service',
   },
   hub: {

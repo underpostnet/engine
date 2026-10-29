@@ -118,7 +118,6 @@ const loadCronDeployEnv = () => {
  * @param {string} params.jobList - Comma-separated job IDs (e.g., 'dns', 'backup')
  * @param {string} [params.image] - Container image (defaults to underpost/underpost-engine:<version>)
  * @param {string} [params.namespace='default'] - Kubernetes namespace
- * @param {boolean} [params.git=false] - Pass --git flag to cron CLI
  * @param {boolean} [params.dev=false] - Use local ./ base path instead of global underpost installation
  * @param {string} [params.cmd] - Optional pre-script commands to run before cron execution
  * @param {boolean} [params.suspend=false] - Whether the CronJob is suspended
@@ -138,7 +137,6 @@ const cronJobYamlFactory = ({
   jobList,
   image,
   namespace = 'default',
-  git = false,
   dev = false,
   cmd,
   suspend = false,
@@ -159,7 +157,7 @@ const cronJobYamlFactory = ({
 
   const cronDeployId = cronDeployIdResolve();
 
-  const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
+  const flags = `${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
   // No `app load`: it materializes a deployment's environment from its env file, and the pod has
   // neither. Its environment arrives injected, scoped to what the jobs consume; the `conf.*.json`
   // the jobs read carry `env:` references that resolve against exactly that.
@@ -547,7 +545,6 @@ class UnderpostCron {
      * @param {Object} options - CLI flags
      * @param {boolean} [options.generateK8sCronjobs] - Generate K8s CronJob YAML manifests
      * @param {boolean} [options.apply] - Apply manifests to the cluster
-     * @param {boolean} [options.git] - Pass --git to job execution
      * @param {boolean} [options.dev] - Use local ./ base path instead of global underpost installation
      * @param {string}  [options.cmd] - Optional pre-script commands to run before cron execution
      * @param {string}  [options.namespace] - Kubernetes namespace
@@ -605,7 +602,6 @@ class UnderpostCron {
      * @param {boolean} [options.createJobNow] - After applying, immediately create a Job from each CronJob
      * @param {boolean} [options.dryRun] - Pass --dry-run=client to kubectl commands
      * @param {boolean} [options.apply] - Whether to apply generated manifests to the cluster
-     * @param {boolean} [options.git] - Pass --git flag to cron CLI commands
      * @param {boolean} [options.dev] - Use local ./ base path instead of global underpost installation
      * @param {string}  [options.cmd] - Optional pre-script commands to run before cron execution
      * @param {string}  [options.nodeName] - Pin every generated CronJob's pod to this node
@@ -679,7 +675,6 @@ class UnderpostCron {
         image: options.image,
         apply: options.apply,
         createJobNow: options.createJobNow,
-        git: !!options.git,
         dev: !!options.dev,
         kubeadm: !!options.kubeadm,
         cmd: options.cmd,
@@ -697,7 +692,6 @@ class UnderpostCron {
      * @param {Object} options
      * @param {string}  [options.deployId] - Explicit deploy-id (overrides dd.cron file lookup)
      * @param {string|string[]} [options.jobFilter] - Restrict generation/apply to these job IDs (empty means all)
-     * @param {boolean} [options.git=false] - Pass --git flag to cron CLI commands
      * @param {boolean} [options.dev=false] - Use local ./ base path instead of global underpost
      * @param {string}  [options.cmd] - Optional pre-script commands
      * @param {boolean} [options.apply=false] - kubectl apply generated manifests
@@ -793,7 +787,6 @@ class UnderpostCron {
           jobList: job,
           image: options.image,
           namespace,
-          git: !!options.git,
           dev: !!options.dev,
           cmd: options.cmd,
           suspend: false,

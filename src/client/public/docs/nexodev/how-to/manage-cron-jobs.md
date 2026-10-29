@@ -69,7 +69,7 @@ Run jobs immediately without Kubernetes manifests:
 
 ```bash
 underpost cron dd-cron dns
-underpost cron dd-cron backup --git
+underpost cron dd-cron backup
 underpost cron dd-cron dns,backup
 node bin cron dd-cron dns --dev
 ```
@@ -165,7 +165,7 @@ the `deploy-list` argument — `--setup-start` is a plain flag and takes no valu
 
 ```bash
 node bin cron --setup-start                              # deploy-id from dd.cron
-node bin cron dd-cron --setup-start --git --apply
+node bin cron dd-cron --setup-start --apply
 node bin cron dd-my-app --setup-start --namespace staging
 ```
 
@@ -201,7 +201,6 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | `--namespace <name>`      | Kubernetes namespace (default: `default`)                                    |
 | `--image <name>`          | Custom container image for CronJob pods                                      |
 | `--node-name <node>`      | Pin the CronJob pods to one node (manifest modes only)                       |
-| `--git`                   | Pass `--git` flag to job execution                                           |
 | `--cmd <command>`         | Pre-script commands before cron execution                                    |
 | `--dev`                   | Development mode (`node bin` instead of `underpost`)                         |
 | `--kind`                  | Kind cluster context                                                         |
@@ -222,7 +221,7 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | Job ID   | Description                | Deploy ID Source             | Callback                                                              |
 | -------- | -------------------------- | ---------------------------- | --------------------------------------------------------------------- |
 | `dns`    | Dynamic DNS record updates | `dd.cron`                    | Detects public IP changes and updates configured DNS provider records |
-| `backup` | Database exports           | `dd.routes` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id          |
+| `backup` | Database backups           | `dd.routes` (all deploy-ids) | Runs `node bin db --export --prune` for each deploy-id                |
 | `vultr`  | Edge VPS bandwidth guard   | `dd.cron` (logged only)      | Meters the Vultr plan quota and blocks edge egress before overage     |
 
 ### DNS Job
@@ -231,9 +230,9 @@ Checks if the host's public IP has changed. When a new IP is detected, iterates 
 
 ### Backup Job
 
-Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository. Backup commands are always executed via SSH on the remote node.
+Iterates through the comma-separated deploy-id list and runs `node bin db <deploy-id> --export --prune` for each: a sealed backup in the object store, then retention. No Git operation takes part. Backup commands are always executed via SSH on the remote node, which reads the object store credentials and the backup key from its own configuration.
 
-One deploy-id failing does not abort the rest — each phase is caught per deploy-id, and the run ends with a `Backup completed with failures` summary naming every deploy-id and phase that failed. See [DB and Backup Management](manage-databases-and-backups.md) for how pod contact errors and primary detection are handled inside each export.
+One deploy-id failing does not abort the rest — each export is caught per deploy-id, and the run ends with a `Backup completed with failures` summary naming every deploy-id that failed. See [DB and Backup Management](manage-databases-and-backups.md) for the backup format, verification, retention and metrics.
 
 ### Vultr Bandwidth Job
 
@@ -538,7 +537,7 @@ node bin run sync --deploy-id dd-my-app --kubeadm --deploy-id-cron-jobs dd-other
 node bin run sync --deploy-id dd-my-app --kubeadm --deploy-id-cron-jobs none # no cron setup at all
 ```
 
-It runs `node bin cron <cron-deploy-id> --setup-start --git --apply` with the resolved cluster
+It runs `node bin cron <cron-deploy-id> --setup-start --apply` with the resolved cluster
 flags, applying cron manifests as part of the deployment sync cycle.
 
 The cron deploy-id it passes is **not** the deploy-id being synced — a sync of `dd-my-app` still

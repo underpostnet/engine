@@ -52,7 +52,7 @@ import {
 } from '../server/runtime/conf.js';
 import { buildKindPorts, deployRoutesExists, readDeployRoutes, resolveDeployList } from '../server/network/router.js';
 import { clientBundleHostFilter, pullClientBundle, pushClientBundle } from '../client-builder/client-bundle.js';
-import { cronDeployIdResolve } from '../server/ops/cron.js';
+import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
 import { deployEnvFactory, getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
 
@@ -1163,7 +1163,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           if (cronDeployId && !/^[a-zA-Z0-9._,-]+$/.test(cronDeployId))
             throw new Error(`Invalid cron deploy-id: ${cronDeployId}`);
           shellExec(
-            `node bin cron${cronDeployId ? ` ${cronDeployId}` : ''}${baseClusterCommand}${clusterFlag} --setup-start --git --apply`,
+            `node bin cron${cronDeployId ? ` ${cronDeployId}` : ''}${baseClusterCommand}${clusterFlag} --setup-start --apply`,
           );
         }
       }
@@ -1278,10 +1278,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           }
         }
 
-        // Backup app/services repositories with repo-backup configured
-        shellExec(
-          `${baseCommand} db ${deployId} ${clusterFlag}${baseClusterCommand} --repo-backup --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
-        );
+        // The live pods push their site repositories before the new pods replace them.
+        loadCronDeployEnv();
+        Underpost.repo.backupPodRepositories({ deployId, namespace: options.namespace || 'default', env });
         shellExec(
           `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --node ${node} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
@@ -3075,7 +3074,7 @@ EOF`);
       await timer(5000);
       for (const deployId of deployList) {
         shellExec(
-          `${baseCommand} db ${deployId} --import --git --drop --preserveUUID --primary-pod${options.namespace ? ` --ns ${options.namespace}` : ''}`,
+          `${baseCommand} db ${deployId} --import --drop --preserveUUID${options.namespace ? ` --ns ${options.namespace}` : ''}`,
         );
       }
       await timer(5000);
