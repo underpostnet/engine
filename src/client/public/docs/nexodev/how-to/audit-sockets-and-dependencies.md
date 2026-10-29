@@ -10,16 +10,19 @@
 The Socket CLI (`@socketsecurity/cli`) executes; `src/server/security/socketsecurity.js` drives
 it, classifies the findings and renders the report; `src/cli/socketsecurity.js` is the command.
 
+The command uses the Socket free plan only. It does not use Tier 1 reachability (an enterprise
+feature), `socket fix`, or paid patches.
+
 ---
 
 ## Configuration
 
-| Variable                  | Purpose                                                                    |
-| ------------------------- | -------------------------------------------------------------------------- |
-| `SOCKET_CLI_API_TOKEN`    | Socket API token. Required for `scan`, `--reach`, `--ci` and `socket fix`. |
-| `SOCKET_CLI_ORG_SLUG`     | Socket organization. Passed as `--org` to every command that takes one.    |
-| `SOCKET_CLI_ACCEPT_RISKS` | Accept the risks of a Socket-wrapped `npm`/`npx` run.                      |
-| `GITHUB_ORG_NAME`         | Organization scope under which this project's own packages also publish.   |
+| Variable                  | Purpose                                                                  |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `SOCKET_CLI_API_TOKEN`    | Socket API token. Enables the full scan and the source code analysis.    |
+| `SOCKET_CLI_ORG_SLUG`     | Socket organization. Passed as `--org` to every command that takes one.  |
+| `SOCKET_CLI_ACCEPT_RISKS` | Accept the risks of a Socket-wrapped `npm`/`npx` run.                    |
+| `GITHUB_ORG_NAME`         | Organization scope under which this project's own packages also publish. |
 
 The values resolve through the platform environment chain: the process
 environment, `./.env`, then the global `underpost` `.env`. The token reaches the
@@ -40,10 +43,9 @@ The CLI is a development dependency, so `node_modules/.bin/socket` exists after
 
 ```bash
 underpost socketsecurity                 # audit both domains: reports under security-reports/
-underpost socketsecurity --reach         # audit with full application reachability (token)
-underpost socketsecurity --ci            # audit, non-zero exit on a failed or unhealthy scan, or a high finding in either domain
+underpost socketsecurity --ci            # audit, non-zero exit on a failed or unhealthy scan, or a high finding the policy does not accept
 underpost socketsecurity --fix           # dependency remediation pass, then the audit
-underpost socketsecurity --patch-scan    # patches available for the installed versions
+underpost socketsecurity --patch-scan    # free patches available for the installed versions
 underpost socketsecurity --patch-get <uuid|CVE|GHSA|PURL>
 underpost socketsecurity --patch-apply   # replay .socket/manifest.json (the prepare hook)
 underpost socketsecurity --patch-setup   # install the prepare hook in package.json
@@ -62,9 +64,9 @@ One run collects, in order:
    (`src/server/build/package.js`, `RUNTIME_ENTRY_POINTS`). Every package it
    reaches must be in `dependencies`, or be pinned by a product catalog.
 2. `npm audit --json`.
-3. `socket patch scan`: free patches without a token, the organization tier with one.
+3. `socket patch scan`: the free tier only.
 4. With a token: `socket scan create --report` (policy health), then `socket scan view` (every
-   package with its per-file alerts). `--reach` adds the full application reachability analysis.
+   package with its per-file alerts).
 
 The scan artifacts feed both domains. Without a token, source code risk is reported as skipped.
 
@@ -116,16 +118,21 @@ A source finding points at this checkout:
 Findings group into one **refactoring task** per category, with the most severe severity and every
 location.
 
-### Dependency findings and reachability
+### Dependency findings
 
 Dependency findings merge per package and advisory (npm audit and Socket patches) or per package
-version and alert type (Socket scan). Each one carries a reachability tier:
+version and alert type (Socket scan). Each Socket alert carries the action of the organization
+policy.
 
-| Tier | Evidence                                                                       |
-| ---- | ------------------------------------------------------------------------------ |
-| 1    | Full application analysis (`--reach`): reachable or unreachable from this code |
-| 2    | Socket scan alert: package-level analysis, on the Socket dashboard             |
-| 3    | Registry advisory or patch listing only. Treat as reachable                    |
+### The gate
+
+`--ci` exits non-zero when one of these is true:
+
+- The Socket scan fails, or the policy reports it unhealthy.
+- A finding at `--fail-on` or above remains, and the policy does not accept it.
+
+The policy accepts an alert when its action is `ignore` or `monitor`. Such an alert never fails the
+gate and is not a deferred risk. An npm audit advisory carries no policy, so its severity decides.
 
 ---
 
@@ -133,19 +140,18 @@ version and alert type (Socket scan). Each one carries a reachability tier:
 
 Outputs, under `security-reports/` (or `--out <dir>`):
 
-| File                         | Content                                    |
-| ---------------------------- | ------------------------------------------ |
-| `security-report.md`         | The report a person reads                  |
-| `security-report.json`       | The same report, for a workflow            |
-| `npm-audit.json`             | Raw `npm audit` document                   |
-| `socket-patch-scan.json`     | Raw patch scan                             |
-| `socket-scan.json`           | Raw policy report, when the scan ran       |
-| `socket-scan-artifacts.json` | Raw scan artifacts with per-file alerts    |
-| `socket-reach.json`          | Raw reachability facts, when `--reach` ran |
+| File                         | Content                                 |
+| ---------------------------- | --------------------------------------- |
+| `security-report.md`         | The report a person reads               |
+| `security-report.json`       | The same report, for a workflow         |
+| `npm-audit.json`             | Raw `npm audit` document                |
+| `socket-patch-scan.json`     | Raw patch scan                          |
+| `socket-scan.json`           | Raw policy report, when the scan ran    |
+| `socket-scan-artifacts.json` | Raw scan artifacts with per-file alerts |
 
 `security-report.md` sections: **Summary** (severities per domain), **Socket scan**,
-**Dependency Security** (findings by category, segregation, npm audit, reachability, patches,
-remediation, deferred risks), **Source Code Risk Analysis** (status, own packages, refactoring
+**Dependency Security** (findings by category, segregation, npm audit, patches, remediation,
+deferred risks), **Source Code Risk Analysis** (status, own packages, refactoring
 tasks, findings by category).
 
 `security-report.json` top level:
@@ -153,7 +159,7 @@ tasks, findings by category).
 | Key                  | Content                                                                                                                     |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `scan`               | `ok`, `healthy`, `scanId`, `url`, `artifacts` — or `skipped`                                                                |
-| `dependencySecurity` | `segregation`, `npmAudit`, `reachability`, `patches`, `remediation`, `categories`, `counts`, `findings`, `deferred`         |
+| `dependencySecurity` | `segregation`, `npmAudit`, `patches`, `remediation`, `categories`, `counts`, `findings`, `deferred`                         |
 | `sourceCodeRisk`     | `status`, `packages`, `categories`, `counts`, `tasks`, `findings` (`category`, `type`, `severity`, `file`, `line`, `local`) |
 | `counts`             | Severities across both domains                                                                                              |
 
@@ -161,11 +167,10 @@ tasks, findings by category).
 
 ## Remediation
 
-`--fix` is the dependency pass: `npm audit fix` (no `--force`), `socket patch get` for one patch per
-package version, `socket fix --no-major-updates` (token), and `socket patch apply`. `--major` lets
-`socket fix` apply major upgrades. The audit that follows writes the post-remediation report;
-dependency findings that no non-breaking action resolves are listed under **Deferred risks** with
-the reason.
+`--fix` is the dependency pass: `npm audit fix` (no `--force`), `socket patch get` for one free
+patch per package version, and `socket patch apply`. The audit that follows writes the
+post-remediation report. Dependency findings that no non-breaking action resolves, and that the
+policy does not accept, are listed under **Deferred risks** with the reason.
 
 Source code risk has no automatic pass: each refactoring task is a code change, reviewed like any
 other.

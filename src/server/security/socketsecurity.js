@@ -1,6 +1,6 @@
 /**
- * Socket.dev security audit: dependency scans, reachability analysis, security patches, source
- * code alerts on this project's own packages, and the report built over them and `npm audit`.
+ * Socket.dev security audit on the free plan: dependency scans, free security patches, source code
+ * alerts on this project's own packages, and the report built over them and `npm audit`.
  *
  * The Socket CLI (`@socketsecurity/cli`) executes; this module resolves its configuration,
  * builds its command lines, parses its JSON, and renders the report. The patch manifest
@@ -36,8 +36,6 @@ class SocketSecurityService {
   static CLI_PACKAGE = '@socketsecurity/cli';
   static ECOSYSTEM = 'npm';
   static MANIFEST_PATH = '.socket/manifest.json';
-  /** Reachability report `socket scan create --reach` writes next to the manifests it scans. */
-  static FACTS_PATH = '.socket.facts.json';
   static DASHBOARD_URL = 'https://socket.dev/dashboard/org';
   static REPORT_DIRECTORY = 'security-reports';
   static REPORT_FILES = {
@@ -45,12 +43,9 @@ class SocketSecurityService {
     markdown: 'security-report.md',
     npmAudit: 'npm-audit.json',
     scan: 'socket-scan.json',
-    reach: 'socket-reach.json',
     scanArtifacts: 'socket-scan-artifacts.json',
     packageAlerts: 'socket-package-alerts.json',
     patchScan: 'socket-patch-scan.json',
-    /** Written by `socket fix --output-file`: the upgrades it computed. */
-    fixUpgrades: 'socket-fix-upgrades.json',
   };
 
   /** The apply command the `prepare` hook runs. */
@@ -70,6 +65,9 @@ class SocketSecurityService {
    * action from.
    */
   static REPORT_LEVEL = 'defer';
+
+  /** Socket policy actions under which the organization accepts an alert, so it never gates a run. */
+  static ACCEPTED_POLICIES = ['ignore', 'monitor'];
 
   /** Report domains: what an alert is about decides who fixes it. */
   static DOMAINS = {
@@ -237,13 +235,6 @@ class SocketSecurityService {
       task: 'Quote every argument with shellArgumentFactory and run the command through shellExec, so the execution profile gates it.',
     },
     other: { label: 'Other', types: [], task: 'Review the flagged code and record the decision.' },
-  };
-
-  /** Reachability evidence a finding carries in the report. */
-  static REACHABILITY_TIERS = {
-    1: 'Full application reachability: analyzed against this code base (`socket scan create --reach`).',
-    2: 'Package-level reachability: a Socket scan alert; the package analysis is on the Socket dashboard.',
-    3: 'No reachability evidence: a registry advisory or a patch listing only. Treat as reachable.',
   };
 
   /**
@@ -484,66 +475,30 @@ class SocketSecurityService {
   }
 
   /**
-   * Reads the reachability analysis into one row per (package, advisory).
-   * @param {object} [facts] - The `.socket.facts.json` document.
-   * @returns {{available: boolean, analyzed: number, counts: object, results: object[]}}
-   */
-  static reachabilityFactory(facts = null) {
-    const components = Array.isArray(facts?.components) ? facts.components : [];
-    const results = components.flatMap((component) =>
-      (component.reachability ?? []).map((entry) => {
-        const outcomes = (entry.reachability ?? []).map((result) => result.type);
-        return {
-          package: component.name,
-          version: component.version,
-          ghsaId: entry.ghsa_id,
-          reachable: outcomes.includes('reachable')
-            ? true
-            : outcomes.length > 0 && outcomes.every((type) => type === 'unreachable')
-              ? false
-              : null,
-          outcomes,
-        };
-      }),
-    );
-    const counts = { reachable: 0, unreachable: 0, undetermined: 0 };
-    for (const { reachable } of results)
-      counts[reachable === true ? 'reachable' : reachable === false ? 'unreachable' : 'undetermined']++;
-    return { available: facts !== null, analyzed: components.length, counts, results };
-  }
-
-  /**
    * Creates a Socket full scan of a checkout, reports it against the organization policy, and
    * reads its artifacts: every package with its per-file alerts.
    *
    * The scan uploads dependency manifests only, so its artifacts are the packages the checkout
-   * installs; this project's own code is read from the registry by {@link packageAlerts}. With
-   * `reach`, the reachability analysis runs locally over the working tree. A facts file left by
-   * an earlier run is removed before it starts, because the CLI takes one it finds as
-   * pre-generated input instead of analyzing, and the fresh one is consumed after it.
+   * installs; this project's own code is read from the registry by {@link packageAlerts}.
    * @param {object} [options]
    * @param {string} [options.root]
    * @param {Function} [options.execute]
    * @param {object} [options.env]
    * @param {string} [options.binary] - Socket binary; resolved when absent.
-   * @param {boolean} [options.reach]
    * @param {string} [options.repo]
    * @param {string} [options.branch]
    * @param {string[]} [options.targets]
-   * @returns {{ok: boolean, message: string, summary: object, artifacts: object[]|null, report: object|null, facts: object|null, reachability: object}}
+   * @returns {{ok: boolean, message: string, summary: object, artifacts: object[]|null, report: object|null}}
    */
   static scan({
     root = process.cwd(),
     execute = shellExec,
     env = SocketSecurityService.socketEnvFactory(),
     binary,
-    reach = false,
     repo = '',
     branch = '',
     targets = ['.'],
   } = {}) {
-    const factsPath = nodePath.join(root, SocketSecurityService.FACTS_PATH);
-    if (reach) fs.removeSync(factsPath);
     const result = SocketSecurityService.runSocket(
       [
         'scan',
@@ -554,7 +509,6 @@ class SocketSecurityService {
         SocketSecurityService.REPORT_LEVEL,
         '--no-interactive',
         '--no-banner',
-        ...(reach ? ['--reach', '--reach-retain-facts-file'] : []),
         ...(repo ? ['--repo', repo] : []),
         ...(branch ? ['--branch', branch] : []),
         ...SocketSecurityService.orgArgsFactory(env),
@@ -562,8 +516,6 @@ class SocketSecurityService {
       ],
       { root, execute, env, binary, silent: false },
     );
-    const facts = reach && fs.existsSync(factsPath) ? fs.readJsonSync(factsPath, { throws: false }) : null;
-    if (facts !== null) fs.removeSync(factsPath);
     const summary = SocketSecurityService.scanReportSummaryFactory(result.data);
     const view =
       result.ok && summary.scanId
@@ -579,8 +531,6 @@ class SocketSecurityService {
       summary,
       artifacts: Array.isArray(view?.data) ? view.data : null,
       report: result.data,
-      facts,
-      reachability: SocketSecurityService.reachabilityFactory(facts),
     };
   }
 
@@ -657,18 +607,18 @@ class SocketSecurityService {
   }
 
   /**
-   * Summarizes a `socket patch scan --json` document.
+   * Summarizes a `socket patch scan --json` document. `available` holds the free tier only.
    * @param {object} [data]
-   * @returns {{scannedPackages: number, packagesWithPatches: number, freePatches: number, paidPatches: number, canAccessPaidPatches: boolean, available: object[]}}
+   * @returns {{scannedPackages: number, packagesWithPatches: number, freePatches: number, available: object[]}}
    */
   static patchScanSummaryFactory(data = {}) {
     const available = (data?.packages ?? [])
       .flatMap((entry) => entry.patches ?? [])
-      .map(({ purl, uuid, severity, tier, title, cveIds, ghsaIds }) => ({
+      .filter((patch) => patch.tier === 'free')
+      .map(({ purl, uuid, severity, title, cveIds, ghsaIds }) => ({
         purl,
         uuid,
         severity: `${severity ?? ''}`.toLowerCase(),
-        tier,
         title,
         cveIds: cveIds ?? [],
         ghsaIds: ghsaIds ?? [],
@@ -678,8 +628,6 @@ class SocketSecurityService {
       scannedPackages: data?.scannedPackages ?? 0,
       packagesWithPatches: data?.packagesWithPatches ?? 0,
       freePatches: data?.freePatches ?? 0,
-      paidPatches: data?.paidPatches ?? 0,
-      canAccessPaidPatches: data?.canAccessPaidPatches === true,
       available,
     };
   }
@@ -703,8 +651,7 @@ class SocketSecurityService {
   }
 
   /**
-   * Scans the installed packages for available Socket patches. Without a token the public
-   * patch API answers with the free tier only.
+   * Scans the installed packages for available free Socket patches.
    * @param {{root?: string, execute?: Function, env?: object, binary?: string}} [options]
    * @returns {{ok: boolean, message: string, unavailable: boolean, data: object|null, summary: object}}
    */
@@ -825,35 +772,6 @@ class SocketSecurityService {
       fs.writeFileSync(path, `${JSON.stringify(manifest, null, /^(\s+)"/m.exec(source)?.[1] ?? '  ')}\n`, 'utf8');
     }
     return { path, prepare, changed };
-  }
-
-  /**
-   * Runs `socket fix`: dependency upgrades that resolve known CVEs, semver-compatible unless
-   * `majorUpdates` is set.
-   * @param {{root?: string, execute?: Function, env?: object, binary?: string, majorUpdates?: boolean, apply?: boolean, outputFile?: string}} [options]
-   * @returns {{ok: boolean, message: string, unavailable: boolean, data: *}}
-   */
-  static fix({
-    root = process.cwd(),
-    execute = shellExec,
-    env = SocketSecurityService.socketEnvFactory(),
-    binary,
-    majorUpdates = false,
-    apply = true,
-    outputFile = '',
-  } = {}) {
-    const result = SocketSecurityService.runSocket(
-      [
-        'fix',
-        '--json',
-        '--no-banner',
-        ...(majorUpdates ? [] : ['--no-major-updates']),
-        ...(apply ? [] : ['--no-apply-fixes']),
-        ...(outputFile ? ['--output-file', outputFile] : []),
-      ],
-      { root, execute, env, binary, silent: false },
-    );
-    return { ok: result.ok, message: result.message, unavailable: result.unavailable === true, data: result.data };
   }
 
   /**
@@ -1076,17 +994,15 @@ class SocketSecurityService {
   }
 
   /**
-   * Merges the dependency sources into one finding per (package, advisory or alert) and assigns
-   * each its reachability tier; see {@link SocketSecurityService.REACHABILITY_TIERS}.
+   * Merges the dependency sources into one finding per (package, advisory or alert).
    * @param {object} [params]
    * @param {object} [params.npmAudit] - `npmAuditSummaryFactory` result.
    * @param {object} [params.patchScan] - `patchScanSummaryFactory` result.
    * @param {object[]} [params.alerts] - `alertFindingsFactory().dependency`.
-   * @param {object} [params.reachability] - `reachabilityFactory` result.
    * @param {object} [params.manifest] - `patchManifestFactory` result.
    * @returns {object[]} Findings, most severe first.
    */
-  static findingsFactory({ npmAudit = {}, patchScan = {}, alerts = [], reachability = {}, manifest = {} } = {}) {
+  static findingsFactory({ npmAudit = {}, patchScan = {}, alerts = [], manifest = {} } = {}) {
     const findings = new Map();
     const merge = (key, finding) => {
       const current = findings.get(key) ?? { sources: [], patches: [] };
@@ -1138,20 +1054,13 @@ class SocketSecurityService {
         source: 'socket scan',
       });
 
-    const evidence = new Map(
-      (reachability.results ?? []).map((result) => [`${result.package}#${result.ghsaId}`, result.reachable]),
-    );
     const patched = new Set(
       (manifest.patches ?? []).flatMap((patch) =>
         patch.vulnerabilities.map(({ id }) => `${SocketSecurityService.purlPackageFactory(patch.purl).name}#${id}`),
       ),
     );
     return [...findings.entries()]
-      .map(([key, finding]) => {
-        const reachable = evidence.has(key) ? evidence.get(key) : null;
-        const tier = evidence.has(key) ? 1 : finding.sources.includes('socket scan') ? 2 : 3;
-        return { ...finding, tier, reachable, fix: finding.fix ?? 'none', patched: patched.has(key) };
-      })
+      .map(([key, finding]) => ({ ...finding, fix: finding.fix ?? 'none', patched: patched.has(key) }))
       .sort(
         (a, b) =>
           SocketSecurityService.severityRank(a.severity) - SocketSecurityService.severityRank(b.severity) ||
@@ -1160,18 +1069,32 @@ class SocketSecurityService {
   }
 
   /**
-   * The findings no non-breaking action resolves, with the reason each one stays.
+   * Whether the organization policy accepts a finding; see {@link SocketSecurityService.ACCEPTED_POLICIES}.
+   * @param {{policy?: string}} [finding]
+   * @returns {boolean}
+   */
+  static acceptedByPolicy(finding = {}) {
+    return SocketSecurityService.ACCEPTED_POLICIES.includes(finding.policy);
+  }
+
+  /**
+   * The findings no non-breaking action resolves and the policy does not accept, with the reason
+   * each one stays.
    * @param {object[]} [findings]
    * @returns {object[]}
    */
   static deferredFactory(findings = []) {
     return findings
-      .filter((finding) => !finding.patched && (finding.fix === 'none' || finding.fix.endsWith('(major)')))
+      .filter(
+        (finding) =>
+          !SocketSecurityService.acceptedByPolicy(finding) &&
+          !finding.patched &&
+          (finding.fix === 'none' || finding.fix.endsWith('(major)')),
+      )
       .map((finding) => ({
         package: finding.package,
         id: finding.id,
         severity: finding.severity,
-        tier: finding.tier,
         reason: [
           finding.fix === 'none' ? 'no compatible upstream fix' : `the fix is a major upgrade (${finding.fix})`,
           finding.patches.length > 0
@@ -1225,7 +1148,6 @@ class SocketSecurityService {
       npmAudit,
       patchScan: patchScan.summary,
       alerts: alerts.dependency,
-      reachability: scan?.reachability,
       manifest,
     });
     const skipped = env.token ? 'not requested' : `${SocketSecurityService.ENV.token} is not set`;
@@ -1253,7 +1175,6 @@ class SocketSecurityService {
       dependencySecurity: {
         segregation: dependencies,
         npmAudit,
-        reachability: scan?.reachability ?? SocketSecurityService.reachabilityFactory(null),
         patches: {
           scan: {
             ok: patchScan.ok,
@@ -1309,10 +1230,9 @@ class SocketSecurityService {
    * @returns {string}
    */
   static securityReportMarkdownFactory(report) {
-    const { ALERT_CATEGORIES, DOMAINS, REACHABILITY_TIERS, SEVERITIES, markdownTable: table } = SocketSecurityService;
+    const { ALERT_CATEGORIES, DOMAINS, SEVERITIES, markdownTable: table } = SocketSecurityService;
     const { dependencySecurity: dependency, sourceCodeRisk: source } = report;
     const yesNo = (value) => (value ? 'yes' : 'no');
-    const reachable = (value) => (value === true ? 'reachable' : value === false ? 'unreachable' : 'n/a');
     const label = (category) => ALERT_CATEGORIES[category]?.label ?? category;
     const severityRow = (name, counts) => [name, ...SEVERITIES.map((severity) => counts[severity]), counts.total];
     const categories = (counts) =>
@@ -1393,14 +1313,13 @@ class SocketSecurityService {
       ...categories(dependency.categories),
       dependency.findings.length > 0
         ? table(
-            ['Severity', 'Category', 'Package', 'Advisory or alert', 'Tier', 'Reachability', 'Fix', 'Patch', 'Sources'],
+            ['Severity', 'Category', 'Package', 'Advisory or alert', 'Policy', 'Fix', 'Patch', 'Sources'],
             dependency.findings.map((finding) => [
               finding.severity,
               label(finding.category),
               `${finding.package}${finding.installed ? `@${finding.installed}` : ''}`,
               finding.id,
-              finding.tier,
-              reachable(finding.reachable),
+              finding.policy || 'none',
               finding.fix,
               finding.patched
                 ? 'applied'
@@ -1457,25 +1376,6 @@ class SocketSecurityService {
           )
         : 'No known vulnerabilities in the lockfile.',
       '',
-      '### Reachability',
-      '',
-      table(
-        ['Tier', 'Meaning'],
-        Object.entries(REACHABILITY_TIERS).map(([tier, meaning]) => [tier, meaning]),
-      ),
-      '',
-      dependency.reachability.available
-        ? table(
-            ['Package', 'Version', 'Advisory', 'Result'],
-            dependency.reachability.results.map((result) => [
-              result.package,
-              result.version,
-              result.ghsaId,
-              reachable(result.reachable),
-            ]),
-          )
-        : 'Tier 1 analysis not run: `underpost socketsecurity --audit --reach` needs a Socket API token.',
-      '',
       '### Socket patches',
       '',
       table(
@@ -1484,8 +1384,6 @@ class SocketSecurityService {
           ['Scanned packages', dependency.patches.scan.scannedPackages],
           ['Packages with patches', dependency.patches.scan.packagesWithPatches],
           ['Free patches', dependency.patches.scan.freePatches],
-          ['Paid patches', dependency.patches.scan.paidPatches],
-          ['Paid tier access', yesNo(dependency.patches.scan.canAccessPaidPatches)],
           [
             'Status',
             dependency.patches.scan.message || (dependency.patches.scan.unavailable ? 'CLI not installed' : 'ok'),
@@ -1495,16 +1393,10 @@ class SocketSecurityService {
       '',
       dependency.patches.scan.available.length > 0
         ? table(
-            ['Severity', 'PURL', 'UUID', 'Tier', 'Title'],
-            dependency.patches.scan.available.map((patch) => [
-              patch.severity,
-              patch.purl,
-              patch.uuid,
-              patch.tier,
-              patch.title,
-            ]),
+            ['Severity', 'PURL', 'UUID', 'Title'],
+            dependency.patches.scan.available.map((patch) => [patch.severity, patch.purl, patch.uuid, patch.title]),
           )
-        : 'No patch available for the installed versions.',
+        : 'No free patch available for the installed versions.',
       '',
       `Manifest \`${dependency.patches.manifest.path}\`: ${dependency.patches.manifest.exists ? `${dependency.patches.manifest.patches.length} patch(es)` : 'absent'}.`,
       '',
@@ -1535,8 +1427,8 @@ class SocketSecurityService {
       '',
       dependency.deferred.length > 0
         ? table(
-            ['Severity', 'Package', 'Advisory or alert', 'Tier', 'Reason'],
-            dependency.deferred.map((entry) => [entry.severity, entry.package, entry.id, entry.tier, entry.reason]),
+            ['Severity', 'Package', 'Advisory or alert', 'Reason'],
+            dependency.deferred.map((entry) => [entry.severity, entry.package, entry.id, entry.reason]),
           )
         : 'None.',
       '',
@@ -1623,25 +1515,27 @@ class SocketSecurityService {
   }
 
   /**
-   * Whether the Socket scan failed or broke the policy, or findings at or above a severity remain
-   * in either domain.
+   * Whether the Socket scan failed or broke the policy, or a finding the policy does not accept
+   * remains at or above a severity in either domain.
    * @param {object} report - `securityReportFactory` result.
    * @param {string} [threshold]
    * @returns {boolean}
    */
   static reportViolates(report, threshold = 'high') {
-    const limit = SocketSecurityService.severityRank(threshold);
+    const { acceptedByPolicy, severityRank } = SocketSecurityService;
+    const limit = severityRank(threshold);
     const findings = [...(report.dependencySecurity?.findings ?? []), ...(report.sourceCodeRisk?.findings ?? [])];
     return (
       report.scan?.ok === false ||
       report.scan?.healthy === false ||
-      findings.some((finding) => SocketSecurityService.severityRank(finding.severity) <= limit)
+      findings.some((finding) => !acceptedByPolicy(finding) && severityRank(finding.severity) <= limit)
     );
   }
 }
 
 const {
   SEVERITIES,
+  acceptedByPolicy,
   alertCategoryFactory,
   alertFindingsFactory,
   artifactNameFactory,
@@ -1649,7 +1543,6 @@ const {
   childEnvFactory,
   deferredFactory,
   findingsFactory,
-  fix,
   ghsaIdFactory,
   locationLabelFactory,
   npmAudit,
@@ -1668,7 +1561,6 @@ const {
   patchSetup,
   publishedPackagesFactory,
   purlPackageFactory,
-  reachabilityFactory,
   reportViolates,
   runSocket,
   scan,
@@ -1690,6 +1582,7 @@ export default SocketSecurityService;
 
 export {
   SEVERITIES,
+  acceptedByPolicy,
   alertCategoryFactory,
   alertFindingsFactory,
   artifactNameFactory,
@@ -1697,7 +1590,6 @@ export {
   childEnvFactory,
   deferredFactory,
   findingsFactory,
-  fix,
   ghsaIdFactory,
   locationLabelFactory,
   npmAudit,
@@ -1716,7 +1608,6 @@ export {
   patchSetup,
   publishedPackagesFactory,
   purlPackageFactory,
-  reachabilityFactory,
   reportViolates,
   runSocket,
   scan,

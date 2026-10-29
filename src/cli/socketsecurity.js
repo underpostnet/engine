@@ -14,7 +14,6 @@ import nodePath from 'node:path';
 import { auditRuntimeDependencies } from '../server/build/package.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import SocketSecurityService, {
-  fix,
   npmAudit,
   packageAlerts,
   npmAuditFix,
@@ -46,14 +45,12 @@ class UnderpostSocketSecurity {
     /**
      * @method audit
      * @description Runs the audit and writes its reports. Dependency security: segregation,
-     * `npm audit`, the Socket patch scan and, with an API token, the Socket full scan with the
-     * local reachability analysis when asked. Source code risk: with an API token, the alerts
-     * Socket's registry analysis raises on this project's own published package, as refactoring
-     * tasks at their locations.
+     * `npm audit`, the Socket patch scan and, with an API token, the Socket full scan. Source code
+     * risk: with an API token, the alerts Socket's registry analysis raises on this project's own
+     * published package, as refactoring tasks at their locations.
      * @param {object} [params]
      * @param {string} [params.root] - Checkout to audit.
      * @param {string} [params.out] - Report directory.
-     * @param {boolean} [params.reach] - Run the reachability analysis with the scan.
      * @param {object} [params.remediation] - Actions a remediation pass took before this audit.
      * @returns {Promise<object>} The report, with the files written.
      * @memberof UnderpostSocketSecurity
@@ -61,16 +58,13 @@ class UnderpostSocketSecurity {
     async audit({
       root = process.cwd(),
       out = nodePath.join(root, SocketSecurityService.REPORT_DIRECTORY),
-      reach = false,
       remediation = {},
     } = {}) {
       const env = socketEnvFactory();
       const dependencies = await auditRuntimeDependencies({ root });
       const audit = npmAudit({ root });
       const patches = patchScan({ root, env });
-      if (reach && !env.token)
-        logger.warn('Reachability analysis needs a Socket API token', { variable: SocketSecurityService.ENV.token });
-      const scanResult = env.token ? scan({ root, env, reach }) : null;
+      const scanResult = env.token ? scan({ root, env }) : null;
       const packageJson = fs.readJsonSync(nodePath.join(root, 'package.json'));
       const ownPackages = SocketSecurityService.ownPackageNamesFactory({ packageJson });
       const ownAlerts = env.token
@@ -98,7 +92,6 @@ class UnderpostSocketSecurity {
           scan: scanResult?.report ?? null,
           scanArtifacts: scanResult?.artifacts ?? null,
           packageAlerts: ownAlerts?.artifacts ?? null,
-          reach: scanResult?.facts ?? null,
           patchScan: patches.data,
         },
       });
@@ -125,22 +118,15 @@ class UnderpostSocketSecurity {
 
     /**
      * @method remediate
-     * @description The non-breaking remediation pass: `npm audit fix`, every available Socket
-     * patch, `socket fix` without major upgrades unless allowed, and a final manifest apply.
+     * @description The non-breaking remediation pass: `npm audit fix`, every available free
+     * Socket patch, and a final manifest apply.
      * @param {object} [params]
      * @param {string} [params.root] - Checkout to remediate.
-     * @param {string} [params.out] - Directory `socket fix` writes its upgrade list into.
-     * @param {boolean} [params.majorUpdates] - Let `socket fix` apply major upgrades.
      * @returns {Promise<object>} Results by action name.
      * @memberof UnderpostSocketSecurity
      */
-    async remediate({
-      root = process.cwd(),
-      out = nodePath.join(root, SocketSecurityService.REPORT_DIRECTORY),
-      majorUpdates = false,
-    } = {}) {
+    async remediate({ root = process.cwd() } = {}) {
       const env = socketEnvFactory();
-      fs.ensureDirSync(out);
       const actions = { 'npm audit fix': npmAuditFix({ root }) };
       const { selected, skipped } = patchSelectionFactory(patchScan({ root, env }).summary.available);
       actions['socket patch get'] = [
@@ -150,14 +136,6 @@ class UnderpostSocketSecurity {
         }),
         ...skipped.map(({ uuid, purl, reason }) => ({ uuid, purl, skipped: reason })),
       ];
-      actions['socket fix'] = env.token
-        ? fix({
-            root,
-            env,
-            majorUpdates,
-            outputFile: nodePath.join(out, SocketSecurityService.REPORT_FILES.fixUpgrades),
-          })
-        : { skipped: `${SocketSecurityService.ENV.token} is not set` };
       actions['socket patch apply'] = patchApply({ root, env });
       logger.info('Remediation pass complete', actions);
       return actions;
@@ -202,11 +180,9 @@ class UnderpostSocketSecurity {
      * audit.
      * @param {object} [options]
      * @param {boolean} [options.audit] - Run the audit and write the reports.
-     * @param {boolean} [options.reach] - Include the reachability analysis in the scan.
-     * @param {boolean} [options.ci] - Audit, then fail on a policy violation or a finding at `--fail-on`.
+     * @param {boolean} [options.ci] - Audit, then fail on a policy violation or an unaccepted finding at `--fail-on`.
      * @param {string} [options.failOn] - Severity `--ci` fails at.
      * @param {boolean} [options.fix] - Run the remediation pass before the audit.
-     * @param {boolean} [options.major] - Let the remediation pass apply major upgrades.
      * @param {boolean} [options.patchScan] - Scan the installed packages for available patches.
      * @param {string} [options.patchGet] - Download and apply one patch.
      * @param {boolean} [options.patchApply] - Apply the patch manifest.
@@ -243,10 +219,8 @@ class UnderpostSocketSecurity {
         return result;
       }
 
-      const remediation = options.fix
-        ? await Underpost.socketSecurity.remediate({ root, out, majorUpdates: options.major === true })
-        : {};
-      const report = await Underpost.socketSecurity.audit({ root, out, reach: options.reach === true, remediation });
+      const remediation = options.fix ? await Underpost.socketSecurity.remediate({ root }) : {};
+      const report = await Underpost.socketSecurity.audit({ root, out, remediation });
       if (options.ci && reportViolates(report, options.failOn))
         throw new Error(
           `[socketsecurity] policy gate failed (fail-on ${options.failOn || 'high'}); ` +

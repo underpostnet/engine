@@ -6,6 +6,7 @@ import os from 'node:os';
 import nodePath from 'node:path';
 import SocketSecurityService, {
   SEVERITIES,
+  acceptedByPolicy,
   alertCategoryFactory,
   alertFindingsFactory,
   publishedPackagesFactory,
@@ -28,7 +29,6 @@ import SocketSecurityService, {
   patchSelectionFactory,
   patchSetup,
   purlPackageFactory,
-  reachabilityFactory,
   reportViolates,
   runSocket,
   scan,
@@ -100,11 +100,11 @@ const npmAuditFixture = {
 const patchScanFixture = {
   canAccessPaidPatches: false,
   freePatches: 2,
-  paidPatches: 0,
+  paidPatches: 1,
   scannedPackages: 40,
   packagesWithPatches: 2,
   status: 'success',
-  totalPatches: 2,
+  totalPatches: 3,
   packages: [
     {
       purl: 'pkg:npm/semver@7.3.5',
@@ -117,6 +117,15 @@ const patchScanFixture = {
           tier: 'free',
           title: 'semver vulnerable to Regular Expression Denial of Service',
           uuid: 'bef9d52f-74ea-4eb0-9992-86e981170794',
+        },
+        {
+          cveIds: ['CVE-2022-25883'],
+          ghsaIds: ['GHSA-c2qf-rxjj-qqgw'],
+          purl: 'pkg:npm/semver@7.3.5',
+          severity: 'HIGH',
+          tier: 'paid',
+          title: 'semver vulnerable to Regular Expression Denial of Service',
+          uuid: 'paid-semver-patch',
         },
       ],
     },
@@ -162,25 +171,6 @@ const scanReportFixture = {
       },
     },
   },
-};
-
-const factsFixture = {
-  tier1ReachabilityScanId: 'reach-1',
-  components: [
-    {
-      name: 'axios',
-      version: '1.7.3',
-      reachability: [{ ghsa_id: 'GHSA-8hc4-vh64-cxmj', reachability: [{ type: 'reachable', workspacePath: '.' }] }],
-    },
-    {
-      name: 'minimist',
-      version: '1.2.5',
-      reachability: [
-        { ghsa_id: 'GHSA-xvch-5gv4-984h', reachability: [{ type: 'unreachable', workspacePath: '.' }] },
-        { ghsa_id: 'GHSA-vh95-rmgr-6w4m', reachability: [{ type: 'error', workspacePath: '.' }] },
-      ],
-    },
-  ],
 };
 
 const manifestFixture = {
@@ -350,7 +340,7 @@ describe('npm audit summary', () => {
   });
 });
 
-describe('Socket scan and reachability', () => {
+describe('Socket scan', () => {
   it('flattens the folded policy report into one row per alert', () => {
     const summary = scanReportSummaryFactory(scanReportFixture);
     expect(summary).to.include({
@@ -363,40 +353,21 @@ describe('Socket scan and reachability', () => {
     expect(scanReportSummaryFactory(null)).to.include({ healthy: null, url: '' });
   });
 
-  it('reads the reachability facts into reachable, unreachable and undetermined results', () => {
-    const reachability = reachabilityFactory(factsFixture);
-    expect(reachability).to.include({ available: true, analyzed: 2 });
-    expect(reachability.counts).to.deep.equal({ reachable: 1, unreachable: 1, undetermined: 1 });
-    expect(reachability.results.map(({ reachable }) => reachable)).to.deep.equal([true, false, null]);
-    expect(reachabilityFactory(null)).to.include({ available: false, analyzed: 0 });
-  });
-
-  it('creates the scan, reads its artifacts, and consumes the facts file the reachability scan leaves behind', () => {
-    const root = tempRoot();
-    const factsPath = nodePath.join(root, SocketSecurityService.FACTS_PATH);
+  it('creates the scan with free-plan flags only, then reads its artifacts', () => {
     const results = [
       { code: 1, stdout: JSON.stringify({ ok: true, data: scanReportFixture }) },
       { code: 0, stdout: JSON.stringify({ ok: true, data: artifactsFixture }) },
     ];
     const calls = [];
-    // A leftover facts file would be taken as pre-generated input, so it must be gone by the time the CLI runs.
-    fs.writeJsonSync(factsPath, { components: [] });
     const execute = (command, options) => {
-      calls.push({ command, options, staleFacts: fs.existsSync(factsPath) });
-      if (calls.length === 1) fs.writeJsonSync(factsPath, factsFixture);
+      calls.push({ command, options });
       return results[calls.length - 1];
     };
-    const result = scan({
-      root,
-      execute,
-      env: { token: 'sktsec_x', orgSlug: 'acme' },
-      reach: true,
-      binary: '/bin/socket',
-    });
-    expect(calls[0].staleFacts).to.equal(false);
+    const result = scan({ root: '/repo', execute, env: { token: 'sktsec_x', orgSlug: 'acme' }, binary: '/bin/socket' });
     expect(calls[0].command).to.include("'--report-level' 'defer'");
-    expect(calls[0].command).to.include("'--reach' '--reach-retain-facts-file'");
     expect(calls[0].command).to.include("'--org' 'acme' '.'");
+    // Tier 1 reachability needs an enterprise plan.
+    expect(calls[0].command).to.not.include('--reach');
     expect(calls[0].options.silent).to.equal(false);
     expect(calls[1].command).to.equal(
       `'/bin/socket' 'scan' 'view' '${scanReportFixture.scanId}' '--json' '--no-banner' '--org' 'acme'`,
@@ -404,10 +375,6 @@ describe('Socket scan and reachability', () => {
     expect(result).to.include({ ok: true });
     expect(result.summary.healthy).to.equal(false);
     expect(result.artifacts).to.deep.equal(artifactsFixture);
-    expect(result.reachability.counts.reachable).to.equal(1);
-    expect(result.facts).to.deep.equal(factsFixture);
-    expect(fs.existsSync(factsPath)).to.equal(false);
-    fs.removeSync(root);
   });
 
   it('reports a scan whose artifacts cannot be read as failed', () => {
@@ -632,9 +599,10 @@ describe('Alert domains', () => {
 });
 
 describe('Socket patches', () => {
-  it('lists the available patches most severe first', () => {
+  it('lists the available free patches most severe first', () => {
     const summary = patchScanSummaryFactory(patchScanFixture);
-    expect(summary).to.include({ scannedPackages: 40, freePatches: 2, canAccessPaidPatches: false });
+    expect(summary).to.include({ scannedPackages: 40, freePatches: 2 });
+    // A paid patch needs a paid plan, so it never reaches the remediation pass.
     expect(summary.available.map(({ purl, severity }) => [purl, severity])).to.deep.equal([
       ['pkg:npm/axios@1.7.3', 'high'],
       ['pkg:npm/semver@7.3.5', 'moderate'],
@@ -653,7 +621,10 @@ describe('Socket patches', () => {
             { purl: 'pkg:npm/axios@1.7.3', uuid: 'older-high', severity: 'HIGH', tier: 'free' },
           ],
         },
-        { purl: 'pkg:npm/ws@8.16.0', patches: [{ purl: 'pkg:npm/ws@8.16.0', uuid: 'ws-1', severity: 'HIGH' }] },
+        {
+          purl: 'pkg:npm/ws@8.16.0',
+          patches: [{ purl: 'pkg:npm/ws@8.16.0', uuid: 'ws-1', severity: 'HIGH', tier: 'free' }],
+        },
       ],
     }).available;
     const { selected, skipped } = patchSelectionFactory(available);
@@ -761,13 +732,36 @@ describe('Alert policy', () => {
     });
     expect(dependency[0]).to.include({ type: 'gptAnomaly', severity: 'moderate', policy: 'ignore' });
   });
+
+  it('never gates or defers a finding the organization policy ignores or monitors', () => {
+    const finding = (policy) => ({
+      package: 'array-flatten',
+      id: 'socketUpgradeAvailable',
+      severity: 'high',
+      policy,
+      fix: 'none',
+      patched: false,
+      patches: [],
+    });
+    const report = (policy) => ({
+      scan: { ok: true, healthy: true },
+      dependencySecurity: { findings: [finding(policy)] },
+    });
+    expect(['ignore', 'monitor'].map((policy) => acceptedByPolicy(finding(policy)))).to.deep.equal([true, true]);
+    expect(reportViolates(report('ignore'))).to.equal(false);
+    expect(reportViolates(report('monitor'))).to.equal(false);
+    expect(deferredFactory([finding('ignore'), finding('monitor')])).to.deep.equal([]);
+    expect(reportViolates(report('warn'))).to.equal(true);
+    // An npm audit advisory carries no policy, so its severity decides.
+    expect(reportViolates(report(undefined))).to.equal(true);
+    expect(deferredFactory([finding('warn')])).to.have.length(1);
+  });
 });
 
 describe('Security report', () => {
   const npmAudit = npmAuditSummaryFactory(npmAuditFixture);
   const patches = patchScanSummaryFactory(patchScanFixture);
   const scanSummary = scanReportSummaryFactory(scanReportFixture);
-  const reachability = reachabilityFactory(factsFixture);
   const dependencyAlerts = () =>
     alertFindingsFactory({ artifacts: artifactsFixture, policies: scanSummary.alerts, ownPackages: OWN_PACKAGES })
       .dependency;
@@ -782,7 +776,7 @@ describe('Security report', () => {
     expect(purlPackageFactory('pkg:pypi/requests@2.0.0')).to.deep.equal({ name: '', version: '' });
   });
 
-  it('merges the dependency sources into one finding per advisory or alert and assigns reachability tiers', () => {
+  it('merges the dependency sources into one finding per advisory or alert', () => {
     const root = tempRoot();
     fs.outputJsonSync(nodePath.join(root, SocketSecurityService.MANIFEST_PATH), manifestFixture);
     const manifest = patchManifestFactory(root);
@@ -792,15 +786,12 @@ describe('Security report', () => {
       npmAudit,
       patchScan: patches,
       alerts: dependencyAlerts(),
-      reachability,
       manifest,
     });
     const axios = findings.find(({ package: name, id }) => name === 'axios' && id === 'GHSA-8hc4-vh64-cxmj');
     expect(axios).to.include({
       category: 'advisories',
       severity: 'high',
-      tier: 1,
-      reachable: true,
       fix: 'update',
       installed: '1.7.3',
       patched: true,
@@ -809,21 +800,20 @@ describe('Security report', () => {
     expect(axios.patches).to.deep.equal(['211d430d-caac-46a9-9303-eb257430429c']);
 
     const minimist = findings.find(({ package: name }) => name === 'minimist');
-    expect(minimist).to.include({ tier: 1, reachable: false, fix: 'tool@9.0.0 (major)', patched: false });
+    expect(minimist).to.include({ fix: 'tool@9.0.0 (major)', patched: false });
 
     const semver = findings.find(({ package: name }) => name === 'semver');
-    expect(semver).to.include({ tier: 3, reachable: null, fix: 'none', patched: false });
+    expect(semver).to.include({ fix: 'none', patched: false });
 
     const leftPad = findings.find(({ package: name }) => name === 'left-pad');
     expect(leftPad).to.include({
-      tier: 2,
       severity: 'high',
       policy: 'error',
       id: 'installScripts',
       category: 'installScripts',
     });
     const network = findings.find(({ id }) => id === 'networkAccess');
-    expect(network).to.include({ category: 'network', severity: 'moderate', files: 2, tier: 2 });
+    expect(network).to.include({ category: 'network', severity: 'moderate', files: 2 });
     // The own package never reaches the dependency domain.
     expect(findings.map(({ package: name }) => name)).to.not.include.members(OWN_PACKAGES);
     expect(findings[0].severity).to.equal('high');
@@ -831,7 +821,7 @@ describe('Security report', () => {
   });
 
   it('defers what no non-breaking action resolves, with the reason', () => {
-    const findings = findingsFactory({ npmAudit, patchScan: patches, alerts: dependencyAlerts(), reachability });
+    const findings = findingsFactory({ npmAudit, patchScan: patches, alerts: dependencyAlerts() });
     const deferred = deferredFactory(findings);
     // A scan alert carries its alert type, not an advisory id, so it cannot merge with an advisory.
     expect(deferred.map(({ package: name, id }) => `${name}#${id}`)).to.deep.equal([
@@ -872,8 +862,6 @@ describe('Security report', () => {
         summary: scanSummary,
         artifacts: scanArtifacts,
         report: scanReportFixture,
-        facts: factsFixture,
-        reachability,
       },
       packageAlerts: {
         ok: true,
@@ -887,7 +875,6 @@ describe('Security report', () => {
       remediation: {
         'npm audit fix': { ok: true, code: 0 },
         'socket patch get': [{ uuid: 'u1', purl: 'pkg:npm/axios@1.7.3', ok: true, message: '' }],
-        'socket fix': { skipped: 'SOCKET_CLI_API_TOKEN is not set' },
         'socket patch apply': { ok: true, status: 'success', patchesApplied: 1, alreadyPatched: 0, failed: 0 },
       },
       env: { token: 'sktsec_x', orgSlug: 'acme', acceptRisks: '' },
@@ -928,16 +915,13 @@ describe('Security report', () => {
       `sbom/${scanReportFixture.scanId}`,
       '## Dependency Security',
       '| Install scripts and native code | 1 |',
-      '| high | Install scripts and native code | left-pad@1.3.0 | installScripts |',
+      '| high | Install scripts and native code | left-pad@1.3.0 | installScripts | error |',
       '### Segregation',
       '| vitest | devDependencies | src/cli/test.js |',
       '### npm audit',
-      '### Reachability',
-      '| axios | 1.7.3 | GHSA-8hc4-vh64-cxmj | reachable |',
       '### Socket patches',
       '### Remediation',
       '| socket patch get | pkg:npm/axios@1.7.3 | ok |',
-      '| socket fix |  | skipped: SOCKET_CLI_API_TOKEN is not set |',
       '### Deferred risks',
       '## Source Code Risk Analysis',
       '| Own packages | probe, @acme/probe |',
@@ -959,7 +943,6 @@ describe('Security report', () => {
         scan: scanReportFixture,
         scanArtifacts: scanArtifacts,
         packageAlerts: artifactsFixture.filter(own),
-        reach: factsFixture,
         patchScan: null,
       },
     });
@@ -970,7 +953,6 @@ describe('Security report', () => {
       'socket-scan.json',
       'socket-scan-artifacts.json',
       'socket-package-alerts.json',
-      'socket-reach.json',
     ]);
     const written = fs.readJsonSync(nodePath.join(directory, 'security-report.json'));
     expect(Object.keys(written)).to.include.members(['scan', 'dependencySecurity', 'sourceCodeRisk', 'counts']);
@@ -988,7 +970,6 @@ describe('Security report', () => {
       manifest: { path: '.socket/manifest.json', exists: false, patches: [] },
     });
     expect(report.scan).to.deep.equal({ skipped: 'SOCKET_CLI_API_TOKEN is not set' });
-    expect(report.dependencySecurity.reachability.available).to.equal(false);
     expect(report.sourceCodeRisk).to.include({ status: 'skipped: SOCKET_CLI_API_TOKEN is not set' });
     expect(report.sourceCodeRisk.findings).to.deep.equal([]);
     const markdown = securityReportMarkdownFactory(report);
@@ -1010,7 +991,6 @@ describe('Security report', () => {
         unavailable: false,
         summary: scanSummary,
         artifacts: null,
-        reachability: reachabilityFactory(null),
       },
       packageAlerts: {
         ok: false,
@@ -1037,5 +1017,97 @@ describe('Security report', () => {
     expect(unpublished.sourceCodeRisk.status).to.equal('unavailable: no own package is published to the registry');
     expect(report.scan.artifacts).to.equal(0);
     expect(reportViolates(report, 'critical')).to.equal(true);
+  });
+});
+
+describe('Socket command wrappers', () => {
+  it('finds the project CLI first, then the PATH, and reports none when neither has it', () => {
+    const root = tempRoot();
+    const none = executorFactory({ code: 1, stdout: '' });
+    expect(SocketSecurityService.socketBinaryFactory({ root, execute: none.execute })).to.equal('');
+    expect(none.calls[0].command).to.equal('command -v socket');
+
+    const onPath = executorFactory({ code: 0, stdout: '/usr/local/bin/socket\n/usr/bin/socket\n' });
+    expect(SocketSecurityService.socketBinaryFactory({ root, execute: onPath.execute })).to.equal(
+      '/usr/local/bin/socket',
+    );
+
+    const local = nodePath.join(root, 'node_modules', '.bin', 'socket');
+    fs.outputFileSync(local, '');
+    expect(SocketSecurityService.socketBinaryFactory({ root, execute: none.execute })).to.equal(local);
+    fs.removeSync(root);
+  });
+
+  it('reads the CLI version from its last output line, and none without a CLI', () => {
+    const root = tempRoot();
+    expect(SocketSecurityService.socketVersion({ root, execute: executorFactory({ stdout: '' }).execute })).to.equal(
+      '',
+    );
+    fs.outputFileSync(nodePath.join(root, 'node_modules', '.bin', 'socket'), '');
+    const { calls, execute } = executorFactory({ code: 0, stdout: 'banner\n1.1.66\n' });
+    expect(SocketSecurityService.socketVersion({ root, execute })).to.equal('1.1.66');
+    expect(calls[0].command).to.match(/'--version' '--no-banner'$/);
+    fs.removeSync(root);
+  });
+
+  it('runs npm audit and npm audit fix in the checkout, and reads a remaining vulnerability as no failure', () => {
+    const audit = executorFactory({ code: 1, stdout: `found\n${JSON.stringify(npmAuditFixture)}` });
+    const result = SocketSecurityService.npmAudit({ root: '/repo', execute: audit.execute });
+    expect(audit.calls[0]).to.deep.include({ command: 'npm audit --json' });
+    expect(audit.calls[0].options.cwd).to.equal('/repo');
+    expect(result.summary.counts).to.include({ high: 1, moderate: 1 });
+    expect(
+      SocketSecurityService.npmAudit({ execute: executorFactory({ stdout: 'no json' }).execute }).raw,
+    ).to.deep.equal({});
+
+    expect(SocketSecurityService.npmAuditFix({ execute: executorFactory({ code: 0 }).execute })).to.deep.equal({
+      ok: true,
+      code: 0,
+      message: '',
+    });
+    expect(SocketSecurityService.npmAuditFix({ execute: executorFactory({ code: 1 }).execute })).to.include({
+      ok: false,
+      message: 'vulnerabilities remain after the compatible updates',
+    });
+  });
+
+  it('records one patch through the CLI and refuses a call without an identifier', () => {
+    expect(() => SocketSecurityService.patchGet({})).to.throw(/requires a patch UUID, CVE, GHSA or PURL/);
+    const { calls, execute } = executorFactory({ code: 0, stdout: '{"status":"success","patched":1}' });
+    const result = SocketSecurityService.patchGet({
+      identifier: 'GHSA-8hc4-vh64-cxmj',
+      root: '/repo',
+      execute,
+      env: { orgSlug: 'acme' },
+      binary: '/bin/socket',
+    });
+    expect(calls[0].command).to.equal(
+      "'/bin/socket' 'patch' 'get' 'GHSA-8hc4-vh64-cxmj' '--yes' '--json' '--org' 'acme'",
+    );
+    expect(result).to.deep.equal({ ok: true, message: '', data: { status: 'success', patched: 1 } });
+  });
+
+  it('scans one repository branch when asked', () => {
+    const { calls, execute } = executorFactory({ code: 0, stdout: JSON.stringify({ ok: true, data: {} }) });
+    SocketSecurityService.scan({ execute, env: {}, binary: '/bin/socket', repo: 'engine', branch: 'main' });
+    expect(calls[0].command).to.include("'--repo' 'engine' '--branch' 'main' '.'");
+  });
+
+  it('keeps the most severe alert of a package version and counts its files', () => {
+    const { dependency } = alertFindingsFactory({
+      artifacts: [
+        {
+          name: 'left-pad',
+          version: '1.3.0',
+          alerts: [
+            { type: 'networkAccess', severity: 'high', file: 'a.js' },
+            { type: 'networkAccess', severity: 'low', file: 'b.js' },
+            { type: 'networkAccess', severity: 'critical' },
+          ],
+        },
+      ],
+    });
+    expect(dependency).to.have.length(1);
+    expect(dependency[0]).to.include({ severity: 'critical', files: 2 });
   });
 });
