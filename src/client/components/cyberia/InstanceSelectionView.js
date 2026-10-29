@@ -98,21 +98,6 @@ const escapeHtml = (value = '') =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 
-const populationLabel = (instance) => {
-  if (instance.players == null) return '';
-  if (instance.capacity == null)
-    return html`<div class="isv-pop"><span class="isv-pop-text">${instance.players} players</span></div>`;
-  const pct = Math.min(100, Math.round((instance.players / instance.capacity) * 100));
-  return html`
-    <div class="isv-pop" title="${instance.players} / ${instance.capacity} players">
-      <div class="isv-pop-bar">
-        <span class="isv-pop-fill isv-tone-${statusMeta(instance.status).tone}" style="width:${pct}%"></span>
-      </div>
-      <span class="isv-pop-text">${instance.players}/${instance.capacity}</span>
-    </div>
-  `;
-};
-
 const instanceCard = (instance) => {
   const meta = statusMeta(instance.status);
   const tagsHtml = instance.tags
@@ -137,7 +122,7 @@ const instanceCard = (instance) => {
       <div class="isv-card-body">
         <h3 class="isv-card-name" title="${escapeHtml(instance.name)}">${escapeHtml(instance.name)}</h3>
         <p class="isv-card-desc">${escapeHtml(instance.description)}</p>
-        ${true ? '' : populationLabel(instance)} ${tagsHtml ? html`<div class="isv-tags">${tagsHtml}</div>` : ''}
+        ${tagsHtml ? html`<div class="isv-tags">${tagsHtml}</div>` : ''}
       </div>
       <div class="isv-card-foot">
         <button
@@ -476,7 +461,7 @@ class InstanceSelectionView {
             background: currentColor;
             box-shadow: 0 0 7px currentColor;
           }
-          .isv-tone-ok:not(.isv-play):not(.isv-pop-fill) .isv-status-dot,
+          .isv-tone-ok:not(.isv-play) .isv-status-dot,
           .isv-status.isv-tone-ok .isv-status-dot {
             animation: isvPulse 1.5s steps(2, end) infinite;
           }
@@ -525,29 +510,6 @@ class InstanceSelectionView {
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-          }
-          .isv-pop {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-          }
-          .isv-pop-bar {
-            flex: 1;
-            height: 8px;
-            background: var(--isv-panel-2);
-            border: 1px solid var(--isv-border);
-            overflow: hidden;
-          }
-          .isv-pop-fill {
-            display: block;
-            height: 100%;
-          }
-          .isv-pop-text {
-            font-size: 0.76rem;
-            color: var(--isv-dim);
-            font-variant-numeric: tabular-nums;
-            white-space: nowrap;
           }
           .isv-tags {
             display: flex;
@@ -618,12 +580,6 @@ class InstanceSelectionView {
           }
           .isv-tone-muted {
             color: var(--isv-muted);
-          }
-          .isv-pop-fill.isv-tone-ok {
-            background: var(--isv-ok);
-          }
-          .isv-pop-fill.isv-tone-err {
-            background: var(--isv-err);
           }
 
           .isv-empty {

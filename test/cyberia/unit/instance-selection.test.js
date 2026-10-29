@@ -1,9 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const ui = vi.hoisted(() => ({ nodes: new Map(), htmls: vi.fn(), pager: vi.fn(), get: vi.fn() }));
-vi.mock('../../../src/client/components/core/Css.js', () => ({ ThemeEvents: {}, darkTheme: false }));
+const ui = vi.hoisted(() => ({
+  nodes: new Map(),
+  htmls: vi.fn(),
+  pager: vi.fn(),
+  get: vi.fn(),
+  push: vi.fn(),
+  load: vi.fn(),
+  search: vi.fn(),
+  launch: vi.fn(),
+  themes: {},
+  dark: false,
+}));
+vi.mock('../../../src/client/components/core/Css.js', () => ({
+  ThemeEvents: ui.themes,
+  get darkTheme() {
+    return ui.dark;
+  },
+}));
 vi.mock('../../../src/client/components/core/Translate.js', () => ({ Translate: { instance: (key) => key } }));
-vi.mock('../../../src/client/components/core/NotificationManager.js', () => ({ NotificationManager: {} }));
+vi.mock('../../../src/client/components/core/NotificationManager.js', () => ({
+  NotificationManager: { Push: ui.push },
+}));
 vi.mock('../../../src/client/components/core/VanillaJs.js', () => ({
   htmls: ui.htmls,
   s: (selector) => ui.nodes.get(selector),
@@ -11,7 +29,7 @@ vi.mock('../../../src/client/components/core/VanillaJs.js', () => ({
 }));
 vi.mock('../../../src/client/components/core/Router.js', () => ({ getProxyPath: () => '/' }));
 vi.mock('../../../src/client/components/core/ListPager.js', () => ({
-  ListPager: { instance: ui.pager, load: vi.fn(), search: vi.fn() },
+  ListPager: { instance: ui.pager, load: ui.load, search: ui.search },
 }));
 vi.mock('../../../src/client/services/core/core.service.js', () => ({ getApiBaseUrl: (url) => url }));
 vi.mock('../../../src/client/services/cyberia-instance/cyberia-instance.service.js', () => ({
@@ -19,7 +37,7 @@ vi.mock('../../../src/client/services/cyberia-instance/cyberia-instance.service.
 }));
 vi.mock('../../../src/client/components/cyberia/GameLaunchCyberia.js', () => ({
   gameServerUrl: (code) => `https://server.test/${code}`,
-  launchWorld: vi.fn(),
+  launchWorld: ui.launch,
 }));
 
 const {
@@ -44,6 +62,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('html', (parts, ...values) => parts.reduce((out, part, i) => out + part + (values[i] ?? ''), ''));
   ui.nodes.clear();
+  ui.dark = false;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -150,5 +169,133 @@ describe('world population source', () => {
     expect(filters).toContain('data-filter="online"');
     expect(card).toContain('data-status="online"');
     expect(card).not.toContain('disabled');
+  });
+});
+
+describe('world selection view', () => {
+  const htmlOf = (selector) => ui.htmls.mock.calls.filter(([target]) => target === selector).at(-1)?.[1] ?? '';
+  const world = (values = {}) => ({ ...normalizeInstance({ code: 'forest', name: 'Forest' }), ...values });
+
+  const mount = async (options) => {
+    let click;
+    ui.nodes.set('.isv-grid', {});
+    ui.nodes.set('.isv-filters', {});
+    ui.nodes.set('.style-instance-selection', {});
+    ui.nodes.set('.isv-search input', { value: '' });
+    ui.nodes.set('.instance-selection', { addEventListener: (type, listener) => (click = listener) });
+    const markup = await InstanceSelectionView.render(options);
+    vi.runAllTimers();
+    const { fetch, render } = ui.pager.mock.calls.at(-1)[0];
+    const target = (matches) => ({ closest: (selector) => matches[selector] ?? null });
+    return { markup, fetch, render, click: (matches) => click({ target: target(matches) }) };
+  };
+
+  it('styles the view for the light and the dark theme, and skips a view that is not mounted', async () => {
+    await mount();
+    expect(htmlOf('.style-instance-selection')).toContain('--isv-bg: #f1f3f5');
+    ui.dark = true;
+    ui.themes['instance-selection']();
+    expect(htmlOf('.style-instance-selection')).toContain('--isv-bg: #161616');
+    ui.nodes.delete('.style-instance-selection');
+    const calls = ui.htmls.mock.calls.length;
+    ui.themes['instance-selection']();
+    expect(ui.htmls.mock.calls.length).toBe(calls);
+  });
+
+  it('wires the search box and loads the first page once mounted', async () => {
+    const { markup } = await mount();
+    expect(markup).toContain('instance-selection');
+    expect(ui.search).toHaveBeenCalledWith('instance-selection', ui.nodes.get('.isv-search input'));
+    expect(ui.load).toHaveBeenCalledWith('instance-selection', 1);
+  });
+
+  it('launches a playable world and explains why another cannot start', async () => {
+    const { render, click } = await mount();
+    render([world({ id: 'a', code: 'forest' }), world({ id: 'b', code: 'cave', status: 'full', playable: false })]);
+    click({ '.isv-play:not(.isv-play-disabled)': { dataset: { instanceId: 'a' } } });
+    expect(ui.launch).toHaveBeenCalledWith('forest');
+    click({ '.isv-play:not(.isv-play-disabled)': { dataset: { instanceId: 'b' } } });
+    expect(ui.push).toHaveBeenCalledWith({ html: 'Forest is Full.', status: 'warning' });
+    // A card no longer in the page launches nothing.
+    click({ '.isv-play:not(.isv-play-disabled)': { dataset: { instanceId: 'gone' } } });
+    expect(ui.launch).toHaveBeenCalledOnce();
+  });
+
+  it('filters by status, reloads on refresh or retry, and ignores any other click', async () => {
+    const { render, click } = await mount();
+    render([world({ id: 'a' }), world({ id: 'b', status: 'maintenance', playable: false })]);
+    expect(htmlOf('.isv-filters')).toContain('data-filter="maintenance"');
+
+    click({ '.isv-chip': { dataset: { filter: 'maintenance' } } });
+    expect(htmlOf('.isv-grid')).toContain('data-status="maintenance"');
+    expect(htmlOf('.isv-grid')).not.toContain('data-status="online"');
+    expect(htmlOf('.isv-filters')).toContain('isv-chip-active');
+
+    click({ '.isv-chip': { dataset: { filter: 'full' } } });
+    expect(htmlOf('.isv-grid')).toContain('No worlds match your filters');
+
+    ui.load.mockClear();
+    click({ '.isv-refresh': {} });
+    click({ '.isv-retry': {} });
+    click({});
+    expect(ui.load.mock.calls).toEqual([['instance-selection'], ['instance-selection']]);
+  });
+
+  it('shows the empty registry, and an empty search, apart', async () => {
+    const { render } = await mount();
+    render([]);
+    expect(htmlOf('.isv-grid')).toContain('No worlds available');
+    ui.nodes.get('.isv-search input').value = 'zz';
+    render([]);
+    expect(htmlOf('.isv-grid')).toContain('No worlds match your filters');
+  });
+
+  it('fetches a page with the search text and shows the registry error', async () => {
+    const fetchInstances = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [], total: 0 })
+      .mockRejectedValueOnce(new Error('down'));
+    const { fetch } = await mount({ fetchInstances, liveStatus: false });
+    ui.nodes.get('.isv-search input').value = ' forest ';
+    expect(await fetch({ page: 2, limit: 12 })).toEqual({ data: [], total: 0 });
+    expect(fetchInstances).toHaveBeenCalledWith({ liveStatus: false, page: 2, limit: 12, search: 'forest' });
+    expect(await fetch({ page: 1, limit: 12 })).toBeNull();
+    expect(htmlOf('.isv-grid')).toContain('Could not reach the world registry');
+    expect(htmlOf('.isv-grid')).toContain('down');
+  });
+
+  it('renders at most three escaped tags and the call to action of a world that cannot start', async () => {
+    const { render } = await mount();
+    render([
+      world({ id: 'a', tags: ['pvp', '<b>', 'x', 'y'] }),
+      world({ id: 'b', code: '', status: 'coming-soon', playable: false }),
+    ]);
+    const grid = htmlOf('.isv-grid');
+    expect(grid).toContain('&lt;b&gt;');
+    expect(grid).not.toContain('>y<');
+    expect(grid).toContain('Soon');
+    expect(grid).toContain('disabled');
+  });
+});
+
+describe('world registry source', () => {
+  it('searches by name, skips the live status on request and reports a failed read', async () => {
+    ui.get.mockResolvedValueOnce({ status: 'success', data: { data: [{ name: 'Nameless' }], total: 1 } });
+    const { data } = await defaultInstanceProvider({ liveStatus: false, search: 'name', page: 2, limit: 5 });
+    expect(ui.get.mock.calls[0][0]).toMatchObject({ page: 2, limit: 5, filterModel: { name: { filter: 'name' } } });
+    expect(data[0]).toMatchObject({ name: 'Nameless', thumbnailUrl: '/assets/ui-icons/world-default-forest-city.png' });
+
+    ui.get.mockResolvedValueOnce({ status: 'error', message: 'denied' });
+    await expect(defaultInstanceProvider()).rejects.toThrow('denied');
+    ui.get.mockResolvedValueOnce(null);
+    await expect(defaultInstanceProvider()).rejects.toThrow('Could not load instances');
+  });
+
+  it('names an instance without a code or a name, and keeps only real tags', () => {
+    expect(normalizeInstance({ tags: ['a', '', null, 'b'] })).toMatchObject({
+      name: 'Unknown Instance',
+      tags: ['a', 'b'],
+    });
+    expect(normalizeInstance({ code: 'c', tags: 'not-a-list' }).tags).toEqual([]);
   });
 });
