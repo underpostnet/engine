@@ -461,3 +461,47 @@ describe('Shape Generator Module Tests', () => {
     });
   });
 });
+
+describe('Polygon, band and filled shapes', () => {
+  it('traces a regular polygon, a rectangle and a thick parabola inside the unit box', () => {
+    for (const [key, params] of [
+      ['regular-polygon', { sides: 3 }],
+      ['regular-polygon', { sides: 6, r: 2 }],
+      ['regular-polygon', { sides: 1 }],
+      ['rectangle', {}],
+      ['rectangle', { width: 3, height: 1 }],
+      ['thick-parabola', {}],
+      ['thick-parabola', { a: 1, rangeX: 1, thickness: 0.5 }],
+    ]) {
+      const { points } = generateShape(key, { count: 64, ...params });
+      expect(points, key).to.have.length(64);
+      for (const { x, y } of points) {
+        expect(x, key).to.be.within(0, 1);
+        expect(y, key).to.be.within(0, 1);
+      }
+    }
+  });
+
+  it('fills a closed silhouette on the grid and leaves an open curve as its contour', () => {
+    const outline = generateShape('circle', { intCoords: 16 });
+    const solid = generateShape('circle', { intCoords: [16, 16], fill: true });
+    expect(solid.points.length).to.be.greaterThan(outline.points.length);
+    // The centre of a filled circle is set, and no cell repeats.
+    expect(solid.points.some(({ x, y }) => x === 8 && y === 8)).to.equal(true);
+    expect(new Set(solid.points.map(({ x, y }) => `${x},${y}`)).size).to.equal(solid.points.length);
+
+    const open = generateShape('parabola', { intCoords: 16, closed: false, fill: true });
+    expect(open.points.length).to.be.lessThan(solid.points.length);
+  });
+
+  it('refuses a grid under 2×2', () => {
+    expect(() => generateShape('circle', { intCoords: [1, 4] })).to.throw(/at least 2×2/);
+  });
+
+  it('resamples a curve that never moves to copies of its one point', () => {
+    registerShape('fixed-point', () => ({ x: 0.25, y: 0.75 }));
+    const { points } = generateShape('fixed-point', { count: 5, normalize: false });
+    expect(points).to.have.length(5);
+    expect(new Set(points.map(({ x, y }) => `${x},${y}`)).size).to.equal(1);
+  });
+});

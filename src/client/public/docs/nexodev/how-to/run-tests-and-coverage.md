@@ -403,6 +403,25 @@ only the merge, because a batch holds partial coverage. The runner deletes
 `lcov.info` before the first batch, so Coveralls always reads the merge of the
 last run.
 
+### Floor, target and the Coveralls status
+
+`UNDERPOST_TESTING` (`src/server/build/testing.js`) holds two numbers:
+
+| Value               | Percent | Effect                                                  |
+| ------------------- | ------- | ------------------------------------------------------- |
+| `coverageThreshold` | 80      | A gated run fails below it, on line coverage.           |
+| `coverageTarget`    | 90      | The aim. It never fails a run; it ends the yellow band. |
+
+The reports colour coverage below 80% red, from 80% to 90% yellow, and from 90% green.
+
+Coveralls computes its own percentage: covered lines and covered branches over all
+lines and branches, so it reads lower than the line coverage. Its commit status
+`coverage/coveralls` comes from the repository settings on coveralls.io, not from a
+workflow. Set these in each repository that reports to Coveralls:
+
+- **Coverage threshold for failure**: `80`. A build below 80% fails.
+- **Coverage decrease threshold for failure**: `100`. A drop above 80% does not fail.
+
 ### The client docs block
 
 A client declares its whole documentation surface in `conf.client.json`, under

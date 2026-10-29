@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import nodePath from 'node:path';
@@ -22,6 +22,8 @@ import {
   verifyBackup,
   writeBackup,
 } from '../../../src/server/storage/backup.js';
+import { BackUp } from '../../../src/server/storage/backup.js';
+import Underpost from '../../../src/index.js';
 
 const keyMaterial = backupKeyMaterial(crypto.randomBytes(32).toString('hex'));
 const bytesOf = (size, seed = 1) => Buffer.from(Array.from({ length: size }, (_, index) => (index * seed) % 251));
@@ -254,5 +256,50 @@ describe('backup metrics', () => {
     expect(fs.readFileSync(nodePath.join(root, 'underpost_backup_dd_test_dr_verify.prom'), 'utf8')).toContain(
       'underpost_backup_last_verification_ok{deploy_id="dd-test",profile="dr"} 0',
     );
+  });
+});
+
+describe('scheduled backup job', () => {
+  const cwd = process.cwd();
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-backup-job-'));
+    process.chdir(root);
+    vi.spyOn(Underpost.host, 'read').mockReturnValue({});
+  });
+
+  afterEach(() => {
+    process.chdir(cwd);
+    vi.restoreAllMocks();
+    fs.removeSync(root);
+  });
+
+  it('exports each deployment over SSH on the host, and keeps going after one fails', async () => {
+    const runner = vi.spyOn(Underpost.ssh, 'sshRemoteRunner').mockImplementation(async (command) => {
+      if (command.includes('dd-b')) throw new Error('unreachable');
+    });
+    await BackUp.callback('dd-a, dd-b,', { kind: true });
+    expect(runner.mock.calls.map(([command]) => command)).toEqual([
+      'node bin db dd-a --export --prune --kind',
+      'node bin db dd-b --export --prune --kind',
+    ]);
+    expect(runner.mock.calls[0][1]).toEqual({ remote: true, useSudo: true, cd: '/home/dd/engine' });
+  });
+
+  it('names the cluster context it was given, and runs nothing without a routed deployment', async () => {
+    const runner = vi.spyOn(Underpost.ssh, 'sshRemoteRunner').mockResolvedValue(undefined);
+    await BackUp.callback('dd-a', { k3s: true });
+    await BackUp.callback('dd-a', { kubeadm: true });
+    await BackUp.callback('dd-a');
+    expect(runner.mock.calls.map(([command]) => command)).toEqual([
+      'node bin db dd-a --export --prune --k3s',
+      'node bin db dd-a --export --prune --kubeadm',
+      'node bin db dd-a --export --prune',
+    ]);
+    runner.mockClear();
+    // This fixture tree routes no deployment.
+    await BackUp.callback('dd');
+    expect(runner).not.toHaveBeenCalled();
   });
 });

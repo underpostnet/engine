@@ -30,12 +30,11 @@
 const UNDERPOST_TESTING = {
   coverageDirectory: 'coverage',
   lcovPath: 'coverage/lcov.info',
-  // Minimum total line coverage a gated run must reach — the same metric Coveralls
-  // reports, so a green build and a green badge mean the same thing. It is a
-  // ratchet: the floor the measured surface already holds (85% for the platform
-  // tiers, 85% with cyberia), raised as suites land, never a target no run meets.
-  // `COVERAGE_MIN` moves it for one repository without moving it for every one.
+  // Minimum total line coverage a gated run must reach. `COVERAGE_MIN` moves it for one
+  // repository without moving it for every one.
   coverageThreshold: 80,
+  // Coverage the suites aim for. It never fails a run; the reports colour the band below it.
+  coverageTarget: 90,
   // Read by vitest.config.js to decide whether the Allure reporter is attached.
   // Absent means a plain local run, so no result files are written at all.
   allureResultsEnvKey: 'UNDERPOST_ALLURE_RESULTS',
@@ -260,9 +259,7 @@ const TEST_PROJECTS = [
       'src/api/cyberia-social/cyberia-social.model.js',
       'src/api/cyberia-social-profile/cyberia-social-profile.model.js',
       'src/client/components/cyberia/SharedDefaultsCyberia.js',
-      'src/client/components/cyberia/GraphLayoutCyberia.js',
       'src/client/components/cyberia/InstanceSelectionView.js',
-      'src/client/components/cyberia/UniverseEngineCyberia.js',
     ],
     description:
       'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, the graph ' +
@@ -358,6 +355,8 @@ const TEST_PROJECTS = [
       'src/api/google-auth/*.js',
       'src/api/test/*.js',
       'src/api/user/*.js',
+      'src/cli/graphify.js',
+      'src/server/release/graphify.js',
       'src/server/release/release-tasks.js',
       'src/server/security/auth.js',
       'src/server/storage/mongo-archive.js',
@@ -1105,6 +1104,20 @@ const coverageThresholdFactory = ({ COVERAGE_ENFORCE, COVERAGE_MIN } = {}) => {
 };
 
 /**
+ * @method coverageWatermarksFactory
+ * @description The colour bands of the coverage reports: below the floor, from the floor to
+ * the target, and from the target up.
+ * @param {number|null} [threshold] - `coverageThresholdFactory` result; the shipped floor when `null`.
+ * @returns {{statements: number[], functions: number[], branches: number[], lines: number[]}} Watermarks per metric.
+ * @memberof UnderpostTesting
+ */
+const coverageWatermarksFactory = (threshold = null) => {
+  const floor = threshold ?? UNDERPOST_TESTING.coverageThreshold;
+  const band = [floor, Math.max(floor, UNDERPOST_TESTING.coverageTarget)];
+  return { statements: band, functions: band, branches: band, lines: band };
+};
+
+/**
  * @method coverageIncludeFactory
  * @description Source globs a run measures coverage over, from the tier selection
  * on its own command line.
@@ -1460,6 +1473,7 @@ export {
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  coverageWatermarksFactory,
   impactSelector,
   impactedDomains,
   productContextOf,

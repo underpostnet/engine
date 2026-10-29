@@ -4,6 +4,7 @@ import {
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  coverageWatermarksFactory,
   testFootprintFactory,
   testProjectsFactory,
   vitestProjectSelector,
@@ -71,6 +72,7 @@ export default defineConfig({
       // Absent unless the run opted in, so a single-tier run reports its slice
       // instead of failing against a number it never measured.
       ...(coverageThreshold === null ? {} : { thresholds: { lines: coverageThreshold } }),
+      watermarks: coverageWatermarksFactory(coverageThreshold),
     },
     projects: testProjectsFactory(projectDefaults, productContexts, footprint),
   },

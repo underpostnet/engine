@@ -9,6 +9,7 @@ import {
   coverageIncludeFactory,
   coverageReportKey,
   coverageThresholdFactory,
+  coverageWatermarksFactory,
   productContextOf,
   resolveTestSelection,
   runnableTestProjects,
@@ -255,6 +256,20 @@ describe('coverage threshold', () => {
     for (const COVERAGE_MIN of ['eighty', '-1', '101'])
       expect(() => coverageThresholdFactory({ COVERAGE_MIN }), COVERAGE_MIN).to.throw('COVERAGE_MIN');
   });
+
+  it('gates at 80% and aims at 90%, the band every report colours', () => {
+    expect(UNDERPOST_TESTING.coverageThreshold).to.equal(80);
+    expect(UNDERPOST_TESTING.coverageTarget).to.equal(90);
+    expect(coverageWatermarksFactory()).to.deep.equal({
+      statements: [80, 90],
+      functions: [80, 90],
+      branches: [80, 90],
+      lines: [80, 90],
+    });
+    // A repository bar moves the floor of the band; a bar above the target closes it.
+    expect(coverageWatermarksFactory(75).lines).to.deep.equal([75, 90]);
+    expect(coverageWatermarksFactory(95).lines).to.deep.equal([95, 95]);
+  });
 });
 
 describe('coverage scope', () => {
@@ -280,6 +295,21 @@ describe('coverage scope', () => {
     // `ssrFactory` runs each one in a `vm` sandbox, and V8 coverage does not report it.
     for (const { name, sources } of vitestProjects)
       for (const glob of sources) expect(glob, name).to.not.match(/^src\/client\/ssr\//);
+  });
+
+  it('measures a client component only where a Node suite of the project imports it', () => {
+    // A browser suite runs the component in the browser, and V8 coverage of the Node run never sees it.
+    for (const { name, directory, sources } of vitestProjects) {
+      if (!fs.existsSync(directory)) continue;
+      const suites = fs
+        .globSync(`${directory}/**/*.test.js`)
+        .filter((file) => !file.endsWith('-browser.test.js'))
+        .map((file) => fs.readFileSync(file, 'utf8'))
+        .join('\n');
+      for (const glob of sources)
+        for (const file of fs.globSync(glob).filter((source) => source.startsWith('src/client/components/')))
+          expect(suites, `${name}: ${file}`).to.include(file.split('/').pop());
+    }
   });
 
   it('measures every project when the run selects none', () => {
