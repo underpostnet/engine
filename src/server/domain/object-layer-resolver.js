@@ -37,13 +37,19 @@ const localSource = (name, api, domain, options) =>
  * The canonical Object Layer a CID names.
  * @param {string} cid - Canonical Object Layer CID.
  * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
+ * @param {{fresh?:boolean}} [read] - `fresh` reads the authority past the read cache.
  * @returns {Promise<Object|null>}
  * @memberof ObjectLayerResolver
  */
-export async function resolveObjectLayer(cid, options) {
+export async function resolveObjectLayer(cid, options, { fresh = false } = {}) {
   const ObjectLayer = localSource('ObjectLayer', 'object-layer', 'object-layer', options);
   if (ObjectLayer) return await ObjectLayer.findByCid(cid).lean();
-  if (domainOrigin('object-layer')) return await domainRead({ domain: 'object-layer', path: `object-layer/${cid}` });
+  if (domainOrigin('object-layer'))
+    return await domainRead({
+      domain: 'object-layer',
+      path: `object-layer/${cid}`,
+      ...(fresh ? { cacheTtlMs: 0 } : {}),
+    });
   return null;
 }
 

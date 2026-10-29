@@ -16,11 +16,13 @@ import { loggerFactory } from '../ops/logger.js';
 import { hostPortsFactory } from '../network/router.js';
 import { deployConfServer, ownerHostOf } from './consumed-api.js';
 import { API_BASE_PATH, DOMAIN_API_VERSION } from './api-contract.js';
+import { retryAfterMs, retryDelayMs } from '../runtime/retry.js';
 
 const logger = loggerFactory(import.meta);
 
 const DEFAULTS = {
   timeoutMs: Number(process.env.DOMAIN_API_TIMEOUT_MS || 5000),
+  writeTimeoutMs: Number(process.env.DOMAIN_API_WRITE_TIMEOUT_MS || process.env.DOMAIN_API_TIMEOUT_MS || 5000),
   retries: Number(process.env.DOMAIN_API_RETRIES || 2),
   cacheTtlMs: Number(process.env.DOMAIN_API_CACHE_TTL_MS || 30000),
 };
@@ -66,9 +68,18 @@ export const domainHost = (domain) => {
   return localDomainUrl(domain) ? ownerHost(domain) : '';
 };
 
-/** A domain that did not answer: the caller reads it as unavailable, never as an empty answer. */
-const unavailable = (domain, path, reason, retryable) =>
-  new DomainError(`The ${domain} domain is unavailable: ${reason}`, { domain, path, status: 503, retryable });
+/**
+ * A domain that did not answer: the caller reads it as unavailable, never as an empty answer.
+ * `ambiguous` marks a write the domain may have applied although no answer came back.
+ */
+const unavailable = (domain, path, reason, retryable, ambiguous = false) =>
+  new DomainError(`The ${domain} domain is unavailable: ${reason}`, {
+    domain,
+    path,
+    status: 503,
+    retryable,
+    ambiguous,
+  });
 
 /** A domain this deploy has no origin for: unavailable here. */
 const unconfigured = (domain, path) =>
@@ -77,10 +88,13 @@ const unconfigured = (domain, path) =>
 /** Status codes worth another attempt: the request never reached a decision. */
 const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+/** Status codes of a write a gateway may have passed on before it gave up. */
+const AMBIGUOUS = new Set([500, 502, 504]);
+
 class DomainError extends Error {
   /**
    * @param {string} message
-   * @param {{domain:string,path:string,status:number,retryable:boolean}} context
+   * @param {{domain:string,path:string,status:number,retryable:boolean,ambiguous?:boolean,retryAfterMs?:number}} context
    */
   constructor(message, context) {
     super(message);
@@ -147,7 +161,13 @@ export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAUL
       }
       if (!response.ok) {
         const retryable = RETRYABLE.has(response.status);
-        lastError = new DomainError(`GET ${key} answered ${response.status}`, { domain, path, status: response.status, retryable });
+        lastError = new DomainError(`GET ${key} answered ${response.status}`, {
+          domain,
+          path,
+          status: response.status,
+          retryable,
+          retryAfterMs: retryAfterMs(response.headers?.get?.('retry-after')),
+        });
         if (!retryable) throw lastError;
       } else {
         const body = await response.json();
@@ -168,7 +188,10 @@ export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAUL
     } finally {
       clearTimeout(timeout);
     }
-    if (attempt < DEFAULTS.retries) await sleep(2 ** attempt * 100);
+    if (attempt < DEFAULTS.retries)
+      await sleep(
+        retryDelayMs({ attempt: attempt + 1, baseDelayMs: 200, maxDelayMs: 5000, retryAfter: lastError?.retryAfterMs }),
+      );
   }
   logger.warn(`Domain read failed: ${lastError?.message}`);
   throw lastError;
@@ -178,15 +201,21 @@ export async function domainRead({ domain, path, query = {}, cacheTtlMs = DEFAUL
  * Writes to a domain. A write carries the service key and is never retried: the caller decides,
  * because only the caller knows whether the operation is idempotent.
  *
+ * A failure says what the caller may do: `retryable` when no decision was reached, `ambiguous`
+ * when the domain may have applied the write anyway (a timeout, a lost connection, a gateway
+ * error), and `retryAfterMs` when the domain asked for a wait. An ambiguous write is reconciled
+ * by reading the resource before it is sent again.
+ *
  * @param {Object} params
  * @param {string} params.domain - Target domain.
  * @param {string} params.path - Path under the domain's API base.
  * @param {Object} params.body - JSON body.
  * @param {string} [params.method='POST']
+ * @param {number} [params.timeoutMs] - Budget of this write; `DOMAIN_API_WRITE_TIMEOUT_MS` by default.
  * @returns {Promise<Object|null>} The `data` of the response.
  * @memberof DomainClient
  */
-export async function domainWrite({ domain, path, body, method = 'POST' }) {
+export async function domainWrite({ domain, path, body, method = 'POST', timeoutMs = DEFAULTS.writeTimeoutMs }) {
   const base = domainOrigin(domain);
   if (!base) throw unconfigured(domain, path);
   const serviceKey = process.env.DOMAIN_API_SERVICE_KEY || '';
@@ -194,7 +223,7 @@ export async function domainWrite({ domain, path, body, method = 'POST' }) {
 
   const url = `${base.replace(/\/$/, '')}/${API_BASE_PATH}/${path}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULTS.timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       method,
@@ -212,15 +241,35 @@ export async function domainWrite({ domain, path, body, method = 'POST' }) {
         domain,
         path,
         error.name === 'AbortError'
-          ? `${method} ${url} timed out after ${DEFAULTS.timeoutMs}ms`
+          ? `${method} ${url} timed out after ${timeoutMs}ms`
           : `${method} ${url} failed: ${error.message}`,
-        false,
+        true,
+        true,
       );
     });
     if (!response.ok) {
-      throw new DomainError(`${method} ${url} answered ${response.status}`, { domain, path, status: response.status, retryable: false });
+      throw new DomainError(`${method} ${url} answered ${response.status}`, {
+        domain,
+        path,
+        status: response.status,
+        retryable: RETRYABLE.has(response.status),
+        ambiguous: AMBIGUOUS.has(response.status),
+        retryAfterMs: retryAfterMs(response.headers?.get?.('retry-after')),
+      });
     }
-    return (await response.json())?.data ?? null;
+    return (
+      (
+        await response.json().catch((error) => {
+          throw unavailable(
+            domain,
+            path,
+            `${method} ${url} answered with an unreadable body: ${error.message}`,
+            true,
+            true,
+          );
+        })
+      )?.data ?? null
+    );
   } finally {
     clearTimeout(timeout);
   }
