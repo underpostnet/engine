@@ -1053,11 +1053,21 @@ class ItemCatalogCyberia {
         element('span', '', `cid ${shortCid(file.cid)}`),
         element('span', '', `recorded ${yes(file.registered)}`),
         element('span', '', `pinned ${yes(file.pinned)}`),
-        element('span', '', `cluster ${yes(file.cluster)}`),
         element(
           'span',
           '',
-          file.listedCid === file.cid ? 'listed' : file.listedCid ? `lists ${shortCid(file.listedCid)}` : 'not listed',
+          `cluster ${yes(file.cluster)}${file.replication ? ` ${file.replication.pinnedPeers}/${file.replication.requiredPeers}` : ''}`,
+        ),
+        element(
+          'span',
+          '',
+          !file.mfs
+            ? 'MFS off'
+            : file.listedCid === file.cid
+              ? 'listed'
+              : file.listedCid
+                ? `lists ${shortCid(file.listedCid)}`
+                : 'not listed',
         ),
       );
       return line;

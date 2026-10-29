@@ -34,7 +34,12 @@ vi.mock('../../../src/api/ipfs/ipfs.client.js', async () => {
       unpinCid: async (cid) => (node.unpinned.push(cid), true),
       listMfsDirectory: async (path) => node.directories[path] ?? null,
       isCidPinned: async (cid) => node.pinned.has(cid),
-      isClusterPinned: async (cid) => node.pinned.has(cid),
+      clusterPinStatus: async (cid) => ({
+        durable: node.pinned.has(cid),
+        pinnedPeers: node.pinned.has(cid) ? 1 : 0,
+        requiredPeers: 1,
+      }),
+      mfsEnabled: () => true,
       statMfsPath: async (path) => {
         const listed = node.listed.findLast(([at]) => at === path);
         return listed ? { cid: listed[1] } : null;
@@ -165,6 +170,8 @@ describe('the IPFS state of a definition', () => {
         registered: false,
         pinned: false,
         cluster: false,
+        replication: { durable: false, pinnedPeers: 0, requiredPeers: 1 },
+        mfs: true,
         listedCid: null,
       },
       {
@@ -174,6 +181,8 @@ describe('the IPFS state of a definition', () => {
         registered: true,
         pinned: true,
         cluster: true,
+        replication: { durable: true, pinnedPeers: 1, requiredPeers: 1 },
+        mfs: true,
         listedCid: contract.cid,
       },
       {
@@ -183,6 +192,8 @@ describe('the IPFS state of a definition', () => {
         registered: false,
         pinned: false,
         cluster: false,
+        replication: { durable: false, pinnedPeers: 0, requiredPeers: 1 },
+        mfs: true,
         listedCid: contract.metadataCid,
       },
     ]);
@@ -277,6 +288,7 @@ describe('migrating to the CID-first layout', () => {
     const report = await migrateObjectLayerStorage({ ObjectLayer: { find: () => lean([definition()]) }, Ipfs });
     expect(report).toEqual({
       applied: false,
+      mfs: true,
       registry: { records: 3, duplicates: 1 },
       definitions: 1,
       stored: 0,

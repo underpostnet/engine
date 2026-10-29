@@ -45,6 +45,15 @@ export class PublicationError extends Error {
 }
 
 /**
+ * Router options that keep every definition a write stores as a draft: an import into a content
+ * release stores its content first, and its publication stage makes each definition canonical.
+ * @param {Object} options - Router options.
+ * @returns {Object}
+ * @memberof ObjectLayerPublication
+ */
+export const deferPublication = (options) => ({ ...options, publication: 'deferred' });
+
+/**
  * Whether a host is the Object Layer authority: it serves the API and consumes it from nobody.
  * @param {{host?:string,path?:string,consumes?:Object<string,string>}} [options] - Router options.
  * @returns {boolean}
@@ -100,7 +109,8 @@ export async function storeDraft({ ObjectLayer, payload, options }) {
 
 /**
  * Stores a definition as canonical content. On the authority it is written and pinned here; on
- * a consumer it is kept as a draft until the authority stores it, then cached.
+ * a consumer it is kept as a draft until the authority stores it, then cached. With
+ * {@link deferPublication} options a consumer keeps the draft and asks nobody.
  *
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
@@ -119,7 +129,7 @@ export async function publishDefinition({ ObjectLayer, payload, options, publish
   }
 
   const draft = await storeDraft({ ObjectLayer, payload, options });
-  if (draft.origin !== 'draft') return draft;
+  if (draft.origin !== 'draft' || options?.publication === 'deferred') return draft;
   if (!domainOrigin('object-layer')) throw new PublicationError(draft.cid, 'no Object Layer authority is configured');
   let stored;
   try {

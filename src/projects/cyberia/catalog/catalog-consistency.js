@@ -129,6 +129,7 @@ export async function checkCatalogStorage(models, { canonical = false, options }
       if (!file.pinned) report('pin', file.name, 'unpinned');
       if (file.cluster !== true)
         report('pin', file.name, file.cluster === false ? 'cluster-unpinned' : 'cluster-unreachable');
+      if (!file.mfs) continue;
       if (file.listedCid === null) report('mfs', file.name, 'unlisted');
       else if (file.listedCid !== file.cid) report('mfs', file.name, `lists ${file.listedCid}`);
     }

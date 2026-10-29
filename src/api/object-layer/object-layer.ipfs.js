@@ -168,12 +168,14 @@ export const removeObjectLayerBundle = (objectLayerCid) =>
 
 /**
  * The IPFS state of each file of a definition's bundle, kept apart by concern: whether the
- * registry records the CID, whether the Kubo node and the Cluster pin it, and which CID its MFS
- * path lists. `null` is a state the node did not answer.
+ * registry records the CID, whether the Kubo node pins it, whether the Cluster pins it on as many
+ * peers as its replication factor asks (`replication` details it), and which CID its MFS path
+ * lists while MFS is on. `null` is a state the node did not answer.
  * @param {Object} params
  * @param {Object} params.definition - A stored definition, lean.
  * @param {Object} [params.options] - Router options ({ host, path }).
- * @returns {Promise<Array<{name:string,cid:string,path:string,registered:boolean,pinned:boolean,cluster:boolean|null,listedCid:string|null}>>}
+ * @returns {Promise<Array<{name:string,cid:string,path:string,registered:boolean,pinned:boolean,cluster:boolean|null,
+ *   replication:Object|null,mfs:boolean,listedCid:string|null}>>}
  * @memberof ObjectLayerIpfs
  */
 export async function objectLayerIpfsState({ definition, options }) {
@@ -189,16 +191,22 @@ export async function objectLayerIpfsState({ definition, options }) {
       cid: { $in: files.map(({ cid }) => cid) },
     }),
   );
+  const mfs = IpfsClient.mfsEnabled();
   return await Promise.all(
-    files.map(async ({ name, cid }) => ({
-      name,
-      cid,
-      path: paths[name],
-      registered: registered.has(cid),
-      pinned: await IpfsClient.isCidPinned(cid),
-      cluster: await IpfsClient.isClusterPinned(cid),
-      listedCid: (await IpfsClient.statMfsPath(paths[name]))?.cid ?? null,
-    })),
+    files.map(async ({ name, cid }) => {
+      const replication = await IpfsClient.clusterPinStatus(cid);
+      return {
+        name,
+        cid,
+        path: paths[name],
+        registered: registered.has(cid),
+        pinned: await IpfsClient.isCidPinned(cid),
+        cluster: replication ? replication.durable : null,
+        replication,
+        mfs,
+        listedCid: mfs ? ((await IpfsClient.statMfsPath(paths[name]))?.cid ?? null) : null,
+      };
+    }),
   );
 }
 
@@ -257,7 +265,8 @@ export async function pruneUnreferencedContent({ stores, owned = [] }) {
  * @param {boolean} [params.canonical=false] - This host pins the canonical bytes: it is the Object Layer authority.
  * @param {boolean} [params.apply=false]
  * @param {Object} [params.options] - Router options ({ host, path }).
- * @returns {Promise<{applied:boolean,registry:{records:number,duplicates:number},definitions:number,stored:number,failed:Array<{cid:string,message:string}>,legacy:string[]}>}
+ * @returns {Promise<{applied:boolean,mfs:boolean,registry:{records:number,duplicates:number},definitions:number,stored:number,failed:Array<{cid:string,message:string}>,legacy:string[]}>}
+ *   With MFS off (`IPFS_MFS_ENABLED`) a definition counts as stored once every file is pinned.
  * @memberof ObjectLayerIpfs
  */
 export async function migrateObjectLayerStorage({ ObjectLayer, Ipfs, canonical = false, apply = false, options }) {
@@ -274,6 +283,7 @@ export async function migrateObjectLayerStorage({ ObjectLayer, Ipfs, canonical =
     .map((name) => `/object-layer/${name}`);
   const report = {
     applied: apply,
+    mfs: IpfsClient.mfsEnabled(),
     registry: { records: records.length, duplicates: duplicates.length },
     definitions: definitions.length,
     stored: 0,
@@ -288,7 +298,7 @@ export async function migrateObjectLayerStorage({ ObjectLayer, Ipfs, canonical =
   for (const definition of definitions)
     try {
       const { resources } = await publishObjectLayerBundle({ definition, canonical, options });
-      if (resources.every(({ pinned, listed }) => pinned && listed)) report.stored++;
+      if (resources.every(({ pinned, listed }) => pinned && (listed || !report.mfs))) report.stored++;
       else report.failed.push({ cid: definition.cid, message: 'IPFS did not pin or list every file' });
     } catch (error) {
       report.failed.push({ cid: definition.cid, message: error.message });

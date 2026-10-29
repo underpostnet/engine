@@ -6,9 +6,11 @@
  * Cluster API (port 9094) – replicate pins across the cluster.
  *
  * Adding and pinning content, listing it in MFS, and removing either are separate operations:
- * a CID is the content identity, an MFS path only a name for it.
+ * a CID is the content identity, an MFS path only a name for it. No read path depends on MFS: it
+ * is off unless `IPFS_MFS_ENABLED=true`, and then a listing operation names nothing.
  *
- * Uses native `FormData` + `Blob` (Node ≥ 18) for reliable multipart encoding.
+ * Every request is bounded as a whole, its body included, and every answer is checked: a CID the
+ * node returns, the status of each MFS operation, and the replication the Cluster reaches.
  *
  * @module src/api/ipfs/ipfs.client.js
  * @namespace IpfsClient
@@ -17,6 +19,8 @@ import { loggerFactory } from '../../server/ops/logger.js';
 import Underpost from '../../index.js';
 const logger = loggerFactory(import.meta);
 const DEFAULT_IPFS_HTTP_TIMEOUT_MS = Number(process.env.IPFS_HTTP_TIMEOUT_MS || 10000);
+/** The most bytes one gateway read accepts unless the caller names a limit. */
+const DEFAULT_IPFS_MAX_READ_BYTES = Number(process.env.IPFS_MAX_READ_BYTES || 64 * 1024 * 1024);
 const getRequestTimeoutMs = (kind = 'kubo') => {
   if (kind === 'cluster') {
     return Number(process.env.IPFS_CLUSTER_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
@@ -26,21 +30,83 @@ const getRequestTimeoutMs = (kind = 'kubo') => {
   }
   return Number(process.env.IPFS_KUBO_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
 };
-const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url } = {}) => {
+
+/** A CIDv0 (`Qm…`) or a base32 CIDv1 (`b…`). */
+const CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/;
+
+/**
+ * Whether a value is a CID the node may return.
+ * @param {string} cid
+ * @returns {boolean}
+ */
+const isCid = (cid) => typeof cid === 'string' && CID_PATTERN.test(cid);
+
+/**
+ * Whether this process creates and reads MFS listings: `IPFS_MFS_ENABLED=true`.
+ * @returns {boolean}
+ */
+const mfsEnabled = () => process.env.IPFS_MFS_ENABLED === 'true';
+
+/**
+ * Reads a response body up to a byte limit. A body over the limit is cancelled, never buffered whole.
+ * @param {Response} res
+ * @param {number} maxBytes
+ * @returns {Promise<Buffer|null>} Null when the body is over the limit.
+ */
+const boundedBody = async (res, maxBytes) => {
+  if (Number(res.headers.get('content-length')) > maxBytes) {
+    await res.body?.cancel();
+    return null;
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of res.body ?? []) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      await res.body.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+};
+
+/**
+ * One request and its body inside one time budget: a node that sends headers and then stalls
+ * fails like one that never answers.
+ * @param {string} url
+ * @param {RequestInit} [options]
+ * @param {{kind?:string, label?:string, read?:'json'|'text'|'bytes'|'none', maxBytes?:number}} [params]
+ * @returns {Promise<{status:number, ok:boolean, body:*}>} `body` is null for a byte read over `maxBytes`.
+ * @throws {Error} When the budget runs out or the node is unreachable.
+ */
+const request = async (
+  url,
+  options = {},
+  { kind = 'kubo', label = url, read = 'json', maxBytes = DEFAULT_IPFS_MAX_READ_BYTES } = {},
+) => {
   const controller = new AbortController();
   const timeoutMs = getRequestTimeoutMs(kind);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    let body = null;
+    if (!res.ok || read === 'text') body = await res.text();
+    else if (read === 'json') body = await res.json();
+    else if (read === 'bytes') body = await boundedBody(res, maxBytes);
+    else await res.body?.cancel();
+    return { status: res.status, ok: res.ok, body };
   } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error(`${label} timed out after ${timeoutMs}ms`);
-    }
+    if (err.name === 'AbortError') throw new Error(`${label} timed out after ${timeoutMs}ms`);
     throw err;
   } finally {
     clearTimeout(timeoutId);
   }
 };
+
+/** Kubo answers a missing MFS path with a 500 that says so. */
+const isMissingMfsPath = ({ status, body }) => status === 500 && /file does not exist|no link named/i.test(`${body}`);
+
 // ─────────────────────────────────────────────────────────
 //  URL helpers
 // ─────────────────────────────────────────────────────────
@@ -66,12 +132,43 @@ const getGatewayUrl = () =>
   process.env.IPFS_GATEWAY_URL ||
   `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:8080`;
 // ─────────────────────────────────────────────────────────
+//  Cluster pins
+// ─────────────────────────────────────────────────────────
+/**
+ * @typedef {Object} ClusterPinResult
+ * @property {'pinned'|'failed'|'unreachable'} status - Whether the Cluster took the pin.
+ * @property {string} [error]
+ */
+/**
+ * Asks the IPFS Cluster to track and replicate a pin. Idempotent.
+ * @param {string} cid
+ * @returns {Promise<ClusterPinResult>}
+ */
+const clusterPin = async (cid) => {
+  try {
+    const res = await request(
+      `${getClusterApiUrl()}/pins/${encodeURIComponent(cid)}`,
+      { method: 'POST' },
+      { kind: 'cluster', label: `IPFS Cluster pin ${cid}`, read: 'none' },
+    );
+    if (!res.ok) {
+      logger.warn(`IPFS Cluster pin failed (${res.status}): ${res.body}`);
+      return { status: 'failed', error: `${res.status} ${res.body}`.slice(0, 500) };
+    }
+    return { status: 'pinned' };
+  } catch (err) {
+    logger.warn(`IPFS Cluster unreachable at ${getClusterApiUrl()}: ${err.message}`);
+    return { status: 'unreachable', error: err.message };
+  }
+};
+// ─────────────────────────────────────────────────────────
 //  Core: add content
 // ─────────────────────────────────────────────────────────
 /**
  * @typedef {Object} IpfsAddResult
  * @property {string} cid  – CID (Content Identifier) returned by the node.
  * @property {number} size – Cumulative DAG size reported by the node.
+ * @property {ClusterPinResult} cluster – Whether the Cluster took the pin; the node holds it either way.
  */
 /**
  * Adds bytes to the Kubo node, pins them there and on the IPFS Cluster. Adding bytes the node
@@ -80,222 +177,138 @@ const getGatewayUrl = () =>
  * 1. `POST /api/v0/add?pin=true` to Kubo (5001) – stores + locally pins.
  * 2. `POST /pins/<CID>` to the Cluster REST API (9094) – replicates the pin.
  *
+ * The CID is the node's: a stored CID the Cluster did not take reports it in `cluster`, so a
+ * caller reconciles it with {@link clusterPinStatus} and {@link pinCid}, never by adding again.
+ *
  * @param {Buffer|string} content   – raw bytes or a UTF-8 string to store.
  * @param {string}        [filename='data'] – logical filename for the upload.
- * @returns {Promise<IpfsAddResult|null>} `null` when the node is unreachable.
+ * @returns {Promise<IpfsAddResult|null>} `null` when the node is unreachable or answers no CID.
  */
 const addToIpfs = async (content, filename = 'data') => {
   const kuboUrl = getIpfsApiUrl();
-  const clusterUrl = getClusterApiUrl();
   const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
   const formData = new FormData();
   formData.append('file', new Blob([buf]), filename);
   let cid;
   let size;
   try {
-    const res = await fetchWithTimeout(
+    const res = await request(
       `${kuboUrl}/api/v0/add?pin=true&cid-version=1`,
-      {
-        method: 'POST',
-        body: formData,
-      },
+      { method: 'POST', body: formData },
       { kind: 'kubo', label: `IPFS Kubo add ${filename}` },
     );
     if (!res.ok) {
-      const text = await res.text();
-      logger.error(`IPFS Kubo add failed (${res.status}): ${text}`);
+      logger.error(`IPFS Kubo add failed (${res.status}): ${res.body}`);
       return null;
     }
-    const json = await res.json();
-    cid = json.Hash;
-    size = Number(json.Size);
+    cid = res.body?.Hash;
+    size = Number(res.body?.Size);
+    if (!isCid(cid)) {
+      logger.error(`IPFS Kubo add answered no CID for ${filename}: ${JSON.stringify(res.body).slice(0, 200)}`);
+      return null;
+    }
     logger.info(`IPFS Kubo add OK – CID: ${cid}, size: ${size}`);
   } catch (err) {
     logger.warn(`IPFS Kubo node unreachable at ${kuboUrl}: ${err.message}`);
     return null;
   }
-  try {
-    const clusterRes = await fetchWithTimeout(
-      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
-      {
-        method: 'POST',
-      },
-      { kind: 'cluster', label: `IPFS Cluster pin ${cid}` },
-    );
-    if (!clusterRes.ok) {
-      const text = await clusterRes.text();
-      logger.warn(`IPFS Cluster pin failed (${clusterRes.status}): ${text}`);
-    } else {
-      logger.info(`IPFS Cluster pin OK – CID: ${cid}`);
-    }
-  } catch (err) {
-    logger.warn(`IPFS Cluster unreachable at ${clusterUrl}: ${err.message}`);
-  }
-  return { cid, size };
+  return { cid, size, cluster: await clusterPin(cid) };
 };
 // ─────────────────────────────────────────────────────────
 //  Pin management
 // ─────────────────────────────────────────────────────────
 /**
- * Explicitly pin an existing CID on both the Kubo node and the Cluster.
+ * Pins a CID the node holds on the node and on the Cluster. Idempotent: the reconciliation of an
+ * add whose Cluster pin failed.
  *
  * @param {string} cid
  * @param {string} [type='recursive'] – `'recursive'` | `'direct'`
- * @returns {Promise<boolean>} `true` when at least the Kubo pin succeeded.
+ * @returns {Promise<{cid:string, kubo:boolean, cluster:ClusterPinResult, error?:string}>}
  */
 const pinCid = async (cid, type = 'recursive') => {
-  const kuboUrl = getIpfsApiUrl();
-  const clusterUrl = getClusterApiUrl();
-  let kuboOk = false;
-  // Kubo pin
+  if (!isCid(cid)) return { cid, kubo: false, cluster: { status: 'failed' }, error: 'not a CID' };
+  let kubo = false;
+  let error;
   try {
-    const res = await fetchWithTimeout(
-      `${kuboUrl}/api/v0/pin/add?arg=${encodeURIComponent(cid)}&type=${type}`,
-      {
-        method: 'POST',
-      },
-      { kind: 'kubo', label: `IPFS Kubo pin/add ${cid}` },
+    const res = await request(
+      `${getIpfsApiUrl()}/api/v0/pin/add?arg=${encodeURIComponent(cid)}&type=${type}`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS Kubo pin/add ${cid}`, read: 'none' },
     );
-    if (!res.ok) {
-      const text = await res.text();
-      logger.error(`IPFS Kubo pin/add failed (${res.status}): ${text}`);
-    } else {
-      kuboOk = true;
-      logger.info(`IPFS Kubo pin OK – CID: ${cid} (${type})`);
-    }
+    kubo = res.ok;
+    if (!res.ok) error = `${res.status} ${res.body}`.slice(0, 500);
   } catch (err) {
-    logger.warn(`IPFS Kubo pin unreachable: ${err.message}`);
+    error = err.message;
   }
-  // Cluster pin
-  try {
-    const clusterRes = await fetchWithTimeout(
-      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
-      {
-        method: 'POST',
-      },
-      { kind: 'cluster', label: `IPFS Cluster pin ${cid}` },
-    );
-    if (!clusterRes.ok) {
-      const text = await clusterRes.text();
-      logger.warn(`IPFS Cluster pin failed (${clusterRes.status}): ${text}`);
-    } else {
-      logger.info(`IPFS Cluster pin OK – CID: ${cid}`);
-    }
-  } catch (err) {
-    logger.warn(`IPFS Cluster pin unreachable: ${err.message}`);
-  }
-  return kuboOk;
+  return { cid, kubo, cluster: await clusterPin(cid), ...(error ? { error } : {}) };
 };
 /**
- * Unpin a CID from both the Kubo node and the Cluster.
+ * Unpin a CID from both the Kubo node and the Cluster. The caller decides that nothing kept
+ * references it: a release, a rollback target or a player stack.
  *
  * @param {string} cid
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean>} True when the node no longer pins it.
  */
 const unpinCid = async (cid) => {
-  const kuboUrl = getIpfsApiUrl();
-  const clusterUrl = getClusterApiUrl();
-  let kuboOk = false;
-  // Cluster unpin
   try {
-    const clusterRes = await fetchWithTimeout(
-      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
-      {
-        method: 'DELETE',
-      },
-      { kind: 'cluster', label: `IPFS Cluster unpin ${cid}` },
+    const res = await request(
+      `${getClusterApiUrl()}/pins/${encodeURIComponent(cid)}`,
+      { method: 'DELETE' },
+      { kind: 'cluster', label: `IPFS Cluster unpin ${cid}`, read: 'none' },
     );
-    if (!clusterRes.ok) {
-      const text = await clusterRes.text();
-      if (clusterRes.status === 404) {
-        logger.info(`IPFS Cluster unpin – CID already not pinned: ${cid}`);
-      } else {
-        logger.warn(`IPFS Cluster unpin failed (${clusterRes.status}): ${text}`);
-      }
-    } else {
-      logger.info(`IPFS Cluster unpin OK – CID: ${cid}`);
-    }
+    if (res.ok) logger.info(`IPFS Cluster unpin OK – CID: ${cid}`);
+    else if (res.status === 404) logger.info(`IPFS Cluster unpin – CID already not pinned: ${cid}`);
+    else logger.warn(`IPFS Cluster unpin failed (${res.status}): ${res.body}`);
   } catch (err) {
     logger.warn(`IPFS Cluster unpin unreachable: ${err.message}`);
   }
-  // Kubo unpin
   try {
-    const res = await fetchWithTimeout(
-      `${kuboUrl}/api/v0/pin/rm?arg=${encodeURIComponent(cid)}`,
-      {
-        method: 'POST',
-      },
-      { kind: 'kubo', label: `IPFS Kubo pin/rm ${cid}` },
+    const res = await request(
+      `${getIpfsApiUrl()}/api/v0/pin/rm?arg=${encodeURIComponent(cid)}`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS Kubo pin/rm ${cid}`, read: 'none' },
     );
-    if (!res.ok) {
-      const text = await res.text();
-      // "not pinned or pinned indirectly" means the CID is already unpinned – treat as success
-      if (text.includes('not pinned')) {
-        kuboOk = true;
-        logger.info(`IPFS Kubo unpin – CID already not pinned: ${cid}`);
-      } else {
-        logger.warn(`IPFS Kubo pin/rm failed (${res.status}): ${text}`);
-      }
-    } else {
-      kuboOk = true;
+    if (res.ok) {
       logger.info(`IPFS Kubo unpin OK – CID: ${cid}`);
+      return true;
     }
+    // "not pinned or pinned indirectly" means the CID is already unpinned – treat as success
+    if (`${res.body}`.includes('not pinned')) {
+      logger.info(`IPFS Kubo unpin – CID already not pinned: ${cid}`);
+      return true;
+    }
+    logger.warn(`IPFS Kubo pin/rm failed (${res.status}): ${res.body}`);
+    return false;
   } catch (err) {
     logger.warn(`IPFS Kubo unpin unreachable: ${err.message}`);
+    return false;
   }
-  return kuboOk;
 };
 // ─────────────────────────────────────────────────────────
 //  Retrieval
 // ─────────────────────────────────────────────────────────
 /**
- * Reads a response body up to a byte limit. A body over the limit is cancelled, never buffered whole.
- * @param {Response} res
- * @param {number} maxBytes
- * @returns {Promise<Buffer|null>} Null when the body is over the limit.
- */
-const boundedBody = async (res, maxBytes) => {
-  if (Number(res.headers.get('content-length')) > maxBytes) {
-    await res.body?.cancel();
-    return null;
-  }
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of res.body ?? []) {
-    size += chunk.length;
-    if (size > maxBytes) {
-      await res.body.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
-};
-/**
  * Retrieve raw bytes for a CID from the IPFS HTTP Gateway (port 8080).
  *
  * @param {string} cid
- * @param {{maxBytes?: number}} [limits] - `maxBytes`: the most bytes to read; a larger body answers null.
+ * @param {{maxBytes?: number}} [limits] - `maxBytes`: the most bytes to read; a larger body answers
+ *   null. `IPFS_MAX_READ_BYTES` by default.
  * @returns {Promise<Buffer|null>}
  */
-const getFromIpfs = async (cid, { maxBytes = Infinity } = {}) => {
+const getFromIpfs = async (cid, { maxBytes = DEFAULT_IPFS_MAX_READ_BYTES } = {}) => {
   const url = getGatewayUrl();
   try {
-    const res = await fetchWithTimeout(
+    const res = await request(
       `${url}/ipfs/${encodeURIComponent(cid)}`,
       {},
-      {
-        kind: 'gateway',
-        label: `IPFS gateway GET ${cid}`,
-      },
+      { kind: 'gateway', label: `IPFS gateway GET ${cid}`, read: 'bytes', maxBytes },
     );
     if (!res.ok) {
       logger.error(`IPFS gateway GET failed (${res.status}) for ${cid}`);
       return null;
     }
-    const bytes = await boundedBody(res, maxBytes);
-    if (!bytes) logger.warn(`IPFS gateway answered ${cid} with over ${maxBytes} bytes`);
-    return bytes;
+    if (!res.body) logger.warn(`IPFS gateway answered ${cid} with over ${maxBytes} bytes`);
+    return res.body;
   } catch (err) {
     logger.warn(`IPFS gateway unreachable at ${url}: ${err.message}`);
     return null;
@@ -305,22 +318,51 @@ const getFromIpfs = async (cid, { maxBytes = Infinity } = {}) => {
 //  Diagnostics
 // ─────────────────────────────────────────────────────────
 /**
- * Whether the IPFS Cluster tracks a pin of a CID: `GET /pins/<cid>` on the Cluster REST API.
+ * @typedef {Object} ClusterPinStatus
+ * @property {string} cid
+ * @property {boolean} tracked - The Cluster holds a pin of the CID.
+ * @property {number} pinnedPeers - Peers that report it `pinned`.
+ * @property {number} requiredPeers - Peers its replication factor asks for: `replication_factor_min`,
+ *   or every peer the pin is allocated to when that factor is -1.
+ * @property {string[]} pendingPeers - Peers that do not report it `pinned` yet.
+ * @property {boolean} durable - The pinned peers meet the replication factor.
+ */
+/**
+ * The replication the IPFS Cluster reaches for a CID, read from its own pin and its own
+ * replication factor: `GET /pins/<cid>` and `GET /allocations/<cid>`.
  *
  * @param {string} cid
- * @returns {Promise<boolean|null>} `null` when the Cluster does not answer.
+ * @returns {Promise<ClusterPinStatus|null>} `null` when the Cluster does not answer.
  */
-const isClusterPinned = async (cid) => {
+const clusterPinStatus = async (cid) => {
   try {
-    const res = await fetchWithTimeout(
-      `${getClusterApiUrl()}/pins/${encodeURIComponent(cid)}`,
-      {},
-      { kind: 'cluster', label: `IPFS Cluster pin status ${cid}` },
+    const [pins, allocation] = await Promise.all(
+      ['pins', 'allocations'].map((resource) =>
+        request(
+          `${getClusterApiUrl()}/${resource}/${encodeURIComponent(cid)}`,
+          {},
+          { kind: 'cluster', label: `IPFS Cluster ${resource} ${cid}` },
+        ),
+      ),
     );
-    if (res.status === 404) return false;
-    if (!res.ok) return null;
-    const { peer_map: peers = {} } = await res.json();
-    return Object.values(peers).some(({ status }) => status === 'pinned');
+    if (pins.status === 404 || allocation.status === 404)
+      return { cid, tracked: false, pinnedPeers: 0, requiredPeers: 1, pendingPeers: [], durable: false };
+    if (!pins.ok || !allocation.ok) return null;
+    const peers = Object.entries(pins.body?.peer_map ?? {});
+    const pinned = peers.filter(([, { status }]) => status === 'pinned');
+    const factor = Number(allocation.body?.replication_factor_min ?? -1);
+    const requiredPeers =
+      factor > 0 ? factor : Math.max(1, (allocation.body?.allocations ?? []).length || peers.length);
+    return {
+      cid,
+      tracked: true,
+      pinnedPeers: pinned.length,
+      requiredPeers,
+      pendingPeers: peers
+        .filter(([, { status }]) => status !== 'pinned')
+        .map(([peer, { peername }]) => peername || peer),
+      durable: pinned.length >= requiredPeers,
+    };
   } catch {
     return null;
   }
@@ -334,30 +376,33 @@ const isClusterPinned = async (cid) => {
  *
  * @param {string} mfsPath – Full MFS path to remove, e.g. `/object-layer/cid/<cid>`.
  * @param {boolean} [recursive=true] – When `true`, removes directories recursively.
- * @returns {Promise<boolean>} `true` when the removal succeeded or the path didn't exist.
+ * @returns {Promise<boolean>} `true` when the path is gone or was never there; with MFS off, no
+ *   listing exists to remove.
  */
 const removeMfsPath = async (mfsPath, recursive = true) => {
+  if (!mfsEnabled()) return true;
   const kuboUrl = getIpfsApiUrl();
   try {
-    // First check if the path exists via stat; if it doesn't we can return early.
-    const statRes = await fetchWithTimeout(
+    const stat = await request(
       `${kuboUrl}/api/v0/files/stat?arg=${encodeURIComponent(mfsPath)}`,
       { method: 'POST' },
-      { kind: 'kubo', label: `IPFS MFS stat ${mfsPath}` },
+      { kind: 'kubo', label: `IPFS MFS stat ${mfsPath}`, read: 'none' },
     );
-    if (!statRes.ok) {
-      // Path doesn't exist – nothing to remove.
+    if (isMissingMfsPath(stat)) {
       logger.info(`IPFS MFS rm – path does not exist, skipping: ${mfsPath}`);
       return true;
     }
-    const rmRes = await fetchWithTimeout(
+    if (!stat.ok) {
+      logger.warn(`IPFS MFS stat failed (${stat.status}): ${stat.body}`);
+      return false;
+    }
+    const rm = await request(
       `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true${recursive ? '&recursive=true' : ''}`,
       { method: 'POST' },
-      { kind: 'kubo', label: `IPFS MFS rm ${mfsPath}` },
+      { kind: 'kubo', label: `IPFS MFS rm ${mfsPath}`, read: 'none' },
     );
-    if (!rmRes.ok) {
-      const text = await rmRes.text();
-      logger.warn(`IPFS MFS rm failed (${rmRes.status}): ${text}`);
+    if (!rm.ok) {
+      logger.warn(`IPFS MFS rm failed (${rm.status}): ${rm.body}`);
       return false;
     }
     logger.info(`IPFS MFS rm OK – ${mfsPath}`);
@@ -368,41 +413,42 @@ const removeMfsPath = async (mfsPath, recursive = true) => {
   }
 };
 /**
- * Lists a CID under an MFS path: creates the parent directory, replaces any entry at the path,
- * and copies the CID there. A copy is a reference, never a second copy of the bytes.
+ * Lists a CID under an MFS path: creates the parent directory, copies the CID beside the path,
+ * then moves the copy over any entry there. The entry the path held stays until its replacement
+ * exists. A copy is a reference, never a second copy of the bytes.
  *
  * @param {string} cid      – IPFS CID to list.
  * @param {string} mfsPath  – Full destination MFS path, e.g. `/object-layer/cid/<cid>/atlas.png`.
- * @returns {Promise<boolean>} `true` when the MFS entry was created successfully.
+ * @returns {Promise<boolean>} `true` when the path lists the CID; `false` with MFS off.
  */
 const copyToMfs = async (cid, mfsPath) => {
+  if (!mfsEnabled() || !isCid(cid)) return false;
   const kuboUrl = getIpfsApiUrl();
   const destDir = mfsPath.substring(0, mfsPath.lastIndexOf('/')) || '/';
+  const staged = `${mfsPath}.${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.tmp`;
+  const step = async (operation, query) => {
+    const res = await request(
+      `${kuboUrl}/api/v0/files/${operation}?${query}`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS ${operation} ${mfsPath}`, read: 'none' },
+    );
+    if (!res.ok && !(operation === 'rm' && isMissingMfsPath(res)))
+      throw new Error(`${operation} answered ${res.status}: ${res.body}`);
+  };
   try {
-    await fetchWithTimeout(
-      `${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`,
-      { method: 'POST' },
-      { kind: 'kubo', label: `IPFS MFS mkdir ${destDir}` },
-    );
-    await fetchWithTimeout(
-      `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true`,
-      { method: 'POST' },
-      { kind: 'kubo', label: `IPFS MFS rm ${mfsPath}` },
-    );
-    const cpRes = await fetchWithTimeout(
-      `${kuboUrl}/api/v0/files/cp?arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(mfsPath)}`,
-      { method: 'POST' },
-      { kind: 'kubo', label: `IPFS MFS cp ${mfsPath}` },
-    );
-    if (!cpRes.ok) {
-      const text = await cpRes.text();
-      logger.warn(`IPFS MFS cp failed (${cpRes.status}): ${text} – ${mfsPath}`);
-      return false;
-    }
+    await step('mkdir', `arg=${encodeURIComponent(destDir)}&parents=true`);
+    await step('cp', `arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(staged)}`);
+    await step('rm', `arg=${encodeURIComponent(mfsPath)}&force=true`);
+    await step('mv', `arg=${encodeURIComponent(staged)}&arg=${encodeURIComponent(mfsPath)}`);
     logger.info(`IPFS MFS cp OK – ${mfsPath} → ${cid}`);
     return true;
   } catch (err) {
-    logger.warn(`IPFS MFS cp unreachable: ${err.message}`);
+    logger.warn(`IPFS MFS cp failed – ${mfsPath}: ${err.message}`);
+    await request(
+      `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(staged)}&force=true`,
+      { method: 'POST' },
+      { kind: 'kubo', read: 'none' },
+    ).catch(() => {});
     return false;
   }
 };
@@ -411,19 +457,19 @@ const copyToMfs = async (cid, mfsPath) => {
  * The CID an MFS path lists: `files/stat`.
  *
  * @param {string} mfsPath
- * @returns {Promise<{cid:string,size:number,type:string}|null>} `null` when the path does not exist
- *   or the node does not answer.
+ * @returns {Promise<{cid:string,size:number,type:string}|null>} `null` when the path does not exist,
+ *   the node does not answer, or MFS is off.
  */
 const statMfsPath = async (mfsPath) => {
+  if (!mfsEnabled()) return null;
   try {
-    const res = await fetchWithTimeout(
+    const res = await request(
       `${getIpfsApiUrl()}/api/v0/files/stat?arg=${encodeURIComponent(mfsPath)}`,
       { method: 'POST' },
       { kind: 'kubo', label: `IPFS MFS stat ${mfsPath}` },
     );
-    if (!res.ok) return null;
-    const { Hash, Size, Type } = await res.json();
-    return { cid: Hash, size: Number(Size), type: Type };
+    if (!res.ok || !isCid(res.body?.Hash)) return null;
+    return { cid: res.body.Hash, size: Number(res.body.Size), type: res.body.Type };
   } catch {
     return null;
   }
@@ -433,18 +479,19 @@ const statMfsPath = async (mfsPath) => {
  * The names an MFS directory holds: `files/ls`.
  *
  * @param {string} mfsPath
- * @returns {Promise<string[]|null>} `null` when the directory does not exist or the node does not answer.
+ * @returns {Promise<string[]|null>} `null` when the directory does not exist, the node does not
+ *   answer, or MFS is off.
  */
 const listMfsDirectory = async (mfsPath) => {
+  if (!mfsEnabled()) return null;
   try {
-    const res = await fetchWithTimeout(
+    const res = await request(
       `${getIpfsApiUrl()}/api/v0/files/ls?arg=${encodeURIComponent(mfsPath)}`,
       { method: 'POST' },
       { kind: 'kubo', label: `IPFS MFS ls ${mfsPath}` },
     );
     if (!res.ok) return null;
-    const { Entries } = await res.json();
-    return (Entries ?? []).map(({ Name }) => Name);
+    return (res.body?.Entries ?? []).map(({ Name }) => Name);
   } catch {
     return null;
   }
@@ -456,11 +503,13 @@ class IpfsClient {
   static getIpfsApiUrl = getIpfsApiUrl;
   static getClusterApiUrl = getClusterApiUrl;
   static getGatewayUrl = getGatewayUrl;
+  static isCid = isCid;
+  static mfsEnabled = mfsEnabled;
   static addToIpfs = addToIpfs;
   static pinCid = pinCid;
   static unpinCid = unpinCid;
   static getFromIpfs = getFromIpfs;
-  static isClusterPinned = isClusterPinned;
+  static clusterPinStatus = clusterPinStatus;
   static copyToMfs = copyToMfs;
   static statMfsPath = statMfsPath;
   static listMfsDirectory = listMfsDirectory;
@@ -474,16 +523,13 @@ class IpfsClient {
    * @returns {Promise<boolean>} true when the CID is pinned.
    */
   static isCidPinned = async (cid) => {
-    const kuboUrl = getIpfsApiUrl();
     try {
-      const res = await fetchWithTimeout(
-        `${kuboUrl}/api/v0/pin/ls?arg=${encodeURIComponent(cid)}&type=all`,
+      const res = await request(
+        `${getIpfsApiUrl()}/api/v0/pin/ls?arg=${encodeURIComponent(cid)}&type=all`,
         { method: 'POST' },
         { kind: 'kubo', label: `IPFS Kubo pin/ls ${cid}` },
       );
-      if (!res.ok) return false;
-      const json = await res.json();
-      return !!(json.Keys && json.Keys[cid]);
+      return res.ok && !!res.body?.Keys?.[cid];
     } catch {
       return false;
     }
