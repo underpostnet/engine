@@ -34,7 +34,7 @@
 | [`state`](#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
 | [`image`](#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
-| [`db`](#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
+| [`db`](#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics. |
 | [`metadata`](#underpost-metadata) | Manages cluster metadata operations, including import and export. |
 | [`cron`](#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
 | [`fs`](#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |
@@ -650,7 +650,7 @@ Quickly imports Underpost npm dependencies by copying them.
 
 ## underpost db
 
-Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
+Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics.
 
 **Usage:** `underpost db [options] [deploy-list]`
 
@@ -664,22 +664,27 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 
 | Option | Description |
 | --- | --- |
-| `--import` | Imports container backups from specified repositories. |
-| `--export` | Exports container backups to specified repositories. |
+| `--export` | Backs up every database of each deployment to the object store. |
+| `--import` | Restores a backup of each deployment (default: the newest available one). |
+| `--backup <backup-id>` | Selects the backup that --import or --verify reads. |
+| `--list` | Lists the backups of each deployment. |
+| `--verify` | Reads every part of a backup and checks its checksums, seal and archive inventory. |
+| `--restore-test` | With --verify, restores the backup into an isolated mongod and compares it with its manifest. |
+| `--prune` | Removes the backups that the retention policy no longer keeps. |
+| `--keep <n>` | With --prune, the number of available backups to keep, newest first. |
+| `--dry-run` | With --prune, reports what it would remove and removes nothing. |
+| `--trees` | With --import, also restores the site file trees of the backup. |
 | `--pod-name <pod-name>` | Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*"). |
-| `--all-pods` | Target all matching pods instead of just the first one. |
-| `--primary-pod` | Automatically detect and use MongoDB primary pod (MongoDB only). |
+| `--all-pods` | With --stats, reads every matching pod instead of one. |
+| `--primary-pod` | Reads dumps from the MongoDB primary instead of a secondary. |
 | `--stats` | Display database statistics (collection/table names with document/row counts). |
 | `--collections <collections>` | Comma-separated list of database collections to operate on. |
-| `--out-path <out-path>` | Specifies a custom output path for backups. |
-| `--drop` | Drops the specified databases or collections before importing. |
-| `--preserveUUID` | Preserves UUIDs during database import operations. |
-| `--git` | Enables Git integration for backup version control (clone, pull, commit, push to GitHub). |
-| `--force-clone` | Forces cloning of the Git repository, overwriting local changes. |
+| `--out-path <out-path>` | Writes or reads plain archives in this local directory instead of the object store. |
+| `--drop` | Drops each collection before restoring it. |
+| `--preserveUUID` | Preserves collection UUIDs on restore (requires --drop). |
 | `--hosts <hosts>` | Comma-separated list of database hosts to filter operations. |
 | `--paths <paths>` | Comma-separated list of paths to filter database operations. |
 | `--ns <ns-name>` | Kubernetes namespace context for database operations (defaults to "default"). |
-| `--macro-rollback-export <n-commits-reset>` | Exports a macro rollback script that reverts the last n commits (Git integration required). |
 | `--clean-fs-collection` | Cleans orphaned File documents from collections that are not referenced by any models. |
 | `--clean-fs-dry-run` | Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection). |
 | `--migrate-stable-slugs` | Assigns every Document its public URL slug (stableSlug) and builds the unique index; idempotent, one-shot. |
@@ -687,7 +692,6 @@ Manages database operations with support for MariaDB and MongoDB, including impo
 | `--kubeadm` | Enables the kubeadm context for database operations. |
 | `--kind` | Enables the kind context for database operations. |
 | `--k3s` | Enables the k3s context for database operations. |
-| `--repo-backup` | Backs up repositories (git commit+push) inside deployment pods via kubectl exec. |
 | `-h, --help` | display help for command |
 
 ---
@@ -744,7 +748,6 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 | `--namespace <namespace>` | Kubernetes namespace for the CronJob resources (default: "default"). |
 | `--image <image>` | Custom container image for the CronJob pods. |
 | `--node-name <node-name>` | Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector. With --apply, defaults to this machine when the cluster knows it as a node, because the pods mount its checkout. |
-| `--git` | Pass --git flag to cron job execution. |
 | `--cmd <cmd>` | Optional pre-script commands to run before cron execution. |
 | `--dev` | Use local ./ base path instead of global underpost installation. |
 | `--k3s` | Use k3s cluster context (apply directly on host). |

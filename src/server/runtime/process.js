@@ -13,7 +13,7 @@
  *     normal answer).
  *   - `shellExec(cmd, { cwd: "..." })` runs hermetically in `cwd` without
  *      touching shelljs's global state.
- *   - All children spawned by `shellExec` register in
+ *   - All children spawned by `shellSpawn` register in
  *     `ProcessController.children` so SIGINT/SIGTERM forwarding can reach
  *     them before the parent exits.
  *
@@ -24,6 +24,7 @@
 import shell from 'shelljs';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
+import { spawn } from 'node:child_process';
 import { loggerFactory, redactSensitiveText } from '../ops/logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../../index.js';
@@ -69,8 +70,7 @@ class ProcessController {
 
   /**
    * Registry of currently running tracked child processes.
-   * Populated when callers spawn via the streaming Node-native path
-   * (future expansion). The sets are exposed so signal handlers and
+   * Populated by {@link shellSpawn}. The set is exposed so signal handlers and
    * test harnesses can introspect / clean up the registry.
    */
   static children = new Set();
@@ -320,6 +320,53 @@ const shellExecAsync = (cmd, options = {}) =>
   });
 
 /**
+ * Runs a command as a child process with its stdin and stdout as streams: the transport of a dump
+ * or a restore that never lands on disk.
+ *
+ * The execution profile gates it as it gates {@link shellExec}. A stream has no neutral value, so
+ * an elided command throws instead of reading as an empty stream.
+ *
+ * @memberof Process
+ * @param {string} cmd - The command to run.
+ * @param {Object} [options] - Options.
+ * @param {boolean} [options.disableLog] - Suppress the command log line.
+ * @param {string} [options.cwd] - Directory to run in.
+ * @param {NodeJS.ProcessEnv} [options.env] - Environment passed only to the child process.
+ * @returns {{child: import('node:child_process').ChildProcess, stdin: import('node:stream').Writable,
+ *   stdout: import('node:stream').Readable, exited: Promise<{code:number, stderr:string}>}}
+ *   `exited` rejects with {@link ShellExecError} on a non-zero exit.
+ * @throws {Error} When the execution profile elides the command.
+ */
+const shellSpawn = (cmd, options = {}) => {
+  const decision = executionDecisionFactory(cmd);
+  if (!decision.permitted)
+    throw new Error(`[${decision.profile}] elided ${decision.capability}: a stream has no neutral value`);
+  if (!options.disableLog) logger.info(`spawn`, redactSensitiveText(cmd));
+  const child = spawn('/bin/sh', ['-c', cmd], {
+    cwd: options.cwd,
+    env: options.env ?? process.env,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  ProcessController.children.add(child);
+  let stderr = '';
+  child.stderr.on('data', (chunk) => {
+    if (stderr.length < 16384) stderr += chunk;
+  });
+  const exited = new Promise((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', (code) => {
+      ProcessController.children.delete(child);
+      if (code === 0) return resolve({ code, stderr });
+      latchRuntimeError();
+      reject(new ShellExecError(redactSensitiveText(cmd), code ?? -1, '', redactSensitiveText(stderr)));
+    });
+  });
+  // A caller that has not awaited `exited` yet must not see an unhandled rejection.
+  exited.catch(() => {});
+  return { child, stdin: child.stdin, stdout: child.stdout, exited };
+};
+
+/**
  * Blocks the calling thread for `ms` milliseconds.
  *
  * Retry backoff around the synchronous `shellExec` chains (kubectl exec, pod
@@ -433,6 +480,7 @@ export {
   shellArgumentFactory,
   shellExec,
   shellExecAsync,
+  shellSpawn,
   shellCd,
   sleepSync,
   pbcopy,

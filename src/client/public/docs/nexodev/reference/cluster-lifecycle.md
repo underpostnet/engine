@@ -43,7 +43,6 @@ The `<conf-id>` suffix (e.g. `core`, `cyberia`, `lampp`, `test`) is the shared i
 - **Deploy ID** `dd-<conf-id>` → config stored at `./engine-private/conf/dd-<conf-id>/`
 - **Repo Name** `engine-<conf-id>` → public repo, derived as `engine-${deployId.split('dd-')[1]}`
 - **Private Repo** `engine-<conf-id>-private` → private configuration repo
-- **Cron Backups Repo** `engine-<conf-id>-cron-backups` → cron backup repo
 - **Conf file** `underpost.config.dd-<conf-id>.js` → deployment configuration module
 
 When a deploy ID is provided without the `dd-` prefix, the engine normalizes it automatically: `my-app` → `dd-my-app`. However, examples in this reference use the full `dd-<conf-id>` format for clarity.
@@ -144,7 +143,7 @@ node bin new --deploy-id dd-my-app --purge
 | `--cluster`               | Create cluster files and sync (requires `--deploy-id`)                                                                      |
 | `--sub-conf <type>`       | Create sub-configuration files (`client`, `server`)                                                                         |
 | `--build`                 | Build deployment to pwa-microservices-template                                                                              |
-| `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`, `engine-<conf-id>-cron-backups`)         |
+| `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`)                                          |
 | `--clean-template`        | Clean the build directory                                                                                                   |
 | `--sync-conf`             | Sync configuration to private repositories                                                                                  |
 | `--sync-start`            | Sync start scripts in deploy ID `package.json` with root `package.json` (use `dd` as `--deploy-id` to sync all `dd.routes`) |
@@ -160,11 +159,13 @@ When `--deploy-id dd-my-app` is used with `--cluster`, the engine creates:
 - CD workflow: `.github/workflows/engine-my-app.cd.yml`
 - Appends `dd-my-app` to `./engine-private/deploy/dd.routes`
 
-When `--build-repos` is used, the engine creates three repositories:
+When `--build-repos` is used, the engine creates two repositories:
 
 - `engine-my-app` (public deployment repo)
 - `engine-my-app-private` (private configuration repo)
-- `engine-my-app-cron-backups` (cron backup repo)
+
+Database backups go to the object store, never to a repository: see
+[DB and Backup Management](../how-to/manage-databases-and-backups.md).
 
 ---
 

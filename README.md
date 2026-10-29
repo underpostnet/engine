@@ -131,7 +131,7 @@ npm run dev
 | [`state`](CLI-HELP.md#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
 | [`image`](CLI-HELP.md#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](CLI-HELP.md#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
-| [`db`](CLI-HELP.md#underpost-db) | Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration. |
+| [`db`](CLI-HELP.md#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics. |
 | [`metadata`](CLI-HELP.md#underpost-metadata) | Manages cluster metadata operations, including import and export. |
 | [`cron`](CLI-HELP.md#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
 | [`fs`](CLI-HELP.md#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |

@@ -3,68 +3,292 @@
  * @module src/cli/db.js
  * @namespace UnderpostDB
  * @description Manages database operations, backups, and cluster metadata for Kubernetes deployments.
- * Supports MariaDB and MongoDB with import/export capabilities, Git integration, and multi-pod operations.
+ * Supports MariaDB and MongoDB. A backup goes to the object store through the backup engine
+ * (`src/server/storage/backup.js`); no Git operation takes part. A MongoDB dump runs in a dedicated
+ * client pod, never in the `mongod` container, and streams to the store without touching a disk.
  */
 
-import {
-  loadConfInstances,
-  loadConfServerJson,
-  loadReplicas,
-  mergeFile,
-  splitFileFactory,
-} from '../server/runtime/conf.js';
-import { pathPortAssignmentFactory } from '../server/network/router.js';
+import zlib from 'node:zlib';
+import nodePath from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { loadConfInstances, loadConfServerJson, loadReplicas } from '../server/runtime/conf.js';
+import { DEPLOY_ROUTES_PATH, pathPortAssignmentFactory, readDeployRoutes } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
-import { cli } from '../server/build/execution.js';
 import fs from 'fs-extra';
 import { DataBaseProviderService } from '../db/DataBaseProvider.js';
 import { loadCronDeployEnv } from '../server/ops/cron.js';
 import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
+import {
+  MONGODB_DEFAULT_AUTH_SOURCE,
+  MONGODB_DEFAULT_PORT,
+  MONGODB_DEFAULT_REPLICA_SET,
+  MONGODB_SERVICE_NAME,
+  MONGODB_STATEFULSET_NAME,
+  resolveMongoReplicaHosts,
+} from '../db/mongo/MongooseDB.js';
+import {
+  BACKUP_RETENTION,
+  backupKeyMaterial,
+  backupStreamReadable,
+  latestBackup,
+  listBackups,
+  publishBackupMetrics,
+  pruneBackups,
+  readBackupManifest,
+  recordVerification,
+  verifyBackup,
+  writeBackup,
+} from '../server/storage/backup.js';
+import { objectStore } from '../server/storage/object-store.js';
+import { inspectMongoArchive, mongoArchiveTap } from '../server/storage/mongo-archive.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
-import mongoose from 'mongoose';
 const logger = loggerFactory(import.meta);
 
-/**
- * Constants for database operations
- * @constant {number} MAX_BACKUP_RETENTION - Maximum number of backups to retain
- * @memberof UnderpostDB
- */
-const MAX_BACKUP_RETENTION = 5;
+/** The backup profile of `db --export`: disaster recovery. */
+export const DR_BACKUP_PROFILE = 'dr';
+
+/** Resource limits of the client pod that runs the dump and restore tools. */
+const CLIENT_LIMITS = Object.freeze({
+  cpu: process.env.UNDERPOST_DB_CLIENT_CPU || '1',
+  memory: process.env.UNDERPOST_DB_CLIENT_MEMORY || '1Gi',
+});
+
+/** Resource limits of the restore drill pod, which also runs a scratch `mongod`. */
+const DRILL_LIMITS = Object.freeze({
+  cpu: process.env.UNDERPOST_DB_DRILL_CPU || '1',
+  memory: process.env.UNDERPOST_DB_DRILL_MEMORY || '1536Mi',
+});
+
+/** The port of the scratch `mongod` of a restore drill, inside its pod. */
+const DRILL_PORT = 27018;
 
 /**
- * Builds the quoted auth flags of `mongodump` and `mongorestore`, or nothing without credentials.
- * @param {object} params
- * @param {string} [params.user] - MongoDB username.
- * @param {string} [params.password] - MongoDB password.
- * @param {string} [params.authDatabase] - Auth database.
- * @returns {string} The flags with a leading space, or an empty string.
+ * What a `db --export` dump of a replica set guarantees: each collection is read at its own time.
+ * There is no cross-collection point in time without `--oplog`, which dumps a whole instance.
  * @memberof UnderpostDB
  */
-const mongoToolAuthFlagsFactory = ({ user, password, authDatabase }) =>
-  user && password
-    ? ` --username ${shellArgumentFactory(user)} --password ${shellArgumentFactory(password)} --authenticationDatabase ${shellArgumentFactory(authDatabase)}`
-    : '';
+export const DR_CONSISTENCY = Object.freeze({
+  pointInTime: false,
+  scope: 'collection',
+  description: 'Each collection is read at its own time from one replica set member; no cross-collection point in time',
+});
+
+/**
+ * The auth flags of a tool in the client pod: the credentials are variables of its Secret, so no
+ * command line holds them.
+ * @param {number|null} principal - Index of the principal in the Secret; null without credentials.
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+const clientAuthFlags = (principal) =>
+  principal === null
+    ? ''
+    : ` --username "$MONGO_USER_${principal}" --password "$MONGO_PASSWORD_${principal}" --authenticationDatabase ${MONGODB_DEFAULT_AUTH_SOURCE}`;
+
+/**
+ * The members of the MongoDB replica set, by the names of its StatefulSet pods.
+ * @param {Array<{NAME:string}>} pods
+ * @returns {string[]} `host:port` of each member.
+ * @memberof UnderpostDB
+ */
+export const mongoReplicaHostsFactory = (pods) => {
+  const members = pods
+    .map(({ NAME }) => NAME)
+    .filter((name) => new RegExp(`^${MONGODB_STATEFULSET_NAME}-\\d+$`).test(name ?? ''))
+    .sort();
+  return members.length
+    ? members.map((name) => `${name}.${MONGODB_SERVICE_NAME}:${MONGODB_DEFAULT_PORT}`)
+    : resolveMongoReplicaHosts({});
+};
+
+/**
+ * The `mongodump` command of one database, or one collection, as a gzip archive on stdout.
+ * @param {Object} params
+ * @param {string[]} params.hosts - Replica set members.
+ * @param {number|null} params.principal - {@link clientAuthFlags}.
+ * @param {string} params.database
+ * @param {string} [params.collection]
+ * @param {string} [params.readPreference='secondaryPreferred']
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+export const mongoDumpCommandFactory = ({
+  hosts,
+  principal,
+  database,
+  collection = '',
+  readPreference = 'secondaryPreferred',
+}) =>
+  `mongodump --host ${shellArgumentFactory(`${MONGODB_DEFAULT_REPLICA_SET}/${hosts.join(',')}`)} ` +
+  `--readPreference=${readPreference}${clientAuthFlags(principal)} --db=${shellArgumentFactory(database)}` +
+  `${collection ? ` --collection=${shellArgumentFactory(collection)}` : ''} --archive --gzip --numParallelCollections=1`;
+
+/**
+ * The `mongorestore` command that reads a gzip archive on stdin.
+ * @param {Object} params
+ * @param {string[]} [params.hosts] - Replica set members; the drill's scratch `mongod` without them.
+ * @param {number|null} [params.principal=null]
+ * @param {string[]} params.namespaces - `--nsInclude` patterns.
+ * @param {boolean} [params.drop=false]
+ * @param {boolean} [params.preserveUUID=false]
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+export const mongoRestoreCommandFactory = ({
+  hosts,
+  principal = null,
+  namespaces,
+  drop = false,
+  preserveUUID = false,
+}) =>
+  `mongorestore --host ${shellArgumentFactory(
+    hosts ? `${MONGODB_DEFAULT_REPLICA_SET}/${hosts.join(',')}` : `127.0.0.1:${DRILL_PORT}`,
+  )}${clientAuthFlags(principal)} --archive --gzip ${namespaces
+    .map((namespace) => `--nsInclude=${shellArgumentFactory(namespace)}`)
+    .join(' ')} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --stopOnError` +
+  `${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}`;
+
+/**
+ * A `mongosh` command that prints what `script` prints.
+ * @param {Object} params
+ * @param {string[]} [params.hosts] - Replica set members; the drill's scratch `mongod` without them.
+ * @param {number|null} [params.principal=null]
+ * @param {string} params.script
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+export const mongoShellCommandFactory = ({ hosts, principal = null, script }) =>
+  `mongosh ${shellArgumentFactory(
+    hosts
+      ? `mongodb://${hosts.join(',')}/?replicaSet=${MONGODB_DEFAULT_REPLICA_SET}`
+      : `mongodb://127.0.0.1:${DRILL_PORT}/?directConnection=true`,
+  )}${clientAuthFlags(principal)} --quiet --eval ${shellArgumentFactory(script)}`;
+
+/**
+ * The command that starts the scratch `mongod` of a restore drill. Its TTL monitor is off: a drill
+ * counts what the archive holds, and an expired document of a TTL collection is still restored.
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+export const drillMongodCommandFactory = () =>
+  `mkdir -p /scratch/db && mongod --dbpath /scratch/db --port ${DRILL_PORT} --bind_ip 127.0.0.1 ` +
+  '--wiredTigerCacheSizeGB 0.25 --setParameter ttlMonitorEnabled=false --fork --logpath /scratch/mongod.log';
+
+/**
+ * The name of a backup stream: kind and identity, in the characters an object key takes.
+ * @param {string} kind
+ * @param {...string} parts
+ * @returns {string}
+ * @memberof UnderpostDB
+ */
+export const backupStreamName = (kind, ...parts) =>
+  `${kind}-${parts.filter(Boolean).join('--')}`.replace(/[^A-Za-z0-9_-]/g, '_');
+
+/**
+ * A backup source over a command's stdout. `done()` resolves when the command exited cleanly, so
+ * a dump that fails half way never becomes an available backup.
+ * @param {ReturnType<typeof Underpost.kubectl.execStream>} child
+ * @param {{gzip?:boolean}} [options] - Compress on this host, outside the database pod.
+ * @returns {AsyncIterable<Buffer> & {done:() => Promise<void>, destroy:() => void}}
+ * @memberof UnderpostDB
+ */
+const commandSource = (child, { gzip = false } = {}) => {
+  child.stdin.end();
+  const output = gzip ? child.stdout.pipe(zlib.createGzip()) : child.stdout;
+  return {
+    [Symbol.asyncIterator]: () => output[Symbol.asyncIterator](),
+    done: async () => {
+      await child.exited;
+    },
+    destroy: () => child.child.kill('SIGTERM'),
+  };
+};
+
+/**
+ * Pipes a plaintext stream into a command's stdin and waits for the command.
+ * @param {AsyncIterable<Buffer>|import('node:stream').Readable} source
+ * @param {ReturnType<typeof Underpost.kubectl.execStream>} child
+ * @param {{gunzip?:boolean}} [options] - Decompress on this host first.
+ * @returns {Promise<void>}
+ * @memberof UnderpostDB
+ */
+const feedCommand = async (source, child, { gunzip = false } = {}) => {
+  try {
+    await pipeline(source, ...(gunzip ? [zlib.createGunzip()] : []), child.stdin);
+  } catch (error) {
+    child.child.kill('SIGTERM');
+    await child.exited.catch(() => {});
+    throw error;
+  }
+  await child.exited;
+};
+
+/**
+ * Compares the inventory a restore or a read found with the one the manifest records.
+ * @param {{namespaces:Object<string,{documents:number,indexes:number}>}} expected
+ * @param {{namespaces:Object<string,{documents:number,indexes:number}>}} found
+ * @returns {string[]} The defects; none when they match.
+ * @memberof UnderpostDB
+ */
+export const inventoryDefects = (expected, found) => {
+  const defects = [];
+  for (const [namespace, entry] of Object.entries(expected?.namespaces ?? {})) {
+    const actual = found?.namespaces?.[namespace];
+    if (!actual) defects.push(`${namespace}: missing`);
+    else if (actual.documents !== entry.documents)
+      defects.push(`${namespace}: ${actual.documents} document(s), ${entry.documents} recorded`);
+    else if (actual.indexes !== entry.indexes)
+      defects.push(`${namespace}: ${actual.indexes} index(es), ${entry.indexes} recorded`);
+  }
+  for (const namespace of Object.keys(found?.namespaces ?? {}))
+    if (!expected?.namespaces?.[namespace]) defects.push(`${namespace}: not recorded`);
+  return defects;
+};
+
+/** The script a restore drill runs in its scratch `mongod`: per namespace, documents, indexes and validity. */
+const DRILL_INVENTORY_SCRIPT = `
+const namespaces = {};
+for (const { name } of db.adminCommand({ listDatabases: 1, nameOnly: true }).databases) {
+  if (['admin', 'local', 'config'].includes(name)) continue;
+  const target = db.getSiblingDB(name);
+  for (const info of target.getCollectionInfos({ type: 'collection' })) {
+    const collection = target.getCollection(info.name);
+    namespaces[name + '.' + info.name] = {
+      documents: collection.countDocuments({}),
+      indexes: collection.getIndexes().length,
+      valid: target.runCommand({ validate: info.name, full: false }).valid === true,
+    };
+  }
+}
+print(JSON.stringify({ namespaces }));
+`;
 
 /**
  * @typedef {Object} DatabaseOptions
  * @memberof UnderpostDB
- * @property {boolean} [import=false] - Flag to import data from a backup
- * @property {boolean} [export=false] - Flag to export data to a backup
- * @property {string} [podName=''] - Comma-separated list of pod names or patterns
- * @property {string} [ns='default'] - Kubernetes namespace
- * @property {string} [collections=''] - Comma-separated list of collections to include
- * @property {string} [outPath=''] - Output path for backup files
- * @property {boolean} [drop=false] - Flag to drop the database before importing
- * @property {boolean} [preserveUUID=false] - Flag to preserve UUIDs during import
- * @property {boolean} [git=false] - Flag to enable Git integration
- * @property {string} [hosts=''] - Comma-separated list of hosts to include
- * @property {string} [paths=''] - Comma-separated list of paths to include
- * @property {boolean} [allPods=false] - Flag to target all matching pods
- * @property {boolean} [primaryPod=false] - Flag to automatically detect and use MongoDB primary pod
- * @property {boolean} [stats=false] - Flag to display collection/table statistics
- * @property {boolean} [forceClone=false] - Flag to force remove and re-clone cron backup repository
+ * @property {boolean} [import=false] - Restore the selected backup.
+ * @property {boolean} [export=false] - Back up every database of the deployment.
+ * @property {string} [backup=''] - Backup id for `import` and `verify`; the newest available without it.
+ * @property {boolean} [list=false] - List the backups.
+ * @property {boolean} [verify=false] - Deep-verify a backup.
+ * @property {boolean} [restoreTest=false] - With `verify`, restore into an isolated `mongod`.
+ * @property {boolean} [prune=false] - Remove the backups retention no longer keeps.
+ * @property {number} [keep] - Available backups a prune keeps.
+ * @property {boolean} [dryRun=false] - With `prune`, report only.
+ * @property {boolean} [trees=false] - With `import`, also restore the site file trees.
+ * @property {string} [podName=''] - Comma-separated list of pod names or patterns.
+ * @property {string} [ns='default'] - Kubernetes namespace.
+ * @property {string} [collections=''] - Comma-separated list of collections to include.
+ * @property {string} [outPath=''] - Local directory of plain archives instead of the object store.
+ * @property {boolean} [drop=false] - Drop each collection before restoring it.
+ * @property {boolean} [preserveUUID=false] - Preserve collection UUIDs on restore.
+ * @property {string} [hosts=''] - Comma-separated list of hosts to include.
+ * @property {string} [paths=''] - Comma-separated list of paths to include.
+ * @property {boolean} [allPods=false] - Show statistics of every matching pod.
+ * @property {boolean} [primaryPod=false] - Read dumps from the MongoDB primary.
+ * @property {boolean} [stats=false] - Display collection/table statistics.
  */
 
 /**
@@ -78,25 +302,17 @@ const mongoToolAuthFlagsFactory = ({ user, password, authDatabase }) =>
  */
 
 /**
- * @typedef {Object} DatabaseConfig
+ * @typedef {Object} DatabasePlanEntry
  * @memberof UnderpostDB
  * @property {string} provider - Database provider (mariadb, mongoose)
  * @property {string} name - Database name
  * @property {string} user - Database user
  * @property {string} password - Database password
- * @property {string} hostDir - Backup directory of the host
  * @property {string} host - Host identifier
  * @property {string} path - Path identifier
  * @property {string[]} partitions - Partition database names the host declares
- * @property {number} [currentBackupTimestamp] - Timestamp of current backup
  */
 
-/**
- * @class UnderpostDB
- * @description Manages database operations and backups for Kubernetes-based deployments.
- * Provides comprehensive database management including import/export, multi-pod targeting,
- * Git integration, and cluster metadata management.
- */
 /**
  * UnderpostDB class for managing database operations and backups.
  * @class UnderpostDB
@@ -110,419 +326,685 @@ class UnderpostDB {
    */
   static API = {
     /**
-     * Helper: Resolves the latest backup timestamp from an existing backup directory.
-     * Scans the directory for numeric (epoch) sub-folders and returns the most recent one.
-     * @method _getLatestBackupTimestamp
+     * The databases of a deployment, one entry per provider and name, filtered by host and path.
+     * @method databasePlan
      * @memberof UnderpostDB
-     * @param {string} backupDir - Path to the host-folder backup directory.
-     * @return {string|null} The latest timestamp string, or null if none found.
+     * @param {string} deployId
+     * @param {{hosts?:string, paths?:string}} [filters]
+     * @return {DatabasePlanEntry[]}
+     * @throws {Error} When the deployment has no server configuration.
      */
-    _getLatestBackupTimestamp(backupDir) {
-      if (!fs.existsSync(backupDir)) return null;
-      const entries = fs.readdirSync(backupDir).filter((e) => /^\d+$/.test(e));
-      if (entries.length === 0) return null;
-      return entries.sort((a, b) => parseInt(b) - parseInt(a))[0];
-    },
-
-    /**
-     * Helper: The cron backup repository of a deployment.
-     * @method _backupRepoName
-     * @memberof UnderpostDB
-     * @param {string} deployId - Deployment ID.
-     * @return {string} The repository name.
-     */
-    _backupRepoName(deployId) {
-      return `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
-    },
-
-    /**
-     * The backup directory of one host of a deployment: one timestamp folder per backup, and in
-     * each one dump directory per database.
-     * @method backupHostDir
-     * @memberof UnderpostDB
-     * @param {object} params
-     * @param {string} params.deployId - Deployment ID.
-     * @param {string} params.host - Host.
-     * @param {string} params.path - Path.
-     * @return {string} The directory, relative to the engine root.
-     */
-    backupHostDir({ deployId, host, path }) {
-      return `../${Underpost.db._backupRepoName(deployId)}/${host}${path.replaceAll('/', '-')}`;
-    },
-
-    /**
-     * The documents of one collection of a `mongodump` database directory, with their BSON types.
-     * @method readDumpCollection
-     * @memberof UnderpostDB
-     * @param {string} dir - The dump directory of one database.
-     * @param {string} collection - Collection name.
-     * @return {Object[]} Empty when the dump holds no such collection.
-     */
-    readDumpCollection(dir, collection) {
-      const file = `${dir}/${collection}.bson`;
-      if (!fs.existsSync(file)) return [];
-      const buffer = fs.readFileSync(file);
-      const documents = [];
-      for (let offset = 0; offset < buffer.length;) {
-        const size = buffer.readInt32LE(offset);
-        documents.push(
-          mongoose.mongo.BSON.deserialize(buffer.subarray(offset, offset + size), { promoteValues: false }),
-        );
-        offset += size;
+    databasePlan(deployId, { hosts = '', paths = '' } = {}) {
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) throw new Error(`Configuration file not found: ${confServerPath}`);
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const hostFilter = `${hosts || ''}`
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean);
+      const pathFilter = `${paths || ''}`
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const seen = new Set();
+      const plan = [];
+      for (const host of Object.keys(confServer)) {
+        if (hostFilter.length && !hostFilter.includes(host)) continue;
+        for (const path of Object.keys(confServer[host])) {
+          if (pathFilter.length && !pathFilter.includes(path)) continue;
+          const { db } = confServer[host][path];
+          if (!db?.provider || !db?.name || seen.has(`${db.provider}:${db.name}`)) continue;
+          seen.add(`${db.provider}:${db.name}`);
+          plan.push({
+            provider: db.provider,
+            name: db.name,
+            user: db.user,
+            password: db.password,
+            host,
+            path,
+            partitions: Object.values(db.partitions ?? {}).map((partition) => partition.name),
+          });
+        }
       }
-      return documents;
+      return plan;
     },
 
     /**
-     * Restores a `mongodump` database directory through the driver. The indexes are the models' to build.
-     * @method restoreDump
+     * The pods of a provider in a namespace: the named patterns, or every pod of the provider.
+     * @method providerPods
      * @memberof UnderpostDB
-     * @param {import('mongodb').Db} db - An empty target database.
-     * @param {string} dir - The dump directory of one database.
-     * @return {Promise<Object<string,number>>} Collection → documents restored.
+     * @param {'mongoose'|'mariadb'} provider
+     * @param {string} namespace
+     * @param {string} [podName] - Comma-separated patterns.
+     * @return {PodInfo[]}
      */
-    async restoreDump(db, dir) {
-      const restored = {};
-      for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.bson'))) {
-        const collection = file.slice(0, -'.bson'.length);
-        const documents = Underpost.db.readDumpCollection(dir, collection);
-        if (documents.length) await db.collection(collection).insertMany(documents);
-        restored[collection] = documents.length;
-      }
-      return restored;
+    providerPods(provider, namespace, podName = '') {
+      const deployId = provider === 'mariadb' ? 'mariadb' : 'mongo';
+      const pods = Underpost.kubectl.getFilteredPods({ podNames: podName, namespace, deployId });
+      return pods.length || podName ? pods : Underpost.kubectl.get(deployId, 'pods', namespace);
     },
 
     /**
-     * Helper: The databases the partitions of a MongoDB database serve: each partition's own, and
-     * every `<partition>-<id>` database it may be rebound to.
-     * @method _partitionDatabases
+     * Starts the MongoDB client pod of a deployment: the image the replica set runs, its
+     * credentials in a Secret, its own resource limits.
+     * @method openMongoClient
      * @memberof UnderpostDB
      * @param {Object} params
-     * @param {string} params.podName - Pod name.
-     * @param {string} params.namespace - Namespace.
-     * @param {string[]} params.partitions - The partition database names the host declares.
-     * @param {string} [params.user=''] - MongoDB username.
-     * @param {string} [params.password=''] - MongoDB password.
-     * @param {string} [params.authDatabase='admin'] - Auth database.
-     * @return {string[]|null} The database names, or null when the server cannot be listed.
+     * @param {string} params.deployId
+     * @param {string} params.namespace
+     * @param {DatabasePlanEntry[]} params.databases - MongoDB entries of the plan.
+     * @param {string} [params.podName] - Pod patterns.
+     * @param {string} [params.name] - Pod name; the deployment's client by default.
+     * @return {Promise<{pod:Object, hosts:string[], image:string, principal:(entry:DatabasePlanEntry) => number|null}>}
+     * @throws {Error} When no MongoDB pod runs.
      */
-    _partitionDatabases({ podName, namespace, partitions, user = '', password = '', authDatabase = 'admin' }) {
-      if (!partitions.length) return [];
+    async openMongoClient({ deployId, namespace, databases, podName = '', name }) {
+      const pods = Underpost.db.providerPods('mongoose', namespace, podName);
+      if (!pods.length) throw new Error(`No MongoDB pod runs in namespace ${namespace}`);
+      const principals = [];
+      for (const { user, password } of databases)
+        if (user && password && !principals.some((p) => p.user === user && p.password === password))
+          principals.push({ user, password });
+      const secretEnv = Object.fromEntries(
+        principals.flatMap(({ user, password }, index) => [
+          [`MONGO_USER_${index}`, user],
+          [`MONGO_PASSWORD_${index}`, password],
+        ]),
+      );
+      const image = Underpost.kubectl.podImage(pods[0].NAME, namespace);
+      if (!image) throw new Error(`The image of ${pods[0].NAME} is unknown`);
+      const pod = await Underpost.kubectl.startClientPod({
+        name: name ?? `underpost-db-client-${deployId}`,
+        namespace,
+        image,
+        secretEnv,
+        labels: { 'underpost-deploy-id': deployId, 'underpost-role': 'db-client' },
+        limits: CLIENT_LIMITS,
+      });
+      return {
+        pod,
+        hosts: mongoReplicaHostsFactory(pods),
+        image,
+        principal: ({ user, password }) => {
+          const index = principals.findIndex((p) => p.user === user && p.password === password);
+          return index < 0 ? null : index;
+        },
+      };
+    },
+
+    /**
+     * The databases a MongoDB server holds, listed from the client pod.
+     * @method listMongoDatabases
+     * @memberof UnderpostDB
+     * @param {Object} client - {@link UnderpostDB.API.openMongoClient} output.
+     * @param {number|null} principal
+     * @return {string[]}
+     */
+    listMongoDatabases(client, principal) {
+      const listed = Underpost.kubectl.exec({
+        podName: client.pod.name,
+        namespace: client.pod.namespace,
+        command: mongoShellCommandFactory({
+          hosts: client.hosts,
+          principal,
+          script: 'print(db.adminCommand({ listDatabases: 1, nameOnly: true }).databases.map((d) => d.name).join(" "))',
+        }),
+      });
+      return `${listed}`.split(/\s+/).filter(Boolean).sort();
+    },
+
+    /**
+     * The databases the partitions of a host serve: each partition's own, and every
+     * `<partition>-<id>` database it may be rebound to.
+     * @method partitionDatabases
+     * @memberof UnderpostDB
+     * @param {string[]} listed - Every database of the server.
+     * @param {string[]} partitions - The partition database names the host declares.
+     * @return {string[]}
+     */
+    partitionDatabases(listed, partitions) {
+      return listed
+        .filter((name) => partitions.some((partition) => name === partition || name.startsWith(`${partition}-`)))
+        .sort();
+    },
+
+    /**
+     * The replica set identity of the server, which no other replica set shares.
+     * @method mongoReplicaSetId
+     * @memberof UnderpostDB
+     * @param {Object} client - {@link UnderpostDB.API.openMongoClient} output.
+     * @param {number|null} principal
+     * @return {string} Empty when the server does not report it.
+     */
+    mongoReplicaSetId(client, principal) {
       try {
-        const script =
-          'print(db.adminCommand({ listDatabases: 1, nameOnly: true }).databases.map((d) => d.name).join(" "))';
-        const listed = Underpost.kubectl.exec({
-          podName,
-          namespace,
-          command: `mongosh --quiet${mongoToolAuthFlagsFactory({ user, password, authDatabase })} --eval ${shellArgumentFactory(script)}`,
-        });
-        return `${listed}`
-          .split(/\s+/)
-          .filter((name) => partitions.some((partition) => name === partition || name.startsWith(`${partition}-`)))
-          .sort();
-      } catch (error) {
-        logger.error('Failed to list the partition databases', { podName, partitions, error: error.message });
-        return null;
+        return `${Underpost.kubectl.exec({
+          podName: client.pod.name,
+          namespace: client.pod.namespace,
+          command: mongoShellCommandFactory({
+            hosts: client.hosts,
+            principal,
+            script: 'print(rs.conf().settings.replicaSetId.toHexString())',
+          }),
+          retries: 0,
+        })}`.trim();
+      } catch {
+        return '';
       }
     },
 
     /**
-     * Helper: Performs MariaDB import operation.
-     * @method _importMariaDB
+     * The archive of one MongoDB database as a backup source, read by the client pod.
+     * @method mongoDumpSource
      * @memberof UnderpostDB
-     * @param {Object} params - Import parameters.
-     * @param {PodInfo} params.pod - Target pod.
-     * @param {string} params.namespace - Namespace.
-     * @param {string} params.dbName - Database name.
-     * @param {string} params.user - Database user.
-     * @param {string} params.password - Database password.
-     * @param {string} params.sqlPath - SQL file path.
-     * @return {boolean} Success status.
+     * @param {Object} params
+     * @param {Object} params.client - {@link UnderpostDB.API.openMongoClient} output.
+     * @param {number|null} params.principal
+     * @param {string} params.database
+     * @param {string} [params.readPreference='secondaryPreferred']
+     * @return {AsyncIterable<Buffer> & {done:() => Promise<void>, destroy:() => void}}
      */
-    _importMariaDB({ pod, namespace, dbName, user, password, sqlPath }) {
-      try {
-        const podName = pod.NAME;
-        const containerSqlPath = `/${dbName}.sql`;
-
-        logger.info('Importing MariaDB database', { podName, dbName });
-
-        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
-          logger.error('Pod is not accepting exec streams, skipping import', { podName, dbName });
-          return false;
-        }
-
-        // Always ensure the database exists first — required for WP even when no backup is available
-        Underpost.kubectl.run(
-          `kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- mariadb -p${shellArgumentFactory(password)} -e ${shellArgumentFactory(`CREATE DATABASE IF NOT EXISTS ${dbName};`)}`,
-          { context: `create database ${dbName}` },
-        );
-
-        // If no SQL file is available, the empty database is enough — return early
-        if (!sqlPath || !fs.existsSync(sqlPath)) {
-          logger.warn('No SQL backup file found — empty database ensured', { podName, dbName, sqlPath });
-          return true;
-        }
-
-        // Remove existing SQL file in container
-        Underpost.kubectl.exec({
-          podName,
-          namespace,
-          command: `rm -rf ${shellArgumentFactory(containerSqlPath)}`,
-        });
-
-        // Copy SQL file to pod
-        if (
-          !Underpost.kubectl.cpTo({
-            sourcePath: sqlPath,
-            podName,
-            namespace,
-            destPath: containerSqlPath,
-          })
-        ) {
-          return false;
-        }
-
-        // Import SQL file. No retry: a replayed import would re-apply whatever the
-        // first attempt already wrote.
-        const importCmd = `mariadb -u ${shellArgumentFactory(user)} -p${shellArgumentFactory(password)} ${shellArgumentFactory(dbName)} < ${shellArgumentFactory(containerSqlPath)}`;
-        Underpost.kubectl.exec({ podName, namespace, command: importCmd, retries: 0 });
-
-        logger.info('Successfully imported MariaDB database', { podName, dbName });
-        return true;
-      } catch (error) {
-        logger.error('MariaDB import failed', { podName: pod.NAME, dbName, error: error.message });
-        return false;
-      }
+    mongoDumpSource({ client, principal, database, readPreference = 'secondaryPreferred' }) {
+      return commandSource(
+        Underpost.kubectl.execStream({
+          podName: client.pod.name,
+          namespace: client.pod.namespace,
+          command: mongoDumpCommandFactory({ hosts: client.hosts, principal, database, readPreference }),
+        }),
+      );
     },
 
     /**
-     * Helper: Performs MariaDB export operation.
-     * @method _exportMariaDB
+     * The `dbHash` of one MongoDB database on the primary: equal hashes before and after a read
+     * prove that no write landed in between.
+     * @method mongoDbHash
      * @memberof UnderpostDB
-     * @param {Object} params - Export parameters.
-     * @param {PodInfo} params.pod - Source pod.
-     * @param {string} params.namespace - Namespace.
-     * @param {string} params.dbName - Database name.
-     * @param {string} params.user - Database user.
-     * @param {string} params.password - Database password.
-     * @param {string} params.outputPath - Output file path.
-     * @return {Promise<boolean>} A promise that resolves with success status.
+     * @param {Object} params
+     * @param {Object} params.client - {@link UnderpostDB.API.openMongoClient} output.
+     * @param {number|null} params.principal
+     * @param {string} params.database
+     * @return {string} The md5 of the database.
      */
-    async _exportMariaDB({ pod, namespace, dbName, user, password, outputPath }) {
-      try {
-        const podName = pod.NAME;
-        const containerSqlPath = `/home/${dbName}.sql`;
-
-        logger.info('Exporting MariaDB database', { podName, dbName });
-
-        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
-          logger.error('Pod is not accepting exec streams, skipping export', { podName, dbName });
-          return false;
-        }
-
-        // Remove existing SQL file in container
-        Underpost.kubectl.exec({
-          podName,
-          namespace,
-          command: `rm -rf ${shellArgumentFactory(containerSqlPath)}`,
-        });
-
-        // Dump database
-        const dumpCmd = `mariadb-dump --user=${shellArgumentFactory(user)} --password=${shellArgumentFactory(password)} --lock-tables ${shellArgumentFactory(dbName)} > ${shellArgumentFactory(containerSqlPath)}`;
-        Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
-
-        // Copy SQL file from pod
-        if (
-          !Underpost.kubectl.cpFrom({
-            podName,
-            namespace,
-            sourcePath: containerSqlPath,
-            destPath: outputPath,
-          })
-        ) {
-          return false;
-        }
-
-        // Split file if it exists
-        if (fs.existsSync(outputPath)) {
-          await splitFileFactory(dbName, outputPath);
-        }
-
-        logger.info('Successfully exported MariaDB database', { podName, dbName, outputPath });
-        return true;
-      } catch (error) {
-        logger.error('MariaDB export failed', { podName: pod.NAME, dbName, error: error.message });
-        return false;
-      }
+    mongoDbHash({ client, principal, database }) {
+      const output = Underpost.kubectl.exec({
+        podName: client.pod.name,
+        namespace: client.pod.namespace,
+        command: mongoShellCommandFactory({
+          hosts: client.hosts,
+          principal,
+          script: `print(db.getSiblingDB(${JSON.stringify(database)}).runCommand({ dbHash: 1 }).md5)`,
+        }),
+      });
+      const md5 = `${output}`.trim();
+      if (!/^[0-9a-f]{32}$/.test(md5)) throw new Error(`dbHash of ${database} answered ${md5.slice(0, 120)}`);
+      return md5;
     },
 
     /**
-     * Helper: Performs MongoDB import operation.
-     * @method _importMongoDB
+     * The backup streams of a deployment: every MongoDB database of its hosts and their
+     * partitions (or the named collections of the host databases), every MariaDB database, and
+     * the site file tree of every repository entry.
+     * @method backupStreams
      * @memberof UnderpostDB
-     * @param {Object} params - Import parameters.
-     * @param {PodInfo} params.pod - Target pod.
-     * @param {string} params.namespace - Namespace.
-     * @param {string} params.dbName - Database name.
-     * @param {string} params.bsonPath - BSON directory path.
-     * @param {boolean} params.drop - Whether to drop existing database.
-     * @param {boolean} params.preserveUUID - Whether to preserve UUIDs.
-     * @param {string} [params.user=''] - MongoDB username for authenticated restore.
-     * @param {string} [params.password=''] - MongoDB password for authenticated restore.
-     * @param {string} [params.authDatabase='admin'] - Auth database for restore command.
-     * @return {boolean} Success status.
+     * @param {Object} params
+     * @param {string} params.deployId
+     * @param {DatabasePlanEntry[]} params.plan
+     * @param {string} params.namespace
+     * @param {DatabaseOptions} params.options
+     * @param {Object|null} params.client - {@link UnderpostDB.API.openMongoClient} output.
+     * @return {Array<Object>} Streams for {@link writeBackup}.
      */
-    _importMongoDB({
-      pod,
-      namespace,
-      dbName,
-      bsonPath,
-      drop,
-      preserveUUID,
-      user = '',
-      password = '',
-      authDatabase = 'admin',
-    }) {
-      try {
-        const podName = pod.NAME;
-        const containerBsonPath = `/${dbName}`;
-
-        logger.info('Importing MongoDB database', { podName, dbName });
-
-        // If no BSON directory is available, skip — MongoDB creates the DB on first write
-        if (!bsonPath || !fs.existsSync(bsonPath)) {
-          logger.warn('No BSON backup directory found — database will be created on first write', {
-            podName,
-            dbName,
-            bsonPath,
-          });
-          return true;
-        }
-
-        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
-          logger.error('Pod is not accepting exec streams, skipping import', { podName, dbName });
-          return false;
-        }
-
-        // Remove existing BSON directory in container
-        Underpost.kubectl.exec({
-          podName,
-          namespace,
-          command: `rm -rf ${shellArgumentFactory(containerBsonPath)}`,
-        });
-
-        // Copy BSON directory to pod
-        if (
-          !Underpost.kubectl.cpTo({
-            sourcePath: bsonPath,
-            podName,
-            namespace,
-            destPath: containerBsonPath,
-          })
-        ) {
-          return false;
-        }
-
-        // Restore database
-        const authFlags = mongoToolAuthFlagsFactory({ user, password, authDatabase });
-        const restoreCmd = `mongorestore -d ${shellArgumentFactory(dbName)} ${shellArgumentFactory(containerBsonPath)} --numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=100 --stopOnError${drop ? ' --drop' : ''}${preserveUUID ? ' --preserveUUID' : ''}${authFlags}`;
-        // Only a `--drop` restore is idempotent; without it a replay would re-apply
-        // whatever the interrupted attempt already inserted, so it runs exactly once.
-        Underpost.kubectl.exec({ podName, namespace, command: restoreCmd, retries: drop ? undefined : 0 });
-
-        logger.info('Successfully imported MongoDB database', { podName, dbName });
-        return true;
-      } catch (error) {
-        logger.error('MongoDB import failed', { podName: pod.NAME, dbName, error: error.message });
-        return false;
-      }
-    },
-
-    /**
-     * Helper: Performs MongoDB export operation.
-     * @method _exportMongoDB
-     * @memberof UnderpostDB
-     * @param {Object} params - Export parameters.
-     * @param {PodInfo} params.pod - Source pod.
-     * @param {string} params.namespace - Namespace.
-     * @param {string} params.dbName - Database name.
-     * @param {string} params.outputPath - Output directory path.
-     * @param {string} [params.collections=''] - Comma-separated collection list.
-     * @param {string} [params.user=''] - MongoDB username for authenticated dump.
-     * @param {string} [params.password=''] - MongoDB password for authenticated dump.
-     * @param {string} [params.authDatabase='admin'] - Auth database for dump command.
-     * @return {boolean} Success status.
-     */
-    _exportMongoDB({
-      pod,
-      namespace,
-      dbName,
-      outputPath,
-      collections = '',
-      user = '',
-      password = '',
-      authDatabase = 'admin',
-    }) {
-      try {
-        const podName = pod.NAME;
-        const containerBsonPath = `/${dbName}`;
-
-        logger.info('Exporting MongoDB database', { podName, dbName, collections });
-
-        if (!Underpost.kubectl.ensureExecReady({ podName, namespace })) {
-          logger.error('Pod is not accepting exec streams, skipping export', { podName, dbName });
-          return false;
-        }
-
-        // Remove existing BSON directory in container
-        Underpost.kubectl.exec({
-          podName,
-          namespace,
-          command: `rm -rf ${shellArgumentFactory(containerBsonPath)}`,
-        });
-
-        // Dump database or specific collections
-        const authFlags = mongoToolAuthFlagsFactory({ user, password, authDatabase });
-
-        // Serial dump: mongodump defaults to 4 collections at once, and its buffers share the
-        // mongod container's memory limit. Parallel dumping is what pushes the container over
-        // that limit and gets it OOM-killed mid-backup.
-        const dumpFlags = ` -o / --numParallelCollections=1${authFlags}`;
-
-        if (collections) {
-          for (const collection of collections.split(',').map((c) => c.trim())) {
-            Underpost.kubectl.exec({
-              podName,
-              namespace,
-              command: `mongodump -d ${shellArgumentFactory(dbName)} --collection ${shellArgumentFactory(collection)}${dumpFlags}`,
+    backupStreams({ deployId, plan, namespace, options, client }) {
+      const streams = [];
+      const collections = `${options.collections || ''}`
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      const readPreference = options.primaryPod ? 'primary' : 'secondaryPreferred';
+      const mongo = plan.filter(({ provider }) => provider === 'mongoose');
+      const listed = mongo.length ? Underpost.db.listMongoDatabases(client, client.principal(mongo[0])) : [];
+      const dumped = new Set();
+      for (const entry of mongo) {
+        const principal = client.principal(entry);
+        const databases = collections.length
+          ? [entry.name]
+          : [entry.name, ...Underpost.db.partitionDatabases(listed, entry.partitions)];
+        for (const database of databases) {
+          for (const collection of collections.length ? collections : ['']) {
+            const name = backupStreamName('mongodb', database, collection);
+            if (dumped.has(name)) continue;
+            dumped.add(name);
+            const command = mongoDumpCommandFactory({
+              hosts: client.hosts,
+              principal,
+              database,
+              collection,
+              readPreference,
+            });
+            streams.push({
+              name,
+              kind: 'mongodb',
+              describe: {
+                provider: 'mongoose',
+                database,
+                ...(collection ? { collection } : {}),
+                host: entry.host,
+                path: entry.path,
+                partition: database !== entry.name,
+                tool: 'mongodump',
+                format: 'mongodump-archive+gzip',
+                readPreference,
+              },
+              open: async () =>
+                commandSource(Underpost.kubectl.execStream({ podName: client.pod.name, namespace, command })),
+              tap: mongoArchiveTap,
             });
           }
-        } else {
-          Underpost.kubectl.exec({
-            podName,
-            namespace,
-            command: `mongodump -d ${shellArgumentFactory(dbName)}${dumpFlags}`,
+        }
+      }
+      for (const entry of plan.filter(({ provider }) => provider === 'mariadb')) {
+        const [pod] = Underpost.db.providerPods('mariadb', namespace, options.podName);
+        if (!pod) throw new Error(`No MariaDB pod runs in namespace ${namespace}`);
+        const command = `mariadb-dump --user=${shellArgumentFactory(entry.user)} --password=${shellArgumentFactory(entry.password)} --single-transaction --quick --routines --triggers ${shellArgumentFactory(entry.name)}`;
+        streams.push({
+          name: backupStreamName('mariadb', entry.name),
+          kind: 'mariadb',
+          describe: {
+            provider: 'mariadb',
+            database: entry.name,
+            host: entry.host,
+            path: entry.path,
+            tool: 'mariadb-dump',
+            format: 'sql+gzip',
+            pod: pod.NAME,
+          },
+          open: async () =>
+            commandSource(Underpost.kubectl.execStream({ podName: pod.NAME, namespace, command }), { gzip: true }),
+        });
+      }
+      if (!collections.length)
+        for (const root of Underpost.repo.podSiteRoots({
+          deployId,
+          namespace,
+          env: options.dev ? 'development' : 'production',
+        })) {
+          const command = `tar -czf - -C ${shellArgumentFactory(root.siteRoot)} .`;
+          streams.push({
+            name: backupStreamName('tree', root.host, root.path),
+            kind: 'tree',
+            describe: { host: root.host, path: root.path, siteRoot: root.siteRoot, tool: 'tar', format: 'tar+gzip' },
+            open: async () =>
+              commandSource(Underpost.kubectl.execStream({ podName: root.podName, namespace, command })),
           });
         }
+      return streams;
+    },
 
-        // Copy BSON directory from pod
-        if (
-          !Underpost.kubectl.cpFrom({
-            podName,
-            namespace,
-            sourcePath: containerBsonPath,
-            destPath: outputPath,
-          })
-        ) {
-          return false;
+    /**
+     * Backs up a deployment: to the object store, or as plain archives in `outPath`.
+     * @method exportDeploy
+     * @memberof UnderpostDB
+     * @param {string} deployId
+     * @param {DatabasePlanEntry[]} plan
+     * @param {string} namespace
+     * @param {DatabaseOptions} options
+     * @return {Promise<Object|null>} The manifest; null for a local export.
+     */
+    async exportDeploy(deployId, plan, namespace, options) {
+      const local = !!options.outPath;
+      // Credentials and the key are checked before any pod starts.
+      const store = local ? null : objectStore();
+      const keyMaterial = local ? null : backupKeyMaterial();
+      const mongo = plan.filter(({ provider }) => provider === 'mongoose');
+      const client = mongo.length
+        ? await Underpost.db.openMongoClient({ deployId, namespace, databases: mongo, podName: options.podName })
+        : null;
+      try {
+        const streams = Underpost.db.backupStreams({ deployId, plan, namespace, options, client });
+        if (!streams.length) {
+          logger.warn('Nothing to back up', { deployId });
+          return null;
         }
-
-        logger.info('Successfully exported MongoDB database', { podName, dbName, outputPath });
-        return true;
+        if (local) {
+          fs.ensureDirSync(options.outPath);
+          for (const stream of streams) {
+            const extension = { mongodb: 'archive.gz', mariadb: 'sql.gz', tree: 'tar.gz' }[stream.kind];
+            const target = nodePath.join(options.outPath, `${stream.name}.${extension}`);
+            const source = await stream.open();
+            await pipeline(source, fs.createWriteStream(`${target}.tmp`));
+            await source.done();
+            fs.renameSync(`${target}.tmp`, target);
+            logger.info('Exported', { target });
+          }
+          return null;
+        }
+        const principal = client ? client.principal(mongo[0]) : null;
+        const manifest = await writeBackup({
+          store,
+          deployId,
+          profile: DR_BACKUP_PROFILE,
+          keyMaterial,
+          streams,
+          source: {
+            environment: options.dev ? 'development' : 'production',
+            namespace,
+            ...(client
+              ? {
+                  mongodb: {
+                    replicaSet: MONGODB_DEFAULT_REPLICA_SET,
+                    replicaSetId: Underpost.db.mongoReplicaSetId(client, principal),
+                    members: client.hosts,
+                    clientImage: client.image,
+                  },
+                }
+              : {}),
+            engineVersion: Underpost.version,
+          },
+          meta: { consistency: DR_CONSISTENCY },
+        });
+        publishBackupMetrics({ deployId, profile: DR_BACKUP_PROFILE, kind: 'export', manifest });
+        return manifest;
       } catch (error) {
-        logger.error('MongoDB export failed', { podName: pod.NAME, dbName, error: error.message });
-        return false;
+        if (!local) publishBackupMetrics({ deployId, profile: DR_BACKUP_PROFILE, kind: 'failure' });
+        throw error;
+      } finally {
+        client?.pod.remove();
       }
+    },
+
+    /**
+     * Restores a deployment from a backup: every database stream of its hosts, and the site file
+     * trees with `trees`. A local import reads the plain archives of `outPath`.
+     * @method importDeploy
+     * @memberof UnderpostDB
+     * @param {string} deployId
+     * @param {DatabasePlanEntry[]} plan
+     * @param {string} namespace
+     * @param {DatabaseOptions} options
+     * @return {Promise<number>} Streams restored.
+     */
+    async importDeploy(deployId, plan, namespace, options) {
+      const local = !!options.outPath;
+      const store = local ? null : objectStore();
+      const manifest = local
+        ? null
+        : options.backup
+          ? await readBackupManifest({ store, deployId, profile: DR_BACKUP_PROFILE, backupId: options.backup })
+          : await latestBackup({ store, deployId, profile: DR_BACKUP_PROFILE });
+      if (!local && !manifest) {
+        logger.warn('No backup of this deployment in the object store: its databases stay as they are', {
+          deployId,
+          store: store.location,
+        });
+        return 0;
+      }
+      // Only a backup that exists needs the key that opens it.
+      const keyMaterial = local ? null : backupKeyMaterial();
+      const hosts = new Set(plan.map(({ host, path }) => `${host}${path}`));
+      const collections = `${options.collections || ''}`
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      const extension = { mongodb: 'archive.gz', mariadb: 'sql.gz', tree: 'tar.gz' };
+      // A local directory holds one archive per database, or per collection: `<database>--<collection>`.
+      const localFiles = local && fs.existsSync(options.outPath) ? fs.readdirSync(options.outPath) : [];
+      const streams = local
+        ? plan.flatMap((entry) => {
+            const kind = entry.provider === 'mariadb' ? 'mariadb' : 'mongodb';
+            const base = backupStreamName(kind, entry.name);
+            return localFiles
+              .filter(
+                (file) =>
+                  file === `${base}.${extension[kind]}` ||
+                  (file.startsWith(`${base}--`) && file.endsWith(`.${extension[kind]}`)),
+              )
+              .map((file) => ({
+                name: file,
+                kind,
+                database: entry.name,
+                collection: '',
+                file: nodePath.join(options.outPath, file),
+              }));
+          })
+        : manifest.streams
+            .filter((stream) => hosts.has(`${stream.host}${stream.path}`))
+            .filter((stream) => stream.kind !== 'tree' || options.trees)
+            .map((stream) => ({ ...stream, database: stream.database ?? '', collection: stream.collection ?? '' }));
+      if (!streams.length) {
+        logger.warn('The backup holds no stream for the selected hosts', { deployId, backup: manifest?.backupId });
+        return 0;
+      }
+      const source = (stream) =>
+        local
+          ? fs.createReadStream(stream.file)
+          : backupStreamReadable({ store, manifest, name: stream.name, keyMaterial });
+      const mongo = plan.filter(({ provider }) => provider === 'mongoose');
+      const client = streams.some(({ kind }) => kind === 'mongodb')
+        ? await Underpost.db.openMongoClient({ deployId, namespace, databases: mongo, podName: options.podName })
+        : null;
+      try {
+        for (const stream of streams) {
+          logger.info('Restoring', { deployId, stream: stream.name, backup: manifest?.backupId ?? options.outPath });
+          if (stream.kind === 'mongodb') {
+            const entry =
+              mongo.find(
+                ({ name, partitions }) =>
+                  name === stream.database || partitions.some((p) => stream.database.startsWith(p)),
+              ) ?? mongo[0];
+            const namespaces = stream.collection
+              ? [`${stream.database}.${stream.collection}`]
+              : collections.length
+                ? collections.map((collection) => `${stream.database}.${collection}`)
+                : [`${stream.database}.*`];
+            const command = mongoRestoreCommandFactory({
+              hosts: client.hosts,
+              principal: client.principal(entry),
+              namespaces,
+              drop: !!options.drop,
+              preserveUUID: !!options.preserveUUID,
+            });
+            await feedCommand(
+              source(stream),
+              Underpost.kubectl.execStream({ podName: client.pod.name, namespace, command }),
+            );
+          } else if (stream.kind === 'mariadb') {
+            const entry = plan.find(({ provider, name }) => provider === 'mariadb' && name === stream.database);
+            const [pod] = Underpost.db.providerPods('mariadb', namespace, options.podName);
+            if (!entry || !pod) throw new Error(`No MariaDB pod or configuration for ${stream.database}`);
+            const auth = `-u ${shellArgumentFactory(entry.user)} -p${shellArgumentFactory(entry.password)}`;
+            Underpost.kubectl.exec({
+              podName: pod.NAME,
+              namespace,
+              command: `mariadb ${auth} -e ${shellArgumentFactory(`CREATE DATABASE IF NOT EXISTS \`${entry.name}\`;`)}`,
+            });
+            await feedCommand(
+              source(stream),
+              Underpost.kubectl.execStream({
+                podName: pod.NAME,
+                namespace,
+                command: `mariadb ${auth} ${shellArgumentFactory(entry.name)}`,
+              }),
+              { gunzip: true },
+            );
+          } else {
+            const [root] = Underpost.repo
+              .podSiteRoots({ deployId, namespace, env: options.dev ? 'development' : 'production' })
+              .filter(({ host, path }) => host === stream.host && path === stream.path);
+            if (!root) throw new Error(`No live site root for ${stream.host}${stream.path}`);
+            await feedCommand(
+              source(stream),
+              Underpost.kubectl.execStream({
+                podName: root.podName,
+                namespace,
+                command: `tar -xzf - -C ${shellArgumentFactory(root.siteRoot)}`,
+              }),
+            );
+          }
+          logger.info('Restored', { deployId, stream: stream.name });
+        }
+        return streams.length;
+      } finally {
+        client?.pod.remove();
+      }
+    },
+
+    /**
+     * Restores a backup into a scratch `mongod` in a pod of its own, then compares every
+     * namespace with the manifest and validates every collection. Production is never a target.
+     * @method restoreDrill
+     * @memberof UnderpostDB
+     * @param {Object} params
+     * @param {string} params.deployId
+     * @param {string} params.namespace
+     * @param {Object} params.store
+     * @param {Object} params.manifest
+     * @param {{key:Buffer,keyId:string}} params.keyMaterial
+     * @return {Promise<{ok:boolean, durationMs:number, restoreMs:number, namespaces:number, defects:string[]}>}
+     */
+    async restoreDrill({ deployId, namespace, store, manifest, keyMaterial }) {
+      const streams = manifest.streams.filter(({ kind }) => kind === 'mongodb');
+      if (!streams.length)
+        return { ok: true, durationMs: 0, restoreMs: 0, namespaces: 0, defects: ['no MongoDB stream to drill'] };
+      const started = Date.now();
+      const plainBytes = streams.reduce((sum, { plain }) => sum + plain.bytes, 0);
+      const image =
+        manifest.source?.mongodb?.clientImage ||
+        Underpost.kubectl.podImage(Underpost.db.providerPods('mongoose', namespace)[0]?.NAME, namespace);
+      const pod = await Underpost.kubectl.startClientPod({
+        name: `underpost-db-drill-${deployId}`,
+        namespace,
+        image,
+        labels: { 'underpost-deploy-id': deployId, 'underpost-role': 'db-drill' },
+        limits: DRILL_LIMITS,
+        scratchSize: `${Math.max(2, Math.ceil((plainBytes * 10) / 2 ** 30))}Gi`,
+      });
+      try {
+        Underpost.kubectl.exec({
+          podName: pod.name,
+          namespace,
+          command: drillMongodCommandFactory(),
+        });
+        const restoreStarted = Date.now();
+        for (const stream of streams)
+          await feedCommand(
+            backupStreamReadable({ store, manifest, name: stream.name, keyMaterial }),
+            Underpost.kubectl.execStream({
+              podName: pod.name,
+              namespace,
+              command: mongoRestoreCommandFactory({ namespaces: ['*.*'] }),
+            }),
+          );
+        const restoreMs = Date.now() - restoreStarted;
+        const found = JSON.parse(
+          `${Underpost.kubectl.exec({ podName: pod.name, namespace, command: mongoShellCommandFactory({ script: DRILL_INVENTORY_SCRIPT }) })}`.trim(),
+        );
+        const expected = { namespaces: {} };
+        for (const { inventory } of streams)
+          for (const [name, entry] of Object.entries(inventory?.namespaces ?? {}))
+            if (entry.kind === 'collection' && !/^(admin|local|config)\./.test(name) && name !== 'oplog')
+              expected.namespaces[name] = entry;
+        const defects = inventoryDefects(expected, found);
+        for (const [name, entry] of Object.entries(found.namespaces))
+          if (!entry.valid) defects.push(`${name}: validate failed`);
+        return {
+          ok: defects.length === 0,
+          durationMs: Date.now() - started,
+          restoreMs,
+          namespaces: Object.keys(found.namespaces).length,
+          defects,
+        };
+      } finally {
+        pod.remove();
+      }
+    },
+
+    /**
+     * Verifies a backup of a deployment and records the report beside its manifest: every part
+     * read, checked and opened, every MongoDB archive inventory compared with the manifest, and
+     * with `restoreTest` a restore drill.
+     * @method verifyDeploy
+     * @memberof UnderpostDB
+     * @param {string} deployId
+     * @param {string} namespace
+     * @param {DatabaseOptions} options
+     * @return {Promise<Object>} The report.
+     */
+    async verifyDeploy(deployId, namespace, options) {
+      const store = objectStore();
+      const keyMaterial = backupKeyMaterial();
+      const manifest = options.backup
+        ? await readBackupManifest({ store, deployId, profile: DR_BACKUP_PROFILE, backupId: options.backup })
+        : await latestBackup({ store, deployId, profile: DR_BACKUP_PROFILE });
+      if (!manifest) throw new Error(`No available backup of ${deployId} in ${store.location}`);
+      const report = await verifyBackup({
+        store,
+        manifest,
+        deep: true,
+        keyMaterial,
+        inspect: async (entry, plaintext) => {
+          if (entry.kind !== 'mongodb') {
+            for await (const _ of plaintext);
+            return [];
+          }
+          return inventoryDefects(entry.inventory, await inspectMongoArchive(plaintext));
+        },
+      });
+      if (options.restoreTest) {
+        report.restoreTest = await Underpost.db.restoreDrill({ deployId, namespace, store, manifest, keyMaterial });
+        report.ok = report.ok && report.restoreTest.ok;
+      }
+      await recordVerification({ store, manifest, report });
+      publishBackupMetrics({ deployId, profile: DR_BACKUP_PROFILE, kind: 'verify', manifest, report });
+      for (const check of report.checks)
+        (check.ok ? logger.info : logger.error)(`${check.ok ? 'ok  ' : 'FAIL'} ${check.name}: ${check.detail}`);
+      if (report.restoreTest)
+        (report.restoreTest.ok ? logger.info : logger.error)(
+          `${report.restoreTest.ok ? 'ok  ' : 'FAIL'} restore drill: ${report.restoreTest.namespaces} namespace(s) in ${Math.round(report.restoreTest.restoreMs / 1000)}s${report.restoreTest.defects.length ? `: ${report.restoreTest.defects.join('; ')}` : ''}`,
+        );
+      logger.info(`Backup ${manifest.backupId} is ${report.ok ? 'verified' : 'NOT verified'}`);
+      return report;
+    },
+
+    /**
+     * Prints the backups of a deployment, newest first. Rows are data: they go to stdout.
+     * @method listDeploy
+     * @memberof UnderpostDB
+     * @param {string} deployId
+     * @return {Promise<Object[]>}
+     */
+    async listDeploy(deployId) {
+      const backups = await listBackups({ store: objectStore(), deployId, profile: DR_BACKUP_PROFILE });
+      if (!backups.length) logger.info('No backup', { deployId });
+      for (const { backupId, status, bytes, verified } of backups)
+        console.log(
+          `${status.padEnd(10)} ${backupId}  ${(bytes / 2 ** 20).toFixed(1).padStart(9)} MiB  ${verified ? 'verified' : '-'}`,
+        );
+      return backups;
+    },
+
+    /**
+     * Removes the backups of a deployment retention no longer keeps.
+     * @method pruneDeploy
+     * @memberof UnderpostDB
+     * @param {string} deployId
+     * @param {DatabaseOptions} options
+     * @return {Promise<Object>}
+     */
+    async pruneDeploy(deployId, options) {
+      const result = await pruneBackups({
+        store: objectStore(),
+        deployId,
+        profile: DR_BACKUP_PROFILE,
+        keep: Number.isInteger(options.keep) ? options.keep : BACKUP_RETENTION.keep,
+        dryRun: !!options.dryRun,
+      });
+      for (const { backupId, status } of result.removed)
+        console.log(`${result.dryRun ? 'would remove' : 'removed'} ${status} ${backupId}`);
+      logger.info(
+        `${result.removed.length} backup(s) ${result.dryRun ? 'to remove' : 'removed'}, ${result.kept.length} kept`,
+        { deployId },
+      );
+      return result;
     },
 
     /**
@@ -670,94 +1152,65 @@ class UnderpostDB {
     },
 
     /**
-     * Main callback: Initiates database backup workflow.
-     * Orchestrates the backup process for multiple deployments, handling
-     * database connections, backup storage, and optional Git integration for version control.
-     * Supports targeting multiple specific pods, nodes, and namespaces with advanced filtering.
+     * Displays the statistics of each database of a plan, read in its pod: the MongoDB primary,
+     * or every matching pod with `allPods`.
+     * @method statsDeploy
+     * @memberof UnderpostDB
+     * @param {DatabasePlanEntry[]} plan
+     * @param {string} namespace
+     * @param {DatabaseOptions} options
+     * @return {void}
+     */
+    statsDeploy(plan, namespace, options) {
+      for (const entry of plan) {
+        const pods = Underpost.db.providerPods(entry.provider, namespace, options.podName);
+        if (!pods.length) {
+          logger.warn('No pods found matching criteria', { provider: entry.provider, namespace });
+          continue;
+        }
+        let targets = options.allPods ? pods : [pods[0]];
+        if (entry.provider === 'mongoose' && !options.allPods) {
+          const primary = MongoBootstrap.getPrimaryPodName({
+            namespace,
+            podName: pods[0].NAME,
+            username: entry.user,
+            password: entry.password,
+            authDatabase: 'admin',
+          });
+          targets = [pods.find((pod) => pod.NAME === primary) ?? pods[0]];
+        }
+        for (const pod of targets) {
+          const params = {
+            podName: pod.NAME,
+            namespace,
+            dbName: entry.name,
+            user: entry.user,
+            password: entry.password,
+          };
+          const stats =
+            entry.provider === 'mariadb'
+              ? Underpost.db._getMariaDBStats(params)
+              : Underpost.db._getMongoStats({ ...params, authDatabase: 'admin' });
+          if (stats) Underpost.db._displayStats({ provider: entry.provider, dbName: entry.name, stats });
+        }
+      }
+    },
+
+    /**
+     * Main callback: database backups, restores, verification and statistics of each deployment.
+     * One deployment failing does not stop the others; the run fails when any did.
      * @method callback
      * @memberof UnderpostDB
-     * @param {string} [deployList='default'] - Comma-separated list of deployment IDs.
-     * @param {Object} [options={}] - Backup options.
-     * @param {boolean} [options.import=false] - Whether to perform import operation.
-     * @param {boolean} [options.export=false] - Whether to perform export operation.
-     * @param {string} [options.podName=''] - Comma-separated pod name patterns to target.
-     * @param {string} [options.ns='default'] - Kubernetes namespace.
-     * @param {string} [options.collections=''] - Comma-separated MongoDB collections for export.
-     * @param {string} [options.outPath=''] - Output path for backups.
-     * @param {boolean} [options.drop=false] - Whether to drop existing database on import.
-     * @param {boolean} [options.preserveUUID=false] - Whether to preserve UUIDs on MongoDB import.
-     * @param {boolean} [options.git=false] - Whether to use Git for backup versioning.
-     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter databases.
-     * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases.
-     * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment.
-     * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only.
-     * @param {boolean} [options.stats=false] - Whether to display database statistics.
-     * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export.
-     * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository.
-     * @param {boolean} [options.cleanFsCollection=false] - Clean orphaned File documents flag.
-     * @param {boolean} [options.cleanFsDryRun=false] - Dry run mode flag (use with cleanFsCollection).
-     * @param {boolean} [options.migrateStableSlugs=false] - Assign every Document its public `stableSlug`.
-     * @param {boolean} [options.dev=false] - Development mode flag.
-     * @param {boolean} [options.k3s=false] - k3s cluster flag.
-     * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag.
-     * @param {boolean} [options.kind=false] - kind cluster flag.
-     * @param {boolean} [options.repoBackup=false] - Backs up repositories (git commit+push) inside deployment pods via kubectl exec.
-     * @return {Promise<void>} Resolves when operation is complete.
+     * @param {string} [deployList='default'] - Comma-separated list of deployment IDs; `dd` selects every routed one.
+     * @param {DatabaseOptions & {cleanFsCollection?:boolean, cleanFsDryRun?:boolean, migrateStableSlugs?:boolean, dev?:boolean}} [options={}]
+     * @return {Promise<void>} Resolves when every operation succeeded.
      */
-    async callback(
-      deployList = 'default',
-      options = {
-        import: false,
-        export: false,
-        podName: '',
-        ns: 'default',
-        collections: '',
-        outPath: '',
-        drop: false,
-        preserveUUID: false,
-        git: false,
-        hosts: '',
-        paths: '',
-        allPods: false,
-        primaryPod: false,
-        stats: false,
-        macroRollbackExport: 1,
-        forceClone: false,
-        cleanFsCollection: false,
-        cleanFsDryRun: false,
-        migrateStableSlugs: false,
-        dev: false,
-        k3s: false,
-        kubeadm: false,
-        kind: false,
-        repoBackup: false,
-      },
-    ) {
-      // Ensure engine-private is available (clone if inside a deployment
-      // container where globalClean has already removed it).
-      const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
+    async callback(deployList = 'default', options = {}) {
       try {
         loadCronDeployEnv();
-        const newBackupTimestamp = new Date().getTime();
         const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
 
         if (deployList === 'dd') deployList = readDeployRoutes().join(',');
-
-        // Handle repository backup (git commit+push inside deployment pod)
-        if (options.repoBackup) {
-          const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
-          for (const _deployId of deployList.split(',')) {
-            const deployId = _deployId.trim();
-            if (!deployId) continue;
-            logger.info('Starting pod repository backup', { deployId, namespace });
-            Underpost.repo.backupPodRepositories({
-              deployId,
-              namespace,
-              env: options.dev ? 'development' : 'production',
-            });
-          }
-          return;
-        }
 
         if (options.migrateStableSlugs) {
           await Underpost.db.migrateStableSlugs(deployList, {
@@ -768,7 +1221,6 @@ class UnderpostDB {
           return;
         }
 
-        // Handle clean-fs-collection operation
         if (options.cleanFsCollection || options.cleanFsDryRun) {
           logger.info('Starting File collection cleanup operation', { deployList });
           await Underpost.db.cleanFsCollection(deployList, {
@@ -784,435 +1236,60 @@ class UnderpostDB {
           namespace,
           import: options.import,
           export: options.export,
+          verify: options.verify,
+          prune: options.prune,
         });
 
-        // Track processed repositories to avoid duplicate Git operations
-        const processedRepos = new Set();
-        // Track processed host+path combinations to avoid duplicates
-        const processedHostPaths = new Set();
-        // Every database that could not be exported/imported, reported at the end so a
-        // partial run is never logged as a success.
-        const failedOperations = [];
-
+        const failed = [];
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
           if (!deployId) continue;
-
-          logger.info('Processing deployment', { deployId });
-
-          /** @type {Object.<string, Object.<string, DatabaseConfig>>} */
-          const dbs = {};
-          const repoName = Underpost.db._backupRepoName(deployId);
-
-          // Load server configuration
-          const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-          if (!fs.existsSync(confServerPath)) {
-            logger.error('Configuration file not found', { path: confServerPath });
-            continue;
-          }
-
-          const confServer = loadConfServerJson(confServerPath, { resolve: true });
-
-          // Build database configuration map
-          for (const host of Object.keys(confServer)) {
-            for (const path of Object.keys(confServer[host])) {
-              const { db } = confServer[host][path];
-              if (db) {
-                const { provider, name, user, password, partitions } = db;
-                if (!dbs[provider]) dbs[provider] = {};
-
-                if (!(name in dbs[provider])) {
-                  dbs[provider][name] = {
-                    user,
-                    password,
-                    hostDir: Underpost.db.backupHostDir({ deployId, host, path }),
-                    host,
-                    path,
-                    partitions: Object.values(partitions ?? {}).map((partition) => partition.name),
-                  };
-                }
-              }
+          let op = 'plan';
+          try {
+            if (options.list) {
+              op = 'list';
+              await Underpost.db.listDeploy(deployId);
             }
-          }
-
-          // Handle Git operations - execute only once per repository
-          if (!processedRepos.has(repoName)) {
-            logger.info('Processing Git operations for repository', { repoName, deployId });
-            if (options.git === true) {
-              Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-              Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
+            const plan =
+              options.stats || options.export || options.import ? Underpost.db.databasePlan(deployId, options) : [];
+            if (options.stats) {
+              op = 'stats';
+              Underpost.db.statsDeploy(plan, namespace, options);
             }
-
-            if (options.macroRollbackExport) {
-              // Only clone if not already done by git option above
-              if (options.git !== true) {
-                Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-                Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
-              }
-
-              const nCommits = parseInt(options.macroRollbackExport);
-              const repoPath = `../${repoName}`;
-              const username = process.env.GITHUB_USERNAME;
-
-              if (fs.existsSync(repoPath) && username) {
-                logger.info('Executing macro rollback export', { repoName, nCommits });
-                shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
-                shellExec(`cd ${repoPath} && git reset`);
-                shellExec(`cd ${repoPath} && git checkout .`);
-                shellExec(`cd ${repoPath} && git clean -f -d`);
-                shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
-              } else {
-                if (!username) logger.error('GITHUB_USERNAME environment variable not set');
-                logger.warn('Repository not found for macro rollback', { repoPath });
-              }
+            if (options.export) {
+              op = 'export';
+              await Underpost.db.exportDeploy(deployId, plan, namespace, options);
             }
-
-            processedRepos.add(repoName);
-            logger.info('Repository marked as processed', { repoName });
-          } else {
-            logger.info('Skipping Git operations for already processed repository', { repoName, deployId });
-          }
-
-          // Process each database provider
-          for (const provider of Object.keys(dbs)) {
-            for (const dbName of Object.keys(dbs[provider])) {
-              const { hostDir, user, password, host, path, partitions } = dbs[provider][dbName];
-
-              // Create unique identifier for host+path combination
-              const hostPathKey = `${deployId}:${host}:${path}`;
-
-              // Skip if this host+path combination was already processed
-              if (processedHostPaths.has(hostPathKey)) {
-                logger.info('Skipping already processed host/path', { dbName, host, path, deployId });
-                continue;
-              }
-
-              // Filter by hosts and paths if specified
-              if (
-                (options.hosts &&
-                  !options.hosts
-                    .split(',')
-                    .map((h) => h.trim())
-                    .includes(host)) ||
-                (options.paths &&
-                  !options.paths
-                    .split(',')
-                    .map((p) => p.trim())
-                    .includes(path))
-              ) {
-                logger.info('Skipping database due to host/path filter', { dbName, host, path });
-                continue;
-              }
-
-              logger.info('Processing database', { hostDir, provider, dbName, deployId });
-
-              const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(hostDir);
-
-              dbs[provider][dbName].currentBackupTimestamp = latestBackupTimestamp;
-
-              const currentTimestamp = latestBackupTimestamp || newBackupTimestamp;
-              const sqlContainerPath = `/home/${dbName}.sql`;
-              const fromPartsPath = `${hostDir}/${currentTimestamp}/${dbName}-parths.json`;
-              const toSqlPath = `${hostDir}/${currentTimestamp}/${dbName}.sql`;
-              const toNewSqlPath = `${hostDir}/${newBackupTimestamp}/${dbName}.sql`;
-              const toBsonPath = `${hostDir}/${currentTimestamp}/${dbName}`;
-              const toNewBsonPath = `${hostDir}/${newBackupTimestamp}/${dbName}`;
-
-              // Merge split SQL files if needed for import
-              if (options.import === true && fs.existsSync(fromPartsPath) && !fs.existsSync(toSqlPath)) {
-                const names = JSON.parse(fs.readFileSync(fromPartsPath, 'utf8')).map((_path) => {
-                  return `${hostDir}/${currentTimestamp}/${_path.split('/').pop()}`;
-                });
-                logger.info('Merging backup parts', { fromPartsPath, toSqlPath, parts: names.length });
-                await mergeFile(names, toSqlPath);
-              }
-
-              // Get target pods based on provider and options
-              let targetPods = [];
-              const podCriteria = {
-                podNames: options.podName,
-                namespace,
-                deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
-              };
-
-              targetPods = Underpost.kubectl.getFilteredPods(podCriteria);
-
-              // Fallback to default if no custom pods specified
-              if (targetPods.length === 0 && !options.podName) {
-                const defaultPods = Underpost.kubectl.get(
-                  provider === 'mariadb' ? 'mariadb' : 'mongo',
-                  'pods',
-                  namespace,
-                );
-                console.log('defaultPods', defaultPods);
-                targetPods = defaultPods;
-              }
-
-              if (targetPods.length === 0) {
-                logger.warn('No pods found matching criteria', { provider, criteria: podCriteria });
-                continue;
-              }
-
-              // Handle primary pod detection for MongoDB
-              let podsToProcess = [];
-              if (provider === 'mongoose' && (options.import === true || !options.allPods)) {
-                // For MongoDB, always use primary pod unless allPods is true
-                if (!targetPods || targetPods.length === 0) {
-                  logger.warn('No MongoDB pods available to check for primary');
-                  podsToProcess = [];
-                } else {
-                  // Resolved per database, never cached across them: a member that restarts
-                  // mid-run triggers a re-election, and a stale primary makes every later
-                  // dump fail with NotPrimaryOrSecondary.
-                  const primaryPodName = MongoBootstrap.getPrimaryPodName({
-                    namespace,
-                    podName: targetPods[0].NAME,
-                    username: user,
-                    password,
-                    authDatabase: 'admin',
-                  });
-
-                  if (primaryPodName) {
-                    const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
-                    if (primaryPod) {
-                      podsToProcess = [primaryPod];
-                      logger.info('Using MongoDB primary pod', { primaryPod: primaryPodName });
-                    } else {
-                      logger.warn('Primary pod not in filtered list, using first pod', { primaryPodName });
-                      podsToProcess = [targetPods[0]];
-                    }
-                  } else {
-                    logger.warn('Could not detect primary pod, using first pod');
-                    podsToProcess = [targetPods[0]];
-                  }
-                }
-              } else {
-                // For MariaDB or when allPods is true, limit to first pod unless allPods is true
-                podsToProcess = options.allPods === true ? targetPods : [targetPods[0]];
-              }
-
-              logger.info(`Processing ${podsToProcess.length} pod(s) for ${provider}`, {
-                dbName,
-                pods: podsToProcess.map((p) => p.NAME),
-              });
-
-              let exportSucceeded = false;
-
-              // Process each pod
-              for (const pod of podsToProcess) {
-                logger.info('Processing pod', { podName: pod.NAME, node: pod.NODE, status: pod.STATUS });
-
-                switch (provider) {
-                  case 'mariadb': {
-                    if (options.stats === true) {
-                      const stats = Underpost.db._getMariaDBStats({
-                        podName: pod.NAME,
-                        namespace,
-                        dbName,
-                        user,
-                        password,
-                      });
-                      if (stats) {
-                        Underpost.db._displayStats({ provider, dbName, stats });
-                      }
-                    }
-
-                    if (options.import === true) {
-                      const success = Underpost.db._importMariaDB({
-                        pod,
-                        namespace,
-                        dbName,
-                        user,
-                        password,
-                        sqlPath: toSqlPath,
-                      });
-                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'import' });
-                    }
-
-                    if (options.export === true) {
-                      const outputPath = options.outPath || toNewSqlPath;
-                      const success = await Underpost.db._exportMariaDB({
-                        pod,
-                        namespace,
-                        dbName,
-                        user,
-                        password,
-                        outputPath,
-                      });
-                      exportSucceeded = exportSucceeded || success;
-                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'export' });
-                    }
-                    break;
-                  }
-
-                  case 'mongoose': {
-                    if (options.stats === true) {
-                      const stats = Underpost.db._getMongoStats({
-                        podName: pod.NAME,
-                        namespace,
-                        dbName,
-                        user,
-                        password,
-                        authDatabase: 'admin',
-                      });
-                      if (stats) {
-                        Underpost.db._displayStats({ provider, dbName, stats });
-                      }
-                    }
-
-                    if (options.import === true) {
-                      const bsonPath = options.outPath || toBsonPath;
-                      const success = Underpost.db._importMongoDB({
-                        pod,
-                        namespace,
-                        dbName,
-                        bsonPath,
-                        drop: options.drop,
-                        preserveUUID: options.preserveUUID,
-                        user,
-                        password,
-                        authDatabase: 'admin',
-                      });
-                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'import' });
-                    }
-
-                    if (options.export === true) {
-                      const outputPath = options.outPath || toNewBsonPath;
-                      const success = Underpost.db._exportMongoDB({
-                        pod,
-                        namespace,
-                        dbName,
-                        outputPath,
-                        collections: options.collections,
-                        user,
-                        password,
-                        authDatabase: 'admin',
-                      });
-                      exportSucceeded = exportSucceeded || success;
-                      if (!success) failedOperations.push({ deployId, provider, dbName, pod: pod.NAME, op: 'export' });
-                      // A whole backup of the host carries the databases its partitions serve.
-                      if (!options.outPath && !options.collections) {
-                        const databases = Underpost.db._partitionDatabases({
-                          podName: pod.NAME,
-                          namespace,
-                          partitions,
-                          user,
-                          password,
-                          authDatabase: 'admin',
-                        });
-                        if (!databases)
-                          failedOperations.push({
-                            deployId,
-                            provider,
-                            dbName: partitions.join(','),
-                            pod: pod.NAME,
-                            op: 'export',
-                          });
-                        for (const database of databases ?? []) {
-                          const dumped = Underpost.db._exportMongoDB({
-                            pod,
-                            namespace,
-                            dbName: database,
-                            outputPath: `${hostDir}/${newBackupTimestamp}/${database}`,
-                            user,
-                            password,
-                            authDatabase: 'admin',
-                          });
-                          if (!dumped)
-                            failedOperations.push({
-                              deployId,
-                              provider,
-                              dbName: database,
-                              pod: pod.NAME,
-                              op: 'export',
-                            });
-                        }
-                      }
-                    }
-                    break;
-                  }
-
-                  default:
-                    logger.warn('Unsupported database provider', { provider });
-                    break;
-                }
-              }
-
-              if (options.export === true && exportSucceeded === true) {
-                Underpost.db._enforceBackupRetention(hostDir);
-              }
-
-              // Mark this host+path combination as processed
-              processedHostPaths.add(hostPathKey);
+            if (options.import) {
+              op = 'import';
+              await Underpost.db.importDeploy(deployId, plan, namespace, options);
             }
-          }
-
-          // Commit and push to Git if enabled - execute only once per repository
-          if (options.export === true && options.git === true && !processedRepos.has(`${repoName}-committed`)) {
-            const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
-              newBackupTimestamp,
-            ).toLocaleTimeString()}`;
-            Underpost.repo.manageBackupRepo({ repoName, operation: 'commit', message: commitMessage });
-            Underpost.repo.manageBackupRepo({ repoName, operation: 'push' });
-            processedRepos.add(`${repoName}-committed`);
+            if (options.verify) {
+              op = 'verify';
+              const report = await Underpost.db.verifyDeploy(deployId, namespace, options);
+              if (!report.ok) throw new Error(`backup ${report.backupId} is not verified`);
+            }
+            if (options.prune) {
+              op = 'prune';
+              await Underpost.db.pruneDeploy(deployId, options);
+            }
+          } catch (error) {
+            failed.push({ deployId, op, error: error.message });
+            logger.error(`Database ${op} failed`, { deployId, error: error.message });
           }
         }
 
-        // Whatever succeeded is already committed above — a partial backup still has
-        // value — but the run must not report success, or a silently empty backup set
-        // looks identical to a healthy one.
-        if (failedOperations.length > 0) {
-          logger.error('Database operation completed with failures', {
-            failed: failedOperations.length,
-            operations: failedOperations,
-          });
+        // A partial run must never read as a success.
+        if (failed.length > 0)
           throw new Error(
-            `Database operation failed for ${failedOperations.length} database(s): ` +
-              failedOperations.map(({ deployId, dbName, op }) => `${deployId}/${dbName} (${op})`).join(', '),
+            `Database operation failed for ${failed.length} deployment(s): ` +
+              failed.map(({ deployId, op, error }) => `${deployId} (${op}): ${error}`).join('; '),
           );
-        }
 
         logger.info('Database operation completed successfully');
       } catch (error) {
         logger.error('Database operation failed', { error: error.message });
         throw error;
-      }
-    },
-    /**
-     * Helper: Removes old timestamp backup folders and keeps only the newest ones.
-     * @method _enforceBackupRetention
-     * @memberof UnderpostDB
-     * @param {string} backupDir - Path to host-folder backup directory.
-     * @param {number} [maxRetention=MAX_BACKUP_RETENTION] - Maximum folders to keep.
-     * @return {number} Number of removed backup folders.
-     */
-    _enforceBackupRetention(backupDir, maxRetention = MAX_BACKUP_RETENTION) {
-      try {
-        if (!fs.existsSync(backupDir)) return 0;
-
-        const timestamps = fs
-          .readdirSync(backupDir)
-          .filter((entry) => /^\d+$/.test(entry))
-          .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
-
-        if (timestamps.length <= maxRetention) return 0;
-
-        const staleTimestamps = timestamps.slice(maxRetention);
-        staleTimestamps.forEach((timestamp) => {
-          fs.removeSync(`${backupDir}/${timestamp}`);
-        });
-
-        logger.info('Pruned old backup timestamp folders', {
-          backupDir,
-          kept: maxRetention,
-          removed: staleTimestamps.length,
-          removedTimestamps: staleTimestamps,
-        });
-
-        return staleTimestamps.length;
-      } catch (error) {
-        logger.error('Failed to enforce backup retention', { backupDir, maxRetention, error: error.message });
-        return 0;
       }
     },
 

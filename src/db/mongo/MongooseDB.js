@@ -81,6 +81,8 @@ class MongooseDBService {
    * @param {string} [configOrHost.authSource] - The authentication database.
    * @param {string} [configOrHost.user] - The MongoDB username.
    * @param {string} [configOrHost.password] - The MongoDB password.
+   * @param {boolean} [configOrHost.directConnection] - Talk to the one host alone, whatever replica
+   *   set the environment names: a member reached through a port-forward.
    * @param {string} [name] - Legacy database name when a host string is passed.
    * @returns {Promise<mongoose.Connection>} A promise that resolves to the established Mongoose connection object.
    * @throws {Error} If neither the argument nor the corresponding environment variable supplies a value.
@@ -128,7 +130,7 @@ class MongooseDBService {
     const user = config.user || process.env.DB_USER || '';
     const password = config.password || process.env.DB_PASSWORD || '';
     const hasExplicitReplicaSet = !!(config.replicaSet || process.env.DB_REPLICA_SET);
-    const directConnection = hosts.length === 1 && !hasExplicitReplicaSet;
+    const directConnection = hosts.length === 1 && (config.directConnection === true || !hasExplicitReplicaSet);
     const replicaSet = directConnection
       ? ''
       : config.replicaSet || process.env.DB_REPLICA_SET || MONGODB_DEFAULT_REPLICA_SET;
@@ -195,6 +197,19 @@ class MongooseDBService {
     // A stale or conflicting index must degrade to a log, not kill startup.
     model.on('error', (error) => logger.error(`${keyModel} index build failed: ${error.message}`));
     return model;
+  }
+
+  /**
+   * The collection a model of an API binds to, without binding it: a read through the driver names
+   * the collection and creates nothing.
+   *
+   * @async
+   * @param {string} api - API name (folder).
+   * @returns {Promise<string>}
+   */
+  async collectionName(api) {
+    const { ProviderSchema } = await import(`../../api/${api}/${api}.model.js`);
+    return ProviderSchema.get('collection') ?? mongoose.pluralize()(getCapVariableName(api));
   }
 
   /**

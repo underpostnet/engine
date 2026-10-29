@@ -66,10 +66,8 @@ spec:
             - '--keyFile'
             - '/opt/mongodb/mongodb-keyfile'
             - '--bind_ip_all'
-            # Pinned, not inferred. mongod sizes its cache from the cgroup limit and lands on
-            # the 256MB floor, which leaves no headroom for a `mongodump` running in this same
-            # container — the dump gets OOM-killed (exit 137), the container restarts, and the
-            # replica set re-elects mid-backup.
+            # Pinned, not inferred: mongod sizes its cache from the cgroup limit. Dumps and
+            # restores run in a client pod of their own, never in this container.
             - '--wiredTigerCacheSizeGB'
             - '0.25'
 
@@ -119,7 +117,7 @@ spec:
               memory: '512Mi'
             limits:
               cpu: '500m'
-              # 256MB WiredTiger cache + connections + an in-container mongodump/mongorestore.
+              # 256MB WiredTiger cache + connections.
               memory: '1536Mi'
       volumes:
         - name: raw-secret-keyfile-volume

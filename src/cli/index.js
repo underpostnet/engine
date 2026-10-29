@@ -555,28 +555,38 @@ program
 program
   .command('db')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
-  .option('--import', 'Imports container backups from specified repositories.')
-  .option('--export', 'Exports container backups to specified repositories.')
+  .option('--export', 'Backs up every database of each deployment to the object store.')
+  .option('--import', 'Restores a backup of each deployment (default: the newest available one).')
+  .option('--backup <backup-id>', 'Selects the backup that --import or --verify reads.')
+  .option('--list', 'Lists the backups of each deployment.')
+  .option('--verify', 'Reads every part of a backup and checks its checksums, seal and archive inventory.')
+  .option(
+    '--restore-test',
+    'With --verify, restores the backup into an isolated mongod and compares it with its manifest.',
+  )
+  .option('--prune', 'Removes the backups that the retention policy no longer keeps.')
+  .option('--keep <n>', 'With --prune, the number of available backups to keep, newest first.', (value) =>
+    parseInt(value, 10),
+  )
+  .option('--dry-run', 'With --prune, reports what it would remove and removes nothing.')
+  .option('--trees', 'With --import, also restores the site file trees of the backup.')
   .option(
     '--pod-name <pod-name>',
     'Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").',
   )
-  .option('--all-pods', 'Target all matching pods instead of just the first one.')
-  .option('--primary-pod', 'Automatically detect and use MongoDB primary pod (MongoDB only).')
+  .option('--all-pods', 'With --stats, reads every matching pod instead of one.')
+  .option('--primary-pod', 'Reads dumps from the MongoDB primary instead of a secondary.')
   .option('--stats', 'Display database statistics (collection/table names with document/row counts).')
   .option('--collections <collections>', 'Comma-separated list of database collections to operate on.')
-  .option('--out-path <out-path>', 'Specifies a custom output path for backups.')
-  .option('--drop', 'Drops the specified databases or collections before importing.')
-  .option('--preserveUUID', 'Preserves UUIDs during database import operations.')
-  .option('--git', 'Enables Git integration for backup version control (clone, pull, commit, push to GitHub).')
-  .option('--force-clone', 'Forces cloning of the Git repository, overwriting local changes.')
+  .option(
+    '--out-path <out-path>',
+    'Writes or reads plain archives in this local directory instead of the object store.',
+  )
+  .option('--drop', 'Drops each collection before restoring it.')
+  .option('--preserveUUID', 'Preserves collection UUIDs on restore (requires --drop).')
   .option('--hosts <hosts>', 'Comma-separated list of database hosts to filter operations.')
   .option('--paths <paths>', 'Comma-separated list of paths to filter database operations.')
   .option('--ns <ns-name>', 'Kubernetes namespace context for database operations (defaults to "default").')
-  .option(
-    '--macro-rollback-export <n-commits-reset>',
-    'Exports a macro rollback script that reverts the last n commits (Git integration required).',
-  )
   .option(
     '--clean-fs-collection',
     'Cleans orphaned File documents from collections that are not referenced by any models.',
@@ -593,9 +603,8 @@ program
   .option('--kubeadm', 'Enables the kubeadm context for database operations.')
   .option('--kind', 'Enables the kind context for database operations.')
   .option('--k3s', 'Enables the k3s context for database operations.')
-  .option('--repo-backup', 'Backs up repositories (git commit+push) inside deployment pods via kubectl exec.')
   .description(
-    'Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.',
+    'Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics.',
   )
   .action(Underpost.db.callback);
 
@@ -637,7 +646,6 @@ program
     'Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector. ' +
       'With --apply, defaults to this machine when the cluster knows it as a node, because the pods mount its checkout.',
   )
-  .option('--git', 'Pass --git flag to cron job execution.')
   .option('--cmd <cmd>', 'Optional pre-script commands to run before cron execution.')
   .option('--dev', 'Use local ./ base path instead of global underpost installation.')
   .option('--k3s', 'Use k3s cluster context (apply directly on host).')

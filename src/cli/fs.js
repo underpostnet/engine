@@ -3,13 +3,15 @@ import { randomUUID } from 'node:crypto';
 import * as dir from 'node:path';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/ops/logger.js';
-import { readZipEntry } from '../server/storage/zip.js';
-import Downloader from '../server/storage/downloader.js';
+import {
+  CLOUDINARY_ACCESS_CONTROL,
+  CLOUDINARY_DELIVERY_TYPE,
+  cloudinaryClient,
+  downloadCloudinaryAsset,
+} from '../server/storage/object-store.js';
 import * as selection from './fs-selection.js';
 
 const logger = loggerFactory(import.meta);
-const CLOUDINARY_DELIVERY_TYPE = 'private';
-const CLOUDINARY_ACCESS_CONTROL = [{ access_type: 'token' }];
 const DELIVERY_TYPES = ['private', 'upload', 'authenticated'];
 
 /**
@@ -24,14 +26,7 @@ class UnderpostFileStorage {
     ...selection,
 
     cloudinaryConfig() {
-      const config = {
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-      };
-      if (Object.values(config).some((value) => !value))
-        throw new Error('Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in the environment.');
-      cloudinary.config(config);
+      cloudinaryClient();
     },
 
     resolveManifest(options = {}) {
@@ -118,7 +113,7 @@ class UnderpostFileStorage {
         public_id: path,
         resource_type: 'raw',
         type: CLOUDINARY_DELIVERY_TYPE,
-        access_control: CLOUDINARY_ACCESS_CONTROL,
+        access_control: [...CLOUDINARY_ACCESS_CONTROL],
         overwrite: options.force === true,
       });
       const remote = result?.existing
@@ -151,10 +146,10 @@ class UnderpostFileStorage {
       try {
         let resolvedType;
         let downloadError;
+        let content;
         for (const type of api.deliveryTypeCandidates(manifest.storage, path)) {
           try {
-            const url = cloudinary.utils.download_archive_url({ public_ids: [path], resource_type: 'raw', type });
-            await Downloader.downloadFile(url, archive);
+            content = await downloadCloudinaryAsset({ key: path, type, archive });
             resolvedType = type;
             break;
           } catch (error) {
@@ -162,8 +157,6 @@ class UnderpostFileStorage {
           }
         }
         if (resolvedType === undefined) throw downloadError;
-        const content = await readZipEntry(archive, dir.basename(path));
-        if (!content) throw new Error(`Downloaded archive has no asset: ${path}`);
         let downloaded = archive;
         if (!options.omitUnzip) {
           downloaded = dir.join(temporary, 'asset');

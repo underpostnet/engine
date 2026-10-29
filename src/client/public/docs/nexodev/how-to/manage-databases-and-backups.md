@@ -1,41 +1,77 @@
 # DB and Backup Management Guide
 
-This guide provides comprehensive documentation for managing database backups using the `db` command in the Underpost CLI.
+This guide documents the `db` command of the Underpost CLI: backups of MariaDB and MongoDB
+databases in the object store, restores, verification, restore drills, retention and statistics.
+
+No Git operation takes part in a backup or a restore. A backup goes to the object store, sealed.
 
 ## Quick Reference
 
 ```bash
-# Export backups with Git version control
-underpost db <deploy-id> --export --git
+# Back up every database of a deployment, then apply retention
+underpost db <deploy-id> --export --prune
 
-# Import backups (clean restore)
-underpost db <deploy-id> --import --drop --git
+# List the backups of a deployment
+underpost db <deploy-id> --list
+
+# Restore the newest available backup (drop each collection first)
+underpost db <deploy-id> --import --drop --preserveUUID
+
+# Restore one backup
+underpost db <deploy-id> --import --backup 20261029T101500Z-a1b2c3 --drop
+
+# Read every byte of the newest backup, then restore it into an isolated mongod and compare
+underpost db <deploy-id> --verify --restore-test
+
+# Report what retention would remove
+underpost db <deploy-id> --prune --keep 7 --dry-run
 
 # View database statistics
 underpost db <deploy-id> --stats
-
-# MongoDB primary pod operations
-underpost db <deploy-id> --export --primary-pod --git
-
-# Multi-pod export
-underpost db <deploy-id> --export --pod-name "mariadb-*" --all-pods
-
-# Specific collections only
-underpost db <deploy-id> --export --collections users,orders --git
-
-# Generate rollback script
-underpost db <deploy-id> --macro-rollback-export 3
 ```
 
 ## Overview
 
-The `db` command supports:
+A backup is a set of named **streams**, one for each:
 
-- **Database Types**: MariaDB and MongoDB
-- **Operations**: Import, export, statistics, and rollback
-- **Git Integration**: Version control for backups
-- **Multi-Pod Support**: Target specific pods or all matching pods
-- **Kubernetes Native**: Seamless integration with Kubernetes deployments
+- MongoDB database of the deployment: each host database and each database its partitions serve
+  (`<partition>` and every `<partition>-<id>`),
+- MariaDB database of the deployment,
+- site file tree of a `repository` entry of `conf.server.json` (the live pod's site root).
+
+Each stream is cut into **parts** (8 MiB by default). Each part is sealed with AES-256-GCM and
+stored as one object. The **manifest** is stored last. It is the commit point:
+
+- A backup without a manifest is never available.
+- A backup that fails stores `failure.json`, removes its parts, and reads as `failed`.
+- A failed or partial backup never appears as a successful one.
+
+The manifest names every part with its size and SHA-256, and every stream with the SHA-256 of its
+plaintext. A light verification reads only the object listing. A deep verification reads every byte.
+
+## Configuration
+
+| Variable                              | Meaning                                                                    | Default      |
+| ------------------------------------- | -------------------------------------------------------------------------- | ------------ |
+| `UNDERPOST_OBJECT_STORE`              | `cloudinary`, or `file:<absolute directory>` for tests and isolated drills | `cloudinary` |
+| `CLOUDINARY_CLOUD_NAME`               | Cloudinary account of the object store                                     | —            |
+| `CLOUDINARY_API_KEY`                  | Cloudinary API key                                                         | —            |
+| `CLOUDINARY_API_SECRET`               | Cloudinary API secret                                                      | —            |
+| `UNDERPOST_BACKUP_KEY`                | The 32-byte sealing key, base64 or hex (`openssl rand -hex 32`)            | — (required) |
+| `UNDERPOST_BACKUP_PART_BYTES`         | Plaintext bytes per part                                                   | `8388608`    |
+| `UNDERPOST_BACKUP_UPLOAD_CONCURRENCY` | Parts in flight to the store at once                                       | `2`          |
+| `UNDERPOST_BACKUP_KEEP`               | Available backups retention always keeps, newest first                     | `7`          |
+| `UNDERPOST_BACKUP_MAX_AGE_DAYS`       | Age after which retention removes a backup beyond the kept ones            | `30`         |
+| `UNDERPOST_BACKUP_GRACE_HOURS`        | Age after which retention removes a failed or abandoned backup             | `24`         |
+| `UNDERPOST_DB_CLIENT_CPU`             | CPU limit of the client pod that runs `mongodump` and `mongorestore`       | `1`          |
+| `UNDERPOST_DB_CLIENT_MEMORY`          | Memory limit of that client pod                                            | `1Gi`        |
+| `UNDERPOST_DB_DRILL_CPU`              | CPU limit of the restore drill pod                                         | `1`          |
+| `UNDERPOST_DB_DRILL_MEMORY`           | Memory limit of the restore drill pod, which also runs a scratch `mongod`  | `1536Mi`     |
+| `UNDERPOST_OBJECT_STORE_ATTEMPTS`     | Attempts of one object store request on a transient failure                | `5`          |
+
+Keep the backup key in the host configuration scopes (`engine-private/deploy/scopes/*.env.production`)
+and in one offline place. A backup cannot be opened without the key that sealed it. The manifest
+records the key id, never the key.
 
 ## Command Syntax
 
@@ -43,426 +79,212 @@ The `db` command supports:
 underpost db <deploy-list> [options]
 ```
 
-### Required Arguments
+`<deploy-list>` is a comma-separated list of deployment IDs. `dd` selects every routed deployment.
+One deployment that fails does not stop the others; the run fails when any did.
 
-- `<deploy-list>`: Comma-separated list of deployment IDs (e.g., `default-a,default-b`)
-
-### Available Options
-
-| Option                        | Description                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| `--import`                    | Import container backups from specified repositories                          |
-| `--export`                    | Export container backups to specified repositories                            |
-| `--pod-name <pod-name>`       | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`)   |
-| `--all-pods`                  | Target all matching pods instead of just the first one                        |
-| `--primary-pod`               | Automatically detect and use MongoDB primary pod (MongoDB only)               |
-| `--stats`                     | Display database statistics (collection/table names with document/row counts) |
-| `--collections <collections>` | Comma-separated list of database collections to operate on                    |
-| `--out-path <out-path>`       | Custom output path for backups                                                |
-| `--drop`                      | Drop specified databases or collections before importing                      |
-| `--preserveUUID`              | Preserve UUIDs during database import operations                              |
-| `--git`                       | Enable Git integration for backup version control                             |
-| `--force-clone`               | Force clone Git repository, overwriting local changes                         |
-| `--hosts <hosts>`             | Comma-separated list of database hosts to filter operations                   |
-| `--paths <paths>`             | Comma-separated list of paths to filter database operations                   |
-| `--ns <ns-name>`              | Kubernetes namespace context (defaults to `default`)                          |
-| `--macro-rollback-export <n>` | Export macro rollback script that reverts the last n commits                  |
-| `--clean-fs-collection`       | Clean orphaned File documents not referenced by any models                    |
-| `--clean-fs-dry-run`          | Dry run mode for `--clean-fs-collection` (preview without deleting)           |
-| `--dev`                       | Development CLI context                                                       |
-| `--kubeadm`                   | Kubeadm cluster context for database operations                               |
-| `--kind`                      | Kind cluster context for database operations                                  |
-| `--k3s`                       | K3s cluster context for database operations                                   |
+| Option                         | Description                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `--export`                     | Back up every database of each deployment to the object store                    |
+| `--import`                     | Restore a backup of each deployment (the newest available one by default)        |
+| `--backup <backup-id>`         | The backup `--import` or `--verify` reads                                        |
+| `--list`                       | List the backups of each deployment                                              |
+| `--verify`                     | Read every part of a backup and check its checksums, seal and archive inventory  |
+| `--restore-test`               | With `--verify`, restore into an isolated `mongod` and compare with the manifest |
+| `--prune`                      | Remove the backups retention no longer keeps                                     |
+| `--keep <n>`                   | With `--prune`, available backups to keep, newest first                          |
+| `--dry-run`                    | With `--prune`, report and remove nothing                                        |
+| `--trees`                      | With `--import`, also restore the site file trees                                |
+| `--collections <collections>`  | Export or restore only these collections of the host databases                   |
+| `--out-path <out-path>`        | Write or read plain archives in this local directory instead of the object store |
+| `--drop`                       | Drop each collection before restoring it                                         |
+| `--preserveUUID`               | Preserve collection UUIDs on restore (requires `--drop`)                         |
+| `--primary-pod`                | Read dumps from the MongoDB primary instead of a secondary                       |
+| `--stats`                      | Display collection/table names with document/row counts                          |
+| `--pod-name <pod-name>`        | Comma-separated pod names or patterns (`mariadb-*`)                              |
+| `--all-pods`                   | With `--stats`, read every matching pod                                          |
+| `--hosts <hosts>`              | Comma-separated database hosts to include                                        |
+| `--paths <paths>`              | Comma-separated paths to include                                                 |
+| `--ns <ns-name>`               | Kubernetes namespace (`default`)                                                 |
+| `--clean-fs-collection`        | Remove File documents no model references                                        |
+| `--clean-fs-dry-run`           | With `--clean-fs-collection`, report only                                        |
+| `--migrate-stable-slugs`       | Give every Document its public `stableSlug`; idempotent                          |
+| `--dev`                        | Development CLI context                                                          |
+| `--kubeadm`, `--kind`, `--k3s` | Cluster context                                                                  |
 
 ---
 
-## Core Usage Examples
-
-### 1. Export Database Backups
-
-Export backups from all databases in a deployment:
+## Export
 
 ```bash
-underpost db default-a --export
+underpost db dd-cyberia --export --prune
 ```
 
-Export with Git version control:
+### Where the dump runs
+
+A MongoDB dump never runs in the `mongod` container. The export starts a dedicated **client pod**,
+`underpost-db-client-<deploy-id>`:
+
+- Its image is the exact image (by digest) the replica set runs, so `mongodump` matches the server.
+- It has its own CPU and memory limits (`UNDERPOST_DB_CLIENT_CPU`, `UNDERPOST_DB_CLIENT_MEMORY`).
+- Its credentials are in a Secret applied from stdin. No command line holds them.
+- Its name is the lock: a second export of the same deployment refuses to start while it runs.
+- It ends after `activeDeadlineSeconds` (6 h) whatever happens, and the export removes it.
+
+`mongodump --archive --gzip` writes to the stdout of an exec stream. The stream goes straight to
+the object store: no dump lands on the disk of a pod or of the host. A MariaDB dump
+(`mariadb-dump --single-transaction`) streams the same way from the MariaDB pod; this host
+compresses it.
+
+### Consistency
+
+A dump reads one replica set member, a secondary unless `--primary-pod`. Each collection is read
+at its own time. A backup has **no cross-collection point in time**; the manifest records this
+under `meta.consistency`. The archive inventory (documents and indexes per namespace) is read from
+the stream as it is stored, and the manifest records it.
+
+### Failure
+
+The export fails when a dump exits with an error, when an upload fails after its retries, or when
+the store does not list every part with its size. The backup then reads as `failed`.
+
+## Import
 
 ```bash
-underpost db default-a --export --git
+underpost db dd-cyberia --import --drop --preserveUUID
+underpost db dd-cyberia --import --backup 20261029T101500Z-a1b2c3 --hosts www.cyberiaonline.com --paths /
 ```
 
-Export to custom output path:
+The import restores every database stream of the selected hosts: the host databases and their
+partition databases. It reads each part, checks it against the manifest, opens it, and pipes the
+plaintext into `mongorestore --archive --gzip` in the client pod. Writes go to the primary.
+
+- `--drop` drops each collection before restoring it. Without it, documents are inserted.
+- `--collections` restores only those collections.
+- `--trees` also extracts the site file trees into the live pods.
+- Without a backup in the store, the import warns and leaves the databases as they are.
+
+## Verification and restore drills
 
 ```bash
-underpost db default-a --export --out-path /custom/backup/path
+underpost db dd-cyberia --verify
+underpost db dd-cyberia --verify --restore-test --backup 20261029T101500Z-a1b2c3
 ```
 
-A MongoDB database that declares `partitions` in `conf.server.json` exports with them. The export
-dumps each partition's own database, and every `<partition>-<id>` database on the server, into the
-same backup folder: one directory per database. `--collections` and `--out-path` export the host
-database only. An import restores the host database only.
+`--verify` reads every part, checks its size and SHA-256, opens its seal, checks the SHA-256 of
+each stream, and parses each MongoDB archive to compare its inventory with the manifest.
 
-### 2. Import Database Backups
+`--restore-test` also runs a **restore drill**:
 
-Import backups to restore databases:
+1. A pod of its own, `underpost-db-drill-<deploy-id>`, starts a scratch `mongod` on an `emptyDir`.
+   Its TTL monitor is off: an expired document of a TTL collection still counts as restored.
+2. Every MongoDB stream is restored into it.
+3. Every namespace is compared with the manifest inventory (documents, indexes), and every
+   collection passes `validate`.
+4. The restore duration is recorded.
+5. The pod and its scratch data are removed.
+
+A drill never restores over production. The report is stored beside the manifest
+(`verifications/<checked-at>.json`); the manifest stays as it was written.
+
+## List and retention
 
 ```bash
-underpost db default-a --import
+underpost db dd-cyberia --list
+underpost db dd-cyberia --prune --keep 7 --dry-run
 ```
 
-Import with database drop (clean import):
+Retention keeps the newest `UNDERPOST_BACKUP_KEEP` available backups. An older available backup goes
+once it is older than `UNDERPOST_BACKUP_MAX_AGE_DAYS`. A failed or abandoned backup goes once it is
+older than `UNDERPOST_BACKUP_GRACE_HOURS`; a younger incomplete one may still be writing. A prune
+removes the manifest first, so an interrupted prune leaves an incomplete backup the next prune removes.
 
-```bash
-underpost db default-a --import --drop
+## Local archives
+
+`--out-path <dir>` writes plain archives to a local directory (`<stream>.archive.gz`, `.sql.gz`,
+`.tar.gz`) and an import reads them back. The archives are not sealed: they never leave the host.
+`underpost metadata --export` and `--import` use this mode.
+
+## Storage layout
+
+```text
+underpost/backups/<deploy-id>/<profile>/<backup-id>/manifest.json
+underpost/backups/<deploy-id>/<profile>/<backup-id>/failure.json
+underpost/backups/<deploy-id>/<profile>/<backup-id>/verifications/<checked-at>.json
+underpost/backups/<deploy-id>/<profile>/<backup-id>/parts/<stream>/<sequence>
 ```
 
-Import while preserving UUIDs:
-
-```bash
-underpost db default-a --import --preserveUUID
-```
-
-Import with Git integration:
-
-```bash
-underpost db default-a --import --git
-```
-
-### 3. Database Statistics
-
-View database statistics (collections/tables and counts):
-
-```bash
-underpost db default-a --stats
-```
-
-View stats for specific pod:
-
-```bash
-underpost db default-a --stats --pod-name mongodb-primary
-```
-
-### 4. Multi-Pod Operations
-
-Target specific pod by name:
-
-```bash
-underpost db default-a --export --pod-name mariadb-master
-```
-
-Target all pods matching a pattern:
-
-```bash
-underpost db default-a --export --pod-name "mariadb-*" --all-pods
-```
-
-Automatically detect MongoDB primary pod:
-
-```bash
-underpost db default-a --export --primary-pod
-```
-
-### 5. Collection-Specific Operations
-
-Export specific collections only:
-
-```bash
-underpost db default-a --export --collections users,orders,products
-```
-
-Import specific collections with drop:
-
-```bash
-underpost db default-a --import --collections users --drop
-```
-
-### 6. Git Version Control
-
-Export with Git integration (clone, commit, push):
-
-```bash
-underpost db default-a --export --git
-```
-
-Force clone repository (overwrite local changes):
-
-```bash
-underpost db default-a --export --git --force-clone
-```
-
-Import from Git repository:
-
-```bash
-underpost db default-a --import --git
-```
-
-### 7. Rollback Operations
-
-Generate rollback script to revert last 3 commits:
-
-```bash
-underpost db default-a --macro-rollback-export 3
-```
-
-Generate rollback script for last 5 commits:
-
-```bash
-underpost db default-a --macro-rollback-export 5
-```
-
-### 8. Filtered Operations
-
-Filter by specific hosts:
-
-```bash
-underpost db default-a --export --hosts db1.example.com,db2.example.com
-```
-
-Filter by paths:
-
-```bash
-underpost db default-a --export --paths /data/db1,/data/db2
-```
-
-Combine host and path filters:
-
-```bash
-underpost db default-a --export --hosts db1.example.com --paths /data/db1
-```
-
-### 9. Namespace Operations
-
-Specify Kubernetes namespace:
-
-```bash
-underpost db default-a --export --ns production
-```
-
-Export from multiple deployments in staging namespace:
-
-```bash
-underpost db app-a,app-b --export --ns staging --git
-```
-
-### 10. Multiple Deployments
-
-Process multiple deployments simultaneously:
-
-```bash
-underpost db default-a,default-b,default-c --export --git
-```
-
-Export from all deployments with specific pod pattern:
-
-```bash
-underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
-```
-
----
-
-## Common Workflows
-
-### Complete Backup Workflow
-
-1. **Export with Git version control:**
-
-   ```bash
-   underpost db default-a --export --git
-   ```
-
-2. **View statistics to verify:**
-
-   ```bash
-   underpost db default-a --stats
-   ```
-
-3. **Create rollback point (optional):**
-   ```bash
-   underpost db default-a --macro-rollback-export 1
-   ```
-
-### Clean Database Restore
-
-1. **Import with drop to clean existing data:**
-
-   ```bash
-   underpost db default-a --import --drop --git
-   ```
-
-2. **Verify with statistics:**
-   ```bash
-   underpost db default-a --stats
-   ```
-
-### MongoDB Primary Pod Backup
-
-1. **Auto-detect and backup primary pod:**
-
-   ```bash
-   underpost db mongodb-cluster --export --primary-pod --git
-   ```
-
-2. **Restore to primary pod:**
-   ```bash
-   underpost db mongodb-cluster --import --primary-pod --drop
-   ```
-
-### Multi-Environment Sync
-
-1. **Export from production:**
-
-   ```bash
-   underpost db prod-app --export --git --ns production
-   ```
-
-2. **Import to staging with clean slate:**
-   ```bash
-   underpost db staging-app --import --git --drop --ns staging
-   ```
-
----
-
-## Best Practices
-
-### 1. Always Use Git Integration
-
-Enable `--git` for automated version control and backup history:
-
-```bash
-underpost db default-a --export --git
-```
-
-### 2. Verify Before Import
-
-Check statistics before importing to understand data impact:
-
-```bash
-underpost db default-a --stats
-```
-
-### 3. Use --drop Carefully
-
-The `--drop` flag removes existing data. Always backup first:
-
-```bash
-underpost db default-a --export --git  # Backup first
-underpost db default-a --import --drop  # Then import
-```
-
-### 4. Target Specific Pods
-
-For production systems, target specific pods to minimize impact:
-
-```bash
-underpost db default-a --export --pod-name mongodb-primary
-```
-
-### 5. Create Rollback Points
-
-Before major changes, create rollback scripts:
-
-```bash
-underpost db default-a --macro-rollback-export 5
-```
-
-### 6. Use Namespaces
-
-Always specify namespace in multi-environment setups:
-
-```bash
-underpost db default-a --export --ns production --git
-```
+The `db` command writes the `dr` profile. A backup id is the UTC second it started and six random
+hex digits (`20261029T101500Z-a1b2c3`), so ids sort by time.
+
+In Cloudinary every object is a private raw asset with token access control; only a signed URL
+delivers it. Each upload is checked: the stored size and MD5 must be the bytes sent. A different
+object under the same key is refused, never replaced.
+
+The manifest (`schemaVersion: 1`) records the backup id, profile, deployment, source (environment,
+namespace, replica set identity and members, client image, engine version), store, encryption
+(`aes-256-gcm`, key id, part size), every stream (kind, database, tool, format, read preference,
+plaintext size and SHA-256, parts, inventory), totals, timestamps, duration, retention expiry and
+the consistency the profile guarantees.
+
+## Monitoring
+
+The export, a failure and a verification each write a node-exporter textfile
+(`/var/lib/node_exporter/textfile/underpost_backup_<deploy>_<profile>_<kind>.prom`):
+
+| Gauge                                                   | Written by    |
+| ------------------------------------------------------- | ------------- |
+| `underpost_backup_last_success_timestamp_seconds`       | export        |
+| `underpost_backup_last_bytes`, `_plain_bytes`, `_parts` | export        |
+| `underpost_backup_last_duration_seconds`                | export        |
+| `underpost_backup_last_failure_timestamp_seconds`       | failure       |
+| `underpost_backup_last_verification_timestamp_seconds`  | verify        |
+| `underpost_backup_last_verification_ok`                 | verify        |
+| `underpost_backup_last_restore_test_ok`                 | restore drill |
+| `underpost_backup_last_restore_test_duration_seconds`   | restore drill |
+
+A backup is overdue when
+`time() - underpost_backup_last_success_timestamp_seconds > 2 * 86400`; it is unverified when
+`underpost_backup_last_verification_ok == 0`.
+
+### RPO and RTO
+
+- **RPO** is the interval of the backup cron job: with the daily job, at most 24 h of writes.
+- **RTO** is measured by the restore drill: `underpost_backup_last_restore_test_duration_seconds` is
+  the restore time of the newest drilled backup. Run `--verify --restore-test` on a schedule to keep
+  the figure current.
+
+## Scheduled backups
+
+The `backup` cron job runs `node bin db <deploy-id> --export --prune` for every routed deployment on
+the host node, over SSH. The host reads the object store credentials and the backup key from its
+own configuration: no credential travels in the command. See
+[Manage cron jobs](./manage-cron-jobs.md).
 
 ---
 
 ## Troubleshooting
 
-### Pod Not Found
+### Another run holds the client pod
 
-If pod is not found, list available pods:
+`Client pod underpost-db-client-<deploy-id> is Running: another run holds it` means an export or an
+import of the same deployment runs. Wait for it. A pod a stopped run left is removed once it ended
+or outlived its deadline.
 
-```bash
-kubectl get pods -n <namespace>
-```
+### A backup reads as failed
 
-Then specify exact pod name:
+`underpost db <deploy-id> --list` shows `failed`. The import of that id reports the stage and the
+error the backup recorded. Fix the cause and export again; retention removes the failed backup.
 
-```bash
-underpost db default-a --export --pod-name <exact-pod-name>
-```
+### Another key
 
-### Multiple Pods Detected
+`Backup … is sealed with key <id>, not <id>` means `UNDERPOST_BACKUP_KEY` is not the key that sealed
+the backup. Use the key of that time.
 
-Use `--all-pods` to process all matching pods:
+### Pod connection errors
 
-```bash
-underpost db default-a --export --pod-name "mariadb-*" --all-pods
-```
-
-Or target the primary pod for MongoDB:
-
-```bash
-underpost db default-a --export --primary-pod
-```
-
-### Git Conflicts
-
-Force clone to override local changes:
-
-```bash
-underpost db default-a --export --git --force-clone
-```
-
-### Namespace Access
-
-Ensure you have proper Kubernetes RBAC permissions:
-
-```bash
-kubectl auth can-i get pods -n <namespace>
-```
-
-### Pod Connection Errors During Export
-
-`unable to upgrade connection: container not found ("mongodb")` means the container
-restarted underneath a pod the API server still reports as `Ready`. Exports and imports
-handle this themselves:
-
-- **Exec-readiness gate** — before any dump, restore, or `kubectl cp`, the pod is probed
-  with a no-op exec. A pod that only _looks_ ready is waited out instead of being dumped.
-- **Bounded retry** — a failed dump, restore, or copy is replayed with exponential
-  backoff (2s, 4s, 8s) up to a fixed attempt limit, then fails for good. Each retry waits
-  for the pod to accept an exec stream again, so a replay never lands on a container that
-  is still restarting. Operations that are not safe to replay — a `mongorestore` without
-  `--drop`, a MariaDB SQL import — opt out and run exactly once.
-- **Honest exit** — a run where any database failed logs
-  `Database operation completed with failures` and exits non-zero. Whatever succeeded is
-  still committed; the run is never reported as a success.
-
-### `command terminated with exit code 137`
-
-Exit 137 is SIGKILL from the kernel's OOM killer: `mongodump` runs **inside** the mongod
-container and shares its memory limit, so a dump can push the container past that limit and
-take mongod down with it. The restart then triggers a replica-set election, and the next
-dump fails with `(NotPrimaryOrSecondary) node is not in primary or recovering state`.
-
-Two things keep the dump inside the budget:
-
-- `mongodump` runs with `--numParallelCollections=1`. The default of 4 quadruples the
-  buffers held at once, and that is what crosses the limit.
-- `manifests/mongodb/statefulset.yaml` pins `--wiredTigerCacheSizeGB 0.25` and gives the
-  container a 1536Mi limit. Left to itself, mongod sizes its cache from the cgroup limit and
-  lands on the 256MB floor, leaving nothing for the dump.
-
-Confirm an OOM kill and check the restart count with:
-
-```bash
-kubectl get pod mongodb-0 -n <namespace> -o wide
-kubectl describe pod mongodb-0 -n <namespace> | grep -A5 'Last State'
-```
-
-`Last State: Terminated, Reason: OOMKilled` confirms it. Raise the container's memory limit
-in the StatefulSet if a growing database outgrows the current one.
+`unable to upgrade connection: container not found` means a container restarted under a pod the
+API server still reports as `Ready`. Every exec first waits until the pod accepts an exec stream,
+and a failed exec that is safe to replay is retried with exponential backoff (2 s, 4 s, 8 s).
 
 ### Runtime Reconnect After a StatefulSet Change
 
@@ -499,7 +321,7 @@ maintenance route or a one-off from a REPL.
 
 ### Slow or Hanging Primary Detection
 
-`--primary-pod` resolves the replica-set primary over a **direct** connection
+`--stats` reads the replica-set primary. It resolves the primary over a **direct** connection
 (`directConnection=true`) with explicit server-selection timeouts, and the whole probe runs
 under a wall-clock budget. Without the direct connection the driver tries to reach the other
 members by their StatefulSet DNS names, which turns one unreachable member into a
@@ -511,54 +333,10 @@ Detection order, cheapest first:
    authentication, so this resolves even with an app user that has no cluster-monitor role.
 2. The same probe with credentials, then `rs.status()` with credentials.
 3. Every `Running` MongoDB pod is tried in turn — one member mid-restart does not end the
-   search. The primary is resolved again for **every** database rather than cached across the
-   run, because a member that restarts mid-backup re-elects and a stale answer sends every
-   later dump to a node that no longer accepts them.
+   search.
 
-When no member answers, the export falls back to the first pod and logs
+When no member answers, the statistics read the first pod and log
 `Could not detect primary pod, using first pod`.
-
----
-
-## Advanced Examples
-
-### Selective Collection Backup and Restore
-
-Export only user-related collections:
-
-```bash
-underpost db default-a --export --collections users,user_profiles,user_sessions --git
-```
-
-Import only specific collections without affecting others:
-
-```bash
-underpost db default-a --import --collections users --preserveUUID
-```
-
-### Cross-Namespace Migration
-
-1. Export from production:
-
-   ```bash
-   underpost db prod-app --export --git --ns production
-   ```
-
-2. Import to development:
-   ```bash
-   underpost db dev-app --import --git --drop --ns development
-   ```
-
-### Automated Backup Script
-
-Create a scheduled backup script:
-
-```bash
-#!/bin/bash
-# Daily backup with Git version control
-underpost db default-a,default-b --export --git --ns production
-underpost db default-a,default-b --stats --ns production > backup-stats-$(date +%Y%m%d).log
-```
 
 ---
 
@@ -660,24 +438,3 @@ This ensures that **no plaintext secret ever appears** in source-controlled JS f
 > `.gitignore` and are **never committed** to public repositories. The placeholder
 > values (`changethis`) in the root `.env.*` templates are intentional reminders
 > to replace them with real credentials before deployment.
-
----
-
-## Notes
-
-- **Backup Retention**: System automatically maintains the last `MAX_BACKUP_RETENTION` backups
-- **MongoDB Primary Detection**: `--primary-pod` automatically identifies the primary pod in replica sets, probing every `Running` member over a bounded direct connection
-- **Pod Contact Resilience**: Every dump/restore/copy waits for the pod to accept an exec stream and retries with exponential backoff
-- **Wildcard Support**: Pod names support wildcards (e.g., `mariadb-*`, `mongo-*`)
-- **Git Requirements**: Git integration requires properly configured GitHub credentials
-- **Kubernetes Context**: Ensure `kubectl` is configured with correct cluster context
-
----
-
-## Related Commands
-
-- `underpost metadata --export`: Export cluster metadata
-- `underpost metadata --import`: Import cluster metadata
-- `kubectl get pods -n <namespace>`: List available pods
-
-For more information, refer to the CLI Reference Guide.

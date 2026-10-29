@@ -6,8 +6,9 @@
  * @namespace UnderpostKubectl
  */
 
+import net from 'node:net';
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
-import { shellArgumentFactory, shellExec, sleepSync } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec, shellSpawn, sleepSync } from '../server/runtime/process.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
 
@@ -40,6 +41,82 @@ const KUBECTL_SERVER_SIDE_APPLY = 'kubectl apply --server-side --force-conflicts
 
 const withTimeout = (command, timeoutSeconds) =>
   timeoutSeconds > 0 ? `timeout --kill-after=10s ${timeoutSeconds}s ${command}` : command;
+
+/**
+ * The manifest of a client pod and of the Secret that carries its credentials. The pod sleeps
+ * until its deadline; its work arrives through exec streams.
+ * @param {object} params - As {@link UnderpostKubectl.API.startClientPod}.
+ * @returns {string} Two YAML documents.
+ * @memberof UnderpostKubectl
+ */
+const clientPodManifestFactory = ({
+  name,
+  namespace,
+  image,
+  secretEnv = {},
+  labels = {},
+  limits,
+  scratchSize = '',
+  activeDeadlineSeconds,
+}) => {
+  const allLabels = { 'managed-by': 'underpost', app: 'underpost-client-pod', ...labels };
+  const labelLines = (indent) =>
+    Object.entries(allLabels)
+      .map(([key, value]) => `${indent}${key}: ${JSON.stringify(String(value))}`)
+      .join('\n');
+  const secretData = Object.entries(secretEnv)
+    .map(([key, value]) => `  ${key}: ${Buffer.from(String(value ?? '')).toString('base64')}`)
+    .join('\n');
+  return `apiVersion: v1
+kind: Secret
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+  labels:
+${labelLines('    ')}
+type: Opaque
+data:
+${secretData || '  UNDERPOST_CLIENT: ""'}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+  labels:
+${labelLines('    ')}
+spec:
+  restartPolicy: Never
+  activeDeadlineSeconds: ${activeDeadlineSeconds}
+  terminationGracePeriodSeconds: 30
+  automountServiceAccountToken: false
+  containers:
+    - name: client
+      image: ${JSON.stringify(image)}
+      imagePullPolicy: IfNotPresent
+      command: ['sleep', '${activeDeadlineSeconds}']
+      envFrom:
+        - secretRef:
+            name: ${name}
+      resources:
+        requests:
+          cpu: '100m'
+          memory: '128Mi'
+        limits:
+          cpu: ${JSON.stringify(limits.cpu)}
+          memory: ${JSON.stringify(limits.memory)}${
+            scratchSize
+              ? `
+      volumeMounts:
+        - name: scratch
+          mountPath: /scratch
+  volumes:
+    - name: scratch
+      emptyDir:
+        sizeLimit: ${JSON.stringify(scratchSize)}`
+              : ''
+          }`;
+};
 
 /**
  * @class UnderpostKubectl
@@ -308,6 +385,180 @@ class UnderpostKubectl {
     },
 
     /**
+     * Runs a command in a pod with its stdin and stdout as streams, so a dump or a restore never
+     * lands on the disk of the pod or of this host.
+     * @param {object} params
+     * @param {string} params.podName - Target pod name.
+     * @param {string} [params.namespace='default'] - Pod namespace.
+     * @param {string} params.command - Shell command to run inside the container.
+     * @returns {ReturnType<typeof shellSpawn>} The child: `stdin`, `stdout` and `exited`.
+     * @memberof UnderpostKubectl
+     */
+    execStream({ podName, namespace = 'default', command }) {
+      return shellSpawn(
+        `sudo kubectl exec -i -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`,
+      );
+    },
+
+    /**
+     * Starts a dedicated client pod and waits until it accepts exec streams. The pod runs a tool
+     * against a service with its own resource limits, never inside the container it reads. The
+     * name is the lock: `kubectl create` refuses a second pod of that name, so two runs never
+     * overlap. A pod left by a stopped run is removed once it ended or outlived its deadline.
+     *
+     * Credentials travel in a Secret applied from stdin, never in a command line; the container
+     * reads them as environment variables.
+     * @param {object} params
+     * @param {string} params.name - Pod name: one per target at a time.
+     * @param {string} [params.namespace='default']
+     * @param {string} params.image - Exact image, by digest when the caller knows it.
+     * @param {Object<string,string>} [params.secretEnv={}] - Variables the Secret carries.
+     * @param {Object<string,string>} [params.labels={}]
+     * @param {{cpu:string, memory:string}} [params.limits]
+     * @param {string} [params.scratchSize] - Size limit of an `emptyDir` at `/scratch`; none without it.
+     * @param {number} [params.activeDeadlineSeconds=21600] - The pod ends after this, whatever runs.
+     * @param {number} [params.readyTimeoutSeconds=180]
+     * @returns {Promise<{name:string, namespace:string, remove:() => void}>}
+     * @throws {Error} When another run holds the name, or the pod never becomes ready.
+     * @memberof UnderpostKubectl
+     */
+    async startClientPod({
+      name,
+      namespace = 'default',
+      image,
+      secretEnv = {},
+      labels = {},
+      limits = { cpu: '1', memory: '1Gi' },
+      scratchSize = '',
+      activeDeadlineSeconds = 21600,
+      readyTimeoutSeconds = DEFAULT_READY_TIMEOUT_SECONDS,
+    }) {
+      const ns = shellArgumentFactory(namespace);
+      const remove = () =>
+        shellExec(
+          `sudo kubectl delete pod/${shellArgumentFactory(name)} secret/${shellArgumentFactory(name)} -n ${ns} --ignore-not-found --wait=false`,
+          { silent: true, silentOnError: true, disableLog: true },
+        );
+      const manifest = clientPodManifestFactory({
+        name,
+        namespace,
+        image,
+        secretEnv,
+        labels,
+        limits,
+        scratchSize,
+        activeDeadlineSeconds,
+      });
+      const create = async () => {
+        const child = shellSpawn(`sudo kubectl create -f - -n ${ns}`, { disableLog: true });
+        child.stdin.end(manifest);
+        try {
+          await child.exited;
+          return { code: 0, stderr: '' };
+        } catch (error) {
+          return { code: error.code ?? 1, stderr: error.stderr ?? error.message };
+        }
+      };
+      let created = await create();
+      if (created.code !== 0 && /AlreadyExists/.test(`${created.stderr}`)) {
+        const phase = shellExec(
+          `sudo kubectl get pod ${shellArgumentFactory(name)} -n ${ns} -o jsonpath='{.status.phase} {.metadata.creationTimestamp}'`,
+          { stdout: true, silent: true, silentOnError: true, disableLog: true },
+        ).trim();
+        const [state, createdAt] = phase.split(' ');
+        const expired = Date.now() - Date.parse(createdAt) > activeDeadlineSeconds * 1000;
+        if (!['Succeeded', 'Failed', ''].includes(state ?? '') && !expired)
+          throw new Error(`Client pod ${name} is ${state}: another run holds it. Wait for it, or delete the pod`);
+        logger.warn('Removing a client pod a stopped run left', { name, state });
+        remove();
+        await timer(5000);
+        created = await create();
+      }
+      if (created.code !== 0)
+        throw new Error(`Client pod ${name} was not created: ${redactSensitiveText(`${created.stderr}`)}`);
+      try {
+        Underpost.kubectl.run(
+          `sudo kubectl wait --for=condition=Ready pod/${shellArgumentFactory(name)} -n ${ns} --timeout=${readyTimeoutSeconds}s`,
+          { context: `client pod ${name}` },
+        );
+        if (!Underpost.kubectl.ensureExecReady({ podName: name, namespace }))
+          throw new Error(`Client pod ${name} does not accept exec streams`);
+      } catch (error) {
+        remove();
+        throw error;
+      }
+      return { name, namespace, remove };
+    },
+
+    /**
+     * Forwards a free local port to a port of a pod, for a process outside the cluster that must
+     * reach one member by address. The forward lives until `close()`.
+     * @param {object} params
+     * @param {string} params.podName
+     * @param {string} [params.namespace='default']
+     * @param {number} params.remotePort
+     * @param {number} [params.readyTimeoutMs=20000] - Wait for `kubectl` to listen.
+     * @returns {Promise<{localPort:number, close:() => void}>}
+     * @throws {Error} When the forward does not listen in time or exits.
+     * @memberof UnderpostKubectl
+     */
+    async portForward({ podName, namespace = 'default', remotePort, readyTimeoutMs = 20000 }) {
+      const localPort = await new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+          const { port } = server.address();
+          server.close(() => resolve(port));
+        });
+      });
+      const child = shellSpawn(
+        `sudo kubectl port-forward -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(`pod/${podName}`)} --address 127.0.0.1 ${localPort}:${remotePort}`,
+      );
+      child.stdin.end();
+      const close = () => child.child.kill('SIGTERM');
+      try {
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(
+            () => reject(new Error(`The forward to ${podName}:${remotePort} did not listen in ${readyTimeoutMs}ms`)),
+            readyTimeoutMs,
+          );
+          child.stdout.on('data', (chunk) => {
+            if (!/Forwarding from/.test(`${chunk}`)) return;
+            clearTimeout(timeout);
+            resolve();
+          });
+          child.exited.then(
+            () => reject(new Error(`The forward to ${podName}:${remotePort} exited`)),
+            (error) =>
+              reject(new Error(`The forward to ${podName}:${remotePort} failed: ${error.stderr || error.message}`)),
+          );
+        });
+      } catch (error) {
+        close();
+        throw error;
+      }
+      logger.info('Port forward ready', { podName, namespace, localPort, remotePort });
+      return { localPort, close };
+    },
+
+    /**
+     * The exact image a pod's first container runs: its image id when the runtime reports one.
+     * @param {string} podName
+     * @param {string} [namespace='default']
+     * @returns {string} Empty when the pod is unknown.
+     * @memberof UnderpostKubectl
+     */
+    podImage(podName, namespace = 'default') {
+      const read = (path) =>
+        shellExec(
+          `sudo kubectl get pod ${shellArgumentFactory(podName)} -n ${shellArgumentFactory(namespace)} -o jsonpath=${shellArgumentFactory(`{${path}}`)}`,
+          { stdout: true, silent: true, silentOnError: true, disableLog: true },
+        ).trim();
+      const imageId = read('.status.containerStatuses[0].imageID').replace(/^docker-pullable:\/\//, '');
+      return imageId.includes('@sha256:') ? imageId : read('.spec.containers[0].image');
+    },
+
+    /**
      * Copies a local file into a pod via `kubectl cp`.
      * @param {object} params
      * @param {string} params.sourcePath - Local source path.
@@ -401,4 +652,4 @@ class UnderpostKubectl {
 
 export default UnderpostKubectl;
 
-export { KUBECTL_SERVER_SIDE_APPLY, backoffDelayMs, withTimeout };
+export { KUBECTL_SERVER_SIDE_APPLY, backoffDelayMs, clientPodManifestFactory, withTimeout };

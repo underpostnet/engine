@@ -1,16 +1,22 @@
 'use strict';
 
 import { expect } from 'chai';
-import os from 'os';
-import nodePath from 'path';
-import fs from 'fs-extra';
 import Underpost from '../../../src/index.js';
-import { redactSensitiveText } from '../../../src/server/ops/logger.js';
+import { shellArgumentFactory } from '../../../src/server/runtime/process.js';
+import { clientPodManifestFactory } from '../../../src/cli/kubectl.js';
+import {
+  backupStreamName,
+  drillMongodCommandFactory,
+  inventoryDefects,
+  mongoDumpCommandFactory,
+  mongoReplicaHostsFactory,
+  mongoRestoreCommandFactory,
+  mongoShellCommandFactory,
+} from '../../../src/cli/db.js';
 
 // The pod shell is the boundary: the suite reads the commands kubectl would send, never a pod.
 const PASSWORD = `Zq'x$9;k "Wv`;
 const FRAGMENTS = ['Zq', 'x$9', 'k "Wv'];
-const POD = { NAME: 'mongodb-0' };
 
 /**
  * Splits a command into the words a POSIX shell reads. It throws on an unquoted expansion or
@@ -46,119 +52,123 @@ const podArgv = (command) => {
 
 const valueAfter = (argv, flag) => argv[argv.indexOf(flag) + 1];
 
-describe('database pod commands', () => {
-  let commands;
-  let scratch;
+describe('database client commands', () => {
+  const HOSTS = ['mongodb-0.mongodb-service:27017', 'mongodb-1.mongodb-service:27017'];
 
-  beforeEach(async () => {
-    commands = [];
-    scratch = await fs.mkdtemp(nodePath.join(os.tmpdir(), 'db-pod-commands-'));
-    vi.spyOn(Underpost.kubectl, 'run').mockImplementation((command) => {
-      commands.push(command);
-      return '';
-    });
-    vi.spyOn(Underpost.kubectl, 'ensureExecReady').mockReturnValue(true);
-    vi.spyOn(Underpost.kubectl, 'cpTo').mockReturnValue(true);
-    vi.spyOn(Underpost.kubectl, 'cpFrom').mockReturnValue(true);
+  it('dumps one database, or one collection, from a secondary with credentials from the pod environment', () => {
+    const argv = podArgv(
+      `kubectl exec -i -n default pod -- sh -c ${shellArgumentFactory(
+        mongoDumpCommandFactory({ hosts: HOSTS, principal: null, database: 'app', collection: 'users' }),
+      )}`,
+    );
+    expect(argv[0]).toBe('mongodump');
+    expect(valueAfter(argv, '--host')).toBe(`rs0/${HOSTS.join(',')}`);
+    expect(argv).toContain('--readPreference=secondaryPreferred');
+    expect(argv).toContain('--db=app');
+    expect(argv).toContain('--collection=users');
+    expect(argv).toEqual(expect.arrayContaining(['--archive', '--gzip', '--numParallelCollections=1']));
+    const dump = mongoDumpCommandFactory({ hosts: HOSTS, principal: 0, database: 'app', readPreference: 'primary' });
+    expect(dump).toContain('--username "$MONGO_USER_0" --password "$MONGO_PASSWORD_0" --authenticationDatabase admin');
+    expect(dump).toContain('--readPreference=primary');
+    expect(dump).not.toContain('--collection');
+    expect(mongoDumpCommandFactory({ hosts: HOSTS, principal: null, database: 'app' })).not.toContain('--username');
   });
 
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    await fs.remove(scratch);
-  });
-
-  const expectRedacted = () => {
-    for (const command of commands)
-      for (const fragment of FRAGMENTS) expect(redactSensitiveText(command), command).to.not.include(fragment);
-  };
-
-  it('passes the MariaDB password as one literal argument on import and export', async () => {
-    const sqlPath = nodePath.join(scratch, 'app.sql');
-    await fs.outputFile(sqlPath, 'SELECT 1;');
-    const credentials = { pod: POD, namespace: 'default', dbName: 'app', user: 'root', password: PASSWORD };
-
-    expect(Underpost.db._importMariaDB({ ...credentials, sqlPath })).to.equal(true);
-    expect(
-      await Underpost.db._exportMariaDB({ ...credentials, outputPath: nodePath.join(scratch, 'out', 'app.sql') }),
-    ).to.equal(true);
-
-    const argvs = commands.map(podArgv);
-    expect(argvs).to.deep.include(['mariadb', '-u', 'root', `-p${PASSWORD}`, 'app', '<', '/app.sql']);
-    expect(argvs).to.deep.include([
-      'mariadb-dump',
-      '--user=root',
-      `--password=${PASSWORD}`,
-      '--lock-tables',
-      'app',
-      '>',
-      '/home/app.sql',
+  it('restores an archive from stdin into the replica set, or into the drill mongod', () => {
+    const restore = (principal) =>
+      mongoRestoreCommandFactory({
+        hosts: HOSTS,
+        principal,
+        namespaces: ['app.*', "o'k.users"],
+        drop: true,
+        preserveUUID: true,
+      });
+    const argv = podArgv(`kubectl exec -i -n default pod -- sh -c ${shellArgumentFactory(restore(null))}`);
+    expect(argv[0]).toBe('mongorestore');
+    expect(argv).toEqual(expect.arrayContaining(['--archive', '--gzip', '--drop', '--preserveUUID', '--stopOnError']));
+    expect(argv.filter((word) => word.startsWith('--nsInclude='))).toEqual([
+      '--nsInclude=app.*',
+      "--nsInclude=o'k.users",
     ]);
-    expect(argvs.find((argv) => argv.includes('-e'))).to.include(`-p${PASSWORD}`);
-    expectRedacted();
+    expect(restore(1)).toContain(
+      '--username "$MONGO_USER_1" --password "$MONGO_PASSWORD_1" --authenticationDatabase admin',
+    );
+    const drill = mongoRestoreCommandFactory({ namespaces: ['*.*'] });
+    expect(drill).toContain("--host '127.0.0.1:27018'");
+    expect(drill).not.toContain('--drop');
+    expect(mongoShellCommandFactory({ script: 'print(1)' })).toContain(
+      'mongodb://127.0.0.1:27018/?directConnection=true',
+    );
   });
 
-  it('passes the MongoDB credentials as literal arguments on restore and dump', async () => {
-    const bsonPath = nodePath.join(scratch, 'app');
-    await fs.ensureDir(bsonPath);
-    const credentials = { pod: POD, namespace: 'default', dbName: 'app', user: 'root', password: PASSWORD };
+  it('starts the drill mongod with no TTL monitor, so an expired document still counts as restored', () => {
+    const [prepare, start] = drillMongodCommandFactory().split(' && ');
+    expect(prepare).toBe('mkdir -p /scratch/db');
+    expect(shellWords(start)).toEqual(
+      expect.arrayContaining([
+        'mongod',
+        '--port',
+        '27018',
+        '--bind_ip',
+        '127.0.0.1',
+        '--setParameter',
+        'ttlMonitorEnabled=false',
+      ]),
+    );
+  });
 
-    expect(Underpost.db._importMongoDB({ ...credentials, bsonPath, drop: true })).to.equal(true);
+  it('names the replica set members by their StatefulSet pods', () => {
     expect(
-      Underpost.db._exportMongoDB({ ...credentials, outputPath: nodePath.join(scratch, 'out'), collections: 'a,b' }),
-    ).to.equal(true);
+      mongoReplicaHostsFactory([{ NAME: 'mongodb-1' }, { NAME: 'mongodb-0' }, { NAME: 'mongo-express-x' }]),
+    ).toEqual(['mongodb-0.mongodb-service:27017', 'mongodb-1.mongodb-service:27017']);
+    expect(mongoReplicaHostsFactory([])).toHaveLength(3);
+  });
 
-    const tools = commands.map(podArgv).filter(([tool]) => tool === 'mongorestore' || tool === 'mongodump');
-    expect(tools.map(([tool]) => tool)).to.deep.equal(['mongorestore', 'mongodump', 'mongodump']);
-    for (const argv of tools) {
-      expect(valueAfter(argv, '-d')).to.equal('app');
-      expect(valueAfter(argv, '--username')).to.equal('root');
-      expect(valueAfter(argv, '--password')).to.equal(PASSWORD);
-      expect(valueAfter(argv, '--authenticationDatabase')).to.equal('admin');
-    }
-    expect(tools.slice(1).map((argv) => valueAfter(argv, '--collection'))).to.deep.equal(['a', 'b']);
-    expectRedacted();
+  it('names streams in the characters an object key takes', () => {
+    expect(backupStreamName('mongodb', 'app-content-v1')).toBe('mongodb-app-content-v1');
+    expect(backupStreamName('mongodb', 'app', 'system.version')).toBe('mongodb-app--system_version');
+    expect(backupStreamName('tree', 'www.site.com', '/')).toBe('tree-www_site_com--_');
   });
 
   it('lists the databases a partition serves, and nothing else on the server', () => {
-    Underpost.kubectl.run.mockImplementation((command) => {
-      commands.push(command);
-      return 'admin app app-content-v1 app-content app-contentx app-content-capture-1 other\n';
-    });
-    const databases = Underpost.db._partitionDatabases({
-      podName: POD.NAME,
-      namespace: 'default',
-      partitions: ['app-content'],
-      user: 'root',
-      password: PASSWORD,
-    });
-
-    expect(databases).to.deep.equal(['app-content', 'app-content-capture-1', 'app-content-v1']);
-    const [argv] = commands.map(podArgv);
-    expect(argv[0]).to.equal('mongosh');
-    expect(valueAfter(argv, '--password')).to.equal(PASSWORD);
-    expect(valueAfter(argv, '--eval')).to.include('listDatabases');
-    expectRedacted();
+    const listed = ['admin', 'app', 'app-content-v1', 'app-content', 'app-contentx', 'app-content-capture-1', 'other'];
+    expect(Underpost.db.partitionDatabases(listed, ['app-content'])).toEqual([
+      'app-content',
+      'app-content-capture-1',
+      'app-content-v1',
+    ]);
+    expect(Underpost.db.partitionDatabases(listed, [])).toEqual([]);
   });
 
-  it('lists no database for a host without partitions, and reports a server it cannot list', () => {
-    expect(Underpost.db._partitionDatabases({ podName: POD.NAME, namespace: 'default', partitions: [] })).to.deep.equal(
-      [],
-    );
-    expect(commands).to.deep.equal([]);
-    Underpost.kubectl.run.mockImplementation(() => {
-      throw new Error('exec failed');
-    });
+  it('compares an inventory with the one a manifest records', () => {
+    const recorded = { namespaces: { 'a.x': { documents: 2, indexes: 1 }, 'a.y': { documents: 0, indexes: 1 } } };
+    expect(inventoryDefects(recorded, recorded)).toEqual([]);
     expect(
-      Underpost.db._partitionDatabases({ podName: POD.NAME, namespace: 'default', partitions: ['app-content'] }),
-    ).to.equal(null);
+      inventoryDefects(recorded, {
+        namespaces: { 'a.x': { documents: 1, indexes: 1 }, 'a.z': { documents: 0, indexes: 1 } },
+      }),
+    ).toEqual(['a.x: 1 document(s), 2 recorded', 'a.y: missing', 'a.z: not recorded']);
   });
 
-  it('locates the backup of one host of a deployment', () => {
-    expect(Underpost.db.backupHostDir({ deployId: 'dd-cyberia', host: 'www.cyberiaonline.com', path: '/' })).to.equal(
-      '../engine-cyberia-cron-backups/www.cyberiaonline.com-',
-    );
-    expect(Underpost.db.backupHostDir({ deployId: 'app', host: 'app.net', path: '/admin' })).to.equal(
-      '../engine-app-cron-backups/app.net-admin',
-    );
+  it('carries the credentials of a client pod in a Secret, never in its pod spec or a command', () => {
+    const manifest = clientPodManifestFactory({
+      name: 'underpost-db-client-dd-test',
+      namespace: 'default',
+      image: 'docker.io/library/mongo@sha256:abc',
+      secretEnv: { MONGO_USER_0: 'root', MONGO_PASSWORD_0: PASSWORD },
+      labels: { 'underpost-deploy-id': 'dd-test' },
+      limits: { cpu: '1', memory: '1Gi' },
+      scratchSize: '2Gi',
+      activeDeadlineSeconds: 3600,
+    });
+    const [secret, pod] = manifest.split('\n---\n');
+    expect(secret).toContain('kind: Secret');
+    expect(secret).toContain(`MONGO_PASSWORD_0: ${Buffer.from(PASSWORD).toString('base64')}`);
+    for (const fragment of FRAGMENTS) expect(manifest).not.toContain(fragment);
+    expect(pod).toContain('activeDeadlineSeconds: 3600');
+    expect(pod).toContain('memory: "1Gi"');
+    expect(pod).toContain('sizeLimit: "2Gi"');
+    expect(pod).toContain('name: underpost-db-client-dd-test');
+    expect(pod).toContain('automountServiceAccountToken: false');
   });
 });
