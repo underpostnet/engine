@@ -533,19 +533,20 @@ into its own database, validates it, and promotes it by pointer.
 [Content releases](../explanation/content-releases.md) holds the model;
 [Local content development](../how-to/develop-content-locally.md) the daily workflow around it.
 
-| Subcommand                                 | Description                                                                                                                                                                          |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `prepare <release-id> --channel <channel>` | On the host: fetch the revision the deployment lock pins, from the channel's repository, into a read-only workspace (`--store`)                                                      |
-| `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance) and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace` |
-| `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                              |
-| `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                 |
-| `export-live [--backup <dir>] [--apply]`   | Export every world and the global content of the release a host backup served into `cyberia-content`, read by the current models; writes only with `--apply`                         |
-| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                    |
-| `rollback`                                 | Serve the release that was active before the current one                                                                                                                             |
-| `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                               |
-| `status`                                   | List the ledger and the active release                                                                                                                                               |
-| `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, the rollback target, or a render a player owns                                 |
-| `activate`                                 | Bind this process to the active release                                                                                                                                              |
+| Subcommand                                 | Description                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prepare <release-id> --channel <channel>` | On the host: fetch the revision the deployment lock pins, from the channel's repository, into a read-only workspace (`--store`)                                                                                                                               |
+| `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance), publish and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace`; a failed release resumes, `--reset` starts its candidate again |
+| `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                                                                                                       |
+| `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                                                                                          |
+| `export-live [--baseline <id>] [--apply]`  | Export every world and the global content of the release a production content baseline captured into `cyberia-content`, read by the current models; writes only with `--apply`                                                                                |
+| `inspect <release-id>`                     | The stage that stopped a release, its waiting, blocked and failed tasks, and its audit trail                                                                                                                                                                  |
+| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                                                                                             |
+| `rollback`                                 | Serve the release that was active before the current one                                                                                                                                                                                                      |
+| `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                                                                                                        |
+| `status`                                   | List the ledger and the active release                                                                                                                                                                                                                        |
+| `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, the rollback target, or a render a player owns                                                                                                          |
+| `activate`                                 | Bind this process to the active release                                                                                                                                                                                                                       |
 
 ```bash
 cyberia content-release prepare v3-4-5-8b4d643-04f978b0 --channel private
@@ -555,7 +556,7 @@ cyberia content-release build local-2 --from workspace --dev
 cyberia content-release validate                      # the workspace, before any build
 cyberia content-release retire                        # back to the workspace after a local rehearsal
 cyberia content-release live-changes                  # what the next promotion stops serving
-cyberia content-release export-live --apply --dev     # the live content of the latest host backup, as source
+cyberia content-release export-live --apply --dev     # the live content of the newest production baseline, as source
 cyberia content-release promote v3-4-5-8b4d643-04f978b0
 cyberia content-release rollback
 ```
@@ -566,6 +567,22 @@ digest and revision. A release carries the worlds the deploy serves: one instanc
 `conf.instances.json`. `/` serves `amethyst-strata-expansion`, and `/test` serves `test`. A
 production runtime promotes only a release built from an exact source revision. `build --promote`
 takes `--discard-live-changes` as `promote` does.
+
+## `cyberia content-baseline` — production content baselines
+
+A capture of what the active release serves, in the object store, for review on a development host.
+Git never carries it. [Export the live content](../how-to/deploy-a-release.md#export-the-live-content)
+holds the workflow.
+
+| Subcommand                             | Description                                                                                                                         |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `capture [--attempts <n>]`             | On the production control host: capture the active release database, its Files, its ledger row and the CIDs players own             |
+| `list`                                 | The baselines of this deployment: `available`, `failed` or `incomplete`, size, verified                                             |
+| `inspect [baseline-id]`                | Release, source revision, consistency proof, scope, streams and verifications                                                       |
+| `verify [baseline-id]`                 | Read every part, check checksums, seal and archive inventory, record the result                                                     |
+| `download [baseline-id]`               | Download and verify into `UNDERPOST_BASELINE_CACHE` (`~/.cache/underpost/content-baselines`)                                        |
+| `restore <baseline-id> --confirm <id>` | With `--dev`: restore the release database under its local name, its Files by id and its ledger row; refuses the source replica set |
+| `prune [--keep <n>] [--dry-run]`       | Remove baselines beyond `--keep` (5), and failed or abandoned captures                                                              |
 
 ## `cyberia release` — product repositories
 

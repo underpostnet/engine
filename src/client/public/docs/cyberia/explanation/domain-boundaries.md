@@ -56,6 +56,10 @@ draft ──▶ profile check ──▶ canonical bytes ──▶ contentHash �
   returns. Only then does the copy become `cache` and the label bind to it.
 - When the authority does not answer, the draft stays and the label keeps its binding. The write
   fails with `Object Layer <cid> is kept as a draft: <reason>`. No second writer takes over.
+- An import into a content release stores its definitions as drafts and binds them without asking
+  the authority. Its publication stage makes each one canonical, as a durable task that a timeout
+  never loses: see [Publication](content-releases.md#publication). A release never validates while
+  it binds a draft.
 - A host that consumes Object Layer refuses `POST /canonical`.
 - The generic Object Layer APIs import no Cyberia module. The Studio routes come from
   `src/projects/cyberia/object-layer.extension.js` and `atlas-sprite-sheet.extension.js`. The

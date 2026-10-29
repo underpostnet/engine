@@ -51,6 +51,9 @@ const SourceSchema = new Schema(
  * @property {Object<string,string>} fingerprint - The digest per content API of the release as it was built
  * @property {{ok:boolean,checkedAt:Date,checks:Array}} validation - Last validation report
  * @property {{holder:string,heartbeatAt:Date}} lease - The execution building the release
+ * @property {number} generation - The candidate database generation; a reset starts the next one
+ * @property {Object<string,Object>} tasks - Durable steps and publications, by task id (`src/server/release/release-tasks.js`)
+ * @property {Array<{at:Date,by:string,action:string,detail:Object}>} audit - Operator decisions on the release
  * @property {Date} promotedAt - When the release became active
  * @property {Date} retiredAt - When another release replaced it
  * @memberof CyberiaContentReleaseModel
@@ -102,6 +105,22 @@ const CyberiaContentReleaseSchema = new Schema(
       executing: { type: Boolean },
       holder: { type: String },
       heartbeatAt: { type: Date },
+    },
+    generation: { type: Number, default: 1 },
+    tasks: { type: Schema.Types.Mixed, default: () => ({}) },
+    audit: {
+      type: [
+        new Schema(
+          {
+            at: { type: Date, required: true },
+            by: { type: String, default: '' },
+            action: { type: String, required: true },
+            detail: { type: Schema.Types.Mixed, default: () => ({}) },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
     },
     promotedAt: { type: Date },
     retiredAt: { type: Date },
@@ -158,6 +177,8 @@ class CyberiaContentReleaseDto {
       dependencies: 1,
       fingerprint: 1,
       validation: 1,
+      generation: 1,
+      audit: 1,
       promotedAt: 1,
       retiredAt: 1,
       createdAt: 1,

@@ -308,12 +308,14 @@ const invalid = (message) => Object.assign(new Error(message), { status: 400 });
 
 /**
  * Makes sure a definition can run: stored here and published, or held by the Object Layer
- * authority, in which case a consumer keeps a copy to serve.
+ * authority, in which case a consumer keeps a copy to serve. A release import binds its drafts:
+ * the release validates only once its publication stage made each one canonical.
  * @throws {Error} 400 for a draft, an archived or an unknown definition.
  */
 async function assertRunnable({ ObjectLayer }, cid, options) {
   const stored = await ObjectLayer.findOne({ cid }, { origin: 1, archivedAt: 1 }).lean();
-  if (stored?.origin === 'draft') throw invalid(`Object Layer ${cid} is a draft; publish it first`);
+  if (stored?.origin === 'draft' && options?.publication !== 'deferred')
+    throw invalid(`Object Layer ${cid} is a draft; publish it first`);
   if (stored?.archivedAt) throw invalid(`Object Layer ${cid} is archived`);
   if (stored) return;
   const definition = isObjectLayerAuthority(options) ? null : await resolveObjectLayer(cid, options);

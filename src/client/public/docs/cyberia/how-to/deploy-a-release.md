@@ -24,15 +24,15 @@ held before the layout stay where they are and are no longer read.
 The deploy runs no tests: CI tests the source, and the source carries its coverage reports in `docs/coverage/`.
 Nothing before Stage E changes what players see: a candidate that fails stops the deploy before it.
 
-| Stage | Name                   | Content                                                                                                                                                                                                                                                                                                                                                                                               |
-| ----- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                                                                                                                                                                                                                                                              |
-| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                                                                                                                                                                                                                                                               |
-| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                                                                                                                                                                                                                                                                |
-| D     | Data                   | A Release Job makes the indexes of the runtime records the ones their models declare; a record that refuses a unique index stops the deploy and names the key. The host prepares the locked revision; a Release Job builds it, imports the foundation then each instance, and validates it, with the data-release Secret alone. A third Job stops the deploy when the active release has live changes |
-| E     | Application rollout    | Loads deployment configuration and starts the new pod; blue/green traffic switches when it is Ready                                                                                                                                                                                                                                                                                                   |
-| F     | Readiness              | Engine API, Object Layer authority                                                                                                                                                                                                                                                                                                                                                                    |
-| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                                                                                                                                                                                                                                                                    |
+| Stage | Name                   | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                                                                                                                                                                                                                                                                                                                                                                                                            |
+| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| D     | Data                   | A Release Job makes the indexes of the runtime records the ones their models declare; a record that refuses a unique index stops the deploy and names the key. The host prepares the locked revision; a Release Job builds its artifact once, imports the foundation then each instance as durable steps, makes every definition canonical at the Object Layer authority as durable tasks, and validates it, with the data-release Secret alone. A rerun resumes the release. A third Job stops the deploy when the active release has live changes |
+| E     | Application rollout    | Loads deployment configuration and starts the new pod; blue/green traffic switches when it is Ready                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| F     | Readiness              | Engine API, Object Layer authority                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
 
@@ -49,55 +49,89 @@ to promote and stop serving them.
 ## Export the live content
 
 `cyberia content-release export-live` turns the content production serves into `cyberia-content`
-source. It reads a host backup: the backup of the Cyberia host dumps the databases of the content
-partition with the host database.
+source. It reads a **production content baseline**: a capture of the active release in the object
+store. Git never carries the database.
 
-1. Stop the Studio edits in production. An edit after the backup is not exported.
-2. On the host, take a backup. The daily backup cron job runs the same command:
+On the production control host:
 
-   ```bash
-   node bin db dd-cyberia --export --git --primary-pod --preserveUUID
-   ```
-
-3. On the local machine, import the same backup. The export reads the Files and the player profiles
-   from the host database:
+1. Capture a baseline. The capture reads the active release database, the File documents its content
+   references, the ledger row of the release and the CIDs player stacks hold. It reads no player
+   profile, no session and no credential. The member names of the replica set resolve only in the
+   cluster, so the capture opens a `kubectl port-forward` to the primary for its run and closes it:
 
    ```bash
-   node bin db dd-cyberia --import --git --hosts www.cyberiaonline.com --paths / --drop --preserveUUID --primary-pod
+   node bin/cyberia content-baseline capture
+   node bin/cyberia content-baseline verify
    ```
 
-4. Preview the export, then write it:
+On the development host:
+
+2. List the baselines, then restore the one to review. The restore downloads and verifies it, and
+   refuses the replica set it was captured from:
 
    ```bash
-   node bin/cyberia content-release export-live --dev
-   node bin/cyberia content-release export-live --apply --dev
+   node bin/cyberia content-baseline list --dev
+   node bin/cyberia content-baseline restore <baseline-id> --dev --confirm <baseline-id>
    ```
 
-5. Review `git diff` in `cyberia-content`, run its tests, commit, and lock the revision.
+3. Bootstrap the workspace when the host has none, then preview the export and write it:
+
+   ```bash
+   node bin/cyberia run-workflow import-content --clean --confirm dd-cyberia --dev
+   node bin/cyberia content-release export-live --baseline <baseline-id> --dev
+   node bin/cyberia content-release export-live --baseline <baseline-id> --apply --dev
+   ```
+
+4. Review `git diff` in `cyberia-content`, run its tests, and commit. Put the `Baseline:` line the
+   export prints in the commit message: it records the provenance of the change.
+5. Build, lock and publish the source release: `cyberia release build --commit`,
+   `cyberia release lock --commit`, `cyberia release publish --private`.
 6. Deploy with `DISCARD_LIVE_CHANGES=1`. The live changes are now source, but the guard compares the
-   release with its build, so it still names them.
+   release with its build, so it still names them. The promotion records the discard in the audit
+   trail of both releases.
 
-The export restores the dump of the release the backup ledger names as active into a scratch
-release database, `<content partition>-capture-<timestamp>`. It then imports the absent content of
-the content artifact: the documents a newer schema adds, such as economies and markets. A document
-production holds stays as production holds it. Every check of `content-release validate` runs,
-except the canonical check, because nothing is published. Each world is exported into a temporary
-directory.
+### Consistency of a baseline
+
+The capture reads the `dbHash` of the release database on the primary before and after every
+stream. Equal hashes prove that no content write landed in the window; the Files and the owned CIDs
+are read inside the same window. A capture that sees a write fails, records the failure, and
+captures again (`--attempts`, 3 by default). The manifest records both hashes.
+
+### What the export does
+
+The export restores the release database of the baseline into a scratch release database,
+`<content partition>-capture-<baseline-id>`. It then imports the absent content of the content
+artifact: the documents a newer schema adds, such as economies and markets. A document production
+holds stays as production holds it. Every check of `content-release validate` runs, except the
+canonical check, because nothing is published. Each world is exported into a temporary directory.
 
 The scratch copy then takes the global content production must keep: each definition an item
 binding or a player stack names that no exported world snapshot and no artifact composition
-carries. A definition the copy lacks is imported from the Object Layer authority, with its render
-from IPFS, by the checks of an import. The export prints each definition it adds and why, each one
-it cannot resolve, and how many published definitions nothing keeps; those stay out. Production and
-the backup stay as they are: the next release carries the rows.
+carries. The CIDs players own come from the baseline. A definition the copy lacks is imported from
+the Object Layer authority, with its render from IPFS, by the checks of an import. The export prints
+each definition it adds and why, each one it cannot resolve, and how many published definitions
+nothing keeps; those stay out.
 
 The change of each world and of `global/` against `cyberia-content` is printed. `--apply` replaces
 the instance directories and `src/content/global/`, and refuses while one of them has uncommitted
 changes. A second run with no change in production writes the same files. The scratch database and
-its map registry rows are removed at the end.
+its map registry rows are removed at the end. Nothing is committed or published automatically.
 
-A dump is consistent per collection, not at one point in time. Step 1 keeps the collections
-consistent with each other, and the checks refuse a reference that does not resolve.
+### Baseline lifecycle
+
+| Command                                   | Where            | What it does                                                           |
+| ----------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
+| `content-baseline capture`                | control host     | Captures the active release; `failed` when it cannot prove consistency |
+| `content-baseline list`                   | any              | `available`, `failed` or `incomplete`, size, verified                  |
+| `content-baseline inspect [id]`           | any              | Release, source revision, consistency, scope, streams, verifications   |
+| `content-baseline verify [id]`            | any              | Reads every part, checks the archive inventory, records the result     |
+| `content-baseline download [id]`          | development host | Downloads and verifies into `~/.cache/underpost/content-baselines`     |
+| `content-baseline restore <id> --confirm` | development host | Restores the release database, its Files and its ledger row            |
+| `content-baseline prune [--dry-run]`      | any              | Removes baselines beyond `--keep` (5) and failed captures              |
+
+A baseline is a backup of the `content-baseline` profile: the format, the seal, retention and
+verification are those of [DB and Backup Management](../../nexodev/how-to/manage-databases-and-backups.md).
+The capture runs its dump in a client pod, never in the `mongod` container.
 
 ## Failure and revert
 

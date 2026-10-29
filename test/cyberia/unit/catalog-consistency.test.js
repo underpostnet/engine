@@ -80,8 +80,24 @@ describe('the storage of every binding', () => {
       atlases: ['c'],
     });
     ipfsStates.set('c', [
-      { name: 'object-layer.json', cid: 'c', registered: false, pinned: true, cluster: true, listedCid: 'c' },
-      { name: 'atlas.png', cid: 'c-png', registered: true, pinned: false, cluster: null, listedCid: 'other' },
+      {
+        name: 'object-layer.json',
+        cid: 'c',
+        registered: false,
+        pinned: true,
+        cluster: true,
+        mfs: true,
+        listedCid: 'c',
+      },
+      {
+        name: 'atlas.png',
+        cid: 'c-png',
+        registered: true,
+        pinned: false,
+        cluster: null,
+        mfs: true,
+        listedCid: 'other',
+      },
     ]);
     const { ok, findings } = await checkCatalogStorage(models);
     expect(ok).toBe(false);

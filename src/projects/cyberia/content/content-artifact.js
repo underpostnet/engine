@@ -136,15 +136,24 @@ const isCodeList = (value) => Array.isArray(value) && value.every((code) => type
  */
 export const RELEASE_ARTIFACT_COLLECTION = 'cyberia-content-artifact';
 
+/**
+ * The collection in which a release database keeps the import files of its artifact while the
+ * release builds, so a retry imports them instead of building the artifact again.
+ * @memberof CyberiaContentArtifact
+ */
+export const RELEASE_IMPORT_COLLECTION = 'cyberia-content-artifact-import';
+
 const MANIFEST_FILE = 'manifest.json';
 
 /** The files only an import reads: the instance backups and the global content. */
 const IMPORT_ONLY = Object.freeze(['instances/', 'global/']);
 
+const isImportFile = (file) => IMPORT_ONLY.some((prefix) => file.startsWith(prefix));
+
 /** The files a running engine reads: every file an import alone does not read. */
 const runtimeFiles = (manifest) =>
   Object.keys(manifest.files)
-    .filter((file) => !IMPORT_ONLY.some((prefix) => file.startsWith(prefix)))
+    .filter((file) => !isImportFile(file))
     .sort();
 
 /** The reason a manifest is invalid, or '' when it is valid. */
@@ -285,6 +294,67 @@ export async function loadContentArtifact(db, digest) {
   const files = runtimeFiles(manifest);
   for (const file of files) opened.read(file);
   return { ...opened, files };
+}
+
+/**
+ * Stores the files only an import reads in a release database: the instance backups and the global
+ * content, one document per file. Replaces what the collection held.
+ * @param {import('mongodb').Db} db - The release database.
+ * @param {Object} opened - {@link openContentArtifact} output.
+ * @returns {Promise<number>} The files stored.
+ * @memberof CyberiaContentArtifact
+ */
+export async function stageImportArtifact(db, opened) {
+  const files = Object.keys(opened.manifest.files).filter(isImportFile).sort();
+  const collection = db.collection(RELEASE_IMPORT_COLLECTION);
+  await collection.deleteMany({});
+  for (let index = 0; index < files.length; index += 50)
+    await collection.insertMany(
+      files.slice(index, index + 50).map((file) => ({ _id: file, data: opened.read(file).toString('utf8') })),
+    );
+  return files.length;
+}
+
+/**
+ * Writes the whole artifact a release database holds to a content root: the manifest, the runtime
+ * files and the staged import files, each checked against the manifest.
+ * @param {import('mongodb').Db} db - The release database.
+ * @param {string} digest - The content digest the release records.
+ * @param {string} root - An empty directory.
+ * @returns {Promise<string>} The content root, ready for {@link openContentArtifact}.
+ * @throws {Error} When the database holds another, an incomplete or an altered artifact.
+ * @memberof CyberiaContentArtifact
+ */
+export async function materializeContentArtifact(db, digest, root) {
+  const stored = await loadContentArtifact(db, digest);
+  const imports = new Map(
+    (await db.collection(RELEASE_IMPORT_COLLECTION).find({}).toArray()).map(({ _id, data }) => [_id, data]),
+  );
+  const dist = path.join(root, 'dist');
+  for (const [file, expected] of Object.entries(stored.manifest.files)) {
+    const data = isImportFile(file)
+      ? imports.has(file)
+        ? Buffer.from(imports.get(file), 'utf8')
+        : null
+      : stored.read(file);
+    if (!data) throw new Error(`${db.databaseName} holds no ${file}: build the release artifact again`);
+    if (sha256(data) !== expected) throw new Error(`Content digest mismatch: ${file}`);
+    fs.mkdirSync(path.dirname(path.join(dist, file)), { recursive: true });
+    fs.writeFileSync(path.join(dist, file), data);
+  }
+  fs.writeFileSync(path.join(dist, MANIFEST_FILE), JSON.stringify(stored.manifest));
+  openContentArtifact(root);
+  return root;
+}
+
+/**
+ * Removes the staged import files of a release database: a validated release imports nothing more.
+ * @param {import('mongodb').Db} db - The release database.
+ * @returns {Promise<void>}
+ * @memberof CyberiaContentArtifact
+ */
+export async function dropImportArtifact(db) {
+  await db.collection(RELEASE_IMPORT_COLLECTION).deleteMany({});
 }
 
 let workspaceArtifact;

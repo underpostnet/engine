@@ -194,7 +194,10 @@ const TEST_PROJECTS = [
       'src/server/ops/logger.js',
       'src/server/ops/metrics.js',
       'src/server/runtime/conf.js',
+      'src/server/runtime/retry.js',
+      'src/server/storage/backup.js',
       'src/server/storage/cache.js',
+      'src/server/storage/object-store.js',
     ],
     description: 'Platform logic: configuration, build, release, delivery and operational helpers.',
   },
@@ -351,10 +354,17 @@ const TEST_PROJECTS = [
     groupOrder: 9,
     // Non-recursive: the ordered areas underneath are projects of their own.
     recursive: false,
-    sources: ['src/api/google-auth/*.js', 'src/api/test/*.js', 'src/api/user/*.js', 'src/server/security/auth.js'],
+    sources: [
+      'src/api/google-auth/*.js',
+      'src/api/test/*.js',
+      'src/api/user/*.js',
+      'src/server/release/release-tasks.js',
+      'src/server/security/auth.js',
+      'src/server/storage/mongo-archive.js',
+    ],
     description:
       'Platform APIs served over a real server and a real database — sign-in, refresh sessions and recovery — ' +
-      'and the test runner on real processes.',
+      'durable release tasks, dump archives, and the test runner on real processes.',
   },
   {
     name: 'ecosystem:integration',

@@ -8,7 +8,7 @@ import express from 'express';
 import { Types } from 'mongoose';
 import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
 import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
-import { publishDefinition } from '../../../src/api/object-layer/object-layer.publication.js';
+import { deferPublication, publishDefinition } from '../../../src/api/object-layer/object-layer.publication.js';
 import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
 import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
 import { CyberiaMapRouter } from '../../../src/api/cyberia-map/cyberia-map.router.js';
@@ -39,6 +39,7 @@ import {
   liveChanges,
   promoteContentRelease,
   pruneContentReleases,
+  publishReleaseDefinitions,
   retireContentRelease,
   rollbackContentRelease,
   validateContentRelease,
@@ -101,6 +102,8 @@ const runtime = { ...cyberia, path: '/runtime' };
 let mongod;
 let authorityServer;
 let authorityDown = false;
+/** Publications the authority stores and then answers with a reset connection. */
+let authorityLosesAnswers = 0;
 let dbHost;
 
 /** The Object Layer authority over its public contract, backed by its own database. */
@@ -118,6 +121,10 @@ const startAuthority = () =>
         let body = '';
         for await (const chunk of req) body += chunk;
         const stored = await publishDefinition({ ObjectLayer, payload: JSON.parse(body), options: authority });
+        if (authorityLosesAnswers > 0) {
+          authorityLosesAnswers--;
+          return req.socket.destroy();
+        }
         return reply(200, { cid: stored.cid, contentHash: stored.contentHash, created: true });
       }
       const match = /^\/api\/v1\/object-layer\/(bafkrei[a-z2-7]+)$/.exec(req.url);
@@ -703,10 +710,33 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
         status: 'building',
         source: { channel: 'public' },
         failure: { stage: '' },
+        generation: 1,
       });
-      // A retry starts from an empty candidate database: nothing the failed attempt wrote survives.
+      // A retry resumes its candidate: what the failed attempt completed stays.
+      expect(retried.resumed).toBe(true);
+      expect(reset).toEqual([]);
+      await failContentRelease(ledger, 's1', 'contract', 'again');
+      // Only an explicit reset starts the candidate again, and the audit trail records it.
+      const restarted = await begin(
+        's1',
+        {},
+        { reset: async (database) => reset.push(database), resetCandidate: true },
+      );
+      expect(restarted).toMatchObject({ resumed: false, release: { generation: 2, tasks: {} } });
+      expect(restarted.release.audit).toEqual([
+        expect.objectContaining({ action: 'reset', by: 'job', detail: { from: 1 } }),
+      ]);
       expect(reset).toEqual([releaseDb('s1')]);
       await failContentRelease(ledger, 's1', 'contract', 'again');
+      await expect(
+        begin('s1', { content: { version: '1.0.0', digest: `sha256:${'1'.repeat(64)}` } }),
+      ).resolves.toMatchObject({
+        resumed: true,
+      });
+      await failContentRelease(ledger, 's1', 'contract', 'again');
+      await expect(begin('s1', { content: { version: '1.0.0', digest: `sha256:${'2'.repeat(64)}` } })).rejects.toThrow(
+        /carries content sha256:1+, not sha256:2+/,
+      );
       await expect(begin('s1', { source: { ...source, sourceRevision: 'b'.repeat(40) } })).rejects.toThrow(
         /another source/,
       );
@@ -720,6 +750,97 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
         failure: { stage: 'lease' },
       });
       await failContentRelease(ledger, 's4', 'contract', 'done');
+    });
+
+    it('publishes the definitions of a release as durable tasks, and settles an answer the authority lost', async () => {
+      const ledger = model('CyberiaContentRelease');
+      const source = { from: 'source', channel: 'private', repository: 'acme/content', sourceRevision: 'e'.repeat(40) };
+      await beginContentRelease(ledger, {
+        releaseId: 'pub1',
+        holder: 'job',
+        fields: { database: releaseDb('pub1'), source },
+      });
+      // A release import keeps its new definitions as drafts and asks nobody.
+      const lantern = await writeBound({
+        models: catalogModels(cyberia),
+        payload: payload('lantern', 4),
+        options: deferPublication(cyberia),
+      });
+      expect(lantern.origin).toBe('draft');
+      const models = { ...catalogModels(cyberia), CyberiaGlobalContent: model('CyberiaGlobalContent') };
+      const policy = { attempts: 4, baseDelayMs: 10, maxDelayMs: 20 };
+      const publish = (extra = {}) =>
+        publishReleaseDefinitions({
+          CyberiaContentRelease: ledger,
+          releaseId: 'pub1',
+          models,
+          options: cyberia,
+          holder: 'job',
+          policy,
+          ...extra,
+        });
+
+      authorityLosesAnswers = 1;
+      const first = await publish();
+      expect(first).toMatchObject({ done: true, skipped: '' });
+      expect(first.counts.completed).toBe(first.total);
+      const tasks = (await ledger.findOne({ releaseId: 'pub1' }).lean()).tasks;
+      expect(tasks[`publish:${lantern.cid}`]).toMatchObject({
+        status: 'completed',
+        attempts: 1,
+        result: { sent: true },
+      });
+      expect((await model('ObjectLayer').findOne({ cid: lantern.cid }).lean()).origin).toBe('cache');
+
+      // A rerun finds every publication completed: it asks the authority nothing.
+      authorityDown = true;
+      try {
+        expect(await publish()).toMatchObject({ done: true });
+      } finally {
+        authorityDown = false;
+      }
+      await failContentRelease(ledger, 'pub1', 'validate', 'done');
+    });
+
+    it('leaves the publications of an unavailable authority for the next run, and resumes them', async () => {
+      const ledger = model('CyberiaContentRelease');
+      const source = { from: 'source', channel: 'private', repository: 'acme/content', sourceRevision: 'f'.repeat(40) };
+      await beginContentRelease(ledger, {
+        releaseId: 'pub2',
+        holder: 'job',
+        fields: { database: releaseDb('pub2'), source },
+      });
+      const torch = await writeBound({
+        models: catalogModels(cyberia),
+        payload: payload('torch', 2),
+        options: deferPublication(cyberia),
+      });
+      const models = { ...catalogModels(cyberia), CyberiaGlobalContent: model('CyberiaGlobalContent') };
+      const run = (deadlineMs) =>
+        publishReleaseDefinitions({
+          CyberiaContentRelease: ledger,
+          releaseId: 'pub2',
+          models,
+          options: cyberia,
+          holder: 'job',
+          deadlineMs,
+          policy: { attempts: 2, baseDelayMs: 10, maxDelayMs: 20 },
+        });
+      authorityDown = true;
+      try {
+        const stopped = await run(2000);
+        expect(stopped.done).toBe(false);
+        expect(['retry', 'blocked']).toContain(
+          stopped.failures.find(({ id }) => id === `publish:${torch.cid}`)?.status,
+        );
+        expect((await model('ObjectLayer').findOne({ cid: torch.cid }).lean()).origin).toBe('draft');
+      } finally {
+        authorityDown = false;
+      }
+      const resumed = await run(30000);
+      expect(resumed).toMatchObject({ done: true });
+      expect((await model('ObjectLayer').findOne({ cid: torch.cid }).lean()).origin).toBe('cache');
+      await failContentRelease(ledger, 'pub2', 'validate', 'done');
     });
 
     it('lets a production runtime take a new release only from an exact source, and roll back to any it served', async () => {

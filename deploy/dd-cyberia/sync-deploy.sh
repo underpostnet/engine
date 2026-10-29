@@ -165,7 +165,7 @@ stage_content_candidate() {
     else
         deploy_step "No live change the promotion stops serving" \
             content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes || {
-            echo "$RUN_QUIET_NODE_TAG Export the live changes with \`node bin/cyberia content-release export-live\`, commit them to cyberia-content, then deploy again with DISCARD_LIVE_CHANGES=1" >&2
+            echo "$RUN_QUIET_NODE_TAG Capture a baseline with \`node bin/cyberia content-baseline capture\`, export it on a development host with \`node bin/cyberia content-release export-live\`, commit it to cyberia-content, then deploy again with DISCARD_LIVE_CHANGES=1" >&2
             exit 1
         }
     fi

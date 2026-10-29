@@ -11,13 +11,21 @@
  * @namespace CyberiaContentRelease
  */
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import canonicalize from 'canonicalize';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { clearDomainCache, domainOrigin } from '../../../server/domain/domain-client.js';
 import { publishObjectLayer, resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
+import { cacheCanonical } from '../../../api/object-layer/object-layer.publication.js';
+import {
+  claimTask,
+  completeTask,
+  ensureTasks,
+  failTask,
+  resumeTasks,
+  runTasks,
+  taskSummary,
+} from '../../../server/release/release-tasks.js';
 import { objectLayerIdentity, renderContractOf } from '../../../api/object-layer/object-layer.identity.js';
 import { isProfileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import {
@@ -70,22 +78,25 @@ export const releaseDatabaseName = (base, releaseId) => `${base}-${assertRelease
  * Imports the content artifact in dependency order: the foundation, the sagas, the global content,
  * then each instance. Each saga moves what it holds to the artifact; the global content and each
  * instance restore what they hold. Each import starts only once the one before it succeeded, so no
- * instance reaches a store that lacks its foundation.
+ * instance reaches a store that lacks its foundation. With `step`, each import is one durable step:
+ * a retry of the release skips the steps that completed.
  * @param {Object} params
  * @param {(args:string)=>Promise<void>} params.run - Runs one `cyberia` command line; rejects when it fails.
  * @param {string[]} params.instances - Instance codes.
  * @param {string[]} [params.sagas=[]] - Saga codes.
  * @param {string[]} [params.globalContent=[]] - The CIDs of the global content of the artifact.
  * @param {string} [params.releaseId] - The release database to import into; the workspace without one.
+ * @param {(key:string, fn:()=>Promise<void>)=>Promise<*>} [params.step] - {@link releaseStep} of each import.
  * @returns {Promise<void>}
  * @memberof CyberiaContentRelease
  */
-export async function importArtifactContent({ run, instances, sagas = [], globalContent = [], releaseId = '' }) {
+export async function importArtifactContent({ run, instances, sagas = [], globalContent = [], releaseId = '', step }) {
   const target = releaseId ? ` --release ${assertReleaseId(releaseId)}` : '';
-  await run(`content import${target}`);
-  for (const code of sagas) await run(`content import --saga ${code} --rebind${target}`);
-  if (globalContent.length > 0) await run(`content import --global${target}`);
-  for (const code of instances) await run(`instance ${code} --import${target}`);
+  const once = step ?? ((key, fn) => fn());
+  await once('foundation', () => run(`content import${target}`));
+  for (const code of sagas) await once(`saga-${code}`, () => run(`content import --saga ${code} --rebind${target}`));
+  if (globalContent.length > 0) await once('global', () => run(`content import --global${target}`));
+  for (const code of instances) await once(`instance-${code}`, () => run(`instance ${code} --import${target}`));
 }
 
 /**
@@ -129,26 +140,6 @@ export function releaseDbConf(db, releaseId) {
     database,
     db: { ...db, partitions: { ...db.partitions, [CONTENT_PARTITION]: { ...partition, name: database } } },
   };
-}
-
-/**
- * The content a host backup holds: the dump of the database its active release served, or of the
- * workspace when no release was active.
- * @param {Object} params
- * @param {Object[]} params.ledger - The release ledger the backup holds.
- * @param {string} params.backupDir - One backup: a dump directory per database.
- * @param {string} params.workspace - The workspace database name.
- * @returns {{releaseId:string, database:string, dir:string}}
- * @throws {Error} When the backup holds no dump of that database.
- * @memberof CyberiaContentRelease
- */
-export function backupContentDump({ ledger, backupDir, workspace }) {
-  const active = ledger.find((release) => release.status === 'active');
-  const database = active?.database ?? workspace;
-  const dir = path.join(backupDir, database);
-  if (!fs.existsSync(dir))
-    throw new Error(`${backupDir} holds no dump of ${database}: take a backup that dumps the partition databases`);
-  return { releaseId: active?.releaseId ?? '', database, dir };
 }
 
 const check = (name) => ({ name, ok: true, count: 0, findings: [] });
@@ -501,49 +492,175 @@ export async function liveChanges({ CyberiaContentRelease, connection }) {
   };
 }
 
+/** The retry policy of one publication: attempts in all, and the backoff between them. */
+export const PUBLICATION_POLICY = Object.freeze({
+  attempts: Number(process.env.CYBERIA_RELEASE_PUBLISH_ATTEMPTS || 8),
+  baseDelayMs: Number(process.env.CYBERIA_RELEASE_PUBLISH_BASE_DELAY_MS || 2000),
+  maxDelayMs: Number(process.env.CYBERIA_RELEASE_PUBLISH_MAX_DELAY_MS || 60000),
+});
+
+/** Publications in flight to the Object Layer authority at once. */
+export const PUBLICATION_CONCURRENCY = Number(process.env.CYBERIA_RELEASE_PUBLISH_CONCURRENCY || 4);
+
+/** How long one publication stage runs before it leaves what remains for the next run. */
+export const PUBLICATION_DEADLINE_MS = Number(process.env.CYBERIA_RELEASE_PUBLISH_DEADLINE_MS || 20 * 60 * 1000);
+
+const transient = (message) => Object.assign(new Error(message), { retryable: true });
+const permanent = (message) => Object.assign(new Error(message), { retryable: false });
+
 /**
- * Stores every definition a release binds or keeps as global content that the Object Layer
- * authority does not hold yet, so the canonical pool holds all the content the release will serve. Idempotent: a definition the
- * authority holds with the same content is not sent again. A no-op when this deployment is the authority.
- * @param {Object} models - Content models of the release: `CyberiaItemCatalog`, `CyberiaGlobalContent`, `ObjectLayer`.
- * @param {Object} [params]
- * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host.
- * @param {(definition:Object)=>Promise<{cid:string,created:boolean}>} [params.publish] - Defaults to the domain publisher.
- * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
- * @returns {Promise<{name:string,ok:boolean,count:number,findings:string[],created:number}>}
+ * The definitions a release must have canonical: every bound one and every global one.
+ * @param {Object} models - `CyberiaItemCatalog`, `CyberiaGlobalContent`.
+ * @returns {Promise<string[]>} CIDs, sorted.
  * @memberof CyberiaContentRelease
  */
-export async function publishContentRelease(models, { options, publish, resolveCanonical } = {}) {
-  const entry = { ...check('publication'), created: 0 };
-  const authority = domainOrigin('object-layer');
-  const send = publish ?? (authority ? publishObjectLayer : null);
-  if (!send) {
-    entry.findings.push(`skipped: ${authoritySkipReason(options)}`);
-    return entry;
-  }
-  const resolve = resolveCanonical ?? (authority ? (cid) => resolveObjectLayer(cid, options) : async () => null);
-  const cids = [
+export async function requiredCanonicalCids(models) {
+  return [
     ...new Set([
       ...(await models.CyberiaItemCatalog.distinct('objectLayerCid')),
       ...(models.CyberiaGlobalContent ? await models.CyberiaGlobalContent.distinct('objectLayerCid') : []),
     ]),
-  ];
+  ].sort();
+}
+
+/**
+ * Makes one definition of a release canonical, or proves the authority already holds it. The
+ * authority is read first: a publication whose answer was lost may have stored it. A definition it
+ * lacks is sent, then read again; only the stored state settles it, never the answer to the write.
+ * The draft of a definition the authority holds becomes the cache copy of the canonical content.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.ObjectLayer - ObjectLayer model of the release.
+ * @param {string} params.cid
+ * @param {Object} [params.options] - Router options of the host.
+ * @param {(definition:Object)=>Promise<{cid:string}>} [params.publish] - Defaults to the domain publisher.
+ * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Fresh canonical lookup.
+ * @returns {Promise<{contentHash:string, sent:boolean}>}
+ * @throws {Error} `retryable` while the authority does not answer or does not hold it yet; permanent
+ *   when it refuses the content, or holds other content under the CID.
+ * @memberof CyberiaContentRelease
+ */
+export async function settleCanonical({ ObjectLayer, cid, options, publish = publishObjectLayer, resolveCanonical }) {
+  const doc = await ObjectLayer.findOne({ cid }).lean();
+  if (!doc) throw permanent(`${cid} is not in the release`);
+  const resolve = resolveCanonical ?? ((key) => resolveObjectLayer(key, options, { fresh: true }));
+  let canonical = await resolve(cid);
   let sent = false;
-  for (const doc of await models.ObjectLayer.find({ cid: { $in: cids } }).lean()) {
-    entry.count++;
+  if (!canonical) {
     try {
-      if ((await resolve(doc.cid))?.contentHash === doc.contentHash) continue;
-      sent = true;
-      const stored = await send(doc);
-      if (stored?.cid !== doc.cid) fail(entry, `${doc.cid}: the authority stored it as ${stored?.cid}`);
-      else if (stored.created) entry.created++;
+      const stored = await publish(doc);
+      if (stored?.cid && stored.cid !== cid) throw permanent(`the authority stored ${cid} as ${stored.cid}`);
     } catch (error) {
-      fail(entry, `${doc.cid}: ${error.message}`);
+      // An answer lost on the way may follow a stored definition: the read below settles it.
+      if (!error?.ambiguous) throw error;
     }
+    sent = true;
+    canonical = await resolve(cid);
+    if (!canonical) throw transient(`${cid}: the authority does not hold it yet`);
   }
+  if (canonical.contentHash !== doc.contentHash)
+    throw permanent(`${cid}: the authority holds other content under this CID (${canonical.contentHash})`);
+  if (doc.origin === 'draft') await cacheCanonical({ ObjectLayer, cid, definition: canonical, options });
+  return { contentHash: canonical.contentHash, sent };
+}
+
+/**
+ * The publication stage of a release: one durable task per definition it must have canonical,
+ * settled by {@link settleCanonical} with bounded concurrency, retries with backoff and a circuit
+ * breaker. A definition that does not settle before the deadline keeps its task for the next run;
+ * the release cannot validate until every one did. A no-op when this deployment is the authority.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.CyberiaContentRelease
+ * @param {string} params.releaseId
+ * @param {Object} params.models - Content models of the release.
+ * @param {Object} [params.options] - Router options of the host.
+ * @param {string} params.holder - The execution that runs the stage.
+ * @param {Function} [params.publish]
+ * @param {Function} [params.resolveCanonical]
+ * @param {number} [params.concurrency]
+ * @param {number} [params.deadlineMs]
+ * @param {Object} [params.policy]
+ * @param {(event:Object)=>void} [params.onEvent]
+ * @returns {Promise<{skipped:string, done:boolean, cids:number} & ReturnType<typeof taskSummary>>}
+ * @memberof CyberiaContentRelease
+ */
+export async function publishReleaseDefinitions({
+  CyberiaContentRelease,
+  releaseId,
+  models,
+  options,
+  holder,
+  publish,
+  resolveCanonical,
+  concurrency = PUBLICATION_CONCURRENCY,
+  deadlineMs = PUBLICATION_DEADLINE_MS,
+  policy = PUBLICATION_POLICY,
+  onEvent,
+}) {
+  if (!publish && !domainOrigin('object-layer'))
+    return { skipped: authoritySkipReason(options), done: true, cids: 0, ...taskSummary(null) };
+  const filter = { releaseId };
+  const cids = await requiredCanonicalCids(models);
+  await ensureTasks(
+    CyberiaContentRelease,
+    filter,
+    cids.map((cid) => ({ kind: 'publish', key: cid })),
+  );
+  await resumeTasks(CyberiaContentRelease, filter, { kinds: ['publish'] });
+  const summary = await runTasks({
+    Model: CyberiaContentRelease,
+    filter,
+    kinds: ['publish'],
+    holder,
+    run: (task) =>
+      settleCanonical({ ObjectLayer: models.ObjectLayer, cid: task.key, options, publish, resolveCanonical }),
+    concurrency,
+    deadlineMs,
+    policy,
+    onEvent,
+  });
   // The read cache keeps the absence a lookup saw; the canonical check reads the authority after the writes.
-  if (sent) clearDomainCache();
-  return entry;
+  clearDomainCache();
+  return { skipped: '', cids: cids.length, ...summary };
+}
+
+/**
+ * Runs one step of a release once. A completed step is skipped; a running one holds its task; a
+ * failed one records why, and the next build of the release runs it again.
+ * @param {import('mongoose').Model} CyberiaContentRelease
+ * @param {string} releaseId
+ * @param {Object} params
+ * @param {string} params.kind - `stage` or `ingest`.
+ * @param {string} params.key
+ * @param {string} params.holder
+ * @param {()=>Promise<Object|void>} params.run - Resolves with what the step records.
+ * @param {number} [params.leaseMs]
+ * @returns {Promise<{skipped:boolean, result:Object|null}>}
+ * @throws {Error} What `run` threw, or when another execution holds the step.
+ * @memberof CyberiaContentRelease
+ */
+export async function releaseStep(
+  CyberiaContentRelease,
+  releaseId,
+  { kind, key, holder, run, leaseMs = RELEASE_LEASE_MS },
+) {
+  const filter = { releaseId };
+  const [id] = await ensureTasks(CyberiaContentRelease, filter, [{ kind, key }]);
+  const task = (await CyberiaContentRelease.findOne(filter, { tasks: 1 }).lean()).tasks[id];
+  if (task.status === 'completed') return { skipped: true, result: task.result };
+  const generation = await claimTask(CyberiaContentRelease, filter, id, task, { holder, leaseMs });
+  if (generation === null) throw new Error(`Step ${id} of release ${releaseId} is held by another execution`);
+  try {
+    const result = (await run()) ?? null;
+    await completeTask(CyberiaContentRelease, filter, id, generation, result);
+    return { skipped: false, result };
+  } catch (error) {
+    await failTask(CyberiaContentRelease, filter, id, generation, {
+      error,
+      attempts: task.attempts + 1,
+      policy: { attempts: 1, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+    throw error;
+  }
 }
 
 const leaseLive = (release, leaseMs) =>
@@ -576,40 +693,54 @@ export async function failContentRelease(CyberiaContentRelease, releaseId, stage
   ).lean();
 }
 
+/** Why a release cannot take these fields: its source revision and its content digest never change. */
+const inputDefect = (existing, fields) => {
+  if (!sameSource(existing.source, fields.source)) return 'was built from another source';
+  const recorded = existing.content?.digest ?? '';
+  const asked = fields.content?.digest ?? '';
+  if (recorded && asked && recorded !== asked) return `carries content ${recorded}, not ${asked}`;
+  return '';
+};
+
 /**
- * Opens a release, or builds a failed one again, and takes the one execution lease.
+ * Opens a release, or resumes one, and takes the one execution lease.
  *
- * - A new id starts `building`.
+ * - A new id starts `building` on an empty candidate database: `reset` removes it first.
  * - A `validated`, `active` or `retired` release is kept as it is: `skipped` is true.
- * - A `failed` release, or one whose lease expired, is built again from the same source.
- * - An id built from another source is refused: another source needs another release.
- *
- * Every build that runs starts from an empty candidate database: `reset` removes it first, so no
- * document of an earlier attempt survives into the release.
+ * - A `failed` release, or one whose lease expired, resumes: its candidate database and its
+ *   completed tasks stay, and the build runs only what is left.
+ * - `resetCandidate` starts the candidate again: the database is removed, the tasks are cleared,
+ *   the generation grows and the audit trail records who asked.
+ * - An id built from another source or another content digest is refused: another input needs
+ *   another release.
  * @param {import('mongoose').Model} CyberiaContentRelease
  * @param {Object} params
  * @param {string} params.releaseId
  * @param {string} params.holder - Who executes: a Job pod or a host.
- * @param {Object} params.fields - `database`, `instances`, `source` and the rest the release records.
+ * @param {Object} params.fields - `database`, `instances`, `source`, `content` and the rest the release records.
  * @param {(database:string)=>Promise<void>} [params.reset] - Removes the candidate database.
+ * @param {boolean} [params.resetCandidate=false]
  * @param {number} [params.leaseMs]
- * @returns {Promise<{release:Object, skipped:boolean}>}
- * @throws {Error} On another source, or while another release executes.
+ * @returns {Promise<{release:Object, skipped:boolean, resumed:boolean}>}
+ * @throws {Error} On another input, or while another release executes.
  * @memberof CyberiaContentRelease
  */
 export async function beginContentRelease(
   CyberiaContentRelease,
-  { releaseId, holder, fields, reset, leaseMs = RELEASE_LEASE_MS },
+  { releaseId, holder, fields, reset, resetCandidate = false, leaseMs = RELEASE_LEASE_MS },
 ) {
   const id = assertReleaseId(releaseId);
   const existing = await CyberiaContentRelease.findOne({ releaseId: id }).lean();
   if (existing) {
-    if (!sameSource(existing.source, fields.source))
-      throw new Error(`Release ${id} was built from another source; give this one a new release id`);
-    if (['validated', 'active', 'retired'].includes(existing.status)) return { release: existing, skipped: true };
+    const defect = inputDefect(existing, fields);
+    if (defect) throw new Error(`Release ${id} ${defect}; give this one a new release id`);
+    if (['validated', 'active', 'retired'].includes(existing.status))
+      return { release: existing, skipped: true, resumed: false };
     if (leaseLive(existing, leaseMs)) throw new Error(`Release ${id} is executing (${existing.lease.holder})`);
   }
-  if (reset) await reset(fields.database);
+  const fresh = !existing || resetCandidate;
+  if (fresh && reset) await reset(fields.database);
+  const now = new Date();
   const acquire = () =>
     CyberiaContentRelease.findOneAndUpdate(
       { releaseId: id },
@@ -618,21 +749,29 @@ export async function beginContentRelease(
           ...fields,
           status: 'building',
           failure: { stage: '', message: '', at: null },
-          lease: { executing: true, holder, heartbeatAt: new Date() },
+          lease: { executing: true, holder, heartbeatAt: now },
+          ...(fresh ? { tasks: {} } : {}),
         },
-        $setOnInsert: { releaseId: id },
+        ...(existing
+          ? resetCandidate
+            ? {
+                $inc: { generation: 1 },
+                $push: { audit: { at: now, by: holder, action: 'reset', detail: { from: existing.generation ?? 1 } } },
+              }
+            : {}
+          : { $setOnInsert: { releaseId: id, generation: 1 } }),
       },
       { upsert: true, returnDocument: 'after' },
     ).lean();
   try {
-    return { release: await acquire(), skipped: false };
+    return { release: await acquire(), skipped: false, resumed: !fresh };
   } catch (error) {
     if (error?.code !== 11000) throw error;
     const executing = await CyberiaContentRelease.findOne({ 'lease.executing': true }).lean();
     if (!executing || leaseLive(executing, leaseMs))
       throw new Error(`Release ${executing?.releaseId ?? '?'} is executing; one release builds at a time`);
     await failContentRelease(CyberiaContentRelease, executing.releaseId, 'lease', 'The execution lease expired');
-    return { release: await acquire(), skipped: false };
+    return { release: await acquire(), skipped: false, resumed: !fresh };
   }
 }
 

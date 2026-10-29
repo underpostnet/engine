@@ -137,7 +137,7 @@ binds it to an item id later. A stack keeps its `olCid`: a later bind of its ite
 it, so the stack shows what it was granted with.
 
 An import registers the definition it imports. `cyberia content-release export-live` registers, on
-its scratch copy of the backup, each definition an item binding or a player stack names that no
+its scratch copy of the production content baseline, each definition an item binding or a player stack names that no
 world snapshot and no artifact composition carries, then writes every row to
 `src/content/global/<cid>.json` of `cyberia-content`: the canonical payload, the render bytes the
 definition names, the item ids bound to it, and the row. Nothing else is registered: a definition
