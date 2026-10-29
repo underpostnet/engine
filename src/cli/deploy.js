@@ -27,7 +27,7 @@ import {
   readDeployRoutes,
 } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
-import { HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
+import { HOST_VOLUME_ROOT, environmentValueFactory } from '../server/runtime/environment.js';
 import { shellExec } from '../server/runtime/process.js';
 import { ensureContainerStorage, ensureContainerStorageSubtree } from '../server/security/container-storage.js';
 import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime/runtime-status.js';
@@ -107,7 +107,7 @@ const LETSENCRYPT_ISSUER_NAME = 'letsencrypt-prod';
 
 /**
  * @constant LETSENCRYPT_ISSUER_MANIFEST
- * @description Base ClusterIssuer manifest: account, ACME server and key Secret. Resolved
+ * @description Base ClusterIssuer manifest: ACME server and key Secret. Resolved
  * from this module so an installed CLI and a checkout read the same file.
  * @memberof UnderpostDeploy
  */
@@ -1235,9 +1235,10 @@ spec:
      * Renders the Let's Encrypt ClusterIssuer for the ingress stack that actually
      * carries the HTTP-01 challenge.
      *
-     * The base manifest fixes the account (email, ACME server, key Secret); only the
-     * solver is decided here. With the Gateway API stack, the challenge must be answered
-     * through an HTTPRoute on the deploy's Gateway: an `ingress`-class solver creates an
+     * The base manifest fixes the ACME server and the key Secret. `GITHUB_EMAIL`, when set,
+     * is the account email. The solver is decided here. With the Gateway API stack, the
+     * challenge must be answered through an HTTPRoute on the deploy's Gateway: an
+     * `ingress`-class solver creates an
      * Ingress nothing on the request path reads, so `/.well-known/acme-challenge/*` is
      * routed by the application's own HTTPRoute to the workload — a 404 — or, with no
      * workload behind it, to the maintenance fallback. Every renewal fails that way while
@@ -1253,6 +1254,8 @@ spec:
      */
     letsEncryptIssuerYamlFactory({ solver, parentRefs = [], basePath = LETSENCRYPT_ISSUER_MANIFEST }) {
       const issuer = yamlLoad(fs.readFileSync(basePath, 'utf8'));
+      const email = environmentValueFactory('GITHUB_EMAIL');
+      if (email) issuer.spec.acme = { email, ...issuer.spec.acme };
       if (solver === 'gateway') {
         if (parentRefs.length === 0)
           throw new Error('[cert-manager] the Gateway API HTTP-01 solver needs at least one Gateway parentRef');

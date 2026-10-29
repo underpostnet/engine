@@ -16,7 +16,5 @@ jobs:
       - name: Push to GitLab
         run: |
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/underpost/pwa-microservices-template.git
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
           git push gitlab HEAD:main --force
           git push gitlab --force --tags

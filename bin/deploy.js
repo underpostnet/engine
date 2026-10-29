@@ -293,6 +293,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // https://github.com/fastapi/full-stack-fastapi-template
       const path = `../full-stack-fastapi-template`;
       const VITE_API_URL = `http://localhost:8000`;
+      const firstSuperuser = process.env.GITHUB_EMAIL;
+      if (!firstSuperuser) throw new Error('[fastapi] GITHUB_EMAIL is not set: the first superuser needs an email');
 
       if (process.argv.includes('reset')) shellExec(`sudo rm -rf ${path}`);
 
@@ -306,10 +308,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         `${path}/.env`,
         fs
           .readFileSync(`${path}/.env`, 'utf8')
-          .replace(
-            `FIRST_SUPERUSER=admin@example.com`,
-            `FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}`,
-          )
+          .replace(`FIRST_SUPERUSER=admin@example.com`, `FIRST_SUPERUSER=${firstSuperuser}`)
           .replace(`FIRST_SUPERUSER_PASSWORD=changethis`, `FIRST_SUPERUSER_PASSWORD=${password}`)
           .replace(`SECRET_KEY=changethis`, `SECRET_KEY=${password}`)
           .replace(`POSTGRES_DB=app`, `POSTGRES_DB=postgresdb`)
@@ -397,7 +396,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-file=SECRET_KEY=${postgresPasswordPath}` +
-              ` --from-literal=FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}` +
+              ` --from-literal=FIRST_SUPERUSER=${firstSuperuser}` +
               ` --from-file=FIRST_SUPERUSER_PASSWORD=${postgresPasswordPath}` +
               ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );

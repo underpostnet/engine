@@ -3254,7 +3254,7 @@ const templateGitignoreFactory = (source = '.gitignore') =>
  */
 const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-template', noClone = false } = {}) => {
   const walk = (await import('ignore-walk')).default;
-  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION } =
+  const { TEMPLATE_RESTORE_PATHS, TEMPLATE_PRESERVED_ENTRIES, TEMPLATE_KEYWORDS, TEMPLATE_DESCRIPTION, ENGINE_GRAPH } =
     await import('../../projects/underpost/catalog-underpost.js');
   const { loadProductCatalogs } = await import('../build/catalog.js');
   const githubUsername = process.env.GITHUB_USERNAME;
@@ -3303,6 +3303,7 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   shellExec(`rm -rf ${toPath}/.github`);
   shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
   shellExec(`rm -rf ${toPath}/deploy`);
+  fs.removeSync(`${toPath}/${ENGINE_GRAPH.out}`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
   for (const restorePath of TEMPLATE_RESTORE_PATHS)
@@ -3357,8 +3358,7 @@ mv ./pwa-microservices-template-private.git ${templatePath}/.git
 cd ${templatePath}
 npm install --omit=dev --ignore-scripts
 git init
-git config user.name 'underpostnet'
-git config user.email 'development@underpost.net'
+${Underpost.repo.gitIdentityCommands().join('\n')}
 git add .`);
   const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
     stdout: true,
@@ -3433,8 +3433,7 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   // repo on first publish. Idempotent — mirrors updatePrivateTemplateRepo.
   shellExec(`cd ${publishPath}
 git init
-git config user.name '${username}'
-git config user.email 'development@underpost.net'
+${Underpost.repo.gitIdentityCommands().join('\n')}
 git add -A .`);
 
   // The bundled coverage report is a build output the artifact has to carry: force-added so a

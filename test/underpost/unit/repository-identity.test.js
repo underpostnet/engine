@@ -17,6 +17,15 @@ describe('repository identity', () => {
     expect(repositoryIdentityFactory().organization).toBe('fork-org');
   });
 
+  it('sets the commit identity from GITHUB_USERNAME and GITHUB_EMAIL', () => {
+    vi.stubEnv('GITHUB_USERNAME', 'fork-owner');
+    vi.stubEnv('GITHUB_EMAIL', 'ops@example.com');
+    expect(Underpost.repo.gitIdentityCommands()).toEqual([
+      "git config user.name 'fork-owner'",
+      "git config user.email 'ops@example.com'",
+    ]);
+  });
+
   it('carries the package repository of the deploy the build names', () => {
     const identity = repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory('dd-cyberia') });
     expect(identity.deployPackage).toBe('engine-ghpkg-cyberia');

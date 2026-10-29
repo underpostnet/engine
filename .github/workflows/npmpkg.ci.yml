@@ -80,10 +80,14 @@ jobs:
           echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
 
       - name: Set git global credentials
+        env:
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_EMAIL: ${{ secrets.GIT_EMAIL }}
         run: |
+          : "${GITHUB_EMAIL:?the GIT_EMAIL Actions secret is not set}"
           git config --global credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global user.name "$GITHUB_USERNAME"
+          git config --global user.email "$GITHUB_EMAIL"
 
       - name: Clone github package repository
         env:
@@ -96,8 +100,6 @@ jobs:
           cd ../pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
           git add .
-          git config user.name 'underpostnet'
-          git config user.email 'fcoverdugoa@underpost.net'
           if git diff --cached --quiet; then
             echo "[INFO] No template changes to publish; skipping commit and push."
           else

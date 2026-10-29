@@ -80,10 +80,14 @@ jobs:
           echo "[INFO] Commit message: $LAST_COMMIT_MESSAGE"
 
       - name: Set git global credentials
+        env:
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_EMAIL: ${{ secrets.GIT_EMAIL }}
         run: |
+          : "${GITHUB_EMAIL:?the GIT_EMAIL Actions secret is not set}"
           git config --global credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global user.name "$GITHUB_USERNAME"
+          git config --global user.email "$GITHUB_EMAIL"
 
       - name: Clone and Push to github package repository
         env:
@@ -96,8 +100,6 @@ jobs:
           pwd
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git init
-          git config user.name 'underpostnet'
-          git config user.email 'fcoverdugoa@underpost.net'
           git add .
           # Installed modules never enter the package repository; a deletion is the cleanup and passes.
           if git diff --cached --name-only --diff-filter=AM | grep -q '^node_modules/'; then
@@ -173,10 +175,14 @@ jobs:
           echo "[INFO] Commit message: $LAST_COMMIT_MESSAGE"
 
       - name: Set git global credentials
+        env:
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_EMAIL: ${{ secrets.GIT_EMAIL }}
         run: |
+          : "${GITHUB_EMAIL:?the GIT_EMAIL Actions secret is not set}"
           git config --global credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'development@underpost.net'
+          git config --global user.name "$GITHUB_USERNAME"
+          git config --global user.email "$GITHUB_EMAIL"
 
       - name: Mirror engine-$CONF_ID and Push to canonical github package repository
         env:
@@ -191,8 +197,6 @@ jobs:
           node ../engine/bin package --rename "$PACKAGE_NAME"
           node ../engine/bin package --set-repo underpostnet/$GHPKG_REPO
           git init
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
           git add .
           if git diff --cached --quiet; then
             echo "[INFO] No changes to publish; skipping commit and push."

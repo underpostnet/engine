@@ -1241,7 +1241,7 @@ node bin secret rotate --args "recipient=age1me…,keep=age1colleague…|age1ci�
 > creation_rules:
 >   - path_regex: engine-private/secrets/.*\.enc\.yaml$
 >     encrypted_regex: '^(data|stringData)$'
->     # age1ql3z…mcac8p  operator: development@underpost.net
+>     # age1ql3z…mcac8p  operator: <operator email>
 >     # age1w7yx…8zwptn  break-glass: offline safe
 >     # age1ci9k…4mfp2q  automation: engine-cd runner
 >     age: age1ql3z…mcac8p,age1w7yx…8zwptn,age1ci9k…4mfp2q

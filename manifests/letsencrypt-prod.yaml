@@ -4,7 +4,6 @@ metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    email: development@underpost.net
     privateKeySecretRef:
       name: letsencrypt-prod
     server: https://acme-v02.api.letsencrypt.org/directory

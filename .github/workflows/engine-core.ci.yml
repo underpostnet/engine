@@ -59,9 +59,13 @@ jobs:
         run: npm install
 
       - name: Set git global credentials
+        env:
+          GITHUB_USERNAME: ${{ github.repository_owner }}
+          GITHUB_EMAIL: ${{ secrets.GIT_EMAIL }}
         run: |
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'development@underpost.net'
+          : "${GITHUB_EMAIL:?the GIT_EMAIL Actions secret is not set}"
+          git config --global user.name "$GITHUB_USERNAME"
+          git config --global user.email "$GITHUB_EMAIL"
 
       - name: Build repository
         env:
@@ -94,8 +98,6 @@ jobs:
           mv ./underpost.config.dd-core.js ./underpost.config.js
           rm -rf ./engine-private
           git init
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
           git add .
           if git diff --cached --quiet; then
             echo "[INFO] No changes to publish; skipping commit and push."

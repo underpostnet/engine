@@ -1,6 +1,7 @@
 'use strict';
 
 import { expect } from 'chai';
+import fs from 'fs-extra';
 import { load as yamlLoad } from 'js-yaml';
 import shell from 'shelljs';
 import { vi } from 'vitest';
@@ -8,7 +9,10 @@ import UnderpostCluster from '../../../src/cli/cluster.js';
 import UnderpostDeploy, { LETSENCRYPT_ISSUER_MANIFEST, LETSENCRYPT_ISSUER_NAME } from '../../../src/cli/deploy.js';
 
 describe("Let's Encrypt issuer for the ingress stack in use", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
 
   describe('acmeSolverFactory', () => {
     it('answers through the Gateway API whenever its data plane is installed', () => {
@@ -70,6 +74,13 @@ describe("Let's Encrypt issuer for the ingress stack in use", () => {
         },
       ]);
       expect(base.spec.acme.solvers).to.deep.equal([{ http01: { ingress: { class: 'contour' } } }]);
+    });
+
+    it('takes the account email from GITHUB_EMAIL, never from the base manifest', () => {
+      expect(yamlLoad(fs.readFileSync(LETSENCRYPT_ISSUER_MANIFEST, 'utf8')).spec.acme).to.not.have.property('email');
+      vi.stubEnv('GITHUB_EMAIL', 'ops@example.com');
+      const issuer = yamlLoad(UnderpostDeploy.API.letsEncryptIssuerYamlFactory({ solver: 'ingress' }));
+      expect(issuer.spec.acme.email).to.equal('ops@example.com');
     });
 
     it('refuses a Gateway solver with nothing to attach the challenge route to', () => {

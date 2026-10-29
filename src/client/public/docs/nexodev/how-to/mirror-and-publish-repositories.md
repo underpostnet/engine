@@ -117,6 +117,7 @@ deploy, under either account; see
 | Secret                 | Source repositories (`underpostnet`) | Mirrors (`underpost`)              |
 | ---------------------- | ------------------------------------ | ---------------------------------- |
 | `GIT_AUTH_TOKEN`       | CI checkouts, GitHub Packages        | Same.                              |
+| `GIT_EMAIL`            | Commit email of CI pushes            | Same.                              |
 | `NPM_TOKEN`            | npm publish                          | Same, with rights on `@underpost`. |
 | `MIRROR_TOKEN`         | `underpostnet/engine` only           | Not needed.                        |
 | `SOCKET_CLI_API_TOKEN` | `underpost socketsecurity --ci`      | Same.                              |
@@ -146,6 +147,10 @@ node bin secret rotate --args "secret=NPM_TOKEN|SOCKET_CLI_API_TOKEN|SOCKET_CLI_
 # GIT_AUTH_TOKEN has no place in the host configuration: pipe it, to each side.
 printf %s "$GIT_AUTH_TOKEN" | node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=template|dd-cyberia"
 printf %s "$GIT_AUTH_TOKEN" | node bin secret rotate --args "secret=GIT_AUTH_TOKEN,target=org,deploy-id=template|dd-cyberia"
+
+# GitHub reserves the GITHUB_ prefix, so CI reads GITHUB_EMAIL from the GIT_EMAIL secret.
+node bin host get GITHUB_EMAIL --plain | node bin secret rotate --args "secret=GIT_EMAIL,deploy-id=template|dd-cyberia"
+node bin host get GITHUB_EMAIL --plain | node bin secret rotate --args "secret=GIT_EMAIL,target=org,deploy-id=template|dd-cyberia"
 
 # The mirror credential lives where the mirror workflow runs.
 printf %s "$MIRROR_TOKEN" | node bin secret rotate --args "secret=MIRROR_TOKEN,repos=underpostnet/engine"

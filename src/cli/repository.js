@@ -13,7 +13,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { Config, confManifestPath, readConfJson, readConfInstances } from '../server/runtime/conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/network/router.js';
-import { getUnderpostRootPath } from '../server/runtime/environment.js';
+import { environmentValueFactory, getUnderpostRootPath } from '../server/runtime/environment.js';
 import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/storage/repository.js';
 import { DefaultConf } from '../../underpost.config.js';
 import Underpost from '../index.js';
@@ -1744,19 +1744,31 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Initializes a git repository at the given path and configures user identity
-     * from environment variables (`GITHUB_USERNAME` / `GITHUB_EMAIL`).
+     * @method gitIdentityCommands
+     * @description The `git config` commands that set the commit identity: the repository owner
+     * (`GITHUB_USERNAME`) as `user.name` and `GITHUB_EMAIL` as `user.email`. A value that is not set
+     * is skipped, so the global git identity applies.
+     * @returns {string[]} Commands with quoted values.
+     * @memberof UnderpostRepository
+     */
+    gitIdentityCommands() {
+      const identity = { name: repositoryIdentityFactory().owner, email: environmentValueFactory('GITHUB_EMAIL') };
+      return Object.entries(identity)
+        .filter(([, value]) => value)
+        .map(([key, value]) => `git config user.${key} ${shellArgumentFactory(value)}`);
+    },
+
+    /**
+     * Initializes a git repository at the given path and sets the commit identity of
+     * {@link UnderpostRepository.API.gitIdentityCommands}.
      * Safe to call on an already-initialized repo — only runs `git init` when
-     * `.git` is absent and always ensures user.name / user.email are set.
+     * `.git` is absent.
      * @param {object} opts
      * @param {string} opts.path       - Absolute or relative path to the repository.
      * @param {string} [opts.origin]   - If provided, sets or updates git remote `origin`.
      * @memberof UnderpostRepository
      */
     initLocalRepo({ path: repoPath, origin }) {
-      const gitUsername = repositoryIdentityFactory().owner;
-      const gitEmail = process.env.GITHUB_EMAIL || `development@underpost.net`;
-
       // Runtime document roots are chowned to the web server user, and git refuses to operate on
       // a tree owned by someone else until it is declared safe.
       Underpost.repo.declareSafeDirectory(repoPath);
@@ -1765,8 +1777,7 @@ Prevent build private config repo.`,
         shellExec(`mkdir -p "${repoPath}" && git init "${repoPath}"`);
       }
 
-      shellExec(`cd "${repoPath}" && git config user.name '${gitUsername}'`);
-      shellExec(`cd "${repoPath}" && git config user.email '${gitEmail}'`);
+      for (const command of Underpost.repo.gitIdentityCommands()) shellExec(`cd "${repoPath}" && ${command}`);
       shellExec(`cd "${repoPath}" && git config core.filemode false`);
       if (origin) {
         const currentRemote = shellExec(`cd "${repoPath}" && git remote get-url origin`, {
