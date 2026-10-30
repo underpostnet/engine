@@ -21,6 +21,7 @@ import {
 } from '../server/runtime/conf.js';
 import { deployEnvFactory, writeEnv } from '../server/runtime/environment.js';
 import { loggerFactory } from '../server/ops/logger.js';
+import { docsPlanFactory } from '../server/build/docs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -56,6 +57,9 @@ class UnderpostClient {
      * @param {boolean} [options.liteBuild=false] - If true, skips full build (default is full build).
      * @param {boolean} [options.iconsBuild=false] - If true, builds icons.
      * @param {boolean} [options.ssr=false] - If true, rebuilds only the SSR views declared in conf.ssr.json.
+     * @param {string} [options.docs='auto'] - TypeDoc site policy: auto, skip, build or watch.
+     * @param {boolean} [options.docsOnly=false] - If true, builds the documentation without the client assets.
+     * @param {string} [options.buildId] - Names the build in its logs and TypeDoc events.
      * @returns {Promise<boolean>} A promise that resolves when the build is complete.
      * @memberof UnderpostClient
      */
@@ -76,12 +80,15 @@ class UnderpostClient {
         liteBuild: false,
         iconsBuild: false,
         ssr: false,
+        docs: 'auto',
+        docsOnly: false,
       },
     ) {
       return new Promise(async (resolve, reject) => {
         try {
           const env = deployEnvFactory(options, process.env.NODE_ENV || 'development');
           process.env.NODE_ENV = env;
+          const docs = docsPlanFactory(options, env);
           if (options.mergeZip) {
             await mergeClientBuildZip({
               buildPrefix: options.mergeZip,
@@ -275,6 +282,8 @@ class UnderpostClient {
               fullBuild: options.liteBuild ? false : true,
               iconsBuild: options.iconsBuild || false,
               ssrOnly: options.ssr || false,
+              docs,
+              buildId: options.buildId,
             });
             for (const replicaDeployId of deployIdSingleReplicas) {
               if (!fs.existsSync(`./engine-private/replica/${replicaDeployId}`)) {
@@ -288,6 +297,9 @@ class UnderpostClient {
                 liteBuild: options.liteBuild || false,
                 iconsBuild: options.iconsBuild || false,
                 ssr: options.ssr || false,
+                docs: options.docs,
+                docsOnly: options.docsOnly,
+                buildId: options.buildId,
               });
             }
 

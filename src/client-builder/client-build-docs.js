@@ -1,15 +1,39 @@
 'use strict';
 
 /**
- * Module for building project documentation (JSDoc, Swagger, Coverage).
+ * Module for building project documentation (TypeDoc, coverage, references).
  * @module src/client-builder/client-build-docs.js
  * @namespace clientBuildDocs
  */
 
+import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import * as dir from 'path';
-import { shellExec } from '../server/runtime/process.js';
+import { packageBinPath } from '../server/runtime/process.js';
 import { loggerFactory } from '../server/ops/logger.js';
+import {
+  INTERRUPT_SIGNALS,
+  WARNING_EVENTS,
+  runManagedProcess,
+  runMetricsFactory,
+  taskAdmissionFactory,
+  terminationReason,
+} from '../server/runtime/managed-process.js';
+import {
+  MEMORY_RESERVE_ENV,
+  megabytes,
+  memoryRequirementFactory,
+  reserveOverrideNotice,
+  resourceHistoryFactory,
+  resourceProfileFactory,
+} from '../server/runtime/resource-governor.js';
+import { acquireHostLock, hostLockName } from '../server/runtime/host-lock.js';
+import {
+  publishDirectory,
+  recoverPublication,
+  recoverPublications,
+  stagingDirectoryFactory,
+} from '../server/build/publication.js';
 import {
   coverageReportCandidates,
   coverageReportsFactory,
@@ -19,7 +43,8 @@ import {
 import {
   DEFAULT_TYPEDOC_CONFIG_PATH,
   DOCS_VIEWS,
-  apiDocsModulesFactory,
+  TYPEDOC_DIRECTORY,
+  TYPEDOC_PREVIEW,
   docsDocumentsFactory,
   docsNavigationFactory,
   docsReferencesFactory,
@@ -27,451 +52,267 @@ import {
   typedocOptionsFactory,
 } from '../server/build/docs.js';
 import { documentationHref } from '../client/components/core/CommonJs.js';
-import { API_BASE_PATH } from '../server/domain/api-contract.js';
 
-/**
- * Builds API documentation using Swagger
- * @function buildApiDocs
- * @memberof clientBuildDocs
- * @param {Object} options - Documentation build options
- * @param {string} options.host - The hostname for the API
- * @param {string} options.path - The base path for the API
- * @param {number} options.port - The port number for the API
- * @param {string} [options.apiBaseHost] - Host serving the API when it is split from the client
- * @param {string} [options.apiBaseProxyPath] - Proxy path of the API runtime when it is split from the client
- * @param {Object} options.metadata - Metadata for the API documentation
- * @param {Array<string>} options.apis - The API modules the instance serves
- * @param {Object<string,string>} [options.consumes] - The served modules another domain owns; documented by that domain
- * @param {Object<string,string>} [options.apiExtensions] - api → project whose extension adds this host's routes to that API
- * @param {Object} options.docs - Documentation config from client conf
- * @param {Array<string>} [options.docs.api] - The modules to document, out of the served ones
- * @param {Object} options.packageData - Package.json data
- */
-const buildApiDocs = async ({
-  host,
-  path,
-  port,
-  apiBaseHost,
-  apiBaseProxyPath,
-  metadata = {},
-  apis = [],
-  consumes = {},
-  apiExtensions = {},
-  docs,
-  packageData,
-}) => {
-  const logger = loggerFactory(import.meta);
-  const modules = apiDocsModulesFactory({ docs, apis, consumes });
-  const undeclared = (docs?.api ?? []).filter((api) => !modules.includes(api));
-  if (undeclared.length > 0) logger.warn('api docs name modules this instance does not serve', undeclared);
-  const apiTitle = (api) =>
-    api
-      .split('-')
-      .map((word) => `${word[0].toUpperCase()}${word.slice(1)}`)
-      .join(' ');
-  // The spec is rendered by the client instance but exercised against the API runtime;
-  // when the two are split the server url must follow the API, not the docs page.
-  const apiPath = apiBaseProxyPath ? apiBaseProxyPath : path;
-  const basePath = apiPath === '/' ? API_BASE_PATH : `/${API_BASE_PATH}`;
+/** Beside the sites: the resource history of the TypeDoc workload of a client, and its last publication. */
+const TYPEDOC_RUN_RECORD = '.typedoc-run.json';
 
-  const doc = {
-    info: {
-      version: packageData.version,
-      title: metadata?.title ? `${metadata.title}` : 'REST API',
-      description: metadata?.description ? metadata.description : '',
-    },
-    servers: [
-      {
-        url:
-          process.env.NODE_ENV === 'development'
-            ? `http://${apiBaseHost ? apiBaseHost : `localhost:${port}`}${apiPath}${basePath}`
-            : `https://${apiBaseHost ? apiBaseHost : host}${apiPath}${basePath}`,
-        description: `${process.env.NODE_ENV} server`,
-      },
-    ],
-    tags: modules.map((api) => ({ name: api, description: `${apiTitle(api)} API operations` })),
-    components: {
-      schemas: {
-        userRequest: {
-          type: 'object',
-          required: ['username', 'password', 'email'],
-          properties: {
-            username: { type: 'string', example: 'user123' },
-            password: { type: 'string', example: 'Password123!' },
-            email: { type: 'string', format: 'email', example: 'user@example.com' },
-          },
-        },
-        userResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'success' },
-            data: {
-              type: 'object',
-              properties: {
-                token: {
-                  type: 'string',
-                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjY2YzM3N2Y1N2Y5OWU1OTY5YjgxZG...',
-                },
-                user: {
-                  type: 'object',
-                  properties: {
-                    _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
-                    email: { type: 'string', format: 'email', example: 'user@example.com' },
-                    emailConfirmed: { type: 'boolean', example: false },
-                    username: { type: 'string', example: 'user123' },
-                    role: { type: 'string', example: 'user' },
-                    profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
-                  },
-                },
-              },
-            },
-          },
-        },
-        userUpdateResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'success' },
-            data: {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
-                email: { type: 'string', format: 'email', example: 'user@example.com' },
-                emailConfirmed: { type: 'boolean', example: false },
-                username: { type: 'string', example: 'user123222' },
-                role: { type: 'string', example: 'user' },
-                profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
-              },
-            },
-          },
-        },
-        userGetResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'success' },
-            data: {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
-                email: { type: 'string', format: 'email', example: 'user@example.com' },
-                emailConfirmed: { type: 'boolean', example: false },
-                username: { type: 'string', example: 'user123222' },
-                role: { type: 'string', example: 'user' },
-                profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
-              },
-            },
-          },
-        },
-        userLogInRequest: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: { type: 'string', format: 'email', example: 'user@example.com' },
-            password: { type: 'string', example: 'Password123!' },
-          },
-        },
-        userBadRequestResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'error' },
-            message: {
-              type: 'string',
-              example: 'Bad request. Please check your inputs, and try again',
-            },
-          },
-        },
-        objectLayerResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'success' },
-            data: {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
-                data: {
-                  type: 'object',
-                  properties: {
-                    stats: {
-                      type: 'object',
-                      properties: {
-                        effect: { type: 'number', example: 0 },
-                        resistance: { type: 'number', example: 0 },
-                        agility: { type: 'number', example: 0 },
-                        range: { type: 'number', example: 0 },
-                        intelligence: { type: 'number', example: 0 },
-                        utility: { type: 'number', example: 0 },
-                      },
-                    },
-                    item: {
-                      type: 'object',
-                      properties: {
-                        id: { type: 'string', example: 'skin-default' },
-                        type: { type: 'string', example: 'skin' },
-                        description: { type: 'string', example: 'Default skin layer' },
-                        activable: { type: 'boolean', example: false },
-                      },
-                    },
-                    render: {
-                      type: 'object',
-                      properties: {
-                        cid: { type: 'string', example: '' },
-                        metadataCid: { type: 'string', example: '' },
-                      },
-                    },
-                  },
-                },
-                schemaVersion: { type: 'number', example: 1 },
-                profile: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'string', example: 'cyberia' },
-                    version: { type: 'number', example: 2 },
-                  },
-                },
-                cid: { type: 'string', example: 'bafkreigwyjocgnki35vw52b37crc2nvc6cyw3pvvgckthvr5tvrfnk4wda' },
-                contentHash: {
-                  type: 'string',
-                  example: 'd6c25c233548df6b6ee83bf8a22d36a2f0b16dbeb5309533d63d9d6256ab9618',
-                },
-              },
-            },
-          },
-        },
-        itemLedgerBindingResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'success' },
-            data: {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
-                objectLayerCid: {
-                  type: 'string',
-                  example: 'bafkreigwyjocgnki35vw52b37crc2nvc6cyw3pvvgckthvr5tvrfnk4wda',
-                },
-                itemId: { type: 'string', example: 'hatchet' },
-                chainId: { type: 'number', example: 777771 },
-                contractAddress: { type: 'string', example: '0x5fbdb2315678afecb367f032d93f642f64180aa3' },
-                tokenId: {
-                  type: 'string',
-                  example: '97138353837259581315989870626849285076783737027509749410649399343999089350168',
-                },
-                standard: { type: 'string', example: 'ERC1155' },
-                txHash: { type: 'string', example: '' },
-                blockNumber: { type: 'number', example: 0 },
-              },
-            },
-          },
-        },
-        objectLayerBadRequestResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'error' },
-            message: {
-              type: 'string',
-              example: 'Bad request. Please check your inputs, and try again',
-            },
-          },
-        },
-      },
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-        },
-      },
-    },
-  };
+const HEAP_EXHAUSTED = /JavaScript heap out of memory/;
 
-  /**
-   * swagger-autogen has no requestBody annotation support — it only handles
-   * #swagger.parameters, responses, security, etc.  We define the requestBody
-   * objects here and inject them into the generated JSON as a post-processing step.
-   *
-   * Each key is an "<method> <path>" pair matching the generated paths object.
-   * The value is a valid OAS 3.0 requestBody object.
-   */
-  const requestBodies = {
-    'post /user': {
-      description: 'User registration data',
-      required: true,
-      content: {
-        'application/json': {
-          schema: { $ref: '#/components/schemas/userRequest' },
-        },
-      },
-    },
-    'post /user/auth': {
-      description: 'User login credentials',
-      required: true,
-      content: {
-        'application/json': {
-          schema: { $ref: '#/components/schemas/userLogInRequest' },
-        },
-      },
-    },
-    'put /user/{id}': {
-      description: 'User fields to update',
-      required: true,
-      content: {
-        'application/json': {
-          schema: { $ref: '#/components/schemas/userRequest' },
-        },
-      },
-    },
-  };
-
-  logger.warn('build swagger api docs', { ...doc.info, modules });
-
-  // swagger-autogen@2.9.2 bug: getProducesTag, getConsumesTag, getResponsesTag missing __¬¬¬__ decode before eval
-  fs.writeFileSync(
-    `node_modules/swagger-autogen/src/swagger-tags.js`,
-    fs
-      .readFileSync(`node_modules/swagger-autogen/src/swagger-tags.js`, 'utf8')
-      // getProducesTag and getConsumesTag: already decode &quot; but not __¬¬¬__
-      .replaceAll(
-        `data.replaceAll('\\n', ' ').replaceAll('\u201c', '\u201d')`,
-        `data.replaceAll('\\n', ' ').replaceAll('\u201c', '\u201d').replaceAll('__\u00ac\u00ac\u00ac__', '"')`,
-      )
-      // getResponsesTag: decodes neither &quot; nor __¬¬¬__
-      .replaceAll(
-        `data.replaceAll('\\n', ' ');`,
-        `data.replaceAll('\\n', ' ').replaceAll('__\u00ac\u00ac\u00ac__', '"');`,
-      ),
-    'utf8',
-  );
-  // Imported after the patch above, and awaited: the spec is part of the client build
-  // output, so a bundle zipped before it landed shipped without one and the pod that
-  // restored that bundle served no `api-docs`.
-  const { default: swaggerAutoGen } = await import('swagger-autogen');
-  const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-
-  // One run per router: the generator reads a router on its own, so a route comes out relative
-  // to the router unless an annotation names its full path. The runtime mounts every router
-  // under its module name, and an operation without a tag belongs to that module.
-  // A host's own extension of an API is documented with it, even when another domain owns
-  // the API itself.
-  const extensionFiles = Object.fromEntries(
-    Object.entries(apiExtensions)
-      .filter(([api]) => apis.includes(api))
-      .map(([api, project]) => [api, `./src/projects/${project}/${api}.extension.js`]),
-  );
-  const paths = {};
-  for (const api of [...new Set([...modules, ...Object.keys(extensionFiles)])]) {
-    const routerFiles = [
-      modules.includes(api) ? `./src/api/${api}/${api}.router.js` : '',
-      extensionFiles[api] ?? '',
-    ].filter((file) => file && fs.existsSync(file));
-    if (routerFiles.length === 0) continue;
-    const partFile = `.swagger.${api}.tmp.json`;
-    // The generator rewrites the document it is handed, reading each schema as an example of
-    // itself; the document composed below keeps the schemas as authored, so it gets a copy.
-    await swaggerAutoGen({ openapi: '3.0.0' })(partFile, routerFiles, structuredClone(doc));
-    if (!fs.existsSync(partFile)) continue;
-    const part = JSON.parse(fs.readFileSync(partFile, 'utf8'));
-    fs.removeSync(partFile);
-    for (const [route, operations] of Object.entries(part.paths ?? {})) {
-      // The generator also emits a handler's parameter names as routes; a route starts with `/`.
-      if (!route.startsWith('/')) continue;
-      const mounted =
-        route === `/${api}` || route.startsWith(`/${api}/`) ? route : `/${api}${route === '/' ? '' : route}`;
-      for (const operation of Object.values(operations)) if (!operation.tags?.length) operation.tags = [api];
-      paths[mounted] = { ...(paths[mounted] ?? {}), ...operations };
-    }
+const readJson = (path) => {
+  try {
+    return fs.readJsonSync(path);
+  } catch {
+    return null;
   }
-
-  // Inject requestBody into operations — swagger-autogen silently ignores #swagger.requestBody
-  // annotations and has no internal OAS-3 body support.
-  for (const [key, requestBody] of Object.entries(requestBodies)) {
-    const [method, ...pathParts] = key.split(' ');
-    const operation = paths[pathParts.join(' ')]?.[method];
-    if (!operation) continue;
-    operation.requestBody = requestBody;
-    // Remove any stale in:body entry from parameters (OAS 3.0 doesn't allow it)
-    if (Array.isArray(operation.parameters)) operation.parameters = operation.parameters.filter((p) => p.in !== 'body');
-  }
-
-  // The document carries the schemas its operations reference, and the ones those reference.
-  const referenced = new Set();
-  const collect = (value) => {
-    for (const name of `${JSON.stringify(value)}`.matchAll(/#\/components\/schemas\/([A-Za-z0-9_]+)/g))
-      referenced.add(name[1]);
-  };
-  collect(paths);
-  for (let size = -1; size !== referenced.size;) {
-    size = referenced.size;
-    for (const name of referenced) if (doc.components.schemas[name]) collect(doc.components.schemas[name]);
-  }
-  const schemas = Object.fromEntries(Object.entries(doc.components.schemas).filter(([name]) => referenced.has(name)));
-
-  fs.outputFileSync(
-    outputFile,
-    JSON.stringify({ openapi: '3.0.0', ...doc, paths, components: { ...doc.components, schemas } }, null, 2),
-    'utf8',
-  );
 };
 
 /**
- * Builds API documentation using TypeDoc (generates a modern static site from JSDoc-annotated JS).
- * Options come from the engine default config, overridden by the client `docs.typedoc` block,
- * merged with runtime values, written to a temporary file, and deleted after the build — no
- * config file is mutated on disk.
- * @function buildJsDocs
+ * The problems of a generated TypeDoc site; a site without problems can be published.
+ * @function typedocSiteProblems
  * @memberof clientBuildDocs
- * @param {Object} options - TypeDoc build options
- * @param {string} options.host - The hostname for the documentation
- * @param {string} options.path - The base path for the documentation
- * @param {Object} options.metadata - Metadata for the documentation
- * @param {Object} options.docs - Documentation config from client conf
- * @param {string} options.docsDestination - Resolved output path for the generated docs
+ * @param {string} directory - The generated site.
+ * @returns {string[]} Problems, empty for a complete site.
  */
-const buildJsDocs = async ({ host, path, metadata = {}, docs, docsDestination }) => {
+const typedocSiteProblems = (directory) => {
+  const index = `${directory}/index.html`;
+  if (!fs.existsSync(index) || fs.statSync(index).size === 0) return ['index.html is missing or empty'];
+  const html = fs.readFileSync(index, 'utf8');
+  const problems = ['assets/style.css', 'assets/main.js', 'assets/search.js']
+    .filter((asset) => !fs.existsSync(`${directory}/${asset}`) || fs.statSync(`${directory}/${asset}`).size === 0)
+    .map((asset) => `${asset} is missing or empty`);
+  if (!/<title>[^<]+<\/title>/.test(html)) problems.push('index.html has no title');
+  if (!html.includes('assets/style.css')) problems.push('index.html links no stylesheet');
+  return problems;
+};
+
+/**
+ * Runs TypeDoc for one client as a managed task of the `heavy` resource profile.
+ *
+ * `build` generates `docs/engine/<version>` into a staging directory beside it and publishes the
+ * staging directory only when it checks out, so a failed run leaves the published site as it was.
+ * `watch` rebuilds `docs/engine/preview` on every change until the operator stops it, then removes
+ * it. One TypeDoc runs per host at a time, and a TypeDoc that outlives its build keeps the host. A
+ * task starts only when the host can give it the memory its resource history asks for, and in a
+ * systemd scope where the kernel enforces its limits. The history belongs to one workload: the
+ * TypeDoc options and the program they compile.
+ * @function runTypedoc
+ * @memberof clientBuildDocs
+ * @param {Object} options
+ * @param {string} options.host - The hostname.
+ * @param {string} options.path - The base path.
+ * @param {Object} [options.metadata] - Client metadata; its title names the site.
+ * @param {Object} options.docs - Documentation config from client conf.
+ * @param {string} options.version - Package version the site documents.
+ * @param {'build'|'watch'} options.mode
+ * @param {string} options.buildId - Identity of the client build, in every event.
+ * @returns {Promise<{status: 'published'|'stopped'|'skipped'|'rejected'|'failed'|'cancelled', reason?: string,
+ *   metrics?: object}>} `metrics` of a run that started, from `runMetricsFactory`.
+ */
+const runTypedoc = async ({ host, path, metadata = {}, docs, version, mode, buildId }) => {
   const logger = loggerFactory(import.meta);
-
-  const baseConfig = typedocOptionsFactory({ docs });
-  if (!baseConfig) {
+  const typedocOptions = typedocOptionsFactory({ docs });
+  if (!typedocOptions) {
     logger.warn('typedoc config not found, skipping', DEFAULT_TYPEDOC_CONFIG_PATH);
-    return;
+    return { status: 'skipped', reason: `no ${DEFAULT_TYPEDOC_CONFIG_PATH}` };
   }
-  logger.info('using typedoc config', DEFAULT_TYPEDOC_CONFIG_PATH);
-
-  // Build runtime config in memory — never mutate the base config file
-  // tsconfig must be absolute so TypeDoc resolves it regardless of where the
-  // tmp config file is located on disk.
-  const runtimeConfig = {
-    ...baseConfig,
-    tsconfig: fs.realpathSync(baseConfig.tsconfig || './tsconfig.docs.json'),
-    out: docsDestination,
-    name: metadata?.title || baseConfig.name,
-    favicon: `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`,
+  const pathPrefix = path === '/' ? '/' : `${path}/`;
+  const root = dir.resolve(`./public/${host}${pathPrefix}${TYPEDOC_DIRECTORY}`);
+  const target = `${root}/${mode === 'watch' ? TYPEDOC_PREVIEW : version}`;
+  const taskId = `typedoc-${mode}-${host}${path}`.replace(/[^a-z0-9.-]+/gi, '-').replace(/-$/, '');
+  const locks = [];
+  const event = (name, fields = {}) => {
+    if (name === 'TASK_START') for (const lock of locks) lock.attach(fields.pid);
+    logger[WARNING_EVENTS.has(name) ? 'warn' : 'info'](name, { buildId, taskId, ...fields });
   };
+  const profile = resourceProfileFactory('heavy');
+  const abort = new AbortController();
+  const control = {};
+  const onSignal = (signal) => {
+    abort.abort(signal);
+    control.stop?.(signal);
+  };
+  // TypeDoc resolves the paths of an options file from its directory: the file stays at the root.
+  const configPath = `.typedoc.${taskId}.json`;
+  const logPath = `${root}/.${taskId}.log`;
+  let out = '';
+  for (const signal of INTERRUPT_SIGNALS) process.on(signal, onSignal);
+  try {
+    for (const [name, slots] of [
+      [hostLockName('typedoc', target), 1],
+      [`resource-${profile.name}`, profile.concurrency],
+    ]) {
+      const lock = await acquireHostLock({
+        name,
+        slots,
+        timeoutMs: profile.maxRuntimeMs,
+        signal: abort.signal,
+        onWait: (holders) =>
+          event('TASK_DEFERRED', {
+            lock: name,
+            holders: holders.map(({ pid, command, acquiredAt, holderAlive, workload }) => ({
+              pid,
+              command,
+              acquiredAt,
+              holderAlive,
+              ...(workload ? { workloadGroup: workload.pgid } : {}),
+            })),
+          }),
+      });
+      if (!lock) {
+        if (abort.signal.aborted) return { status: 'cancelled', reason: `stopped by ${abort.signal.reason}` };
+        event('TASK_REJECTED', { lock: name });
+        return {
+          status: 'rejected',
+          reason: `another process held ${name} for ${profile.maxRuntimeMs / 60000} minutes`,
+        };
+      }
+      locks.push(lock);
+    }
 
-  // Include the declared reference directories as TypeDoc document pages
-  // TypeDoc 0.28+: option is `projectDocuments`, not `documents`
-  const references = docsReferencesFactory(docs);
-  if (references.length > 0) {
-    runtimeConfig.projectDocuments = references;
-    logger.info('typedoc documents', references);
+    fs.mkdirSync(root, { recursive: true });
+    if (mode === 'build') {
+      const recovered = recoverPublications(root);
+      if (recovered.restored.length > 0 || recovered.removed.length > 0)
+        event('ARTIFACT_RECOVERED', { root, ...recovered });
+    }
+    const references = docsReferencesFactory(docs);
+    const tsconfig = fs.realpathSync(typedocOptions.tsconfig || './tsconfig.docs.json');
+    const options = {
+      ...typedocOptions,
+      tsconfig,
+      name: metadata?.title || typedocOptions.name,
+      favicon: `./public/${host}${pathPrefix}favicon.ico`,
+      // TypeDoc 0.28+: option is `projectDocuments`, not `documents`
+      ...(references.length > 0 ? { projectDocuments: references } : {}),
+    };
+    const workload = crypto
+      .createHash('sha256')
+      .update(JSON.stringify([options, fs.readFileSync(tsconfig, 'utf8')]))
+      .digest('hex')
+      .slice(0, 16);
+    const recordPath = `${root}/${TYPEDOC_RUN_RECORD}`;
+    const record = readJson(recordPath) ?? {};
+    const requiredBytes = memoryRequirementFactory({ history: record.history, workload, profile: profile.name });
+    const task = taskAdmissionFactory({
+      profile: profile.name,
+      unit: `underpost-${taskId}-${process.pid}`,
+      requiredBytes,
+    });
+    const notice = reserveOverrideNotice(task.budget);
+    if (notice) event('RESOURCE_RESERVE_OVERRIDE', { notice });
+    const refusal = !task.admitted
+      ? `${task.reason}. Free memory, then rerun with --docs-only; lowering ${MEMORY_RESERVE_ENV} only takes memory from the rest of the host`
+      : task.isolationRefusal;
+    if (refusal) {
+      event('TASK_REJECTED', { requiredBytes, capacity: task.capacity, reason: refusal });
+      return { status: 'rejected', reason: refusal };
+    }
+    const { budget } = task;
+    event('TASK_ADMITTED', {
+      profile: profile.name,
+      workload,
+      hostAvailableBytes: task.capacity.availableMemoryBytes,
+      reserveBytes: budget.reserveBytes,
+      allowanceBytes: budget.memoryBytes,
+      heapLimitBytes: budget.heapBytes,
+      requiredBytes: requiredBytes || 'unknown: no run of this workload measured it',
+      threads: budget.threads,
+      nice: budget.nice,
+      enforcement: task.enforcement,
+    });
+
+    out = mode === 'watch' ? target : stagingDirectoryFactory(target);
+    fs.writeJsonSync(configPath, { ...options, out: dir.resolve(out) }, { spaces: 2 });
+    const outcome = await runManagedProcess({
+      command: process.execPath,
+      args: [
+        packageBinPath('typedoc'),
+        '--options',
+        configPath,
+        ...(mode === 'watch' ? ['--watch', '--preserveWatchOutput'] : []),
+      ],
+      cwd: process.cwd(),
+      timeoutMs: mode === 'watch' ? 0 : profile.maxRuntimeMs,
+      budget,
+      boundary: task.boundary,
+      diagnose: true,
+      control,
+      logPath,
+      onEvent: event,
+    });
+    const output = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+    const heapExhausted = HEAP_EXHAUSTED.test(output);
+    const reason = heapExhausted ? 'memory-limit' : terminationReason(outcome);
+    const metrics = { reason, ...runMetricsFactory({ outcome, budget }) };
+    if (mode === 'watch') return { status: reason === 'cancelled' ? 'stopped' : 'failed', reason, metrics };
+    const history = resourceHistoryFactory({
+      history: record.history,
+      workload,
+      reason,
+      diagnostics: outcome.diagnostics,
+      budget,
+      at: new Date().toISOString(),
+    });
+    fs.writeJsonSync(recordPath, { history, published: record.published });
+    if (reason !== 'completed')
+      return {
+        status: reason === 'cancelled' ? 'cancelled' : 'failed',
+        reason: {
+          cancelled: `stopped by ${outcome.cancelled}`,
+          timeout: `TypeDoc ran longer than ${profile.maxRuntimeMs / 60000} minutes`,
+          'memory-limit':
+            outcome.overBudget ||
+            (heapExhausted
+              ? `TypeDoc used up its ${megabytes(budget.heapBytes)} heap`
+              : `the kernel stopped TypeDoc at its ${megabytes(budget.memoryBytes)} memory limit`),
+          'host-pressure': outcome.overBudget,
+          failed: `TypeDoc exited with ${outcome.exitCode ?? outcome.signal}: ${output.trim().split('\n').pop() ?? ''}`,
+        }[reason],
+        metrics,
+      };
+    const problems = typedocSiteProblems(out);
+    if (problems.length > 0) {
+      event('TASK_FAILED', { reason: 'invalid artifact', problems });
+      return { status: 'failed', reason: `TypeDoc wrote an incomplete site: ${problems.join(', ')}`, metrics };
+    }
+    event('ARTIFACT_VALIDATED', { staging: out });
+    const { replaced } = publishDirectory({ staging: out, target });
+    // Every other version is obsolete once this one is published.
+    const removed = fs
+      .readdirSync(root)
+      .filter((entry) => !entry.startsWith('.') && entry !== version && entry !== TYPEDOC_PREVIEW);
+    for (const entry of removed) fs.removeSync(`${root}/${entry}`);
+    fs.writeJsonSync(recordPath, { history, published: { version, at: history.last.at } });
+    event('ARTIFACT_PUBLISHED', { target, replaced, removed });
+    return { status: 'published', metrics };
+  } finally {
+    for (const signal of INTERRUPT_SIGNALS) process.off(signal, onSignal);
+    // An unpublished staging directory, or the preview of a watch that ended.
+    if (out) fs.removeSync(out);
+    fs.removeSync(configPath);
+    fs.removeSync(logPath);
+    for (const lock of locks.reverse()) lock.release();
   }
+};
 
-  const tmpConfigPath = `.typedoc.tmp.json`;
-  fs.writeFileSync(tmpConfigPath, JSON.stringify(runtimeConfig, null, 2), 'utf8');
-  logger.warn('build typedoc view', docsDestination);
-
-  // Non-fatal like every other docs surface: a typedoc failure leaves the reference site
-  // unpublished, it does not take a rollout down with it.
-  const result = shellExec(`node_modules/.bin/typedoc --options ${tmpConfigPath}`, {
-    silent: true,
-    silentOnError: true,
-  });
-
-  fs.removeSync(tmpConfigPath);
-
-  if (fs.existsSync(`${docsDestination}index.html`)) return;
-  logger.warn('typedoc produced no HTML index', {
-    docsDestination,
-    code: result?.code,
-    stderr: `${result?.stderr ?? ''}`.trim().split('\n').slice(-1)[0],
-  });
+/**
+ * Builds a directory into a staging directory beside it, then publishes it in its place.
+ * @function publishBuilt
+ * @memberof clientBuildDocs
+ * @param {string} target - Published directory.
+ * @param {(staging: string) => void|Promise<void>} build - Writes the new version.
+ * @returns {Promise<void>}
+ */
+const publishBuilt = async (target, build) => {
+  recoverPublication(target);
+  const staging = stagingDirectoryFactory(target);
+  try {
+    fs.mkdirSync(staging, { recursive: true });
+    await build(staging);
+    publishDirectory({ staging, target });
+  } finally {
+    fs.removeSync(staging);
+  }
 };
 
 /**
@@ -494,24 +335,24 @@ const buildCoverage = async ({ docs, docsDestination }) => {
   const reports = coverageReportsFactory(docs);
   if (reports.length === 0) return;
   // The route holds exactly the declared reports: one dropped from the conf leaves with it.
-  fs.emptyDirSync(`${docsDestination}coverage`);
-  for (const report of reports) {
-    const coverageBuildPath = `${docsDestination}coverage/${report.id}`;
-    const reportPath = resolveCoverageReportPath(report);
+  await publishBuilt(`${docsDestination}coverage`, (staging) => {
+    for (const report of reports) {
+      const coverageBuildPath = `${staging}/${report.id}`;
+      const reportPath = resolveCoverageReportPath(report);
 
-    if (!reportPath) {
-      fs.outputFileSync(`${coverageBuildPath}/index.html`, coverageUnavailablePage(report), 'utf8');
-      logger.warn('no coverage report bundled, publishing the unavailable page', {
-        id: report.id,
-        searched: coverageReportCandidates(report),
-        published: coverageBuildPath,
-      });
-      continue;
+      if (!reportPath) {
+        fs.outputFileSync(`${coverageBuildPath}/index.html`, coverageUnavailablePage(report), 'utf8');
+        logger.warn('no coverage report bundled, publishing the unavailable page', {
+          id: report.id,
+          searched: coverageReportCandidates(report),
+        });
+        continue;
+      }
+
+      fs.copySync(reportPath, coverageBuildPath);
+      logger.warn('build coverage', { id: report.id, source: reportPath });
     }
-
-    fs.copySync(reportPath, coverageBuildPath);
-    logger.warn('build coverage', coverageBuildPath);
-  }
+  });
 };
 
 /**
@@ -558,21 +399,26 @@ const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/', cli
   const documents = docsDocumentsFactory(docs);
   if (documents.length === 0) return { documents: 0, navigation: { domains: [], view: [] } };
 
-  // The route holds exactly the declared documents: one dropped from the conf leaves with it.
-  for (const domain of new Set(documents.map((document) => document.domain || 'references')))
-    fs.emptyDirSync(`${docsDestination}${domain}`);
-
+  // Every document is read before one is replaced: a document that cannot be read changes nothing.
+  const folders = new Map();
   for (const document of documents) {
     const { body } = frontMatterOf(fs.readFileSync(document.path, 'utf8'));
     const published = body.replace(/\]\(<?([^)>]+)>?\)/g, (match, target) => {
       const link = documentLinkFactory(document, target, proxyPath);
       return link ? `](${link})` : match;
     });
-    fs.outputFileSync(`${docsDestination}${document.url.replace(/^docs\//, '')}`, published.trimStart(), 'utf8');
+    const [, folder, ...path] = document.url.split('/');
+    folders.set(folder, [...(folders.get(folder) ?? []), { path: path.join('/'), body: published.trimStart() }]);
   }
+  // The route holds exactly the declared documents: one dropped from the conf leaves with it.
+  for (const [folder, files] of folders)
+    await publishBuilt(`${docsDestination}${folder}`, (staging) => {
+      for (const { path, body } of files) fs.outputFileSync(`${staging}/${path}`, body, 'utf8');
+    });
 
   const navigation = { ...docsNavigationFactory(documents), view: [...(DOCS_VIEWS[client] ?? [])] };
-  fs.outputFileSync(`${docsDestination}manifest.json`, JSON.stringify(navigation, null, 2), 'utf8');
+  fs.outputFileSync(`${docsDestination}manifest.json.tmp`, JSON.stringify(navigation, null, 2), 'utf8');
+  fs.renameSync(`${docsDestination}manifest.json.tmp`, `${docsDestination}manifest.json`);
   logger.warn('build docs', {
     published: docsDestination,
     documents: documents.length,
@@ -582,57 +428,37 @@ const buildDocsReferences = async ({ docs, docsDestination, proxyPath = '/', cli
 };
 
 /**
- * Main function to build all documentation
+ * Builds the documentation of one client: its coverage reports and documents when the build asks for
+ * them, and its TypeDoc site when it asks for that. A skipped TypeDoc site stays as last published.
  * @function buildDocs
  * @memberof clientBuildDocs
  * @param {Object} options - Documentation build options
  * @param {string} options.host - The hostname
  * @param {string} options.path - The base path
- * @param {number} options.port - The port number
- * @param {string} [options.apiBaseHost] - Host serving the API when it is split from the client
- * @param {string} [options.apiBaseProxyPath] - Proxy path of the API runtime when it is split from the client
  * @param {Object} options.metadata - Metadata for the documentation
- * @param {Array<string>} options.apis - The API modules the instance serves
  * @param {Object} options.packageData - Package.json data
  * @param {Object} options.docs - Documentation config from client conf
  * @param {string} options.client - The client id
+ * @param {boolean} options.references - Publish the coverage reports and the documents.
+ * @param {'skip'|'build'} options.typedoc - What the build does with the TypeDoc site.
+ * @param {string} options.buildId - Identity of the client build.
+ * @returns {Promise<{status: string, reason?: string}>} The outcome of the TypeDoc site.
  */
-const buildDocs = async ({
-  host,
-  path,
-  port,
-  apiBaseHost,
-  apiBaseProxyPath,
-  metadata = {},
-  apis = [],
-  consumes = {},
-  apiExtensions = {},
-  packageData,
-  docs,
-  client,
-}) => {
+const buildDocs = async ({ host, path, metadata = {}, packageData, docs, client, references, typedoc, buildId }) => {
+  const logger = loggerFactory(import.meta);
   const pathPrefix = path === '/' ? '/' : `${path}/`;
-  // TypeDoc output is versioned: served at /docs/engine/{version}/
   const version = (packageData?.version || '').replace(/^v/, '');
-  const jsDocsDestination = `./public/${host}${pathPrefix}docs/engine/${version}/`;
-  // Coverage reports at /docs/coverage/<id>/
-  const coverageBaseDestination = `./public/${host}${pathPrefix}docs/`;
-  await buildJsDocs({ host, path, metadata, docs, docsDestination: jsDocsDestination });
-  await buildCoverage({ docs, docsDestination: coverageBaseDestination });
-  await buildDocsReferences({ docs, docsDestination: coverageBaseDestination, proxyPath: pathPrefix, client });
-  await buildApiDocs({
-    host,
-    path,
-    port,
-    apiBaseHost,
-    apiBaseProxyPath,
-    metadata,
-    apis,
-    consumes,
-    apiExtensions,
-    docs,
-    packageData,
-  });
+  if (references) {
+    // Coverage reports at /docs/coverage/<id>/
+    const docsDestination = `./public/${host}${pathPrefix}docs/`;
+    await buildCoverage({ docs, docsDestination });
+    await buildDocsReferences({ docs, docsDestination, proxyPath: pathPrefix, client });
+  }
+  if (typedoc === 'build') return runTypedoc({ host, path, metadata, docs, version, mode: 'build', buildId });
+  const site = `./public/${host}${pathPrefix}${TYPEDOC_DIRECTORY}/${version}/index.html`;
+  if (!fs.existsSync(site))
+    logger.warn('No TypeDoc site published', { site, build: 'node bin client <deploy-id> --docs-only' });
+  return { status: 'skipped' };
 };
 
-export { buildCoverage, buildDocs, buildDocsReferences };
+export { TYPEDOC_RUN_RECORD, buildCoverage, buildDocs, buildDocsReferences, runTypedoc, typedocSiteProblems };

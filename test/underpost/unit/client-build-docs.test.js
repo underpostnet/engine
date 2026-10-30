@@ -4,24 +4,55 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import shell from 'shelljs';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../../../src/server/build/coverage.js';
-import { buildCoverage, buildDocs } from '../../../src/client-builder/client-build-docs.js';
+import { buildCoverage, buildDocs, buildDocsReferences } from '../../../src/client-builder/client-build-docs.js';
 
-// swagger-autogen is a code generator that walks a router file and writes what it read. The
-// doc it is handed and the document composed from its output are what this module is
-// responsible for, so the generator itself is replaced and its arguments are asserted; it
-// writes the part a test stages for that router, so the composition has one.
-const generated = vi.hoisted(() => []);
-const staged = vi.hoisted(() => ({ parts: {} }));
-vi.mock('swagger-autogen', async () => {
-  const fs = (await import('fs-extra')).default;
-  return {
-    default: (options) => async (outputFile, routes, doc) => {
-      generated.push({ options, outputFile, routes, doc });
-      const api = routes[0].match(/\/([^/]+)\.router\.js$/)[1];
-      if (staged.parts[api]) fs.outputJsonSync(outputFile, staged.parts[api]);
-    },
-  };
-});
+const MB = 1024 * 1024;
+const GB = 1024 * MB;
+
+// TypeDoc is the workload: the runner is replaced, reads the config TypeDoc would read, and plays
+// the outcome a test stages. The host is fixed, so admission is deterministic.
+const workload = vi.hoisted(() => ({ calls: [], run: null, availableBytes: 0 }));
+vi.mock('../../../src/server/runtime/managed-process.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  runManagedProcess: async (params) => {
+    const config = (await import('fs-extra')).default.readJsonSync(params.args[2]);
+    workload.calls.push({ params, config });
+    const outcome = workload.run({ params, config });
+    return {
+      signal: null,
+      timedOut: false,
+      cancelled: '',
+      overBudget: '',
+      stoppedFor: '',
+      oomKilled: false,
+      durationMs: 2000,
+      limits: null,
+      diagnostics: {
+        peakBytes: 700 * 1024 * 1024,
+        peakSource: 'kernel',
+        peakRssBytes: 650 * 1024 * 1024,
+        cpuMs: 3000,
+        cpuSource: 'kernel',
+      },
+      ...outcome,
+    };
+  },
+}));
+vi.mock('../../../src/server/runtime/resource-governor.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  hostCapacityFactory: () => ({
+    hostMemoryBytes: 16 * 1024 ** 3,
+    cgroupMemoryBytes: null,
+    totalMemoryBytes: 16 * 1024 ** 3,
+    availableMemoryBytes: workload.availableBytes,
+    cpus: 4,
+    cgroupCpus: null,
+  }),
+}));
+vi.mock('../../../src/server/runtime/linux-resources.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  systemdScopeSupport: () => ({ available: false, reason: 'fixture host' }),
+}));
 
 describe('client coverage build', () => {
   let fixturePath;
@@ -163,49 +194,44 @@ describe('docs build', () => {
 
   const PACKAGE_DATA = { version: 'v1.2.3' };
   const HOST = 'docs.fixture.test';
+  const SITE = `./public/${HOST}/docs/engine`;
 
-  // The default config, the swagger-autogen patch target and every output path resolve
-  // against the source tree root, so the fixture stands in for it.
+  // The default config and every output path resolve against the source tree root, so the
+  // fixture stands in for it.
   const stageTypedocConfig = (config = {}) => {
     fs.outputFileSync(`${fixturePath}/tsconfig.docs.json`, '{}');
     fs.outputJsonSync(`${fixturePath}/typedoc.json`, { tsconfig: './tsconfig.docs.json', name: 'Base', ...config });
   };
 
-  const readTmpConfig = () => {
-    let tmpConfig;
-    vi.spyOn(shell, 'exec').mockImplementation(() => {
-      tmpConfig = JSON.parse(fs.readFileSync('.typedoc.tmp.json', 'utf8'));
-      return { code: 0, stdout: '', stderr: '' };
-    });
-    return () => tmpConfig;
+  const stageSite = (directory, { complete = true } = {}) => {
+    fs.outputFileSync(`${directory}/index.html`, '<title>Fixture</title><link href="assets/style.css">');
+    if (complete)
+      for (const asset of ['style.css', 'main.js', 'search.js'])
+        fs.outputFileSync(`${directory}/assets/${asset}`, '/**/');
   };
-
-  // A router the instance serves; only an annotated one describes itself to the generator.
-  const stageRouter = (api, { annotated = true } = {}) =>
-    fs.outputFileSync(`${fixturePath}/src/api/${api}/${api}.router.js`, annotated ? '// #swagger.auto = false' : '');
 
   const runBuildDocs = async (overrides = {}) =>
     buildDocs({
       host: HOST,
       path: '/',
-      port: 4000,
       metadata: { title: 'Fixture API', description: 'fixture docs' },
-      apis: ['user', 'object-layer', 'unknown-api'],
       packageData: PACKAGE_DATA,
       docs: {},
+      references: true,
+      typedoc: 'build',
+      buildId: 'build-fixture',
       ...overrides,
     });
 
-  const spec = () => fs.readJsonSync(`./public/${HOST}/swagger-output.json`);
-
   beforeEach(() => {
-    generated.length = 0;
     fixturePath = fs.mkdtempSync('/tmp/engine-docs-');
-    fs.outputFileSync(`${fixturePath}/node_modules/swagger-autogen/src/swagger-tags.js`, '');
+    fs.symlinkSync(`${process.cwd()}/node_modules`, `${fixturePath}/node_modules`, 'dir');
+    fs.outputJsonSync(`${fixturePath}/package.json`, { name: 'fixture' });
     cwd = process.cwd();
     process.chdir(fixturePath);
-    staged.parts = {};
-    stageRouter('user');
+    workload.calls.length = 0;
+    workload.run = ({ config }) => (stageSite(config.out), { exitCode: 0 });
+    workload.availableBytes = 8 * GB;
   });
 
   afterEach(() => {
@@ -214,194 +240,211 @@ describe('docs build', () => {
     fs.removeSync(fixturePath);
   });
 
-  it('renders the typedoc runtime config without mutating the default config on disk', async () => {
+  it('runs TypeDoc as a managed task with the client options, without touching the default config', async () => {
     stageTypedocConfig({ entryPoints: ['./src'] });
     const baseConfig = fs.readJsonSync(`${fixturePath}/typedoc.json`);
     fs.outputFileSync(`${fixturePath}/references/reference-a.md`, '# a');
-    const tmpConfig = readTmpConfig();
 
-    await runBuildDocs({ docs: { references: ['./references'] } });
+    const result = await runBuildDocs({ docs: { references: ['./references'] } });
+    expect(result.status).to.equal('published');
 
-    expect(tmpConfig().name).to.equal('Fixture API');
-    expect(tmpConfig().out).to.equal(`./public/${HOST}/docs/engine/1.2.3/`);
-    expect(tmpConfig().favicon).to.equal(`./public/${HOST}/favicon.ico`);
-    expect(tmpConfig().tsconfig.startsWith('/')).to.equal(true);
-    expect(tmpConfig().projectDocuments).to.deep.equal(['./references/reference-a.md']);
+    const [{ params, config }] = workload.calls;
+    expect(result.metrics).to.include({
+      reason: 'completed',
+      durationMs: 2000,
+      cpuMs: 3000,
+      averageCores: 1.5,
+      peakBytes: 700 * MB,
+      peakSource: 'kernel',
+      peakRssBytes: 650 * MB,
+      heapLimitBytes: params.budget.heapBytes,
+    });
+    expect(result.metrics.limits.cpu).to.include({
+      enforcement: 'priority (nice 10)',
+      quotaUnavailable: 'no kernel boundary',
+    });
+    expect(params.command).to.equal(process.execPath);
+    expect(params.args[0]).to.match(/node_modules\/typedoc\/bin\/typedoc$/);
+    expect(params.budget).to.include({ profile: 'heavy', memoryBytes: Math.floor(16 * GB * 0.3) });
+    expect(params.budget.heapBytes).to.equal(Math.floor(params.budget.memoryBytes * 0.8));
+    expect(params.boundary).to.equal(null);
+    expect(config.name).to.equal('Fixture API');
+    expect(config.out).to.match(new RegExp(`/public/${HOST}/docs/engine/\\.staging-1\\.2\\.3-`));
+    expect(config.favicon).to.equal(`./public/${HOST}/favicon.ico`);
+    expect(config.tsconfig.startsWith('/')).to.equal(true);
+    expect(config.projectDocuments).to.deep.equal(['./references/reference-a.md']);
     expect(fs.readJsonSync(`${fixturePath}/typedoc.json`)).to.deep.equal(baseConfig);
-    expect(fs.existsSync('.typedoc.tmp.json')).to.equal(false);
+    expect(fs.readdirSync('.').filter((entry) => entry.startsWith('.typedoc.'))).to.deep.equal([]);
   });
 
   it('overrides the default config with the client typedoc block', async () => {
     stageTypedocConfig({ entryPoints: ['./src'], exclude: ['**/node_modules/**'] });
-    const tmpConfig = readTmpConfig();
 
-    await runBuildDocs({
-      metadata: {},
-      docs: { typedoc: { name: 'Product', entryPoints: ['./src/api'] } },
-    });
+    await runBuildDocs({ metadata: {}, docs: { typedoc: { name: 'Product', entryPoints: ['./src/api'] } } });
 
-    expect(tmpConfig().name).to.equal('Product');
-    expect(tmpConfig().entryPoints).to.deep.equal(['./src/api']);
-    expect(tmpConfig().exclude).to.deep.equal(['**/node_modules/**']);
+    const [{ config }] = workload.calls;
+    expect(config.name).to.equal('Product');
+    expect(config.entryPoints).to.deep.equal(['./src/api']);
+    expect(config.exclude).to.deep.equal(['**/node_modules/**']);
   });
 
   it('keeps the base name and drops the documents key when nothing resolves', async () => {
     stageTypedocConfig();
-    const tmpConfig = readTmpConfig();
 
     await runBuildDocs({ metadata: {}, docs: { references: [] } });
 
-    expect(tmpConfig().name).to.equal('Base');
-    expect(tmpConfig()).not.to.have.property('projectDocuments');
+    expect(workload.calls[0].config.name).to.equal('Base');
+    expect(workload.calls[0].config).not.to.have.property('projectDocuments');
   });
 
-  it('skips the typedoc build when the tree carries no default config', async () => {
-    const exec = vi.spyOn(shell, 'exec');
-    await runBuildDocs();
-    expect(exec.mock.calls.length).to.equal(0);
+  it('skips TypeDoc when the tree carries no default config', async () => {
+    expect((await runBuildDocs()).status).to.equal('skipped');
+    expect(workload.calls).to.have.length(0);
   });
 
-  it('documents the served modules whose router describes itself, one run each', async () => {
-    const exec = vi.spyOn(shell, 'exec').mockReturnValue({ code: 0, stdout: '', stderr: '' });
-    stageRouter('object-layer');
-    stageRouter('plain', { annotated: false });
-    await runBuildDocs({ apis: ['user', 'object-layer', 'plain', 'unknown-api'] });
-
-    expect(exec.mock.calls.length).to.equal(0);
-    expect(generated.map(({ routes }) => routes)).to.deep.equal([
-      ['./src/api/user/user.router.js'],
-      ['./src/api/object-layer/object-layer.router.js'],
-    ]);
-    expect(generated.map(({ outputFile }) => outputFile)).to.deep.equal([
-      '.swagger.user.tmp.json',
-      '.swagger.object-layer.tmp.json',
-    ]);
-    const [{ options, doc }] = generated;
-    expect(options).to.deep.equal({ openapi: '3.0.0' });
-    expect(doc.info).to.deep.equal({ version: 'v1.2.3', title: 'Fixture API', description: 'fixture docs' });
-    expect(doc.tags.map(({ name }) => name)).to.deep.equal(['user', 'object-layer']);
-    expect(doc.components.securitySchemes.bearerAuth).to.deep.equal({ type: 'http', scheme: 'bearer' });
-    expect(fs.existsSync('.swagger.user.tmp.json')).to.equal(false);
+  it('keeps the published site and starts no TypeDoc when the build skips it', async () => {
+    stageTypedocConfig();
+    stageSite(`${SITE}/1.2.3`);
+    expect(await runBuildDocs({ typedoc: 'skip' })).to.deep.equal({ status: 'skipped' });
+    expect(workload.calls).to.have.length(0);
+    expect(fs.existsSync(`${SITE}/1.2.3/index.html`)).to.equal(true);
   });
 
-  it('documents the modules the client declares, out of the ones the instance serves', async () => {
-    stageRouter('item-ledger', { annotated: false });
-    stageRouter('object-layer');
-    await runBuildDocs({
-      apis: ['user', 'item-ledger', 'object-layer'],
-      docs: { api: ['item-ledger', 'object-layer', 'absent'] },
+  it('publishes a checked site, drops the older versions and records the peak its workload measured', async () => {
+    stageTypedocConfig();
+    stageSite(`${SITE}/1.2.2`);
+    stageSite(`${SITE}/preview`);
+
+    expect((await runBuildDocs()).status).to.equal('published');
+
+    expect(fs.readdirSync(SITE).sort()).to.deep.equal(['.typedoc-run.json', '1.2.3', 'preview']);
+    const { history, published } = fs.readJsonSync(`${SITE}/.typedoc-run.json`);
+    expect(history.workload).to.match(/^[0-9a-f]{16}$/);
+    expect(history.peak).to.include({ bytes: 700 * MB, source: 'kernel' });
+    expect(history.last.class).to.equal('measured');
+    expect(published).to.deep.equal({ version: '1.2.3', at: history.last.at });
+  });
+
+  it('keeps the published site when TypeDoc fails, and reports why', async () => {
+    stageTypedocConfig();
+    stageSite(`${SITE}/1.2.3`);
+    fs.outputFileSync(`${SITE}/1.2.3/marker`, 'published');
+    workload.run = ({ config, params }) => {
+      fs.outputFileSync(`${config.out}/index.html`, 'half');
+      fs.outputFileSync(params.logPath, 'Error: tsconfig not found\n');
+      return { exitCode: 2 };
+    };
+
+    expect(await runBuildDocs()).to.include({
+      status: 'failed',
+      reason: 'TypeDoc exited with 2: Error: tsconfig not found',
     });
-
-    expect(generated.map(({ routes }) => routes)).to.deep.equal([
-      ['./src/api/item-ledger/item-ledger.router.js'],
-      ['./src/api/object-layer/object-layer.router.js'],
-    ]);
-    expect(spec().tags.map(({ name }) => name)).to.deep.equal(['item-ledger', 'object-layer']);
+    expect(fs.readFileSync(`${SITE}/1.2.3/marker`, 'utf8')).to.equal('published');
+    expect(
+      fs.readdirSync(SITE).filter((entry) => entry.startsWith('.staging-') || entry.endsWith('.log')),
+    ).to.deep.equal([]);
   });
 
-  // The generator reads a router on its own: a route comes out relative to the router unless an
-  // annotation names its full path, and it also emits a handler's parameter names as routes.
-  it('mounts each route under its module, tags it, and drops the parser artifacts', async () => {
-    stageRouter('item-ledger', { annotated: false });
-    staged.parts['item-ledger'] = {
-      paths: { '/': { get: {} }, '/{id}': { get: {}, delete: {} }, req: { get: {} } },
+  it('keeps the published site when TypeDoc writes an incomplete site', async () => {
+    stageTypedocConfig();
+    stageSite(`${SITE}/1.2.3`);
+    workload.run = ({ config }) => (stageSite(config.out, { complete: false }), { exitCode: 0 });
+
+    const result = await runBuildDocs();
+
+    expect(result.status).to.equal('failed');
+    expect(result.reason).to.match(/^TypeDoc wrote an incomplete site: assets\/style.css is missing/);
+    expect(fs.existsSync(`${SITE}/1.2.3/assets/main.js`)).to.equal(true);
+  });
+
+  it('asks for more than the limit a run exceeded, and only for that workload', async () => {
+    stageTypedocConfig();
+    workload.availableBytes = 3 * GB;
+    workload.run = ({ params }) => {
+      fs.outputFileSync(params.logPath, 'FATAL ERROR: Reached heap limit - JavaScript heap out of memory\n');
+      return { exitCode: null, signal: 'SIGABRT' };
     };
-    staged.parts.user = { paths: { '/user/{id}': { get: { tags: ['user'] } } } };
-    await runBuildDocs({ apis: ['user', 'item-ledger'], docs: { api: ['item-ledger', 'user'] } });
 
-    expect(spec().paths).to.deep.equal({
-      '/item-ledger': { get: { tags: ['item-ledger'] } },
-      '/item-ledger/{id}': { get: { tags: ['item-ledger'] }, delete: { tags: ['item-ledger'] } },
-      '/user/{id}': { get: { tags: ['user'] } },
-    });
-  });
+    const exhausted = await runBuildDocs();
+    expect(exhausted.status).to.equal('failed');
+    expect(exhausted.reason).to.match(/^TypeDoc used up its \d+ MB heap$/);
+    const { history } = fs.readJsonSync(`${SITE}/.typedoc-run.json`);
+    expect(history).not.to.have.property('peak');
+    expect(history.exceeded.bytes).to.equal(workload.calls[0].params.budget.memoryBytes);
+    expect(history.last.class).to.equal('memory-limit');
 
-  it('carries only the schemas the documented operations reference', async () => {
-    stageRouter('object-layer');
-    staged.parts['object-layer'] = {
-      paths: {
-        '/object-layer/{id}': {
-          get: { tags: ['object-layer'], responses: { 200: { $ref: '#/components/schemas/objectLayerResponse' } } },
-        },
-      },
-    };
-    await runBuildDocs({ apis: ['object-layer'], docs: { api: ['object-layer'] } });
-
-    expect(Object.keys(spec().components.schemas)).to.deep.equal(['objectLayerResponse']);
-    expect(spec().components.securitySchemes.bearerAuth).to.deep.equal({ type: 'http', scheme: 'bearer' });
-  });
-
-  it('falls back to a generic title and empty description without metadata', async () => {
-    await runBuildDocs({ metadata: {} });
-    expect(generated[0].doc.info.title).to.equal('REST API');
-    expect(generated[0].doc.info.description).to.equal('');
-  });
-
-  it('points the server at localhost in development and at the host in production', async () => {
-    const previousEnv = process.env.NODE_ENV;
-    try {
-      process.env.NODE_ENV = 'development';
-      await runBuildDocs({ path: '/store' });
-      expect(generated[0].doc.servers[0].url).to.equal('http://localhost:4000/store/api/v1');
-      expect(fs.existsSync(`./public/${HOST}/store/swagger-output.json`)).to.equal(true);
-
-      generated.length = 0;
-      process.env.NODE_ENV = 'production';
-      await runBuildDocs();
-      expect(generated[0].doc.servers[0].url).to.equal(`https://${HOST}/api/v1`);
-    } finally {
-      process.env.NODE_ENV = previousEnv;
-    }
-  });
-
-  it('points the server at the API runtime when the client and the API are split', async () => {
-    const previousEnv = process.env.NODE_ENV;
-    try {
-      process.env.NODE_ENV = 'development';
-      await runBuildDocs({ apiBaseHost: 'localhost:4017', apiBaseProxyPath: '/' });
-      expect(generated[0].doc.servers[0].url).to.equal('http://localhost:4017/api/v1');
-
-      generated.length = 0;
-      process.env.NODE_ENV = 'production';
-      await runBuildDocs({ path: '/store', apiBaseHost: 'api.fixture.test', apiBaseProxyPath: '/store' });
-      expect(generated[0].doc.servers[0].url).to.equal('https://api.fixture.test/store/api/v1');
-    } finally {
-      process.env.NODE_ENV = previousEnv;
-    }
-  });
-
-  // swagger-autogen has no OAS-3 requestBody support, so the generated document
-  // is patched afterwards. The patch has to survive an operation the generator
-  // did not emit, and has to strip the OAS-2 `in: body` parameter it did.
-  it('injects the request bodies into the generated document', async () => {
-    staged.parts.user = {
-      paths: {
-        '/user': {
-          post: {
-            parameters: [
-              { in: 'body', name: 'obj' },
-              { in: 'query', name: 'q' },
-            ],
-          },
-        },
-        '/user/{id}': { get: {} },
-      },
-    };
-    await runBuildDocs();
-
-    const patched = spec();
-    expect(patched.paths['/user'].post.requestBody.content['application/json'].schema.$ref).to.equal(
-      '#/components/schemas/userRequest',
+    const refused = await runBuildDocs();
+    expect(refused.status).to.equal('rejected');
+    expect(refused.reason).to.include(
+      `its resource history asks for ${Math.round((history.exceeded.bytes * 1.25) / MB)} MB`,
     );
-    expect(patched.paths['/user'].post.parameters).to.deep.equal([{ in: 'query', name: 'q' }]);
-    expect(patched.paths['/user/{id}'].get).not.to.have.property('requestBody');
+    expect(workload.calls).to.have.length(1);
+
+    // Other options document other sources: that workload has no history yet.
+    workload.run = ({ config }) => (stageSite(config.out), { exitCode: 0 });
+    expect((await runBuildDocs({ docs: { typedoc: { entryPoints: ['./src/api'] } } })).status).to.equal('published');
   });
 
-  // Regression: the spec was generated on a timer the build never awaited, so a bundle zipped
-  // right after the build shipped without it and the pod restoring it served no api-docs.
-  it('has written the spec by the time the build returns', async () => {
-    staged.parts.user = { paths: {} };
-    await runBuildDocs();
-    expect(fs.existsSync(`./public/${HOST}/swagger-output.json`)).to.equal(true);
+  it('learns nothing about the memory from a run that the host pressure or the operator stopped', async () => {
+    stageTypedocConfig();
+    workload.availableBytes = 3 * GB;
+    for (const outcome of [
+      { stoppedFor: 'host-pressure', overBudget: 'the host had 500 MB available, its reserve is 819 MB' },
+      { cancelled: 'SIGINT', signal: 'SIGINT' },
+      { timedOut: true, signal: 'SIGTERM' },
+    ]) {
+      workload.run = () => ({ exitCode: null, diagnostics: null, ...outcome });
+      expect((await runBuildDocs()).status).not.to.equal('published');
+      const { history } = fs.readJsonSync(`${SITE}/.typedoc-run.json`);
+      expect(history).not.to.have.property('exceeded');
+      expect(history).not.to.have.property('peak');
+    }
+    expect(fs.readJsonSync(`${SITE}/.typedoc-run.json`).history.last.class).to.equal('timeout');
+    workload.run = ({ config }) => (stageSite(config.out), { exitCode: 0 });
+    expect((await runBuildDocs()).status).to.equal('published');
+    expect(workload.calls).to.have.length(4);
+  });
+});
+
+describe('docs references build', () => {
+  let fixturePath;
+  let cwd;
+  const DESTINATION = './public/docs.fixture.test/docs/';
+  const SOURCE = './src/client/public/docs/demo';
+
+  const publish = () =>
+    buildDocsReferences({ docs: { references: [SOURCE] }, docsDestination: DESTINATION, proxyPath: '/', client: '' });
+
+  beforeEach(() => {
+    fixturePath = fs.mkdtempSync('/tmp/engine-references-');
+    cwd = process.cwd();
+    process.chdir(fixturePath);
+    fs.outputFileSync(`${SOURCE}/overview/index.md`, '---\ndomain: Demo\n---\n# Demo\n');
+    fs.outputFileSync(`${SOURCE}/how-to/use.md`, '# Use\n');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.chdir(cwd);
+    fs.removeSync(fixturePath);
+  });
+
+  it('replaces a domain whole, and keeps the published one when a write fails', async () => {
+    expect((await publish()).documents).to.equal(2);
+    expect(fs.readFileSync(`${DESTINATION}demo/how-to/use.md`, 'utf8')).to.equal('# Use\n');
+
+    fs.outputFileSync(`${SOURCE}/how-to/use.md`, '# Use, revised\n');
+    const write = fs.outputFileSync;
+    vi.spyOn(fs, 'outputFileSync').mockImplementation((path, ...rest) => {
+      if (path.endsWith('how-to/use.md')) throw Object.assign(new Error('ENOSPC: no space left'), { code: 'ENOSPC' });
+      return write(path, ...rest);
+    });
+    await expect(publish()).rejects.toThrow('ENOSPC');
+    expect(fs.readFileSync(`${DESTINATION}demo/how-to/use.md`, 'utf8')).to.equal('# Use\n');
+    expect(fs.readdirSync(DESTINATION).sort()).to.deep.equal(['demo', 'manifest.json']);
+
+    vi.restoreAllMocks();
+    await publish();
+    expect(fs.readFileSync(`${DESTINATION}demo/how-to/use.md`, 'utf8')).to.equal('# Use, revised\n');
   });
 });

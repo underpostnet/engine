@@ -25,6 +25,7 @@ import shell from 'shelljs';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { loggerFactory, redactSensitiveText } from '../ops/logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../../index.js';
@@ -460,6 +461,34 @@ const getTerminalPid = () => {
     return null;
   }
 };
+
+/**
+ * The manifest of an installed package, as the tree that depends on it resolves it.
+ * @memberof Process
+ * @param {string} name - Package name.
+ * @param {string} [root] - Tree whose `node_modules` holds the package.
+ * @returns {{path: string, manifest: object}} The `package.json` path and its content.
+ */
+const packageManifestFactory = (name, root = process.cwd()) => {
+  const path = createRequire(`${root}/package.json`).resolve(`${name}/package.json`);
+  return { path, manifest: fs.readJsonSync(path) };
+};
+
+/**
+ * The command-line entry of an installed package, so a runner starts it with its own Node binary
+ * and no `npx` process stands between the runner and the package.
+ * @memberof Process
+ * @param {string} name - Package name.
+ * @param {string} [root] - Tree whose `node_modules` holds the package.
+ * @returns {string} Absolute path of the entry.
+ */
+const packageBinPath = (name, root = process.cwd()) => {
+  const {
+    path,
+    manifest: { bin },
+  } = packageManifestFactory(name, root);
+  return nodePath.resolve(nodePath.dirname(path), typeof bin === 'string' ? bin : bin[name]);
+};
 /**
  * Copies text content to the system clipboard using clipboardy.
  * Logs only the copied length: the content is often a password or a command carrying one.
@@ -477,6 +506,8 @@ export {
   ProcessController,
   ShellExecError,
   getRootDirectory,
+  packageBinPath,
+  packageManifestFactory,
   shellArgumentFactory,
   shellExec,
   shellExecAsync,

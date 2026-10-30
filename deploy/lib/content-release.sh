@@ -128,3 +128,27 @@ wait_for_content_release() {
         sleep 5
     done
 }
+
+# Polls until every documented route of a client bundle serves the TypeDoc entry that bundle holds.
+#
+# Usage: wait_for_client_bundle <reference> [timeout]
+wait_for_client_bundle() {
+    local reference="$1"
+    local timeout="${2:-300}"
+    local waited=0
+    until sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin run verify-bundle --deploy-id $DEPLOY_ID --bundle $reference"; do
+        waited=$((waited + 5))
+        if [ "$waited" -ge "$timeout" ]; then
+            echo "Timed out after ${timeout}s waiting for client bundle $reference" >&2
+            return 1
+        fi
+        sleep 5
+    done
+}
+
+# The client bundles the colours of $DEPLOY_ID restore, comma-separated: what a prune must keep.
+deployed_client_bundles() {
+    sudo -n -- kubectl get deployments -n "$CONTENT_NAMESPACE" -l "deploy-id=${DEPLOY_ID}-${DEPLOY_ENV}" \
+        -o jsonpath='{range .items[*]}{.spec.template.spec.containers[0].command[2]}{"\n"}{end}' \
+        | { grep -o -- '--bundle [^ ,]*' || true; } | cut -d' ' -f2 | sort -u | paste -sd, -
+}

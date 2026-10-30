@@ -27,14 +27,15 @@ Nothing before Stage E changes what players see: a candidate that fails stops th
 | Stage | Name                   | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                                                                                                                                                                                                                                                                                                                                                                                                            |
-| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>`                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| C     | Configuration          | `app load`, `validate-domains`, manifests, client bundle, private conf                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>` by registry digest                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| C     | Configuration          | `app load`, `validate-domains`, manifests, [client bundle](#client-bundle), private conf                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | D     | Data                   | A Release Job makes the indexes of the runtime records the ones their models declare; a record that refuses a unique index stops the deploy and names the key. The host prepares the locked revision; a Release Job builds its artifact once, imports the foundation then each instance as durable steps, makes every definition canonical at the Object Layer authority as durable tasks, and validates it, with the data-release Secret alone. A rerun resumes the release. A third Job stops the deploy when the active release has live changes |
-| E     | Application rollout    | Loads deployment configuration and starts the new pod; blue/green traffic switches when it is Ready                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| F     | Readiness              | Engine API, Object Layer authority                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases and the release store                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| E     | Application rollout    | Loads deployment configuration and starts the new pod at the engine commit of the release; the pod restores the client bundle; blue/green traffic switches when it is Ready                                                                                                                                                                                                                                                                                                                                                                         |
+| F     | Readiness              | Engine API, Object Layer authority, the TypeDoc entry of the client bundle                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| G     | Promotion              | Promote the release, wait until the runtime serves it and the game server is ready, then prune the databases, the release store and the client bundles                                                                                                                                                                                                                                                                                                                                                                                              |
 
-Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`.
+Stage B refuses a `:latest` image unless `ALLOW_LATEST_IMAGE=1`. Then it resolves the tag to the digest the registry
+holds. Every pod and Release Job of the deploy runs that digest.
 
 Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. The content candidate of Stage D and Stage G do not run; the index sync still runs. The new pod serves the release that is already active.
 
@@ -45,6 +46,42 @@ Stage D stops the deploy before the rollout and names the changed content.
 to promote and stop serving them.
 
 `REPLICAS` sets the pod count of each colour (default `1`). Stage E and a switch back render this count.
+
+## Client bundle
+
+The host builds the clients of the deploy once, in Stage C. Every pod restores that build. A pod never
+builds the client and never runs TypeDoc.
+
+`node bin run push-bundle` runs the client build as a managed task:
+`client --env production --docs build --build-zip`. The task builds the client assets, the SSR views,
+the TypeDoc site of the engine version and the ZIP of each route. It runs below the priority of the
+pods, and only when the host has memory above its reserve. Then the push checks each route tree,
+records the SHA-256 of each ZIP and each part, and uploads the parts to the object store. The manifest
+goes last. A failure publishes nothing and stops the deploy before Stage E.
+
+The objects of one bundle:
+
+```text
+underpost/client-bundles/<deploy-id>/<release-id>/<build-id>/parts/<route>/<sequence>
+underpost/client-bundles/<deploy-id>/<release-id>/<build-id>/manifest.json
+```
+
+A reference pins one bundle: `<release-id>/<build-id>@sha256:<manifest digest>`. Stage E gives it to
+every pod as `underpost start --bundle <reference>`, and `client-bundle.json` in the deployment conf
+names it. The pod checks every part, every ZIP and every route tree before it replaces `public/`. A
+bundle that does not verify fails the pod start. The pod never falls back to a build.
+
+The host keeps a record of each build, published or failed:
+`/home/dd/client-bundles/<deploy-id>/<release-id>/<build-id>/build.json` (status, sources, resources,
+manifest) and `build.log`. `UNDERPOST_CLIENT_BUNDLE_RECORDS` moves it.
+
+Stage G keeps the bundles both colours restore and the two newest bundles. It removes the other bundles
+and their records.
+
+| Variable       | Default | Effect                                                                       |
+| -------------- | ------- | ---------------------------------------------------------------------------- |
+| `BUNDLE_MODE`  | `1`     | `0` has a development pod build the client. A production deploy refuses `0`. |
+| `BUNDLE_SPLIT` | `8`     | Part size in MB                                                              |
 
 ## Export the live content
 
@@ -142,7 +179,8 @@ deploy, in this order:
    which does nothing unless that release is the active one.
 2. Traffic returns to the colour that served before:
    `underpost run promote <deploy-id> --traffic <colour>`, which only routes to a colour that is
-   deployed and Ready.
+   deployed and Ready. That colour restores its own client bundle: no prune removes a bundle a
+   colour restores.
 
 A rollback brings back a release this deployment served before, even one that was not built from an
 exact source revision. A failure after the commit point, in prune, fails the deploy and leaves the

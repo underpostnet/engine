@@ -245,9 +245,32 @@ class UnderpostImage {
       const repository = `${imageName || ''}`.replace(/[:@].*$/, '');
       if (!repository) throw new Error('image --release needs --image-name <repository>');
       const name = repository.split('/').pop();
-      const reference = path ? `localhost/${name}:${exact}` : `${repository}:latest`;
       if (path) UnderpostImage.API.build({ path, imageName: `${name}:${exact}`, kubeadm: !k3s, k3s });
-      else shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(reference)}`, { k3s }));
+      return UnderpostImage.API.digest({
+        reference: path ? `localhost/${name}:${exact}` : `${repository}:latest`,
+        k3s,
+        pull: !path,
+      });
+    },
+    /**
+     * @method digest
+     * @description The immutable identity of an image reference: the node runtime pulls it from its
+     * registry, so a tag resolves to what the registry holds now, and reports its digest.
+     * @param {object} options
+     * @param {string} options.reference - A tag or digest reference, e.g. `underpost/engine-cyberia:v3.5.0`.
+     * @param {boolean} [options.k3s] - The node runtime is K3s' embedded containerd.
+     * @param {boolean} [options.pull=true] - Pull first; a locally built image is already in the runtime.
+     * @returns {string} `<repository>@sha256:<digest>`.
+     * @memberof UnderpostImage
+     */
+    digest({ reference, k3s = false, pull = true }) {
+      const name = `${reference || ''}`
+        .replace(/@sha256:[0-9a-f]+$/, '')
+        .replace(/:[^/:]+$/, '')
+        .split('/')
+        .pop();
+      if (!name) throw new Error('image --digest needs an image reference');
+      if (pull) shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(reference)}`, { k3s }));
       const status = JSON.parse(
         shellExec(crictlCommandFactory(`inspecti -o json ${shellArgumentFactory(reference)}`, { k3s }), {
           stdout: true,

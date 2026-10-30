@@ -958,8 +958,9 @@ describe('deploy pipeline', () => {
   });
 
   it('deploys a pinned image, never a floating tag', () => {
-    expect(script).toMatch(/DEPLOY_IMAGE="\$\{DEPLOY_IMAGE:-underpost\/engine-cyberia:v\$\{version\}\}"/);
+    expect(script).toMatch(/image_tag="\$\{DEPLOY_IMAGE:-underpost\/engine-cyberia:v\$\{version\}\}"/);
     expect(script).toMatch(/\*:latest\)\s+if \[ "\$\{ALLOW_LATEST_IMAGE:-0\}" != "1" \]/);
+    expect(script).toMatch(/DEPLOY_IMAGE="\$\(.*node bin image --digest '\$image_tag'"/);
   });
 
   it('runs the stages in order: the data before the rollout, the promotion after readiness', () => {

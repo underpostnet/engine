@@ -144,7 +144,8 @@ class UnderpostStartUp {
      * @param {boolean} options.skipPullRepoBase - Whether to skip pulling the engine source repository.
      * @param {boolean} options.skipPullPrivateRepo - Whether to skip cloning the private configuration repository.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
-     * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle before starting.
+     * @param {boolean} options.pullBundle - Restore the client bundle the deployment conf names instead of building the client.
+     * @param {string} options.bundle - Restore this exact client bundle instead of building the client.
      * @param {boolean} options.privateTestRepo - When true, the base pull clones `engine-test-<id>` instead of `engine-<id>`.
      */
     async callback(
@@ -158,6 +159,7 @@ class UnderpostStartUp {
         skipPullPrivateRepo: false,
         skipFullBuild: false,
         pullBundle: false,
+        bundle: '',
         privateTestRepo: false,
       },
     ) {
@@ -265,8 +267,9 @@ class UnderpostStartUp {
      * @param {boolean} options.skipPullPrivateRepo - Whether to skip cloning the private configuration repository, for a pod whose bootstrap already placed `engine-private`.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
-     * @param {boolean} options.pullBundle - When true, download pre-built client bundle from Cloudinary via pull-bundle (must be pushed first with push-bundle).
-     *   This flag is independent of skipFullBuild: it can be combined with skipFullBuild or used alone.
+     * @param {boolean} options.pullBundle - Restore the client bundle the deployment conf names (`run push-bundle` publishes it).
+     * @param {string} options.bundle - Restore this exact client bundle, `<release-id>/<build-id>@sha256:<digest>`.
+     *   A restore never falls back to a build: a bundle that does not verify fails the build phase.
      * @param {boolean} options.privateTestRepo - When true, clone `engine-test-<id>` (the private test source repo
      *   published by `node bin/build <deployId> --update-private`) instead of the production `engine-<id>` repo.
      * @memberof UnderpostStartUp
@@ -280,6 +283,7 @@ class UnderpostStartUp {
         skipPullPrivateRepo: false,
         skipFullBuild: false,
         pullBundle: false,
+        bundle: '',
       },
     ) {
       if (options.skipPullRepoBase !== true) Underpost.start.pullRepoBase(deployId, options);
@@ -293,7 +297,10 @@ class UnderpostStartUp {
       // endpoint bound but unable to answer, so telemetry went dark across the entire build.
       await shellExecAsync(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       await shellExecAsync(`node bin app load --env ${env} --args deploy-id=${deployId}`);
-      if (options.pullBundle === true) await shellExecAsync(`node bin run pull-bundle --deploy-id ${deployId}`);
+      if (options.bundle || options.pullBundle)
+        await shellExecAsync(
+          `node bin run pull-bundle --deploy-id ${deployId}${options.bundle ? ` --bundle ${shellArgumentFactory(options.bundle)}` : ''}`,
+        );
       // `--env` is explicit rather than inherited: the container's ambient NODE_ENV comes from
       // the injected `underpost-config`, and a build that guesses it renders the wrong conf.
       else if (!options.skipFullBuild) await shellExecAsync(`node bin client ${deployId} --env ${env}`);

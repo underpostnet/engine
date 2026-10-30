@@ -20,11 +20,15 @@ ENGINE_SRC_REPO="$(engine_source_repo "$DEPLOY_ID" "$CYBERIA_SOURCE_CHANNEL")"
 ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 POD_SRC_PRIVATE_REPO="$(pod_private_repo "$DEPLOY_ID")"
 
-# Bundle mode: the host builds the client once and uploads the zip parts, and the pod restores
-# that artifact instead of compiling the client itself. Set BUNDLE_MODE=0 to have the pod build
-# from source.
-BUNDLE_MODE="${BUNDLE_MODE:-0}"
+# Bundle mode: the host builds the client once, TypeDoc included, and publishes one immutable
+# bundle; every pod restores that exact bundle and never compiles the client. A production deploy
+# runs only in bundle mode. BUNDLE_MODE=0 has a development pod build from source.
+BUNDLE_MODE="${BUNDLE_MODE:-1}"
 BUNDLE_SPLIT="${BUNDLE_SPLIT:-8}"
+# The engine commit this deploy builds: the bundle and every pod run this exact source.
+ENGINE_REVISION=""
+# The bundle the host publishes: the reference every pod of this deploy restores.
+CLIENT_BUNDLE=""
 # `mv` into a directory that already exists nests the checkout inside it rather than replacing
 # it, and the pod would then load whatever conf the image carried.
 POD_SRC_PRIVATE_DIR="${POD_SRC_PRIVATE_REPO##*/}"
@@ -66,6 +70,14 @@ engine_commit() {
     sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && git rev-parse HEAD" | tr -d '\n'
 }
 
+# Refuses a production deploy whose pods would build the client from source.
+require_bundle_mode() {
+    if [ "$DEPLOY_ENV" = production ] && [ "$BUNDLE_MODE" != 1 ]; then
+        echo "BUNDLE_MODE=$BUNDLE_MODE: a production pod never builds the client; deploy with BUNDLE_MODE=1" >&2
+        exit 1
+    fi
+}
+
 # ── Stage A — Source synchronization ─────────────────────────────────────────────────────
 #
 # Every product repository from the same channel: the deployment at its branch tip, and every other
@@ -83,25 +95,27 @@ stage_build() {
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin run clean"
 
     # The image is the deploy's identity. A version tag names one published build; a floating
-    # tag names whatever was pushed last and is refused unless the operator says so.
-    local version
+    # tag names whatever was pushed last and is refused unless the operator says so. Either way a
+    # tag can be pushed again, so every pod and Job of this deploy runs the digest it resolves to now.
+    local version image_tag
     version="$(engine_version)"
-    DEPLOY_IMAGE="${DEPLOY_IMAGE:-underpost/engine-cyberia:v${version}}"
-    case "$DEPLOY_IMAGE" in
+    image_tag="${DEPLOY_IMAGE:-underpost/engine-cyberia:v${version}}"
+    case "$image_tag" in
         *:latest)
             if [ "${ALLOW_LATEST_IMAGE:-0}" != "1" ]; then
-                echo "DEPLOY_IMAGE=$DEPLOY_IMAGE is a floating tag; pin a version tag or digest, or set ALLOW_LATEST_IMAGE=1" >&2
+                echo "DEPLOY_IMAGE=$image_tag is a floating tag; pin a version tag or digest, or set ALLOW_LATEST_IMAGE=1" >&2
                 exit 1
             fi
             ;;
     esac
-    local engine_revision content_revision
-    engine_revision="$(engine_commit)"
+    DEPLOY_IMAGE="$(sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin image --digest '$image_tag'" | tail -n 1)"
+    local content_revision
+    ENGINE_REVISION="$(engine_commit)"
     content_revision="$(checkout_revision cyberia-content)"
-    CONTENT_RELEASE_ID="${CONTENT_RELEASE_ID:-v${version}-${engine_revision:0:7}-${content_revision:0:8}}"
+    CONTENT_RELEASE_ID="${CONTENT_RELEASE_ID:-v${version}-${ENGINE_REVISION:0:7}-${content_revision:0:8}}"
     CONTENT_RELEASE_ID="$(printf '%s' "$CONTENT_RELEASE_ID" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')"
     ENGINE_API_PATH="$(engine_api_path)"
-    echo "$RUN_QUIET_NODE_TAG image=$DEPLOY_IMAGE content-release=$CONTENT_RELEASE_ID channel=$CYBERIA_SOURCE_CHANNEL"
+    echo "$RUN_QUIET_NODE_TAG image=$image_tag digest=${DEPLOY_IMAGE#*@} release=$CONTENT_RELEASE_ID engine=$ENGINE_REVISION channel=$CYBERIA_SOURCE_CHANNEL"
 }
 
 # ── Stage C — Configuration ───────────────────────────────────────────────────────────────
@@ -117,18 +131,25 @@ stage_configuration() {
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin/cyberia release build cyberia-server cyberia-client --no-graphify"
 
     # Follows the game build: the client renders from the conf.ssr.json that build reads, so a
-    # bundle pushed before it would ship the previous SSR views. The uploaded keys
-    # are recorded in engine-private/conf/$DEPLOY_ID/storage.bundle.json.
+    # bundle built before it would ship the previous SSR views. A build, TypeDoc, check or upload
+    # that fails stops the deploy here, before any pod starts.
     if [ "$BUNDLE_MODE" = "1" ]; then
-        deploy_step "Push $DEPLOY_ID client bundle" \
+        deploy_step "Build and publish $DEPLOY_ID client bundle" \
             sudo -n -- /bin/bash -lc \
-            "cd $ENGINE_ROOT && node bin run push-bundle --deploy-id $DEPLOY_ID --split $BUNDLE_SPLIT"
+            "cd $ENGINE_ROOT && node bin run push-bundle --deploy-id $DEPLOY_ID --split $BUNDLE_SPLIT --release $CONTENT_RELEASE_ID --image '$DEPLOY_IMAGE'"
+        CLIENT_BUNDLE="$(client_bundle_reference)"
+        echo "$RUN_QUIET_NODE_TAG client-bundle=$CLIENT_BUNDLE"
     fi
 
     # The pod replaces ./engine-private with a clone of its conf repository, so this publishes
-    # the deploy's conf there — the bundle manifest included — before the pod starts.
+    # the deploy's conf there — client-bundle.json included — before the pod starts.
     deploy_step "Build $DEPLOY_ID configuration" \
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
+}
+
+# The bundle push-bundle published, as the deployment conf names it.
+client_bundle_reference() {
+    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node -p \"require('./engine-private/conf/$DEPLOY_ID/client-bundle.json').reference\"" | tr -d '\n'
 }
 
 # Whether the content release stages are off. Prints the reason to the log.
@@ -175,12 +196,14 @@ stage_content_candidate() {
 # ── Stage E — Application rollout ──────────────────────────────────────────────────────
 
 stage_rollout() {
-    local pod_cmd
+    local pod_cmd sync_flags=""
     local start_flags="--build --run --skip-pull-repo-base --skip-pull-private-repo"
     if [ "$BUNDLE_MODE" = "1" ]; then
-        start_flags="$start_flags --pull-bundle"
+        start_flags="$start_flags --bundle $CLIENT_BUNDLE"
+        # The bundle carries the SSR views: the host renders none again.
+        sync_flags="--skip-full-build"
     fi
-    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
+    pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO" "$ENGINE_REVISION"), \
         underpost clone ${POD_SRC_PRIVATE_REPO}, \
         sudo rm -rf ./engine-private, \
         sudo mv ./${POD_SRC_PRIVATE_DIR} ./engine-private, \
@@ -199,6 +222,7 @@ stage_rollout() {
           --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
           --image-pull-policy Always \
+          ${sync_flags} \
           --cmd '${pod_cmd}'"
 }
 
@@ -208,6 +232,9 @@ stage_readiness() {
         wait_for_http "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH/cyberia-instance?limit=1" "$READINESS_TIMEOUT"
     deploy_step "Object Layer authority ready" \
         wait_for_http "$OBJECT_LAYER_API_ORIGIN/$ENGINE_API_PATH/object-layer?limit=1" "$READINESS_TIMEOUT"
+    if [ "$BUNDLE_MODE" = "1" ]; then
+        deploy_step "Client bundle served" wait_for_client_bundle "$CLIENT_BUNDLE" "$READINESS_TIMEOUT"
+    fi
 }
 
 # ── Stage G — Promotion ───────────────────────────────────────────────────────────────────
@@ -231,6 +258,16 @@ stage_promotion() {
         content_release_job "content-release-prune" "$DEPLOY_IMAGE" prune --keep "$CONTENT_RELEASES_KEEP"
     deploy_step "Prune the release store" \
         sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin source-release prune $CONTENT_RELEASE_ID"
+}
+
+# Keeps the bundles both colours restore, this deploy's among them, and the newest published ones.
+stage_bundle_retention() {
+    [ "$BUNDLE_MODE" = "1" ] || return 0
+    local keep
+    keep="$(deployed_client_bundles)"
+    deploy_step "Prune client bundles" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin run prune-bundles --deploy-id $DEPLOY_ID --bundle ${CLIENT_BUNDLE}${keep:+,$keep}"
 }
 
 # ── Revert ────────────────────────────────────────────────────────────────────────────────
@@ -257,6 +294,7 @@ revert_release() {
 }
 
 main() {
+    require_bundle_mode
     deploy_start "Starting remote sync and deploy"
     stage_sources
     stage_build
@@ -269,6 +307,7 @@ main() {
     stage_rollout
     stage_readiness
     stage_promotion
+    stage_bundle_retention
 }
 
 main "$@"

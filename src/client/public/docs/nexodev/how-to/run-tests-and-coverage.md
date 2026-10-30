@@ -234,6 +234,12 @@ and logs the budget when the run starts.
 - The batch starts at the lower priority. Every process that it starts gets
   the same priority.
 - `GOMAXPROCS` limits the threads of esbuild. A value that you set wins.
+- `UNDERPOST_MEMORY_RESERVE_MB` replaces the reserve share with a fixed amount: a
+  whole number of MB below the memory of the host. Another value stops the run.
+  The run logs a reserve that differs from the share. A lower reserve gives the
+  batch memory that the rest of the host needs; it does not show that the batch
+  fits. The shares are the resource profiles of
+  `src/server/runtime/resource-governor.js`, which the client build uses too.
 
 A stopped batch gets the status `over-budget`. The report gives the memory that
 the runner measured. The run continues with the next batch, and the run fails.
@@ -351,11 +357,11 @@ A product project runs only in its product context. The context is active when
 the product catalog is present and `package.json` declares every package the
 catalog pins in `packageDependencies`.
 
-| Checkout                                          | `dd-cyberia` context                                                                |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Engine repository                                 | inactive: the manifest does not declare `jimp`, `pngjs`, `maxrects-packer`, `sharp` |
-| `node bin/build dd-cyberia --coverage` (CI build) | active: the build installs the catalog pins before it runs the suites               |
-| `engine-cyberia` repository                       | active: the product manifest declares the pins                                      |
+| Checkout                                          | `dd-cyberia` context                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| Engine repository                                 | inactive: the manifest does not declare the pins of `catalog-cyberia.js` |
+| `node bin/build dd-cyberia --coverage` (CI build) | active: the build installs the catalog pins before it runs the suites    |
+| `engine-cyberia` repository                       | active: the product manifest declares the pins                           |
 
 Outside its context, `node bin test` skips the product projects and logs a
 warning with the missing packages. To run them in an engine checkout, install the
@@ -440,8 +446,7 @@ A client declares its whole documentation surface in `conf.client.json`, under
     { "id": "cyberia", "label": "Cyberia coverage", "suite": "cyberia" },
     { "id": "hardhat", "label": "Hardhat coverage", "path": "./hardhat" }
   ],
-  "references": ["./src/client/public/docs"],
-  "api": ["cyberia-entity", "cyberia-map", "object-layer", "item-ledger"]
+  "references": ["./src/client/public/docs"]
 }
 ```
 
@@ -457,9 +462,112 @@ A client declares its whole documentation surface in `conf.client.json`, under
 - `canonical` marks the one client whose merged options `node bin/build <deploy-id>`
   writes to the product repository root as `typedoc.json`.
 - `coverage` declares the HTML reports the client publishes.
-- `api` names the API modules the OpenAPI document covers, out of the ones the
-  instance serves. Without it, the served modules whose router carries `#swagger`
-  annotations are documented.
+
+A client with a `docs` block also publishes the API view, `/api-docs`. The runtime
+that mounts the APIs builds its OpenAPI document at startup and serves it at
+`/api/v1/openapi.json`. The document covers every route the host serves from its
+own authority: each API in `apis` that `consumes` does not name, and the routes of
+each `apiExtensions` entry.
+
+A route documents its method, path parameters, JSON body and auth guard by itself.
+A `#swagger` comment in its router adds the rest. Each line sets one OpenAPI value
+with a JavaScript literal:
+
+```js
+/*
+  #swagger.summary = 'Create user'
+  #swagger.path = '/user'
+  #swagger.method = 'post'
+  #swagger.requestBody = {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/userRequest' } } },
+  }
+*/
+```
+
+A comment that sets `path` and `method` describes that operation. Its `path` can
+also name one value of a path parameter, such as `/user/auth` of `/user/{id}`. Any
+other comment sets document fields, such as `#swagger.components.schemas.<name>`.
+
+The `/docs` view authorizes the API view with the session token of the app. Swagger
+UI then sends the token on each operation of a bearer scheme. When the app writes a
+new token at login, refresh or logout, the view authorizes again. A login in the API
+view logs the app in, as the login form does, so the app and the API view keep one
+session.
+
+### The TypeDoc site
+
+The TypeDoc site of a client is served at `/docs/engine/<version>/`. A full
+production build generates it. Every other build keeps the site that was last
+published, and logs when there is none. `--docs` changes this:
+
+```bash
+node bin client <deploy-id> --docs build        # generate and publish it in this build
+node bin client <deploy-id> --docs-only         # only the documentation, no client assets
+node bin client <deploy-id> '' <host> / --docs watch   # development preview of one client
+node bin client <deploy-id> --env production --docs skip
+```
+
+A watch builds no client assets and publishes nothing. It runs the preview of one
+client at `/docs/engine/preview/`, and TypeDoc rebuilds it on every change. Ctrl+C
+(SIGINT) or SIGTERM stops TypeDoc and removes the preview. A preview never
+replaces a published version, and a zip build leaves it out.
+
+TypeDoc runs in its own process, in the `heavy` resource profile:
+
+- One TypeDoc runs on the host at a time. Another waits and logs `TASK_DEFERRED`
+  with the holders of the lock. A TypeDoc that outlives its build keeps the host
+  until it ends: the log shows its holder as not alive, with its process group.
+- It starts only when the host can give it, above its reserve, the memory that
+  its resource history asks for. Otherwise the build logs `TASK_REJECTED`, with
+  the memory that is available.
+- Where systemd manages the host, TypeDoc runs in a transient scope, and the
+  kernel enforces its memory limit. The log shows the limits that the kernel
+  reports. Elsewhere, the runner samples the process and stops it at its budget.
+- V8 gets 80% of the budget as its heap, so TypeDoc collects garbage before the
+  limit stops it. The heap in the log is that limit, not a measurement.
+
+Each client keeps the resource history of its TypeDoc workload in
+`docs/engine/.typedoc-run.json`. A workload is one set of TypeDoc options and the
+program that they compile; a change of either starts a new history.
+
+- A completed run records its peak memory. In a scope the kernel reports it
+  (`memory.peak`) for every process of the workload, and the log names the source
+  `kernel`. Elsewhere the runner samples the RSS of the process tree (`sampled`).
+  A run that ends before its first sample has no peak (`unmeasured`).
+- A run that the memory limit stopped records only that the workload needs more
+  than that limit.
+- A run that host pressure, a timeout or an operator stopped records nothing about
+  the memory.
+- The next run asks for the larger of the peak and that limit, plus 25%.
+
+The scope also asks for a CPU quota. The kernel enforces it only when the systemd
+manager has the `cpu` controller. A user manager often gets `memory` and `pids`
+only, until an administrator delegates `cpu` to it (a `Delegate=` drop-in for
+`user@.service`). Without the controller, the log shows `quotaUnavailable` and the
+priority that applies instead, such as `nice 10`. A priority is not a quota.
+
+TypeDoc writes to a staging directory. The site replaces the published one only
+when it is complete, so a failed, stopped or killed run keeps the published site.
+The next run removes what a killed run left, and restores a version that an
+interrupted replacement moved away. A new version appears in one rename. A
+replacement of the same version takes two renames: for that moment the path is
+absent. Documents and coverage reports are published per folder in the same way.
+
+A full build rebuilds the client root in place. It keeps `docs/engine` and the
+roots of other clients below it. An interrupted full build leaves the client
+incomplete until the next build.
+
+At the end, the build logs `Client build`: the wall time, the CPU time of the
+build process with the average cores it gives, and its peak RSS. Each TypeDoc
+result adds the same values for its run, with the limits that it ran under.
+
+`UNDERPOST_RESOURCE_ISOLATION=required` refuses a task that the kernel cannot
+limit. `off` uses the sampling runner only. A lower `UNDERPOST_MEMORY_RESERVE_MB`
+admits a task with memory that the rest of the host needs, and the build logs
+`RESOURCE_RESERVE_OVERRIDE`. A failure of a requested build (`--docs build`,
+`--docs-only`, `--docs watch`) fails the command. In `auto`, the build logs the
+failure and continues.
 
 ### Publishing the HTML reports
 

@@ -230,11 +230,15 @@ has_changes() {
 # The paths below are the container's, fixed by the image layout, and deliberately not
 # `$ENGINE_ROOT`: that one names the checkout on the host running this script.
 #
-# Usage: pod_bootstrap_cmd <deploy-id> [env] [owner/repo]
+# A revision stands the source at that exact commit, so every pod of a release, a restart included,
+# runs the source its client bundle was built from.
+#
+# Usage: pod_bootstrap_cmd <deploy-id> [env] [owner/repo] [revision]
 pod_bootstrap_cmd() {
     local deploy_id="$1"
     local env="${2:-production}"
     local repo="${3:-underpostnet/engine-${deploy_id#dd-}}"
+    local revision="${4:-}"
     local name="${repo##*/}"
     local relocate=''
 
@@ -248,7 +252,7 @@ rm -rf /home/dd/${name}, "
     printf '%s' "cd /home/dd, \
 underpost clone ${repo}, \
 ${relocate}cd /home/dd/engine, \
-sudo mkdir -p \$(npm prefix -g)/lib/node_modules \$(npm prefix -g)/bin, \
+${revision:+git checkout -q --detach ${revision}, }sudo mkdir -p \$(npm prefix -g)/lib/node_modules \$(npm prefix -g)/bin, \
 sudo chown -R \$(id -u):\$(id -g) \$(npm prefix -g)/lib/node_modules \$(npm prefix -g)/bin, \
 npm install, \
 npm link --force, \

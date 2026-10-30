@@ -11,15 +11,13 @@
  */
 
 import fs from 'fs-extra';
-import os from 'node:os';
 import nodePath from 'node:path';
-import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { performance } from 'node:perf_hooks';
 import { timer } from '../client/components/core/CommonJs.js';
 import { getUnderpostRootPath, shellEnvFactory } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/ops/logger.js';
-import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
+import { packageBinPath, shellArgumentFactory, shellExec } from '../server/runtime/process.js';
+import { INTERRUPT_SIGNALS, runManagedProcess } from '../server/runtime/managed-process.js';
+import { hostCapacityFactory, megabytes, reserveOverrideNotice } from '../server/runtime/resource-governor.js';
 import { loadProductContexts } from '../server/build/catalog.js';
 import {
   TEST_PROJECTS,
@@ -48,198 +46,8 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-/** Signals that stop a run. The runner forwards them to the running batch. */
-const INTERRUPT_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'];
-
-/** Time a batch gets to hand over the output that is left in its pipes after it exits. */
-const LOG_FLUSH_MS = 1000;
-
 /** Lines of the merge log that explain a failed gate. */
 const GATE_LINE = /does not meet|threshold/i;
-
-/** Linux reports CPU time in USER_HZ ticks, fixed at 100 per second. */
-const CLOCK_TICKS_PER_SECOND = 100;
-
-/** Time between two samples of the memory of a batch. */
-const SAMPLE_INTERVAL_MS = 250;
-
-const megabytes = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
-
-/**
- * The Vitest CLI entry of an engine tree. The runner starts it with its own Node binary,
- * so no `npx` process stands between the runner and Vitest.
- * @param {string} root - Engine tree.
- * @returns {string} Absolute path of the Vitest CLI entry.
- */
-const vitestEntry = (root) => {
-  const manifestPath = createRequire(`${root}/package.json`).resolve('vitest/package.json');
-  const { bin } = fs.readJsonSync(manifestPath);
-  return nodePath.resolve(nodePath.dirname(manifestPath), typeof bin === 'string' ? bin : bin.vitest);
-};
-
-/**
- * Resident memory and CPU time of a process and all its descendants, read from `/proc`.
- * @param {number} pid - Root of the process tree.
- * @returns {{rssBytes: number, cpuMs: number}|null} Usage, or null where `/proc` is not available.
- */
-const processTreeUsage = (pid) => {
-  const read = (path) => {
-    try {
-      return fs.readFileSync(path, 'utf8');
-    } catch {
-      return '';
-    }
-  };
-  if (!read(`/proc/${pid}/stat`)) return null;
-  const pids = [pid];
-  for (let position = 0; position < pids.length; position++) {
-    let tasks = [];
-    try {
-      tasks = fs.readdirSync(`/proc/${pids[position]}/task`);
-    } catch {}
-    for (const task of tasks)
-      pids.push(...read(`/proc/${pids[position]}/task/${task}/children`).split(' ').filter(Boolean).map(Number));
-  }
-  let rssBytes = 0;
-  let ticks = 0;
-  for (const id of pids) {
-    const rss = /VmRSS:\s+(\d+) kB/.exec(read(`/proc/${id}/status`));
-    if (rss) rssBytes += Number(rss[1]) * 1024;
-    // After the command name: utime, stime, cutime and cstime are fields 12 to 15.
-    const fields = read(`/proc/${id}/stat`).split(') ').pop().split(' ');
-    ticks += fields.slice(11, 15).reduce((sum, value) => sum + (Number(value) || 0), 0);
-  }
-  return { rssBytes, cpuMs: (ticks * 1000) / CLOCK_TICKS_PER_SECOND };
-};
-
-/**
- * Runs one batch command in a new process group and resolves with how it ended.
- *
- * The group isolates the batch: a stop signal reaches every process of the batch, and
- * the runner kills what the batch leaves behind, so the next batch starts on free memory.
- * @param {object} params
- * @param {string} params.command - Executable.
- * @param {string[]} [params.args] - Arguments.
- * @param {string} params.cwd - Working directory.
- * @param {object} [params.env] - Environment.
- * @param {number} [params.timeoutMs] - Time limit, 0 for none.
- * @param {number} [params.graceMs] - Time between SIGTERM and SIGKILL at the time limit.
- * @param {boolean} [params.diagnose] - Sample the memory and CPU of the process tree.
- * @param {{memoryBytes: number, reserveBytes: number, threads: number, nice: number}|null} [params.budget] - Host
- *   budget, from `testBudgetFactory`. Null runs the batch without limits.
- * @param {() => number} [params.availableMemory] - Memory the host has available, in bytes.
- * @param {{child: object|null}} [params.control] - Holds the running child for the signal forwarder.
- * @returns {Promise<{exitCode: number|null, signal: string|null, timedOut: boolean, overBudget: string, durationMs: number, diagnostics?: object}>}
- */
-const runTestProcess = ({
-  command,
-  args = [],
-  cwd,
-  env = process.env,
-  timeoutMs = 0,
-  graceMs = UNDERPOST_TESTING.runs.terminationGraceMs,
-  diagnose = false,
-  budget = null,
-  availableMemory = () => process.availableMemory(),
-  control = {},
-  logPath = '',
-}) =>
-  new Promise((resolve) => {
-    const started = performance.now();
-    const child = spawn(command, args, {
-      cwd,
-      // esbuild sizes its Go scheduler from GOMAXPROCS. A value the operator set wins.
-      env: budget ? { GOMAXPROCS: `${budget.threads}`, ...env } : env,
-      stdio: ['ignore', logPath ? 'pipe' : 'inherit', logPath ? 'pipe' : 'inherit'],
-      detached: true,
-    });
-    // The processes the batch starts inherit this priority.
-    if (budget && child.pid)
-      try {
-        os.setPriority(child.pid, budget.nice);
-      } catch {}
-    // The output reaches the console as it is written and stays in the log file for the report.
-    const log = logPath ? fs.createWriteStream(logPath) : null;
-    const closed = log ? new Promise((done) => child.once('close', done)) : null;
-    if (log)
-      for (const [stream, sink] of [
-        [child.stdout, process.stdout],
-        [child.stderr, process.stderr],
-      ])
-        stream.on('data', (chunk) => {
-          sink.write(chunk);
-          log.write(chunk);
-        });
-    control.child = child;
-    let timedOut = false;
-    let overBudget = '';
-    let diagnostics = null;
-    let escalation = null;
-    const signalGroup = (signal) => {
-      try {
-        process.kill(-child.pid, signal);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    const sample = () => {
-      const usage = processTreeUsage(child.pid);
-      if (usage && diagnose)
-        diagnostics = {
-          peakRssBytes: Math.max(diagnostics?.peakRssBytes ?? 0, usage.rssBytes),
-          cpuMs: Math.max(diagnostics?.cpuMs ?? 0, usage.cpuMs),
-        };
-      if (!budget || overBudget) return;
-      const available = availableMemory();
-      if (usage && usage.rssBytes > budget.memoryBytes)
-        overBudget = `the batch held ${megabytes(usage.rssBytes)}, its budget is ${megabytes(budget.memoryBytes)}`;
-      else if (available < budget.reserveBytes)
-        overBudget = `the host had ${megabytes(available)} available, its reserve is ${megabytes(budget.reserveBytes)}`;
-      // Memory can grow faster than a grace time: the batch stops at once.
-      if (overBudget) signalGroup('SIGKILL');
-    };
-    const sampler = diagnose || budget ? setInterval(sample, SAMPLE_INTERVAL_MS) : null;
-    const deadline =
-      timeoutMs > 0
-        ? setTimeout(() => {
-            timedOut = true;
-            signalGroup('SIGTERM');
-            escalation = setTimeout(() => signalGroup('SIGKILL'), graceMs);
-          }, timeoutMs)
-        : null;
-    let finished = false;
-    const finish = (exitCode, signal) => {
-      if (finished) return;
-      finished = true;
-      clearInterval(sampler);
-      clearTimeout(deadline);
-      clearTimeout(escalation);
-      control.child = null;
-      if (child.pid && signalGroup(0)) {
-        logger.warn('Killing the processes the batch left behind', { pid: child.pid });
-        signalGroup('SIGKILL');
-      }
-      const outcome = {
-        exitCode,
-        signal,
-        timedOut,
-        overBudget,
-        durationMs: Math.round(performance.now() - started),
-        ...(diagnose ? { diagnostics } : {}),
-      };
-      if (!log) return resolve(outcome);
-      // The pipes can hold output after the exit, and a process left behind can keep them open.
-      Promise.race([closed, new Promise((wait) => setTimeout(wait, LOG_FLUSH_MS))]).then(() =>
-        log.end(() => resolve(outcome)),
-      );
-    };
-    child.once('error', (error) => {
-      logger.error('Batch process failed to start', { command, message: error.message });
-      finish(null, null);
-    });
-    child.once('exit', finish);
-  });
 
 /**
  * What a failed run leaves to read: the failed tests of each batch, the end of the log of a
@@ -369,12 +177,8 @@ class UnderpostTest {
         });
       // Rejects a malformed COVERAGE_MIN before the first batch, not at the merge.
       coverageThresholdFactory(process.env);
-      const budget = testBudgetFactory({
-        footprint: plan.footprint,
-        // A container limit is the host of the run. Without one, Node reports 2^64.
-        totalMemoryBytes: Math.min(os.totalmem(), process.constrainedMemory() || Infinity),
-        cpus: os.availableParallelism(),
-      });
+      const { totalMemoryBytes, cpus } = hostCapacityFactory();
+      const budget = testBudgetFactory({ footprint: plan.footprint, totalMemoryBytes, cpus });
       const allureResultsDirectory = allure
         ? nodePath.resolve(
             root,
@@ -393,7 +197,7 @@ class UnderpostTest {
         if (vitestBatches.length < plan.batches.length) logger.warn('Delegated projects do not run in watch mode');
         if (vitestBatches.length === 0) return;
         const args = vitestArgsFactory({ projects: plan.projects, grep, watch, coverage });
-        shellExec([process.execPath, vitestEntry(root), ...args].map(shellArgumentFactory).join(' '), {
+        shellExec([process.execPath, packageBinPath('vitest', root), ...args].map(shellArgumentFactory).join(' '), {
           cwd: root,
           env: vitestEnvFactory({ env: shellEnvFactory(), footprint: plan.footprint, allureResultsDirectory }),
         });
@@ -436,22 +240,19 @@ class UnderpostTest {
             `${budget.threads} threads, nice ${budget.nice}`
           : 'none',
       });
+      if (budget && reserveOverrideNotice(budget)) logger.warn('Host reserve', reserveOverrideNotice(budget));
 
       const control = { child: null, interrupted: null };
       const onSignal = (signal) => {
         // A second signal stops the running batch at once.
-        const forwarded = control.interrupted ? 'SIGKILL' : signal;
+        logger.warn('Stopping the test run', { signal, forced: Boolean(control.interrupted) });
         control.interrupted ??= signal;
-        logger.warn('Stopping the test run', { signal, forwarded });
-        if (!control.child?.pid) return;
-        try {
-          process.kill(-control.child.pid, forwarded);
-        } catch {}
+        control.stop?.(signal);
       };
       const timeoutMs = Number(batchTimeout) * 60 * 1000 || 0;
       // A pipe is not a terminal: keep the colour a person at one reads.
       const colorEnv = process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: '1' } : {};
-      const vitest = vitestBatches.length > 0 ? vitestEntry(root) : '';
+      const vitest = vitestBatches.length > 0 ? packageBinPath('vitest', root) : '';
       const record = ({ exitCode, signal, timedOut, overBudget, durationMs, diagnostics }, reported) => ({
         status: testBatchStatus({
           exitCode,
@@ -483,12 +284,13 @@ class UnderpostTest {
           }
           if (allureResultsDirectory) fs.mkdirSync(allureResultsDirectory, { recursive: true });
           const resultsPath = allureResultsDirectory ? `${allureResultsDirectory}/TEST-${name}.xml` : '';
-          const outcome = await runTestProcess({
+          const outcome = await runManagedProcess({
             command: 'sh',
             args: ['-c', delegate({ resultsPath, grep })],
             cwd: projectRoot,
             timeoutMs,
             diagnose,
+            graceMs: UNDERPOST_TESTING.runs.terminationGraceMs,
             budget,
             control,
             logPath: nodePath.join(runDirectory, batch.log),
@@ -497,7 +299,7 @@ class UnderpostTest {
         }
         const report = nodePath.join(runDirectory, batch.report);
         const coverageDirectory = nodePath.join(runDirectory, 'coverage');
-        const outcome = await runTestProcess({
+        const outcome = await runManagedProcess({
           command: process.execPath,
           args: [
             vitest,
@@ -523,6 +325,7 @@ class UnderpostTest {
           },
           timeoutMs,
           diagnose,
+          graceMs: UNDERPOST_TESTING.runs.terminationGraceMs,
           budget,
           control,
           logPath: nodePath.join(runDirectory, batch.log),
@@ -560,7 +363,7 @@ class UnderpostTest {
           } else {
             manifest.merge.status = 'running';
             save();
-            const outcome = await runTestProcess({
+            const outcome = await runManagedProcess({
               command: process.execPath,
               args: [
                 vitest,
@@ -573,6 +376,7 @@ class UnderpostTest {
               },
               timeoutMs,
               diagnose,
+              graceMs: UNDERPOST_TESTING.runs.terminationGraceMs,
               budget,
               control,
               logPath: nodePath.join(runDirectory, mergeLog),
@@ -791,7 +595,5 @@ class UnderpostTest {
     },
   };
 }
-
-export { runTestProcess };
 
 export default UnderpostTest;

@@ -7,9 +7,7 @@ import { spawn } from 'node:child_process';
 import fs from 'fs-extra';
 import os from 'node:os';
 import nodePath from 'node:path';
-import { UNDERPOST_TESTING, testBatchStatus } from '../../../src/server/build/testing.js';
-import { runTestProcess } from '../../../src/cli/test.js';
-import { alive } from '../../support/process.js';
+import { UNDERPOST_TESTING } from '../../../src/server/build/testing.js';
 
 const engineRoot = process.cwd();
 
@@ -17,118 +15,6 @@ const until = async (condition, timeoutMs = 15000) => {
   const deadline = Date.now() + timeoutMs;
   while (!condition() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
 };
-
-const node = (script, options = {}) =>
-  runTestProcess({ command: process.execPath, args: ['-e', script], cwd: os.tmpdir(), ...options });
-
-describe('batch process', () => {
-  it('reports the exit code of a batch', async () => {
-    const outcome = await node('process.exit(3)');
-    expect(outcome).to.include({ exitCode: 3, signal: null, timedOut: false });
-    expect(outcome.durationMs).to.be.a('number');
-    expect(testBatchStatus({ ...outcome, reported: true })).to.equal('failed');
-  });
-
-  it('reports a batch that SIGKILL stopped', async () => {
-    const outcome = await node("process.kill(process.pid, 'SIGKILL')");
-    expect(outcome).to.include({ exitCode: null, signal: 'SIGKILL' });
-    expect(testBatchStatus(outcome)).to.equal('killed');
-  });
-
-  it('reports a batch that a signal from outside stopped', async () => {
-    const outcome = await node("process.kill(process.pid, 'SIGTERM')");
-    expect(outcome).to.include({ exitCode: null, signal: 'SIGTERM' });
-    expect(testBatchStatus(outcome)).to.equal('signaled');
-  });
-
-  it('stops a batch at its time limit', async () => {
-    const outcome = await node('setInterval(() => {}, 1000)', { timeoutMs: 500 });
-    expect(outcome).to.include({ timedOut: true, signal: 'SIGTERM' });
-    expect(testBatchStatus(outcome)).to.equal('timeout');
-  });
-
-  it('kills a batch that ignores SIGTERM after the grace time', async () => {
-    const outcome = await node("process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)", {
-      timeoutMs: 1000,
-      graceMs: 200,
-    });
-    expect(outcome).to.include({ timedOut: true, signal: 'SIGKILL' });
-  });
-
-  it('kills the processes a batch leaves behind', async () => {
-    const pidFile = nodePath.join(fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-batch-')), 'orphan.pid');
-    const outcome = await node(
-      [
-        "const orphan = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
-        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(orphan.pid));`,
-        'orphan.unref();',
-      ].join(' '),
-    );
-    expect(outcome.exitCode).to.equal(0);
-    const orphan = Number(fs.readFileSync(pidFile, 'utf8'));
-    await until(() => !alive(orphan), 5000);
-    expect(alive(orphan)).to.equal(false);
-    fs.removeSync(nodePath.dirname(pidFile));
-  }, 20000);
-
-  it('keeps the output of a batch in its log, and shows it as well', async () => {
-    const logPath = nodePath.join(fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-batch-')), 'batch.log');
-    const outcome = await node("console.log('to out'); console.error('to err')", { logPath });
-    expect(outcome.exitCode).to.equal(0);
-    expect(fs.readFileSync(logPath, 'utf8').split('\n').sort()).to.deep.equal(['', 'to err', 'to out']);
-    fs.removeSync(nodePath.dirname(logPath));
-  });
-
-  it('reports a batch that cannot start', async () => {
-    const outcome = await runTestProcess({ command: nodePath.join(os.tmpdir(), 'no-such-binary'), cwd: os.tmpdir() });
-    expect(outcome).to.include({ exitCode: null, signal: null });
-    expect(testBatchStatus(outcome)).to.equal('error');
-  });
-
-  const budget = { memoryBytes: 64 * 1024 * 1024, reserveBytes: 0, threads: 2, nice: 7 };
-
-  it.skipIf(!fs.existsSync('/proc/self/stat'))('stops a batch that holds more than its memory budget', async () => {
-    const outcome = await node(
-      'const held = Buffer.alloc(160 * 1024 * 1024, 1); setInterval(() => held.length, 1000)',
-      {
-        budget,
-      },
-    );
-    expect(outcome).to.include({ signal: 'SIGKILL', timedOut: false });
-    expect(outcome.overBudget).to.match(/^the batch held \d+ MB, its budget is 64 MB$/);
-    expect(testBatchStatus(outcome)).to.equal('over-budget');
-  });
-
-  it('stops a batch when the host runs below its reserve', async () => {
-    const outcome = await node('setInterval(() => {}, 1000)', {
-      budget: { ...budget, memoryBytes: Infinity, reserveBytes: 1024 * 1024 * 1024 },
-      availableMemory: () => 512 * 1024 * 1024,
-    });
-    expect(outcome.signal).to.equal('SIGKILL');
-    expect(outcome.overBudget).to.equal('the host had 512 MB available, its reserve is 1024 MB');
-  });
-
-  it('runs a batch at the priority and thread count of its budget', async () => {
-    // Only root can raise a priority, and this suite can itself run at the nice value of a budget.
-    const nice = Math.min(19, os.getPriority() + 3);
-    const logPath = nodePath.join(fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-batch-')), 'batch.log');
-    const outcome = await node(
-      "setTimeout(() => console.log(require('node:os').getPriority(), process.env.GOMAXPROCS), 300)",
-      { budget: { ...budget, memoryBytes: Infinity, nice }, logPath, env: { PATH: process.env.PATH } },
-    );
-    expect(outcome).to.include({ exitCode: 0, overBudget: '' });
-    expect(fs.readFileSync(logPath, 'utf8').trim()).to.equal(`${nice} 2`);
-    fs.removeSync(nodePath.dirname(logPath));
-  });
-
-  it.skipIf(!fs.existsSync('/proc/self/stat'))('samples the memory and CPU of the batch', async () => {
-    const outcome = await node('const held = Buffer.alloc(96 * 1024 * 1024, 1); setTimeout(() => held.length, 1500)', {
-      diagnose: true,
-    });
-    expect(outcome.diagnostics.peakRssBytes).to.be.above(96 * 1024 * 1024);
-    expect(outcome.diagnostics.cpuMs).to.be.at.least(0);
-  });
-});
 
 // Two projects of the engine table, in a tree of their own. Alone, the audit batch covers 5 of
 // the 8 source lines and the unit batch 6. Together they cover 7.

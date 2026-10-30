@@ -80,10 +80,13 @@ describe('test budgets', () => {
 
   it('gives a batch of the safe footprint a share of the host', () => {
     expect(testBudgetFactory({ ...host })).to.deep.equal({
+      profile: 'standard',
       memoryBytes: Math.floor(16 * 1024 ** 3 * 0.3),
       reserveBytes: Math.floor(16 * 1024 ** 3 * 0.05),
+      profileReserveBytes: Math.floor(16 * 1024 ** 3 * 0.05),
       threads: 6,
       nice: 10,
+      sampleIntervalMs: 250,
     });
   });
 
@@ -106,7 +109,7 @@ describe('test budgets', () => {
 
 describe('execution plan', () => {
   const inactive = [
-    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: ['jimp'], active: false },
+    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: ['sharp'], active: false },
   ];
 
   it('runs every project in its own batch, in group order', () => {
@@ -184,7 +187,7 @@ describe('execution plan', () => {
     const { batches, excluded } = testExecutionPlanFactory({ contexts: inactive });
     const owned = names(TEST_PROJECTS.filter(({ directory }) => /^(test\/cyberia|hardhat)/.test(directory)));
     expect(excluded.map(({ name }) => name)).to.deep.equal(owned);
-    for (const entry of excluded) expect(entry).to.deep.include({ deployId: 'dd-product', missing: ['jimp'] });
+    for (const entry of excluded) expect(entry).to.deep.include({ deployId: 'dd-product', missing: ['sharp'] });
     for (const { projects } of batches) expect(owned).to.not.include(projects[0]);
   });
 

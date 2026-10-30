@@ -28,10 +28,12 @@ import { buildIcons, rebaseIconManifests } from './client-icons.js';
 import { statusPageBuildSegment } from '../server/network/underpost-gateway.js';
 import { repositoryIdentityFactory } from '../server/storage/repository.js';
 import Underpost from '../index.js';
-import { buildDocs } from './client-build-docs.js';
+import { buildDocs, runTypedoc } from './client-build-docs.js';
+import { TYPEDOC_DIRECTORY, TYPEDOC_PREVIEW, docsPlanFactory } from '../server/build/docs.js';
+import { acquireHostLock, hostLockName } from '../server/runtime/host-lock.js';
 import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
-import { hostPortsFactory, instanceOriginsFactory, localHostAddress } from '../server/network/router.js';
+import { instanceOriginsFactory, localHostAddress } from '../server/network/router.js';
 
 // Static Site Generation (SSG)
 
@@ -42,6 +44,9 @@ const STATUS_PAGE_VIEW_PATH = /^\/([1-5]\d{2})$/;
 // condition, so a new one becomes edge-served by adding its flag here rather
 // than by naming its path in a second place.
 const INTERCEPT_VIEW_FLAGS = ['maintenanceDefault', 'offlineDefault'];
+
+/** TypeDoc outcomes that leave a site unpublished. */
+const UNPUBLISHED_TYPEDOC = ['failed', 'rejected'];
 
 /**
  * Resolves the SSR views that render an HTTP status page into the static
@@ -194,6 +199,16 @@ const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
  * @memberof clientBuild
  */
 const clientBundleIdFactory = (host, routePath) => `${host}-${`${routePath ?? ''}`.replaceAll('/', '')}`;
+
+/**
+ * Names one client build in its logs, its TypeDoc events and the bundle it publishes. Ids sort by
+ * start time.
+ * @function clientBuildIdFactory
+ * @param {Date} [now=new Date()]
+ * @returns {string} Such as `client-20261030151234567-4242`.
+ * @memberof clientBuild
+ */
+const clientBuildIdFactory = (now = new Date()) => `client-${now.toISOString().replace(/\D/g, '')}-${process.pid}`;
 
 const getZipPartPaths = (zipPath) => {
   const zipDir = dir.dirname(zipPath);
@@ -537,6 +552,25 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
 </xsl:stylesheet>`;
 
 /**
+ * Removes everything below a directory except the paths it keeps.
+ * @function clearDirectory
+ * @memberof clientBuild
+ * @param {string} root - Directory to clear.
+ * @param {string[]} kept - Paths below it, `/`-separated, that stay as they are.
+ * @returns {void}
+ */
+const clearDirectory = (root, kept) => {
+  if (!fs.existsSync(root)) return;
+  for (const entry of fs.readdirSync(root)) {
+    const nested = kept
+      .filter((path) => path === entry || path.startsWith(`${entry}/`))
+      .map((path) => path.slice(entry.length + 1));
+    if (nested.length === 0) fs.removeSync(`${root}/${entry}`);
+    else if (!nested.includes('')) clearDirectory(`${root}/${entry}`, nested);
+  }
+};
+
+/**
  * @async
  * @function buildClient
  * @memberof clientBuild
@@ -549,8 +583,11 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  * @param {boolean} options.fullBuild - Whether to perform a full build.
  * @param {boolean} options.iconsBuild - Whether to build icons.
  * @param {boolean} options.ssrOnly - Whether to rebuild only views defined in `conf.ssr.json`.
+ * @param {{assets: boolean, typedoc: string, required: boolean}} [options.docs] - Documentation plan, from
+ *   `docsPlanFactory`. Without one the build keeps the published TypeDoc sites.
+ * @param {string} [options.buildId] - Identity of the build, from {@link clientBuildIdFactory}.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
- * @throws {Error} - If the build fails.
+ * @throws {Error} - If the build fails, or at the first TypeDoc site a required plan does not publish.
  * @memberof clientBuild
  */
 const buildClient = async (
@@ -578,6 +615,12 @@ const buildClient = async (
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
   const ssrOnly = options.ssrOnly === true;
+  const docsPlan = options.docs ?? docsPlanFactory({ docs: 'skip' }, process.env.NODE_ENV);
+  const buildRunId = options.buildId || clientBuildIdFactory();
+  const buildStarted = performance.now();
+  const cpuStarted = process.cpuUsage();
+  const typedocResults = [];
+  const watchCandidates = [];
 
   /**
    * @async
@@ -611,6 +654,7 @@ const buildClient = async (
    * @param {boolean} options.iconsBuild - Whether to build icons.
    * @param {Object} options.metadata - Metadata for the client.
    * @param {boolean} options.publicCopyNonExistingFiles - Whether to copy non-existing files from public directory.
+   * @param {string[]} options.nestedRoots - Roots of other clients below this one, relative to it.
    * @returns {Promise<void>} - Promise that resolves when the full build is complete.
    * @throws {Error} - If the full build fails.
    * @memberof clientBuild
@@ -627,12 +671,13 @@ const buildClient = async (
     iconsBuild,
     metadata,
     publicCopyNonExistingFiles,
+    nestedRoots,
   }) => {
     logger.warn('Full build', rootClientPath);
 
     buildAcmeChallengePath(acmeChallengeFullPath);
 
-    fs.removeSync(rootClientPath);
+    clearDirectory(rootClientPath, [TYPEDOC_DIRECTORY, ...nestedRoots]);
 
     if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
       if (iconsBuild === true) await buildIcons({ publicClientId, metadata });
@@ -679,360 +724,513 @@ const buildClient = async (
     fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`) ? readConfInstances(deployId) : [],
     isDevelopment,
   );
-  const ports = hostPortsFactory(confServer);
-
-  for (const host of Object.keys(confServer)) {
-    const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
-    for (const path of paths) {
-      if (
-        options &&
-        options.instances &&
-        options.instances.length > 0 &&
-        !options.instances.find((i) => i.path === path && i.host === host)
-      )
-        continue;
-      const {
-        runtime,
-        client,
-        directory,
-        disabledRebuild,
-        db,
-        redirect,
-        apis,
-        consumes,
-        apiExtensions,
-        apiBaseProxyPath,
-        apiBaseHost,
-        ttiLoadTimeLimit,
-        singleReplica,
-      } = confServer[host][path];
-      if (singleReplica) continue;
-      if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata, publicCopyNonExistingFiles, docs, apiHosts } =
-        confClient[client];
-      let backgroundImage;
-      if (metadata) {
-        backgroundImage = metadata.backgroundImage;
-        if (metadata.thumbnail) metadata.thumbnail = `${path === '/' ? path : `${path}/`}${metadata.thumbnail}`;
-      }
-      const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
-      const port = ports[`${host}${path}`];
-      const publicClientId = publicClientIdFactory(client, confClient[client]);
-      const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
-      const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
-      const minifyBuild = process.env.NODE_ENV === 'production';
-      // Services another domain owns, endpoint → host: the client reads them at their owner. A
-      // development build reads them on the owner's local port, never at the public origin.
-      const endpointHosts = Object.fromEntries(
-        Object.entries(apiHosts ?? {}).map(([endpoint, owner]) => [
-          endpoint,
-          isDevelopment ? localHostAddress(confServer, owner) || owner : owner,
-        ]),
-      );
-
-      const acmeChallengeFullPath = directory
-        ? `${directory}${acmeChallengePath}`
-        : `${publicPath}/${host}${acmeChallengePath}`;
-
-      if (!enableLiveRebuild && !ssrOnly) buildAcmeChallengePath(acmeChallengeFullPath);
-
-      if (redirect || disabledRebuild) continue;
-
-      if (fullBuildEnabled && !ssrOnly)
-        await fullBuild({
-          path,
-          logger,
+  const recordTypedoc = (host, path, result) => {
+    typedocResults.push({ host, path, ...result });
+    if (result.status === 'cancelled') throw new Error(`TypeDoc of ${host}${path} ${result.reason}`);
+    if (docsPlan.required && UNPUBLISHED_TYPEDOC.includes(result.status))
+      throw new Error(`TypeDoc did not publish ${host}${path}: ${result.reason}`);
+  };
+  let hostLock = null;
+  try {
+    for (const host of Object.keys(confServer)) {
+      const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
+      for (const path of paths) {
+        // One build of a client root at a time across every process of the host.
+        hostLock?.release();
+        hostLock = null;
+        if (
+          options &&
+          options.instances &&
+          options.instances.length > 0 &&
+          !options.instances.find((i) => i.path === path && i.host === host)
+        )
+          continue;
+        const {
+          runtime,
           client,
+          directory,
+          disabledRebuild,
           db,
-          dists,
-          rootClientPath,
-          acmeChallengeFullPath,
-          publicClientId,
-          iconsBuild: options.iconsBuild,
-          metadata,
-          publicCopyNonExistingFiles,
+          redirect,
+          apiBaseProxyPath,
+          apiBaseHost,
+          ttiLoadTimeLimit,
+          singleReplica,
+        } = confServer[host][path];
+        if (singleReplica) continue;
+        if (!confClient[client]) confClient[client] = {};
+        const { components, dists, views, services, metadata, publicCopyNonExistingFiles, docs, apiHosts } =
+          confClient[client];
+        let backgroundImage;
+        if (metadata) {
+          backgroundImage = metadata.backgroundImage;
+          if (metadata.thumbnail) metadata.thumbnail = `${path === '/' ? path : `${path}/`}${metadata.thumbnail}`;
+        }
+        const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
+        const nestedRoots = paths
+          .filter((other) => other !== path)
+          .map((other) =>
+            dir.relative(rootClientPath, confServer[host][other].directory || `${publicPath}/${host}${other}`),
+          )
+          .filter((relative) => relative && !relative.startsWith('..') && !dir.isAbsolute(relative));
+        hostLock = await acquireHostLock({
+          name: hostLockName('client', rootClientPath),
+          onWait: (holders) => logger.warn('Waiting for another build of this client', { rootClientPath, holders }),
         });
+        const publicClientId = publicClientIdFactory(client, confClient[client]);
+        const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
+        const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
+        const minifyBuild = process.env.NODE_ENV === 'production';
+        // Services another domain owns, endpoint → host: the client reads them at their owner. A
+        // development build reads them on the owner's local port, never at the public origin.
+        const endpointHosts = Object.fromEntries(
+          Object.entries(apiHosts ?? {}).map(([endpoint, owner]) => [
+            endpoint,
+            isDevelopment ? localHostAddress(confServer, owner) || owner : owner,
+          ]),
+        );
 
-      if (!ssrOnly && components)
-        for (const module of Object.keys(components)) {
-          if (!fs.existsSync(`${rootClientPath}/components/${module}`))
-            fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
+        const acmeChallengeFullPath = directory
+          ? `${directory}${acmeChallengePath}`
+          : `${publicPath}/${host}${acmeChallengePath}`;
 
-          for (const component of components[module]) {
-            const jsSrcPath = `./src/client/components/${module}/${component}.js`;
-            const jsPublicPath = `${rootClientPath}/components/${module}/${component}.js`;
+        if (!enableLiveRebuild && !ssrOnly && docsPlan.assets) buildAcmeChallengePath(acmeChallengeFullPath);
 
-            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+        if (redirect || disabledRebuild) continue;
 
-            const jsSrc = await transformClientJs(jsSrcPath, {
-              dists,
-              proxyPath: path,
-              basePath: 'components',
-              module,
-              baseHost,
-              minify: minifyBuild,
-            });
-            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
-          }
+        if (docsPlan.typedoc === 'watch') {
+          if (docs) watchCandidates.push({ host, path, metadata, docs });
+          continue;
+        }
+        if (!docsPlan.assets) {
+          if (docs)
+            recordTypedoc(
+              host,
+              path,
+              await buildDocs({
+                host,
+                path,
+                metadata,
+                packageData,
+                docs,
+                client,
+                references: true,
+                typedoc: docsPlan.typedoc === 'build' ? 'build' : 'skip',
+                buildId: buildRunId,
+              }),
+            );
+          continue;
         }
 
-      if (!ssrOnly && services) {
-        for (const module of services) {
-          if (!fs.existsSync(`${rootClientPath}/services/${module}`))
-            fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
-          const moduleDir = `./src/client/services/${module}`;
-          if (!fs.existsSync(moduleDir)) continue;
+        if (fullBuildEnabled && !ssrOnly)
+          await fullBuild({
+            path,
+            logger,
+            client,
+            db,
+            dists,
+            rootClientPath,
+            acmeChallengeFullPath,
+            publicClientId,
+            iconsBuild: options.iconsBuild,
+            metadata,
+            publicCopyNonExistingFiles,
+            nestedRoots,
+          });
 
-          const serviceFiles = fs
-            .readdirSync(moduleDir)
-            .filter((name) => name.endsWith('.service.js') || name.endsWith('.management.js'))
-            .sort();
+        if (!ssrOnly && components)
+          for (const module of Object.keys(components)) {
+            if (!fs.existsSync(`${rootClientPath}/components/${module}`))
+              fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
 
-          for (const serviceFile of serviceFiles) {
-            const jsSrcPath = `${moduleDir}/${serviceFile}`;
-            const jsPublicPath = `${rootClientPath}/services/${module}/${serviceFile}`;
+            for (const component of components[module]) {
+              const jsSrcPath = `./src/client/components/${module}/${component}.js`;
+              const jsPublicPath = `${rootClientPath}/components/${module}/${component}.js`;
 
-            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+              if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))
+                continue;
 
-            const jsSrc = await transformClientJs(jsSrcPath, {
-              dists,
-              proxyPath: path,
-              basePath: 'services',
-              module,
-              baseHost,
-              minify: minifyBuild,
-            });
-            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
+              const jsSrc = await transformClientJs(jsSrcPath, {
+                dists,
+                proxyPath: path,
+                basePath: 'components',
+                module,
+                baseHost,
+                minify: minifyBuild,
+              });
+              fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
+            }
           }
 
-          // Auto-build guest module files when user module is processed
-          if (module === 'user') {
-            const guestModuleDir = './src/client/services/user';
-            const guestServicePath = `${guestModuleDir}/guest.service.js`;
-            if (fs.existsSync(guestServicePath)) {
-              if (!fs.existsSync(`${rootClientPath}/services/user`))
-                fs.mkdirSync(`${rootClientPath}/services/user`, { recursive: true });
+        if (!ssrOnly && services) {
+          for (const module of services) {
+            if (!fs.existsSync(`${rootClientPath}/services/${module}`))
+              fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
+            const moduleDir = `./src/client/services/${module}`;
+            if (!fs.existsSync(moduleDir)) continue;
 
-              const guestJsPublicPath = `${rootClientPath}/services/user/guest.service.js`;
+            const serviceFiles = fs
+              .readdirSync(moduleDir)
+              .filter((name) => name.endsWith('.service.js') || name.endsWith('.management.js'))
+              .sort();
 
-              if (!enableLiveRebuild || options.liveClientBuildPaths.find((p) => p.srcBuildPath === guestServicePath)) {
-                const guestJsSrc = await transformClientJs(guestServicePath, {
-                  dists,
-                  proxyPath: path,
-                  basePath: 'services',
-                  module: 'user',
-                  baseHost,
-                  minify: minifyBuild,
-                });
-                fs.writeFileSync(guestJsPublicPath, guestJsSrc, 'utf8');
+            for (const serviceFile of serviceFiles) {
+              const jsSrcPath = `${moduleDir}/${serviceFile}`;
+              const jsPublicPath = `${rootClientPath}/services/${module}/${serviceFile}`;
+
+              if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))
+                continue;
+
+              const jsSrc = await transformClientJs(jsSrcPath, {
+                dists,
+                proxyPath: path,
+                basePath: 'services',
+                module,
+                baseHost,
+                minify: minifyBuild,
+              });
+              fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
+            }
+
+            // Auto-build guest module files when user module is processed
+            if (module === 'user') {
+              const guestModuleDir = './src/client/services/user';
+              const guestServicePath = `${guestModuleDir}/guest.service.js`;
+              if (fs.existsSync(guestServicePath)) {
+                if (!fs.existsSync(`${rootClientPath}/services/user`))
+                  fs.mkdirSync(`${rootClientPath}/services/user`, { recursive: true });
+
+                const guestJsPublicPath = `${rootClientPath}/services/user/guest.service.js`;
+
+                if (
+                  !enableLiveRebuild ||
+                  options.liveClientBuildPaths.find((p) => p.srcBuildPath === guestServicePath)
+                ) {
+                  const guestJsSrc = await transformClientJs(guestServicePath, {
+                    dists,
+                    proxyPath: path,
+                    basePath: 'services',
+                    module: 'user',
+                    baseHost,
+                    minify: minifyBuild,
+                  });
+                  fs.writeFileSync(guestJsPublicPath, guestJsSrc, 'utf8');
+                }
               }
             }
           }
         }
-      }
 
-      const buildId = `${client}.index`;
-      const siteMapLinks = [];
-      const ssrPath = path === '/' ? path : `${path}/`;
-      // The SSR views of the client: its status pages, and the offline and maintenance fallbacks.
-      const ssrClientConf = (client && confSSR[getCapVariableName(client)]) || {};
-      const ssrViews = Array.isArray(ssrClientConf.views) ? ssrClientConf.views : [];
-      // Every document of this instance, its manifest file and its service worker carry this one manifest.
-      let buildManifest;
-      let manifestHead;
-      if (client) {
-        buildManifest = buildManifestFactory({
-          application: client,
-          development: isDevelopment,
-          basePath: path,
-          apiBaseProxyPath,
-          apiBaseHost,
-          apiHosts: endpointHosts,
-          instanceOrigins,
-          // The name page titles end with (`<view> | <site>`), the same one the server ends an
-          // entry's rendered title with.
-          siteName: metadata?.siteName || metadata?.title,
-          documentation: {
-            // The deploy's package repository, `engine-ghpkg-<conf-id>`, cuts its releases.
-            repository: repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory(deployId) }),
-            // The reports the docs menu offers, each published at /docs/coverage/<id>.
-            coverage: coverageReportsFactory(docs),
-          },
-          ...(views ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
-        });
-        manifestHead = buildManifestHead({ manifest: buildManifest });
-        writeBuildManifest(rootClientPath, buildManifest);
-      }
-      const Render = await ssrFactory();
+        const buildId = `${client}.index`;
+        const siteMapLinks = [];
+        const ssrPath = path === '/' ? path : `${path}/`;
+        // The SSR views of the client: its status pages, and the offline and maintenance fallbacks.
+        const ssrClientConf = (client && confSSR[getCapVariableName(client)]) || {};
+        const ssrViews = Array.isArray(ssrClientConf.views) ? ssrClientConf.views : [];
+        // Every document of this instance, its manifest file and its service worker carry this one manifest.
+        let buildManifest;
+        let manifestHead;
+        if (client) {
+          buildManifest = buildManifestFactory({
+            application: client,
+            development: isDevelopment,
+            basePath: path,
+            apiBaseProxyPath,
+            apiBaseHost,
+            apiHosts: endpointHosts,
+            instanceOrigins,
+            // The name page titles end with (`<view> | <site>`), the same one the server ends an
+            // entry's rendered title with.
+            siteName: metadata?.siteName || metadata?.title,
+            documentation: {
+              // The deploy's package repository, `engine-ghpkg-<conf-id>`, cuts its releases.
+              repository: repositoryIdentityFactory({ deployPackage: Underpost.repo.ghpkgRepoFactory(deployId) }),
+              // The reports the docs menu offers, each published at /docs/coverage/<id>.
+              coverage: coverageReportsFactory(docs),
+            },
+            ...(views ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
+          });
+          manifestHead = buildManifestHead({ manifest: buildManifest });
+          writeBuildManifest(rootClientPath, buildManifest);
+        }
+        const Render = await ssrFactory();
 
-      const swSrcPath = `./src/client/sw/core.sw.js`;
-      const swPublicPath = `${rootClientPath}/sw.js`;
-      const swShouldRebuild =
-        !ssrOnly &&
-        views &&
-        !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
-      // Transformed SW JS is held in memory; it gets prepended with the manifest prelude
-      // and written once below, after the SSR views are built.
-      let swTransformedJs = '';
-      if (swShouldRebuild) {
-        swTransformedJs = await transformClientJs(swSrcPath, {
-          dists,
-          proxyPath: path,
-          baseHost,
-          minify: minifyBuild,
-          externalizeBareImports: false,
-        });
-      }
+        const swSrcPath = `./src/client/sw/core.sw.js`;
+        const swPublicPath = `${rootClientPath}/sw.js`;
+        const swShouldRebuild =
+          !ssrOnly &&
+          views &&
+          !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
+        // Transformed SW JS is held in memory; it gets prepended with the manifest prelude
+        // and written once below, after the SSR views are built.
+        let swTransformedJs = '';
+        if (swShouldRebuild) {
+          swTransformedJs = await transformClientJs(swSrcPath, {
+            dists,
+            proxyPath: path,
+            baseHost,
+            minify: minifyBuild,
+            externalizeBareImports: false,
+          });
+        }
 
-      if (!ssrOnly && views) {
-        if (
-          !(
-            enableLiveRebuild &&
-            !options.liveClientBuildPaths.find(
-              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+        if (!ssrOnly && views) {
+          if (
+            !(
+              enableLiveRebuild &&
+              !options.liveClientBuildPaths.find(
+                (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+              )
             )
           )
-        )
-          for (const view of views) {
-            const buildPath = `${
-              rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-            }${view.path === '/' ? view.path : `${view.path}/`}`;
+            for (const view of views) {
+              const buildPath = `${
+                rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+              }${view.path === '/' ? view.path : `${view.path}/`}`;
 
-            if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+              if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
-            logger.info('View build', buildPath);
+              logger.info('View build', buildPath);
 
-            const jsSrc = await transformClientJs(`./src/client/${view.client}.index.js`, {
-              dists,
-              proxyPath: path,
-              baseHost,
-              minify: minifyBuild,
-            });
+              const jsSrc = await transformClientJs(`./src/client/${view.client}.index.js`, {
+                dists,
+                proxyPath: path,
+                baseHost,
+                minify: minifyBuild,
+              });
 
-            fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
-            const title = metadata.title ? metadata.title : title;
+              fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
+              const title = metadata.title ? metadata.title : title;
 
-            const canonicalURL = `https://${host}${path}${
-              view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
-            }`;
+              const canonicalURL = `https://${host}${path}${
+                view.path === '/'
+                  ? path === '/'
+                    ? ''
+                    : '/'
+                  : path === '/'
+                    ? `${view.path.slice(1)}/`
+                    : `${view.path}/`
+              }`;
 
-            let ssrHeadComponents = ``;
-            let ssrBodyComponents = ``;
-            if ('ssr' in view) {
-              for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                const SSRComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
+              let ssrHeadComponents = ``;
+              let ssrBodyComponents = ``;
+              if ('ssr' in view) {
+                for (const ssrHeadComponent of confSSR[view.ssr].head) {
+                  const SSRComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
 
-                switch (ssrHeadComponent) {
-                  case 'Pwa':
-                    const validPwaBuild =
-                      metadata &&
-                      fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
-                      fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
+                  switch (ssrHeadComponent) {
+                    case 'Pwa':
+                      const validPwaBuild =
+                        metadata &&
+                        fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
+                        fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
 
-                    if (validPwaBuild) {
-                      // build webmanifest
-                      const webmanifestJson = JSON.parse(
-                        fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),
-                      );
-                      if (metadata.title) {
-                        webmanifestJson.name = metadata.title;
-                        webmanifestJson.short_name = metadata.title;
+                      if (validPwaBuild) {
+                        // build webmanifest
+                        const webmanifestJson = JSON.parse(
+                          fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),
+                        );
+                        if (metadata.title) {
+                          webmanifestJson.name = metadata.title;
+                          webmanifestJson.short_name = metadata.title;
+                        }
+                        if (metadata.description) {
+                          webmanifestJson.description = metadata.description;
+                        }
+                        if (metadata.themeColor) {
+                          webmanifestJson.theme_color = metadata.themeColor;
+                          webmanifestJson.background_color = metadata.themeColor;
+                        }
+                        fs.writeFileSync(
+                          `${buildPath}site.webmanifest`,
+                          JSON.stringify(webmanifestJson, null, 4).replaceAll(`: "/`, `: "${ssrPath}`),
+                          'utf8',
+                        );
+                        // build browserconfig
+                        fs.writeFileSync(
+                          `${buildPath}browserconfig.xml`,
+                          fs
+                            .readFileSync(`./src/client/public/${publicClientId}/browserconfig.xml`, 'utf8')
+                            .replaceAll(
+                              `<TileColor></TileColor>`,
+                              metadata.themeColor
+                                ? `<TileColor>${metadata.themeColor}</TileColor>`
+                                : `<TileColor>#e0e0e0</TileColor>`,
+                            )
+                            .replaceAll(`src="/`, `src="${ssrPath}`),
+                          'utf8',
+                        );
+
+                        // Android play store example:
+                        //
+                        // "related_applications": [
+                        //   {
+                        //     "platform": "play",
+                        //     "url": "https://play.google.com/store/apps/details?id=cheeaun.hackerweb"
+                        //   }
+                        // ],
+                        // "prefer_related_applications": true
                       }
-                      if (metadata.description) {
-                        webmanifestJson.description = metadata.description;
+                      if (validPwaBuild)
+                        ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
+                      break;
+                    case 'Seo':
+                      if (metadata) {
+                        ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
                       }
-                      if (metadata.themeColor) {
-                        webmanifestJson.theme_color = metadata.themeColor;
-                        webmanifestJson.background_color = metadata.themeColor;
+                      break;
+                    case 'Microdata':
+                      if (
+                        fs.existsSync(`./src/client/public/${publicClientId}/microdata.json`) // &&
+                        // path === '/' &&
+                        // view.path === '/'
+                      ) {
+                        const microdata = JSON.parse(
+                          fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
+                        );
+                        ssrHeadComponents += SSRComponent({ microdata });
                       }
-                      fs.writeFileSync(
-                        `${buildPath}site.webmanifest`,
-                        JSON.stringify(webmanifestJson, null, 4).replaceAll(`: "/`, `: "${ssrPath}`),
-                        'utf8',
-                      );
-                      // build browserconfig
-                      fs.writeFileSync(
-                        `${buildPath}browserconfig.xml`,
-                        fs
-                          .readFileSync(`./src/client/public/${publicClientId}/browserconfig.xml`, 'utf8')
-                          .replaceAll(
-                            `<TileColor></TileColor>`,
-                            metadata.themeColor
-                              ? `<TileColor>${metadata.themeColor}</TileColor>`
-                              : `<TileColor>#e0e0e0</TileColor>`,
-                          )
-                          .replaceAll(`src="/`, `src="${ssrPath}`),
-                        'utf8',
-                      );
+                      break;
+                    default:
+                      ssrHeadComponents += SSRComponent({ ssrPath, host, path });
+                      break;
+                  }
+                }
 
-                      // Android play store example:
-                      //
-                      // "related_applications": [
-                      //   {
-                      //     "platform": "play",
-                      //     "url": "https://play.google.com/store/apps/details?id=cheeaun.hackerweb"
-                      //   }
-                      // ],
-                      // "prefer_related_applications": true
-                    }
-                    if (validPwaBuild) ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
-                    break;
-                  case 'Seo':
-                    if (metadata) {
-                      ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
-                    }
-                    break;
-                  case 'Microdata':
-                    if (
-                      fs.existsSync(`./src/client/public/${publicClientId}/microdata.json`) // &&
-                      // path === '/' &&
-                      // view.path === '/'
-                    ) {
-                      const microdata = JSON.parse(
-                        fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
-                      );
-                      ssrHeadComponents += SSRComponent({ microdata });
-                    }
-                    break;
-                  default:
-                    ssrHeadComponents += SSRComponent({ ssrPath, host, path });
-                    break;
+                for (const ssrBodyComponent of confSSR[view.ssr].body) {
+                  const SSRComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
+                  ssrBodyComponents += SSRComponent({
+                    ...metadata,
+                    ssrPath,
+                    host,
+                    path,
+                    ttiLoadTimeLimit,
+                    version: Underpost.version,
+                    backgroundImage: backgroundImage ? (path === '/' ? path : `${path}/`) + backgroundImage : undefined,
+                  });
                 }
               }
 
-              for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                const SSRComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
-                ssrBodyComponents += SSRComponent({
-                  ...metadata,
-                  ssrPath,
-                  host,
-                  path,
-                  ttiLoadTimeLimit,
-                  version: Underpost.version,
-                  backgroundImage: backgroundImage ? (path === '/' ? path : `${path}/`) + backgroundImage : undefined,
-                });
-              }
-            }
+              /** @type {import('sitemap').SitemapItem} */
+              const siteMapLink = {
+                url: `${path === '/' ? '' : path}${view.path}`,
+                changefreq: 'daily',
+                priority: 0.8,
+              };
+              siteMapLinks.push(siteMapLink);
 
-            /** @type {import('sitemap').SitemapItem} */
-            const siteMapLink = {
-              url: `${path === '/' ? '' : path}${view.path}`,
-              changefreq: 'daily',
-              priority: 0.8,
-            };
-            siteMapLinks.push(siteMapLink);
+              const htmlSrc = Render({
+                title,
+                buildId,
+                ssrPath,
+                ssrHeadComponents,
+                ssrBodyComponents,
+                buildManifestHead: manifestHead,
+              });
+
+              fs.writeFileSync(
+                `${buildPath}index.html`,
+                minifyBuild
+                  ? await minify(htmlSrc, {
+                      minifyCSS: true,
+                      minifyJS: true,
+                      collapseBooleanAttributes: true,
+                      collapseInlineTagWhitespace: true,
+                      collapseWhitespace: true,
+                    })
+                  : htmlSrc,
+                'utf8',
+              );
+            }
+        }
+        if (!ssrOnly && !enableLiveRebuild && siteMapLinks.length > 0) {
+          const hasSitemapTemplate = fs.existsSync(`${rootClientPath}/sitemap`);
+          const sitemapBaseUrl = `https://${host}${path === '/' ? '' : path}`;
+          // Create a stream to write to — omit xslUrl so we can inject a relative href below
+          /** @type {import('sitemap').SitemapStreamOptions} */
+          const sitemapOptions = { hostname: `https://${host}` };
+
+          const siteMapStream = new SitemapStream(sitemapOptions);
+          let siteMapSrc = await new Promise((resolve) =>
+            streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
+          );
+
+          // Inject a relative xml-stylesheet PI so the XSL loads from the same origin
+          // (works on both http://localhost:<port> and https://production-host)
+          siteMapSrc = siteMapSrc.replace(
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="sitemap.xsl"?>',
+          );
+
+          // Return a promise that resolves with your XML string
+          fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
+
+          // Generate XSL stylesheet from source template or default fallback
+          const xslTemplate = hasSitemapTemplate
+            ? fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8')
+            : defaultSitemapXsl;
+          const webUrl = `https://${host}${path === '/' ? '/' : `${path}/`}`;
+          fs.writeFileSync(`${rootClientPath}/sitemap.xsl`, xslTemplate.replaceAll('{{web-url}}', webUrl), 'utf8');
+
+          fs.writeFileSync(
+            `${rootClientPath}/robots.txt`,
+            `User-agent: *
+Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
+            'utf8',
+          );
+        }
+
+        if (docs && !ssrOnly && (fullBuildEnabled || docsPlan.typedoc === 'build'))
+          recordTypedoc(
+            host,
+            path,
+            await buildDocs({
+              host,
+              path,
+              metadata,
+              packageData,
+              docs,
+              client,
+              references: fullBuildEnabled,
+              typedoc: docsPlan.typedoc === 'build' ? 'build' : 'skip',
+              buildId: buildRunId,
+            }),
+          );
+
+        if (client) {
+          const proxyPrefix = path === '/' ? '' : path;
+          const statusPageRoutes = statusPageRoutesFactory({ views: ssrViews, proxyPath: path });
+          if (statusPageRoutes.length > 0) logger.info('ssr status page routes', statusPageRoutes);
+          for (const view of ssrViews) {
+            const SsrComponent = await ssrFactory(`./src/client/ssr/views/${view.client}.js`);
 
             const htmlSrc = Render({
-              title,
-              buildId,
+              title: view.title,
               ssrPath,
-              ssrHeadComponents,
-              ssrBodyComponents,
+              ssrHeadComponents: '<base target="_top">',
+              ssrBodyComponents: SsrComponent(),
               buildManifestHead: manifestHead,
             });
 
+            // A status view is built under `status-pages/<status>/`, not on its own
+            // `/<status>` route: the gateway serves it by intercepting the
+            // runtime's error, and a document on that route would give the runtime
+            // a page of its own to serve or redirect to for the same condition.
+            const statusCode = statusPageRoutes.find(
+              (route) => route.routePath === `${proxyPrefix}${view.path}`,
+            )?.status;
+            const clientRoot =
+              rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath;
+            const buildPath = statusCode
+              ? `${clientRoot}/${dir.dirname(statusPageBuildSegment(statusCode))}/`
+              : `${clientRoot}${view.path === '/' ? view.path : `${view.path}/`}`;
+
+            if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+            const buildHtmlPath = `${buildPath}index.html`;
+            logger.info('ssr view build', buildHtmlPath);
+
             fs.writeFileSync(
-              `${buildPath}index.html`,
+              buildHtmlPath,
               minifyBuild
                 ? await minify(htmlSrc, {
                     minifyCSS: true,
@@ -1045,156 +1243,110 @@ const buildClient = async (
               'utf8',
             );
           }
-      }
-      if (!ssrOnly && !enableLiveRebuild && siteMapLinks.length > 0) {
-        const hasSitemapTemplate = fs.existsSync(`${rootClientPath}/sitemap`);
-        const sitemapBaseUrl = `https://${host}${path === '/' ? '' : path}`;
-        // Create a stream to write to — omit xslUrl so we can inject a relative href below
-        /** @type {import('sitemap').SitemapStreamOptions} */
-        const sitemapOptions = { hostname: `https://${host}` };
 
-        const siteMapStream = new SitemapStream(sitemapOptions);
-        let siteMapSrc = await new Promise((resolve) =>
-          streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
-        );
-
-        // Inject a relative xml-stylesheet PI so the XSL loads from the same origin
-        // (works on both http://localhost:<port> and https://production-host)
-        siteMapSrc = siteMapSrc.replace(
-          '<?xml version="1.0" encoding="UTF-8"?>',
-          '<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="sitemap.xsl"?>',
-        );
-
-        // Return a promise that resolves with your XML string
-        fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
-
-        // Generate XSL stylesheet from source template or default fallback
-        const xslTemplate = hasSitemapTemplate
-          ? fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8')
-          : defaultSitemapXsl;
-        const webUrl = `https://${host}${path === '/' ? '/' : `${path}/`}`;
-        fs.writeFileSync(`${rootClientPath}/sitemap.xsl`, xslTemplate.replaceAll('{{web-url}}', webUrl), 'utf8');
-
-        fs.writeFileSync(
-          `${rootClientPath}/robots.txt`,
-          `User-agent: *
-Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
-          'utf8',
-        );
-      }
-
-      if (!ssrOnly && fullBuildEnabled && docs) {
-        await buildDocs({
-          host,
-          path,
-          port,
-          apiBaseHost,
-          apiBaseProxyPath,
-          metadata,
-          apis,
-          consumes,
-          apiExtensions,
-          packageData,
-          docs,
-          client,
-        });
-      }
-
-      if (client) {
-        const proxyPrefix = path === '/' ? '' : path;
-        const statusPageRoutes = statusPageRoutesFactory({ views: ssrViews, proxyPath: path });
-        if (statusPageRoutes.length > 0) logger.info('ssr status page routes', statusPageRoutes);
-        for (const view of ssrViews) {
-          const SsrComponent = await ssrFactory(`./src/client/ssr/views/${view.client}.js`);
-
-          const htmlSrc = Render({
-            title: view.title,
-            ssrPath,
-            ssrHeadComponents: '<base target="_top">',
-            ssrBodyComponents: SsrComponent(),
-            buildManifestHead: manifestHead,
-          });
-
-          // A status view is built under `status-pages/<status>/`, not on its own
-          // `/<status>` route: the gateway serves it by intercepting the
-          // runtime's error, and a document on that route would give the runtime
-          // a page of its own to serve or redirect to for the same condition.
-          const statusCode = statusPageRoutes.find((route) => route.routePath === `${proxyPrefix}${view.path}`)?.status;
-          const clientRoot =
-            rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath;
-          const buildPath = statusCode
-            ? `${clientRoot}/${dir.dirname(statusPageBuildSegment(statusCode))}/`
-            : `${clientRoot}${view.path === '/' ? view.path : `${view.path}/`}`;
-
-          if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
-          const buildHtmlPath = `${buildPath}index.html`;
-          logger.info('ssr view build', buildHtmlPath);
-
-          fs.writeFileSync(
-            buildHtmlPath,
-            minifyBuild
-              ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
-              : htmlSrc,
-            'utf8',
-          );
-        }
-
-        if (swShouldRebuild)
-          fs.writeFileSync(
-            swPublicPath,
-            `${buildManifestPrelude(buildManifest)}
+          if (swShouldRebuild)
+            fs.writeFileSync(
+              swPublicPath,
+              `${buildManifestPrelude(buildManifest)}
 self.__WB_DISABLE_DEV_LOGS = true;
 ${swTransformedJs}`,
-            'utf8',
-          );
-      }
-      if (!ssrOnly && !enableLiveRebuild && options.buildZip) {
-        logger.warn('build zip', rootClientPath);
-
-        if (!fs.existsSync('./build')) fs.mkdirSync('./build');
-
-        const files = await fs.readdir(rootClientPath, { recursive: true });
-        const zipEntries = [];
-
-        for (const relativePath of files) {
-          const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
-          if (!fs.lstatSync(filePath).isDirectory()) {
-            const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
-            zipEntries.push({
-              localPath: filePath,
-              entryName: folder ? `${folder}/${dir.basename(filePath)}` : dir.basename(filePath),
-            });
-          }
+              'utf8',
+            );
         }
+        if (!ssrOnly && !enableLiveRebuild && options.buildZip) {
+          logger.warn('build zip', rootClientPath);
 
-        const zipPath = `./build/${clientBundleIdFactory(host, path)}.zip`;
+          if (!fs.existsSync('./build')) fs.mkdirSync('./build');
 
-        logger.warn('write zip', zipPath);
+          const files = await fs.readdir(rootClientPath, { recursive: true });
+          const zipEntries = [];
 
-        fs.writeFileSync(zipPath, await zipFromLocalFiles(zipEntries));
+          for (const relativePath of files) {
+            // The TypeDoc preview is a development artifact.
+            if (relativePath.startsWith(`${TYPEDOC_DIRECTORY}/${TYPEDOC_PREVIEW}`)) continue;
+            const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
+            if (!fs.lstatSync(filePath).isDirectory()) {
+              const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
+              zipEntries.push({
+                localPath: filePath,
+                entryName: folder ? `${folder}/${dir.basename(filePath)}` : dir.basename(filePath),
+              });
+            }
+          }
 
-        if (options.split) {
-          splitFileByMb({
-            filePath: zipPath,
-            partSizeMb: options.split,
-            logger,
-          });
-          fs.removeSync(zipPath);
-          logger.warn('removed original zip after split', { zipPath });
+          const zipPath = `./build/${clientBundleIdFactory(host, path)}.zip`;
+
+          logger.warn('write zip', zipPath);
+
+          fs.writeFileSync(zipPath, await zipFromLocalFiles(zipEntries));
+
+          if (options.split) {
+            splitFileByMb({
+              filePath: zipPath,
+              partSizeMb: options.split,
+              logger,
+            });
+            fs.removeSync(zipPath);
+            logger.warn('removed original zip after split', { zipPath });
+          }
         }
       }
     }
+    hostLock?.release();
+    hostLock = null;
+    if (docsPlan.typedoc === 'watch') {
+      if (watchCandidates.length !== 1)
+        throw new Error(
+          `--docs watch previews one client: select one with the host and path arguments, out of ${watchCandidates.map(({ host, path }) => `${host}${path}`).join(', ') || 'none with docs'}`,
+        );
+      const [{ host, path, metadata, docs }] = watchCandidates;
+      logger.warn('TypeDoc preview', {
+        url: `${path === '/' ? '' : path}/${TYPEDOC_DIRECTORY}/${TYPEDOC_PREVIEW}/`,
+        host,
+      });
+      recordTypedoc(
+        host,
+        path,
+        await runTypedoc({
+          host,
+          path,
+          metadata,
+          docs,
+          version: packageData.version.replace(/^v/, ''),
+          mode: 'watch',
+          buildId: buildRunId,
+        }),
+      );
+    }
+  } finally {
+    hostLock?.release();
   }
+  const unpublished = typedocResults.filter(({ status }) => UNPUBLISHED_TYPEDOC.includes(status));
+  for (const { host, path, status, reason, metrics } of typedocResults)
+    logger[unpublished.some((result) => result.host === host && result.path === path) ? 'error' : 'info']('TypeDoc', {
+      host,
+      path,
+      status,
+      ...(reason ? { reason } : {}),
+      ...(metrics ? { metrics } : {}),
+    });
+  // The build process alone: each TypeDoc reports its own processes above.
+  const durationMs = Math.round(performance.now() - buildStarted);
+  const cpu = process.cpuUsage(cpuStarted);
+  const cpuMs = Math.round((cpu.user + cpu.system) / 1000);
+  logger.info('Client build', {
+    buildId: buildRunId,
+    durationMs,
+    cpuMs,
+    averageCores: durationMs ? Number((cpuMs / durationMs).toFixed(2)) : null,
+    peakRssBytes: process.resourceUsage().maxRSS * 1024,
+  });
 };
 
 export {
   buildClient,
+  clearDirectory,
+  clientBuildIdFactory,
   clientBundleIdFactory,
   copyNonExistingFiles,
   getZipPartPaths,

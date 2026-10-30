@@ -130,6 +130,18 @@ describe('container release', () => {
     expect(commands.find((command) => command.includes(' ctr '))).toContain('images import --digests');
   });
 
+  it('resolves a tag to the digest the registry holds now', () => {
+    const { commands } = release({ runtime: 'crio', digests: ['docker.io/underpost/engine-cyberia@sha256:fed'] });
+    expect(UnderpostImage.API.digest({ reference: 'underpost/engine-cyberia:v3.5.0' })).toBe(
+      'docker.io/underpost/engine-cyberia@sha256:fed',
+    );
+    expect(commands.find((command) => command.includes(' pull '))).toContain(`'underpost/engine-cyberia:v3.5.0'`);
+    expect(UnderpostImage.API.digest({ reference: 'underpost/engine-cyberia@sha256:fed' })).toBe(
+      'docker.io/underpost/engine-cyberia@sha256:fed',
+    );
+    expect(() => UnderpostImage.API.digest({ reference: '' })).toThrow(/needs an image reference/);
+  });
+
   it('refuses a moving reference, and an image the runtime holds no digest for', () => {
     expect(() => release({ runtime: 'crio', digests: [] }).run()).toThrow(/reports no digest/);
     expect(() => UnderpostImage.API.release({ imageName: 'underpost/cyberia-server', revision: 'main' })).toThrow(

@@ -138,7 +138,7 @@ describe('test selection', () => {
 describe('product contexts', () => {
   // A product owns the directories its catalog strips from the base template.
   const context = (active) => [
-    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: active ? [] : ['jimp'], active },
+    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: active ? [] : ['sharp'], active },
   ];
   const owned = TEST_PROJECTS.filter(
     ({ directory }) => directory.startsWith('test/cyberia') || directory === 'hardhat',

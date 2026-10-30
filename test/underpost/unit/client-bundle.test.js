@@ -2,87 +2,97 @@
 
 /**
  * @module client-bundle.test
- * @description Covers the client bundle transport: the route set push and pull agree on, the
- * uniform host filter and split option both runners parse, and the pull path that merges split
- * parts, extracts them in-process, and installs the result under the served public directory.
- *
- * The shell boundary is mocked so the deterministic parts — route selection, artifact
- * resolution, and the local zip round trip — run for real.
+ * @description Covers the deterministic parts of the client bundle transport: the runner input, the
+ * reference that pins a bundle, the route set the build and a restore agree on, and the check of a
+ * route tree before it is published or served.
  *
  * Uses 'chai' for assertions.
  */
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
-import { vi } from 'vitest';
-
-const shellCommands = [];
-vi.mock('../../../src/server/runtime/process.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  shellExec: (command) => {
-    shellCommands.push(command);
-    return '';
-  },
-}));
 
 const {
   CLIENT_BUNDLE_DIRECTORY,
-  clientBundleTrackedKeys,
-  clientBundleManifestKey,
   clientBundleArtifactPaths,
   clientBundleEntriesFactory,
   clientBundleHostFilter,
-  clientBundleSplitFlag,
-  clientBundleStorageFilePath,
-  pullClientBundle,
-  pushClientBundle,
+  clientBundleReferenceOf,
+  clientBundleSplitMb,
+  clientBundleTreeProblems,
 } = await import('../../../src/client-builder/client-bundle.js');
-const { zipFromLocalFiles } = await import('../../../src/server/storage/zip.js');
-const { program } = await import('../../../src/cli/index.js');
+const { BUILD_MANIFEST_FILE } = await import('../../../src/client/components/core/BuildManifest.js');
 
 const CONF_SERVER = {
   'a.com': {
-    '/': { client: 'A' },
     '/peer': { client: 'P' },
+    '/': { client: 'A' },
     '/old': { redirect: '/' },
-    '/frozen': { disabledRebuild: true },
+    '/frozen': { client: 'A', disabledRebuild: true },
     '/multi': { client: 'M', replicas: ['/multi-1', '/multi-2'] },
     '/single': { client: 'S', singleReplica: true, replicas: ['/single-1'] },
   },
   'b.com': { '/': { client: 'B' } },
 };
+const CONF_CLIENT = { A: { docs: { references: [] } }, B: {}, P: {}, M: {}, S: {} };
+const REFERENCE = `v3-5-0-abc1234/client-20261030151234567-4242@sha256:${'a'.repeat(64)}`;
+
+/** Writes the client tree of one route, documented for `version` when one is given. */
+const writeTree = (tree, { version, publishedAt = new Date().toISOString(), others = [] } = {}) => {
+  fs.outputFileSync(`${tree}/index.html`, '<!doctype html><title>a</title>');
+  fs.outputFileSync(`${tree}/${BUILD_MANIFEST_FILE}`, '{}');
+  if (!version) return;
+  const site = `${tree}/docs/engine/${version}`;
+  fs.outputFileSync(`${site}/index.html`, '<html><head><title>API</title><link href="assets/style.css"></head></html>');
+  for (const asset of ['style.css', 'main.js', 'search.js']) fs.outputFileSync(`${site}/assets/${asset}`, asset);
+  for (const other of others) fs.outputFileSync(`${tree}/docs/engine/${other}/index.html`, 'old');
+  fs.outputJsonSync(`${tree}/docs/engine/.typedoc-run.json`, { published: { version, at: publishedAt } });
+};
 
 describe('client bundle runner input', () => {
-  it('parses the comma-separated host filter both runners share', () => {
+  it('parses the comma-separated host filter', () => {
     expect(clientBundleHostFilter(' a.com , b.com ,, ')).to.deep.equal(['a.com', 'b.com']);
     expect(clientBundleHostFilter('')).to.deep.equal([]);
     expect(clientBundleHostFilter(undefined)).to.deep.equal([]);
   });
 
   it('resolves the split option, defaulting an unusable value rather than failing the build', () => {
-    expect(clientBundleSplitFlag(undefined)).to.equal('--split 8');
-    expect(clientBundleSplitFlag('16')).to.equal('--split 16');
-    expect(clientBundleSplitFlag('none')).to.equal('');
-    expect(clientBundleSplitFlag('0')).to.equal('--split 8');
-    expect(clientBundleSplitFlag('abc')).to.equal('--split 8');
+    expect(clientBundleSplitMb(undefined)).to.equal(8);
+    expect(clientBundleSplitMb('16')).to.equal(16);
+    expect(clientBundleSplitMb('none')).to.equal(null);
+    expect(clientBundleSplitMb('0')).to.equal(8);
+    expect(clientBundleSplitMb('abc')).to.equal(8);
   });
 
-  it('names one storage manifest per deployment', () => {
-    expect(clientBundleStorageFilePath('dd-test')).to.equal('engine-private/conf/dd-test/storage.bundle.json');
+  it('parses a reference that pins one bundle, and refuses one that does not', () => {
+    expect(clientBundleReferenceOf(REFERENCE)).to.deep.equal({
+      releaseId: 'v3-5-0-abc1234',
+      buildId: 'client-20261030151234567-4242',
+      digest: 'a'.repeat(64),
+    });
+    for (const reference of [
+      '',
+      'v3-5-0-abc1234/client-20261030151234567-4242',
+      `v3-5-0-abc1234/latest@sha256:${'a'.repeat(64)}`,
+      `V3.5.0/client-20261030151234567-4242@sha256:${'a'.repeat(64)}`,
+      `a/b/client-20261030151234567-4242@sha256:${'a'.repeat(64)}`,
+      'v3-5-0-abc1234/client-20261030151234567-4242@sha256:abc',
+    ])
+      expect(() => clientBundleReferenceOf(reference), reference).to.throw(/client bundle reference|release id/);
   });
 });
 
-describe('client bundle route selection', () => {
+describe('client bundle routes and trees', () => {
   let fixturePath;
   let previousCwd;
 
   beforeEach(() => {
     previousCwd = process.cwd();
     fixturePath = fs.mkdtempSync('/tmp/engine-client-bundle-');
+    fs.copySync(`${previousCwd}/typedoc.json`, `${fixturePath}/typedoc.json`);
     process.chdir(fixturePath);
-    fs.mkdirSync('engine-private/conf/dd-test', { recursive: true });
-    fs.writeFileSync('engine-private/conf/dd-test/conf.server.json', JSON.stringify(CONF_SERVER), 'utf8');
-    shellCommands.length = 0;
+    fs.outputJsonSync('engine-private/conf/dd-test/conf.server.json', CONF_SERVER);
+    fs.outputJsonSync('engine-private/conf/dd-test/conf.client.json', CONF_CLIENT);
   });
 
   afterEach(() => {
@@ -90,10 +100,9 @@ describe('client bundle route selection', () => {
     fs.removeSync(fixturePath);
   });
 
-  const buildIds = (options) => clientBundleEntriesFactory(options).map((entry) => entry.buildId);
-
-  it('selects every route the client build emits a bundle for, replicas included', () => {
-    expect(buildIds({ deployId: 'dd-test' })).to.deep.equal([
+  it('selects every route the client build emits a bundle for, parents before nested routes', () => {
+    const entries = clientBundleEntriesFactory({ deployId: 'dd-test' });
+    expect(entries.map((entry) => entry.bundleId)).to.deep.equal([
       'a.com-',
       'a.com-peer',
       'a.com-multi',
@@ -101,213 +110,81 @@ describe('client bundle route selection', () => {
       'a.com-multi-2',
       'b.com-',
     ]);
+    const byId = Object.fromEntries(entries.map((entry) => [entry.bundleId, entry]));
+    expect(byId['a.com-'].publicPath).to.equal('public/a.com');
+    expect(byId['a.com-peer'].publicPath).to.equal('public/a.com/peer');
+    expect(byId['a.com-'].zipPath).to.equal(`${CLIENT_BUNDLE_DIRECTORY}/a.com-.zip`);
   });
 
-  it('skips the routes the client build skips', () => {
-    const selected = buildIds({ deployId: 'dd-test' });
-    expect(selected).to.not.include('a.com-old');
-    expect(selected).to.not.include('a.com-frozen');
-    expect(selected).to.not.include('a.com-single');
-    expect(selected).to.not.include('a.com-single-1');
-  });
-
-  it('maps a route to its served public directory', () => {
-    const entries = clientBundleEntriesFactory({ deployId: 'dd-test', hosts: ['a.com'] });
-    const byId = Object.fromEntries(entries.map((entry) => [entry.buildId, entry.publicPath]));
-    expect(byId['a.com-']).to.equal('public/a.com');
-    expect(byId['a.com-peer']).to.equal('public/a.com/peer');
+  it('documents a route whose client declares docs while TypeDoc has a config', () => {
+    const documented = (deployId = 'dd-test') =>
+      clientBundleEntriesFactory({ deployId })
+        .filter((entry) => entry.documented)
+        .map((entry) => entry.bundleId);
+    expect(documented()).to.deep.equal(['a.com-']);
+    fs.removeSync('typedoc.json');
+    expect(documented()).to.deep.equal([]);
   });
 
   it('applies the host filter, and resolves nothing for an unknown host or deployment', () => {
-    expect(buildIds({ deployId: 'dd-test', hosts: ['b.com'] })).to.deep.equal(['b.com-']);
-    expect(buildIds({ deployId: 'dd-test', hosts: ['absent.com'] })).to.deep.equal([]);
-    expect(buildIds({ deployId: 'dd-absent' })).to.deep.equal([]);
+    const ids = (options) => clientBundleEntriesFactory(options).map((entry) => entry.bundleId);
+    expect(ids({ deployId: 'dd-test', hosts: ['b.com'] })).to.deep.equal(['b.com-']);
+    expect(ids({ deployId: 'dd-test', hosts: ['absent.com'] })).to.deep.equal([]);
+    expect(ids({ deployId: 'dd-absent' })).to.deep.equal([]);
   });
 
   it('resolves split parts ahead of a single zip, and nothing when neither is present', () => {
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-    for (const part of ['001', '002']) fs.writeFileSync(`${CLIENT_BUNDLE_DIRECTORY}/a.com-.zip.part${part}`, 'x');
-    fs.writeFileSync(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`, 'y');
+    for (const part of ['002', '001']) fs.outputFileSync(`${CLIENT_BUNDLE_DIRECTORY}/a.com-.zip.part${part}`, 'x');
+    fs.outputFileSync(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`, 'y');
 
-    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/a.com-.zip`).artifactPaths).to.have.lengthOf(2);
-    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`).artifactPaths).to.deep.equal([
+    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/a.com-.zip`)).to.deep.equal([
+      'build/a.com-.zip.part001',
+      'build/a.com-.zip.part002',
+    ]);
+    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`)).to.deep.equal([
       `${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`,
     ]);
-    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/absent-.zip`).artifactPaths).to.deep.equal([]);
-    expect(clientBundleArtifactPaths('./no-such-dir/x.zip').artifactPaths).to.deep.equal([]);
+    expect(clientBundleArtifactPaths(`${CLIENT_BUNDLE_DIRECTORY}/absent-.zip`)).to.deep.equal([]);
+    expect(clientBundleArtifactPaths('./no-such-dir/x.zip')).to.deep.equal([]);
   });
 
-  it('uploads every artifact of every resolved route, and reports the routes with none', () => {
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-    for (const part of ['001', '002']) fs.writeFileSync(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip.part${part}`, 'x');
-
-    const result = pushClientBundle({ deployId: 'dd-test', hosts: ['b.com'], split: '4' });
-
-    expect(result).to.deep.equal({ pushed: 1, skipped: 0 });
-    expect(shellCommands.some((command) => command.includes('--build-zip --split 4'))).to.equal(true);
-    const uploads = shellCommands.filter((command) => command.includes(' fs '));
-    expect(uploads).to.have.lengthOf(2);
-    expect(uploads.every((command) => command.includes('--storage-id bundle') && command.includes('--force'))).to.equal(
-      true,
-    );
-
-    shellCommands.length = 0;
-    expect(pushClientBundle({ deployId: 'dd-test', hosts: ['a.com'] })).to.deep.equal({ pushed: 0, skipped: 5 });
+  it('accepts a complete tree, documented by this build for exactly its version', () => {
+    const since = new Date(Date.now() - 1000).toISOString();
+    writeTree('plain');
+    writeTree('documented', { version: '3.5.0' });
+    expect(clientBundleTreeProblems('plain', { documented: false, version: '3.5.0', since })).to.deep.equal([]);
+    expect(clientBundleTreeProblems('documented', { documented: true, version: '3.5.0', since })).to.deep.equal([]);
   });
 
-  it('shells out only to subcommands the CLI still registers', async () => {
-    // Regression: both directions called `underpost env`, a deprecated alias removed when the
-    // env and config commands were folded into the host configuration store. Nothing failed at
-    // import time, so bundle mode stayed broken until a deployment ran it.
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-    fs.writeFileSync('bundled.html', '<h1>bundled</h1>', 'utf8');
-    fs.writeFileSync(
-      `${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`,
-      await zipFromLocalFiles([{ localPath: 'bundled.html', entryName: 'index.html' }]),
-    );
-    pushClientBundle({ deployId: 'dd-test', hosts: ['b.com'] });
-    await pullClientBundle({ deployId: 'dd-test', hosts: ['b.com'] });
-
-    const pull = shellCommands.find((command) => command.includes(' fs ') && command.includes('--pull'));
-    expect(pull).to.include('--tracked').and.to.include('--storage-id bundle');
-    expect(pull).not.to.include('--storage-file-path');
-
-    const registered = program.commands.map((command) => command.name());
-    const invoked = [
-      ...new Set(
-        shellCommands
-          .map((command) => /(?:^|\s)(?:node\s+\S*bin\S*|underpost)\s+([a-z-]+)/.exec(command)?.[1])
-          .filter(Boolean),
-      ),
-    ];
-
-    expect(invoked).to.not.be.empty;
-    for (const subcommand of invoked) expect(registered, subcommand).to.include(subcommand);
-  });
-
-  it('untracks bundle parts a smaller build no longer produces', async () => {
-    const manifest = {
-      'build/b.com-.zip.part001': { bytes: 1 },
-      'build/b.com-.zip.part002': { bytes: 1 },
-      'build/b.com-.zip.part003': { bytes: 1 },
-      'build/other.com-.zip.part003': { bytes: 1 },
-    };
-    expect(clientBundleTrackedKeys(manifest, 'b.com-')).to.deep.equal([
-      'build/b.com-.zip.part001',
-      'build/b.com-.zip.part002',
-      'build/b.com-.zip.part003',
+  it('names what a tree lacks', () => {
+    const since = new Date(Date.now() - 1000).toISOString();
+    fs.mkdirpSync('empty');
+    expect(clientBundleTreeProblems('empty', { documented: true, version: '3.5.0', since })).to.deep.equal([
+      `${BUILD_MANIFEST_FILE} is missing or empty`,
+      'index.html is missing or empty',
+      'docs/engine/3.5.0 is missing',
     ]);
-
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-    for (const part of ['001', '002']) fs.writeFileSync(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip.part${part}`, 'x');
-    fs.writeFileSync('engine-private/conf/dd-test/storage.bundle.json', JSON.stringify(manifest), 'utf8');
-
-    shellCommands.length = 0;
-    expect(fs.existsSync('build/b.com-.zip.part003')).to.equal(false);
-    expect(pushClientBundle({ deployId: 'dd-test', hosts: ['b.com'] })).to.deep.equal({ pushed: 1, skipped: 0 });
-
-    const removals = shellCommands.filter((command) => command.includes(' --rm'));
-    expect(removals, 'exactly the part this build did not produce').to.have.lengthOf(1);
-    expect(removals[0]).to.include(" fs --tracked --key 'build/b.com-.zip.part003'");
-    expect(removals[0]).to.include('--deploy-id dd-test --storage-id bundle --rm');
-    expect(removals[0]).to.not.include('other.com');
-    const uploads = shellCommands.filter((command) => command.includes(' fs ') && command.includes('--force'));
-    expect(uploads).to.have.lengthOf(2);
-    expect(shellCommands.indexOf(removals[0])).to.be.greaterThan(shellCommands.indexOf(uploads[1]));
-  });
-
-  it('merges, extracts, and installs a split bundle into the public directory', async () => {
-    fs.mkdirSync('source/nested', { recursive: true });
-    fs.writeFileSync('source/index.html', '<h1>bundle</h1>'.repeat(100), 'utf8');
-    fs.writeFileSync('source/nested/app.js', 'console.log(1);'.repeat(100), 'utf8');
-    const archive = await zipFromLocalFiles([
-      { localPath: 'source/index.html', entryName: 'index.html' },
-      { localPath: 'source/nested/app.js', entryName: 'nested/app.js' },
+    writeTree('broken', { version: '3.5.0' });
+    fs.removeSync('broken/docs/engine/3.5.0/assets/search.js');
+    expect(clientBundleTreeProblems('broken', { documented: true, version: '3.5.0', since })).to.deep.equal([
+      'docs/engine/3.5.0: assets/search.js is missing or empty',
     ]);
-
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-    const partSize = Math.ceil(archive.length / 3);
-    for (let offset = 0, index = 1; offset < archive.length; offset += partSize, index++) {
-      const name = `${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip.part${String(index).padStart(3, '0')}`;
-      fs.writeFileSync(name, archive.subarray(offset, offset + partSize));
-    }
-
-    const result = await pullClientBundle({ deployId: 'dd-test', hosts: ['b.com'] });
-
-    expect(result).to.deep.equal({ pulled: 1, skipped: 0 });
-    expect(fs.readFileSync('public/b.com/nested/app.js', 'utf8')).to.equal(
-      fs.readFileSync('source/nested/app.js', 'utf8'),
-    );
-    expect(fs.existsSync(`${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip`)).to.equal(false);
-    expect(fs.readdirSync(CLIENT_BUNDLE_DIRECTORY).filter((name) => name.includes('.part'))).to.deep.equal([]);
   });
 
-  it('maps a pulled part back to the storage key that produced it', () => {
-    // A pull keeping the downloaded archive writes `<key>.zip`; an unwrapped part is the key.
-    expect(clientBundleManifestKey('build/a.com-.zip.part001.zip')).to.equal('build/a.com-.zip.part001');
-    expect(clientBundleManifestKey('./build/a.com-.zip.part001.zip')).to.equal('build/a.com-.zip.part001');
-    expect(clientBundleManifestKey('build/a.com-.zip.part001')).to.equal('build/a.com-.zip.part001');
-  });
-
-  it('refuses a bundle that reassembles to a different size than was pushed', async () => {
-    // Regression: one part's upload failed silently, so the store kept the previous build's copy.
-    // The parts merged without complaint and only the assembled archive was corrupt, 190MB later.
-    fs.writeFileSync('source.html', '<h1>bundle</h1>'.repeat(100), 'utf8');
-    const archive = await zipFromLocalFiles([{ localPath: 'source.html', entryName: 'index.html' }]);
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-
-    const partSize = Math.ceil(archive.length / 2);
-    const partPaths = [];
-    for (let offset = 0, index = 1; offset < archive.length; offset += partSize, index++) {
-      const name = `${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip.part${String(index).padStart(3, '0')}`;
-      fs.writeFileSync(name, archive.subarray(offset, offset + partSize));
-      partPaths.push(name.replace(/^\.\//, ''));
-    }
-
-    // The manifest records a larger second part, as a build whose last part never replaced the
-    // previous one would.
-    fs.writeFileSync(
-      'engine-private/conf/dd-test/storage.bundle.json',
-      JSON.stringify({
-        [partPaths[0]]: { bytes: fs.statSync(partPaths[0]).size },
-        [partPaths[1]]: { bytes: fs.statSync(partPaths[1]).size + 4096 },
-      }),
-      'utf8',
-    );
-
-    let thrown;
-    await pullClientBundle({ deployId: 'dd-test', hosts: ['b.com'] }).catch((error) => (thrown = error));
-
-    expect(thrown?.message).to.match(/reassembled to \d+ bytes, expected \d+/);
-    expect(fs.existsSync('public/b.com'), 'a bundle that failed verification must not be installed').to.equal(false);
-  });
-
-  it('installs a bundle whose parts match the pushed sizes', async () => {
-    fs.writeFileSync('source.html', '<h1>bundle</h1>'.repeat(100), 'utf8');
-    const archive = await zipFromLocalFiles([{ localPath: 'source.html', entryName: 'index.html' }]);
-    fs.mkdirSync(CLIENT_BUNDLE_DIRECTORY, { recursive: true });
-
-    const partSize = Math.ceil(archive.length / 2);
-    const manifest = {};
-    for (let offset = 0, index = 1; offset < archive.length; offset += partSize, index++) {
-      const name = `${CLIENT_BUNDLE_DIRECTORY}/b.com-.zip.part${String(index).padStart(3, '0')}`;
-      fs.writeFileSync(name, archive.subarray(offset, offset + partSize));
-      manifest[name.replace(/^\.\//, '')] = { bytes: fs.statSync(name).size };
-    }
-    fs.writeFileSync('engine-private/conf/dd-test/storage.bundle.json', JSON.stringify(manifest), 'utf8');
-
-    expect(await pullClientBundle({ deployId: 'dd-test', hosts: ['b.com'] })).to.deep.equal({ pulled: 1, skipped: 0 });
-    expect(fs.existsSync('public/b.com/index.html')).to.equal(true);
-  });
-
-  it('skips a route whose bundle never arrived rather than clearing its public directory', async () => {
-    fs.mkdirSync('public/b.com', { recursive: true });
-    fs.writeFileSync('public/b.com/index.html', 'live', 'utf8');
-
-    const result = await pullClientBundle({ deployId: 'dd-test', hosts: ['b.com'] });
-
-    expect(result).to.deep.equal({ pulled: 0, skipped: 1 });
-    expect(fs.readFileSync('public/b.com/index.html', 'utf8')).to.equal('live');
-    expect(shellCommands.some((command) => command.startsWith('sudo rm -rf'))).to.equal(false);
+  it('refuses the TypeDoc site of another version, or one an earlier build published', () => {
+    const since = new Date().toISOString();
+    writeTree('older', { version: '3.4.0', publishedAt: since });
+    expect(clientBundleTreeProblems('older', { documented: true, version: '3.5.0', since })).to.deep.equal([
+      'docs/engine holds other versions: 3.4.0',
+      'docs/engine/3.5.0 is missing',
+    ]);
+    writeTree('mixed', { version: '3.5.0', others: ['3.4.0'], publishedAt: since });
+    expect(clientBundleTreeProblems('mixed', { documented: true, version: '3.5.0', since })).to.deep.equal([
+      'docs/engine holds other versions: 3.4.0',
+    ]);
+    writeTree('stale', { version: '3.5.0', publishedAt: new Date(Date.parse(since) - 60000).toISOString() });
+    expect(clientBundleTreeProblems('stale', { documented: true, version: '3.5.0', since })).to.deep.equal([
+      'docs/engine/3.5.0 was not published by this build',
+    ]);
   });
 });

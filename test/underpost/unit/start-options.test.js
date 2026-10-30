@@ -11,7 +11,10 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import shell from 'shelljs';
+import { vi } from 'vitest';
 import { program } from '../../../src/cli/index.js';
+import Underpost from '../../../src/index.js';
 
 const startCommand = () => program.commands.find((command) => command.name() === 'start');
 const camelCase = (flag) => flag.replace(/^--/, '').replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -54,5 +57,38 @@ describe('start receives every flag its command registers', () => {
     // invoked, so re-execing `underpost start` here only pulled and installed a second time.
     expect(source).to.not.include('startFlagsFactory');
     expect(source).to.not.match(/shellExec\(`underpost start /);
+  });
+});
+
+describe('the build phase of a pod', () => {
+  const REFERENCE = `v3-5-0-abc1234/client-20261030151234567-4242@sha256:${'a'.repeat(64)}`;
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Runs the build phase with every shell command recorded, none executed. */
+  const build = async (options) => {
+    const commands = [];
+    vi.spyOn(process, 'chdir').mockImplementation(() => {});
+    vi.spyOn(shell, 'exec').mockImplementation((command, shellOptions, callback) => {
+      commands.push(command);
+      callback?.(0, '', '');
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    await Underpost.start.build('dd-test', 'production', {
+      skipPullRepoBase: true,
+      skipPullPrivateRepo: true,
+      ...options,
+    });
+    return commands;
+  };
+
+  it('restores the exact bundle and never builds the client', async () => {
+    const commands = await build({ bundle: REFERENCE });
+    expect(commands).to.include(`node bin run pull-bundle --deploy-id dd-test --bundle '${REFERENCE}'`);
+    expect(commands.some((command) => /bin client|typedoc/.test(command))).to.equal(false);
+    expect(await build({ pullBundle: true })).to.include('node bin run pull-bundle --deploy-id dd-test');
+  });
+
+  it('builds the client from source only without a bundle', async () => {
+    expect(await build({})).to.include('node bin client dd-test --env production');
   });
 });
