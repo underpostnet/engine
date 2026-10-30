@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import Underpost from '../../../src/index.js';
+import { DefaultConf } from '../../../underpost.config.js';
 
 // Site operations read and write paths relative to the engine root, so every case runs in a fixture tree.
 describe('site provisioning', () => {
@@ -258,9 +259,14 @@ describe('site provisioning', () => {
       for (const type of ['server', 'client', 'ssr'])
         fs.outputJsonSync(path.join(scratch, `engine-private/conf/dd-site/conf.${type}.json`), {});
       process.chdir(scratch);
+      // A sliced repository carries its own deploy conf as the default template.
+      const from = Object.values(DefaultConf.server)
+        .flatMap((routes) => Object.values(routes))
+        .find((route) => route.client).client;
       const { applied, plan } = Underpost.site.create('example.com', {
         client: 'example',
         deployId: 'dd-site',
+        from,
         dryRun: true,
       });
       expect(applied).to.equal(false);
