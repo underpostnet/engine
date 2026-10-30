@@ -8,7 +8,6 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { PNG } from 'pngjs';
-import { Jimp, intToRGBA } from 'jimp';
 import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
 import { isObjectLayerAuthority, pinCanonical } from '../../../api/object-layer/object-layer.publication.js';
 import { parseIdentityJson } from '../../../api/object-layer/object-layer.identity.js';
@@ -158,10 +157,10 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * Processes an image file (PNG or GIF) to generate a frame matrix and a color palette (map_color).
+   * Processes a PNG file to generate a frame matrix and a color palette (map_color).
    * It quantizes the image based on a factor derived from image height (mazeFactor).
    * @static
-   * @param {string} path - The path to the image file.
+   * @param {string} path - The path to the PNG file.
    * @param {Array<number[]>} [colors=[]] - The existing color palette array to append new colors to.
    * @returns {Promise<{frame: number[][], colors: Array<number[]>}>} The frame matrix and the updated color palette.
    * @memberof CyberiaObjectLayer
@@ -169,35 +168,24 @@ export class ObjectLayerEngine {
   static async frameFactory(path, colors = []) {
     const frame = [];
     try {
-      let image;
-
-      if (path.endsWith('.gif')) {
-        image = await Jimp.read(path);
-        // remove gif file
-        fs.removeSync(path);
-        // save image replacing gif for png
-        const pngPath = path.replace('.gif', '.png');
-        await image.write(pngPath);
-      } else {
-        const png = await ObjectLayerEngine.readPngAsync(path);
-        if (png.error) {
-          throw new Error(`Failed to read PNG: ${png.message}`);
-        }
-        image = new Jimp(png);
+      const image = await ObjectLayerEngine.readPngAsync(path);
+      if (image.error) {
+        throw new Error(`Failed to read PNG: ${image.message}`);
       }
 
-      const cellSize = parseInt(image.bitmap.height / 24);
+      const cellSize = parseInt(image.height / 24);
       let matrixY = -1;
-      for (const y of range(0, image.bitmap.height - 1)) {
+      for (const y of range(0, image.height - 1)) {
         if (y % cellSize === 0) {
           matrixY++;
           if (!frame[matrixY]) frame[matrixY] = [];
         }
         let matrixX = -1;
-        for (const x of range(0, image.bitmap.width - 1)) {
-          const rgba = Object.values(intToRGBA(image.getPixelColor(x, y)));
+        for (const x of range(0, image.width - 1)) {
           if (y % cellSize === 0 && x % cellSize === 0) {
             matrixX++;
+            const at = (y * image.width + x) * 4;
+            const rgba = [...image.data.subarray(at, at + 4)];
             const colorIndex = colors.findIndex(
               (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
             );
@@ -245,7 +233,10 @@ export class ObjectLayerEngine {
    * @memberof CyberiaObjectLayer
    */
   static async writeFrameImage({ source, pixels, imagePath, cellPixelDim = 20 }) {
-    await AtlasSpriteSheetGenerator.frameImage(source, pixels, cellPixelDim).write(imagePath);
+    await fs.writeFile(
+      imagePath,
+      AtlasSpriteSheetGenerator.encodePng(AtlasSpriteSheetGenerator.frameImage(source, pixels, cellPixelDim)),
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────────

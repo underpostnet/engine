@@ -57,8 +57,8 @@ jobs:
       - name: Install project dependencies
         run: npm install
 
-      # The cyberia tier imports the modules its catalog pins (jimp, pngjs, ethers, ...),
-      # which the engine manifest does not carry.
+      # The cyberia tier imports the packages its catalog pins, which the engine manifest
+      # does not carry.
       - name: Install cyberia catalog dependencies
         run: node bin package dd-cyberia --install
 

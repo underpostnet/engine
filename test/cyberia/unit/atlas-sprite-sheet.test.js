@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Jimp } from 'jimp';
+import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import {
   AtlasSpriteSheetGenerator as Atlas,
@@ -24,24 +24,22 @@ const frame = [
 ];
 const indexed = (frames) => sourceFromIndexedFrames({ frames, colors, frameDurationMs: 100 });
 
-const pixelsOf = async (png) => {
-  const { bitmap } = await Jimp.read(png);
-  return bitmap;
-};
+const pixelsOf = (png) => PNG.sync.read(png);
+const colorAt = ({ data, width }, x, y) => data.readUInt32BE((y * width + x) * 4);
 
 describe('Cyberia atlas generation', () => {
   it('keeps source pixels and frame positions without square padding', async () => {
     const source = indexed({ down_idle: [frame], up_idle: [frame], down_walking: [frame] });
     const { primary, metadata } = await Atlas.generateAtlas(source, 'test');
-    const image = await Jimp.read(primary);
+    const image = pixelsOf(primary);
     expect(metadata.cellPixelDim).toBe(1);
-    expect([image.bitmap.width, image.bitmap.height]).toEqual([4, 4]);
+    expect([image.width, image.height]).toEqual([4, 4]);
     for (const frames of Object.values(metadata.frames).filter((frames) => frames.length)) {
       const { x, y, width, height } = frames[0];
       expect([width, height]).toEqual([2, 2]);
-      expect(image.getPixelColor(x, y)).toBe(0xff0000ff);
-      expect(image.getPixelColor(x + 1, y)).toBe(0x00ff00ff);
-      expect(image.getPixelColor(x, y + 1)).toBe(0);
+      expect(colorAt(image, x, y)).toBe(0xff0000ff);
+      expect(colorAt(image, x + 1, y)).toBe(0x00ff00ff);
+      expect(colorAt(image, x, y + 1)).toBe(0);
     }
   });
 
@@ -53,14 +51,14 @@ describe('Cyberia atlas generation', () => {
       1,
     );
     expect([metadata.atlasWidth, metadata.atlasHeight]).toEqual([250, 75]);
-    expect((await Jimp.read(primary)).bitmap.data.byteLength).toBe(75000);
+    expect(pixelsOf(primary).data.byteLength).toBe(75000);
     expect(metadata.frames.down_idle).toHaveLength(26);
   });
 
   it('describes the primary render, whatever the upscale factor', async () => {
     const source = indexed({ down_idle: [frame], up_idle: [frame] });
     const { primary, metadata } = await Atlas.generateAtlas(source, 'scaled', 20);
-    const image = await pixelsOf(primary);
+    const image = pixelsOf(primary);
     expect(metadata.cellPixelDim).toBe(1);
     expect(metadata.upscaleFactor).toBe(20);
     expect([image.width, image.height]).toEqual([metadata.atlasWidth, metadata.atlasHeight]);
@@ -161,19 +159,15 @@ describe('Cyberia derived renders', () => {
 
   it('derives the upscaled render as an exact block copy of the primary render', async () => {
     const { primary, metadata } = await Atlas.generateAtlas(source, 'scaled', 3);
-    const minified = await pixelsOf(primary);
-    const upscaled = await Jimp.read(await Atlas.upscaledFromRender(primary, metadata));
+    const minified = pixelsOf(primary);
+    const upscaled = pixelsOf(await Atlas.upscaledFromRender(primary, metadata));
 
-    expect([upscaled.bitmap.width, upscaled.bitmap.height]).toEqual([
-      metadata.atlasWidth * 3,
-      metadata.atlasHeight * 3,
-    ]);
+    expect([upscaled.width, upscaled.height]).toEqual([metadata.atlasWidth * 3, metadata.atlasHeight * 3]);
     for (let y = 0; y < minified.height; y++) {
       for (let x = 0; x < minified.width; x++) {
-        const at = (y * minified.width + x) * 4;
-        const color = minified.data.readUInt32BE(at);
-        expect(upscaled.getPixelColor(x * 3, y * 3) >>> 0).toBe(color);
-        expect(upscaled.getPixelColor(x * 3 + 2, y * 3 + 2) >>> 0).toBe(color);
+        const color = colorAt(minified, x, y);
+        expect(colorAt(upscaled, x * 3, y * 3)).toBe(color);
+        expect(colorAt(upscaled, x * 3 + 2, y * 3 + 2)).toBe(color);
       }
     }
   });
@@ -187,8 +181,8 @@ describe('Cyberia derived renders', () => {
     const { primary, metadata } = await Atlas.generateAtlas(source, 'dense', 4);
     const upscaled = await Atlas.upscaledFromRender(primary, metadata);
 
-    const fromPrimary = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
-    const fromUpscaled = await pixelsOf(await Atlas.idlePreviewFromRender(upscaled, metadata));
+    const fromPrimary = pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
+    const fromUpscaled = pixelsOf(await Atlas.idlePreviewFromRender(upscaled, metadata));
     expect([fromPrimary.width, fromPrimary.height]).toEqual([IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE]);
     expect(Buffer.from(fromUpscaled.data).equals(Buffer.from(fromPrimary.data))).toBe(true);
     expect(await Atlas.upscaledFromRender(upscaled, metadata)).toBeNull();
@@ -197,8 +191,8 @@ describe('Cyberia derived renders', () => {
   it('scales the idle preview frame to the standard size, with no margin', async () => {
     // Three cells wide, one tall: the longer side takes the standard size, 100 px per cell.
     const { primary, metadata } = await Atlas.generateAtlas(indexed({ down_idle: [[[0, 1, 0]]] }), 'wide');
-    const preview = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
-    const at = (x, y) => preview.data.readUInt32BE((y * preview.width + x) * 4);
+    const preview = pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
+    const at = (x, y) => colorAt(preview, x, y);
 
     expect([preview.width, preview.height]).toEqual([IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE / 3]);
     expect([at(0, 0), at(150, 50), at(299, 99)]).toEqual([0xff0000ff, 0x00ff00ff, 0xff0000ff]);
@@ -210,8 +204,8 @@ describe('Cyberia derived renders', () => {
       indexed({ down_idle: [Array.from({ length: 24 }, () => row)] }),
       'square',
     );
-    const preview = await pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
-    const at = (x, y) => preview.data.readUInt32BE((y * preview.width + x) * 4);
+    const preview = pixelsOf(await Atlas.idlePreviewFromRender(primary, metadata));
+    const at = (x, y) => colorAt(preview, x, y);
 
     expect([preview.width, preview.height]).toEqual([IDLE_PREVIEW_SIZE, IDLE_PREVIEW_SIZE]);
     expect([at(0, 0), at(299, 299)]).toEqual([0x00ff00ff, 0x00ff00ff]);

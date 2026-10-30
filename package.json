@@ -104,8 +104,6 @@
     "mongoose": "^9.11.3",
     "morgan": "^1.12.1",
     "nodemailer": "^10.2.1",
-    "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
     "peer": "^1.0.2",
     "peerjs": "^1.5.5",
     "prom-client": "^15.1.2",
@@ -115,7 +113,6 @@
     "socket.io": "^4.8.4",
     "sortablejs": "^1.15.0",
     "split-file": "^2.3.0",
-    "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.0",
     "typedoc": "^0.28.20",
     "typescript": "6.0.3",
@@ -144,7 +141,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "overrides": {
-    "simple-xml-to-json": "1.2.4",
     "minimatch": "^10.2.2",
     "glob": "^11.0.0",
     "diff": ">=8.0.3",

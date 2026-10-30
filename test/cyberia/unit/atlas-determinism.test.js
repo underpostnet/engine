@@ -40,6 +40,14 @@ describe('atlas generation determinism', () => {
     expect(renderContractOf(second)).toEqual(renderContractOf(first));
   });
 
+  it('keeps the bytes of every render it has published', async () => {
+    // A change of encoder or settings changes every published render CID.
+    expect(renderContractOf(await AtlasSpriteSheetGenerator.generateAtlas(renderFrames, 'hatchet', 20))).toEqual({
+      cid: 'bafkreigr23xxrhmwqpb7s7hti4z2v4vv7yltz5wwtlm2fa3ddcew6fvrcu',
+      metadataCid: 'bafkreihx2lbl7dspgfs6ccqp7uj44nfx3hoztca3qw6fjygmv7ioidgyq4',
+    });
+  });
+
   it('keeps the Object Layer identity of a rebuilt render', async () => {
     const first = renderContractOf(await AtlasSpriteSheetGenerator.generateAtlas(renderFrames, 'hatchet', 20));
     const rebuilt = renderContractOf(await AtlasSpriteSheetGenerator.generateAtlas(renderFrames, 'hatchet', 20));

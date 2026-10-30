@@ -88,10 +88,28 @@ export const resolveKey = async (key, options) =>
  * @memberof CyberiaAtlasStudio
  */
 export function mount(router, options) {
-  router.post(`/generate/:id`, options.authMiddleware, moderatorGuard, (req, res) =>
-    AtlasStudioController.generate(req, res, options),
-  );
-  router.delete(`/object-layer/:id`, options.authMiddleware, moderatorGuard, (req, res) =>
-    AtlasStudioController.deleteByObjectLayerId(req, res, options),
-  );
+  router.post(`/generate/:id`, options.authMiddleware, moderatorGuard, (req, res) => {
+    /*
+      #swagger.summary = 'Regenerate the render of a definition'
+      #swagger.description = 'Regenerates the render of the definition `id` names from its render frames, and publishes the definition that names the render through the Object Layer authority.'
+      #swagger.path = '/atlas-sprite-sheet/generate/{id}'
+      #swagger.method = 'post'
+      #swagger.parameters = [
+        { name: 'id', in: 'path', description: 'Object Layer document id', required: true, schema: { type: 'string' } },
+      ]
+    */
+    return AtlasStudioController.generate(req, res, options);
+  });
+  router.delete(`/object-layer/:id`, options.authMiddleware, moderatorGuard, (req, res) => {
+    /*
+      #swagger.summary = 'Remove the atlas of a definition'
+      #swagger.description = 'Removes the atlas of this host for the definition `id` names. The definition keeps naming its render, and the item keeps its binding.'
+      #swagger.path = '/atlas-sprite-sheet/object-layer/{id}'
+      #swagger.method = 'delete'
+      #swagger.parameters = [
+        { name: 'id', in: 'path', description: 'Object Layer document id', required: true, schema: { type: 'string' } },
+      ]
+    */
+    return AtlasStudioController.deleteByObjectLayerId(req, res, options);
+  });
 }

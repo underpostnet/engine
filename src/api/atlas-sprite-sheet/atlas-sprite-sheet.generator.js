@@ -5,7 +5,7 @@
  * @namespace CyberiaAtlasSpriteSheetGenerator
  */
 
-import { Jimp, rgbaToInt } from 'jimp';
+import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import { loggerFactory } from '../../server/ops/logger.js';
 import {
@@ -66,26 +66,37 @@ export const IDLE_PREVIEW_SIZE = 300;
  */
 export class AtlasSpriteSheetGenerator {
   /**
-   * The image of one frame of a render source, each cell `cellPixelDim` pixels wide.
+   * The pixels of one frame of a render source, each cell `cellPixelDim` pixels wide.
    * @static
    * @param {Object} source - Render source.
    * @param {Uint8Array} pixels - The frame's palette indexes.
    * @param {number} cellPixelDim - Pixel dimension per cell
-   * @returns {Jimp} The generated image
+   * @returns {{data: Buffer, width: number, height: number}} Raw RGBA pixels.
+   * @throws {Error} When a cell names no palette color.
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
   static frameImage(source, pixels, cellPixelDim = 1) {
     if (!source.width || !source.height) throw new Error('Invalid frame dimensions');
-    const colors = source.palette.map((hex) => rgbaToInt(...hexToRgba(hex)));
-    const image = new Jimp({ width: cellPixelDim * source.width, height: cellPixelDim * source.height, color: 0 });
-    for (let y = 0; y < source.height; y++)
-      for (let x = 0; x < source.width; x++) {
-        const color = colors[pixels[y * source.width + x]];
-        for (let dy = 0; dy < cellPixelDim; dy++)
-          for (let dx = 0; dx < cellPixelDim; dx++)
-            image.setPixelColor(color, x * cellPixelDim + dx, y * cellPixelDim + dy);
-      }
-    return image;
+    const colors = source.palette.map((hex) => Buffer.from(hexToRgba(hex)));
+    const data = Buffer.alloc(source.width * source.height * 4);
+    for (let cell = 0; cell < source.width * source.height; cell++) {
+      const color = colors[pixels[cell]];
+      if (!color) throw new Error(`Cell ${cell} names no palette color`);
+      color.copy(data, cell * 4);
+    }
+    return AtlasSpriteSheetGenerator.repeatPixels({ data, width: source.width, height: source.height }, cellPixelDim);
+  }
+
+  /**
+   * PNG bytes of raw RGBA pixels. The encoder settings never change, so the same pixels give the
+   * same bytes, and so the same render CID.
+   * @static
+   * @param {{data: Buffer, width: number, height: number}} image - Raw RGBA pixels.
+   * @returns {Buffer}
+   * @memberof CyberiaAtlasSpriteSheetGenerator
+   */
+  static encodePng(image) {
+    return PNG.sync.write(image);
   }
 
   /**
@@ -180,8 +191,8 @@ export class AtlasSpriteSheetGenerator {
             image: frameImage,
             direction,
             frameIndex,
-            width: frameImage.bitmap.width,
-            height: frameImage.bitmap.height,
+            width: frameImage.width,
+            height: frameImage.height,
           });
         } catch (error) {
           logger.warn(`Failed to generate frame for ${itemKey} ${direction}[${frameIndex}]:`, error.message);
@@ -213,14 +224,14 @@ export class AtlasSpriteSheetGenerator {
 
     logger.info(`Packing ${packedFrames.length} frames into ${atlasWidth}x${atlasHeight} atlas`);
 
-    // Validate dimensions before creating Jimp image
+    // Validate dimensions before allocating the canvas
     if (isNaN(atlasWidth) || isNaN(atlasHeight) || atlasWidth <= 0 || atlasHeight <= 0) {
       throw new Error(
         `Invalid atlas dimensions: ${atlasWidth}x${atlasHeight} (maxAtlasDim: ${maxAtlasDim}, frameCount: ${frameImages.length})`,
       );
     }
 
-    const primaryImage = new Jimp({ width: atlasWidth, height: atlasHeight, color: 0x00000000 });
+    const primaryImage = { data: Buffer.alloc(atlasWidth * atlasHeight * 4), width: atlasWidth, height: atlasHeight };
 
     // Every direction, empty ones included: the layout pinned is the layout stored, byte for byte.
     const frameMetadata = Object.fromEntries(directionOrder.map((direction) => [direction, []]));
@@ -233,8 +244,8 @@ export class AtlasSpriteSheetGenerator {
       frameMetadata[direction][frameIndex] = {
         x,
         y,
-        width: image.bitmap.width,
-        height: image.bitmap.height,
+        width: image.width,
+        height: image.height,
         frameIndex,
       };
     }
@@ -249,7 +260,7 @@ export class AtlasSpriteSheetGenerator {
       frames: frameMetadata,
     };
 
-    return { primary: await primaryImage.getBuffer('image/png'), metadata };
+    return { primary: AtlasSpriteSheetGenerator.encodePng(primaryImage), metadata };
   }
 
   /**
@@ -551,23 +562,20 @@ export class AtlasSpriteSheetGenerator {
   }
 
   /**
-   * Copies a frame image onto an atlas canvas at the given origin.
+   * Copies a frame onto an atlas canvas at the given origin. Pixels outside the canvas are dropped.
    * @static
-   * @param {Jimp} atlasImage - Destination atlas canvas.
-   * @param {Jimp} frameImage - Source frame image.
+   * @param {{data: Buffer, width: number, height: number}} atlasImage - Destination atlas canvas, raw RGBA.
+   * @param {{data: Buffer, width: number, height: number}} frameImage - Source frame, raw RGBA.
    * @param {number} originX - Destination X origin.
    * @param {number} originY - Destination Y origin.
    * @returns {void}
    * @memberof CyberiaAtlasSpriteSheetGenerator
    */
   static blitFrame(atlasImage, frameImage, originX, originY) {
-    for (let srcY = 0; srcY < frameImage.bitmap.height; srcY++) {
-      for (let srcX = 0; srcX < frameImage.bitmap.width; srcX++) {
-        const destX = originX + srcX;
-        const destY = originY + srcY;
-        if (destX >= atlasImage.bitmap.width || destY >= atlasImage.bitmap.height) continue;
-        atlasImage.setPixelColor(frameImage.getPixelColor(srcX, srcY), destX, destY);
-      }
+    const rowBytes = Math.max(0, Math.min(frameImage.width, atlasImage.width - originX)) * 4;
+    for (let srcY = 0; srcY < frameImage.height && originY + srcY < atlasImage.height; srcY++) {
+      const from = srcY * frameImage.width * 4;
+      frameImage.data.copy(atlasImage.data, ((originY + srcY) * atlasImage.width + originX) * 4, from, from + rowBytes);
     }
   }
 

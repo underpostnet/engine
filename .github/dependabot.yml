@@ -63,7 +63,6 @@ updates:
           - 'prettier'
           - 'jsdoc'
           - 'clean-jsdoc-theme'
-          - 'swagger-autogen'
           - 'swagger-ui-express'
           - 'typedoc'
           - 'bumpp'
