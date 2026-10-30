@@ -202,8 +202,10 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
   });
 
   it('keeps the published site when the memory limit stops TypeDoc after it wrote part of the site', async () => {
-    const first = await fake('a.fixture.test', 'slow', { FAKE_TYPEDOC_MS: '300' }).result;
+    // The run outlasts one sample of the heavy profile, so it has a peak also without a kernel scope.
+    const first = await fake('a.fixture.test', 'slow', { FAKE_TYPEDOC_MS: '1500' }).result;
     expect(first.status, first.output).to.equal('published');
+    expect(record(standIn, 'a.fixture.test').history.last.class).to.equal('measured');
     // A reserve just under what the host has leaves the task a few hundred MB.
     const reserveMb = Math.floor(process.availableMemory() / MB) - 300;
     const stopped = await fake('a.fixture.test', 'partial-oom', { UNDERPOST_MEMORY_RESERVE_MB: `${reserveMb}` }).result;

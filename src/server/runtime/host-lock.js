@@ -15,7 +15,7 @@ import fs from 'fs-extra';
 import net from 'node:net';
 import os from 'node:os';
 import nodePath from 'node:path';
-import { bootId, processStartTicks } from './linux-resources.js';
+import { bootId, processGroupRuns, processStartTicks, processState } from './linux-resources.js';
 
 /** The directory of every host lock record. */
 export const HOST_LOCK_DIRECTORY = nodePath.join(os.tmpdir(), 'underpost-locks');
@@ -30,16 +30,18 @@ const exists = (pid) => {
   }
 };
 
-const processAlive = ({ pid, startTicks }) => {
-  if (!exists(pid)) return false;
+const sameProcess = ({ pid, startTicks }) => {
   const current = processStartTicks(pid);
   return current === null || startTicks === null || current === startTicks;
 };
 
+// A zombie has ended.
+const processAlive = (record) => exists(record.pid) && processState(record.pid) !== 'Z' && sameProcess(record);
+
 // A group id names no other group while any of its processes lives; a new process with the
-// leader's pid shows that the group ended before it started.
+// leader's pid shows that the group ended before it started. A group of zombies has ended.
 const groupAlive = ({ pgid, startTicks }) =>
-  exists(-pgid) && (!exists(pgid) || processAlive({ pid: pgid, startTicks }));
+  exists(-pgid) && (!exists(pgid) || sameProcess({ pid: pgid, startTicks })) && processGroupRuns(pgid) !== false;
 
 const recordAlive = (record) =>
   record.bootId === bootId() && (processAlive(record) || Boolean(record.workload && groupAlive(record.workload)));

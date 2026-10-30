@@ -8,7 +8,12 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import nodePath from 'node:path';
 import { acquireHostLock, hostLockHolders, hostLockName } from '../../../src/server/runtime/host-lock.js';
-import { bootId, processStartTicks } from '../../../src/server/runtime/linux-resources.js';
+import {
+  bootId,
+  processGroupRuns,
+  processStartTicks,
+  processState,
+} from '../../../src/server/runtime/linux-resources.js';
 import { alive } from '../../support/process.js';
 
 const engineRoot = process.cwd();
@@ -152,6 +157,32 @@ describe('host lock', () => {
     },
     20000,
   );
+
+  it.skipIf(!linux)('frees the slot of an ended holder whose workload group holds only zombies', async () => {
+    // Job control gives `sleep 0.2` its own group; `exec` leaves it a parent that never reaps it.
+    const parent = spawn('bash', ['-c', 'set -m; sleep 0.2 & echo $!; exec sleep 30'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    try {
+      const group = Number(await new Promise((resolve) => parent.stdout.once('data', resolve)));
+      await until(() => processState(group) === 'Z');
+      expect(processState(group)).to.equal('Z');
+      expect(processGroupRuns(group)).to.equal(false);
+      const own = { pid: process.pid, startTicks: processStartTicks(process.pid), bootId: bootId(), command: 'old' };
+      fs.writeJsonSync(nodePath.join(directory, 'fixture.0.ended.json'), {
+        ...own,
+        startTicks: own.startTicks + 1,
+        workload: { pgid: group, startTicks: processStartTicks(group) },
+      });
+      expect(hostLockHolders('fixture', 1, directory)).to.deep.equal([]);
+      const held = await lock({ timeoutMs: 1000 });
+      expect(held).not.to.equal(null);
+      expect(records()).to.have.length(1);
+      held.release();
+    } finally {
+      parent.kill('SIGKILL');
+    }
+  });
 
   it('lets one of many processes that start at once hold a slot at a time', async () => {
     const startAt = Date.now() + 1500;

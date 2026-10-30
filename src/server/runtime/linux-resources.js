@@ -30,6 +30,9 @@ const read = (path) => {
 
 const numberOf = (text) => (/^\d+$/.test(`${text}`.trim()) ? Number(`${text}`.trim()) : null);
 
+// The fields of `/proc/<pid>/stat` after the command name: state, ppid, pgrp and on.
+const statFields = (pid) => read(`/proc/${pid}/stat`).split(') ').pop().split(' ');
+
 /**
  * The identity of the current boot: a process record from an earlier boot names no live process.
  * @returns {string|null}
@@ -94,8 +97,9 @@ export const processTreeUsage = (pid) => {
     const rss = /VmRSS:\s+(\d+) kB/.exec(read(`/proc/${id}/status`));
     if (rss) rssBytes += Number(rss[1]) * 1024;
     // After the command name: utime, stime, cutime and cstime are fields 12 to 15.
-    const fields = read(`/proc/${id}/stat`).split(') ').pop().split(' ');
-    ticks += fields.slice(11, 15).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    ticks += statFields(id)
+      .slice(11, 15)
+      .reduce((sum, value) => sum + (Number(value) || 0), 0);
   }
   return { rssBytes, cpuMs: (ticks * 1000) / CLOCK_TICKS_PER_SECOND };
 };
@@ -107,7 +111,35 @@ export const processTreeUsage = (pid) => {
  * @returns {number|null}
  * @memberof LinuxResources
  */
-export const processStartTicks = (pid) => numberOf(read(`/proc/${pid}/stat`).split(') ').pop().split(' ')[19]);
+export const processStartTicks = (pid) => numberOf(statFields(pid)[19]);
+
+/**
+ * The state of a process: `R`, `S`, `Z` and the other letters of `/proc/<pid>/stat`.
+ * @param {number} pid
+ * @returns {string|null} Null where the process or `/proc` is not available.
+ * @memberof LinuxResources
+ */
+export const processState = (pid) => statFields(pid)[0] || null;
+
+/**
+ * Whether a process group has a member that is not a zombie. Where PID 1 does not reap orphans, as
+ * in a container, an ended member stays a zombie and still counts as a member of its group.
+ * @param {number} pgid
+ * @returns {boolean|null} Null where `/proc` shows no member of the group.
+ * @memberof LinuxResources
+ */
+export const processGroupRuns = (pgid) => {
+  let entries = [];
+  try {
+    entries = fs.readdirSync('/proc');
+  } catch {}
+  const states = entries
+    .filter((entry) => /^\d+$/.test(entry))
+    .map(statFields)
+    .filter((fields) => fields[2] === `${pgid}`)
+    .map(([state]) => state);
+  return states.length ? states.some((state) => state !== 'Z') : null;
+};
 
 const managerArgs = () => (process.getuid?.() === 0 ? [] : ['--user']);
 
