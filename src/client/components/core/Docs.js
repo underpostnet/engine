@@ -12,6 +12,23 @@ import {
   getQueryParams,
 } from './Router.js';
 import { s } from './VanillaJs.js';
+import { GuestService } from '../../services/user/guest.service.js';
+/**
+ * The user session a response body opens, as the user API answers a login: null for anything else,
+ * a guest session included.
+ * @param {string} text - Response body.
+ * @returns {{status: string, data: {token: string, user: object}}|null}
+ */
+const userSessionOf = (text) => {
+  try {
+    const payload = JSON.parse(text);
+    const { token, user } = payload?.data ?? {};
+    return payload.status === 'success' && token && user?.role && user.role !== 'guest' ? payload : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 // https://mintlify.com/docs/quickstart
 class Docs {
   static async RenderModal(type, parentModalId = 'modal-docs') {
@@ -157,6 +174,59 @@ class Docs {
           if (s(`.iframe-${ModalId}`)) syncDocsTheme();
         };
       }
+      if (type === 'api') {
+        // Swagger UI sends the session token on the operations of each bearer scheme.
+        let authorized = {};
+        const authorizeApiDocs = () => {
+          try {
+            const ui = iframeEl.contentWindow.ui;
+            const schemes = ui?.specSelectors.securityDefinitions();
+            if (!schemes) return;
+            const spec = ui.specSelectors.specJson();
+            const token = GuestService.getAuthorizationToken();
+            if (spec === authorized.spec && token === authorized.token) return;
+            const names = schemes
+              .filter((scheme) => scheme.get('type') === 'http' && /^bearer$/i.test(scheme.get('scheme')))
+              .keySeq()
+              .toArray();
+            const previous = authorized;
+            authorized = { spec, token };
+            if (token) for (const name of names) ui.preauthorizeApiKey(name, token);
+            else if (previous.token) ui.authActions.logout(names);
+          } catch (e) {
+            // cross-origin or security restriction — safe to ignore
+          }
+        };
+        // A response that opens a user session logs the app in, as the login form does; the
+        // authorization above then follows its token.
+        const adopted = new WeakSet();
+        const adoptSessions = () => {
+          try {
+            iframeEl.contentWindow.ui?.specSelectors.responses()?.forEach((methods) =>
+              methods.forEach((response) => {
+                if (adopted.has(response)) return;
+                adopted.add(response);
+                const session = userSessionOf(response.get('text'));
+                if (session) import('./Auth.js').then(({ Auth }) => Auth.sessionIn(session));
+              }),
+            );
+          } catch (e) {
+            // cross-origin or security restriction — safe to ignore
+          }
+        };
+        iframeEl.addEventListener('load', () => {
+          authorized = {};
+          try {
+            const store = iframeEl.contentWindow.ui?.getStore();
+            store?.subscribe(authorizeApiDocs);
+            store?.subscribe(adoptSessions);
+          } catch (e) {
+            // cross-origin or security restriction — safe to ignore
+          }
+          authorizeApiDocs();
+        });
+        GuestService.TokenEvent[ModalId] = authorizeApiDocs;
+      }
     }
     // The iframe is sized to the modal body rather than left to grow: an
     // auto-height iframe inside a fixed-height modal scrolls the modal and the
@@ -183,6 +253,7 @@ class Docs {
       if (unbindIframeLayoutSync) unbindIframeLayoutSync();
       themeObserver?.disconnect();
       if (themeEventKey) delete ThemeEvents[themeEventKey];
+      delete GuestService.TokenEvent[ModalId];
       closeModalRouteChangeEvent({ closedId: ModalId });
     };
   }

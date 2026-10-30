@@ -54,20 +54,20 @@ const fixture = () => ({
       services: ['object-layer', 'item-ledger'],
       apiHosts: { 'item-ledger': 'itemledger.com' },
       views: [{ path: '/' }, { path: '/object-layer-engine-viewer' }, { path: '/docs' }],
-      docs: { typedoc: { entryPoints: ['./src/api/object-layer'] }, api: ['object-layer'] },
+      docs: { typedoc: { entryPoints: ['./src/api/object-layer'] } },
     },
     itemledger: {
       components: { core: ['Docs'], 'objectlayer-studio': ['ObjectLayerProtocol', 'ObjectLayerEngineViewer'] },
       services: ['item-ledger', 'object-layer', 'atlas-sprite-sheet'],
       apiHosts: { 'object-layer': 'objectlayer.org', 'atlas-sprite-sheet': 'objectlayer.org' },
       views: [{ path: '/' }, { path: '/item-ledger-registry' }, { path: '/docs' }],
-      docs: { typedoc: { entryPoints: ['./src/api/item-ledger'] }, api: ['item-ledger'] },
+      docs: { typedoc: { entryPoints: ['./src/api/item-ledger'] } },
     },
     cryptokoyn: {
       components: { wallet: ['WalletProvider', 'EmbeddedWallet', 'WalletView'] },
       services: ['wallet-account'],
       views: [{ path: '/' }, { path: '/wallet' }, { path: '/docs' }],
-      docs: { typedoc: { entryPoints: ['./src/api/wallet-account'] }, api: ['wallet-account'] },
+      docs: { typedoc: { entryPoints: ['./src/api/wallet-account'] } },
     },
     'cyberia-portal': {
       components: {
@@ -77,7 +77,7 @@ const fixture = () => ({
       services: ['object-layer', 'item-ledger'],
       apiHosts: { 'item-ledger': 'itemledger.com' },
       views: [{ path: '/' }, { path: '/server' }, { path: '/docs' }],
-      docs: { api: ['cyberia-map'] },
+      docs: {},
     },
   },
 });
@@ -224,10 +224,8 @@ describe('domain ownership', () => {
   it('documents only the APIs a domain owns', () => {
     const conf = fixture();
     conf.confClient.objectlayer.docs.typedoc.entryPoints.push('./src/api/item-ledger');
-    conf.confClient.cryptokoyn.docs.api.push('item-ledger-balance');
     const errors = validateDomainConf(conf);
     expect(errors).toContain('objectlayer: typedoc documents item-ledger, owned by item-ledger');
-    expect(errors).toContain('cryptokoyn: api docs list item-ledger-balance, owned by item-ledger');
   });
 
   it('finds stale domain names anywhere in the configuration', () => {

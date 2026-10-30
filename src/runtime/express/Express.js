@@ -5,7 +5,6 @@
  * @namespace ExpressService
  */
 
-import fs from 'fs-extra';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import swaggerUi from 'swagger-ui-express';
@@ -21,7 +20,6 @@ import { createValkeyConnection } from '../../db/valkey/Valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/security/auth.js';
 import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
 
-import { shellExec } from '../../server/runtime/process.js';
 import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
 import { developmentOrigins } from '../../server/network/router.js';
 import { metricsPathFactory } from '../../server/ops/monitoring.js';
@@ -33,7 +31,13 @@ import {
 } from '../../server/network/middlewares.js';
 import { publicRouteRenderersFactory } from '../../server/network/public-route-renderers.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
-import { consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
+import {
+  apiAnnotationsOf,
+  apiDocumentFactory,
+  apiDocumentPathOf,
+  ownRoutesOf,
+} from '../../server/domain/api-document.js';
+import { apiExtensionUrl, consumedApisOf, loadApiExtension } from '../../server/domain/consumed-api.js';
 
 import Underpost from '../../index.js';
 
@@ -69,10 +73,12 @@ class ExpressService {
    * @param {boolean} [config.peer] - Whether to enable the peer server.
    * @param {object} [config.valkey] - Valkey connection configuration.
    * @param {string} [config.apiBaseHost] - Base host for the API (if running separate API).
+   * @param {string} [config.apiBaseProxyPath] - Host path of the separate API runtime.
    * @param {string} config.redirectTarget - The full target URL for redirection (used if `redirect` is true).
    * @param {string} config.rootHostPath - The root path for public host assets (e.g., `/public/hostname`).
    * @param {object} config.confSSR - The SSR configuration object, used to look up Mailer templates.
    * @param {object} [config.metadata] - The client's `metadata` block (site name, description, social image): the site-level values of an entry's rendered head.
+   * @param {object} [config.docs] - The client's `docs` block: the host publishes its API document and view.
    * @param {import('prom-client').Counter<string>} config.promRequestCounter - Prometheus request counter instance.
    * @param {import('prom-client').Registry} config.promRegister - Prometheus register instance for metrics.
    * @returns {Promise<{portsUsed: number}>} An object indicating how many additional ports were used (e.g., for PeerServer).
@@ -96,11 +102,13 @@ class ExpressService {
     peer,
     valkey,
     apiBaseHost,
+    apiBaseProxyPath,
     grpc,
     redirectTarget,
     rootHostPath,
     confSSR,
     metadata,
+    docs,
     promRequestCounter,
     promRegister,
   }) {
@@ -205,12 +213,10 @@ class ExpressService {
     // Swagger path definition. The UI is served by every instance that renders the
     // client, so a split client/API deployment keeps `api-docs` same-origin with the
     // page that frames it.
-    const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
     const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
-    const swaggerEnabled = fs.existsSync(swaggerJsonPath);
 
     // Flag swagger requests before security middleware
-    if (swaggerEnabled) {
+    if (docs) {
       app.use(swaggerPath, (req, res, next) => {
         res.locals.isSwagger = true;
         next();
@@ -254,14 +260,17 @@ class ExpressService {
       if (apis && apis.length > 0) {
         const authMiddleware = authMiddlewareFactory({ host, path });
         const apiPath = apiPathOf(path);
+        const routes = [];
+        const sources = [];
         for (const api of apis) {
           logger.info(
             `Build api server`,
             `${host}${apiPath}/${api}${consumed[api] ? ` (consumed from ${consumed[api]})` : ''}`,
           );
-          const { ApiRouter } = await import(`../../api/${api}/${api}.router.js`);
+          const routerUrl = new URL(`../../api/${api}/${api}.router.js`, import.meta.url);
+          const { ApiRouter } = await import(routerUrl.href);
           const extension = await loadApiExtension(api, apiExtensions);
-          const router = ApiRouter({
+          const routerOptions = {
             app,
             host,
             path,
@@ -272,8 +281,23 @@ class ExpressService {
             origins,
             consumes: consumed,
             extension,
-          });
+          };
+          const router = ApiRouter(routerOptions);
           app.use(`${apiPath}/${api}`, router);
+          if (!docs) continue;
+          routes.push(...ownRoutesOf(api, router, routerOptions));
+          sources.push({ url: routerUrl, own: !consumed[api] });
+          if (extension) sources.push({ url: apiExtensionUrl(api, apiExtensions[api]), own: true });
+        }
+        if (docs) {
+          const apiDocument = apiDocumentFactory({
+            host,
+            metadata,
+            annotations: apiAnnotationsOf(sources),
+            routes,
+            path,
+          });
+          app.get(apiDocumentPathOf(path), (req, res) => res.json(apiDocument));
         }
       }
 
@@ -312,9 +336,12 @@ class ExpressService {
     }
 
     // Swagger UI setup (after security middleware so responses carry correct CSP headers)
-    if (swaggerEnabled) {
-      const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-      app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+    // serveFiles keeps one UI per host: the shared `serve` answers every host with the last setup.
+    if (docs) {
+      const swaggerUrl = apiBaseHost
+        ? `//${apiBaseHost}${apiDocumentPathOf(apiBaseProxyPath)}`
+        : apiDocumentPathOf(path);
+      app.use(swaggerPath, swaggerUi.serveFiles(null, { swaggerUrl }), swaggerUi.setup(null, { swaggerUrl }));
     }
 
     // SSR middleware loading
@@ -329,7 +356,7 @@ class ExpressService {
       process.env.NODE_ENV === 'development' &&
       !isDevProxyContext()
     ) {
-      if (!Underpost.tls.validateSecureContext()) shellExec(`node bin/deploy tls`);
+      if (!Underpost.tls.validateSecureContext()) Underpost.tls.issueCertificate();
       const { ServerSSL } = await Underpost.tls.createSslServer(app);
       await Underpost.start.listenPortController(ServerSSL, port, runningData);
     } else await Underpost.start.listenPortController(server, port, runningData);

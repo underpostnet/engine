@@ -209,10 +209,6 @@ export function validateDomainConf({ confServer, confClient, env = 'development'
       const owner = api ? ownerDomainOf(api) : '';
       if (owner && owner !== ownDomain) errors.push(`${clientId}: typedoc documents ${api}, owned by ${owner}`);
     }
-    for (const api of docs.api ?? []) {
-      const owner = ownerDomainOf(api);
-      if (owner && owner !== ownDomain) errors.push(`${clientId}: api docs list ${api}, owned by ${owner}`);
-    }
   }
 
   return errors;

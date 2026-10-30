@@ -35,7 +35,7 @@ const { cacheCanonical, isObjectLayerAuthority, publishDefinition } = await obje
   '../../../src/api/object-layer/object-layer.publication.js',
 );
 const { ObjectLayerService } = await objectLayerModule('../../../src/api/object-layer/object-layer.service.js');
-const { apiDocsModulesFactory } = await import('../../../src/server/build/docs.js');
+const { ownRoutesOf } = await import('../../../src/server/domain/api-document.js');
 const { objectLayerIdentity } = await objectLayerModule('../../../src/api/object-layer/object-layer.identity.js');
 
 const definition = {
@@ -178,12 +178,24 @@ describe('cross-domain credentials', () => {
 });
 
 describe('documentation ownership', () => {
-  it('documents a consumed API at its owner, never at the consumer', () => {
-    const apis = ['cyberia-map', 'object-layer', 'atlas-sprite-sheet'];
-    const consumes = { 'object-layer': 'object-layer', 'atlas-sprite-sheet': 'object-layer' };
-    expect(apiDocsModulesFactory({ docs: { api: apis }, apis, consumes })).toEqual(['cyberia-map']);
-    expect(apiDocsModulesFactory({ docs: { api: apis }, apis })).toEqual(apis);
-  });
+  it.skipIf(!cyberiaContext)(
+    'documents a consumed API at its owner, and only its extension at the consumer',
+    async () => {
+      const extension = await loadApiExtension('object-layer', { 'object-layer': 'cyberia' });
+      const { ApiRouter } = await import('../../../src/api/object-layer/object-layer.router.js');
+      const authMiddleware = (req, res, next) => next();
+      const documented = (consumes) => {
+        const options = { host: 'www.cyberiaonline.com', path: '/', authMiddleware, consumes, extension };
+        return ownRoutesOf('object-layer', ApiRouter(options), options).map(({ method, path }) => `${method} ${path}`);
+      };
+
+      const consumer = documented({ 'object-layer': 'object-layer' });
+      const owner = documented({});
+      expect(consumer).toContain('get /object-layer/context/{id}');
+      expect(consumer).not.toContain('get /object-layer/render/{id}');
+      expect(owner).toEqual(expect.arrayContaining([...consumer, 'get /object-layer/render/{id}']));
+    },
+  );
 });
 
 describe.skipIf(!objectLayerDomain)('database boundaries', () => {

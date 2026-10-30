@@ -4,8 +4,8 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import {
   DEFAULT_TYPEDOC_CONFIG_PATH,
-  apiDocsModulesFactory,
   canonicalDocsClient,
+  docsPlanFactory,
   docsReferencesFactory,
   typedocOptionsFactory,
 } from '../../../src/server/build/docs.js';
@@ -91,22 +91,59 @@ describe('client docs conf', () => {
     expect(docsReferencesFactory()).to.deep.equal([]);
   });
 
-  it('documents the declared modules the instance serves, in declaration order', () => {
-    const docs = { api: ['item-ledger', 'object-layer', 'absent'] };
-    expect(apiDocsModulesFactory({ docs, apis: ['user', 'object-layer', 'item-ledger'] })).to.deep.equal([
-      'item-ledger',
-      'object-layer',
-    ]);
-    expect(apiDocsModulesFactory({ docs: { api: [] }, apis: ['user'] })).to.deep.equal([]);
+  it('builds the TypeDoc site in a full production build and keeps the published one otherwise', () => {
+    expect(docsPlanFactory({}, 'production')).to.deep.equal({ assets: true, typedoc: 'build', required: false });
+    expect(docsPlanFactory({}, 'development')).to.deep.equal({ assets: true, typedoc: 'skip', required: false });
+    expect(docsPlanFactory({ liteBuild: true }, 'production').typedoc).to.equal('skip');
+    expect(docsPlanFactory({ ssr: true }, 'production').typedoc).to.equal('skip');
+    expect(docsPlanFactory()).to.deep.equal({ assets: true, typedoc: 'skip', required: false });
   });
 
-  it('documents the served modules whose router describes itself when nothing is declared', () => {
-    fs.outputFileSync('./src/api/user/user.router.js', '// #swagger.tags = ["user"]');
-    fs.outputFileSync('./src/api/plain/plain.router.js', 'export {};');
+  it('follows an explicit request, whose failure then fails the build', () => {
+    expect(docsPlanFactory({ docs: 'build' }, 'development')).to.deep.equal({
+      assets: true,
+      typedoc: 'build',
+      required: true,
+    });
+    expect(docsPlanFactory({ docs: 'skip' }, 'production')).to.deep.equal({
+      assets: true,
+      typedoc: 'skip',
+      required: true,
+    });
+    expect(docsPlanFactory({ docsOnly: true }, 'development')).to.deep.equal({
+      assets: false,
+      typedoc: 'build',
+      required: true,
+    });
+    expect(docsPlanFactory({ docs: 'watch', docsOnly: true }, 'development')).to.deep.equal({
+      assets: false,
+      typedoc: 'watch',
+      required: true,
+    });
+    // A watch only previews: it builds no client assets, with or without --docs-only.
+    expect(docsPlanFactory({ docs: 'watch' }, 'development')).to.deep.equal({
+      assets: false,
+      typedoc: 'watch',
+      required: true,
+    });
+  });
 
-    expect(apiDocsModulesFactory({ docs: {}, apis: ['user', 'plain', 'absent'] })).to.deep.equal(['user']);
-    expect(apiDocsModulesFactory({ apis: ['user'] })).to.deep.equal(['user']);
-    expect(apiDocsModulesFactory()).to.deep.equal([]);
+  it('rejects a documentation request that cannot run', () => {
+    const rejected =
+      (options, env = 'development') =>
+      () =>
+        docsPlanFactory(options, env);
+    expect(rejected({ docs: 'all' })).to.throw("--docs 'all': expected one of auto, skip, build, watch");
+    expect(rejected({ docs: 'watch' }, 'production')).to.throw(
+      '--docs watch runs in development only, not in production',
+    );
+    expect(rejected({ docsOnly: true, docs: 'skip' })).to.throw('--docs-only builds the documentation');
+    expect(rejected({ ssr: true, docs: 'build' })).to.throw('--ssr rebuilds the SSR views only');
+    expect(rejected({ docsOnly: true, buildZip: true })).to.throw('--build-zip builds client assets');
+    expect(rejected({ docs: 'watch', iconsBuild: true })).to.throw('--icons-build builds client assets');
+    expect(rejected({ docsOnly: true, unzip: 'build/x' })).to.throw('--unzip builds no client');
+    expect(rejected({ docs: 'build', syncEnvPort: true })).to.throw('--sync-env-port builds no client');
+    expect(docsPlanFactory({ syncEnvPort: true }, 'production').typedoc).to.equal('build');
   });
 
   it('names the client whose typedoc options a product template writes to its root', () => {

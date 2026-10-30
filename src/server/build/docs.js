@@ -10,7 +10,6 @@
  *   depth, and only `.md` files are read. Under the documentation root, the path of a document
  *   is its identity: `<domain>/<category>/<slug>`.
  * - `coverage` — the reports the client publishes (see {@link module:src/server/build/coverage.js}).
- * - `api` — the API modules its OpenAPI document covers, out of the ones its instance serves.
  * - `canonical` — marks the one client whose options a product template writes to its root.
  *
  * @module src/server/build/docs.js
@@ -44,6 +43,76 @@ const normalizeDirectory = (directory) => `${directory ?? ''}`.replace(/\/+$/, '
 const typedocOptionsFactory = ({ docs = {}, configPath = DEFAULT_TYPEDOC_CONFIG_PATH } = {}) => {
   if (!fs.existsSync(configPath)) return null;
   return { ...JSON.parse(fs.readFileSync(configPath, 'utf8')), ...(docs?.typedoc ?? {}) };
+};
+
+/**
+ * @constant TYPEDOC_DIRECTORY
+ * @description Where the TypeDoc sites of a client live below its root: one directory per package
+ * version, served at `/docs/engine/<version>/`, and the development preview. The documentation task
+ * owns it, and a full client build keeps it.
+ * @memberof UnderpostDocs
+ */
+const TYPEDOC_DIRECTORY = 'docs/engine';
+
+/**
+ * @constant TYPEDOC_PREVIEW
+ * @description The directory a TypeDoc watch rebuilds, below {@link TYPEDOC_DIRECTORY}.
+ * @memberof UnderpostDocs
+ */
+const TYPEDOC_PREVIEW = 'preview';
+
+/**
+ * @constant TYPEDOC_MODES
+ * @description What a client build does with the TypeDoc site. `auto` builds it in a full production
+ * build and keeps the published site otherwise, `skip` keeps the published site, `build` generates
+ * and publishes it, and `watch` runs the development preview.
+ * @memberof UnderpostDocs
+ */
+const TYPEDOC_MODES = Object.freeze(['auto', 'skip', 'build', 'watch']);
+
+/** The `client` operations that build no client, by option name. */
+const CLIENT_OPERATIONS = Object.freeze({
+  unzip: '--unzip',
+  mergeZip: '--merge-zip',
+  singleReplica: '--single-replica',
+  syncEnvPort: '--sync-env-port',
+});
+
+/**
+ * @method docsPlanFactory
+ * @description What one `client` build does with its documentation: whether it builds the client
+ * assets, and what it does with the TypeDoc site. An explicit request makes a TypeDoc failure fail
+ * the build; in `auto` it is a warning. A watch builds and publishes nothing else: it only runs the
+ * preview of its one client.
+ * @param {object} [options] - Options of the `client` command.
+ * @param {string} [options.docs='auto'] - One of {@link TYPEDOC_MODES}.
+ * @param {boolean} [options.docsOnly] - Build the documentation without the client assets.
+ * @param {string} [env='development'] - The resolved build environment.
+ * @returns {{assets: boolean, typedoc: 'skip'|'build'|'watch', required: boolean}}
+ * @throws {Error} On a combination that cannot run.
+ * @memberof UnderpostDocs
+ */
+const docsPlanFactory = (options = {}, env = 'development') => {
+  const mode = options.docs || 'auto';
+  if (!TYPEDOC_MODES.includes(mode)) throw new Error(`--docs '${mode}': expected one of ${TYPEDOC_MODES.join(', ')}`);
+  const docsOnly = options.docsOnly === true;
+  const required = docsOnly || mode !== 'auto';
+  const operation = Object.keys(CLIENT_OPERATIONS).find((name) => options[name]);
+  if (required && operation)
+    throw new Error(`${CLIENT_OPERATIONS[operation]} builds no client: it takes no --docs option`);
+  const full = env === 'production' && !options.liteBuild && !options.ssr;
+  const typedoc = mode !== 'auto' ? mode : docsOnly || full ? 'build' : 'skip';
+  if (docsOnly && typedoc === 'skip') throw new Error('--docs-only builds the documentation: it cannot skip TypeDoc');
+  if (typedoc === 'watch' && env !== 'development')
+    throw new Error(`--docs watch runs in development only, not in ${env}`);
+  if (options.ssr && typedoc !== 'skip')
+    throw new Error('--ssr rebuilds the SSR views only: build the documentation with --docs-only');
+  const assetOption = ['buildZip', 'iconsBuild'].find((name) => options[name]);
+  if (assetOption && (docsOnly || typedoc === 'watch'))
+    throw new Error(
+      `--${assetOption === 'buildZip' ? 'build-zip' : 'icons-build'} builds client assets: it cannot run with --docs-only or --docs watch`,
+    );
+  return { assets: !docsOnly && typedoc !== 'watch', typedoc, required };
 };
 
 /**
@@ -331,28 +400,6 @@ const docsProblemsFactory = (documents = []) => {
 };
 
 /**
- * @method apiDocsModulesFactory
- * @description The API modules an instance's OpenAPI document covers: the ones the client
- * `docs.api` names, kept to those the instance serves from its own authority. A consumed API is
- * another domain's contract and is documented there, never here. Without a declaration, the
- * owned modules whose router describes itself with `#swagger` annotations.
- * @param {object} [options]
- * @param {object} [options.docs] - The `docs` block of one `conf.client.json` client.
- * @param {string[]} [options.apis] - The API modules the instance serves.
- * @param {Object<string,string>} [options.consumes] - The served modules another domain owns.
- * @returns {string[]} Module names, in declaration order.
- * @memberof UnderpostDocs
- */
-const apiDocsModulesFactory = ({ docs = {}, apis = [], consumes = {} } = {}) => {
-  const owned = apis.filter((api) => !consumes?.[api]);
-  if (Array.isArray(docs?.api)) return docs.api.filter((api) => owned.includes(api));
-  return owned.filter((api) => {
-    const routerPath = `./src/api/${api}/${api}.router.js`;
-    return fs.existsSync(routerPath) && fs.readFileSync(routerPath, 'utf8').includes('#swagger');
-  });
-};
-
-/**
  * @method canonicalDocsClient
  * @description The client whose TypeDoc options a product template writes to its root, as
  * `docs.canonical` marks it. A deploy names one client or none.
@@ -377,8 +424,11 @@ export {
   docsProblemsFactory,
   frontMatterOf,
   DEFAULT_TYPEDOC_CONFIG_PATH,
-  apiDocsModulesFactory,
+  TYPEDOC_DIRECTORY,
+  TYPEDOC_MODES,
+  TYPEDOC_PREVIEW,
   canonicalDocsClient,
+  docsPlanFactory,
   docsReferencesFactory,
   typedocOptionsFactory,
 };
