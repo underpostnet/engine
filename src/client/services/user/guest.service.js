@@ -24,10 +24,18 @@ const getDb = () => {
   return _db;
 };
 
+const tokenChanged = () => {
+  for (const event of Object.values(GuestService.TokenEvent)) event();
+};
+
 class GuestService {
+  /** Listeners, by key, of each write of a session token. */
+  static TokenEvent = {};
+
   static setUserToken(value = '') {
     if (value) localStorage.setItem(USER_TOKEN_KEY, value);
     else localStorage.removeItem(USER_TOKEN_KEY);
+    tokenChanged();
     return value;
   }
 
@@ -37,12 +45,14 @@ class GuestService {
 
   static clearUserToken() {
     localStorage.removeItem(USER_TOKEN_KEY);
+    tokenChanged();
     return '';
   }
 
   static setGuestToken(value = '') {
     if (value) localStorage.setItem(GUEST_TOKEN_KEY, value);
     else localStorage.removeItem(GUEST_TOKEN_KEY);
+    tokenChanged();
     return value;
   }
 
@@ -52,6 +62,7 @@ class GuestService {
 
   static clearGuestToken() {
     localStorage.removeItem(GUEST_TOKEN_KEY);
+    tokenChanged();
     return '';
   }
 

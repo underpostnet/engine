@@ -1,5 +1,5 @@
 import { Auth } from '../core/Auth.js';
-import { GoogleSignIn } from '../core/GoogleSignIn.js';
+import { GoogleSignIn } from '../google-auth/GoogleSignIn.js';
 import { LogIn } from '../core/LogIn.js';
 import { StudioCyberia } from '../cyberia/StudioCyberia.js';
 import { resumeLaunch } from '../cyberia/GameLaunchCyberia.js';

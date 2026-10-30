@@ -60,7 +60,9 @@ vi.mock('../../../src/client/services/core/core.service.js', () => ({
 vi.mock('../../../src/client/services/file/file.service.js', () => ({
   FileService: { get: async () => ({ status: 'success', data: [{ _id: 'avatar' }] }) },
 }));
-vi.mock('../../../src/client/components/core/GoogleSignIn.js', () => ({ GoogleSignIn: { resume: async () => null } }));
+vi.mock('../../../src/client/components/google-auth/GoogleSignIn.js', () => ({
+  GoogleSignIn: { resume: async () => null },
+}));
 vi.mock('../../../src/client/components/core/BuildManifest.js', () => ({ buildManifest: () => ({ runtime: {} }) }));
 vi.mock('../../../src/client/components/core/Router.js', () => ({
   RouterReady: Promise.resolve(),

@@ -39,11 +39,12 @@ export default {
   packageName: 'cyberia',
   // Pod bootstraps link this product checkout over the image CLI before continuing.
   packageBin: { cyberia: 'bin/index.js', underpost: 'bin/index.js' },
-  // Native-dependency pin list: versions stay reproducible across CI and production deploys.
+  // Packages that the APIs of this product import and the engine manifest does not declare.
   packageDependencies: {
     'maxrects-packer': '^2.7.3',
+    passport: '^0.7.0',
+    'passport-google-oauth20': '^2.0.0',
     pngjs: '^7.0.0',
-    jimp: '^1.6.0',
     sharp: '^0.35.5',
   },
   packageScripts: {

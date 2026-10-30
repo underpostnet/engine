@@ -94,17 +94,12 @@ const windowStub = { addEventListener: vi.fn() };
 vi.stubGlobal('location', location);
 vi.stubGlobal('window', windowStub);
 
-// A sliced tree ships only the services of its default client.
-const googleAuthService = fs.existsSync('./src/client/services/google-auth');
-const describeGoogleSignIn = describe.skipIf(!googleAuthService);
-const { GoogleSignIn } = googleAuthService ? await import('../../../src/client/components/core/GoogleSignIn.js') : {};
+const { GoogleSignIn } = await import('../../../src/client/components/google-auth/GoogleSignIn.js');
 const { LogIn } = await import('../../../src/client/components/core/LogIn.js');
 const { SignUp } = await import('../../../src/client/components/core/SignUp.js');
 const { Auth } = await import('../../../src/client/components/core/Auth.js');
 const { NotificationManager } = await import('../../../src/client/components/core/NotificationManager.js');
-const { GoogleAuthService } = googleAuthService
-  ? await import('../../../src/client/services/google-auth/google-auth.service.js')
-  : {};
+const { GoogleAuthService } = await import('../../../src/client/services/google-auth/google-auth.service.js');
 afterAll(() => vi.unstubAllGlobals());
 
 const flushTimers = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -121,7 +116,7 @@ beforeEach(() => {
   logins.clear();
 });
 
-describeGoogleSignIn('Google sign-in button', () => {
+describe('Google sign-in button', () => {
   it('renders a labelled button with the pixel-art Google icon, then the divider before the form', async () => {
     const markup = await GoogleSignIn.instance();
     expect(markup).toMatch(/<button class="in section-mp form-button google-sign-in-btn google-sign-in-[0-9a-f]+">/);
@@ -173,7 +168,7 @@ describeGoogleSignIn('Google sign-in button', () => {
   });
 });
 
-describeGoogleSignIn('Google sign-in return', () => {
+describe('Google sign-in return', () => {
   it('does nothing on a page the flow did not return to', async () => {
     expect(await GoogleSignIn.resume()).toBeNull();
     expect(GoogleAuthService.session).not.toHaveBeenCalled();
@@ -214,7 +209,6 @@ describeGoogleSignIn('Google sign-in return', () => {
       ['cancelled', 'google-auth-cancelled', 'info'],
       ['conflict', 'google-auth-conflict', 'error'],
       ['unverified-email', 'google-auth-unverified-email', 'error'],
-      ['unavailable', 'google-auth-unavailable', 'error'],
       ['<img src=x onerror=alert(1)>', 'google-auth-error', 'error'],
     ]) {
       vi.clearAllMocks();
@@ -260,14 +254,14 @@ describeGoogleSignIn('Google sign-in return', () => {
   });
 });
 
-describeGoogleSignIn('Google sign-in assets and copy', () => {
+describe('Google sign-in assets and copy', () => {
   it('ships the Google icon in the Cyberia public assets the portal serves at assets/ui-icons/', () => {
     const icon = fs.readFileSync('./src/client/public/cyberia/assets/ui-icons/google.png');
     expect(icon.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   });
 
   it('translates every Google sign-in message to each supported language', () => {
-    const source = fs.readFileSync('./src/client/components/core/Translate.js', 'utf8');
+    const source = fs.readFileSync('./src/client/components/google-auth/TranslateGoogleAuth.js', 'utf8');
     for (const key of [
       'or',
       'continue-with-google',
@@ -277,7 +271,6 @@ describeGoogleSignIn('Google sign-in assets and copy', () => {
       'google-auth-link-expired',
       'google-auth-conflict',
       'google-auth-unverified-email',
-      'google-auth-unavailable',
       'google-auth-error',
     ]) {
       const entry = source.match(new RegExp(`Translate\\.Data\\['${key}'\\] = \\{([^}]*)\\}`))?.[1];

@@ -1,20 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import fs from 'fs-extra';
 import { isValidUsername } from '../../../src/client/components/core/CommonJs.js';
-
-// A sliced tree ships only the APIs of its default conf.
-const googleAuthApi = fs.existsSync('./src/api/google-auth');
-const describeGoogleAuth = describe.skipIf(!googleAuthApi);
-const { GOOGLE_AUTH_SCOPES, googleAuthConfig, googleClaims, returnPath, usernameCandidates } = googleAuthApi
-  ? await import('../../../src/api/google-auth/google-auth.service.js')
-  : {};
+import {
+  GOOGLE_AUTH_SCOPES,
+  googleAuthConfig,
+  googleClaims,
+  returnPath,
+  usernameCandidates,
+} from '../../../src/api/google-auth/google-auth.service.js';
 
 const options = { host: 'www.cyberiaonline.com', path: '/', apiPath: '/api/v1' };
-const GOOGLE_ENV = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL'];
-const saved = Object.fromEntries(GOOGLE_ENV.map((key) => [key, process.env[key]]));
+const ENV_KEYS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL', 'NODE_ENV'];
+const saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
 
 const setEnv = (values) => {
-  for (const key of GOOGLE_ENV) {
+  for (const key of ENV_KEYS) {
     if (values[key] === undefined) delete process.env[key];
     else process.env[key] = values[key];
   }
@@ -22,12 +21,14 @@ const setEnv = (values) => {
 
 afterEach(() => setEnv(saved));
 
-describeGoogleAuth('Google sign-in configuration', () => {
-  it('is off without a client id or a client secret', () => {
+describe('Google sign-in configuration', () => {
+  it('refuses a host without a client id or a client secret', () => {
     setEnv({ GOOGLE_CLIENT_SECRET: 'secret' });
-    expect(googleAuthConfig(options)).toBeNull();
+    expect(() => googleAuthConfig(options)).toThrow(
+      /domain=app .*key=GOOGLE_CLIENT_ID reason=missing; www\.cyberiaonline\.com serves google-auth/,
+    );
     setEnv({ GOOGLE_CLIENT_ID: 'client' });
-    expect(googleAuthConfig(options)).toBeNull();
+    expect(() => googleAuthConfig(options)).toThrow(/key=GOOGLE_CLIENT_SECRET reason=missing/);
   });
 
   it("defaults the callback to the host's own API route, the one the OAuth client lists", () => {
@@ -39,7 +40,7 @@ describeGoogleAuth('Google sign-in configuration', () => {
     });
   });
 
-  it('takes the callback from GOOGLE_CALLBACK_URL, and is off for one that is not an http(s) URL', () => {
+  it('takes the callback from GOOGLE_CALLBACK_URL, and refuses one that is not an http(s) URL', () => {
     setEnv({
       GOOGLE_CLIENT_ID: 'client',
       GOOGLE_CLIENT_SECRET: 'secret',
@@ -48,8 +49,16 @@ describeGoogleAuth('Google sign-in configuration', () => {
     expect(googleAuthConfig(options).callbackURL).toBe('http://localhost:4008/api/v1/google-auth/callback');
     for (const GOOGLE_CALLBACK_URL of ['not a url', 'javascript:alert(1)', 'ftp://host/callback']) {
       setEnv({ GOOGLE_CLIENT_ID: 'client', GOOGLE_CLIENT_SECRET: 'secret', GOOGLE_CALLBACK_URL });
-      expect(googleAuthConfig(options), GOOGLE_CALLBACK_URL).toBeNull();
+      expect(() => googleAuthConfig(options), GOOGLE_CALLBACK_URL).toThrow(/key=GOOGLE_CALLBACK_URL/);
     }
+  });
+
+  it('requires an HTTPS callback in production', () => {
+    const client = { GOOGLE_CLIENT_ID: 'client', GOOGLE_CLIENT_SECRET: 'secret', NODE_ENV: 'production' };
+    setEnv({ ...client, GOOGLE_CALLBACK_URL: 'http://www.cyberiaonline.com/api/v1/google-auth/callback' });
+    expect(() => googleAuthConfig(options)).toThrow(/key=GOOGLE_CALLBACK_URL reason=not an https: URL/);
+    setEnv(client);
+    expect(googleAuthConfig(options).callbackURL).toBe('https://www.cyberiaonline.com/api/v1/google-auth/callback');
   });
 
   it('asks Google for the identity scopes only', () => {
@@ -70,7 +79,7 @@ describeGoogleAuth('Google sign-in configuration', () => {
   });
 });
 
-describeGoogleAuth('Google email authority', () => {
+describe('Google email authority', () => {
   const profile = (email, { verified = true, hd } = {}) => ({
     id: '1',
     emails: [{ value: email, verified }],
@@ -92,7 +101,7 @@ describeGoogleAuth('Google email authority', () => {
   });
 });
 
-describeGoogleAuth('Google sign-in usernames', () => {
+describe('Google sign-in usernames', () => {
   it('derives a valid username from the Google name', () => {
     expect(usernameCandidates('José Pérez')[0]).toBe('jose-perez');
     expect(usernameCandidates("Ana  O'Neil!")[0]).toBe('ana-o-neil');

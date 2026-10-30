@@ -22,15 +22,19 @@ gets a normal Cyberia session, as a password log-in gives.
 
 Set them in `engine-private/conf/dd-cyberia/.env.<env>`. The deploy Secret carries them to the pods.
 
-The deploy configuration also names the API and its client parts:
+The deploy configuration also names the API, its client parts and its packages:
 
-| File               | Entry                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------- |
-| `conf.server.json` | `google-auth` in `apis` of `www.cyberiaonline.com`                                          |
-| `conf.client.json` | `GoogleSignIn` in the `core` components and `google-auth` in `services` of `cyberia-portal` |
+| File                 | Entry                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `conf.server.json`   | `google-auth` in `apis` of `www.cyberiaonline.com`                                                                           |
+| `conf.client.json`   | `GoogleSignIn` and `TranslateGoogleAuth` in the `google-auth` components and `google-auth` in `services` of `cyberia-portal` |
+| `catalog-cyberia.js` | `passport` and `passport-google-oauth20` in `packageDependencies`                                                            |
 
-Without a client ID, a secret or a valid callback, the API logs a warning at start. The button then
-returns the player to the portal with the "not available" message.
+A deploy that does not list `google-auth` mounts no Google route and loads no Passport package. The
+base template carries none of these parts.
+
+A host that lists `google-auth` does not start without a client ID, a secret and a valid callback.
+In production, the callback must be HTTPS. The start error names the missing key.
 
 ## Production
 
@@ -107,5 +111,4 @@ The callback returns `google-auth=<outcome>` to the portal:
 | `cancelled`        | The player cancelled on the Google page                           |
 | `conflict`         | The matching account already has another Google account           |
 | `unverified-email` | Google did not verify the email of a new Google account           |
-| `unavailable`      | Google sign-in is not configured on this host                     |
 | `error`            | The state, the code exchange or the profile failed                |

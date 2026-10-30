@@ -10,6 +10,7 @@ import { LogOutCyberiaPortal } from './components/cyberia-portal/LogOutCyberiaPo
 import { SignUpCyberiaPortal } from './components/cyberia-portal/SignUpCyberiaPortal.js';
 import { CssCyberiaDark, CssCyberiaLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
+import { TranslateGoogleAuth } from './components/google-auth/TranslateGoogleAuth.js';
 
 const CssCyberiaPortalThemes = [CssCyberiaDark, CssCyberiaLight];
 
@@ -18,7 +19,7 @@ window.onload = () =>
     router: RouterCyberiaPortal,
 
     themes: CssCyberiaPortalThemes,
-    translate: TranslateCyberiaPortal,
+    translate: [TranslateCyberiaPortal, TranslateGoogleAuth],
     render: AppShellCyberiaPortal,
     appStore: AppStoreCyberiaPortal,
 

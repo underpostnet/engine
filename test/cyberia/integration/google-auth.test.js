@@ -3,12 +3,10 @@
  * stubs of its token and userinfo endpoints. The authorization request, the state cookie, PKCE,
  * the account resolution and linking, the one-time ticket and the session it opens all run for real.
  *
- * Needs the `google-auth` API, which a sliced tree drops, and a `mongod` binary: `UNDERPOST_MONGOD_BIN`,
- * or one on PATH. Skipped otherwise.
+ * Needs a `mongod` binary: `UNDERPOST_MONGOD_BIN`, or one on PATH. Skipped otherwise.
  */
 import crypto from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import fs from 'fs-extra';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { OAuth2 } from 'oauth';
@@ -17,11 +15,9 @@ import { authMiddlewareFactory } from '../../../src/server/security/auth.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 import { UserDto } from '../../../src/api/user/user.model.js';
 import { UserRouter } from '../../../src/api/user/user.router.js';
+import { GoogleAuthRouter } from '../../../src/api/google-auth/google-auth.router.js';
+import { GoogleAuthService } from '../../../src/api/google-auth/google-auth.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
-
-const googleAuthApi = fs.existsSync('./src/api/google-auth');
-const { GoogleAuthRouter } = googleAuthApi ? await import('../../../src/api/google-auth/google-auth.router.js') : {};
-const { GoogleAuthService } = googleAuthApi ? await import('../../../src/api/google-auth/google-auth.service.js') : {};
 
 const A = { host: 'a.test', path: '/' };
 const B = { host: 'b.test', path: '/' };
@@ -146,7 +142,7 @@ const logIn = async (client, email) => {
   return (await res.json()).data.token;
 };
 
-describe.skipIf(!googleAuthApi || !mongodBinary)('Google sign-in', () => {
+describe.skipIf(!mongodBinary)('Google sign-in', () => {
   let mongod;
   let originA;
   let originB;
@@ -334,17 +330,28 @@ describe.skipIf(!googleAuthApi || !mongodBinary)('Google sign-in', () => {
       expect((await exchange(client, flow)).status).toBe(200);
     });
 
-    it('returns to the starting view with "unavailable" on a host without OAuth credentials', async () => {
-      setEnv({ GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined });
-      const origin = await listen(A);
+    it('refuses to mount on a host without OAuth credentials', () => {
+      setEnv({ GOOGLE_CLIENT_ID: undefined });
+      expect(() => GoogleAuthRouter.router({ ...A, apiPath: API })).toThrow(/key=GOOGLE_CLIENT_ID reason=missing/);
       setEnv(ENV);
-      const client = browser(origin);
-      for (const [path, location] of [
-        ['?view=sign-up', '/sign-up?google-auth=unavailable'],
-        ['?view=elsewhere', '/log-in?google-auth=unavailable'],
-        ['/callback?code=x&state=y', '/log-in?google-auth=unavailable'],
-      ])
-        expect((await client.request(`${API}/google-auth${path}`)).headers.get('location')).toBe(location);
+    });
+
+    it('keeps the OAuth client of each host apart', async () => {
+      setEnv({ GOOGLE_CLIENT_ID: 'other-client.apps.googleusercontent.com' });
+      const originOther = await listen(B);
+      setEnv(ENV);
+      const clientOf = async (origin) =>
+        Object.fromEntries(
+          (await authorize(browser(origin), claimsOf(subject(), 'apart@gmail.com'))).request.searchParams,
+        );
+      expect(await clientOf(originOther)).toMatchObject({
+        client_id: 'other-client.apps.googleusercontent.com',
+        redirect_uri: 'https://b.test/api/v1/google-auth/callback',
+      });
+      expect(await clientOf(originA)).toMatchObject({
+        client_id: ENV.GOOGLE_CLIENT_ID,
+        redirect_uri: 'https://a.test/api/v1/google-auth/callback',
+      });
     });
 
     it('limits sign-in attempts per client', async () => {

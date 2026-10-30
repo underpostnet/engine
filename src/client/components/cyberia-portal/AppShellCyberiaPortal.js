@@ -3,7 +3,7 @@ import { newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { Docs } from '../core/Docs.js';
 import { deployPackageReleaseUrl } from '../core/Repository.js';
-import { GoogleSignIn } from '../core/GoogleSignIn.js';
+import { GoogleSignIn } from '../google-auth/GoogleSignIn.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';

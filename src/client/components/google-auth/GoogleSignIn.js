@@ -1,16 +1,16 @@
 import { GoogleAuthService } from '../../services/google-auth/google-auth.service.js';
-import { Auth } from './Auth.js';
-import { BtnIcon } from './BtnIcon.js';
-import { getId } from './CommonJs.js';
-import { EventsUI } from './EventsUI.js';
-import { LogIn } from './LogIn.js';
-import { NotificationManager } from './NotificationManager.js';
-import { RouterReady, getProxyPath, getQueryParams, setQueryParams } from './Router.js';
-import { Translate } from './Translate.js';
-import { s } from './VanillaJs.js';
+import { Auth } from '../core/Auth.js';
+import { BtnIcon } from '../core/BtnIcon.js';
+import { getId } from '../core/CommonJs.js';
+import { EventsUI } from '../core/EventsUI.js';
+import { LogIn } from '../core/LogIn.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { RouterReady, getProxyPath, getQueryParams, setQueryParams } from '../core/Router.js';
+import { Translate } from '../core/Translate.js';
+import { s } from '../core/VanillaJs.js';
 
 /** Outcomes with a message of their own. Any other value reads as `error`. */
-const OUTCOMES = ['link', 'cancelled', 'conflict', 'unverified-email', 'unavailable', 'error'];
+const OUTCOMES = ['link', 'cancelled', 'conflict', 'unverified-email', 'error'];
 
 /** Shows a message once the shell has rendered the notification board. */
 const notify = (key, status) =>

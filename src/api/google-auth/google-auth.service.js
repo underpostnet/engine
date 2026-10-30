@@ -13,6 +13,7 @@ import { Types } from 'mongoose';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
+import { configRejectionFactory } from '../../server/runtime/config-scope.js';
 import { cookieOptionsFactory, generateRandomHex, hashToken, signSessionToken } from '../../server/security/auth.js';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from '../../client/components/core/CommonJs.js';
 import { UserDto } from '../user/user.model.js';
@@ -29,7 +30,6 @@ const GOOGLE_AUTH_STATUS = Object.freeze({
   cancelled: 'cancelled',
   conflict: 'conflict',
   unverifiedEmail: 'unverified-email',
-  unavailable: 'unavailable',
   error: 'error',
 });
 
@@ -46,19 +46,35 @@ const FRESH_SESSION_MS = 10 * 60 * 1000;
 const USERNAME_ATTEMPTS = 5;
 
 /**
- * The OAuth client of a host, or null when Google sign-in is off.
+ * The OAuth client of a host, from the deploy environment.
  * `GOOGLE_CALLBACK_URL` overrides the host's own callback. Google must list it exactly.
  * @param {import('../types.js').RouterOptions} options - Router options.
- * @returns {{clientID: string, clientSecret: string, callbackURL: string}|null}
+ * @returns {{clientID: string, clientSecret: string, callbackURL: string}}
+ * @throws {Error} When the client is incomplete, or its callback is not HTTPS in production.
  * @memberof GoogleAuthService
  */
 const googleAuthConfig = (options) => {
   const { GOOGLE_CLIENT_ID: clientID, GOOGLE_CLIENT_SECRET: clientSecret, GOOGLE_CALLBACK_URL } = process.env;
-  if (!clientID || !clientSecret) return null;
   const callbackURL = URL.parse(
     GOOGLE_CALLBACK_URL || `https://${options.host}${options.apiPath}/google-auth/callback`,
   );
-  if (!callbackURL || !['https:', 'http:'].includes(callbackURL.protocol)) return null;
+  const protocols = process.env.NODE_ENV === 'production' ? ['https:'] : ['https:', 'http:'];
+  const [, key, reason] =
+    [
+      [!clientID, 'GOOGLE_CLIENT_ID', 'missing'],
+      [!clientSecret, 'GOOGLE_CLIENT_SECRET', 'missing'],
+      [!protocols.includes(callbackURL?.protocol), 'GOOGLE_CALLBACK_URL', `not an ${protocols.join(' or ')} URL`],
+    ].find(([failed]) => failed) ?? [];
+  if (key)
+    throw new Error(
+      configRejectionFactory({
+        domain: 'app',
+        deployId: process.env.DEPLOY_ID,
+        env: process.env.NODE_ENV,
+        key,
+        reason: `${reason}; ${options.host} serves google-auth`,
+      }),
+    );
   return { clientID, clientSecret, callbackURL: callbackURL.href };
 };
 
