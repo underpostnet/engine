@@ -2,7 +2,7 @@
 
 **Document Status:** Draft / Vision Statement
 
-**Version:** 3.5.0 | **Status:** Draft | **Authors:** Underpost Engineering
+**Version:** 4.0.0 | **Status:** Draft | **Authors:** Underpost Engineering
 
 **Scope:** Distributed Hybrid-Edge, Multi-Site Overlay Network, Bare-Metal Provisioning & Resilient Power Stack
 

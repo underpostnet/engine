@@ -27,7 +27,7 @@ jobs:
         with:
           images: underpost/wp
           tags: |
-            type=raw,value=v3.5.0
+            type=raw,value=v4.0.0
             type=raw,value=latest
       # type=ref,event=branch
       # type=sha,prefix=sha-

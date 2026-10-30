@@ -27,13 +27,13 @@ spec:
         spec:
           containers:
             - name: dd-cron-backup
-              image: underpost/underpost-engine:v3.5.0
+              image: underpost/underpost-engine:v4.0.0
               command:
                 - /bin/sh
                 - -c
                 - >
                   cd /home/dd/engine &&
-                  node bin cron dd-lampp,dd-cyberia,dd-core,dd-prototype,dd-test backup --git --kubeadm 
+                  node bin cron dd-lampp,dd-cyberia,dd-core,dd-prototype,dd-test backup --kubeadm 
               # Explicit, so the environment the pod runs is the one this manifest resolved:
               # a container env entry wins over envFrom, whatever the projected Secret carries.
               env:

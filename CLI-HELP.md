@@ -1,6 +1,6 @@
 # Underpost CLI
 
-> underpost ci/cd cli v3.5.0
+> underpost ci/cd cli v4.0.0
 
 **Usage:** `underpost [options] [command]`
 

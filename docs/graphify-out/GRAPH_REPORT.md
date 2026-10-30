@@ -1,17 +1,17 @@
 # Graph Report - engine  (2026-10-30)
 
 ## Corpus Check
-- 1474 files · ~1,620,660 words
+- 1474 files · ~1,620,763 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 75 file(s) not represented in the graph (top: (none) 33, .ico 10, .webmanifest 8)
 
 ## Summary
-- 16366 nodes · 41114 edges · 656 communities (559 shown, 97 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 946 edges (avg confidence: 0.86)
+- 16361 nodes · 41124 edges · 658 communities (560 shown, 98 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 947 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `adbb1af6`
+- Built from commit: `07e226ad`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,31 +22,31 @@
 - getApiBaseUrl
 - s
 - object-layer-catalog.js
-- core/Css.js
+- CommonJs.js
 - conf.js
-- escapeHtml
-- DataBaseProvider.js
+- .mount
+- logger.js
 - cyberia.js
 - AppShellItemledger.js
-- RenderSource.js
-- logger.js
+- procedural-floor-tile.test.js
+- runtime/process.js
 - cyberia-server-defaults.js
-- requestError
+- population.js
 - map-context.js
 - .getModel
-- procedural-engine.test.js
-- debug-stack.js
-- sprite/generator.js
+- engine.js
+- httpxy
+- frame-mutation.js
 - content-release.js
 - SharedDefaultsCyberia.js
-- Modal.js
+- VanillaJs.js
 - domain-ownership.js
 - cyberia-instance-map.service.js
 - map-preview-generator.js
 - test.js
 - object-layer.identity.js
 - secrets.js
-- build.js
+- procedural-content.js
 - monitor.js
 - express
 - vitest
@@ -54,15 +54,15 @@
 - event.js
 - spec.js
 - ProceduralPopulation
-- fs-selection.js
+- compose-stack.js
 - cache.js
-- Translate.js
-- indexer.test.js
+- core/Css.js
+- object-layer-resolver.js
 - wireguard.js
 - .instance
 - routes
 - shutdown-machine.sh
-- .render
+- MapAudioCyberia
 - middlewares.js
 - runtime-status.js
 - player-state.js
@@ -87,7 +87,6 @@
 - deploy
 - populationModels
 - LXD Management
-- ObjectLayerEngineElement
 - with
 - with
 - engine-ghpkg
@@ -136,11 +135,11 @@
 - groups
 - ObjectLayerToken.ts
 - api/cyberia-instance-conf/cyberia-instance-conf.service.js
-- item-ledger-transfer.router.js
+- procedural-skin-variant.test.js
 - scripts
 - ItemCatalogCyberia
 - InstanceSelectionView.js
-- New release v:3.3.73 (2026-09-01)
+- resolver.js
 - loggerFactory
 - RenderSource.js
 - containers
@@ -152,7 +151,7 @@
 - Cyberia CLI
 - Observability and Events
 - containers
-- wireguard-edge.test.js
+- wallet-identity.test.js
 - ProceduralPaletteCyberia.js
 - routes
 - routes
@@ -179,10 +178,10 @@
 - with
 - parentRefs
 - spec
-- CommonJs.js
+- Modal.js
 - SSH Management Guide
 - Edge Hub WireGuard and HAProxy
-- content-baseline.js
+- 2026-10-30
 - with
 - with
 - object-store.js
@@ -191,12 +190,12 @@
 - Object Layer Protocol
 - containers
 - server-load.test.js
-- UnderpostLxd
+- file-change-set.js
 - Entity Profile
 - Off-chain economy
 - environment
 - ObjectLayerToken__factory.ts
-- cyberia-cli.md
+- Run the Cyberia Docker Stack Locally
 - Main Cluster Lifecycle Commands
 - deploy_start
 - containers
@@ -204,15 +203,15 @@
 - spec
 - integration/google-auth.test.js
 - api/wallet-account/wallet-account.service.js
-- readEdgeContext
-- htmls
+- Procedural Engine
+- s
 - Action System
 - Hardhat Module
 - besu-genesis-generator.js
 - ipfs.client.js
 - node-capability.test.js
 - entry-metadata.js
-- SagaCyberia.js
+- ObjectLayerStudioCyberia.js
 - services
 - with
 - with
@@ -221,15 +220,16 @@
 - HTTPProxy test.nexodev.org
 - spec
 - Express.js
-- PanelForm.js
+- CalendarCore.js
 - DB and Backup Management Guide
 - CyberiaLaunch.js
 - content-artifact.test.js
 - HTTPProxy default.net
 - spec
 - mongo-archive.js
-- SystemdService
+- forward-proxy.js
 - cli/socketsecurity.js
+- ObjectLayerEngineElement
 - ItemLedger
 - shape-generator.js
 - with
@@ -249,7 +249,7 @@
 - spec
 - document.model.js
 - underpost-ingress.js
-- Accounts and persistent players
+- unavailable
 - Cyberia Online — Development Roadmap
 - Socket Security and Code Analysis
 - Cron Jobs Management
@@ -262,15 +262,15 @@
 - ports
 - ports
 - ports
-- Canonical identity
+- global-content.test.js
 - ADR 0003 — Content releases instead of database drops
 - cyberia-server-runtime
-- FakeModel
+- content-release.test.js
 - ports
 - ports
 - Dns
-- Modal
-- Content releases
+- SearchBox
+- Server registry
 - Core Commands
 - ipfs-cluster
 - AGENTS.md
@@ -281,12 +281,12 @@
 - listeners
 - listeners
 - instance-data.js
-- mongoose
-- content-release.test.js
-- Testing and Coverage
-- WpService
+- hair-growth.js
+- registry.js
+- sprite/generator.js
+- AtlasSpriteSheetGenerator
 - publication.js
-- source-lock.js
+- diversity.js
 - seed-audio.test.js
 - New release v:3.4.0 (2026-09-15)
 - grafana
@@ -299,7 +299,7 @@
 - Monitor cluster Guide
 - Deploy to Kubernetes Guide
 - IPFS storage
-- grpc-server.js
+- hot-reload-trigger.js
 - interval
 - engine-cyberia-runtime
 - pwa-microservices-template
@@ -311,10 +311,10 @@
 - Rocky 9 Packer template for MAAS
 - Rocky 9 Packer template for MAAS
 - market-profile.js
-- wireguard-edge.test.js
+- catalogModels
 - Quest System
 - Deploy a Cyberia release
-- Underpost Build Manifest
+- player-persistence.test.js
 - Static Page Example
 - readme.md
 - environment
@@ -324,10 +324,10 @@
 - spec
 - rocky-kickstart.sh
 - PwaWorker
-- CyberiaProceduralJobService
+- catalog.js
 - saga-sync.test.js
 - PWA and SSR Views
-- Docs.js
+- services/cyberia-item-catalog/cyberia-item-catalog.service.js
 - appearance-preview.test.js
 - map-revision.test.js
 - compilerOptions
@@ -376,9 +376,9 @@
 - spec
 - mongodb/storage-class.yaml
 - postgresql/configmap.yaml
-- Source releases
+- api/cyberia-client-hints/cyberia-client-hints.service.js
 - EventBus
-- api/cyberia-market/cyberia-market.service.js
+- market-studio-browser.test.js
 - Manage runtime bindings
 - Common Issues
 - Installation
@@ -396,12 +396,12 @@
 - Image Management Guide
 - Common Issues
 - Usage
-- MongooseDBService
+- parseList
 - cyberia-client-runtime
 - cyberia-client-test
 - mongodb
 - mongoose
-- valkey-connection.test.js
+- Valkey.js
 - README.md
 - sync-and-deploy
 - job
@@ -422,14 +422,14 @@
 - MyElement
 - Inventory capacity
 - Universes and the spatial graph
-- Paint and place in the Studio
+- render.test.js
 - api/cyberia-economic-item-policy/cyberia-economic-item-policy.service.js
 - MaasDatabaseProvider
-- GuestService
+- .sessionOut
 - Best Practices
 - Building Images
 - File storage
-- Resyncing an existing hub + cluster
+- loadCronDeployEnv
 - ADR 0006 — Portal sessions in HttpOnly cookies
 - ipfs
 - underpost source-release
@@ -439,10 +439,10 @@
 - ipfs/statefulset.yaml
 - spec
 - kubeadm-node-setup.sh
-- cyberia-instance-conf.model.js
-- .constructor
+- e2e/public-routes.test.js
+- site-clients.js
 - Personal storage and NPC vaults
-- Enable player accounts
+- templates.js
 - Recover a player session
 - Core Commands
 - Cluster
@@ -454,24 +454,25 @@
 - source-channel
 - mongo-express-no-auth/kustomization.yaml
 - spec
-- cyberia-portal-connector.js
+- requestError
+- readNodeConfigs
 - services/cyberia-player/cyberia-player.service.js
 - TLS
-- cyberia-market-claim.router.js
+- Advanced Deployment Options
 - cyberia-player-audit.router.js
-- shell-entries.js
+- documentation-architecture.test.js
 - overrides
-- cyberia-procedural-job-item.router.js
-- cyberia-procedural-profile.router.js
-- cyberia-quest-progress.router.js
-- world-preview.test.js
+- Phase 0 — Foundation / Architecture Lock
+- ethers
+- grpc-data-service.test.js
+- authorization.test.js
 - test/ObjectLayerToken.js
 - Provision a Site
 - Player identity and profile
 - Social and spatial implementation audit
 - Managing Images
 - Object Layer
-- Underpost
+- cyberia-social.router.js
 - ADR 0001 — One canonical Object Layer writer
 - ADR 0002 — One versioned API contract
 - Atlas render determinism
@@ -489,7 +490,7 @@
 - mongodb/statefulset.yaml
 - livenessProbe
 - readinessProbe
-- object-layer-catalog.test.js
+- cyberia-social-profile.router.js
 - FileModelDto
 - editor-crud.test.js
 - shell-navigation.test.js
@@ -541,17 +542,17 @@
 - underpost site clone-client
 - underpost push
 - underpost ip
-- services/wallet-account/wallet-account.service.js
+- public-route-renderers.test.js
 - cache-service.test.js
 - underpost secret
 - cyberia-content-release.router.js
 - underpost metadata
 - underpost cron
-- cyberia-global-content.router.js
+- hardhat.config.js
 - host.sh
-- cyberia-instance.model.js
+- cyberia-client-hints.model.js
 - main
-- cyberia-market-listing.router.js
+- item-ledger-checkpoint.service.js
 - main
 - main
 - k3s-node-setup.sh
@@ -568,7 +569,7 @@
 - underpost package
 - underpost release
 - underpost clone
-- Synchronize a saga
+- Cron
 - underpost site clone-client
 - underpost cluster
 - underpost secret
@@ -580,15 +581,14 @@
 - 2. Secret Encryption Workflow
 - ag-grid-community@^36.2.0
 - services/cyberia-server-registry/cyberia-server-registry.service.js
-- docs-api-authorization.test.js
+- default.router.js
 - service-response.test.js
-- item-ledger-balance.router.js
-- @fortawesome/fontawesome-free@^7.3.1
-- iovalkey
-- item-ledger-checkpoint.router.js
-- marked
-- peerjs@^1.5.5
-- hasContentArtifact
+- Security Best Practices
+- Lifecycle
+- Public Routes
+- MailerProviderService
+- postFlow
+- Protocol model
 - procedural-purge.test.js
 - audit-selinux.sh
 - device-scan.sh
@@ -608,7 +608,7 @@
 - rocky-pwa.sh
 - rocky-setup.sh
 - rpmfusion-ffmpeg-setup.sh
-- list-pager.test.js
+- cyberia-entity.management.js
 - configure-ipfs.sh
 - entrypoint.sh
 - shell-layout.test.js
@@ -623,7 +623,7 @@
 - underpost fs
 - underpost site
 - repository
-- cron.model.js
+- clipboardy
 - underpost vultr
 - underpost new ws
 - underpost site add-api
@@ -632,11 +632,13 @@
 - underpost app
 - underpost fs
 - underpost site
-- colors
-- d3@^7.9.0
-- express-rate-limit
-- mariadb
-- split-file
+- dexie
+- express-slow-down
+- favicons
+- helmet
+- ignore-walk
+- rrule@^2.8.1
+- typescript@6.0.3
 
 ## God Nodes (most connected - your core abstractions)
 1. `shellExec()` - 386 edges
@@ -684,183 +686,175 @@
 - 3-file cycle: `src/cli/app.js -> src/server/runtime/conf.js -> src/index.js -> src/cli/app.js`
 - 3-file cycle: `src/cli/app.js -> src/server/runtime/process.js -> src/index.js -> src/cli/app.js`
 
-## Communities (656 total, 97 thin omitted)
+## Communities (658 total, 98 thin omitted)
 
 ### Community 0 - "ref_fs_extra"
 Cohesion: 0.01
-Nodes (114): RFC-5737, js-yaml, shelljs, UnderpostBaremetal, UnderpostClient, UnderpostCluster, LETSENCRYPT_ISSUER_MANIFEST, UnderpostDeploy (+106 more)
+Nodes (124): RFC-5737, js-yaml, shelljs, vitest, UnderpostBaremetal, UnderpostCluster, LETSENCRYPT_ISSUER_MANIFEST, UnderpostDeploy (+116 more)
 
 ### Community 1 - "shellExec"
 Cohesion: 0.01
-Nodes (188): Commands, Commands, checkQemuCrossArchSupport(), commissionMonitor(), crossArchBinFactory(), crossArchRunner(), downloadISO(), efiGrubModulesFactory() (+180 more)
+Nodes (211): Commands, Commands, checkQemuCrossArchSupport(), commissionMonitor(), crossArchBinFactory(), crossArchRunner(), downloadISO(), efiGrubModulesFactory() (+203 more)
 
 ### Community 2 - "Logger.js"
 Cohesion: 0.07
-Nodes (49): Auth, AuthSingleton, logger, getCurrentTrace(), loggerFactory(), IDLE_FRAMES, idlePreviewLoads, idlePreviews (+41 more)
+Nodes (53): Auth, AuthSingleton, logger, getCurrentTrace(), loggerFactory(), IDLE_FRAMES, idlePreviewLoads, idlePreviews (+45 more)
 
 ### Community 3 - "getApiBaseUrl"
-Cohesion: 0.03
-Nodes (44): AtlasSpriteSheetService, readSprite(), CompanyService, CoreService, getApiBaseUrl(), headersFactory(), payloadFactory(), readResponse() (+36 more)
+Cohesion: 0.04
+Nodes (36): AtlasSpriteSheetService, readSprite(), CompanyService, CoreService, getApiBaseUrl(), headersFactory(), payloadFactory(), readResponse() (+28 more)
 
 ### Community 4 - "s"
-Cohesion: 0.06
-Nodes (16): Page404, Page500, Alert, e404(), e500(), maintenance(), noInternet(), s() (+8 more)
+Cohesion: 0.08
+Nodes (5): ActionEngineCyberia, blankCapabilities(), dropdownOption(), textFilter(), sagaBadgeList()
 
 ### Community 5 - "object-layer-catalog.js"
 Cohesion: 0.04
-Nodes (92): runIdentityMigration(), purgeAtlasDoc(), ATLAS_FILE_FIELDS, atlasFileId(), AtlasSpriteSheetStore, deleteReplacedFiles(), fileProjection, logger (+84 more)
+Nodes (95): runIdentityMigration(), ATLAS_FILE_FIELDS, atlasFileId(), AtlasSpriteSheetStore, deleteReplacedFiles(), fileProjection, logger, rendersShared() (+87 more)
 
-### Community 6 - "core/Css.js"
-Cohesion: 0.05
-Nodes (45): splitEveryXChar(), addTheme(), barConfig(), barLabels(), borderChar(), boxShadow(), cssBrowserCodes, cssTokensContainer (+37 more)
+### Community 6 - "CommonJs.js"
+Cohesion: 0.04
+Nodes (30): sortablejs, connectedScatterplotChart(), keyboardEvents, KeyboardEventType, cap(), ceil10(), componentFromStr(), decimalAdjust() (+22 more)
 
 ### Community 7 - "conf.js"
 Cohesion: 0.02
-Nodes (254): buildDeployTemplate(), appSecretName(), clean(), deployId(), envPath(), load(), logger, ociEnv() (+246 more)
+Nodes (252): buildDeployTemplate(), logger, program, apply(), appSecretName(), clean(), envPath(), load() (+244 more)
 
-### Community 8 - "escapeHtml"
-Cohesion: 0.05
-Nodes (55): commonAdminGuard(), EditorCrud, unlistenQueryParamsChange(), escapeHtml(), blankProfile(), BLOCKS, EconomyEngineCyberia, effectiveOf() (+47 more)
-
-### Community 9 - "DataBaseProvider.js"
-Cohesion: 0.04
-Nodes (53): logger, resolveClientHints(), resolveStoredClientHints(), logger, logger, CyberiaGameSessionService, FILTERS, FILTERS (+45 more)
+### Community 9 - "logger.js"
+Cohesion: 0.03
+Nodes (80): CoreModel, CoreSchema, logger, logger, logger, FILE_FIELDS, logger, CyberiaDialogueModel (+72 more)
 
 ### Community 10 - "cyberia.js"
 Cohesion: 0.03
-Nodes (128): checkoutDir(), checkoutRepository(), closeChainDb(), connectDbForChain(), connectDbForIndexer(), deployConfServer(), deploymentLock(), deploymentLockPath() (+120 more)
+Nodes (120): checkoutDir(), checkoutRepository(), closeChainDb(), connectDbForChain(), connectDbForIndexer(), deployConfServer(), deploymentLock(), deploymentLockPath() (+112 more)
 
 ### Community 11 - "AppShellItemledger.js"
 Cohesion: 0.02
-Nodes (76): AppStore, Chat, getIsoDate(), LogIn, LogOut, MainBodyDocument, Recover, SignUp (+68 more)
+Nodes (91): AppStore, borderChar(), renderRetroFontFaces(), PanelForm, SocketIoHandlerProvider, AppShellCryptokoyn, AppStoreCryptokoyn, CssCommonCryptokoyn() (+83 more)
 
-### Community 12 - "RenderSource.js"
-Cohesion: 0.04
-Nodes (101): editorHex(), renderTemplate(), hexToRgba(), rgbaToHex(), diversityAgainst(), diversityBetween(), gridsOf(), lightnessOf() (+93 more)
+### Community 12 - "procedural-floor-tile.test.js"
+Cohesion: 0.11
+Nodes (39): diversityAgainst(), variationParameters(), sprite, buildTile(), drawTile(), floorParameters(), floorRenderProblems(), generateFloorTile() (+31 more)
 
-### Community 13 - "logger.js"
+### Community 13 - "runtime/process.js"
 Cohesion: 0.03
-Nodes (72): logger, program, commander, logger, logger, logger, logger, callback() (+64 more)
+Nodes (42): logger, deployId(), CLIENT_DEV_WATCH, createClientDevServer(), logger, logger, Create a Local Sub-Configuration, Guide: Running Separate Client and API Servers for Development (+34 more)
 
 ### Community 14 - "cyberia-server-defaults.js"
-Cohesion: 0.04
-Nodes (80): CyberiaActionModel, CyberiaActionSchema, CyberiaEconomicItemPolicyModel, CyberiaEconomicItemPolicySchema, SalvageSchema, CurrencySchema, CyberiaEconomyModel, CyberiaEconomySchema (+72 more)
+Cohesion: 0.05
+Nodes (73): CyberiaActionModel, CyberiaActionSchema, CyberiaEconomicItemPolicyModel, CyberiaEconomicItemPolicySchema, SalvageSchema, CurrencySchema, CyberiaEconomySchema, FeesSchema (+65 more)
 
-### Community 15 - "requestError"
-Cohesion: 0.03
-Nodes (235): Arguments, Arguments, runsAnother(), DEFAULT_ROW_FIELDS, INSTANCE_FIELDS, resolveEntityDefaultBuild(), linkKey(), universeDefect() (+227 more)
+### Community 15 - "population.js"
+Cohesion: 0.05
+Nodes (129): Arguments, Arguments, baseRevision(), POPULATION_VERSION, Map population, Arguments, Arguments, renderedCids() (+121 more)
 
 ### Community 16 - "map-context.js"
-Cohesion: 0.04
-Nodes (71): CyberiaEntityTypeDefaultModel, CyberiaEntityTypeDefaultSchema, OverrideItemStateSchema, applyDefaultsToEntities(), buildKey(), CyberiaEntityTypeDefaultService, findDuplicateBuilds(), findGlobalDefaults() (+63 more)
+Cohesion: 0.08
+Nodes (50): ENTITY_TYPE_TO_ITEM_TYPES, ENTITY_TYPES, ITEM_TYPES, Map population, contentArtifact(), contentFreshness(), definitionContext(), itemContext() (+42 more)
 
 ### Community 17 - ".getModel"
 Cohesion: 0.02
-Nodes (76): CompanyService, CoreService, CronService, audioFileId(), CyberiaAudioService, CyberiaContentReleaseService, CyberiaDialogueService, CyberiaEntityService (+68 more)
+Nodes (42): CompanyService, CoreService, CronService, CyberiaActionService, httpError(), audioFileId(), CyberiaAudioService, readManifest() (+34 more)
 
-### Community 18 - "procedural-engine.test.js"
-Cohesion: 0.04
-Nodes (130): canonicalize, AUDIT_ACTIONS, CyberiaProceduralAuditDto, CyberiaProceduralAuditModel, CyberiaProceduralAuditSchema, SYSTEM_ACTOR, CyberiaProceduralJobDto, CyberiaProceduralJobModel (+122 more)
+### Community 18 - "engine.js"
+Cohesion: 0.07
+Nodes (55): canonicalize, runsAnother(), AUDIT_ACTIONS, CyberiaProceduralAuditDto, CyberiaProceduralAuditModel, CyberiaProceduralAuditSchema, SYSTEM_ACTOR, CyberiaProceduralJobDto (+47 more)
 
-### Community 19 - "debug-stack.js"
-Cohesion: 0.05
-Nodes (35): httpxy, DEBUG_TARGETS, debugCommand(), debugInstance(), debugTopology(), GAME_ORIGINS, logger, originPort() (+27 more)
-
-### Community 20 - "sprite/generator.js"
-Cohesion: 0.04
-Nodes (116): facingOf(), seededRandom(), The pipeline, analyzeFrame(), around(), backgroundOf(), buildMutationCandidates(), byLightness() (+108 more)
+### Community 20 - "frame-mutation.js"
+Cohesion: 0.11
+Nodes (37): around(), backgroundOf(), buildMutationCandidates(), byLightness(), chroma(), detectSilhouette(), lightness(), maskOf() (+29 more)
 
 ### Community 21 - "content-release.js"
 Cohesion: 0.05
-Nodes (80): reconcileCatalogRegistry(), pruneUnreferencedContent(), deferPublication(), servesPlayers(), startMarketSettlement(), refreshWorkspaceArtifact(), activateContentRelease(), advanceContentRelease() (+72 more)
+Nodes (84): collectInstanceItemIds(), collectSummonedItemIds(), isMaterialItemId(), selectInstanceSkills(), skillDefect(), pruneUnreferencedContent(), deferPublication(), isCanonicalSkillLogicId() (+76 more)
 
 ### Community 22 - "SharedDefaultsCyberia.js"
-Cohesion: 0.05
-Nodes (78): applyStatPolicy(), CyberiaEntityModel, CyberiaQuestModel, CyberiaQuestSchema, PROGRESSION_RULES_DEFAULTS, blockOf(), CATALOG_ITEM_ID_PATTERN, DEFINITION_DOCUMENT_BYTES (+70 more)
+Cohesion: 0.04
+Nodes (78): applyStatPolicy(), CyberiaEconomyModel, CyberiaEntityModel, CyberiaInstanceModel, CyberiaInstanceSchema, MapLayoutCellSchema, PlayerSpawnSchema, PortalEdgeSchema (+70 more)
 
-### Community 23 - "Modal.js"
-Cohesion: 0.05
-Nodes (116): sortablejs, logger, AgGrid, BtnIcon, AuthEventType, commonModeratorGuard(), parsePublicRoute(), titleFormatted() (+108 more)
+### Community 23 - "VanillaJs.js"
+Cohesion: 0.03
+Nodes (146): AgGrid, BtnIcon, commonAdminGuard(), commonModeratorGuard(), DropDown, ACTIONS, EditorCrud, EditorDraftStore (+138 more)
 
 ### Community 24 - "domain-ownership.js"
-Cohesion: 0.18
-Nodes (14): CLIENT_COMPONENTS, CYBERIA_RUNTIME_APIS, CYBERIA_STUDIO_EXTENSIONS, DOMAIN_APIS, DOMAIN_HOSTS, hostOfDomain(), ownerDomainOf(), STALE_DOMAINS (+6 more)
+Cohesion: 0.14
+Nodes (24): resolveDeployDb(), CLIENT_COMPONENTS, CYBERIA_PLAYER_APIS, CYBERIA_STUDIO_EXTENSIONS, DOMAIN_APIS, DOMAIN_HOSTS, hostOfDomain(), ownerDomainOf() (+16 more)
 
 ### Community 25 - "cyberia-instance-map.service.js"
-Cohesion: 0.07
-Nodes (47): ACTION_SERVICES, actionHasStandalonePayload(), actionServices(), addUnique(), buildPresencePois(), buildStaticPayload(), CyberiaInstanceMapService, entityPresenceStatus() (+39 more)
+Cohesion: 0.05
+Nodes (51): ACTION_SERVICES, actionHasStandalonePayload(), actionServices(), addUnique(), buildPresencePois(), buildStaticPayload(), CyberiaInstanceMapService, entityPresenceStatus() (+43 more)
 
 ### Community 26 - "map-preview-generator.js"
 Cohesion: 0.05
-Nodes (30): cachedEntries, cacheEvictions, clamp255(), clipped(), frameCache, idlePreviewFileIds(), logger, parseEntityColor() (+22 more)
+Nodes (57): reconcileCatalogRegistry(), CyberiaGlobalMapCodeRegistryDto, CyberiaGlobalMapCodeRegistryModel, CyberiaGlobalMapCodeRegistrySchema, REGISTRY_STATUSES, CyberiaGlobalMapCodeRegistryService, failure(), clientChanges() (+49 more)
 
 ### Community 27 - "test.js"
-Cohesion: 0.03
-Nodes (57): logger, letsEncryptIssuerYamlFactory(), UnderpostFileStorage, newCommand, program, siteCommand, dispatchWorkflow(), gitIdentityCommands() (+49 more)
+Cohesion: 0.02
+Nodes (50): bundleDeployCoverage(), deployReports(), logger, program, runDeployCoverage(), logger, commander, UnderpostFileStorage (+42 more)
 
 ### Community 28 - "object-layer.identity.js"
-Cohesion: 0.03
-Nodes (129): CyberiaGlobalContentModel, CyberiaGlobalContentSchema, GLOBAL_CONTENT_REASONS, ProvenanceSchema, CyberiaGlobalContentService, IpfsClient, IPFS_RESOURCE_TYPES, IpfsDto (+121 more)
+Cohesion: 0.02
+Nodes (105): DEFAULT_ATLAS_UPSCALE_FACTOR, IDLE_PREVIEW_DIRECTION_CODE, IDLE_PREVIEW_SIZE, logger, PNG_SIGNATURE, PRIMARY_CELL_PIXEL_DIM, AtlasSpriteSheetDto, AtlasSpriteSheetModel (+97 more)
 
 ### Community 29 - "secrets.js"
 Cohesion: 0.02
-Nodes (148): apply(), DOMAIN_ACTIONS, DOMAIN_OPTIONS, DOMAIN_STORE_OPERATORS, DOMAIN_STORE_OPTIONS, domainContextFactory(), parseDomainArgs(), registerDomainCommand() (+140 more)
+Nodes (142): setup(), DOMAIN_ACTIONS, DOMAIN_OPTIONS, DOMAIN_STORE_OPERATORS, DOMAIN_STORE_OPTIONS, domainContextFactory(), parseDomainArgs(), registerDomainCommand() (+134 more)
 
-### Community 30 - "build.js"
-Cohesion: 0.06
-Nodes (8): bundleDeployCoverage(), deployReports(), logger, program, runDeployCoverage(), logger, UnderpostPackage, commands
+### Community 30 - "procedural-content.js"
+Cohesion: 0.07
+Nodes (35): CONTENT_SCHEMA_VERSION, generateSpriteVariant(), ownedByCode(), spriteParameters(), rampRoles(), OBSTACLE_DEFAULT_PROFILE, PORTAL_DEFAULT_PROFILE, IMPORT_SLOTS (+27 more)
 
 ### Community 31 - "monitor.js"
-Cohesion: 0.09
-Nodes (51): applyGrafanaDeployment(), exposeGrafana(), pruneStaleSeries(), resetGrafanaForNode(), syncObservability(), The client docs block, alertmanagerConfFactory(), alertRulesFactory() (+43 more)
+Cohesion: 0.08
+Nodes (55): applyGrafanaDeployment(), exposeGrafana(), observabilityContextFactory(), observabilityDeployListFactory(), resetGrafanaForNode(), syncObservability(), What Prometheus scrapes, The client docs block (+47 more)
 
 ### Community 32 - "express"
 Cohesion: 0.03
-Nodes (56): express, AtlasSpriteSheetController, ApiRouter(), AtlasSpriteSheetRouter, CompanyController, ApiRouter(), CompanyRouter, CyberiaActionController (+48 more)
+Nodes (76): express, AtlasSpriteSheetController, ApiRouter(), AtlasSpriteSheetRouter, CompanyController, ApiRouter(), CompanyRouter, CyberiaActionController (+68 more)
 
 ### Community 33 - "vitest"
 Cohesion: 0.03
-Nodes (83): jszip@^3.10.2, html-minifier-terser, jszip, vitest, FILE_FIELDS, logger, readManifest(), callback() (+75 more)
+Nodes (63): html-minifier-terser, httpBootstrapServerRunnerFactory(), UnderpostImage, callback(), ConfigLoader, ConfigValidator, DefaultStaticGenerationOptions, generateConfigTemplate() (+55 more)
 
 ### Community 34 - ".getProvider"
-Cohesion: 0.06
-Nodes (20): controller(), CoreWsChatChannel, controller(), CoreWsMailerChannel, disconnect(), CoreWsStreamChannel, CoreWsConnectionHandler, logger (+12 more)
+Cohesion: 0.05
+Nodes (22): socket.io, controller(), CoreWsChatChannel, controller(), CoreWsMailerChannel, disconnect(), CoreWsStreamChannel, CoreWsConnectionHandler (+14 more)
 
 ### Community 35 - "event.js"
-Cohesion: 0.05
-Nodes (37): assertHubManagementConnection(), callback(), clusterNodes(), deploymentStatus(), e2eSubject(), EVENT_SERVICE, eventCooldownKeyFactory(), EVENTS (+29 more)
+Cohesion: 0.04
+Nodes (47): assertDispatchReady(), assertHubManagementConnection(), callback(), definitions(), deploymentStatus(), e2eSubject(), EVENT_SERVICE, eventCooldownKeyFactory() (+39 more)
 
 ### Community 36 - "spec.js"
-Cohesion: 0.04
-Nodes (105): esbuild, CyberiaProceduralProfileDto, CyberiaProceduralProfileModel, CyberiaProceduralProfileSchema, CyberiaProceduralProfileService, RENDER_FRAME_CONTRACT, OBJECT_LAYER_FACINGS, The context (+97 more)
+Cohesion: 0.07
+Nodes (71): The context, extractArtDirection(), generationSource(), ORIGINS, resolveProceduralContext(), resolveGenerator(), batches, batchOf() (+63 more)
 
 ### Community 37 - "ProceduralPopulation"
 Cohesion: 0.09
-Nodes (17): badge(), button(), count(), fact(), field(), impactCell(), impactOf(), isOpen() (+9 more)
+Nodes (16): badge(), button(), count(), fact(), field(), impactCell(), impactOf(), isOpen() (+8 more)
 
-### Community 38 - "fs-selection.js"
-Cohesion: 0.38
-Nodes (9): filterManifestEntries(), isWithinScope(), manifestFilterNames, normalizeStoragePath(), resolveFilesystemSelection(), resolveGitSelection(), resolveSelection(), resolveTrackedSelection() (+1 more)
+### Community 38 - "compose-stack.js"
+Cohesion: 0.10
+Nodes (30): installCyberiaDockerHostAliases(), worldPathOf(), Canonical env files and project builders, Client-side instance resolution, Each variant sub-path is its own deployment, Path-based multi-instance deployments, Routing, Targeting (+22 more)
 
 ### Community 39 - "cache.js"
-Cohesion: 0.05
-Nodes (55): connectEngineCache(), AtlasSpriteSheetService, failure(), logger, noRender(), objectLayerCidOfLabel(), renderCache(), renderFileBytes() (+47 more)
+Cohesion: 0.06
+Nodes (46): AtlasSpriteSheetService, failure(), logger, noRender(), objectLayerCidOfLabel(), purgeAtlasDoc(), renderCache(), renderFileBytes() (+38 more)
 
-### Community 40 - "Translate.js"
-Cohesion: 0.05
-Nodes (47): accountEvents, AccountEventType, appointmentEvents, AppointmentEventType, authLoginEvents, authLogoutEvents, authSignupEvents, createModalEventChannel() (+39 more)
+### Community 40 - "core/Css.js"
+Cohesion: 0.02
+Nodes (136): Page404, Page500, Account, logger, Alert, e404(), e500(), maintenance() (+128 more)
 
-### Community 41 - "indexer.test.js"
-Cohesion: 0.08
-Nodes (22): decodeLog(), iface, ItemLedgerIndexer, OBJECT_LAYER_TOKEN_ABI, TOPICS, ItemLedgerTransferDto, ItemLedgerTransferModel, ItemLedgerTransferSchema (+14 more)
+### Community 41 - "object-layer-resolver.js"
+Cohesion: 0.05
+Nodes (50): decodeLog(), iface, ItemLedgerIndexer, OBJECT_LAYER_TOKEN_ABI, TOPICS, ItemLedgerDto, ItemLedgerModel, ItemLedgerSchema (+42 more)
 
 ### Community 42 - "wireguard.js"
-Cohesion: 0.09
-Nodes (48): buildConf(), callback(), connectUri(), csvFactory(), deployIdFactory(), deployListFactory(), deployPackageScriptFactory(), EDGE_NODE_ROLES (+40 more)
+Cohesion: 0.08
+Nodes (73): hubAddress(), allowedIpsConflictsFactory(), assertEdgeIdentity(), backendNameFactory(), buildConf(), callback(), check(), connectUri() (+65 more)
 
 ### Community 43 - ".instance"
-Cohesion: 0.05
-Nodes (37): commonUserGuard(), hexToRgbA(), buildDistortedMatrix(), buildMosaicMatrix(), chooseDistortionTarget(), clampNumber(), cloneMatrix(), collectVisibleCells() (+29 more)
+Cohesion: 0.14
+Nodes (8): commonUserGuard(), objectLayerStatus(), columnDefFormatter(), DefaultManagement, ItemLedgerManagement, gridIdOf(), ObjectLayerManagement, objectLayerViewColumn()
 
 ### Community 44 - "routes"
 Cohesion: 0.05
@@ -870,33 +864,29 @@ Nodes (62): prefix, HTTPProxy underpost.net, HTTPProxy www.underpost.net, HTTPPr
 Cohesion: 0.08
 Nodes (59): ACTIVE_RUNTIMES, check_prerequisites(), CONTROLLER_STATE_FILE, cordon_node(), detect_active_runtimes(), die(), drain_node(), ENGINE_ROOT (+51 more)
 
-### Community 46 - ".render"
-Cohesion: 0.08
-Nodes (6): dropdownId(), MapAudioCyberia, createDropdownOption(), dropdownValueKey(), MapEngineCyberia, mapMediaLabel()
-
 ### Community 47 - "middlewares.js"
-Cohesion: 0.08
-Nodes (24): blobHandler(), CyberiaClientHintsController, ApiRouter(), CyberiaClientHintsRouter, CyberiaInstanceController, context(), CyberiaMapAudioConfController, ObjectLayerController (+16 more)
+Cohesion: 0.11
+Nodes (15): blobHandler(), CyberiaInstanceController, context(), CyberiaMapAudioConfController, ItemLedgerTransferService, buildCrudController(), controllerHandler(), logger (+7 more)
 
 ### Community 48 - "runtime-status.js"
-Cohesion: 0.05
-Nodes (48): deployInternalPort(), apply(), clean(), deployIdOf(), exportToGithubActions(), inGithubActions(), isInsideContainer(), load() (+40 more)
+Cohesion: 0.04
+Nodes (78): publish(), callback(), letsEncryptIssuerYamlFactory(), dotenvStoreFactory(), guardStorePath(), logger, deployInternalPort(), dispatchWorkflow() (+70 more)
 
 ### Community 49 - "player-state.js"
 Cohesion: 0.08
-Nodes (42): CONTAINERS, CyberiaPlayerModel, CyberiaPlayerSchema, HELD_REASONS, HeldStackSchema, PlayerStackSchema, PlayerWorldSchema, PROFILE_CONTAINERS (+34 more)
+Nodes (44): CONTAINERS, CyberiaPlayerModel, CyberiaPlayerSchema, HELD_REASONS, HeldStackSchema, PlayerStackSchema, PlayerWorldSchema, PROFILE_CONTAINERS (+36 more)
 
 ### Community 50 - "MongoBootstrap.js"
-Cohesion: 0.07
-Nodes (14): logger, MONGODB_EMPTY_PRIMARY_TOKENS, MONGODB_PRIMARY_EVAL, parseDivergentSetIds(), logger, mongoAuthEnabledFactory(), MongoExpress, mongoExpressManifestPathFactory() (+6 more)
+Cohesion: 0.05
+Nodes (17): statsDeploy(), logger, MongoBootstrap, MONGODB_EMPTY_PRIMARY_TOKENS, MONGODB_PRIMARY_EVAL, parseDivergentSetIds(), parsePrimaryHost(), logger (+9 more)
 
 ### Community 51 - "adminGuard"
 Cohesion: 0.06
-Nodes (28): CoreController, ApiRouter(), CoreRouter, CronController, ApiRouter(), CronRouter, CyberiaGlobalMapCodeRegistryController, ApiRouter() (+20 more)
+Nodes (30): express-rate-limit, CoreController, ApiRouter(), CoreRouter, CronController, ApiRouter(), CronRouter, CyberiaGlobalMapCodeRegistryController (+22 more)
 
 ### Community 52 - "moderatorGuard"
-Cohesion: 0.04
-Nodes (41): CyberiaEconomyOperationController, ApiRouter(), CyberiaEconomyOperationRouter, CyberiaEconomyOperationService, CyberiaEntityTypeDefaultController, ApiRouter(), CyberiaEntityTypeDefaultRouter, CyberiaGameSessionController (+33 more)
+Cohesion: 0.05
+Nodes (35): CyberiaEconomyOperationController, ApiRouter(), CyberiaEconomyOperationRouter, CyberiaEconomyOperationService, CyberiaEntityTypeDefaultController, ApiRouter(), CyberiaEntityTypeDefaultRouter, CyberiaGlobalContentController (+27 more)
 
 ### Community 53 - "CyberiaProceduralPopulationService"
 Cohesion: 0.09
@@ -907,8 +897,8 @@ Cohesion: 0.03
 Nodes (60): Arguments, Arguments, Arguments, Arguments, Arguments, Arguments, Arguments, Arguments (+52 more)
 
 ### Community 55 - "player-persistence.test.js"
-Cohesion: 0.09
-Nodes (46): CyberiaGameSessionModel, CyberiaGameSessionSchema, SESSION_DURABILITY, SESSION_FAILURES, consumeGameTicket(), createGameTicket(), createResumeTicket(), findGameTicket() (+38 more)
+Cohesion: 0.13
+Nodes (35): CyberiaGameSessionModel, CyberiaGameSessionSchema, SESSION_DURABILITY, SESSION_FAILURES, consumeGameTicket(), createGameTicket(), createResumeTicket(), findGameTicket() (+27 more)
 
 ### Community 56 - "parentRefs"
 Cohesion: 0.06
@@ -916,11 +906,11 @@ Nodes (49): name, port, weight, HTTPRoute healthcare.nexodev.org, HTTPRoute www.
 
 ### Community 57 - "market.test.js"
 Cohesion: 0.08
-Nodes (43): CyberiaEconomyOperationModel, CyberiaEconomyOperationSchema, ECONOMY_OPERATION_KINDS, MARKET_PAGE, minBid(), scopeKeyOf(), afterCursor(), applyMarketOp() (+35 more)
+Nodes (44): CyberiaEconomyOperationModel, CyberiaEconomyOperationSchema, ECONOMY_OPERATION_KINDS, MARKET_PAGE, minBid(), scopeKeyOf(), afterCursor(), applyMarketOp() (+36 more)
 
 ### Community 58 - "cyberia-procedural-population.model.js"
-Cohesion: 0.03
-Nodes (77): baseRevision(), CONF_FIELDS, CyberiaProceduralPopulationDto, CyberiaProceduralPopulationModel, CyberiaProceduralPopulationSchema, DefaultDraftSchema, DefaultRowSchema, DefaultsSchema (+69 more)
+Cohesion: 0.05
+Nodes (42): CyberiaEntityTypeDefaultModel, CyberiaEntityTypeDefaultSchema, OverrideItemStateSchema, applyDefaultsToEntities(), buildKey(), findDuplicateBuilds(), logger, runtimeEntityDefaults() (+34 more)
 
 ### Community 59 - "Baremetal Management"
 Cohesion: 0.04
@@ -935,8 +925,8 @@ Cohesion: 0.04
 Nodes (46): apiVersion, name, image, imagePullPolicy, livenessProbe, name, ports, readinessProbe (+38 more)
 
 ### Community 62 - "EntityEngineCyberia"
-Cohesion: 0.13
-Nodes (3): dropdownOption(), EntityEngineCyberia, statedDropChance()
+Cohesion: 0.11
+Nodes (5): eyeIcon(), toggleLabel(), dropdownOption(), EntityEngineCyberia, statedDropChance()
 
 ### Community 63 - "ObjectLayerEngine.js"
 Cohesion: 0.10
@@ -944,15 +934,15 @@ Nodes (36): CyberiaObjectLayerTemplates, shape(), SKIN_DOWN_OUTLINE, SKIN_RIGHT_
 
 ### Community 64 - "dependencies"
 Cohesion: 0.04
-Nodes (47): dependencies, axios@^1.20.0, canonicalize@^5.1.0, cloudinary@^2.11.0, commander@^15.0.0, compression@^1.8.2, cors@^2.8.6, dexie@^4.4.7 (+39 more)
+Nodes (45): dependencies, canonicalize@^5.1.0, cloudinary@^2.11.0, colors@^1.4.0, commander@^15.0.0, compression@^1.8.2, d3@^7.9.0, easymde@^2.21.0 (+37 more)
 
 ### Community 65 - "auth.js"
-Cohesion: 0.07
-Nodes (45): cookie-parser@^1.4.7, cookie-parser, logger, UserController, restrictionMessage(), restrictionOf(), uniqueConflict(), ApiRouter() (+37 more)
+Cohesion: 0.04
+Nodes (62): cookie-parser@^1.4.7, cookie-parser, CompanyModel, CompanySchema, logger, logger, requestUser(), FileSchema (+54 more)
 
 ### Community 66 - "2026-10-11"
 Cohesion: 0.04
-Nodes (45): 2026-10-11, api, ci, cli, cli-baremetal, cli-cron, cli-db, cli-dns (+37 more)
+Nodes (45): api, ci, cli, cli-baremetal, cli-cron, cli-db, cli-dns, cli-run (+37 more)
 
 ### Community 67 - "deploy"
 Cohesion: 0.04
@@ -964,11 +954,11 @@ Nodes (44): cancel-in-progress, group, concurrency, environment, if, name, runs-
 
 ### Community 69 - "populationModels"
 Cohesion: 0.10
-Nodes (6): actorOf(), CyberiaProceduralPopulationService, paged(), populationModels(), all(), all()
+Nodes (6): actorOf(), CyberiaProceduralPopulationService, paged(), populationModels(), universeContent(), all()
 
 ### Community 70 - "LXD Management"
-Cohesion: 0.05
-Nodes (38): safeResetK3s(), Admin profile hardening, Centralized K3s teardown on every destructive op, Command, Control Plane Node, Create Admin Profile (two-phase), Create Virtual Network, Create VM (two-phase) (+30 more)
+Cohesion: 0.06
+Nodes (31): Admin profile hardening, Command, Control Plane Node, Create Admin Profile (two-phase), Create Virtual Network, Create VM (two-phase), Delete VM, Expose Ports (+23 more)
 
 ### Community 72 - "with"
 Cohesion: 0.05
@@ -987,12 +977,12 @@ Cohesion: 0.05
 Nodes (44): image, default, description, required, default, description, required, DEPLOY_CONF_ID (+36 more)
 
 ### Community 76 - "api/google-auth/google-auth.service.js"
-Cohesion: 0.09
-Nodes (32): ApiRouter(), CyberiaInstanceRouter, GoogleAuthController, logger, ApiRouter(), GoogleAuthRouter, logger, COOKIE (+24 more)
+Cohesion: 0.11
+Nodes (27): ApiRouter(), GoogleAuthRouter, COOKIE, cookieName(), cookieStateStore(), failure(), flowCookie(), flowOf() (+19 more)
 
 ### Community 77 - "ssh.js"
 Cohesion: 0.11
-Nodes (13): discoverLocalPathRoots(), ensureContainerStorageContexts(), deployVolume(), prepareContainerStorage(), connectionFactory(), hostNameFactory(), logger, upsertConnection() (+5 more)
+Nodes (14): discoverLocalPathRoots(), ensureContainerStorageContexts(), deployVolume(), prepareContainerStorage(), connectionFactory(), hostNameFactory(), logger, shellExecRedacted() (+6 more)
 
 ### Community 78 - "hardhat/package.json"
 Cohesion: 0.13
@@ -1008,15 +998,15 @@ Nodes (42): prefix, HTTPProxy healthcare.nexodev.org, HTTPProxy www.bymyelectric
 
 ### Community 81 - "package.json"
 Cohesion: 0.05
-Nodes (41): author, bin, underpost, bugs, url, clipboardy@^5.3.2, dotenv@^18.0.9, fs-extra@^11.4.1 (+33 more)
+Nodes (41): author, bin, underpost, bugs, url, cors@^2.8.6, dotenv@^18.0.9, @fortawesome/fontawesome-free@^7.3.1 (+33 more)
 
 ### Community 82 - "Cyberia — Architecture"
-Cohesion: 0.05
-Nodes (44): Canonical vocabulary, Client render frame, Cyberia — Architecture, cyberia-client (C / WebAssembly) — presentation runtime, cyberia-server (Go) — authoritative simulation runtime, Domain boundaries, Edge tier, engine-cyberia (Node.js) — content authority (+36 more)
+Cohesion: 0.06
+Nodes (40): Canonical vocabulary, Client render frame, Cyberia — Architecture, cyberia-client (C / WebAssembly) — presentation runtime, cyberia-server (Go) — authoritative simulation runtime, Domain boundaries, Edge tier, engine-cyberia (Node.js) — content authority (+32 more)
 
 ### Community 83 - "socketsecurity.test.js"
-Cohesion: 0.12
-Nodes (9): SocketSecurityService, artifactsFixture, manifestFixture, npmAuditFixture, OWN_PACKAGES, patchScanFixture, probeRoot(), scanReportFixture (+1 more)
+Cohesion: 0.13
+Nodes (10): logger, SocketSecurityService, artifactsFixture, manifestFixture, npmAuditFixture, OWN_PACKAGES, patchScanFixture, probeRoot() (+2 more)
 
 ### Community 84 - "containers"
 Cohesion: 0.05
@@ -1039,24 +1029,24 @@ Cohesion: 0.15
 Nodes (41): AUDIT_SINCE_ARGS, bad(), classify_pod_mount(), discover_pv_paths(), enforce(), EXTRA_PATHS, fcontext_registered(), head1() (+33 more)
 
 ### Community 89 - "player-operations.js"
-Cohesion: 0.12
-Nodes (34): CyberiaPlayerService, failure(), levelAtXp(), containerSlots(), sessionOf(), ACCOUNT_CHANGES, answerOf(), BATCH (+26 more)
+Cohesion: 0.13
+Nodes (33): CyberiaPlayerService, levelAtXp(), containerSlots(), sessionOf(), ACCOUNT_CHANGES, answerOf(), BATCH, batchDefect() (+25 more)
 
 ### Community 90 - "integration/entry-metadata.test.js"
 Cohesion: 0.05
-Nodes (27): DocumentController, ApiRouter(), DocumentRouter, FileController, ApiRouter(), FileRouter, context, documents (+19 more)
+Nodes (29): DocumentController, ApiRouter(), DocumentRouter, FileController, ApiRouter(), FileRouter, context, documents (+21 more)
 
 ### Community 91 - "backup.js"
-Cohesion: 0.12
-Nodes (35): exportDeploy(), importDeploy(), verifyDeploy(), assertBackupId(), BackUp, BACKUP_PART_BYTES, BACKUP_ROOT, BACKUP_SCHEMA_VERSION (+27 more)
+Cohesion: 0.11
+Nodes (39): exportDeploy(), importDeploy(), listDeploy(), pruneDeploy(), verifyDeploy(), assertBackupId(), BACKUP_PART_BYTES, BACKUP_ROOT (+31 more)
 
 ### Community 92 - "ProceduralPopulationCyberia.js"
 Cohesion: 0.06
-Nodes (35): animationPace(), drawEntities(), entityKey(), mapMediaDrawing(), markUnresolved(), trackComposition(), animated, ARTWORK_SOURCE (+27 more)
+Nodes (35): animationPace(), drawEntities(), entityKey(), mapMediaDrawing(), mapMediaLabel(), markUnresolved(), trackComposition(), animated (+27 more)
 
 ### Community 93 - "ProceduralEngineCyberia"
-Cohesion: 0.11
-Nodes (5): picked(), ProceduralEngineCyberia, ProceduralGrid, column(), readPage()
+Cohesion: 0.13
+Nodes (3): picked(), ProceduralEngineCyberia, ProceduralGrid
 
 ### Community 94 - "CyberiaServerMetrics.js"
 Cohesion: 0.13
@@ -1067,8 +1057,8 @@ Cohesion: 0.05
 Nodes (40): concurrency, cancel-in-progress, group, DEFAULT_REPOS, GH_TOKEN, MIRROR_ORG, MIRROR_REPO, REQUESTED (+32 more)
 
 ### Community 96 - "release/graphify.js"
-Cohesion: 0.05
-Nodes (65): assertFreshGraphs(), codeGraphs(), CheckSchema, CyberiaContentReleaseDto, CyberiaContentReleaseModel, CyberiaContentReleaseSchema, RELEASE_STATUS, SourceSchema (+57 more)
+Cohesion: 0.04
+Nodes (84): assertFreshGraphs(), codeGraphs(), CheckSchema, CyberiaContentReleaseDto, CyberiaContentReleaseModel, CyberiaContentReleaseSchema, RELEASE_STATUS, SourceSchema (+76 more)
 
 ### Community 97 - "deploy_type"
 Cohesion: 0.05
@@ -1119,8 +1109,8 @@ Cohesion: 0.06
 Nodes (39): env, image, name, ports, volumeMounts, Service mysql, StatefulSet mysql, app (+31 more)
 
 ### Community 109 - "landscape.md"
-Cohesion: 0.05
-Nodes (27): Decisions this domain still needs, Open decisions, Wallet integration, Boundaries, Current maturity, Cyberia, Documentation map, Main components (+19 more)
+Cohesion: 0.04
+Nodes (47): Architecture, Contract facts this domain depends on, Operations, The CKY token, Decisions this domain still needs, Open decisions, Wallet integration, Boundaries (+39 more)
 
 ### Community 110 - "host.sh"
 Cohesion: 0.11
@@ -1143,8 +1133,8 @@ Cohesion: 0.06
 Nodes (38): if, name, runs-on, steps, if, name, runs-on, steps (+30 more)
 
 ### Community 115 - "ObjectLayerToken"
-Cohesion: 0.04
-Nodes (39): TypedContractMethod, ObjectLayerToken, 10. Future Directions, 1. Scope, 2. Principles, 3. Identity of a Holder, 4.1 Powers and Holders, 4.2 Governance and Circulation (+31 more)
+Cohesion: 0.07
+Nodes (26): TypedContractMethod, ObjectLayerToken, 10. Future Directions, 1. Scope, 2. Principles, 3. Identity of a Holder, 4.1 Powers and Holders, 4.2 Governance and Circulation (+18 more)
 
 ### Community 116 - "parentRefs"
 Cohesion: 0.07
@@ -1159,36 +1149,36 @@ Cohesion: 0.06
 Nodes (33): BaseOverrides, ContractMethodArgs, DefaultReturnType, GetARGsTypeFromFactory, GetContractTypeFromFactory, MinEthersFactory, Overrides, PayableOverrides (+25 more)
 
 ### Community 119 - "api/cyberia-instance-conf/cyberia-instance-conf.service.js"
-Cohesion: 0.15
-Nodes (13): hintsCache(), assertConfEconomy(), CyberiaInstanceConfService, defaultFor(), httpError(), logger, readPath(), validationPaths() (+5 more)
+Cohesion: 0.08
+Nodes (29): hintsCache(), BaseStatsSchema, CyberiaInstanceConfModel, CyberiaInstanceConfSchema, EquipmentRulesSchema, ProgressionRulesSchema, SkillRulesSchema, StatusIconEntrySchema (+21 more)
 
-### Community 120 - "item-ledger-transfer.router.js"
-Cohesion: 0.22
-Nodes (6): ItemLedgerTransferController, ApiRouter(), ItemLedgerTransferRouter, WalletAccountController, ApiRouter(), WalletAccountRouter
+### Community 120 - "procedural-skin-variant.test.js"
+Cohesion: 0.08
+Nodes (29): RENDER_FRAME_CONTRACT, facingOf(), prepareSpriteBatch(), HAIR_STYLE_IDS, HAIR_STYLES, protectedCells(), regionsOf(), batchOf() (+21 more)
 
 ### Community 121 - "scripts"
 Cohesion: 0.05
 Nodes (37): scripts, baremetal, build, build:template, dev, dev:api, dev:client, dev:container (+29 more)
 
 ### Community 122 - "ItemCatalogCyberia"
-Cohesion: 0.16
-Nodes (16): badge(), busy(), button(), element(), ItemCatalogCyberia, notify(), pending(), refusal() (+8 more)
+Cohesion: 0.06
+Nodes (45): draftRevision(), badge(), busy(), button(), element(), ItemCatalogCyberia, notify(), pending() (+37 more)
 
 ### Community 123 - "InstanceSelectionView.js"
-Cohesion: 0.04
-Nodes (49): Account, range(), htmlStrSanitize(), dropParam(), gameClientUrl(), gameOrigin(), gameServerUrl(), launchUrl() (+41 more)
+Cohesion: 0.11
+Nodes (33): range(), RouterReady, dropParam(), gameClientUrl(), gameOrigin(), gameServerUrl(), launchUrl(), launchWorld() (+25 more)
 
-### Community 124 - "New release v:3.3.73 (2026-09-01)"
-Cohesion: 0.06
-Nodes (36): build, cli, cli-client, cli-cron, cli-cyberia, cli-dns, cli-host, cli-new (+28 more)
+### Community 124 - "resolver.js"
+Cohesion: 0.19
+Nodes (26): hexToRgba(), rgbaToHex(), fromOklch(), inGamut(), linearOf(), oklabDistance(), toByte(), toLinear() (+18 more)
 
 ### Community 125 - "loggerFactory"
-Cohesion: 0.04
-Nodes (103): run(), clearDirectory(), clientBuildIdFactory(), clientBundleIdFactory(), buildCoverage(), buildDocs(), buildDocsReferences(), documentLinkFactory() (+95 more)
+Cohesion: 0.03
+Nodes (138): jszip@^3.10.2, jszip, edgeRouteEntriesFactory(), buildClient(), clearDirectory(), clientBuildIdFactory(), clientBundleIdFactory(), copyNonExistingFiles() (+130 more)
 
 ### Community 126 - "RenderSource.js"
-Cohesion: 0.03
-Nodes (72): AtlasSpriteSheetGenerator, DEFAULT_ATLAS_UPSCALE_FACTOR, IDLE_PREVIEW_DIRECTION_CODE, IDLE_PREVIEW_SIZE, logger, PNG_SIGNATURE, PRIMARY_CELL_PIXEL_DIM, AtlasSpriteSheetDto (+64 more)
+Cohesion: 0.04
+Nodes (60): esbuild, ObjectLayerRenderFramesService, wireOf(), authoringOf(), getKeyframeDirectionsByCode(), framesByDirection(), fromBase64(), fromWire() (+52 more)
 
 ### Community 127 - "containers"
 Cohesion: 0.06
@@ -1196,11 +1186,11 @@ Nodes (35): command, image, name, ports, volumeMounts, apiVersion, kind, metadat
 
 ### Community 128 - "db.js"
 Cohesion: 0.09
-Nodes (31): backupStreamName(), backupStreams(), CLIENT_LIMITS, clientAuthFlags(), commandSource(), databasePlan(), DR_BACKUP_PROFILE, DR_CONSISTENCY (+23 more)
+Nodes (30): CronModel, CronSchema, backupStreamName(), backupStreams(), CLIENT_LIMITS, clientAuthFlags(), commandSource(), DR_BACKUP_PROFILE (+22 more)
 
 ### Community 129 - "ObjectLayerViewer"
-Cohesion: 0.10
-Nodes (14): copyData(), element(), MapStudioCyberia, query(), chipNode(), contextIcon(), contextPanelStyle, element() (+6 more)
+Cohesion: 0.09
+Nodes (17): copyData(), element(), MapStudioCyberia, query(), chipNode(), contextIcon(), contextIconSrc(), contextPanelStyle (+9 more)
 
 ### Community 131 - "containers"
 Cohesion: 0.06
@@ -1211,24 +1201,24 @@ Cohesion: 0.06
 Nodes (34): apiVersion, args, command, image, imagePullPolicy, livenessProbe, name, ports (+26 more)
 
 ### Community 133 - "UnderpostDockerCompose"
-Cohesion: 0.15
-Nodes (5): callback(), UnderpostDockerCompose, NginxService, renderBlock(), generate()
+Cohesion: 0.12
+Nodes (8): callback(), UnderpostDockerCompose, HEALTH_DIRECTIVES, logger, NginxService, PROXY_HEADERS, renderBlock(), generate()
 
 ### Community 134 - "Cyberia CLI"
 Cohesion: 0.09
 Nodes (23): Bringing up the full stack locally, Contract, `cyberia cache` — platform cache, `cyberia catalog` — item bindings, `cyberia chain` — Besu + ObjectLayerToken, Cyberia CLI, `cyberia client-hints` — presentation hints, `cyberia content-baseline` — production content baselines (+15 more)
 
 ### Community 135 - "Observability and Events"
-Cohesion: 0.06
-Nodes (31): Event, Architecture, Cluster prerequisites, Cluster runtimes and node placement, Components, Deploying the stack, End-to-end rehearsal, Events (+23 more)
+Cohesion: 0.07
+Nodes (28): Event, Architecture, Cluster prerequisites, Cluster runtimes and node placement, Components, Deploying the stack, End-to-end rehearsal, Events (+20 more)
 
 ### Community 136 - "containers"
 Cohesion: 0.06
 Nodes (33): apiVersion, env, image, livenessProbe, name, ports, readinessProbe, resources (+25 more)
 
-### Community 137 - "wireguard-edge.test.js"
-Cohesion: 0.14
-Nodes (17): forwardProxyListen(), fetchViaForwardProxy(), FORWARD_PROXY_HOP_HEADERS, forwardProxyAuthorizedFactory(), forwardProxyConfigFactory(), forwardProxyConnectHandlerFactory(), forwardProxyHeadersFactory(), forwardProxyRefuse() (+9 more)
+### Community 137 - "wallet-identity.test.js"
+Cohesion: 0.13
+Nodes (18): ETHEREUM_BASE_PATH, VaultStorage, caip10(), caip2(), discoverExternalWallets(), externalWalletProvider(), parseCaip10(), WALLET_CAPABILITIES (+10 more)
 
 ### Community 138 - "ProceduralPaletteCyberia.js"
 Cohesion: 0.17
@@ -1251,28 +1241,28 @@ Cohesion: 0.06
 Nodes (34): 1. Create Configuration, 2. Deploy Instances, 3. Configure TLS, 4. Verify, Advanced Usage, Best Practices, Blue-Green Deployment Strategy, Cleanup (+26 more)
 
 ### Community 143 - "domain-client.js"
-Cohesion: 0.06
-Nodes (50): Launch flow, Origins, Cyberia domain boundaries, Domain ownership, One Object Layer writer, Refusal reasons, Dependency failures, Friend refusals (+42 more)
+Cohesion: 0.07
+Nodes (32): Cross-domain contracts, Object Layer API, API_BASE_PATH, DOMAIN_API_VERSION, AMBIGUOUS, cache, cacheGet(), DEFAULTS (+24 more)
 
 ### Community 144 - "New release v:3.4.5 (2026-09-25)"
 Cohesion: 0.06
 Nodes (32): api, cli, cli-cyberia, client, client-core, client-cryptokoyn, client-cyberia, client-itemledger (+24 more)
 
 ### Community 145 - "social.js"
-Cohesion: 0.18
-Nodes (23): CyberiaSocialProfileModel, CyberiaSocialProfileSchema, cleanStatusNote(), FRIEND_REQUEST_DAYS, FRIEND_REQUESTS_MAX, FRIENDS_MAX, STATUS_NOTE_INTERVAL_MS, STATUS_NOTE_MAX_RUNES (+15 more)
+Cohesion: 0.13
+Nodes (28): CyberiaSocialModel, CyberiaSocialSchema, CyberiaSocialProfileModel, CyberiaSocialProfileSchema, canonicalPair(), relationshipError(), cleanStatusNote(), FRIEND_REQUEST_DAYS (+20 more)
 
 ### Community 146 - "ProceduralEngineCyberia.js"
 Cohesion: 0.16
-Nodes (18): ACCESS_MESSAGE, ACTION_HINTS, ACTION_ICONS, ACTIONS, actionsColumn(), ACTIVE, candidateColumns(), candidateState() (+10 more)
+Nodes (19): ACCESS_MESSAGE, ACTION_HINTS, ACTION_ICONS, ACTIONS, actionsColumn(), ACTIVE, candidateColumns(), candidateState() (+11 more)
 
 ### Community 147 - "player-operations.test.js"
-Cohesion: 0.06
-Nodes (29): ACCOUNT_RESTRICTIONS, UserDto, UserModel, UserSchema, userRoleEnum, Launch routes, { account, play }, add (+21 more)
+Cohesion: 0.08
+Nodes (25): Stats and progression, Launch routes, { account, play }, add, APIS, bagStack(), change(), cids (+17 more)
 
 ### Community 148 - "api/cyberia-universe/cyberia-universe.service.js"
-Cohesion: 0.30
-Nodes (11): assertTopology(), CyberiaUniverseService, httpError(), memberConflict(), model(), pictureUrl(), topologyOf(), universeView() (+3 more)
+Cohesion: 0.21
+Nodes (13): liveEndpoints(), assertTopology(), CyberiaUniverseService, httpError(), linkKey(), memberConflict(), model(), pictureUrl() (+5 more)
 
 ### Community 149 - "github-actions-logging.sh"
 Cohesion: 0.12
@@ -1303,8 +1293,8 @@ Cohesion: 0.06
 Nodes (30): concurrency, cancel-in-progress, group, image, container, environment, if, runs-on (+22 more)
 
 ### Community 156 - "hardhat.config.js"
-Cohesion: 0.14
-Nodes (8): coinbaseKey, config, __dirname, __filename, hardhat@~3.21.0, __dirname, __filename, hardhat
+Cohesion: 0.25
+Nodes (4): hardhat@~3.21.0, __dirname, __filename, hardhat
 
 ### Community 157 - "cluster"
 Cohesion: 0.06
@@ -1334,21 +1324,21 @@ Nodes (29): name, port, weight, HTTPRoute test.nexodev.org, HTTPRoute stagging.n
 Cohesion: 0.07
 Nodes (29): apiVersion, env, image, name, ports, volumeMounts, kind, app (+21 more)
 
-### Community 164 - "CommonJs.js"
+### Community 164 - "Modal.js"
 Cohesion: 0.04
-Nodes (52): Badge, anchorFactory(), ceil10(), componentFromStr(), decimalAdjust(), documentationHref(), emotionsData, floor10() (+44 more)
+Nodes (88): anchorFactory(), documentationHref(), parsePublicRoute(), PublicRoutes, s4(), titleFormatted(), Content, logger (+80 more)
 
 ### Community 166 - "SSH Management Guide"
-Cohesion: 0.06
-Nodes (36): 1. Creating a Cluster User, 1. Use Key-Based Authentication, 2. Restoring User from Backup, 2. Use Strong Passwords for Keys, 3. Limit User Groups, 3. Managing Multiple Users, 4. Regular Key Rotation, 4. Secure Deployment Setup (+28 more)
+Cohesion: 0.07
+Nodes (30): 1. Creating a Cluster User, 2. Restoring User from Backup, 3. Managing Multiple Users, 4. Secure Deployment Setup, 5. User Cleanup, Advanced Options, Basic User Management, Cluster Key Store (+22 more)
 
 ### Community 167 - "Edge Hub WireGuard and HAProxy"
-Cohesion: 0.07
-Nodes (30): Adding a spoke without downtime, Architecture, Author topology without touching a host, Command reference, Configuration model, Configure control and worker nodes, Configure the hub, Connecting to a node (+22 more)
+Cohesion: 0.08
+Nodes (24): Adding a spoke without downtime, Architecture, Command reference, Configuration model, Connecting to a node, Edge Hub WireGuard and HAProxy, Forward proxy, Generated host artifacts (+16 more)
 
-### Community 168 - "content-baseline.js"
-Cohesion: 0.10
-Nodes (29): listDeploy(), assertDevelopmentTarget(), BASELINE_PROFILE, BASELINE_SCHEMA_VERSION, BASELINE_STREAMS, baselineCacheDir(), baselineFileIds(), baselineOwnedCids() (+21 more)
+### Community 168 - "2026-10-30"
+Cohesion: 0.07
+Nodes (27): 2026-10-30, auth, ci, cli, cli-cyberia, cli-db, cli-run, client (+19 more)
 
 ### Community 169 - "with"
 Cohesion: 0.07
@@ -1360,15 +1350,15 @@ Nodes (28): permissions, runs-on, steps, env, UNDERPOST_VERSION, jobs, build-and
 
 ### Community 171 - "object-store.js"
 Cohesion: 0.08
-Nodes (22): cloudinary, cloudinaryConfig(), DELIVERY_TYPES, logger, pull(), errorStatus(), Downloader, downloadFile (+14 more)
+Nodes (22): cloudinary, cloudinaryConfig(), DELIVERY_TYPES, logger, pull(), errorStatus(), withRetry(), Downloader (+14 more)
 
 ### Community 172 - "universe-registry.test.js"
 Cohesion: 0.10
-Nodes (25): CyberiaServerRegistryModel, CyberiaServerRegistrySchema, SERVER_STATES, getModel(), httpError(), INTERNAL_SUFFIXES, isInternalHost(), liveEndpoints() (+17 more)
+Nodes (24): CyberiaServerRegistryModel, CyberiaServerRegistrySchema, SERVER_STATES, getModel(), httpError(), INTERNAL_SUFFIXES, isInternalHost(), liveServers() (+16 more)
 
 ### Community 173 - ".RenderConfirm"
-Cohesion: 0.18
-Nodes (4): decide(), denied(), notify(), refusal()
+Cohesion: 0.15
+Nodes (7): pictureFigure(), decide(), denied(), notify(), readPage(), refusal(), authoringKey()
 
 ### Community 174 - "Object Layer Protocol"
 Cohesion: 0.07
@@ -1382,16 +1372,16 @@ Nodes (27): apiVersion, env, envFrom, image, imagePullPolicy, name, ports, volum
 Cohesion: 0.09
 Nodes (23): `cyberia release` — product repositories, Configure a product, Deploy nodes and image builds, Freshness, Generate Code Graphs, Install Graphify, The engine graph, Troubleshooting (+15 more)
 
-### Community 177 - "UnderpostLxd"
-Cohesion: 0.22
-Nodes (3): callback(), logger, UnderpostLxd
+### Community 177 - "file-change-set.js"
+Cohesion: 0.11
+Nodes (23): applyPlan(), Cache, Cyberia Local Content Development, Daily development, Debug run, Dependency failures, Development engine, Local and production (+15 more)
 
 ### Community 178 - "Entity Profile"
 Cohesion: 0.07
 Nodes (27): Bot Entity Profile, Coin Balance Architecture, CyberiaEntity Schema (MongoDB), Destructible Obstacle Profile, Entity Lifecycle Diagram, Entity Profile, Entity Status Indicator (ESI), Entity Type Registry (+19 more)
 
 ### Community 179 - "Off-chain economy"
-Cohesion: 0.07
+Cohesion: 0.08
 Nodes (25): Buyback and burn, CKY bridge: planned, Coin flows, Craft fee, Diagnostics, Drop rule, Durable drops, Feedback (+17 more)
 
 ### Community 180 - "environment"
@@ -1399,11 +1389,11 @@ Cohesion: 0.14
 Nodes (28): environment, environment, environment, environment, APP_ENV, CYBERIA_AUTH_TIMEOUT_SEC, CYBERIA_BASE_PATH, CYBERIA_CONNECT_BURST_PER_IP (+20 more)
 
 ### Community 181 - "ObjectLayerToken__factory.ts"
-Cohesion: 0.09
-Nodes (9): NonPayableOverrides, _abi, isSuperArgs(), ObjectLayerToken__factory, ObjectLayerTokenConstructorParams, HardhatEthersHelpers, @nomicfoundation/hardhat-ethers/types, factories (+1 more)
+Cohesion: 0.14
+Nodes (7): NonPayableOverrides, _abi, isSuperArgs(), ObjectLayerToken__factory, ObjectLayerTokenConstructorParams, factories, ObjectLayerTokenInterface
 
-### Community 182 - "cyberia-cli.md"
-Cohesion: 0.19
+### Community 182 - "Run the Cyberia Docker Stack Locally"
+Cohesion: 0.40
 Nodes (5): Release instances, Run the Cyberia Docker Stack Locally, Run the stack, Sources, The generated stack
 
 ### Community 183 - "Main Cluster Lifecycle Commands"
@@ -1431,20 +1421,20 @@ Cohesion: 0.10
 Nodes (14): A, API, authorize(), B, callback(), consent(), ENV, exchange() (+6 more)
 
 ### Community 189 - "api/wallet-account/wallet-account.service.js"
+Cohesion: 0.14
+Nodes (20): caip10(), FORBIDDEN_FIELDS, normalizeAddress(), WALLET_TYPES, WalletAccountDto, WalletAccountModel, WalletAccountSchema, challengeKey() (+12 more)
+
+### Community 190 - "Procedural Engine"
 Cohesion: 0.09
-Nodes (35): ethers, caip10(), FORBIDDEN_FIELDS, normalizeAddress(), WALLET_TYPES, WalletAccountDto, WalletAccountModel, WalletAccountSchema (+27 more)
+Nodes (23): Audit, Boundaries, Code layout, Determinism, Diversity, Existing content, Identity, Instance maps and portals (+15 more)
 
-### Community 190 - "readEdgeContext"
-Cohesion: 0.17
-Nodes (19): eventFirewallCommandsFactory(), service(), firewallCommandsFactory(), haproxySetup(), install(), localRole(), quicForwardCommandsFactory(), readEdgeContext() (+11 more)
-
-### Community 191 - "htmls"
-Cohesion: 0.06
-Nodes (32): connectedScatterplotChart(), CalendarCore, daysOfWeekOptions, eventDateFactory(), selectedEventId(), getId(), isChileanIdentityDocument(), newInstance() (+24 more)
+### Community 191 - "s"
+Cohesion: 0.03
+Nodes (50): getId(), newInstance(), cssEffect(), dynamicCol(), renderDefaultWindowsModalButtonContent(), renderStatus(), simpleIconsRender(), typeWriter() (+42 more)
 
 ### Community 192 - "Action System"
-Cohesion: 0.10
-Nodes (20): Action Capabilities, Action–Quest Integration, Action System, Craft Transaction Flow, CyberiaAction Schema, CyberiaDialogue Schema, Data Model, Dialogue Interaction Protocol (talk / quest-talk) (+12 more)
+Cohesion: 0.08
+Nodes (25): Action Capabilities, Action–Quest Integration, Action System, Craft Transaction Flow, CyberiaAction Schema, CyberiaDialogue Schema, Data Model, Dialogue Interaction Protocol (talk / quest-talk) (+17 more)
 
 ### Community 193 - "Hardhat Module"
 Cohesion: 0.08
@@ -1455,20 +1445,20 @@ Cohesion: 0.16
 Nodes (24): buildGenesis(), buildNetworkConfigJson(), computeIbft2ExtraData(), deployBesu(), derivePublicKey(), encodeLength(), generateBesuManifests(), generateConfigTomlConfigMapYaml() (+16 more)
 
 ### Community 195 - "ipfs.client.js"
-Cohesion: 0.21
-Nodes (22): addToIpfs(), boundedBody(), clusterPin(), clusterPinStatus(), copyToMfs(), DEFAULT_IPFS_HTTP_TIMEOUT_MS, DEFAULT_IPFS_MAX_READ_BYTES, getClusterApiUrl() (+14 more)
+Cohesion: 0.20
+Nodes (23): addToIpfs(), boundedBody(), clusterPin(), clusterPinStatus(), copyToMfs(), DEFAULT_IPFS_HTTP_TIMEOUT_MS, DEFAULT_IPFS_MAX_READ_BYTES, getClusterApiUrl() (+15 more)
 
 ### Community 196 - "node-capability.test.js"
 Cohesion: 0.46
 Nodes (5): assertRoleCapability(), CLUSTER_ADMIN_CAPABILITIES, NODE_CAPABILITIES, NODE_ROLES, roleHasCapability()
 
 ### Community 197 - "entry-metadata.js"
-Cohesion: 0.11
-Nodes (33): capFirst(), publicRoutePathFactory(), buildEntryMetadata(), decodeEntities(), entryShellRendererFactory(), fileText(), markdownSource(), markdownToText() (+25 more)
-
-### Community 198 - "SagaCyberia.js"
 Cohesion: 0.15
-Nodes (19): chips(), itemContextPanel(), labelChips(), mapContextPanel(), paletteSection(), present(), summaryText(), withItems() (+11 more)
+Nodes (27): capFirst(), publicRoutePathFactory(), buildEntryMetadata(), decodeEntities(), entryShellRendererFactory(), fileText(), markdownSource(), markdownToText() (+19 more)
+
+### Community 198 - "ObjectLayerStudioCyberia.js"
+Cohesion: 0.07
+Nodes (29): chips(), itemContextPanel(), labelChips(), mapContextPanel(), paletteSection(), present(), summaryText(), withItems() (+21 more)
 
 ### Community 199 - "services"
 Cohesion: 0.09
@@ -1499,20 +1489,20 @@ Cohesion: 0.10
 Nodes (22): storage, PersistentVolume pv-dd, PersistentVolumeClaim pvc-dd, path, type, name, apiVersion, kind (+14 more)
 
 ### Community 206 - "Express.js"
-Cohesion: 0.04
-Nodes (60): resolveDeployDb(), apiPathFactory(), observabilityContextFactory(), ssrMiddlewareFactory(), What Prometheus scrapes, EmailRender, EmailRenderService, logger (+52 more)
+Cohesion: 0.11
+Nodes (25): apiPathFactory(), ssrMiddlewareFactory(), ExpressService, logger, apiPathOf(), apiAnnotationsOf(), apiDocumentFactory(), apiDocumentPathOf() (+17 more)
 
-### Community 207 - "PanelForm.js"
-Cohesion: 0.05
-Nodes (45): getSubpaths(), adjustHex(), darkenHex(), lightenHex(), renderWave(), subThemeManager, ThemeEvents, FileExplorer (+37 more)
+### Community 207 - "CalendarCore.js"
+Cohesion: 0.09
+Nodes (21): CalendarCore, daysOfWeekOptions, eventDateFactory(), selectedEventId(), getSubpaths(), FileExplorer, listenQueryPathInstance(), getTimeZone() (+13 more)
 
 ### Community 208 - "DB and Backup Management Guide"
 Cohesion: 0.09
 Nodes (23): A backup reads as failed, Another key, Another run holds the client pod, Command Syntax, Configuration, Consistency, DB and Backup Management Guide, Export (+15 more)
 
 ### Community 209 - "CyberiaLaunch.js"
-Cohesion: 0.26
-Nodes (22): apiUrl(), brand(), choice(), connecting(), enter(), escapeText(), explain(), failure() (+14 more)
+Cohesion: 0.23
+Nodes (24): Config File Reference, Config File Reference, apiUrl(), brand(), choice(), connecting(), enter(), escapeText() (+16 more)
 
 ### Community 210 - "content-artifact.test.js"
 Cohesion: 0.10
@@ -1530,17 +1520,17 @@ Nodes (21): apiVersion, storage, apiVersion, kind, name, namespace, path, type (
 Cohesion: 0.17
 Nodes (12): ByteReader, collectionOptions(), GZIP_MAGIC, inspectMongoArchive(), MONGO_ARCHIVE_MAGIC, mongoArchiveTap(), plainArchive(), readDocumentOrTerminator() (+4 more)
 
-### Community 214 - "SystemdService"
-Cohesion: 0.17
-Nodes (11): serviceJournal(), serviceNodePath(), serviceUnitFactory(), forwardProxyNodePath(), forwardProxyServer(), forwardProxyCommandFactory(), forwardProxyNodeCandidatesFactory(), forwardProxyNodeProbeCommandFactory() (+3 more)
+### Community 214 - "forward-proxy.js"
+Cohesion: 0.08
+Nodes (31): eventFirewallCommandsFactory(), service(), serviceJournal(), serviceNodePath(), serviceState(), serviceUnitFactory(), forwardProxyListen(), forwardProxyNodePath() (+23 more)
 
 ### Community 215 - "cli/socketsecurity.js"
-Cohesion: 0.18
+Cohesion: 0.15
 Nodes (6): applyPatches(), audit(), callback(), logger, remediate(), UnderpostSocketSecurity
 
 ### Community 217 - "ItemLedger"
-Cohesion: 0.07
-Nodes (28): Architecture, Contract facts this domain depends on, Operations, The CKY token, 1. Scope, 2. Principles, 3.1 The Split, 3.2 The Binding (+20 more)
+Cohesion: 0.09
+Nodes (22): 1. Scope, 2. Principles, 3.1 The Split, 3.2 The Binding, 3.3 Token Id Derivation, 3.4 Registration Safety, 3. Object Layer Integration, 4.1 Token Classification (+14 more)
 
 ### Community 218 - "shape-generator.js"
 Cohesion: 0.16
@@ -1555,12 +1545,12 @@ Cohesion: 0.10
 Nodes (20): apiVersion, cores, memory, serviceAccount, cores, instances, memory, kind (+12 more)
 
 ### Community 222 - "EmbeddedWallet"
-Cohesion: 0.07
-Nodes (27): accountPath(), EmbeddedWallet, discoverExternalWallets(), externalWalletProvider(), Identity, Key custody, Wallet integration, Key custody rules (+19 more)
+Cohesion: 0.12
+Nodes (12): accountPath(), EmbeddedWallet, Components, Embedded wallet, External wallets, Identity model, Key storage threat model, Operational invariants (+4 more)
 
 ### Community 223 - "Architecture"
-Cohesion: 0.09
-Nodes (24): monitorReadyRunner(), Canonical env files and project builders, Client-side instance resolution, `cmd` conventions, Configuration File Structure, Configuration Parameters, Each variant sub-path is its own deployment, How the monitor observes instances (+16 more)
+Cohesion: 0.15
+Nodes (14): `cmd` conventions, Configuration File Structure, Configuration Parameters, `imagePullPolicy` — per-instance override (extension), `runtime` field and Dockerfile resolution, Architecture, Configuration scopes inside the host domain, Cron environment delivery (+6 more)
 
 ### Community 224 - "lib/content-release.sh"
 Cohesion: 0.14
@@ -1599,28 +1589,28 @@ Cohesion: 0.11
 Nodes (18): apiVersion, storage, name, namespace, path, type, kind, app (+10 more)
 
 ### Community 234 - "document.model.js"
-Cohesion: 0.14
-Nodes (13): DocumentModel, DocumentSchema, isSlugOfTitle(), MISSING_STABLE_SLUG, SLUG_TRANSLITERATIONS, STABLE_SLUG_INDEX_OPTIONS, stableSlugCandidate(), stableSlugFactory() (+5 more)
+Cohesion: 0.10
+Nodes (17): DocumentDto, DocumentModel, DocumentSchema, isSlugOfTitle(), MISSING_STABLE_SLUG, SLUG_TRANSLITERATIONS, STABLE_SLUG_INDEX_OPTIONS, stableSlugCandidate() (+9 more)
 
 ### Community 235 - "underpost-ingress.js"
-Cohesion: 0.20
-Nodes (13): installUnderpostIngress(), compressionConfFactory(), compressionModulesConfFactory(), nginxImageFactory(), UNDERPOST_COMPRESSION, nginxConfFactory(), gatewayBackendFactory(), UNDERPOST_INGRESS (+5 more)
+Cohesion: 0.19
+Nodes (14): installUnderpostIngress(), compressionConfFactory(), compressionModulesConfFactory(), nginxImageFactory(), UNDERPOST_COMPRESSION, defaultStatusPagePath(), nginxConfFactory(), gatewayBackendFactory() (+6 more)
 
-### Community 236 - "Accounts and persistent players"
-Cohesion: 0.11
-Nodes (19): Accounts and persistent players, Data model, Guest identities, Identities, Item identity, Leaving, Load rules, One profile per universe (+11 more)
+### Community 236 - "unavailable"
+Cohesion: 0.06
+Nodes (42): saved(), Accounts and persistent players, Data model, Guest identities, Identities, Item identity, Launch flow, Leaving (+34 more)
 
 ### Community 237 - "Cyberia Online — Development Roadmap"
-Cohesion: 0.07
-Nodes (28): Architecture additions, Architecture additions, Core Design Principle: Content Identity and Wallet Identity, Cyberia Online — Development Roadmap, Data contract (alpha), Domain Architecture, Key properties, Milestone goals (+20 more)
+Cohesion: 0.08
+Nodes (24): Architecture additions, Architecture additions, Core Design Principle: Content Identity and Wallet Identity, Cyberia Online — Development Roadmap, Data contract (alpha), Domain Architecture, Key properties, Milestone goals (+16 more)
 
 ### Community 238 - "Socket Security and Code Analysis"
 Cohesion: 0.10
-Nodes (17): Categories, Commands, Configuration, Dependency findings, Locations, Patches on install, Remediation, Reports (+9 more)
+Nodes (16): Categories, Commands, Configuration, Dependency findings, Locations, Patches on install, Remediation, Socket Security and Code Analysis (+8 more)
 
 ### Community 239 - "Cron Jobs Management"
-Cohesion: 0.09
-Nodes (25): Backup Job, Command, Cron Jobs Management, Direct Execution Flow, DNS Job, File Structure, Job Types, Lifecycle (+17 more)
+Cohesion: 0.13
+Nodes (17): Backup Job, Command, Cron Jobs Management, Direct Execution Flow, DNS Job, File Structure, Job Types, Lifecycle (+9 more)
 
 ### Community 240 - "New release v:3.3.76 (2026-09-12)"
 Cohesion: 0.11
@@ -1658,9 +1648,9 @@ Nodes (17): apiVersion, kind, app, metadata, labels, name, name, nodePort (+9 mo
 Cohesion: 0.11
 Nodes (17): apiVersion, kind, app, metadata, labels, name, name, nodePort (+9 more)
 
-### Community 249 - "Canonical identity"
-Cohesion: 0.09
-Nodes (19): Coverage, Floor, target and the Coveralls status, Publishing the HTML reports, The TypeDoc site, Canonical domain, Canonical identity, Identity pipeline, Protocol boundary (+11 more)
+### Community 249 - "global-content.test.js"
+Cohesion: 0.05
+Nodes (68): CyberiaGlobalContentService, parseIdentityJson(), readNamedBytes(), readRender(), blockOf(), CATALOG_ITEM_ID_PATTERN, DEFINITION_DOCUMENT_BYTES, definitionDocumentProblems() (+60 more)
 
 ### Community 250 - "ADR 0003 — Content releases instead of database drops"
 Cohesion: 0.11
@@ -1670,9 +1660,9 @@ Nodes (15): ADR 0003 — Content releases instead of database drops, Consequence
 Cohesion: 0.12
 Nodes (18): container_name, depends_on, expose, image, networks, restart, container_name, depends_on (+10 more)
 
-### Community 252 - "FakeModel"
-Cohesion: 0.20
-Nodes (5): clone(), FakeModel, get(), matches(), sorter()
+### Community 252 - "content-release.test.js"
+Cohesion: 0.07
+Nodes (26): Content releases, Content releases, Databases, Development, Development and production, Live changes, Production, Publication (+18 more)
 
 ### Community 253 - "ports"
 Cohesion: 0.12
@@ -1683,16 +1673,16 @@ Cohesion: 0.12
 Nodes (16): apiVersion, kind, app, group, metadata, labels, name, name (+8 more)
 
 ### Community 255 - "Dns"
-Cohesion: 0.05
-Nodes (43): axios, UnderpostHost, build(), buildAndTestTemplate(), buildCliDoc(), buildVersionBumpTargets(), bumpAuxiliaryFiles(), bumpFile() (+35 more)
+Cohesion: 0.04
+Nodes (55): axios@^1.21.0, axios, getCurrentTraffic(), filterManifestEntries(), isWithinScope(), manifestFilterNames, normalizeStoragePath(), resolveFilesystemSelection() (+47 more)
 
-### Community 256 - "Modal"
-Cohesion: 0.05
-Nodes (25): userSessionOf(), Modal, SearchBox, focusVisible(), nextShellState(), renderControl(), renderStyle(), resolveShellConfig() (+17 more)
+### Community 256 - "SearchBox"
+Cohesion: 0.18
+Nodes (3): SearchBox, getAllChildNodes(), traverse()
 
-### Community 257 - "Content releases"
-Cohesion: 0.12
-Nodes (17): Content releases, Content releases, Databases, Development, Development and production, Live changes, Production, Publication (+9 more)
+### Community 257 - "Server registry"
+Cohesion: 0.33
+Nodes (6): Hot reload, Reads, Reports, Server registry, Tests, Validation and security
 
 ### Community 258 - "Core Commands"
 Cohesion: 0.12
@@ -1703,8 +1693,8 @@ Cohesion: 0.12
 Nodes (17): ipfs, CLUSTER_CRDT_TRUSTEDPEERS, CLUSTER_IPFSHTTP_NODEMULTIADDRESS, CLUSTER_PEERNAME, CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS, CLUSTER_SECRET, container_name, depends_on (+9 more)
 
 ### Community 260 - "AGENTS.md"
-Cohesion: 0.15
-Nodes (12): Architecture boundaries, Brief comments — no archaeology, Communication, Consistency guardrails, Content comes from cyberia-content, Cyberia, Documentation, Documentation (+4 more)
+Cohesion: 0.12
+Nodes (15): Architecture boundaries, Brief comments — no archaeology, Communication, Consistency guardrails, Content comes from cyberia-content, Cyberia, Documentation, Documentation (+7 more)
 
 ### Community 261 - "deploy_step"
 Cohesion: 0.21
@@ -1731,32 +1721,32 @@ Cohesion: 0.12
 Nodes (15): namespaces, apiVersion, kind, allowedRoutes, hostname, name, port, protocol (+7 more)
 
 ### Community 267 - "instance-data.js"
-Cohesion: 0.08
-Nodes (54): CyberiaInstanceBootService, skillSummonedItemId(), validateEntityLevel(), validateRespawnDuration(), buildHandlers(), findAllBoundDefinitions(), servedContentArtifact(), defaultEconomySnapshot() (+46 more)
+Cohesion: 0.06
+Nodes (67): CyberiaInstanceBootService, skillSummonedItemId(), validateEntityLevel(), validateRespawnDuration(), buildHandlers(), __dirname, __filename, GrpcServer (+59 more)
 
-### Community 268 - "mongoose"
-Cohesion: 0.07
-Nodes (25): logger, DocumentDto, documentNotFound(), DocumentService, findReadableByStableSlug(), logger, requestUser(), FileSchema (+17 more)
+### Community 268 - "hair-growth.js"
+Cohesion: 0.23
+Nodes (17): analyzeFrame(), cellsOfMask(), close(), CROSS, dilate(), distanceField(), erode(), inside() (+9 more)
 
-### Community 269 - "content-release.test.js"
-Cohesion: 0.17
-Nodes (11): Content a player brings, Source layout, Genesis Templates, Deploy configuration, content(), definition(), layoutOf(), models (+3 more)
+### Community 269 - "registry.js"
+Cohesion: 0.16
+Nodes (16): CyberiaProceduralProfileDto, CyberiaProceduralProfileModel, CyberiaProceduralProfileSchema, OBJECT_LAYER_FACINGS, checkConstraints(), checkRules(), DEFAULT_PROFILES, FACES (+8 more)
 
-### Community 270 - "Testing and Coverage"
-Cohesion: 0.11
-Nodes (18): Testing and verification, e2e(), Intercepting what is sent, Notifications, Allure dashboard, Changed-source selection, CI, Delegated projects (+10 more)
+### Community 270 - "sprite/generator.js"
+Cohesion: 0.27
+Nodes (20): seededRandom(), The pipeline, buildVariant(), dominantColor(), hexOf(), keyOf(), VARIATIONS, boxOf() (+12 more)
 
 ### Community 272 - "publication.js"
 Cohesion: 0.07
-Nodes (42): BINDING_SOURCES, BindingSchema, CyberiaItemCatalogDto, CyberiaItemCatalogModel, CyberiaItemCatalogSchema, ProvenanceSchema, CLOSED_BEFORE_COMMIT, POPULATION_VERSION (+34 more)
+Nodes (44): BINDING_SOURCES, BindingSchema, CyberiaItemCatalogDto, CyberiaItemCatalogModel, CyberiaItemCatalogSchema, ProvenanceSchema, pendingMedia(), CLOSED_BEFORE_COMMIT (+36 more)
 
-### Community 273 - "source-lock.js"
-Cohesion: 0.23
-Nodes (15): release(), assertKnownFields(), isPlainObject(), lockedFields(), lockedSource(), lockedSourceFactory(), readSourceLock(), readSourceLockFile() (+7 more)
+### Community 273 - "diversity.js"
+Cohesion: 0.16
+Nodes (16): Candidate states, diversityBetween(), gridsOf(), lightnessOf(), meanOver(), paletteSpread(), signatureOf(), spread() (+8 more)
 
 ### Community 274 - "seed-audio.test.js"
 Cohesion: 0.07
-Nodes (34): CyberiaAudioModel, CyberiaAudioSchema, ManifestSchema, AudioSettingsSchema, CyberiaMapAudioConfModel, CyberiaMapAudioConfSchema, EventAudioSchema, bindingSettings() (+26 more)
+Nodes (30): CyberiaAudioModel, CyberiaAudioSchema, ManifestSchema, AudioSettingsSchema, CyberiaMapAudioConfModel, CyberiaMapAudioConfSchema, EventAudioSchema, bindingSettings() (+22 more)
 
 ### Community 275 - "New release v:3.4.0 (2026-09-15)"
 Cohesion: 0.13
@@ -1767,8 +1757,8 @@ Cohesion: 0.13
 Nodes (15): prometheus, GF_SECURITY_ADMIN_PASSWORD, GF_SECURITY_ADMIN_USER, GF_USERS_ALLOW_SIGN_UP, container_name, depends_on, environment, expose (+7 more)
 
 ### Community 277 - "Static Page Example"
-Cohesion: 0.13
-Nodes (14): Build Manifest, Build & Output, CLI Flags, Config File Reference, Icons, Metadata & SEO, Preview with Static Server, Quick Start (+6 more)
+Cohesion: 0.14
+Nodes (13): Build Manifest, Build & Output, CLI Flags, Icons, Metadata & SEO, Preview with Static Server, Quick Start, Scripts & Styles (+5 more)
 
 ### Community 278 - "scan"
 Cohesion: 0.13
@@ -1791,16 +1781,16 @@ Cohesion: 0.16
 Nodes (7): Examples, Host and cluster tooling options, Main options, Monitor cluster Guide, Notes, Observability stack options, Usage
 
 ### Community 284 - "Deploy to Kubernetes Guide"
-Cohesion: 0.08
-Nodes (26): Advanced Deployment Options, Blue-Green Deployment, Blue-Green Deployment Workflow, Common Deployment Workflows, Create and Deploy a New Service, Creating a New Deployment, Custom Image Deployment, Deploy to Kubernetes Guide (+18 more)
+Cohesion: 0.13
+Nodes (15): Blue-Green Deployment Workflow, Common Deployment Workflows, Create and Deploy a New Service, Creating a New Deployment, Deploy to Kubernetes Guide, Expose Service for Testing, Initial Deployment Workflow, Prerequisites (+7 more)
 
 ### Community 285 - "IPFS storage"
-Cohesion: 0.22
-Nodes (9): Diagnostics and consistency, Four concerns, IPFS storage, Layout, Limits, MFS is optional, Migration, Removal (+1 more)
+Cohesion: 0.13
+Nodes (13): Diagnostics and consistency, Four concerns, IPFS storage, Layout, Limits, MFS is optional, Migration, Removal (+5 more)
 
-### Community 286 - "grpc-server.js"
-Cohesion: 0.07
-Nodes (36): @grpc/grpc-js, __dirname, __filename, GrpcServer, logger, packageDefinition, PLAYER_MODELS, playerCalls (+28 more)
+### Community 286 - "hot-reload-trigger.js"
+Cohesion: 0.24
+Nodes (13): playerMethod(), jsonDeserialize(), jsonSerialize(), logger, resolveTargets(), triggerHotReload(), triggerViaGrpc(), triggerViaRest() (+5 more)
 
 ### Community 287 - "interval"
 Cohesion: 0.48
@@ -1843,12 +1833,12 @@ Cohesion: 0.14
 Nodes (13): ARCH, Building an image, Building the image using a kickstart mirror, Building the image using a proxy, Customizing the image, Default username, Introduction, Makefile Parameters (+5 more)
 
 ### Community 297 - "market-profile.js"
-Cohesion: 0.15
-Nodes (23): CyberiaActionService, httpError(), logger, effectiveItemPolicy(), confEconomyCode(), economyAuthorityId(), assertTerminal(), httpError() (+15 more)
+Cohesion: 0.12
+Nodes (28): CyberiaMarketController, CyberiaMarketService, findProfile(), heldGoods(), httpError(), model(), resolveChoices(), resolveMarketProfile() (+20 more)
 
-### Community 298 - "wireguard-edge.test.js"
-Cohesion: 0.13
-Nodes (25): allowedIpsConflictsFactory(), assertEdgeIdentity(), backendNameFactory(), check(), defaultPeerFactory(), edgeRouteTableFactory(), ENGINE_SYNC_STEPS, haproxyConfFactory() (+17 more)
+### Community 298 - "catalogModels"
+Cohesion: 0.16
+Nodes (8): resolveObjectLayerMetadata(), CyberiaItemCatalogService, AtlasStudioService, resolveKey(), catalogModels(), catalogMounted(), idlePreviewFileIds(), resolveKey()
 
 ### Community 299 - "Quest System"
 Cohesion: 0.14
@@ -1858,13 +1848,13 @@ Nodes (14): CyberiaQuest Schema, CyberiaQuestProgress Schema, Data Model, Exampl
 Cohesion: 0.13
 Nodes (15): Baseline lifecycle, Bootstrap and normal deploys, Client bundle, Consistency of a baseline, Deploy a Cyberia release, Deploy stages, Export the live content, Failure and revert (+7 more)
 
-### Community 301 - "Underpost Build Manifest"
-Cohesion: 0.13
-Nodes (11): Consumer behavior, Delivery, Documentation section, Evolution rules, Inline snapshot, Public data only, Relation type, Schema (+3 more)
+### Community 301 - "player-persistence.test.js"
+Cohesion: 0.15
+Nodes (14): CyberiaWorldDropModel, CyberiaWorldDropSchema, WORLD_DROP_STATUSES, heldReport(), rebindHeld(), runtimeModels(), syncRuntimeIndexes(), unkeyedFilter() (+6 more)
 
 ### Community 302 - "Static Page Example"
-Cohesion: 0.14
-Nodes (14): Build Manifest, Build & Output, CLI Flags, Config File Reference, Icons, Metadata & SEO, Preview with Static Server, Quick Start (+6 more)
+Cohesion: 0.13
+Nodes (13): Build Manifest, Build & Output, CLI Flags, Icons, Metadata & SEO, Preview with Static Server, Quick Start, Scripts & Styles (+5 more)
 
 ### Community 303 - "readme.md"
 Cohesion: 0.14
@@ -1894,21 +1884,21 @@ Nodes (13): app, app, labels, matchLabels, spec, podManagementPolicy, replicas, 
 Cohesion: 0.36
 Nodes (11): console_log(), detect_ip(), detect_mac(), detect_vendor_model(), _generate_host_key(), launch_installer(), log(), post_status() (+3 more)
 
-### Community 311 - "CyberiaProceduralJobService"
-Cohesion: 0.26
-Nodes (4): CyberiaProceduralJobService, itemPath(), logger, send()
+### Community 311 - "catalog.js"
+Cohesion: 0.22
+Nodes (14): deriveSeed(), itemSeed(), operatorSeed(), regenerationSeed(), shuffled(), trySeed(), catalogs, paletteCatalog() (+6 more)
 
 ### Community 312 - "saga-sync.test.js"
 Cohesion: 0.13
-Nodes (18): objectLayerIpfsState(), bindingProblems(), checkCatalogStorage(), checkWorldBindings(), STORAGE_CATEGORIES, WORLD_ERRORS, defaultDialogue(), providerCell() (+10 more)
+Nodes (18): objectLayerIpfsState(), CyberiaObjectLayerProfile, bindingProblems(), checkCatalogStorage(), checkWorldBindings(), STORAGE_CATEGORIES, WORLD_ERRORS, defaultDialogue() (+10 more)
 
 ### Community 313 - "PWA and SSR Views"
-Cohesion: 0.15
+Cohesion: 0.13
 Nodes (13): Adding a new SSR view, Edge-served views, Fallback selection, Field reference, How a wrong path is answered, PWA and SSR Views, Root state, Runtime strategies (+5 more)
 
-### Community 314 - "Docs.js"
-Cohesion: 0.17
-Nodes (17): buildManifest(), Docs, coverallsUrl(), deployPackageReleaseUrl(), githubPagesUrl(), githubUrl(), organizationUrl(), packageRepository() (+9 more)
+### Community 314 - "services/cyberia-item-catalog/cyberia-item-catalog.service.js"
+Cohesion: 0.26
+Nodes (4): CyberiaItemCatalogService, itemPath(), logger, request()
 
 ### Community 315 - "appearance-preview.test.js"
 Cohesion: 0.17
@@ -1950,9 +1940,13 @@ Nodes (7): validator@^13.15.35, validator, TestModel, TestSchema, logger, TestSe
 Cohesion: 0.17
 Nodes (12): devDependencies, allure-vitest@3.14.0, bumpp@^12.3.0, chai@^6.3.0, @socketsecurity/cli@^1.1.66, vitest@5.0.5, @vitest/coverage-v8@5.0.5, chai (+4 more)
 
-### Community 326 - "SocketIoProvider"
+### Community 325 - "CommandHistory"
 Cohesion: 0.11
-Nodes (8): socketEvents, SocketEventType, logger, SocketIoProvider, getBaseHost(), getEndpointHost(), getWsBasePath(), getWsBaseUrl()
+Nodes (4): CommandHistory, iconButton(), inkColor(), themeStyle()
+
+### Community 326 - "SocketIoProvider"
+Cohesion: 0.12
+Nodes (7): SocketIoProvider, getApiBasePath(), getApiBaseProxyPath(), getBaseHost(), getEndpointHost(), getWsBasePath(), getWsBaseUrl()
 
 ### Community 327 - "Content artifact"
 Cohesion: 0.17
@@ -1963,8 +1957,8 @@ Cohesion: 0.14
 Nodes (14): AOI replication, Build and run, Cyberia game server, Environment, Input command pipeline, Input kinds, Operating model, Presentation metadata ownership (+6 more)
 
 ### Community 329 - "site.js"
-Cohesion: 0.08
-Nodes (65): newApi(), newWs(), addApi(), addComponent(), applyPlan(), cloneClient(), cloneRoute(), create() (+57 more)
+Cohesion: 0.20
+Nodes (31): newWs(), addApi(), addComponent(), cloneClient(), cloneRoute(), create(), deploySource(), logger (+23 more)
 
 ### Community 330 - "Generate skin variants"
 Cohesion: 0.17
@@ -2023,12 +2017,8 @@ Cohesion: 0.18
 Nodes (10): apiVersion, kind, metadata, name, port, targetPort, app, spec (+2 more)
 
 ### Community 344 - "api/user/guest.service.js"
-Cohesion: 0.19
-Nodes (12): CyberiaGameTicketController, principalOf(), refused(), ApiRouter(), CyberiaGameTicketRouter, buildGuestUser(), guestKey(), guestMinutes() (+4 more)
-
-### Community 345 - ".instance"
-Cohesion: 0.23
-Nodes (3): logger, Stream, StreamNexodev
+Cohesion: 0.17
+Nodes (13): CyberiaGameTicketController, principalOf(), refused(), ApiRouter(), CyberiaGameTicketRouter, buildGuestUser(), guestKey(), guestMinutes() (+5 more)
 
 ### Community 346 - "PwaWindowDimensions"
 Cohesion: 0.51
@@ -2039,8 +2029,8 @@ Cohesion: 0.18
 Nodes (10): Atlas Confederation (Yellow), Cyberia Lore — The Frontier of Hyperspace, Nova Republic (Blue), Setting: Year 2520+, The Balance of Power, The Dual Nature of Cyberia, The Historical Fracture, The Three Great Confederations (+2 more)
 
 ### Community 348 - "api/cyberia-economy/cyberia-economy.service.js"
-Cohesion: 0.25
-Nodes (11): CyberiaEconomyService, httpError(), model(), namedBy(), walletChangeDefect(), walletModels(), assertEconomyProfile(), universeWalletDefect() (+3 more)
+Cohesion: 0.22
+Nodes (11): CyberiaEconomyController, CyberiaEconomyService, httpError(), model(), namedBy(), walletChangeDefect(), walletModels(), ECONOMY_CONTRACT (+3 more)
 
 ### Community 349 - "Deploy Command Reference"
 Cohesion: 0.18
@@ -2098,17 +2088,17 @@ Nodes (9): storageclass.kubernetes.io/is-default-class, apiVersion, kind, metada
 Cohesion: 0.20
 Nodes (9): apiVersion, data, POSTGRES_DB, POSTGRES_USER, kind, app, metadata, labels (+1 more)
 
-### Community 363 - "Source releases"
-Cohesion: 0.33
-Nodes (6): Container releases, Release profiles, Source channels, Source releases, The Release Job, The release workspace
+### Community 363 - "api/cyberia-client-hints/cyberia-client-hints.service.js"
+Cohesion: 0.23
+Nodes (10): CyberiaClientHintsController, ApiRouter(), CyberiaClientHintsRouter, logger, resolveClientHints(), resolveStoredClientHints(), buildClientHints(), CYBERIA_CLIENT_HINTS_DEFAULTS (+2 more)
 
-### Community 365 - "api/cyberia-market/cyberia-market.service.js"
-Cohesion: 0.20
-Nodes (11): CyberiaMarketService, findProfile(), heldGoods(), httpError(), model(), MARKET_CONTRACT, assertMarketProfile(), browserBinary (+3 more)
+### Community 365 - "market-studio-browser.test.js"
+Cohesion: 0.33
+Nodes (5): MARKET_CONTRACT, browserBinary, manifest, profile, view
 
 ### Community 366 - "Manage runtime bindings"
-Cohesion: 0.20
-Nodes (10): Add a binding, Before you start, Bind a runtime version, Check before a game server loads, Import a definition from Object Layer, Manage global content, Manage runtime bindings, Read the catalog (+2 more)
+Cohesion: 0.08
+Nodes (24): Add a binding, Before you start, Bind a runtime version, Check before a game server loads, Import a definition from Object Layer, Manage global content, Manage runtime bindings, Read the catalog (+16 more)
 
 ### Community 367 - "Common Issues"
 Cohesion: 0.20
@@ -2147,7 +2137,7 @@ Cohesion: 0.22
 Nodes (9): instanceId(), Indexes, Map registry, Ownership, Reads, Reconciliation, Rows, Tests (+1 more)
 
 ### Community 376 - "wireguard-cli.test.js"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (8): UNDERPOST_EDGE, UnderpostWireguard, FORWARD_PROXY, HUB_IDENTITY_FILES, shipsCyberiaPackageScript, SPOKE_IDENTITY_FILES, TOPOLOGY, ACTIONS
 
 ### Community 377 - "Social, chat and parties"
@@ -2174,6 +2164,10 @@ Nodes (9): 1. "Image not found in cluster", 2. "Failed to load image into cluste
 Cohesion: 0.22
 Nodes (9): Apply to Cluster, Direct Execution, Dry Run, Generate Manifests, Immediate Job Creation, Node Placement, Pre-script Commands, Setup Deploy Start (+1 more)
 
+### Community 383 - "parseList"
+Cohesion: 0.15
+Nodes (14): subjectSelection(), deployIdFactory(), deployPackageScriptFactory(), hostAddressesFactory(), nodeExporter(), nodeRoleStepsFactory(), packageInstallCommandFactory(), sync() (+6 more)
+
 ### Community 384 - "cyberia-client-runtime"
 Cohesion: 0.22
 Nodes (9): container_name, depends_on, expose, image, networks, restart, condition, cyberia-server-runtime (+1 more)
@@ -2187,8 +2181,12 @@ Cohesion: 0.22
 Nodes (9): container_name, entrypoint, expose, image, networks, ports, restart, volumes (+1 more)
 
 ### Community 387 - "mongoose"
-Cohesion: 0.03
-Nodes (46): mongoose, CompanyModel, CompanySchema, CoreModel, CoreSchema, ColorRgbaSchema, CyberiaClientHintsModel, CyberiaClientHintsSchema (+38 more)
+Cohesion: 0.06
+Nodes (61): mongoose, CyberiaGameTicketModel, CyberiaGameTicketSchema, TICKET_PRINCIPALS, CyberiaPlayerAuditModel, CyberiaPlayerAuditSchema, PLAYER_AUDIT_ACTIONS, PLAYER_AUDIT_OUTCOMES (+53 more)
+
+### Community 388 - "Valkey.js"
+Cohesion: 0.11
+Nodes (16): connectEngineCache(), connectWithTolerance(), _client(), closeValkeyConnection(), createValkeyConnection(), del(), get(), _instanceKey() (+8 more)
 
 ### Community 389 - "README.md"
 Cohesion: 0.25
@@ -2251,8 +2249,8 @@ Cohesion: 0.43
 Nodes (6): needval(), run_instance_mode(), run_runtime_mode(), setup_tls_secrets(), test-monitor.sh script, usage()
 
 ### Community 404 - "google-sign-in.test.js"
-Cohesion: 0.10
-Nodes (12): GoogleAuthService, logger, postFlow(), clicks, elements, flow, location, logins (+4 more)
+Cohesion: 0.14
+Nodes (9): clicks, elements, flow, location, logins, query, session, shell (+1 more)
 
 ### Community 407 - "Inventory capacity"
 Cohesion: 0.25
@@ -2262,21 +2260,21 @@ Nodes (8): Capacity rule, Fit rule, Grant paths, Inventory capacity, Locked slot
 Cohesion: 0.22
 Nodes (9): Content across worlds, Graph layout contract, Ownership, Routes and travel, Saves and conflicts, Selection and freshness, Tests, Universes and the spatial graph (+1 more)
 
-### Community 409 - "Paint and place in the Studio"
-Cohesion: 0.25
-Nodes (8): Context routes, Document bar, Drafts, Layout, Paint an item, Paint and place in the Studio, Place a map, Tabs
+### Community 409 - "render.test.js"
+Cohesion: 0.15
+Nodes (9): authority, cell, definitions, ipfs, ipfsReads, layout, lean(), models (+1 more)
 
 ### Community 410 - "api/cyberia-economic-item-policy/cyberia-economic-item-policy.service.js"
-Cohesion: 0.22
-Nodes (10): contentModels(), CyberiaEconomicItemPolicyService, httpError(), model(), rowOf(), withRevision(), CyberiaMarketListingService, ITEM_POLICY_ROW_FIELDS (+2 more)
+Cohesion: 0.07
+Nodes (24): contentModels(), CyberiaEconomicItemPolicyService, httpError(), model(), rowOf(), withRevision(), CyberiaGameSessionController, ApiRouter() (+16 more)
 
 ### Community 411 - "MaasDatabaseProvider"
-Cohesion: 0.29
-Nodes (5): maasDatabase(), identifierFactory(), MaasDatabaseProvider, quoteIdentifier(), quoteLiteral()
+Cohesion: 0.20
+Nodes (9): maasDatabase(), identifierFactory(), logger, MaasDatabaseProvider, PACKAGES, quoteIdentifier(), quoteLiteral(), ROLE_ATTRIBUTES (+1 more)
 
-### Community 412 - "GuestService"
-Cohesion: 0.17
-Nodes (4): getDb(), GuestService, SessionMetaDb, tokenChanged()
+### Community 412 - ".sessionOut"
+Cohesion: 0.09
+Nodes (6): getDb(), GuestService, SessionMetaDb, tokenChanged(), request(), WalletAccountService
 
 ### Community 413 - "Best Practices"
 Cohesion: 0.25
@@ -2290,9 +2288,9 @@ Nodes (8): Basic Build, Build and Load to K3s Cluster, Build and Load to Kind Cl
 Cohesion: 0.25
 Nodes (7): Examples, File storage, Manifest filters, Manifest selection, Operations, Path selection, Verification
 
-### Community 416 - "Resyncing an existing hub + cluster"
-Cohesion: 0.25
-Nodes (8): 0. The shared token, once, 1. Remove the old receiver from the VPS, 2. Configure and start the control-plane receiver, 3. Verify, 4. Re-running after any change, 5. Pruning retired targets, Resyncing an existing hub + cluster, Where the two events get deployed
+### Community 416 - "loadCronDeployEnv"
+Cohesion: 0.09
+Nodes (22): callback(), clusterMetadataBackupCallback(), migrateStableSlugs(), Conf Cron JSON, Enabling it, `jobs.<id>` carries schedule, nothing else, Vultr Environment Variables, 0. The shared token, once (+14 more)
 
 ### Community 417 - "ADR 0006 — Portal sessions in HttpOnly cookies"
 Cohesion: 0.25
@@ -2330,21 +2328,21 @@ Nodes (7): app, matchLabels, spec, podManagementPolicy, replicas, selector, serv
 Cohesion: 0.62
 Nodes (6): clone_or_pull(), _do_join(), log(), kubeadm-node-setup.sh script, system_node_path(), worker_join()
 
-### Community 426 - "cyberia-instance-conf.model.js"
-Cohesion: 0.16
-Nodes (11): BaseStatsSchema, CyberiaInstanceConfModel, CyberiaInstanceConfSchema, EquipmentRulesSchema, ProgressionRulesSchema, SkillRulesSchema, StatusIconEntrySchema, CYBERIA_INSTANCE_CONF_DEFAULTS (+3 more)
+### Community 426 - "e2e/public-routes.test.js"
+Cohesion: 0.17
+Nodes (9): applySecurity(), apis, browserBinary, clientBuilt, clientRoot, context, KEYS, saved (+1 more)
 
-### Community 427 - ".constructor"
-Cohesion: 0.22
-Nodes (5): eyeIcon(), toggleLabel(), iconButton(), inkColor(), themeStyle()
+### Community 427 - "site-clients.js"
+Cohesion: 0.29
+Nodes (10): clientRenameFactory(), cloneClientPlan(), escapeRegExp(), filesOf(), sourceChange(), ssrPath(), ssrReferences(), TEXT_EXTENSIONS (+2 more)
 
 ### Community 428 - "Personal storage and NPC vaults"
 Cohesion: 0.29
 Nodes (7): Moves, Persistence, Personal storage and NPC vaults, Protocol, Stored items, Tests, Two containers
 
-### Community 429 - "Enable player accounts"
-Cohesion: 0.29
-Nodes (7): 1. Deploy the engine, 2. Switch the game server, 3. Verify, Before you start, Enable player accounts, Held stacks, Roll back
+### Community 429 - "templates.js"
+Cohesion: 0.23
+Nodes (10): rotate(), themePalettes(), themeSlots(), boxOf(), checkDirections(), checkRoles(), GENERATOR_ROLES, isCount() (+2 more)
 
 ### Community 430 - "Recover a player session"
 Cohesion: 0.29
@@ -2355,8 +2353,8 @@ Cohesion: 0.29
 Nodes (7): 1. Deploy Instance, 2. Promote Instance (Blue-Green Deployment), 3. Get Traffic Colours, 4. List Deployments, 5. List Loaded Images, As part of a full cluster bring-up, Core Commands
 
 ### Community 432 - "Cluster"
-Cohesion: 0.25
-Nodes (8): Cluster, Control-plane address, Custom instances, Gateway infrastructure service, Mongo Express data browser, Routing stack defaults, Running both stacks at once, What `--dev` sets up on its own
+Cohesion: 0.29
+Nodes (7): Cluster, Control-plane address, Custom instances, Gateway infrastructure service, Mongo Express data browser, Running both stacks at once, What `--dev` sets up on its own
 
 ### Community 433 - "scripts"
 Cohesion: 0.15
@@ -2390,45 +2388,49 @@ Nodes (5): apiVersion, kind, patches, path, resources
 Cohesion: 0.33
 Nodes (6): defaultMode, name, volumes, spec, configMap, name
 
-### Community 441 - "cyberia-portal-connector.js"
-Cohesion: 0.27
-Nodes (8): buildTopologyFromSubtypes(), connectPortals(), indexPortalEntities(), PORTAL_MODE_LIST, PORTAL_MODES, portalTopology(), graphTopology(), maps
+### Community 441 - "requestError"
+Cohesion: 0.04
+Nodes (112): findGlobalDefaults(), buildTopologyFromSubtypes(), connectPortals(), indexPortalEntities(), PORTAL_MODE_LIST, PORTAL_MODES, portalTopology(), DEFAULT_ROW_FIELDS (+104 more)
+
+### Community 442 - "readNodeConfigs"
+Cohesion: 0.31
+Nodes (11): clusterNodes(), hubs(), hostNodeNameFactory(), nodeConfig(), nodeConfigPathFactory(), nodeIdentityFactory(), nodeNameCandidatesFactory(), nodeNameFactory() (+3 more)
 
 ### Community 443 - "services/cyberia-player/cyberia-player.service.js"
 Cohesion: 0.29
 Nodes (4): CyberiaPlayerService, logger, queryUrl(), send()
 
-### Community 445 - "cyberia-market-claim.router.js"
-Cohesion: 0.32
-Nodes (4): CyberiaMarketClaimController, ApiRouter(), CyberiaMarketClaimRouter, CyberiaMarketClaimService
+### Community 445 - "Advanced Deployment Options"
+Cohesion: 0.18
+Nodes (11): Advanced Deployment Options, Blue-Green Deployment, Custom Image Deployment, Development with Local DNS, HTTPProxy Timeout & Retry Policies, Multi-Replica Deployment, Multi-Service Deployment, Node-Specific Deployment (+3 more)
 
 ### Community 446 - "cyberia-player-audit.router.js"
 Cohesion: 0.31
 Nodes (4): CyberiaPlayerAuditController, ApiRouter(), CyberiaPlayerAuditRouter, CyberiaPlayerAuditService
 
-### Community 447 - "shell-entries.js"
-Cohesion: 0.42
-Nodes (9): callText(), CLOSE, commentEnd(), groupEnd(), objectProperties(), shellEntries(), stringEnd(), walkTopLevel() (+1 more)
+### Community 447 - "documentation-architecture.test.js"
+Cohesion: 0.16
+Nodes (11): appShells(), DOMAINS, callText(), CLOSE, commentEnd(), groupEnd(), objectProperties(), shellEntries() (+3 more)
 
 ### Community 448 - "overrides"
 Cohesion: 0.20
 Nodes (10): undici, overrides, @actions/http-client, adm-zip, diff, elliptic, lodash-es, serialize-javascript (+2 more)
 
-### Community 449 - "cyberia-procedural-job-item.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaProceduralJobItemController, ApiRouter(), CyberiaProceduralJobItemRouter
-
-### Community 450 - "cyberia-procedural-profile.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaProceduralProfileController, ApiRouter(), CyberiaProceduralProfileRouter
-
-### Community 451 - "cyberia-quest-progress.router.js"
-Cohesion: 0.32
-Nodes (4): CyberiaQuestProgressController, ApiRouter(), CyberiaQuestProgressRouter, CyberiaQuestProgressService
-
-### Community 452 - "world-preview.test.js"
+### Community 449 - "Phase 0 — Foundation / Architecture Lock"
 Cohesion: 0.20
-Nodes (6): BACKGROUND, FRAME, OUTLINE, store, tall, wide
+Nodes (10): Key custody, Key custody rules, Operational key separation, Per-domain data foundation, Phase 0 — Foundation / Architecture Lock, What this stage locks, Generation request, Account persistence (+2 more)
+
+### Community 450 - "ethers"
+Cohesion: 0.22
+Nodes (4): HardhatEthersHelpers, @nomicfoundation/hardhat-ethers/types, ethers@~6.17.0, ethers
+
+### Community 451 - "grpc-data-service.test.js"
+Cohesion: 0.25
+Nodes (5): BARE, CONTENT, CONTENT_APIS, freePort(), serve()
+
+### Community 452 - "authorization.test.js"
+Cohesion: 0.22
+Nodes (8): admin, authority, consumer, models, other, owner, purged, service
 
 ### Community 453 - "test/ObjectLayerToken.js"
 Cohesion: 0.22
@@ -2454,9 +2456,9 @@ Nodes (6): List from Specific Node, List Images, List in Custom Namespace, List 
 Cohesion: 0.25
 Nodes (7): Boundaries, Current maturity, Domains, Main components, Object Layer, Purpose, Responsibilities
 
-### Community 459 - "Underpost"
-Cohesion: 0.25
-Nodes (8): Boundaries, Current maturity, Documentation map, Purpose, PWA delivery model, Responsibilities, Toolchain and base infrastructure, Underpost
+### Community 459 - "cyberia-social.router.js"
+Cohesion: 0.32
+Nodes (4): CyberiaSocialController, ApiRouter(), CyberiaSocialRouter, CyberiaSocialService
 
 ### Community 460 - "ADR 0001 — One canonical Object Layer writer"
 Cohesion: 0.33
@@ -2526,9 +2528,9 @@ Nodes (5): livenessProbe, initialDelaySeconds, periodSeconds, tcpSocket, timeout
 Cohesion: 0.40
 Nodes (5): readinessProbe, initialDelaySeconds, periodSeconds, tcpSocket, timeoutSeconds
 
-### Community 477 - "object-layer-catalog.test.js"
-Cohesion: 0.29
-Nodes (5): bundles, lean(), materializations, publication, stubModels()
+### Community 477 - "cyberia-social-profile.router.js"
+Cohesion: 0.32
+Nodes (4): CyberiaSocialProfileController, ApiRouter(), CyberiaSocialProfileRouter, CyberiaSocialProfileService
 
 ### Community 480 - "shell-navigation.test.js"
 Cohesion: 0.25
@@ -2698,9 +2700,9 @@ Nodes (3): Arguments, Options, underpost push
 Cohesion: 0.67
 Nodes (3): Arguments, Options, underpost ip
 
-### Community 529 - "services/wallet-account/wallet-account.service.js"
+### Community 529 - "public-route-renderers.test.js"
 Cohesion: 0.43
-Nodes (3): logger, request(), WalletAccountService
+Nodes (6): PUBLIC_ROUTE_RENDERER_NAMES, publicRouteErrorsOf(), publicRouteRenderersFactory(), servablePublicRoutesOf(), objectLayerShipped, owner
 
 ### Community 530 - "cache-service.test.js"
 Cohesion: 0.29
@@ -2711,8 +2713,8 @@ Cohesion: 0.67
 Nodes (3): Arguments, Options, underpost secret
 
 ### Community 532 - "cyberia-content-release.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaContentReleaseController, ApiRouter(), CyberiaContentReleaseRouter
+Cohesion: 0.32
+Nodes (4): CyberiaContentReleaseController, ApiRouter(), CyberiaContentReleaseRouter, CyberiaContentReleaseService
 
 ### Community 533 - "underpost metadata"
 Cohesion: 0.67
@@ -2722,25 +2724,25 @@ Nodes (3): Arguments, Options, underpost metadata
 Cohesion: 0.67
 Nodes (3): Arguments, Options, underpost cron
 
-### Community 535 - "cyberia-global-content.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaGlobalContentController, ApiRouter(), CyberiaGlobalContentRouter
+### Community 535 - "hardhat.config.js"
+Cohesion: 0.29
+Nodes (4): coinbaseKey, config, __dirname, __filename
 
 ### Community 536 - "host.sh"
 Cohesion: 0.15
 Nodes (9): main(), deploy.sh script, main(), deploy.sh script, config.sh script, host_config(), host_config_path(), pod_private_repo() (+1 more)
 
-### Community 537 - "cyberia-instance.model.js"
-Cohesion: 0.33
-Nodes (5): CyberiaInstanceModel, CyberiaInstanceSchema, MapLayoutCellSchema, PlayerSpawnSchema, PortalEdgeSchema
+### Community 537 - "cyberia-client-hints.model.js"
+Cohesion: 0.29
+Nodes (6): ColorRgbaSchema, CyberiaClientHintsModel, CyberiaClientHintsSchema, EntityColorKeySchema, PaletteEntrySchema, StatusIconHintSchema
 
 ### Community 538 - "main"
 Cohesion: 0.40
 Nodes (4): main(), deploy.sh script, main(), deploy.sh script
 
-### Community 539 - "cyberia-market-listing.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaMarketListingController, ApiRouter(), CyberiaMarketListingRouter
+### Community 539 - "item-ledger-checkpoint.service.js"
+Cohesion: 0.33
+Nodes (4): ItemLedgerCheckpointDto, ItemLedgerCheckpointModel, ItemLedgerCheckpointSchema, ItemLedgerCheckpointService
 
 ### Community 547 - "Pulling Base Images"
 Cohesion: 0.67
@@ -2751,8 +2753,8 @@ Cohesion: 0.50
 Nodes (4): Arguments, Commands, Options, underpost new
 
 ### Community 549 - "cyberia-world-drop.router.js"
-Cohesion: 0.47
-Nodes (3): CyberiaWorldDropController, ApiRouter(), CyberiaWorldDropRouter
+Cohesion: 0.32
+Nodes (4): CyberiaWorldDropController, ApiRouter(), CyberiaWorldDropRouter, CyberiaWorldDropService
 
 ### Community 550 - "underpost test"
 Cohesion: 0.67
@@ -2782,9 +2784,9 @@ Nodes (3): Arguments, Options, underpost release
 Cohesion: 0.67
 Nodes (3): Arguments, Options, underpost clone
 
-### Community 557 - "Synchronize a saga"
-Cohesion: 0.33
-Nodes (6): Before you start, Items that run, Routes, Steps, Synchronize a saga, What a synchronization does
+### Community 557 - "Cron"
+Cohesion: 0.29
+Nodes (7): Conf Cron JSON Format, Cron, Cron Command Cycle, Cron Integration With Sync, DD Cron File, Options, Usage
 
 ### Community 558 - "underpost site clone-client"
 Cohesion: 0.67
@@ -2826,21 +2828,25 @@ Nodes (6): 2.1 Creation rules (`.sops.yaml`), 2.2 Plaintext manifest, 2.3 Encryp
 Cohesion: 0.47
 Nodes (3): CyberiaServerRegistryService, logger, read()
 
-### Community 570 - "docs-api-authorization.test.js"
+### Community 570 - "default.router.js"
+Cohesion: 0.47
+Nodes (3): DefaultController, ApiRouter(), DefaultRouter
+
+### Community 572 - "Security Best Practices"
 Cohesion: 0.33
-Nodes (4): modal, SCHEMES, select, session
+Nodes (6): 1. Use Key-Based Authentication, 2. Use Strong Passwords for Keys, 3. Limit User Groups, 4. Regular Key Rotation, 5. Use Non-Standard Ports, Security Best Practices
 
-### Community 572 - "item-ledger-balance.router.js"
-Cohesion: 0.50
-Nodes (3): ItemLedgerBalanceController, ApiRouter(), ItemLedgerBalanceRouter
+### Community 573 - "Lifecycle"
+Cohesion: 0.33
+Nodes (6): Author topology without touching a host, Configure control and worker nodes, Configure the hub, Lifecycle, Reconcile after a pull, Reset and re-key
 
-### Community 575 - "item-ledger-checkpoint.router.js"
-Cohesion: 0.50
-Nodes (3): ItemLedgerCheckpointController, ApiRouter(), ItemLedgerCheckpointRouter
+### Community 574 - "Public Routes"
+Cohesion: 0.33
+Nodes (5): Checks, Declaration, Public Routes, Routes, document()
 
-### Community 578 - "hasContentArtifact"
+### Community 578 - "Protocol model"
 Cohesion: 0.50
-Nodes (4): hasContentArtifact(), buildModels(), contentBuilt, lean()
+Nodes (4): Client tools, Protocol model, Render directions, Runtime consumption
 
 ### Community 579 - "procedural-purge.test.js"
 Cohesion: 0.40
@@ -2924,23 +2930,23 @@ Nodes (3): Commands, Options, underpost site
 
 ## Knowledge Gaps
 - **35 isolated node(s):** `EXTRA_PATHS`, `STORAGE_PATHS`, `MANAGED_ROOTS`, `PV_SUBTREES`, `ROOT_REASON` (+30 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 6033 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **97 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 6023 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **98 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `vitest` connect `vitest` to `ref_fs_extra`, `object-layer-catalog.js`, `conf.js`, `DataBaseProvider.js`, `cyberia.js`, `RenderSource.js`, `logger.js`, `cyberia-server-defaults.js`, `requestError`, `map-context.js`, `.getModel`, `procedural-engine.test.js`, `debug-stack.js`, `sprite/generator.js`, `content-release.js`, `SharedDefaultsCyberia.js`, `cache-service.test.js`, `domain-ownership.js`, `cyberia-instance-map.service.js`, `map-preview-generator.js`, `test.js`, `object-layer.identity.js`, `spec.js`, `indexer.test.js`, `runtime-status.js`, `MongoBootstrap.js`, `player-persistence.test.js`, `market.test.js`, `docs-api-authorization.test.js`, `service-response.test.js`, `ObjectLayerEngine.js`, `auth.js`, `hasContentArtifact`, `procedural-purge.test.js`, `api/google-auth/google-auth.service.js`, `package.json`, `list-pager.test.js`, `backup.js`, `ProceduralPopulationCyberia.js`, `release/graphify.js`, `shell-layout.test.js`, `api/cyberia-instance-conf/cyberia-instance-conf.service.js`, `InstanceSelectionView.js`, `loggerFactory`, `RenderSource.js`, `domain-client.js`, `social.js`, `player-operations.test.js`, `content-baseline.js`, `object-store.js`, `universe-registry.test.js`, `Off-chain economy`, `integration/google-auth.test.js`, `api/wallet-account/wallet-account.service.js`, `entry-metadata.js`, `SagaCyberia.js`, `Express.js`, `content-artifact.test.js`, `mongo-archive.js`, `instance-data.js`, `mongoose`, `content-release.test.js`, `source-lock.js`, `seed-audio.test.js`, `grpc-server.js`, `market-profile.js`, `saga-sync.test.js`, `Docs.js`, `appearance-preview.test.js`, `map-revision.test.js`, `devDependencies`, `CommandHistory`, `purge.test.js`, `api/cyberia-economy/cyberia-economy.service.js`, `api/cyberia-market/cyberia-market.service.js`, `wireguard-cli.test.js`, `mongoose`, `valkey-connection.test.js`, `google-sign-in.test.js`, `cyberia-instance-conf.model.js`, `catalog-consistency.test.js`, `cyberia-portal-connector.js`, `world-preview.test.js`, `object-layer-catalog.test.js`, `editor-crud.test.js`, `shell-navigation.test.js`?**
+- **Why does `vitest` connect `ref_fs_extra` to `object-layer-catalog.js`, `conf.js`, `logger.js`, `cyberia.js`, `AppShellItemledger.js`, `procedural-floor-tile.test.js`, `cyberia-server-defaults.js`, `population.js`, `map-context.js`, `public-route-renderers.test.js`, `engine.js`, `cache-service.test.js`, `frame-mutation.js`, `content-release.js`, `SharedDefaultsCyberia.js`, `domain-ownership.js`, `cyberia-instance-map.service.js`, `map-preview-generator.js`, `test.js`, `object-layer.identity.js`, `procedural-content.js`, `vitest`, `spec.js`, `compose-stack.js`, `object-layer-resolver.js`, `runtime-status.js`, `MongoBootstrap.js`, `market.test.js`, `cyberia-procedural-population.model.js`, `service-response.test.js`, `ObjectLayerEngine.js`, `auth.js`, `procedural-purge.test.js`, `api/google-auth/google-auth.service.js`, `package.json`, `backup.js`, `ProceduralPopulationCyberia.js`, `release/graphify.js`, `shell-layout.test.js`, `api/cyberia-instance-conf/cyberia-instance-conf.service.js`, `procedural-skin-variant.test.js`, `InstanceSelectionView.js`, `resolver.js`, `loggerFactory`, `RenderSource.js`, `UnderpostDockerCompose`, `wallet-identity.test.js`, `domain-client.js`, `social.js`, `player-operations.test.js`, `api/cyberia-universe/cyberia-universe.service.js`, `object-store.js`, `universe-registry.test.js`, `integration/google-auth.test.js`, `ipfs.client.js`, `entry-metadata.js`, `ObjectLayerStudioCyberia.js`, `content-artifact.test.js`, `mongo-archive.js`, `global-content.test.js`, `content-release.test.js`, `instance-data.js`, `hair-growth.js`, `registry.js`, `diversity.js`, `seed-audio.test.js`, `hot-reload-trigger.js`, `market-profile.js`, `player-persistence.test.js`, `catalog.js`, `saga-sync.test.js`, `appearance-preview.test.js`, `map-revision.test.js`, `devDependencies`, `CommandHistory`, `purge.test.js`, `api/cyberia-economy/cyberia-economy.service.js`, `market-studio-browser.test.js`, `wireguard-cli.test.js`, `mongoose`, `Valkey.js`, `google-sign-in.test.js`, `render.test.js`, `e2e/public-routes.test.js`, `catalog-consistency.test.js`, `requestError`, `grpc-data-service.test.js`, `authorization.test.js`, `editor-crud.test.js`, `shell-navigation.test.js`?**
   _High betweenness centrality (0.056) - this node is a cross-community bridge._
 - **Are the 12 inferred relationships involving `shellExec()` (e.g. with `config()` and `enforceSELinux()`) actually correct?**
   _`shellExec()` has 12 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `EXTRA_PATHS`, `STORAGE_PATHS`, `MANAGED_ROOTS` to the rest of the system?**
   _35 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `ref_fs_extra` be split into smaller, more focused modules?**
-  _Cohesion score 0.012899262899262898 - nodes in this community are weakly interconnected._
-- **Why does `shellExec()` connect `shellExec` to `db.js`, `ref_fs_extra`, `UnderpostDockerCompose`, `conf.js`, `cyberia.js`, `logger.js`, `WpService`, `test.js`, `MaasDatabaseProvider`, `secrets.js`, `build.js`, `monitor.js`, `vitest`, `event.js`, `wireguard.js`, `wireguard-edge.test.js`, `runtime-status.js`, `UnderpostLxd`, `MongoBootstrap.js`, `Main Cluster Lifecycle Commands`, `TLS`, `readEdgeContext`, `besu-genesis-generator.js`, `LXD Management`, `ssh.js`, `SystemdService`, `release/graphify.js`, `underpost-ingress.js`, `Socket Security and Code Analysis`, `loggerFactory`, `Dns`?**
-  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+  _Cohesion score 0.011249350998980829 - nodes in this community are weakly interconnected._
+- **Why does `shellExec()` connect `shellExec` to `db.js`, `ref_fs_extra`, `UnderpostDockerCompose`, `conf.js`, `logger.js`, `cyberia.js`, `runtime/process.js`, `MaasDatabaseProvider`, `test.js`, `secrets.js`, `monitor.js`, `loadCronDeployEnv`, `vitest`, `event.js`, `wireguard.js`, `runtime-status.js`, `MongoBootstrap.js`, `Main Cluster Lifecycle Commands`, `TLS`, `besu-genesis-generator.js`, `ssh.js`, `socketsecurity.test.js`, `forward-proxy.js`, `release/graphify.js`, `underpost-ingress.js`, `Socket Security and Code Analysis`, `loggerFactory`, `Dns`?**
+  _High betweenness centrality (0.028) - this node is a cross-community bridge._
 - **Are the 177 inferred relationships involving `readResponse()` (e.g. with `.delete()` and `.deleteByObjectLayerId()`) actually correct?**
   _`readResponse()` has 177 INFERRED edges - model-reasoned connections that need verification._
 - **Should `shellExec` be split into smaller, more focused modules?**
-  _Cohesion score 0.014517345399698341 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.013911654688353717 - nodes in this community are weakly interconnected._

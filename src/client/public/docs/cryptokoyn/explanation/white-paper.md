@@ -13,7 +13,7 @@ order: 1
 
 ### Governance Constitution of the CKY Economy
 
-**Version:** 3.5.0 Draft  
+**Version:** 4.0.0 Draft  
 **Status:** Technical Proposal  
 **Authors:** Underpost Engineering
 

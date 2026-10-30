@@ -13,7 +13,7 @@ order: 1
 
 ### Ownership and Object Layer Integration
 
-**Version:** 3.5.0 Draft  
+**Version:** 4.0.0 Draft  
 **Status:** Technical Proposal  
 **Authors:** Underpost Engineering
 
