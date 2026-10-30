@@ -26,6 +26,7 @@ import UnderpostPackage from './cli/package.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
 import UnderpostSecret from './cli/secrets.js';
+import UnderpostSite from './cli/site.js';
 import UnderpostSocketSecurity from './cli/socketsecurity.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostState from './cli/state.js';
@@ -396,6 +397,16 @@ class Underpost {
    */
   static get package() {
     return UnderpostPackage.API;
+  }
+
+  /**
+   * Site provisioning cli API
+   * @static
+   * @type {UnderpostSite.API}
+   * @memberof Underpost
+   */
+  static get site() {
+    return UnderpostSite.API;
   }
 
   /**

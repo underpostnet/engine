@@ -15,9 +15,12 @@ describe('catalog dependency install', () => {
   });
 
   it('installs the pins and keeps the dev dependencies a production environment would prune', async () => {
-    const catalog = { packageDependencies: { jimp: '^1.6.0', pngjs: '^7.0.0' } };
-    expect(await installDeployDependencies('dd-product', catalog)).to.deep.equal(['jimp@^1.6.0', 'pngjs@^7.0.0']);
-    expect(commands).to.deep.equal(['npm install --include=dev jimp@^1.6.0 pngjs@^7.0.0']);
+    const catalog = { packageDependencies: { 'maxrects-packer': '^2.7.3', pngjs: '^7.0.0' } };
+    expect(await installDeployDependencies('dd-product', catalog)).to.deep.equal([
+      'maxrects-packer@^2.7.3',
+      'pngjs@^7.0.0',
+    ]);
+    expect(commands).to.deep.equal(['npm install --include=dev maxrects-packer@^2.7.3 pngjs@^7.0.0']);
   });
 
   it('runs no install for a catalog without pins', async () => {

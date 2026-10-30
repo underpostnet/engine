@@ -19,6 +19,7 @@
  * @module src/server/build/testing.js
  * @namespace UnderpostTesting
  */
+import { resourceBudgetFactory } from '../runtime/resource-governor.js';
 
 /**
  * @constant UNDERPOST_TESTING
@@ -176,13 +177,15 @@ const TEST_PROJECTS = [
     sources: [
       'underpost.config.js',
       'src/api/user/guest.service.js',
+      'src/cli/maas-database.js',
       'src/cli/release.js',
+      'src/cli/site.js',
       'src/client-builder/build-manifest.js',
       'src/client-builder/client-build-docs.js',
+      'src/client-builder/client-bundle.js',
       'src/client-builder/ssr.js',
       'src/client/components/core/BuildManifest.js',
       'src/client/components/core/Docs.js',
-      'src/client/components/core/GoogleSignIn.js',
       'src/client/components/core/LogIn.js',
       'src/client/components/core/LogOut.js',
       'src/client/components/core/ShellLayout.js',
@@ -190,12 +193,17 @@ const TEST_PROJECTS = [
       'src/projects/underpost/*.js',
       'src/runtime/nginx/Nginx.js',
       'src/server/build/docs.js',
+      'src/server/build/publication.js',
+      'src/server/domain/api-document.js',
       'src/server/ops/logger.js',
       'src/server/ops/metrics.js',
       'src/server/runtime/conf.js',
+      'src/server/runtime/resource-governor.js',
       'src/server/runtime/retry.js',
+      'src/server/site/*.js',
       'src/server/storage/backup.js',
       'src/server/storage/cache.js',
+      'src/server/storage/file-change-set.js',
       'src/server/storage/object-store.js',
     ],
     description: 'Platform logic: configuration, build, release, delivery and operational helpers.',
@@ -260,9 +268,10 @@ const TEST_PROJECTS = [
       'src/api/cyberia-social-profile/cyberia-social-profile.model.js',
       'src/client/components/cyberia/SharedDefaultsCyberia.js',
       'src/client/components/cyberia/InstanceSelectionView.js',
+      'src/client/components/google-auth/GoogleSignIn.js',
     ],
     description:
-      'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, the graph ' +
+      'Cyberia content artifact consumption, instance data, releases, sprite atlases, map previews, Google sign-in, the graph ' +
       'layout contract, registry endpoints and universe topologies, the debug run, stats and shape generation. The suites that run a world need a built cyberia-content artifact ' +
       '(CYBERIA_CONTENT_ROOT or ./cyberia-content) and skip without one.',
   },
@@ -352,18 +361,21 @@ const TEST_PROJECTS = [
     // Non-recursive: the ordered areas underneath are projects of their own.
     recursive: false,
     sources: [
-      'src/api/google-auth/*.js',
       'src/api/test/*.js',
       'src/api/user/*.js',
       'src/cli/graphify.js',
+      'src/client-builder/client-bundle.js',
       'src/server/release/graphify.js',
       'src/server/release/release-tasks.js',
+      'src/server/runtime/host-lock.js',
+      'src/server/runtime/linux-resources.js',
+      'src/server/runtime/managed-process.js',
       'src/server/security/auth.js',
       'src/server/storage/mongo-archive.js',
     ],
     description:
       'Platform APIs served over a real server and a real database — sign-in, refresh sessions and recovery — ' +
-      'durable release tasks, dump archives, and the test runner on real processes.',
+      'durable release tasks, dump archives, and the test runner and managed workloads on real processes.',
   },
   {
     name: 'ecosystem:integration',
@@ -392,6 +404,7 @@ const TEST_PROJECTS = [
       'src/api/cyberia-market-claim/cyberia-market-claim.model.js',
       'src/api/cyberia-market-listing/cyberia-market-listing.model.js',
       'src/api/cyberia-world-drop/cyberia-world-drop.model.js',
+      'src/api/google-auth/*.js',
       'src/api/object-layer/object-layer.publication.js',
       'src/db/DataBaseProvider.js',
       'src/db/served-databases.js',
@@ -418,7 +431,7 @@ const TEST_PROJECTS = [
       'for every role — the content ' +
       'artifact materialization and saga import, the Procedural Engine — the two generation modes, jobs, the background worker, ' +
       'leases, human review and promotion, map populations, their working graph and background publication — accounts, launch tickets, gameplay leases and their handover, universe ' +
-      'profiles across worlds, player state commits, the runtime index sync, the operator view of ' +
+      'profiles across worlds, Google sign-in, player state commits, the runtime index sync, the operator view of ' +
       'profiles and sessions, friendships and status notes over the player gRPC service, market profiles, ' +
       'terminals, listings and settlement, the server registry ' +
       'and universes — the product CLI, the audio seed and the map ' +
@@ -490,10 +503,8 @@ const TEST_PROJECTS = [
  * time. `vitest` limits each process. A footprint can stop file parallelism, but it
  * never starts it for a project that sets `parallel` off.
  *
- * `budget` is the share of the host one batch can use. The runner stops a batch whose
- * process tree holds more than `memoryShare` of the memory, or that leaves less than
- * `reserveShare` of it available to the host. A batch runs at `nice` priority, and
- * `cpuShare` of the CPUs sizes the thread pools of the tools it starts.
+ * `budget` names the resource profile of one batch (`RESOURCE_PROFILES` of
+ * `src/server/runtime/resource-governor.js`): the share of the host it can use.
  * @memberof UnderpostTesting
  */
 const TEST_FOOTPRINTS = Object.freeze({
@@ -502,14 +513,14 @@ const TEST_FOOTPRINTS = Object.freeze({
       'One project per fresh process, one worker, one file and one test at a time, inside a host budget. The default.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 1, fileParallelism: false, maxConcurrency: 1 },
-    budget: { memoryShare: 0.3, reserveShare: 0.05, cpuShare: 0.5, nice: 10 },
+    budget: 'standard',
   },
   balanced: {
     description:
       'One project per fresh process, two workers, parallel files where the project permits, inside a host budget.',
     batch: 'project',
     vitest: { pool: 'forks', maxWorkers: 2, maxConcurrency: 2 },
-    budget: { memoryShare: 0.5, reserveShare: 0.03, cpuShare: 0.75, nice: 5 },
+    budget: 'balanced',
   },
   ci: {
     description:
@@ -542,20 +553,13 @@ const testFootprintFactory = (name = '') => {
  * @param {string} [params.footprint] - Footprint name.
  * @param {number} params.totalMemoryBytes - Memory of the host, or of its container limit.
  * @param {number} params.cpus - CPUs the runner can use.
- * @returns {{memoryBytes: number, reserveBytes: number, threads: number, nice: number}|null} The budget,
- *   or null for a footprint without one.
+ * @returns {object|null} The budget of the footprint's resource profile, or null for a footprint without one.
  * @throws {Error} When the footprint is unknown.
  * @memberof UnderpostTesting
  */
 const testBudgetFactory = ({ footprint = '', totalMemoryBytes, cpus }) => {
   const { budget } = testFootprintFactory(footprint);
-  if (!budget) return null;
-  return {
-    memoryBytes: Math.floor(totalMemoryBytes * budget.memoryShare),
-    reserveBytes: Math.floor(totalMemoryBytes * budget.reserveShare),
-    threads: Math.max(1, Math.floor(cpus * budget.cpuShare)),
-    nice: budget.nice,
-  };
+  return budget ? resourceBudgetFactory({ profile: budget, capacity: { totalMemoryBytes, cpus } }) : null;
 };
 
 /**

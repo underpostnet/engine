@@ -11,7 +11,23 @@ import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runt
 import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
-import { Config, confManifestPath, readConfJson, readConfInstances } from '../server/runtime/conf.js';
+import {
+  addWsConf,
+  buildApiSrc,
+  buildWsSrc,
+  Config,
+  confManifestPath,
+  readConfJson,
+  readConfInstances,
+} from '../server/runtime/conf.js';
+import {
+  confDraftFactory,
+  deployConfFolder,
+  siteDeployIdFactory,
+  siteHostFactory,
+  siteIdFactory,
+  sitePathFactory,
+} from '../server/site/site-conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/network/router.js';
 import { environmentValueFactory, getUnderpostRootPath } from '../server/runtime/environment.js';
 import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/storage/repository.js';
@@ -113,6 +129,7 @@ class UnderpostRepository {
      * @param {string} [options.switchRepo=''] - If set, switches the remote `origin` to this URL and force-pulls the target branch, overwriting the current working tree.
      * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to the remote's default branch).
      * @param {string} [options.deleteRemoteBranch=''] - If set, deletes this branch from origin.
+     * @param {boolean} [options.mergeDependabot=false] - If true, merges every `origin/dependabot/*` branch into master.
      * @memberof UnderpostRepository
      */
     commit(
@@ -146,9 +163,15 @@ class UnderpostRepository {
         switchRepo: '',
         targetBranch: '',
         deleteRemoteBranch: '',
+        mergeDependabot: false,
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.mergeDependabot) {
+        if (!Underpost.repo.mergeDependabot({ path: repoPath }).ok) process.exitCode = 1;
+        return;
+      }
 
       if (options.initRepo) {
         Underpost.repo.initLocalRepo({
@@ -613,7 +636,6 @@ class UnderpostRepository {
      * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
      * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
      * @param {boolean} [options.syncConf=false] - If true, syncs configuration to private repositories (requires deployId).
-     * @param {boolean} [options.syncStart=false] - If true, syncs start scripts in deploy ID package.json with root package.json.
      * @param {boolean} [options.defaultConf=false] - If true, updates the default configuration file (requires deployId).
      * @param {string} [options.confWorkflowId=''] - If provided, uses this configuration workflow ID.
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
@@ -631,7 +653,6 @@ class UnderpostRepository {
         cleanTemplate: false,
         build: false,
         syncConf: false,
-        syncStart: false,
         defaultConf: false,
         confWorkflowId: '',
       },
@@ -666,12 +687,6 @@ class UnderpostRepository {
 
           if (options.deployId) {
             let deployId = options.deployId;
-
-            // Handle sync-start operation (before dd- prefix normalization to support 'dd' special case)
-            if (options.syncStart) {
-              shellExec(`node bin/deploy sync-start ${deployId}`);
-              return resolve(true);
-            }
 
             if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
             // Handle purge operation
@@ -785,6 +800,74 @@ class UnderpostRepository {
           logger.error(error, error.stack);
           return reject(false);
         }
+      });
+    },
+
+    /**
+     * Generates a new API from a template API: `src/api/<api-id>` and its client service. With a
+     * deployment named, registers it there as `underpost site add-api` does.
+     * @param {string} apiId - Id of the new API.
+     * @param {object} [options]
+     * @param {string} [options.from='default'] - Template API.
+     * @param {string} [options.deployId] - Deployment the API is registered in.
+     * @param {string} [options.client] - Client whose services list the API.
+     * @param {string} [options.host] - Limits the registration to the routes of one hostname.
+     * @param {boolean} [options.dryRun] - Prints the registration plan only.
+     * @memberof UnderpostRepository
+     */
+    async newApi(apiId, options = {}) {
+      const id = siteIdFactory(apiId, 'API id');
+      const from = siteIdFactory(options.from || 'default', 'template API id');
+      if (fs.existsSync(`./src/api/${id}`))
+        throw new Error(`API already exists: src/api/${id} (use underpost site add-api to register it)`);
+      if (!fs.existsSync(`./src/api/${from}`)) throw new Error(`Template API not found: src/api/${from}`);
+      if (options.deployId) siteDeployIdFactory(options.deployId);
+      await buildApiSrc({ toOptions: { apiId: id }, fromOptions: { apiId: from } });
+      logger.info('API generated', { apiId: id, from });
+      if (options.deployId) return Underpost.site.addApi(id, options);
+    },
+
+    /**
+     * Generates a new WebSocket server from a template server: `src/ws/<ws-id>`, keeping files that
+     * already exist. With a deployment named, binds it to routes of one hostname.
+     * @param {string} wsId - Id of the new WebSocket server.
+     * @param {object} [options]
+     * @param {string} [options.from='default'] - Template WebSocket server.
+     * @param {string} [options.deployId] - Deployment the server is bound in.
+     * @param {string} [options.host] - Hostname of the routes; required with `deployId`.
+     * @param {string} [options.paths='/'] - Comma-separated route paths.
+     * @param {boolean} [options.dryRun] - Prints the binding plan only.
+     * @memberof UnderpostRepository
+     */
+    async newWs(wsId, options = {}) {
+      const id = siteIdFactory(wsId, 'WebSocket id');
+      const from = siteIdFactory(options.from || 'default', 'template WebSocket id');
+      if (!fs.existsSync(`./src/ws/${from}`)) throw new Error(`Template WebSocket server not found: src/ws/${from}`);
+      const deployId = options.deployId ? siteDeployIdFactory(options.deployId) : '';
+      const draft = confDraftFactory();
+      const file = `${deployConfFolder(deployId)}/conf.server.json`;
+      if (deployId) {
+        const bound = addWsConf(draft.read(file), {
+          wsId: id,
+          host: siteHostFactory(options.host),
+          paths: `${options.paths || '/'}`.split(',').map(sitePathFactory),
+        });
+        if (bound.length)
+          draft.note(
+            file,
+            bound
+              .map(({ route, previous }) => `bind ws ${id} to ${route}${previous ? ` (was ${previous})` : ''}`)
+              .join('; '),
+          );
+      }
+      await buildWsSrc({ toOptions: { wsId: id }, fromOptions: { wsId: from } });
+      logger.info('WebSocket server generated', { wsId: id, from });
+      if (!deployId) return;
+      return Underpost.site.applyPlan({
+        operation: 'new ws',
+        changes: draft.changes(),
+        deployIds: [deployId],
+        dryRun: options.dryRun,
       });
     },
 
@@ -1643,6 +1726,82 @@ Prevent build private config repo.`,
       });
       logger.info('deleteRemoteBranch', { path: repoPath, branch, url: auth.url });
       return true;
+    },
+
+    /**
+     * Merges every `origin/dependabot/*` branch into the base branch, one at a time.
+     *
+     * Local changes are stashed first, untracked files included. A merge that fails is aborted
+     * before the next one starts. Merged local branches are deleted; remote branches never are.
+     * The original branch and the stash are restored on every path, failures included. A stash
+     * that cannot be restored stays in the stash list and the result names it.
+     * @param {object} [opts]
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @param {string} [opts.base='master'] - Branch the Dependabot branches merge into.
+     * @returns {{ok: boolean, merged: string[], failed: string[], restored: boolean, error?: string, stash?: string}}
+     *   `ok` is false when a step failed, a branch failed or the workspace was not restored.
+     * @memberof UnderpostRepository
+     */
+    mergeDependabot({ path: repoPath = '.', base = 'master' } = {}) {
+      const git = (args, options = {}) =>
+        shellExec(`git ${args}`, { cwd: repoPath, silent: true, silentOnError: true, ...options });
+      const report = (result) => {
+        logger[result.ok ? 'info' : 'error']('mergeDependabot', { path: repoPath, base, ...result });
+        return result;
+      };
+
+      const { error: fetchError } = Underpost.repo.fetchOrigin(repoPath);
+      if (fetchError) return report({ ok: false, merged: [], failed: [], restored: true, error: fetchError });
+
+      const branches = `${git(`for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin/dependabot/`).stdout}`
+        .split('\n')
+        .map((branch) => branch.trim())
+        .filter(Boolean);
+      if (branches.length === 0) return report({ ok: true, merged: [], failed: [], restored: true });
+      logger.info('Dependabot branches', branches);
+
+      const original = `${git('rev-parse --abbrev-ref HEAD').stdout}`.trim();
+      const label = `underpost-merge-dependabot-${Date.now()}`;
+      git(`stash push --include-untracked -m ${shellArgumentFactory(label)}`);
+      const stash = `${git(`stash list --format='%gd %s'`).stdout}`
+        .split('\n')
+        .find((line) => line.endsWith(label))
+        ?.split(' ')[0];
+
+      const merged = [];
+      const failed = [];
+      let error;
+      try {
+        if (git(`checkout ${shellArgumentFactory(base)}`).code !== 0) throw new Error(`checkout ${base} failed`);
+        if (git(`merge --ff-only ${shellArgumentFactory(`origin/${base}`)}`).code !== 0)
+          throw new Error(`${base} cannot fast-forward to origin/${base}`);
+        for (const branch of branches) {
+          if (git(`merge --no-edit ${shellArgumentFactory(`origin/${branch}`)}`).code === 0) {
+            merged.push(branch);
+            continue;
+          }
+          failed.push(branch);
+          const merging = git('rev-parse -q --verify MERGE_HEAD').code === 0;
+          if (merging && git('merge --abort').code !== 0) throw new Error(`merge --abort failed after ${branch}`);
+        }
+        for (const branch of merged)
+          if (git(`show-ref --verify --quiet ${shellArgumentFactory(`refs/heads/${branch}`)}`).code === 0)
+            git(`branch -D ${shellArgumentFactory(branch)}`);
+      } catch (cause) {
+        error = cause.message;
+      }
+
+      const back = original && original !== 'HEAD' && original !== base;
+      let restored = !back || git(`checkout ${shellArgumentFactory(original)}`).code === 0;
+      if (restored && stash) restored = git(`stash pop ${shellArgumentFactory(stash)}`).code === 0;
+      return report({
+        ok: !error && failed.length === 0 && restored,
+        merged,
+        failed,
+        restored,
+        ...(error ? { error } : {}),
+        ...(stash && !restored ? { stash } : {}),
+      });
     },
 
     /**

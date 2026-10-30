@@ -15,6 +15,7 @@ import { newInstance, range, s4, timer } from '../client/components/core/CommonJ
 import { spawnSync } from 'child_process';
 import Underpost from '../index.js';
 import express from 'express';
+import { MaasDatabaseProvider } from './maas-database.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -63,6 +64,12 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.createMachine=false] - Flag to create a machine in MAAS.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
+     * @param {boolean} [options.controlServerStop=false] - Flag to stop the control server.
+     * @param {boolean} [options.controlServerDbStatus=false] - Flag to report the control server's database.
+     * @param {boolean|string} [options.controlServerDbTables=false] - Flag, or database name, to list database tables.
+     * @param {string} [options.controlServerDbDrop=''] - MAAS database name that confirms dropping it with its role.
+     * @param {boolean} [options.controlServerDbPurgeData=false] - With the database uninstall, deletes its data.
+     * @param {boolean} [options.dryRun=false] - Reports the control server's database changes without making them.
      * @param {string} [options.mac=''] - MAC address of the baremetal machine.
      * @param {boolean} [options.ipxe=false] - Flag to use iPXE for booting.
      * @param {boolean} [options.ipxeRebuild=false] - Flag to rebuild the iPXE binary with embedded script.
@@ -126,6 +133,12 @@ class UnderpostBaremetal {
         controlServerRestart: false,
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
+        controlServerStop: false,
+        controlServerDbStatus: false,
+        controlServerDbTables: false,
+        controlServerDbDrop: '',
+        controlServerDbPurgeData: false,
+        dryRun: false,
         createMachine: false,
         mac: '',
         ipxe: false,
@@ -217,9 +230,6 @@ class UnderpostBaremetal {
         const { architecture } = workflowsConfig[workflowId].container;
         bootstrapArch = architecture;
       }
-
-      // Define the database provider ID.
-      const dbProviderId = 'postgresql-17';
 
       // Define the NFS host path based on the environment variable and hostname.
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${hostname}`;
@@ -628,19 +638,19 @@ rm -rf ${artifacts.join(' ')}`);
         return;
       }
 
-      // Handle control server database installation.
-      if (options.controlServerDbInstall === true) {
-        // Deploy the database provider and manage MAAS database.
-        shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} install`);
-        shellExec(`node ${underpostRoot}/bin/deploy maas-db`);
+      if (options.controlServerStop === true) {
+        shellExec(`sudo snap stop maas`);
         return;
       }
 
-      // Handle control server database uninstallation.
-      if (options.controlServerDbUninstall === true) {
-        shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
-        return;
-      }
+      const maasDatabaseOperation = [
+        'controlServerDbInstall',
+        'controlServerDbStatus',
+        'controlServerDbTables',
+        'controlServerDbDrop',
+        'controlServerDbUninstall',
+      ].find((operation) => options[operation]);
+      if (maasDatabaseOperation) return Underpost.baremetal.maasDatabase(maasDatabaseOperation, options);
 
       // Handle NFS mount operation.
       if (options.nfsMount === true) {
@@ -1805,6 +1815,42 @@ rm -rf ${artifacts.join(' ')}`);
           logger.error(`Failed to build ISO at ${builtIsoPath}`);
         }
       }
+    },
+
+    /**
+     * @method maasDatabase
+     * @description Runs one operation on the PostgreSQL database of the MAAS control server, on this host.
+     * @param {string} operation - The control server database option that selected it.
+     * @param {object} options - Baremetal options.
+     * @returns {object} The result of the operation.
+     * @memberof UnderpostBaremetal
+     */
+    maasDatabase(operation, options = {}) {
+      const provider = new MaasDatabaseProvider({ dryRun: options.dryRun === true });
+      const credentials = MaasDatabaseProvider.credentials();
+      const result = {
+        controlServerDbInstall: () => ({
+          changes: [...provider.install(), ...provider.configure(credentials)],
+        }),
+        controlServerDbStatus: () => {
+          const status = provider.status(credentials);
+          return { status, databases: status.active ? provider.databases() : [] };
+        },
+        controlServerDbTables: () => ({
+          tables: provider.tables(
+            typeof options.controlServerDbTables === 'string' ? options.controlServerDbTables : credentials.name,
+          ),
+        }),
+        controlServerDbDrop: () => ({ changes: provider.drop(credentials, options.controlServerDbDrop) }),
+        controlServerDbUninstall: () => ({
+          changes: provider.uninstall(credentials, { purgeData: options.controlServerDbPurgeData === true }),
+        }),
+      }[operation]();
+      for (const [key, value] of Object.entries(result)) {
+        if (Array.isArray(value) && typeof value[0] === 'object') console.table(value);
+        else logger.info(`MAAS database ${key}`, value);
+      }
+      return result;
     },
 
     /**

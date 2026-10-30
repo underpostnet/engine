@@ -36,7 +36,7 @@ program.hook('preAction', (command, actionCommand) => {
   if (profile) setExecutionProfile(profile);
 });
 
-program
+const newCommand = program
   .command('new')
   .argument('[app-name]', 'The name of the new project.')
   .option('--deploy-id <deploy-id>', 'Create deploy ID conf env files')
@@ -46,16 +46,109 @@ program
   .option('--build', 'Build the deployment to pwa-microservices-template (requires --deploy-id)')
   .option('--clean-template', 'Clean the build directory (pwa-microservices-template)')
   .option('--sync-conf', 'Sync configuration to private repositories (requires --deploy-id)')
-  .option(
-    '--sync-start',
-    "Sync start scripts in deploy ID package.json with root package.json (use 'dd' as --deploy-id to sync all dd.routes)",
-  )
   .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
   .option('--default-conf', 'Create default deploy ID conf env files')
   .option('--conf-workflow-id <workflow-id>', 'Set custom configuration workflow ID for conf generation')
   .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
+
+// A subcommand option the parent also declares is parsed by the parent; optsWithGlobals merges both.
+newCommand
+  .command('api')
+  .argument('<api-id>', 'Id of the new API: src/api/<api-id> and src/client/services/<api-id>.')
+  .option('--from <api-id>', 'Template API the sources are generated from (default: default).')
+  .option('--deploy-id <deploy-id>', 'Registers the API in this deployment, as `underpost site add-api` does.')
+  .option('--client <client-id>', 'With --deploy-id: adds the API to the services of this client.')
+  .option('--host <host>', 'With --deploy-id: registers the API only on the routes of this hostname.')
+  .option('--dry-run', 'With --deploy-id: prints the registration plan without writing it.')
+  .description('Generates a new API from a template API, and registers it in a deployment when one is named.')
+  .action((apiId, options, command) => Underpost.repo.newApi(apiId, command.optsWithGlobals()));
+
+newCommand
+  .command('ws')
+  .argument('<ws-id>', 'Id of the new WebSocket server: src/ws/<ws-id>.')
+  .option('--from <ws-id>', 'Template WebSocket server the sources are generated from (default: default).')
+  .option('--deploy-id <deploy-id>', 'Binds the server to routes of this deployment.')
+  .option('--host <host>', 'With --deploy-id: hostname of the routes.')
+  .option('--paths <paths>', 'With --deploy-id: comma-separated route paths (default: /).')
+  .option('--dry-run', 'With --deploy-id: prints the binding plan without writing it.')
+  .description(
+    'Generates a new WebSocket server from a template server, and binds it to routes when a deployment is named.',
+  )
+  .action((wsId, options, command) => Underpost.repo.newWs(wsId, command.optsWithGlobals()));
+
+const siteCommand = program
+  .command('site')
+  .description(
+    'Provisions sites in the configuration of a deployment: clients, host/path routes, and the existing APIs and ' +
+      'components they use. Each operation prints its change plan and applies it as one change set.',
+  );
+
+siteCommand
+  .command('create')
+  .argument('<host>', 'Site hostname. The site serves www.<host> and redirects <host> to it.')
+  .requiredOption('--client <client-id>', 'Id of the new client.')
+  .requiredOption('--deploy-id <deploy-id>', 'Deployment the site is created in.')
+  .option('--path <path>', 'Route path of both hostnames.', '/')
+  .option('--from <client-id>', 'Source client the new client is cloned from.', 'default')
+  .option('--from-deploy-id <deploy-id>', 'Deployment of the source client (default: the default template).')
+  .option('--replace', 'Replaces different entries at the two site routes.')
+  .option('--dry-run', 'Prints the change plan without writing it.')
+  .description('Creates a site: a cloned client, its primary route and its redirect route.')
+  .action((host, options) => Underpost.site.create(host, options));
+
+siteCommand
+  .command('clone-client')
+  .argument('<from-client-id>', 'Source client.')
+  .argument('<to-client-id>', 'New client.')
+  .requiredOption('--deploy-id <deploy-id>', 'Deployment the clone is created in.')
+  .option('--from-deploy-id <deploy-id>', 'Deployment of the source client (default: --deploy-id).')
+  .option('--replace', 'Replaces different entries at the clone routes.')
+  .option('--dry-run', 'Prints the change plan without writing it.')
+  .description(
+    'Clones a client under a new id: its conf.client.json and conf.ssr.json entries, components, services, SSR ' +
+      'components, index module and public assets, and a route next to each route that serves the source client.',
+  )
+  .action((fromClientId, toClientId, options) => Underpost.site.cloneClient(fromClientId, toClientId, options));
+
+siteCommand
+  .command('clone-route')
+  .argument('<from-route>', 'Source route, <host>[/path].')
+  .argument('<to-route>', 'Target route, <host>[/path].')
+  .requiredOption('--deploy-id <deploy-id>', 'Deployment the route is created in.')
+  .option('--from-deploy-id <deploy-id>', 'Deployment of the source route (default: --deploy-id).')
+  .option('--client <client-id>', 'Client the route serves instead of the source client.')
+  .option('--replace', 'Replaces a different entry at the target route.')
+  .option('--dry-run', 'Prints the change plan without writing it.')
+  .description(
+    'Clones a route and its development variants; the database name of a client route reads DB_NAME_<CLIENT>.',
+  )
+  .action((fromRoute, toRoute, options) => Underpost.site.cloneRoute(fromRoute, toRoute, options));
+
+siteCommand
+  .command('add-api')
+  .argument('<api-id>', 'Existing API (src/api/<api-id>).')
+  .requiredOption('--deploy-id <deploy-id>', 'Deployment.')
+  .option('--client <client-id>', 'Adds the API to the services of this client.')
+  .option('--host <host>', 'Registers the API only on the routes of this hostname.')
+  .option('--dry-run', 'Prints the change plan without writing it.')
+  .description(
+    'Registers an existing API on every route that serves APIs (a non-empty apis list), in the development ' +
+      'variants and replicas of the deployment.',
+  )
+  .action((apiId, options) => Underpost.site.addApi(apiId, options));
+
+siteCommand
+  .command('add-component')
+  .argument('<component-id>', 'Component module name (src/client/components/<submodule>/<component-id>.js).')
+  .option('--deploy-id <deploy-id>', 'Deployment.')
+  .option('--all-deploys', 'Every deployment in the route table, instead of --deploy-id.')
+  .option('--client <client-id>', 'Limits the clients to one.')
+  .option('--submodule <submodule-id>', 'Limits the component lists to one submodule.')
+  .option('--dry-run', 'Prints the change plan without writing it.')
+  .description('Registers a client component in the component lists of the deployment and its replicas.')
+  .action((componentId, options) => Underpost.site.addComponent(componentId, options));
 
 program
   .command('client')
@@ -77,6 +170,13 @@ program
     'Target environment for the build (e.g. "production", "development"). Falls back to --dev, then NODE_ENV.',
   )
   .option('--dev', 'Sets the development cli context (shorthand for --env development).')
+  .option(
+    '--docs <mode>',
+    'TypeDoc site policy: auto (build in a full production build, keep the published site otherwise), skip, build, or watch (development preview of one client).',
+    'auto',
+  )
+  .option('--docs-only', 'Builds the documentation of the selected clients without their client assets.')
+  .option('--build-id <build-id>', 'Names the build in its logs and TypeDoc events (push-bundle sets it).')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')
   .action(Underpost.client.callback);
 
@@ -98,7 +198,11 @@ program
   .option('--skip-full-build', 'Skips the full client bundle build during deployment.')
   .option(
     '--pull-bundle',
-    'Downloads the pre-built client bundle from Cloudinary via pull-bundle before starting. Use together with --skip-full-build to skip the local build entirely.',
+    'Restores the client bundle the deployment conf names instead of building the client (run pull-bundle).',
+  )
+  .option(
+    '--bundle <reference>',
+    'Restores this exact client bundle instead of building the client: <release-id>/<build-id>@sha256:<digest>.',
   )
   .option(
     '--private-test-repo',
@@ -183,6 +287,10 @@ program
   .option(
     '--delete-remote-branch <branch>',
     'Deletes <branch> from origin, reaching a GitHub origin with GITHUB_TOKEN, and drops its remote-tracking ref.',
+  )
+  .option(
+    '--merge-dependabot',
+    'Fetches origin and merges every origin/dependabot/* branch into master, one at a time. Stashes local changes first and restores them, with the original branch, at the end. A failed merge is aborted; remote branches are never deleted.',
   )
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
@@ -304,6 +412,7 @@ program
   .option('--mongodb', 'Initializes the cluster with a MongoDB statefulset.')
   .option('--service-host <host>', 'Set custom host/IP for exposed MongoDB and Valkey clients.')
   .option('--postgresql', 'Initializes the cluster with a PostgreSQL statefulset.')
+  .option('--kafka', 'Initializes the cluster with the basic Kafka KRaft statefulset in the kafka namespace.')
   .option('--mongodb4', 'Initializes the cluster with a MongoDB 4.4 service.')
   .option(
     '--mongo-express',
@@ -530,6 +639,7 @@ program
     'Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here.',
   )
   .option('--revision <sha>', 'With --release: the exact source revision.')
+  .option('--digest <reference>', 'Pulls an image reference on the node runtime and prints it by digest.')
   .option(
     '--import-tar <tar-path>',
     'Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one.',
@@ -542,6 +652,7 @@ program
     if (options.build) Underpost.image.build(options);
     if (options.importTar) Underpost.image.importTar(options);
     if (options.release) Underpost.image.release(options);
+    if (options.digest) Underpost.image.digest({ reference: options.digest, k3s: options.k3s });
     if (options.pullDockerhub)
       Underpost.image.pullDockerHubImage({ ...options, dockerhubImage: options.pullDockerhub });
   });
@@ -1086,6 +1197,11 @@ program
   .option('--user <user>', 'Sets user context for the runner execution.')
   .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')
   .option('--split <mb>', 'Zip part size in MB for push-bundle, or "none" to upload a single zip. Defaults to 8.')
+  .option('--release <release-id>', 'For push-bundle: the deploy release the client bundle belongs to.')
+  .option(
+    '--bundle <reference>',
+    'For pull-bundle and verify-bundle: the exact client bundle, <release-id>/<build-id>@sha256:<digest>. For prune-bundles: the comma-separated bundles to keep.',
+  )
   .option('--instance-id <instance-id>', 'Sets instance id context for the runner execution.')
   .option('--pid <process-id>', 'Sets process id context for the runner execution.')
   .option(
@@ -1327,8 +1443,32 @@ program
   .option('--control-server-install', 'Installs the baremetal control server.')
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
   .option('--control-server-restart', 'Restarts the baremetal control server.')
-  .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
-  .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
+  .option('--control-server-stop', 'Stops the baremetal control server.')
+  .option(
+    '--control-server-db-install',
+    'Installs PostgreSQL 17 on this host for the control server, and reconciles the MAAS role and database from DB_PG_MAAS_*. Idempotent.',
+  )
+  .option(
+    '--control-server-db-status',
+    'Reports the control server database: host installation, MAAS role and owner, databases.',
+  )
+  .option(
+    '--control-server-db-tables [database]',
+    'Lists the tables of a control server database (default: DB_PG_MAAS_NAME).',
+  )
+  .option(
+    '--control-server-db-drop <database>',
+    'Drops the MAAS database and role. The value must repeat the DB_PG_MAAS_NAME database name.',
+  )
+  .option(
+    '--control-server-db-uninstall',
+    'Stops the control server database and removes its packages. The data directory stays.',
+  )
+  .option(
+    '--control-server-db-purge-data',
+    'With --control-server-db-uninstall: also deletes the data directory, when it holds no database but the MAAS one.',
+  )
+  .option('--dry-run', 'With a --control-server-db-* option: reports each change without making it.')
   .option('--create-machine', 'Creates a new baremetal machine entry in the database.')
   .option(
     '--mac <mac>',
@@ -1545,15 +1685,18 @@ program
     'For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82").',
   )
   .option('--no-graphify', 'For --build: builds no code graph (see `underpost graphify`).')
+  .option(
+    '--cli-docs',
+    'Regenerates CLI-HELP.md, the served CLI reference and the README command index from the command definitions.',
+  )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);
     if (options.deploy) return Underpost.release.deploy(version, options);
     if (options.ciPush) return Underpost.release.ci(options.ciPush, options.message, options);
     if (options.pwaBuild) return Underpost.release.pwa(options.message, options);
-    console.log(
-      'Please specify --build, --deploy, --ci-push, or --pwa-build. Use "underpost release --help" for details.',
-    );
+    if (options.cliDocs) return Underpost.release.cliDocs(version);
+    throw new Error('Specify --build, --deploy, --ci-push, --pwa-build or --cli-docs (see underpost release --help)');
   });
 
 program

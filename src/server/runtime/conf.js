@@ -18,7 +18,6 @@ import {
 import * as dir from 'path';
 import net from 'net';
 import crypto from 'crypto';
-import colors from 'colors';
 import { loggerFactory } from '../ops/logger.js';
 import { isOciRuntime, writeEnv } from './environment.js';
 import { configRejectionFactory } from './config-scope.js';
@@ -38,8 +37,6 @@ import {
   RUNTIME_STATUS,
 } from './runtime-status.js';
 import { cronDeployIdResolve } from '../ops/cron.js';
-
-colors.enable();
 
 const logger = loggerFactory(import.meta);
 
@@ -697,168 +694,15 @@ const loadReplicas = (deployId, confServer) => {
 };
 
 /**
- * @method cloneConf
- * @description Clones the configuration of the server.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
- * @memberof ServerConfBuilder
- */
-const cloneConf = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
-) => {
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
-
-  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
-  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
-
-  const toClientVariableName = getCapVariableName(toOptions.clientId);
-  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
-
-  const formattedSrc = (dataConf) =>
-    JSON.stringify(dataConf, null, 4)
-      .replaceAll(fromClientVariableName, toClientVariableName)
-      .replaceAll(fromOptions.clientId, toOptions.clientId);
-
-  const isMergeConf = fs.existsSync(confToFolder);
-  if (!isMergeConf) fs.mkdirSync(confToFolder, { recursive: true });
-
-  fs.writeFileSync(
-    `${confToFolder}/.env.production`,
-    fs.readFileSync(`${confFromFolder}/.env.production`, 'utf8'),
-    'utf8',
-  );
-  fs.writeFileSync(
-    `${confToFolder}/.env.development`,
-    fs.readFileSync(`${confFromFolder}/.env.development`, 'utf8'),
-    'utf8',
-  );
-  fs.writeFileSync(`${confToFolder}/.env.test`, fs.readFileSync(`${confFromFolder}/.env.test`, 'utf8'), 'utf8');
-
-  for (const confTypeId of ['server', 'client', 'cron', 'ssr']) {
-    const confFromData = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.${confTypeId}.json`, 'utf8'));
-    fs.writeFileSync(`${confToFolder}/conf.${confTypeId}.json`, formattedSrc(confFromData), 'utf8');
-  }
-
-  const packageData = JSON.parse(fs.readFileSync(`${confFromFolder}/package.json`, 'utf8'));
-  packageData.scripts.start = packageData.scripts.start.replaceAll(fromOptions.deployId, toOptions.deployId);
-  fs.writeFileSync(`${confToFolder}/package.json`, JSON.stringify(packageData, null, 4), 'utf8');
-};
-
-/**
- * @method addClientConf
- * @description Adds the client configuration to the server.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
- * @memberof ServerConfBuilder
- */
-const addClientConf = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
-) => {
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
-
-  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
-  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
-
-  const toClientConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
-  const fromClientConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.client.json`, 'utf8'));
-
-  const toClientVariableName = getCapVariableName(toOptions.clientId);
-  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
-
-  const { host, path } = toOptions;
-
-  toClientConf[fromOptions.clientId] = fromClientConf[fromOptions.clientId];
-
-  fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(toClientConf, null, 4), 'utf8');
-
-  const toServerConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
-  const fromServerConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
-
-  toServerConf[host][path].client = fromOptions.clientId;
-  toServerConf[host][path].runtime = 'nodejs';
-  toServerConf[host][path].apis = fromClientConf[fromOptions.clientId].services;
-
-  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(toServerConf, null, 4), 'utf8');
-
-  const fromSsrConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.ssr.json`, 'utf8'));
-  const toSsrConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.ssr.json`, 'utf8'));
-
-  toSsrConf[fromClientVariableName] = fromSsrConf[fromClientVariableName];
-
-  fs.writeFileSync(`${confToFolder}/conf.ssr.json`, JSON.stringify(toSsrConf, null, 4), 'utf8');
-};
-
-/**
- * @method buildClientSrc
- * @description Builds the client source code.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
- * @memberof ServerConfBuilder
- */
-const buildClientSrc = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
-) => {
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
-
-  const confFromFolder = `./src/client/components/${fromOptions.clientId}`;
-  const confToFolder = `./src/client/components/${toOptions.clientId}`;
-
-  const toClientVariableName = getCapVariableName(toOptions.clientId);
-  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
-
-  const formattedSrc = (src) =>
-    src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.clientId, toOptions.clientId);
-
-  const isMergeConf = fs.existsSync(confToFolder);
-  if (!isMergeConf) fs.mkdirSync(confToFolder, { recursive: true });
-
-  const files = await fs.readdir(confFromFolder, { recursive: true });
-  for (const relativePath of files) {
-    const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
-    const toFilePath = dir.resolve(`${confToFolder}/${relativePath}`);
-
-    fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
-  }
-
-  fs.writeFileSync(
-    `./src/client/ssr/head/${toClientVariableName}Scripts.js`,
-    formattedSrc(fs.readFileSync(`./src/client/ssr/head/${fromClientVariableName}Scripts.js`, 'utf8')),
-    'utf8',
-  );
-
-  fs.writeFileSync(
-    `./src/client/${toClientVariableName}.index.js`,
-    formattedSrc(fs.readFileSync(`./src/client/${fromClientVariableName}.index.js`, 'utf8')),
-    'utf8',
-  );
-
-  fs.copySync(`./src/client/public/${fromOptions.clientId}`, `./src/client/public/${toOptions.clientId}`);
-};
-
-/**
  * @method buildApiSrc
  * @description Builds the API source code.
  * @param {object} toOptions - The options for the target configuration.
  * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ apiId: 'default', deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @param {object} [fromDefaultOptions={ apiId: 'default' }] - The default options for the source configuration.
  * @memberof ServerConfBuilder
  */
-const buildApiSrc = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
-) => {
+const buildApiSrc = async ({ toOptions, fromOptions }, fromDefaultOptions = { apiId: 'default' }) => {
   if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
 
   const toClientVariableName = getCapVariableName(toOptions.apiId);
   const fromClientVariableName = getCapVariableName(fromOptions.apiId);
@@ -893,68 +737,53 @@ const buildApiSrc = async (
 
 /**
  * @method addApiConf
- * @description Adds the API configuration to the server.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ apiId: 'default', deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @description Registers an API on every route that serves APIs: a route with a non-empty `apis`
+ * list and no redirect. A route that lists the API already is left as it is.
+ * @param {object} confServer - Server configuration, edited in place.
+ * @param {object} options
+ * @param {string} options.apiId - API id.
+ * @param {string} [options.host] - Limits the registration to the routes of one hostname.
+ * @returns {{added: string[], present: string[]}} The `<host><path>` routes that got the API, and those that had it.
  * @memberof ServerConfBuilder
  */
-const addApiConf = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
-) => {
-  if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
-
-  const toClientVariableName = getCapVariableName(toOptions.apiId);
-  const fromClientVariableName = getCapVariableName(fromOptions.apiId);
-
-  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
-  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
-
-  const confServer = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
-  for (const host of Object.keys(confServer))
-    for (const path of Object.keys(confServer[host]))
-      if (confServer[host][path].apis) confServer[host][path].apis.push(toOptions.apiId);
-  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
-
-  const confClient = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
-  confClient[toOptions.clientId].services.push(toOptions.apiId);
-  fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
+const addApiConf = (confServer, { apiId, host = '' }) => {
+  const result = { added: [], present: [] };
+  for (const [routeHost, routes] of Object.entries(confServer)) {
+    if (host && routeHost !== host) continue;
+    for (const [path, route] of Object.entries(routes)) {
+      if (!Array.isArray(route.apis) || route.apis.length === 0 || route.redirect) continue;
+      if (route.apis.includes(apiId)) result.present.push(`${routeHost}${path}`);
+      else {
+        route.apis.push(apiId);
+        result.added.push(`${routeHost}${path}`);
+      }
+    }
+  }
+  return result;
 };
 
 /**
  * @method addWsConf
- * @description Adds the WebSocket configuration to the server.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' }] - The default options for the source configuration.
+ * @description Binds a WebSocket server to routes of one hostname.
+ * @param {object} confServer - Server configuration, edited in place.
+ * @param {object} options
+ * @param {string} options.wsId - WebSocket server id.
+ * @param {string} options.host - Route hostname.
+ * @param {string[]} options.paths - Route paths.
+ * @returns {Array<{route: string, previous: (string|undefined)}>} The routes bound, with the server each one had.
+ * @throws {Error} When a route does not exist.
  * @memberof ServerConfBuilder
  */
-const addWsConf = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
-) => {
-  if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
-  if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
-
-  const toClientVariableName = getCapVariableName(toOptions.apiId);
-  const fromClientVariableName = getCapVariableName(fromOptions.apiId);
-
-  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
-  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
-
-  const paths = toOptions.paths.split(',');
-
-  const confServer = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
-  for (const host of Object.keys(confServer))
-    for (const path of Object.keys(confServer[host]))
-      if (host === toOptions.host && paths.includes(path) && confServer[host][path])
-        confServer[host][path].ws = toOptions.wsId;
-  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+const addWsConf = (confServer, { wsId, host, paths }) => {
+  const bound = [];
+  for (const path of paths) {
+    const route = confServer[host]?.[path];
+    if (!route) throw new Error(`Route not found: ${host}${path}`);
+    if (route.ws === wsId) continue;
+    bound.push({ route: `${host}${path}`, previous: route.ws });
+    route.ws = wsId;
+  }
+  return bound;
 };
 
 /**
@@ -962,17 +791,11 @@ const addWsConf = async (
  * @description Builds the WebSocket source code.
  * @param {object} toOptions - The options for the target configuration.
  * @param {object} fromOptions - The options for the source configuration.
- * @param {object} [fromDefaultOptions={ wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' }] - The default options for the source configuration.
+ * @param {object} [fromDefaultOptions={ wsId: 'default' }] - The default options for the source configuration.
  * @memberof ServerConfBuilder
  */
-const buildWsSrc = async (
-  { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
-) => {
+const buildWsSrc = async ({ toOptions, fromOptions }, fromDefaultOptions = { wsId: 'default' }) => {
   if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
-  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
-  if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
-  if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
 
   const toClientVariableName = getCapVariableName(toOptions.wsId);
   const fromClientVariableName = getCapVariableName(fromOptions.wsId);
@@ -980,11 +803,10 @@ const buildWsSrc = async (
   const confFromFolder = `./src/ws/${fromOptions.wsId}`;
   const confToFolder = `./src/ws/${toOptions.wsId}`;
 
-  const paths = toOptions.paths.split(',');
-
   const formattedSrc = (src) =>
     src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.wsId, toOptions.wsId);
 
+  fs.mkdirSync(confToFolder, { recursive: true });
   const files = await fs.readdir(confFromFolder, { recursive: true });
   for (const relativePath of files) {
     const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
@@ -996,36 +818,6 @@ const buildWsSrc = async (
     if (fs.lstatSync(fromFilePath).isFile() && !fs.existsSync(formattedSrc(toFilePath))) {
       fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
     }
-  }
-};
-
-/**
- * @method cloneSrcComponents
- * @description Clones the source components.
- * @param {object} toOptions - The options for the target configuration.
- * @param {object} fromOptions - The options for the source configuration.
- * @memberof ServerConfBuilder
- */
-const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
-  const toClientVariableName = getCapVariableName(toOptions.componentsFolder);
-  const fromClientVariableName = getCapVariableName(fromOptions.componentsFolder);
-
-  const formattedSrc = (src) =>
-    src
-      .replaceAll(fromClientVariableName, toClientVariableName)
-      .replaceAll(fromOptions.componentsFolder, toOptions.componentsFolder);
-
-  const confFromFolder = `./src/client/components/${fromOptions.componentsFolder}`;
-  const confToFolder = `./src/client/components/${toOptions.componentsFolder}`;
-
-  fs.mkdirSync(confToFolder, { recursive: true });
-
-  const files = await fs.readdir(confFromFolder);
-  for (const relativePath of files) {
-    const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
-    const toFilePath = dir.resolve(`${confToFolder}/${relativePath}`);
-
-    fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
   }
 };
 
@@ -1320,141 +1112,6 @@ const generateSecurePassword = (length = 16) => {
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
   return chars.join('');
-};
-
-/**
- * @method buildCliDoc
- * @description Scrapes `node bin help` (and `node bin help <command>` for every
- * registered command) and renders a structured Markdown reference: a command
- * index with anchor links, plus a per-command section with its description,
- * usage, and Arguments/Options rendered as tables. Writes
- * `CLI-HELP.md` + the served reference doc, and refreshes the README CLI index.
- * @param {object} program - The commander program.
- * @param {string} oldVersion - The old version string to replace.
- * @param {string} newVersion - The new version string.
- * @memberof ServerConfBuilder
- */
-const buildCliDoc = (program, oldVersion, newVersion) => {
-  const help = (args = '') => shellExec(`node bin help${args ? ` ${args}` : ''}`, { silent: true, stdout: true });
-  // Escape table-breaking pipes and collapse wrapped whitespace for a Markdown cell.
-  const cell = (s) => String(s).replace(/\s+/g, ' ').replaceAll('|', '\\|').trim();
-  const anchor = (name) => `underpost-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-
-  // Parse a commander help block into { usage, description, sections: { Options, Arguments, Commands } }.
-  const parseHelp = (text) => {
-    const lines = text.split('\n');
-    const usageMatch = lines[0].match(/^Usage:\s*(.*)$/);
-    const usage = usageMatch ? usageMatch[1].trim() : '';
-    const sections = {};
-    const descLines = [];
-    let current = null;
-    let buf = [];
-    const flush = () => {
-      if (current) sections[current] = buf.join('\n');
-      buf = [];
-    };
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      const head = line.match(/^([A-Za-z][\w ]*):\s*$/); // top-level "Options:", "Arguments:", "Commands:"
-      if (head) {
-        flush();
-        current = head[1].trim();
-      } else if (current !== null) {
-        buf.push(line);
-      } else {
-        descLines.push(line);
-      }
-    }
-    flush();
-    return { usage, description: descLines.join('\n').trim(), sections };
-  };
-
-  // Parse a columnar "  <term>   <description>" section (descriptions may wrap onto
-  // indented continuation lines) into [{ term, desc }].
-  const parseEntries = (text = '') => {
-    const entries = [];
-    for (const line of text.split('\n')) {
-      if (!line.trim()) continue;
-      const leading = line.length - line.trimStart().length;
-      if (leading <= 2) {
-        const rest = line.trim();
-        const gap = rest.search(/\s{2,}/);
-        entries.push(gap === -1 ? { term: rest, desc: '' } : { term: rest.slice(0, gap), desc: rest.slice(gap) });
-      } else if (entries.length) {
-        entries[entries.length - 1].desc += ` ${line.trim()}`;
-      }
-    }
-    return entries;
-  };
-
-  const table = (head, entries) =>
-    !entries.length
-      ? ''
-      : `| ${head[0]} | ${head[1]} |\n| --- | --- |\n` +
-        entries.map(({ term, desc }) => `| \`${cell(term)}\` | ${cell(desc)} |`).join('\n') +
-        '\n';
-
-  const detailSection = (sections, name, head) => {
-    const t = table(head, parseEntries(sections[name]));
-    return t ? `\n### ${name}\n\n${t}` : '';
-  };
-
-  // ── Top-level index ──
-  const root = parseHelp(help());
-  const commandEntries = parseEntries(root.sections['Commands']).filter((e) => e.term.split(' ')[0] !== 'help');
-
-  const index =
-    `# Underpost CLI\n\n` +
-    (root.description ? `> ${root.description.replace(/\s+/g, ' ')}\n\n` : '') +
-    `**Usage:** \`${root.usage}\`\n\n` +
-    `## Global options\n\n${table(['Option', 'Description'], parseEntries(root.sections['Options']))}\n` +
-    `## Commands\n\n| Command | Description |\n| --- | --- |\n` +
-    commandEntries
-      .map((e) => {
-        const name = e.term.split(' ')[0];
-        return `| [\`${name}\`](#${anchor(name)}) | ${cell(e.desc)} |`;
-      })
-      .join('\n') +
-    '\n';
-
-  // ── Per-command detail ──
-  let details = `\n## Command reference\n`;
-  for (const cmd of program.commands) {
-    const name = cmd._name;
-    if (name === 'help') continue;
-    const cmdHelp = parseHelp(help(name));
-    details +=
-      `\n## underpost ${name}\n\n` +
-      (cmdHelp.description ? `${cmdHelp.description.replace(/\s+/g, ' ')}\n\n` : '') +
-      `**Usage:** \`${cmdHelp.usage}\`\n` +
-      detailSection(cmdHelp.sections, 'Arguments', ['Argument', 'Description']) +
-      detailSection(cmdHelp.sections, 'Options', ['Option', 'Description']) +
-      `\n---\n`;
-  }
-
-  const md = `${index}${details}`.replaceAll(oldVersion, newVersion);
-  fs.writeFileSync(`./src/client/public/docs/nexodev/reference/underpost-cli.md`, md, 'utf8');
-  fs.writeFileSync(`./CLI-HELP.md`, md, 'utf8');
-
-  // Update README.md: bump version and refresh the CLI index between the comment tags.
-  let readme = fs.readFileSync(`./README.md`, 'utf8').replaceAll(oldVersion, newVersion);
-  const cliStartTag = '<!-- cli-index-start -->';
-  const cliEndTag = '<!-- cli-index-end -->';
-  const startIdx = readme.indexOf(cliStartTag);
-  const endIdx = readme.indexOf(cliEndTag);
-  if (startIdx !== -1 && endIdx !== -1) {
-    // The README owns its own title, so the embedded index sits one level below it.
-    const readmeIndex = index.replace(/\(#(underpost-[a-z0-9-]+)\)/g, '(CLI-HELP.md#$1)').replace(/^(#+) /gm, '$1# ');
-    readme =
-      readme.substring(0, startIdx) +
-      cliStartTag +
-      '\n' +
-      readmeIndex.replaceAll(oldVersion, newVersion) +
-      '\n' +
-      cliEndTag +
-      readme.substring(endIdx + cliEndTag.length);
-  }
-  fs.writeFileSync('./README.md', readme, 'utf8');
 };
 
 /**
@@ -3519,15 +3176,11 @@ export {
   selectConfInstances,
   undeclaredInstanceBuildsFactory,
   loadReplicas,
-  cloneConf,
   getCapVariableName,
-  addClientConf,
-  buildClientSrc,
   buildApiSrc,
   addApiConf,
   addWsConf,
   buildWsSrc,
-  cloneSrcComponents,
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
@@ -3537,7 +3190,6 @@ export {
   generateSecurePassword,
   resolveReplicaCount,
   awaitDeployMonitor,
-  buildCliDoc,
   getInstanceContext,
   buildApiConf,
   buildClientStaticConf,

@@ -4,7 +4,14 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
+import {
+  daemonProcess,
+  pbcopy,
+  shellArgumentFactory,
+  shellCd,
+  shellExec,
+  shellSpawn,
+} from '../server/runtime/process.js';
 import { cli, withExecutionProfile } from '../server/build/execution.js';
 import { syncDeployPackages } from '../server/build/package.js';
 import { RUNTIME_STATUS } from '../server/runtime/runtime-status.js';
@@ -51,7 +58,13 @@ import {
   trafficFromRoutingInfoFactory,
 } from '../server/runtime/conf.js';
 import { buildKindPorts, deployRoutesExists, readDeployRoutes, resolveDeployList } from '../server/network/router.js';
-import { clientBundleHostFilter, pullClientBundle, pushClientBundle } from '../client-builder/client-bundle.js';
+import {
+  clientBundleHostFilter,
+  pruneClientBundles,
+  pullClientBundle,
+  pushClientBundle,
+  verifyServedClientBundle,
+} from '../client-builder/client-bundle.js';
 import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
 import { deployEnvFactory, getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
@@ -82,6 +95,9 @@ import {
   writeHostServerConf,
 } from '../server/network/underpost-gateway.js';
 const logger = loggerFactory(import.meta);
+
+/** Upper bound of a `playwright` run, from the pod rollout to the artifact copy. */
+const PLAYWRIGHT_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * @constant DEFAULT_OPTION
@@ -149,6 +165,9 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} k3s - Whether to run in k3s mode.
  * @property {string} hosts - The hosts to use.
  * @property {string} split - Zip part size in MB for push-bundle, or 'none' to upload a single zip.
+ * @property {string} release - For push-bundle: the deploy release the client bundle belongs to.
+ * @property {string} bundle - The exact client bundle, `<release-id>/<build-id>@sha256:<digest>` (pull-bundle,
+ *   verify-bundle); comma-separated, the bundles prune-bundles keeps.
  * @property {string} deployId - The deployment ID.
  * @property {string} instanceId - The instance ID.
  * @property {string} user - The user to run as.
@@ -250,6 +269,8 @@ const DEFAULT_OPTION = {
   k3s: false,
   hosts: '',
   split: '',
+  release: '',
+  bundle: '',
   deployId: '',
   instanceId: '',
   user: '',
@@ -976,7 +997,7 @@ class UnderpostRun {
     },
     /**
      * @method clean
-     * @description Changes directory to the provided path (defaulting to `/home/dd/engine`) and runs `node bin/deploy clean-core-repo`.
+     * @description Discards uncommitted changes in the given repositories (defaulting to the engine and its private checkout).
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional directory path).
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -4314,6 +4335,69 @@ EOF`);
     },
 
     /**
+     * @method playwright
+     * @description Runs a Playwright script in a fresh `playwright-server` pod, streams the pod logs,
+     * waits for the artifact the script writes, and copies it to the host. Resolves only after the
+     * copy exists on the host; fails after {@link PLAYWRIGHT_TIMEOUT_MS}. A PNG artifact opens in
+     * Firefox when a display is available.
+     * @param {string} path - Path of the Playwright script on the host.
+     * @param {UnderpostRunDefaultOptions} options - `--args <pod-artifact-path>[,<host-path>]`; the host
+     *   path defaults to `/tmp/<artifact-name>`. `--namespace` selects the namespace.
+     * @returns {Promise<string>} The host path of the artifact.
+     * @memberof UnderpostRun
+     */
+    playwright: async (path, options = DEFAULT_OPTION) => {
+      const [artifactPath, hostPath = artifactPath ? `/tmp/${nodePath.basename(artifactPath)}` : ''] =
+        options.args || [];
+      if (!path || !artifactPath)
+        throw new Error('playwright requires <script-path> and --args <pod-artifact-path>[,<host-path>]');
+      const { underpostRoot, namespace } = options;
+      const name = 'playwright-server';
+      const ns = `-n ${shellArgumentFactory(namespace)}`;
+      const deadline = Date.now() + PLAYWRIGHT_TIMEOUT_MS;
+      const seconds = () => `${Math.max(1, Math.ceil((deadline - Date.now()) / 1000))}s`;
+
+      fs.removeSync(hostPath);
+      shellExec(
+        `kubectl create configmap playwright-script --from-file=script.js=${shellArgumentFactory(path)} ${ns} --dry-run=client -o yaml | kubectl apply ${ns} -f -`,
+      );
+      shellExec(`kubectl delete deployment ${name} ${ns} --ignore-not-found --wait=true`);
+      shellExec(`kubectl wait --for=delete pod -l app=${name} ${ns} --timeout=${seconds()}`, { silentOnError: true });
+      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/playwright/deployment.yaml ${ns}`);
+      shellExec(`kubectl wait --for=condition=Available deployment/${name} ${ns} --timeout=${seconds()}`);
+      const podName = shellExec(`kubectl get pods -l app=${name} ${ns} -o jsonpath='{.items[0].metadata.name}'`, {
+        stdout: true,
+        silent: true,
+      }).trim();
+      if (!podName) throw new Error(`playwright: no ${name} pod in namespace ${namespace}`);
+
+      const logs = shellSpawn(`kubectl logs -f ${shellArgumentFactory(podName)} ${ns}`);
+      logs.stdout.pipe(process.stdout);
+      try {
+        const exists = () =>
+          shellExec(
+            `kubectl exec ${shellArgumentFactory(podName)} ${ns} -- test -f ${shellArgumentFactory(artifactPath)}`,
+            { silent: true, silentOnError: true, disableLog: true },
+          ).code === 0;
+        while (!exists()) {
+          if (Date.now() > deadline)
+            throw new Error(`playwright: ${artifactPath} not written in pod ${podName} within the timeout`);
+          await timer(1000);
+        }
+        shellExec(
+          `kubectl cp ${shellArgumentFactory(`${namespace}/${podName}:${artifactPath}`)} ${shellArgumentFactory(hostPath)}`,
+        );
+        if (!fs.existsSync(hostPath)) throw new Error(`playwright: copy of ${artifactPath} not found at ${hostPath}`);
+      } finally {
+        logs.child.kill();
+      }
+      logger.info('playwright artifact retrieved', { podName, artifactPath, hostPath });
+      if (hostPath.endsWith('.png') && (process.env.DISPLAY || process.env.WAYLAND_DISPLAY))
+        shellExec(`firefox ${shellArgumentFactory(hostPath)}`, { silentOnError: true });
+      return hostPath;
+    },
+
+    /**
      * @method deploy-job
      * @description Creates and applies a custom Kubernetes Pod manifest (Job) for running arbitrary commands inside a container image (defaulting to a TensorFlow/NVIDIA image).
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional script path or job argument).
@@ -4447,38 +4531,42 @@ EOF`;
 
     /**
      * @method push-bundle
-     * @description Builds the deployment's client bundles and uploads them to file storage.
-     *   Steps: set env, build and split the zips, then upload each resolved route's artifacts
-     *   under the deployment's `storage.bundle.json`. Routes the client build skips — redirects,
-     *   rebuild-disabled routes, and `singleReplica` routes that carry their own deploy id —
-     *   produce no bundle and are not pushed.
+     * @description Builds the deployment's clients once on this host and publishes them as one
+     *   immutable client bundle: a managed client build with its TypeDoc sites, the check of every
+     *   route tree, the SHA-256 of every part, the upload, and the manifest last. The deployment conf
+     *   then names the bundle in `client-bundle.json`; a failure publishes nothing. Routes the client
+     *   build skips — redirects, rebuild-disabled routes, and `singleReplica` routes that carry their
+     *   own deploy id — carry no bundle.
      * @param {string} path - Optional comma-separated host filter (e.g. 'a.com' or 'a.com,b.com').
      *   Empty selects every host in `engine-private/conf/<deployId>/conf.server.json`.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
-     * @param {string} [options.deployId] - Deploy ID for storage lookup (defaults to 'dd-default').
-     * @param {string} [options.split] - Zip part size in MB, or 'none' to upload one zip. Defaults to 8.
+     * @param {string} [options.deployId] - Deploy ID (defaults to 'dd-default').
+     * @param {string} [options.split] - Part size in MB, or 'none' for one part per route. Defaults to 8.
+     * @param {string} [options.release] - The deploy release; defaults to `v<version>-<engine commit>`.
+     * @param {string} [options.image] - The runtime image the release deploys, recorded in the manifest.
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
      * @memberof UnderpostRun
      */
-    'push-bundle': (path = '', options = DEFAULT_OPTION) =>
-      pushClientBundle({
+    'push-bundle': async (path = '', options = DEFAULT_OPTION) =>
+      await pushClientBundle({
         deployId: options.deployId || 'dd-default',
         hosts: clientBundleHostFilter(path),
         split: options.split,
         dev: options.dev,
+        releaseId: options.release,
+        image: options.image,
       }),
 
     /**
      * @method pull-bundle
-     * @description Downloads the deployment's client bundles from file storage and installs them
-     *   into the served public directory.
-     *   Steps: set env, download the parts, merge and extract each resolved route's zip, then
-     *   replace `public/<host>[<route>]` with the extracted tree. Route selection matches
-     *   push-bundle, so the two directions always address the same set of bundles.
+     * @description Restores a client bundle into the served public directory: every part and ZIP is
+     *   checked against the manifest the reference pins, then each route tree is extracted beside
+     *   `public/<host>[<route>]`, checked, and published in its place. Never builds the client.
      * @param {string} path - Optional comma-separated host filter (e.g. 'a.com' or 'a.com,b.com').
      *   Empty selects every host in `engine-private/conf/<deployId>/conf.server.json`.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
-     * @param {string} [options.deployId] - Deploy ID for storage lookup (defaults to 'dd-default').
+     * @param {string} [options.deployId] - Deploy ID (defaults to 'dd-default').
+     * @param {string} [options.bundle] - The exact bundle; defaults to the one the deployment conf names.
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
      * @memberof UnderpostRun
      */
@@ -4486,6 +4574,44 @@ EOF`;
       await pullClientBundle({
         deployId: options.deployId || 'dd-default',
         hosts: clientBundleHostFilter(path),
+        dev: options.dev,
+        reference: options.bundle,
+      }),
+
+    /**
+     * @method verify-bundle
+     * @description Checks once that each documented route of a client bundle serves, at its public
+     *   origin, the TypeDoc entry the bundle holds. Exits non-zero naming each route that does not.
+     * @param {string} path - Unused.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
+     * @param {string} [options.deployId] - Deploy ID (defaults to 'dd-default').
+     * @param {string} [options.bundle] - The exact bundle; defaults to the one the deployment conf names.
+     * @param {boolean} [options.dev] - Use development environment; defaults to production.
+     * @memberof UnderpostRun
+     */
+    'verify-bundle': async (path = '', options = DEFAULT_OPTION) =>
+      await verifyServedClientBundle({
+        deployId: options.deployId || 'dd-default',
+        reference: options.bundle,
+        dev: options.dev,
+      }),
+
+    /**
+     * @method prune-bundles
+     * @description Removes the client bundles of a deployment that nothing keeps: kept are the
+     *   bundles `--bundle` names (those its workloads restore and the new candidate) and the newest
+     *   published ones. Their host build records follow.
+     * @param {string} path - Unused.
+     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
+     * @param {string} [options.deployId] - Deploy ID (defaults to 'dd-default').
+     * @param {string} [options.bundle] - Comma-separated references of the bundles that must stay.
+     * @param {boolean} [options.dev] - Use development environment; defaults to production.
+     * @memberof UnderpostRun
+     */
+    'prune-bundles': async (path = '', options = DEFAULT_OPTION) =>
+      await pruneClientBundles({
+        deployId: options.deployId || 'dd-default',
+        protect: `${options.bundle ?? ''}`.split(',').filter(Boolean),
         dev: options.dev,
       }),
 

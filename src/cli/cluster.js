@@ -54,6 +54,12 @@ const KIND_NODE_REPOSITORY = KIND_NODE_IMAGE.split(':')[0];
 const GATEWAY_API_RELEASE = 'v1.5.1';
 const ENVOY_GATEWAY_VERSION = 'v1.8.3';
 const CONTOUR_NAMESPACE = 'projectcontour';
+const NVIDIA_CONTAINER_TOOLKIT_VERSION = '1.17.8-1';
+const GPU_OPERATOR_VERSION = 'v25.3.1';
+const SPARK_IMAGE = 'spark:3.5.5';
+const KAFKA_IMAGE = 'doughgle/kafka-kraft';
+/** The Kafka manifest names its peers in this namespace. */
+const KAFKA_NAMESPACE = 'kafka';
 const LOCAL_PATH_PROVISIONER_MANIFEST =
   'https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml';
 const K3S_SELINUX_PATHS = [
@@ -120,6 +126,7 @@ class UnderpostCluster {
      * @param {boolean} [options.mariadb=false] - Deploy MariaDB.
      * @param {boolean} [options.mysql=false] - Deploy MySQL.
      * @param {boolean} [options.postgresql=false] - Deploy PostgreSQL.
+     * @param {boolean} [options.kafka=false] - Deploy the Kafka KRaft StatefulSet.
      * @param {boolean} [options.valkey=false] - Deploy Valkey.
      * @param {boolean} [options.ipfs=false] - Deploy ipfs-cluster statefulset.
      * @param {boolean} [options.info=false] - Display extensive Kubernetes cluster information.
@@ -168,6 +175,7 @@ class UnderpostCluster {
         mariadb: false,
         mysql: false,
         postgresql: false,
+        kafka: false,
         valkey: false,
         ipfs: false,
         info: false,
@@ -404,8 +412,8 @@ class UnderpostCluster {
       // These deployments happen after the base cluster is up.
 
       if (options.dedicatedGpu) {
-        shellExec(`node ${underpostRoot}/bin/deploy nvidia-gpu-operator`);
-        shellExec(`node ${underpostRoot}/bin/deploy kubeflow-spark-operator${options.kubeadm ? ' kubeadm' : ''}`);
+        Underpost.cluster.installGpuOperator();
+        Underpost.cluster.installSparkOperator({ underpostRoot, options });
       }
 
       // Grafana and Prometheus are two faces of one stack, so either flag
@@ -481,6 +489,7 @@ class UnderpostCluster {
         Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/postgresql'] });
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
+      if (options.kafka) Underpost.cluster.deployKafka({ underpostRoot, options });
       if (options.mongodb4) {
         if (options.pullImage) Underpost.cluster.pullImage('mongo:4.4', options);
         shellExec(`kubectl delete statefulset mongodb -n ${options.namespace} --ignore-not-found`);
@@ -964,6 +973,88 @@ EOF
         // Kubeadm / K3s: pull directly into the active CRI runtime.
         shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, options));
       }
+    },
+
+    /**
+     * @method installGpuOperator
+     * @description Installs the NVIDIA container toolkit on the host and the NVIDIA GPU Operator
+     * release on the cluster, with containerd as the runtime and CDI enabled. Idempotent.
+     * @memberof UnderpostCluster
+     */
+    installGpuOperator() {
+      const namespace = 'gpu-operator';
+      shellExec(
+        `curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo`,
+      );
+      shellExec(
+        `sudo dnf install -y ${[
+          'nvidia-container-toolkit',
+          'nvidia-container-toolkit-base',
+          'libnvidia-container-tools',
+          'libnvidia-container1',
+        ]
+          .map((pkg) => `${pkg}-${NVIDIA_CONTAINER_TOOLKIT_VERSION}`)
+          .join(' ')}`,
+      );
+      shellExec(`kubectl create ns ${namespace} --dry-run=client -o yaml | kubectl apply -f -`);
+      shellExec(`kubectl label --overwrite ns ${namespace} pod-security.kubernetes.io/enforce=privileged`);
+      shellExec(`helm repo add nvidia https://helm.ngc.nvidia.com/nvidia --force-update && helm repo update`);
+      shellExec(
+        [
+          `helm upgrade --install --wait gpu-operator nvidia/gpu-operator -n ${namespace} --create-namespace`,
+          `--version=${GPU_OPERATOR_VERSION}`,
+          '--set driver.enabled=false',
+          '--set driver.repository=nvcr.io/nvidia',
+          '--set cdi.enabled=true',
+          '--set cdi.default=true',
+          '--set toolkit.env[0].name=CONTAINERD_CONFIG',
+          '--set toolkit.env[0].value=/etc/containerd/config.toml',
+          '--set toolkit.env[1].name=CONTAINERD_SOCKET',
+          '--set toolkit.env[1].value=/run/containerd/containerd.sock',
+          '--set toolkit.env[2].name=CONTAINERD_RUNTIME_CLASS',
+          '--set toolkit.env[2].value=nvidia',
+          '--set-string toolkit.env[3].name=CONTAINERD_SET_AS_DEFAULT',
+          '--set-string toolkit.env[3].value=true',
+        ].join(' '),
+      );
+      // True when Node Feature Discovery has labeled the nodes.
+      shellExec(
+        `kubectl get nodes -o json | jq '.items[].metadata.labels | keys | any(startswith("feature.node.kubernetes.io"))'`,
+      );
+    },
+
+    /**
+     * @method installSparkOperator
+     * @description Installs the Kubeflow Spark Operator release and applies the Spark Pi
+     * application that verifies it. Idempotent.
+     * @param {object} params
+     * @param {string} params.underpostRoot - Root of the Underpost package.
+     * @param {object} params.options - Cluster options: cluster type, `pullImage` and `namespace`.
+     * @memberof UnderpostCluster
+     */
+    installSparkOperator({ underpostRoot, options }) {
+      shellExec(`helm repo add spark-operator https://kubeflow.github.io/spark-operator --force-update`);
+      shellExec(
+        `helm upgrade --install spark-operator spark-operator/spark-operator --namespace spark-operator --create-namespace --wait`,
+      );
+      if (options.pullImage) Underpost.cluster.pullImage(SPARK_IMAGE, options);
+      shellExec(
+        `kubectl apply -f ${underpostRoot}/manifests/deployment/spark/spark-pi-py.yaml -n ${options.namespace}`,
+      );
+    },
+
+    /**
+     * @method deployKafka
+     * @description Applies the basic Kafka KRaft StatefulSet and its Services in the `kafka` namespace.
+     * @param {object} params
+     * @param {string} params.underpostRoot - Root of the Underpost package.
+     * @param {object} params.options - Cluster options: cluster type and `pullImage`.
+     * @memberof UnderpostCluster
+     */
+    deployKafka({ underpostRoot, options }) {
+      if (options.pullImage) Underpost.cluster.pullImage(KAFKA_IMAGE, options);
+      shellExec(`kubectl create namespace ${KAFKA_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -`);
+      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/kafka/deployment.yaml -n ${KAFKA_NAMESPACE}`);
     },
 
     /**

@@ -70,20 +70,45 @@ Installs the baremetal control server (DHCP, TFTP, HTTP services) on the specifi
 underpost baremetal --control-server-uninstall
 ```
 
-### Restart
+### Restart and Stop
 
 ```bash
 underpost baremetal --control-server-restart
+underpost baremetal --control-server-stop
 ```
 
-### Database Setup
+### Database
+
+MAAS stores its machine inventory in PostgreSQL 17. PostgreSQL runs on the control host, as the `postgresql-17` systemd service with its data in `/var/lib/pgsql/17`. It is not a cluster workload: the PostgreSQL StatefulSet of `underpost cluster --postgresql` is a different service.
+
+The database credentials come from the host configuration: `DB_PG_MAAS_NAME`, `DB_PG_MAAS_USER` and `DB_PG_MAAS_PASS`.
 
 ```bash
+# Install PostgreSQL and reconcile the MAAS role and database. Safe to run again.
 underpost baremetal --control-server-db-install
+
+# Report the installation, the MAAS role and owner, and the databases.
+underpost baremetal --control-server-db-status
+
+# List the tables of the MAAS database, or of a named database.
+underpost baremetal --control-server-db-tables
+underpost baremetal --control-server-db-tables maas
+
+# Drop the MAAS database and role. The value must repeat DB_PG_MAAS_NAME.
+underpost baremetal --control-server-db-drop maas
+
+# Remove the packages. The data directory stays.
 underpost baremetal --control-server-db-uninstall
+
+# Remove the packages and delete the data directory.
+underpost baremetal --control-server-db-uninstall --control-server-db-purge-data
 ```
 
-Installs or uninstalls the database backend for machine inventory and workflow tracking.
+Each database operation reads the host state first and changes only what differs. Add `--dry-run` to see the changes without making them.
+
+The MAAS role has `LOGIN` and owns the MAAS database. It has no other privilege: no `SUPERUSER`, `CREATEDB`, `CREATEROLE` or `REPLICATION`. An install on a host with a privileged MAAS role removes those privileges.
+
+A purge refuses when the server holds a database other than the MAAS database and the system databases.
 
 ---
 
@@ -339,13 +364,19 @@ underpost baremetal --logs cloud-init-config
 
 ### Control Server
 
-| Option                          | Description                           |
-| ------------------------------- | ------------------------------------- |
-| `--control-server-install`      | Install the baremetal control server  |
-| `--control-server-uninstall`    | Uninstall the control server          |
-| `--control-server-restart`      | Restart the control server            |
-| `--control-server-db-install`   | Install the control server database   |
-| `--control-server-db-uninstall` | Uninstall the control server database |
+| Option                                  | Description                                                             |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| `--control-server-install`              | Install the baremetal control server                                    |
+| `--control-server-uninstall`            | Uninstall the control server                                            |
+| `--control-server-restart`              | Restart the control server                                              |
+| `--control-server-stop`                 | Stop the control server                                                 |
+| `--control-server-db-install`           | Install PostgreSQL on the host and reconcile the MAAS role and database |
+| `--control-server-db-status`            | Report the control server database                                      |
+| `--control-server-db-tables [database]` | List the tables of a database (default: the MAAS database)              |
+| `--control-server-db-drop <database>`   | Drop the MAAS database and role; the value must repeat its name         |
+| `--control-server-db-uninstall`         | Remove the database packages; the data directory stays                  |
+| `--control-server-db-purge-data`        | With the uninstall: delete the data directory                           |
+| `--dry-run`                             | With a database option: report the changes without making them          |
 
 ### Machine Operations
 

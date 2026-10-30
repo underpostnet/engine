@@ -9,7 +9,6 @@ import shell from 'shelljs';
 import {
   DEFAULT_DEPLOY_ID,
   awaitDeployMonitor,
-  buildCliDoc,
   buildReplicaId,
   clientPublicTreesFactory,
   clusterContextFactory,
@@ -1031,80 +1030,5 @@ describe('private template publishing', () => {
     vi.spyOn(fs, 'copySync').mockImplementation(() => undefined);
     await updatePrivateEngineTestRepo('dd-core');
     expect(commands.some((command) => command.includes('git commit'))).to.equal(false);
-  });
-});
-
-describe('CLI documentation', () => {
-  const HELP_ROOT = [
-    'Usage: underpost [options] [command]',
-    'Underpost CI/CD CLI v3.2.9',
-    '',
-    'Options:',
-    '  -V, --version          output the version number',
-    '  -h, --help             display help',
-    '',
-    'Commands:',
-    '  cron [options] <deploy-list>   Cron jobs management,',
-    '                                 scheduled on the cluster',
-    '  help [command]                 display help for command',
-    '',
-  ].join('\n');
-
-  const HELP_CRON = [
-    'Usage: underpost cron [options] <deploy-list> <job-list>',
-    'Cron jobs management',
-    '',
-    'Arguments:',
-    '  deploy-list            Comma separated deploy ids',
-    '',
-    'Options:',
-    '  --apply                Apply the manifests',
-    '',
-  ].join('\n');
-
-  afterEach(() => vi.restoreAllMocks());
-
-  it('renders the command index and per command reference from commander help', () => {
-    const written = new Map();
-    vi.spyOn(shell, 'exec').mockImplementation((command) => {
-      const stdout = command.includes('help cron') ? HELP_CRON : HELP_ROOT;
-      return { code: 0, stdout, stderr: '', toString: () => stdout };
-    });
-    vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      ['# Engine v3.2.9', '<!-- cli-index-start -->', 'stale', '<!-- cli-index-end -->', 'tail'].join('\n'),
-    );
-    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => written.set(`${filePath}`, `${value}`));
-
-    buildCliDoc({ commands: [{ _name: 'cron' }, { _name: 'help' }] }, '3.2.9', '3.3.0');
-
-    const cliHelp = written.get('./CLI-HELP.md');
-    // One title, so the generated reference is a document of the Nexodev domain like any other.
-    expect(cliHelp).to.include('# Underpost CLI');
-    expect(cliHelp).to.include('> Underpost CI/CD CLI v3.3.0');
-    expect(cliHelp).to.include('| [`cron`](#underpost-cron) | Cron jobs management, scheduled on the cluster |');
-    expect(cliHelp).to.include('## underpost cron');
-    expect(cliHelp).to.include('### Arguments');
-    expect(cliHelp).to.include('### Options');
-    // The index only lists commands; `help` is commander's own and never a
-    // documented one.
-    expect(cliHelp).not.to.include('## underpost help');
-    expect(written.get('./src/client/public/docs/nexodev/reference/underpost-cli.md')).to.equal(cliHelp);
-
-    const readme = written.get('./README.md');
-    expect(readme).to.include('# Engine v3.3.0');
-    expect(readme).to.include('(CLI-HELP.md#underpost-cron)');
-    expect(readme).not.to.include('stale');
-    expect(readme.endsWith('tail')).to.equal(true);
-  });
-
-  it('leaves a README carrying no CLI index tags alone apart from the version', () => {
-    const written = new Map();
-    vi.spyOn(shell, 'exec').mockReturnValue({ code: 0, stdout: HELP_ROOT, toString: () => HELP_ROOT });
-    vi.spyOn(fs, 'readFileSync').mockReturnValue('# Engine v3.2.9\n');
-    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => written.set(`${filePath}`, `${value}`));
-
-    buildCliDoc({ commands: [] }, '3.2.9', '3.3.0');
-
-    expect(written.get('./README.md')).to.equal('# Engine v3.3.0\n');
   });
 });

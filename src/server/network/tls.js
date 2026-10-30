@@ -8,11 +8,14 @@ import fs from 'fs-extra';
 import https from 'https';
 import path from 'path';
 import { X509Certificate } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { loggerFactory } from '../ops/logger.js';
 import { shellArgumentFactory, shellExec } from '../runtime/process.js';
 
 const logger = loggerFactory(import.meta);
 
+const ISSUE_SCRIPT = fileURLToPath(new URL('../../../scripts/ssl.sh', import.meta.url));
+const LOOPBACK_NAMES = ['localhost', '127.0.0.1', '::1'];
 const DEFAULT_HOST = 'localhost';
 /** Stored certificates, shared through the private repository. */
 const SSL_ROOT = './engine-private/ssl';
@@ -146,8 +149,21 @@ class TLS {
   static ensureLocalCertificate(host) {
     if (TLS.certificateValidFor(host, LOCAL_SSL_ROOT)) return false;
     fs.removeSync(SSL_BASE(host, LOCAL_SSL_ROOT));
-    shellExec(`node bin/deploy tls ${shellArgumentFactory(host)} ${shellArgumentFactory(LOCAL_SSL_ROOT)}`);
+    TLS.issueCertificate(host, LOCAL_SSL_ROOT);
     return true;
+  }
+
+  /**
+   * Issues a locally trusted certificate that covers the host and the loopback names.
+   * @param {string} [host]
+   * @param {string} [root] - Certificate root directory.
+   * @memberof UnderpostTLS
+   */
+  static issueCertificate(host = DEFAULT_HOST, root = SSL_ROOT) {
+    const names = [...new Set([...LOOPBACK_NAMES, host])].join(' ');
+    shellExec(
+      `bash ${shellArgumentFactory(ISSUE_SCRIPT)} ${shellArgumentFactory(SSL_BASE(host, root))} ${shellArgumentFactory(names)}`,
+    );
   }
 
   /**
@@ -292,6 +308,7 @@ class UnderpostTLS {
     validateSecureContext: TLS.validateSecureContext,
     certificateValidFor: TLS.certificateValidFor,
     ensureLocalCertificate: TLS.ensureLocalCertificate,
+    issueCertificate: TLS.issueCertificate,
     buildSecureContext: TLS.buildSecureContext,
     buildLocalSSL: TLS.buildLocalSSL,
     createSslServer: TLS.createSslServer,

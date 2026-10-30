@@ -303,54 +303,34 @@ export const beforeDelete = async (objectLayer, options, { assets = false } = {}
 export function mount(router, options) {
   router.get(`/context/:id`, async (req, res) => {
     /*
-      #swagger.auto = false
-      #swagger.tags = ['object-layer']
       #swagger.summary = 'Foundation context of an item'
       #swagger.description = 'The Cyberia foundation context of the item a cid, document id or item label names: its definition, art brief, palettes, world, the maps that place it and every reference in both directions. Read-only.'
       #swagger.path = '/object-layer/context/{id}'
       #swagger.method = 'get'
-      #swagger.produces = ['application/json']
-      #swagger.parameters['id'] = { in: 'path', description: 'cid, document id or item label', required: true, type: 'string' }
+      #swagger.parameters = [
+        { name: 'id', in: 'path', description: 'cid, document id or item label', required: true, schema: { type: 'string' } },
+      ]
     */
     return await ObjectLayerStudioController.context(req, res, options);
   });
   router.post(`/import-frames`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*
-      #swagger.auto = false
-      #swagger.tags = ['object-layer']
       #swagger.summary = 'Frames of a definition in a palette'
       #swagger.description = 'Body { id, palette, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette of the item `target` and with a seeded contour mutation. `palette` is { paletteId?, slots? }: a palette of the library, else the foundation palettes of `target`, else the first palette of the library, under the slot colors set. Stores nothing.'
       #swagger.path = '/object-layer/import-frames'
       #swagger.method = 'post'
-      #swagger.produces = ['application/json']
-      #swagger.consumes = ['application/json']
-      #swagger.security = [{
-        'bearerAuth': []
-      }]
     */
     return await ObjectLayerStudioController.importFrames(req, res, options);
   });
   router.post(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*
-        #swagger.auto = false
-        #swagger.tags = ['object-layer']
         #swagger.summary = 'Create object layer by ID'
         #swagger.description = 'This endpoint creates a new object layer entry with a specific ID'
         #swagger.path = '/object-layer/{id}'
         #swagger.method = 'post'
-        #swagger.produces = ['application/json']
-        #swagger.consumes = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-
-        #swagger.parameters['id'] = {
-            in: 'path',
-            description: 'Object layer ID',
-            required: true,
-            type: 'string'
-        }
-
+        #swagger.parameters = [
+          { name: 'id', in: 'path', description: 'Object layer ID', required: true, schema: { type: 'string' } },
+        ]
         #swagger.responses[200] = {
           description: 'Object layer created successfully',
           content: {
@@ -361,7 +341,6 @@ export function mount(router, options) {
               }
           }
         }
-
         #swagger.responses[400] = {
           description: 'Bad request. Please check the input data',
           content: {
@@ -377,18 +356,10 @@ export function mount(router, options) {
   });
   router.post(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*
-        #swagger.auto = false
-        #swagger.tags = ['object-layer']
         #swagger.summary = 'Create object layer'
         #swagger.description = 'This endpoint creates a new object layer entry'
         #swagger.path = '/object-layer'
         #swagger.method = 'post'
-        #swagger.produces = ['application/json']
-        #swagger.consumes = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-
         #swagger.responses[200] = {
           description: 'Object layer created successfully',
           content: {
@@ -399,7 +370,6 @@ export function mount(router, options) {
               }
           }
         }
-
         #swagger.responses[400] = {
           description: 'Bad request. Please check the input data',
           content: {
@@ -415,25 +385,13 @@ export function mount(router, options) {
   });
   router.put(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
     /*
-        #swagger.auto = false
-        #swagger.tags = ['object-layer']
         #swagger.summary = 'Update object layer by ID'
         #swagger.description = 'This endpoint updates an object layer entry by ID'
         #swagger.path = '/object-layer/{id}'
         #swagger.method = 'put'
-        #swagger.produces = ['application/json']
-        #swagger.consumes = ['application/json']
-        #swagger.security = [{
-          'bearerAuth': []
-        }]
-
-        #swagger.parameters['id'] = {
-            in: 'path',
-            description: 'Object layer ID',
-            required: true,
-            type: 'string'
-        }
-
+        #swagger.parameters = [
+          { name: 'id', in: 'path', description: 'Object layer ID', required: true, schema: { type: 'string' } },
+        ]
         #swagger.responses[200] = {
           description: 'Object layer updated successfully',
           content: {
@@ -444,7 +402,6 @@ export function mount(router, options) {
               }
           }
         }
-
         #swagger.responses[400] = {
           description: 'Bad request. Please check the input data',
           content: {
@@ -459,9 +416,6 @@ export function mount(router, options) {
     return await ObjectLayerStudioController.put(req, res, options);
   });
   router.put(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
-    /*
-        #swagger.ignore = true
-      */
     return await ObjectLayerStudioController.put(req, res, options);
   });
 }

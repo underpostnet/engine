@@ -13,7 +13,14 @@ import colors from 'colors';
 import v8 from 'v8';
 import { clearTerminalStringColor, formatBytes } from '../../client/components/core/CommonJs.js';
 
-colors.enable();
+// Colors reach a terminal only; NO_COLOR turns them off and FORCE_COLOR on.
+const terminalColors = process.env.NO_COLOR
+  ? false
+  : process.env.FORCE_COLOR
+    ? process.env.FORCE_COLOR !== '0'
+    : Boolean(process.stdout.isTTY);
+if (terminalColors) colors.enable();
+else colors.disable();
 
 // Define your severity levels.
 // With them, You can create log files,
@@ -200,8 +207,7 @@ const loggerFormatFactory = (meta) =>
     // winston.format.errors({ stack: true }),
     // Add the message timestamp with the preferred format
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-    // Tell Winston that the logs must be colored
-    winston.format.colorize({ all: true }),
+    ...(terminalColors ? [winston.format.colorize({ all: true })] : []),
     // Define the format of the message showing the timestamp, the level and the message
     winston.format.printf((info) => {
       const splatKey = Symbol.for('splat');
@@ -213,15 +219,19 @@ const loggerFormatFactory = (meta) =>
       );
       return `${`[${meta}]`.green} ${info.timestamp} ${info.level} ${
         hasSplat
-          ? `${clearTerminalStringColor(message)}: ${colorize(splatStr, {
-              colors: {
-                StringKey: color.green,
-                StringLiteral: color.magenta,
-                NumberLiteral: color.red,
-                BooleanLiteral: color.cyan,
-                NullLiteral: color.white,
-              },
-            })}`
+          ? `${clearTerminalStringColor(message)}: ${
+              terminalColors
+                ? colorize(splatStr, {
+                    colors: {
+                      StringKey: color.green,
+                      StringLiteral: color.magenta,
+                      NumberLiteral: color.red,
+                      BooleanLiteral: color.cyan,
+                      NullLiteral: color.white,
+                    },
+                  })
+                : splatStr
+            }`
           : message
       }`;
     }),

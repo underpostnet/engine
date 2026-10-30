@@ -6,21 +6,16 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   addApiConf,
-  addClientConf,
   addWsConf,
   buildApiSrc,
-  buildClientSrc,
   buildReplicaId,
   buildWsSrc,
-  cloneConf,
-  cloneSrcComponents,
   getDataDeploy,
 } from '../../../src/server/runtime/conf.js';
 import Underpost from '../../../src/index.js';
 
-// The scaffolding commands of `bin/deploy.js` read and write paths relative to the engine root,
-// so every case runs in a fixture tree of its own.
-describe('deploy scaffolding', () => {
+// The generators read and write paths relative to the engine root, so every case runs in a fixture tree of its own.
+describe('conf scaffolding', () => {
   const cwd = process.cwd();
   let root;
 
@@ -41,92 +36,6 @@ describe('deploy scaffolding', () => {
     process.chdir(cwd);
     vi.restoreAllMocks();
     fs.removeSync(root);
-  });
-
-  const sourceConf = () => {
-    for (const env of ['production', 'development', 'test'])
-      write(`engine-private/conf/dd-default/.env.${env}`, `ENV=${env}\n`);
-    write('engine-private/conf/dd-default/conf.server.json', {
-      'default.net': { '/': { client: 'default', apis: ['user'] } },
-    });
-    write('engine-private/conf/dd-default/conf.client.json', {
-      default: { components: { default: ['AppShellDefault'] }, services: ['user', 'file'] },
-    });
-    write('engine-private/conf/dd-default/conf.cron.json', { jobs: {} });
-    write('engine-private/conf/dd-default/conf.ssr.json', { Default: { head: ['Seo'] } });
-    write('engine-private/conf/dd-default/package.json', { scripts: { start: 'node bin start dd-default' } });
-  };
-
-  describe('cloneConf', () => {
-    it('copies every environment and configuration of a deploy under the new client name', async () => {
-      sourceConf();
-      await cloneConf({ toOptions: { deployId: 'dd-shop', clientId: 'shop' }, fromOptions: {} });
-      for (const env of ['production', 'development', 'test'])
-        expect(read(`engine-private/conf/dd-shop/.env.${env}`)).to.equal(`ENV=${env}\n`);
-      expect(readJson('engine-private/conf/dd-shop/conf.client.json')).to.deep.equal({
-        shop: { components: { shop: ['AppShellShop'] }, services: ['user', 'file'] },
-      });
-      expect(readJson('engine-private/conf/dd-shop/conf.server.json')).to.deep.equal({
-        'shop.net': { '/': { client: 'shop', apis: ['user'] } },
-      });
-      expect(readJson('engine-private/conf/dd-shop/conf.ssr.json')).to.deep.equal({ Shop: { head: ['Seo'] } });
-      expect(readJson('engine-private/conf/dd-shop/package.json').scripts.start).to.equal('node bin start dd-shop');
-    });
-
-    it('overwrites the files of a deploy that already exists', async () => {
-      sourceConf();
-      write('engine-private/conf/dd-shop/conf.cron.json', { stale: true });
-      write('engine-private/conf/dd-shop/extra.json', { kept: true });
-      await cloneConf({
-        toOptions: { deployId: 'dd-shop', clientId: 'shop' },
-        fromOptions: { deployId: 'dd-default', clientId: 'default' },
-      });
-      expect(readJson('engine-private/conf/dd-shop/conf.cron.json')).to.deep.equal({ jobs: {} });
-      expect(readJson('engine-private/conf/dd-shop/extra.json')).to.deep.equal({ kept: true });
-    });
-  });
-
-  describe('addClientConf', () => {
-    it('adds the source client to the target deploy and routes one path to it', async () => {
-      sourceConf();
-      write('engine-private/conf/dd-shop/conf.client.json', { shop: { services: [] } });
-      write('engine-private/conf/dd-shop/conf.server.json', {
-        'shop.net': { '/': { client: 'shop', runtime: 'nodejs', apis: [] }, '/admin': { client: 'shop' } },
-      });
-      write('engine-private/conf/dd-shop/conf.ssr.json', { Shop: { head: [] } });
-      await addClientConf({
-        toOptions: { deployId: 'dd-shop', clientId: 'shop', host: 'shop.net', path: '/admin' },
-        fromOptions: {},
-      });
-      expect(Object.keys(readJson('engine-private/conf/dd-shop/conf.client.json'))).to.deep.equal(['shop', 'default']);
-      expect(readJson('engine-private/conf/dd-shop/conf.server.json')['shop.net']).to.deep.equal({
-        '/': { client: 'shop', runtime: 'nodejs', apis: [] },
-        '/admin': { client: 'default', runtime: 'nodejs', apis: ['user', 'file'] },
-      });
-      expect(readJson('engine-private/conf/dd-shop/conf.ssr.json')).to.deep.equal({
-        Shop: { head: [] },
-        Default: { head: ['Seo'] },
-      });
-    });
-  });
-
-  describe('buildClientSrc', () => {
-    it('copies the components, head scripts, entry point and public assets under the new client name', async () => {
-      write('src/client/components/default/AppShellDefault.js', "export const AppShellDefault = 'default';\n");
-      write('src/client/ssr/head/DefaultScripts.js', '// Default scripts\n');
-      write(
-        'src/client/Default.index.js',
-        "import { AppShellDefault } from './components/default/AppShellDefault.js';\n",
-      );
-      write('src/client/public/default/favicon.ico', 'icon');
-      await buildClientSrc({ toOptions: { deployId: 'dd-shop', clientId: 'shop' }, fromOptions: {} });
-      expect(read('src/client/components/shop/AppShellShop.js')).to.equal("export const AppShellShop = 'shop';\n");
-      expect(read('src/client/ssr/head/ShopScripts.js')).to.equal('// Shop scripts\n');
-      expect(read('src/client/Shop.index.js')).to.equal(
-        "import { AppShellShop } from './components/shop/AppShellShop.js';\n",
-      );
-      expect(read('src/client/public/shop/favicon.ico')).to.equal('icon');
-    });
   });
 
   describe('buildApiSrc', () => {
@@ -152,35 +61,50 @@ describe('deploy scaffolding', () => {
   });
 
   describe('addApiConf', () => {
-    it('serves the new API on every path that serves APIs, and gives the client its service', async () => {
-      write('engine-private/conf/dd-shop/conf.server.json', {
-        'shop.net': { '/': { apis: ['user'] }, '/static': { client: 'shop' } },
-        'admin.shop.net': { '/': { apis: [] } },
+    it('registers the API on every route with a non-empty apis list and no redirect, once', () => {
+      const conf = {
+        'shop.net': { '/': { apis: ['user'] }, '/static': { client: 'shop' }, '/empty': { apis: [] } },
+        'www.shop.net': { '/': { apis: ['user'], redirect: 'https://shop.net' } },
+        'admin.shop.net': { '/': { apis: ['user', 'order'] } },
+      };
+      expect(addApiConf(conf, { apiId: 'order' })).to.deep.equal({
+        added: ['shop.net/'],
+        present: ['admin.shop.net/'],
       });
-      write('engine-private/conf/dd-shop/conf.client.json', { shop: { services: ['user'] } });
-      await addApiConf({ toOptions: { apiId: 'order', deployId: 'dd-shop', clientId: 'shop' }, fromOptions: {} });
-      expect(readJson('engine-private/conf/dd-shop/conf.server.json')).to.deep.equal({
-        'shop.net': { '/': { apis: ['user', 'order'] }, '/static': { client: 'shop' } },
-        'admin.shop.net': { '/': { apis: ['order'] } },
+      expect(conf['shop.net']).to.deep.equal({
+        '/': { apis: ['user', 'order'] },
+        '/static': { client: 'shop' },
+        '/empty': { apis: [] },
       });
-      expect(readJson('engine-private/conf/dd-shop/conf.client.json').shop.services).to.deep.equal(['user', 'order']);
+      expect(conf['www.shop.net']['/'].apis).to.deep.equal(['user']);
+      expect(addApiConf(conf, { apiId: 'order' }).added).to.deep.equal([]);
+    });
+
+    it('limits the registration to one hostname', () => {
+      const conf = { 'a.net': { '/': { apis: ['user'] } }, 'b.net': { '/': { apis: ['user'] } } };
+      expect(addApiConf(conf, { apiId: 'order', host: 'b.net' }).added).to.deep.equal(['b.net/']);
+      expect(conf['a.net']['/'].apis).to.deep.equal(['user']);
     });
   });
 
   describe('addWsConf', () => {
-    it('binds the WebSocket only to the named paths of the named host', async () => {
-      write('engine-private/conf/dd-shop/conf.server.json', {
-        'shop.net': { '/': {}, '/admin': {}, '/api': {} },
-        'other.net': { '/': {} },
-      });
-      await addWsConf({
-        toOptions: { wsId: 'chat', deployId: 'dd-shop', host: 'shop.net', paths: '/,/admin,/missing' },
-        fromOptions: {},
-      });
-      expect(readJson('engine-private/conf/dd-shop/conf.server.json')).to.deep.equal({
+    it('binds the WebSocket only to the named paths of the named host and reports the server it replaced', () => {
+      const conf = { 'shop.net': { '/': { ws: 'core' }, '/admin': {}, '/api': {} }, 'other.net': { '/': {} } };
+      expect(addWsConf(conf, { wsId: 'chat', host: 'shop.net', paths: ['/', '/admin'] })).to.deep.equal([
+        { route: 'shop.net/', previous: 'core' },
+        { route: 'shop.net/admin', previous: undefined },
+      ]);
+      expect(conf).to.deep.equal({
         'shop.net': { '/': { ws: 'chat' }, '/admin': { ws: 'chat' }, '/api': {} },
         'other.net': { '/': {} },
       });
+      expect(addWsConf(conf, { wsId: 'chat', host: 'shop.net', paths: ['/'] })).to.deep.equal([]);
+    });
+
+    it('refuses a route that does not exist', () => {
+      expect(() => addWsConf({ 'shop.net': {} }, { wsId: 'chat', host: 'shop.net', paths: ['/missing'] })).to.throw(
+        'Route not found: shop.net/missing',
+      );
     });
   });
 
@@ -189,25 +113,9 @@ describe('deploy scaffolding', () => {
       write('src/ws/default/default.ws.server.js', "export const DefaultWsServer = 'default';\n");
       write('src/ws/default/channels/default.chat.channel.js', '// Default channel\n');
       write('src/ws/chat/chat.ws.server.js', '// edited by hand\n');
-      await buildWsSrc({ toOptions: { wsId: 'chat', paths: '/' }, fromOptions: {} });
+      await buildWsSrc({ toOptions: { wsId: 'chat' }, fromOptions: {} });
       expect(read('src/ws/chat/chat.ws.server.js')).to.equal('// edited by hand\n');
       expect(read('src/ws/chat/channels/chat.chat.channel.js')).to.equal('// Chat channel\n');
-    });
-  });
-
-  describe('cloneSrcComponents', () => {
-    it('copies a components directory under the new name', async () => {
-      write('src/client/components/default/AppDefault.js', "export const AppDefault = 'default';\n");
-      write('src/client/components/default/CssDefault.js', '// Default css\n');
-      await cloneSrcComponents({
-        toOptions: { componentsFolder: 'shop' },
-        fromOptions: { componentsFolder: 'default' },
-      });
-      expect(fs.readdirSync(path.join(root, 'src/client/components/shop')).sort()).to.deep.equal([
-        'AppShop.js',
-        'CssShop.js',
-      ]);
-      expect(read('src/client/components/shop/AppShop.js')).to.equal("export const AppShop = 'shop';\n");
     });
   });
 

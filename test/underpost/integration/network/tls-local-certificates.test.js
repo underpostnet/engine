@@ -96,7 +96,9 @@ describe.skipIf(!opensslPresent)('local TLS certificates', () => {
       fs.writeFileSync(path.join(SSL_BASE(host, LOCAL_SSL_ROOT), 'crt.crt'), 'stale');
       expect(TLS.ensureLocalCertificate(host)).to.equal(true);
       expect(fs.existsSync(SSL_BASE(host, LOCAL_SSL_ROOT))).to.equal(false);
-      expect(harness.calls).to.deep.equal([`node bin/deploy tls '${host}' '${LOCAL_SSL_ROOT}'`]);
+      expect(harness.calls).to.deep.equal([
+        `bash '${path.resolve('scripts/ssl.sh')}' '${SSL_BASE(host, LOCAL_SSL_ROOT)}' 'localhost 127.0.0.1 ::1 ${host}'`,
+      ]);
       expect(SSL_BASE(host)).to.not.equal(SSL_BASE(host, LOCAL_SSL_ROOT));
     });
   });

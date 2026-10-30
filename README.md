@@ -114,6 +114,7 @@ npm run dev
 | Command | Description |
 | --- | --- |
 | [`new`](CLI-HELP.md#underpost-new) | Initializes a new Underpost project, service, or configuration. |
+| [`site`](CLI-HELP.md#underpost-site) | Provisions sites in the configuration of a deployment: clients, host/path routes, and the existing APIs and components they use. Each operation prints its change plan and applies it as one change set. |
 | [`client`](CLI-HELP.md#underpost-client) | Builds client assets, single replicas, and/or syncs environment ports. |
 | [`start`](CLI-HELP.md#underpost-start) | Initiates application servers, build pipelines, or other defined services based on the deployment ID. |
 | [`clone`](CLI-HELP.md#underpost-clone) | Clones a specified GitHub repository into the current directory. |
