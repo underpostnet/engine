@@ -9,12 +9,10 @@ import { globSync } from 'node:fs';
 //
 // `app` and `host` left this list when the deprecated `env` alias was removed: the payloads
 // name `app load`, so an image predating the domain commands must be rebuilt.
-//
-// `underpost state <operator>` is allowed because the bootstrap stamps `container-status` only
-// after `npm link --force`, where `underpost` resolves to the pulled checkout rather than the
-// image. Stamping earlier failed with `unknown command 'state'`. `node bin state` stays listed
-// for the same reason inverted: it needs the checkout, which exists only after the clone.
-const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state (?!get|set|delete|list)\b/, /\bclient\s+\S+\s+--env\b/];
+const POST_BASELINE = [/\bnode bin state\b/, /\bunderpost state\b/, /\bclient\s+\S+\s+--env\b/];
+
+// After `npm link --force` in `pod_bootstrap_cmd`, `underpost` is the pulled checkout, not the image.
+const imageBound = (command) => command.split(/\$\(pod_bootstrap_cmd\b|\bnpm link --force\b/)[0];
 
 /**
  * Extracts every string that ends up executed inside the workload pod.
@@ -67,14 +65,21 @@ describe('in-pod CLI surface', () => {
     },
   );
 
+  it('scans a payload only up to the checkout link', () => {
+    expect(imageBound('underpost client dd-x --env production, npm link --force, underpost state set')).to.equal(
+      'underpost client dd-x --env production, ',
+    );
+    expect(imageBound('$(pod_bootstrap_cmd dd-x production), underpost client dd-x --env production')).to.equal('');
+    expect(imageBound('rm -f .env && underpost client dd-x --env production')).to.match(POST_BASELINE[2]);
+  });
+
   it('never names surface a deployed image cannot have', () => {
-    // A `--cmd` payload runs against the engine baked into the image, not this checkout. Naming
-    // a newer command there fails the container after it has already pulled and installed.
+    // Until the checkout link, a `--cmd` payload runs against the engine baked into the image.
     const offences = [];
     for (const { file, source } of sources())
       for (const command of inPodCommands(source))
         for (const pattern of POST_BASELINE)
-          if (pattern.test(command)) offences.push(`${file}: ${pattern} matched in --cmd payload`);
+          if (pattern.test(imageBound(command))) offences.push(`${file}: ${pattern} matched in --cmd payload`);
     expect(offences, offences.join('\n')).to.deep.equal([]);
   });
 

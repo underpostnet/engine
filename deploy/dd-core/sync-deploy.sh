@@ -18,7 +18,9 @@ main() {
 
     local pod_cmd
     pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV "$ENGINE_SRC_REPO"), \
-    underpost start $DEPLOY_ID $DEPLOY_ENV --build --run --skip-pull-repo-base"
+    underpost start $DEPLOY_ID $DEPLOY_ENV --build --skip-pull-repo-base, \
+    underpost client $DEPLOY_ID --env $DEPLOY_ENV --docs-only --docs build, \
+    underpost start $DEPLOY_ID $DEPLOY_ENV --run"
 
     deploy_step "Sync $DEPLOY_ID cluster" \
     sudo -n -- /bin/bash -lc \
