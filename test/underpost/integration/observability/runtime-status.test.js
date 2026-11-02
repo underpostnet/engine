@@ -2,6 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import Underpost from '../../../../src/index.js';
@@ -13,7 +14,19 @@ import {
   resolveInternalStatusPort,
   runtimeTelemetryPayload,
   setRuntimeStatus,
+  stopInternalStatusServer,
 } from '../../../../src/server/runtime/runtime-status.js';
+
+/** Binds a port on all interfaces and frees it again; rejects while another listener holds it. */
+const bindOnce = (port = 0) =>
+  new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(port, () => {
+      const bound = server.address().port;
+      server.close(() => resolve(bound));
+    });
+  });
 
 // The status endpoint and the CD monitor must resolve one port; the state store holds the phase.
 describe('runtime status contract', () => {
@@ -97,5 +110,40 @@ describe('runtime status contract', () => {
     ]);
     expect(Number.isNaN(Date.parse(payload.observedAt))).to.equal(false);
     expect(JSON.stringify(payload)).to.not.include('secret');
+  });
+});
+
+// A pod command chains start calls; only the call with --run keeps the status endpoint.
+describe('start hands the status endpoint to the next pod step', () => {
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    await stopInternalStatusServer();
+  });
+
+  /** Runs one start call with its phases stubbed and returns the statuses it publishes. */
+  const start = async (options) => {
+    const statuses = [];
+    vi.stubEnv('UNDERPOST_INTERNAL_PORT', `${await bindOnce()}`);
+    vi.spyOn(Underpost.state, 'isInsideContainer').mockReturnValue(false);
+    vi.spyOn(Underpost.state, 'set').mockImplementation((key, value) => statuses.push(value));
+    vi.spyOn(Underpost.start, 'build').mockResolvedValue();
+    vi.spyOn(Underpost.start, 'run').mockResolvedValue();
+    await Underpost.start.callback('dd-shop', 'production', options);
+    return statuses;
+  };
+
+  it('frees the port after a build without --run', async () => {
+    expect(await start({ build: true })).to.deep.equal([
+      'dd-shop-production-build-deployment',
+      'dd-shop-production-initializing-deployment',
+    ]);
+    await bindOnce(Number(process.env.UNDERPOST_INTERNAL_PORT));
+  });
+
+  it('keeps the port and never goes back to the build phase on a run', async () => {
+    expect(await start({ run: true })).to.deep.equal(['dd-shop-production-initializing-deployment']);
+    const port = Number(process.env.UNDERPOST_INTERNAL_PORT);
+    await expect(bindOnce(port)).rejects.toThrow('EADDRINUSE');
   });
 });

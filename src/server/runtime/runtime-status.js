@@ -380,7 +380,7 @@ const startInternalStatusServer = (port = resolveInternalStatusPort()) => {
 
 /**
  * Stops the internal status server if running. Returns a promise that resolves
- * once the listener is closed. Primarily a test/teardown hook.
+ * once the listener is closed.
  * @memberof RuntimeStatus
  * @returns {Promise<void>}
  */

@@ -12,6 +12,7 @@ import {
   RUNTIME_STATUS,
   setRuntimeStatus,
   startInternalStatusServer,
+  stopInternalStatusServer,
   deployStatusPort,
   setStartContainerStatus,
 } from './runtime-status.js';
@@ -179,10 +180,14 @@ class UnderpostStartUp {
       // the deployment-resolved port so it always matches the monitor's target.
       startInternalStatusServer(deployStatusPort(deployId, env));
       try {
-        setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
-        if (options.build === true) await Underpost.start.build(deployId, env, options);
+        if (options.build === true) {
+          setRuntimeStatus(deployId, env, RUNTIME_STATUS.BUILD);
+          await Underpost.start.build(deployId, env, options);
+        }
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.INIT);
         if (options.run === true) await Underpost.start.run(deployId, env, options);
+        // A call without --run frees the port and exits, so the pod command goes to its next step.
+        else await stopInternalStatusServer();
       } catch (error) {
         logger.error('Deployment build/init failed', { deployId, env, message: error?.message });
         setRuntimeStatus(deployId, env, RUNTIME_STATUS.ERROR);
