@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'fs-extra';
-import { DefaultConf } from '../../../underpost.config.js';
+import underpostConfig from '../../../underpost.config.js';
 import { PublicRoutes } from '../../../src/client/components/core/CommonJs.js';
 import {
   PUBLIC_ROUTE_RENDERER_NAMES,
@@ -71,7 +71,7 @@ describe('public route renderers', () => {
 
 describe('public routes of the deploy confs', () => {
   const confs = [
-    ['the default conf', DefaultConf.server],
+    ['the default conf', underpostConfig.server],
     ...(fs.existsSync('./engine-private/conf')
       ? fs
           .readdirSync('./engine-private/conf')

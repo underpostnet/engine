@@ -19,8 +19,10 @@ import axios from 'axios';
 import express from 'express';
 import { expect } from 'chai';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { DocumentRouter } from '../../../src/api/document/document.router.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { ApiModule as DocumentModule } from '../../../src/api/document/document.router.js';
+import { ApiModule as UserModule } from '../../../src/api/user/user.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { UserController } from '../../../src/api/user/user.controller.js';
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { jwtSign } from '../../../src/server/security/auth.js';
@@ -113,13 +115,17 @@ describe('dynamic public routes', () => {
     for (const view of ['', 'u', 'content', 'peer/u'])
       await fs.outputFile(nodePath.join(shellRoot, view, 'index.html'), `<!doctype html><title>shell:${view}</title>`);
 
-    const options = { ...context, authMiddleware: (req, res, next) => next() };
+    const pass = (req, res, next) => next();
+    const userContext = testApiContext(UserModule, { ...context, authenticate: pass });
     const app = express();
     app.use(express.static(shellRoot));
     app.use(publicRouteFallbackFactory({ root: shellRoot, path: '/' }));
-    app.use('/api/v1/document', DocumentRouter.router(options));
+    app.use(
+      '/api/v1/document',
+      DocumentModule.createRouter(testApiContext(DocumentModule, { ...context, authenticate: pass })),
+    );
     const userRouter = express.Router();
-    userRouter.get('/username/:username', (req, res) => UserController.get(req, res, options));
+    userRouter.get('/username/:username', (req, res) => UserController.get(req, res, userContext));
     app.use('/api/v1/user', userRouter);
     const peer = express();
     peer.use(publicRouteFallbackFactory({ root: shellRoot, path: '/peer' }));

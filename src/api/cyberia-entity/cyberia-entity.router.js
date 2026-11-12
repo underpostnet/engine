@@ -2,16 +2,15 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaEntityController } from './cyberia-entity.controller.js';
 
-class CyberiaEntityRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-entity',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
-    return registerCrudRoutes(express.Router(), CyberiaEntityController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaEntityRouter.router(options);
-
-export { ApiRouter, CyberiaEntityRouter };
+  createRouter(context) {
+    return registerCrudRoutes(express.Router(), CyberiaEntityController, context);
+  },
+};

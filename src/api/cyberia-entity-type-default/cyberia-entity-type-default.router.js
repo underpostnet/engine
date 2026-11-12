@@ -1,32 +1,29 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaEntityTypeDefaultController } from './cyberia-entity-type-default.controller.js';
 
-class CyberiaEntityTypeDefaultRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-entity-type-default',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
     // Custom actions first: the generic /:id routes below capture everything.
     router.post(
       `/sync-instance/:instanceCode`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaEntityTypeDefaultController.sync(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaEntityTypeDefaultController.sync(req, res, context),
     );
     router.post(
       `/:id/instances`,
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaEntityTypeDefaultController.setInstances(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaEntityTypeDefaultController.setInstances(req, res, context),
     );
-    return registerCrudRoutes(router, CyberiaEntityTypeDefaultController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaEntityTypeDefaultRouter.router(options);
-
-export { ApiRouter, CyberiaEntityTypeDefaultRouter };
+    return registerCrudRoutes(router, CyberiaEntityTypeDefaultController, context);
+  },
+};

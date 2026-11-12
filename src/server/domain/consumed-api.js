@@ -71,7 +71,7 @@ export const ownerHostOf = (confServer, api) =>
   (confServer && Object.keys(confServer).find((host) => ownsApi(confServer[host]['/'], api))) || '';
 
 /**
- * The consumed APIs of a host: from its router options, or, for a process that has only
+ * The consumed APIs of a host: from its API context, or, for a process that has only
  * `{ host, path }` such as the CLI, from the deploy's server conf.
  * @param {{host?:string,path?:string,consumes?:Object<string,string>}} [options]
  * @returns {Object<string,string>} api → owning domain.
@@ -96,19 +96,25 @@ export function apiExtensionUrl(api, project) {
 
 /**
  * The extension a host declares for one API in `apiExtensions: { "<api>": "<project>" }`: the
- * module `src/projects/<project>/<api>.extension.js`. It exports `mount(router, options)` and
- * may export hooks the API reads (`resolveKey`, `beforeDelete`, `listParams`). A host that declares none gets
- * the API as its owner ships it.
+ * module `src/projects/<project>/<api>.extension.js`, an {@link import('../../api/types.js').ApiExtension}.
+ * It names the API it extends, exports `mount(router, context)`, and may export the hooks the API
+ * reads (`resolveKey`, `listParams`, `beforeDelete`). A host that declares none gets the API as its
+ * owner ships it.
  * @param {string} api
  * @param {Object<string,string>} [apiExtensions]
- * @returns {Promise<Object|undefined>}
+ * @returns {Promise<import('../../api/types.js').ApiExtension|undefined>}
+ * @throws {Error} When the module extends another API or breaks the contract.
  * @memberof ConsumedApi
  */
 export async function loadApiExtension(api, apiExtensions = {}) {
   const project = apiExtensions?.[api];
   if (!project) return undefined;
   const extension = await import(apiExtensionUrl(api, project).href);
+  if (extension.api !== api) throw new Error(`Extension ${project}/${api} extends "${extension.api}", not "${api}"`);
   if (typeof extension.mount !== 'function')
-    throw new Error(`Extension ${project}/${api} exports no mount(router, options)`);
+    throw new Error(`Extension ${project}/${api} exports no mount(router, context)`);
+  for (const hook of ['resolveKey', 'listParams', 'beforeDelete'])
+    if (extension[hook] !== undefined && typeof extension[hook] !== 'function')
+      throw new Error(`Extension ${project}/${api} exports a ${hook} that is not a function`);
   return extension;
 }

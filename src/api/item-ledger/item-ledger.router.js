@@ -1,16 +1,19 @@
 import express from 'express';
-import { adminGuard } from '../../server/security/auth.js';
 import { ItemLedgerController } from './item-ledger.controller.js';
 
-class ItemLedgerRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'item-ledger',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    const adminOnly = [options.authMiddleware, adminGuard];
-    const get = async (req, res) => await ItemLedgerController.get(req, res, options);
+    const adminOnly = auth.requireAdmin;
+    const get = async (req, res) => await ItemLedgerController.get(req, res, context);
 
     router.get(`/token-id/:cid`, get);
     router.get(`/cid/:cid`, get);
@@ -18,12 +21,8 @@ class ItemLedgerRouter {
     router.get(`/asset/:chainId/:contractAddress/:tokenId`, get);
     router.get(`/:id`, get);
     router.get(`/`, get);
-    router.post(`/`, ...adminOnly, async (req, res) => await ItemLedgerController.post(req, res, options));
-    router.delete(`/:id`, ...adminOnly, async (req, res) => await ItemLedgerController.delete(req, res, options));
+    router.post(`/`, ...adminOnly, async (req, res) => await ItemLedgerController.post(req, res, context));
+    router.delete(`/:id`, ...adminOnly, async (req, res) => await ItemLedgerController.delete(req, res, context));
     return router;
-  }
-}
-
-const ApiRouter = (options) => ItemLedgerRouter.router(options);
-
-export { ApiRouter, ItemLedgerRouter };
+  },
+};

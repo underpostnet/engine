@@ -2,16 +2,15 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaAudioController } from './cyberia-audio.controller.js';
 
-class CyberiaAudioRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-audio',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
-    return registerCrudRoutes(express.Router(), CyberiaAudioController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaAudioRouter.router(options);
-
-export { ApiRouter, CyberiaAudioRouter };
+  createRouter(context) {
+    return registerCrudRoutes(express.Router(), CyberiaAudioController, context);
+  },
+};

@@ -1,11 +1,6 @@
-import { hashPassword } from '../../server/security/auth.js';
-import fs from 'fs-extra';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { UserController } from './user.controller.js';
 import express from 'express';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-
-const logger = loggerFactory(import.meta);
+import { UserController } from './user.controller.js';
+import { UserService } from './user.service.js';
 
 /*
   #swagger.components.schemas.userRequest = {
@@ -65,80 +60,49 @@ const logger = loggerFactory(import.meta);
   }
 */
 
-class UserRouter {
+/** The images a mailer link answers, by name. */
+const mailerImage = (name) => ({
+  file: new URL(`../../client/public/default/assets/mailer/${name}.png`, import.meta.url),
+  contentType: 'image/png',
+});
+
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'user',
+  services: ['database', 'auth', 'mailer', 'assets'],
+  assets: {
+    'invalid-token': mailerImage('api-user-invalid-token'),
+    recover: mailerImage('api-user-recover'),
+    check: mailerImage('api-user-check'),
+    avatar: mailerImage('api-user-default-avatar'),
+  },
+  initialize: (context) => UserService.bootstrap(context),
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
 
-    // Admin user seed — fire-and-forget async on first router mount.
-    (async () => {
-      try {
-        const User = DataBaseProviderService.getModel('user', options);
-        // Production connections build no index on their own; the unique email and username indexes are the authority.
-        await User.createIndexes().catch((error) => logger.error('User index build failed', { error: error.message }));
-        const adminUser = await User.findOne({ role: 'admin' });
-        if (!adminUser) {
-          const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
-          const hashedPassword = await hashPassword(defaultPassword);
-
-          const result = await User.create({
-            username: 'admin',
-            email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@' + options.host,
-            password: hashedPassword,
-            role: 'admin',
-            emailConfirmed: true,
-          });
-          logger.warn('Default admin user created. Please change the default password immediately!', {
-            username: result._doc.username,
-            email: result._doc.email,
-            role: result._doc.role,
-          });
-        }
-      } catch (error) {
-        logger.error('Error checking/creating admin user', { error: error.message });
-      }
-
-      // Cache mailer images into options.png so route handlers can serve them
-      // without re-reading the filesystem on every request.
-      options.png = {
-        buffer: {
-          'invalid-token': fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-invalid-token.png`),
-          recover: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-recover.png`),
-          check: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-check.png`),
-          avatar: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-default-avatar.png`),
-        },
-        header: (res, req) => {
-          res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-          res.set('Access-Control-Allow-Headers', '*');
-          if (req && req.headers && req.headers.origin) {
-            res.set('Access-Control-Allow-Origin', req.headers.origin);
-          } else res.setHeader('Access-Control-Allow-Origin', '*');
-          res.set('Content-Type', 'image/png');
-        },
-      };
-    })();
-
-    router.post(`/mailer/:id`, options.authMiddleware, async (req, res) => {
-      return await UserController.post(req, res, options);
+    router.post(`/mailer/:id`, auth.authenticate, async (req, res) => {
+      return await UserController.post(req, res, context);
     });
 
     router.get(`/assets/:id`, async (req, res) => {
-      return await UserController.get(req, res, options);
+      return await UserController.get(req, res, context);
     });
 
     router.get(`/mailer/:id`, async (req, res) => {
-      return await UserController.get(req, res, options);
+      return await UserController.get(req, res, context);
     });
 
-    router.get(`/email/:email`, options.authMiddleware, async (req, res) => {
-      return await UserController.get(req, res, options);
+    router.get(`/email/:email`, auth.authenticate, async (req, res) => {
+      return await UserController.get(req, res, context);
     });
 
     router.post(`/:id`, async (req, res) => {
-      return await UserController.post(req, res, options);
+      return await UserController.post(req, res, context);
     });
 
     /*
@@ -205,18 +169,18 @@ class UserRouter {
           }
         }
       */
-      return await UserController.post(req, res, options);
+      return await UserController.post(req, res, context);
     });
 
     router.get(`/recover/:id`, async (req, res) => {
-      return await UserController.get(req, res, options);
+      return await UserController.get(req, res, context);
     });
 
     router.get(`/username/:username`, async (req, res) => {
-      return await UserController.get(req, res, options);
+      return await UserController.get(req, res, context);
     });
 
-    router.get(`/:id`, options.authMiddleware, async (req, res) => {
+    router.get(`/:id`, auth.authenticate, async (req, res) => {
       /*
         #swagger.summary = 'Get user data by ID'
         #swagger.description = 'This endpoint get user data by ID'
@@ -246,22 +210,22 @@ class UserRouter {
           }
         }
       */
-      return await UserController.get(req, res, options);
+      return await UserController.get(req, res, context);
     });
 
-    router.get(`/`, options.authMiddleware, async (req, res) => {
-      return await UserController.get(req, res, options);
+    router.get(`/`, auth.authenticate, async (req, res) => {
+      return await UserController.get(req, res, context);
     });
 
     router.put(`/recover/:id`, async (req, res) => {
-      return await UserController.put(req, res, options);
+      return await UserController.put(req, res, context);
     });
 
-    router.put(`/profile-image/:id`, options.authMiddleware, async (req, res) => {
-      return await UserController.put(req, res, options);
+    router.put(`/profile-image/:id`, auth.authenticate, async (req, res) => {
+      return await UserController.put(req, res, context);
     });
 
-    router.put(`/:id`, options.authMiddleware, async (req, res) => {
+    router.put(`/:id`, auth.authenticate, async (req, res) => {
       /*
         #swagger.summary = 'Update user data by ID'
         #swagger.description = 'This endpoint will update user data by ID'
@@ -296,14 +260,14 @@ class UserRouter {
           }
         }
       */
-      return await UserController.put(req, res, options);
+      return await UserController.put(req, res, context);
     });
 
-    router.put(`/`, options.authMiddleware, async (req, res) => {
-      return await UserController.put(req, res, options);
+    router.put(`/`, auth.authenticate, async (req, res) => {
+      return await UserController.put(req, res, context);
     });
 
-    router.delete(`/:id`, options.authMiddleware, async (req, res) => {
+    router.delete(`/:id`, auth.authenticate, async (req, res) => {
       /*
         #swagger.summary = 'Delete user data by ID'
         #swagger.description = 'This endpoint deletes user data by ID, the path ID must match with the ID of the authenticated user'
@@ -333,17 +297,13 @@ class UserRouter {
           }
         }
       */
-      return await UserController.delete(req, res, options);
+      return await UserController.delete(req, res, context);
     });
 
-    router.delete(`/`, options.authMiddleware, async (req, res) => {
-      return await UserController.delete(req, res, options);
+    router.delete(`/`, auth.authenticate, async (req, res) => {
+      return await UserController.delete(req, res, context);
     });
 
     return router;
-  }
-}
-
-const ApiRouter = (options) => UserRouter.router(options);
-
-export { ApiRouter, UserRouter };
+  },
+};

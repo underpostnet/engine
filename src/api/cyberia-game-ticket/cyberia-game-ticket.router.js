@@ -18,18 +18,18 @@
 import express from 'express';
 import { CyberiaGameTicketController } from './cyberia-game-ticket.controller.js';
 
-class CyberiaGameTicketRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-game-ticket',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    router.post('/', options.authMiddleware, async (req, res) => CyberiaGameTicketController.post(req, res, options));
+    router.post('/', auth.authenticate, async (req, res) => CyberiaGameTicketController.post(req, res, context));
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaGameTicketRouter.router(options);
-
-export { ApiRouter, CyberiaGameTicketRouter };
+  },
+};

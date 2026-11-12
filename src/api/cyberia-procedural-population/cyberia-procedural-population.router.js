@@ -1,18 +1,21 @@
 import express from 'express';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaProceduralPopulationController } from './cyberia-procedural-population.controller.js';
 
-class CyberiaProceduralPopulationRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-procedural-population',
+  services: ['database', 'auth'],
   /**
    * The map population API of the Procedural Engine: every route needs a moderator.
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    const guards = [options.authMiddleware, moderatorGuard];
+    const guards = auth.requireModerator;
     const handle = (method) => async (req, res) =>
-      await CyberiaProceduralPopulationController[method](req, res, options);
+      await CyberiaProceduralPopulationController[method](req, res, context);
     router.get(`/maps`, ...guards, async (req, res) => {
       /*
         #swagger.summary = 'List map summaries'
@@ -43,7 +46,7 @@ class CyberiaProceduralPopulationRouter {
     router.get(`/`, ...guards, async (req, res) => {
       /*
         #swagger.summary = 'List populations'
-        #swagger.description = 'Paginated populations, newest first, each with its item groups and its status; a record of an earlier version is outdated and read-only until `cyberia population migrate --apply` moves it, or a delete takes it.'
+        #swagger.description = 'Paginated populations, newest first, each with its item groups and its status; a record of an earlier version is outdated and read-only until `cyberia content population migrate --apply` moves it, or a delete takes it.'
         #swagger.path = '/cyberia-procedural-population'
         #swagger.method = 'get'
       */
@@ -473,9 +476,5 @@ class CyberiaProceduralPopulationRouter {
       return await handle('delete')(req, res);
     });
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaProceduralPopulationRouter.router(options);
-
-export { ApiRouter, CyberiaProceduralPopulationRouter };
+  },
+};

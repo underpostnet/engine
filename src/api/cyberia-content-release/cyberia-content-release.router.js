@@ -1,22 +1,21 @@
 import express from 'express';
 import { CyberiaContentReleaseController } from './cyberia-content-release.controller.js';
 
-class CyberiaContentReleaseRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-content-release',
+  services: ['database'],
   /**
    * Read-only: the release ledger is written by the operator CLI, never over HTTP.
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
     const router = express.Router();
-    const handle = (method) => async (req, res) => await CyberiaContentReleaseController[method](req, res, options);
+    const handle = (method) => async (req, res) => await CyberiaContentReleaseController[method](req, res, context);
     router.get(`/active`, handle('get'));
     router.get(`/:id`, handle('get'));
     router.get(`/`, handle('get'));
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaContentReleaseRouter.router(options);
-
-export { ApiRouter, CyberiaContentReleaseRouter };
+  },
+};

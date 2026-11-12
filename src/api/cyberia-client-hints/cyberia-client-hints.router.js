@@ -23,26 +23,25 @@ import express from 'express';
 import { crossOriginMiddleware } from '../../server/network/middlewares.js';
 import { CyberiaClientHintsController } from './cyberia-client-hints.controller.js';
 
-class CyberiaClientHintsRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-client-hints',
+  services: ['database'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
     const router = express.Router();
     router.use(crossOriginMiddleware);
 
     // GET /:code -> resolved hints. See the resolution order in
     // cyberia-client-hints.service.js.
-    router.get('/:code', async (req, res) => await CyberiaClientHintsController.getByCode(req, res, options));
+    router.get('/:code', async (req, res) => await CyberiaClientHintsController.getByCode(req, res, context));
 
     // GET / -> canonical defaults. No DB read.
-    router.get('/', async (req, res) => await CyberiaClientHintsController.getDefaults(req, res, options));
+    router.get('/', async (req, res) => await CyberiaClientHintsController.getDefaults(req, res, context));
 
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaClientHintsRouter.router(options);
-
-export { ApiRouter, CyberiaClientHintsRouter };
+  },
+};

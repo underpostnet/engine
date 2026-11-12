@@ -2,16 +2,15 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { ObjectLayerRenderFramesController } from './object-layer-render-frames.controller.js';
 
-class ObjectLayerRenderFramesRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'object-layer-render-frames',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
-    return registerCrudRoutes(express.Router(), ObjectLayerRenderFramesController, options);
-  }
-}
-
-const ApiRouter = (options) => ObjectLayerRenderFramesRouter.router(options);
-
-export { ApiRouter, ObjectLayerRenderFramesRouter };
+  createRouter(context) {
+    return registerCrudRoutes(express.Router(), ObjectLayerRenderFramesController, context);
+  },
+};

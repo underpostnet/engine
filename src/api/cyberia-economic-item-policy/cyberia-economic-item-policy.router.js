@@ -15,18 +15,17 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaEconomicItemPolicyController } from './cyberia-economic-item-policy.controller.js';
 
-class CyberiaEconomicItemPolicyRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-economic-item-policy',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
     const router = express.Router();
-    router.get('/view', async (req, res) => await CyberiaEconomicItemPolicyController.view(req, res, options));
-    return registerCrudRoutes(router, CyberiaEconomicItemPolicyController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaEconomicItemPolicyRouter.router(options);
-
-export { ApiRouter, CyberiaEconomicItemPolicyRouter };
+    router.get('/view', async (req, res) => await CyberiaEconomicItemPolicyController.view(req, res, context));
+    return registerCrudRoutes(router, CyberiaEconomicItemPolicyController, context);
+  },
+};

@@ -16,22 +16,21 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaUniverseController } from './cyberia-universe.controller.js';
 
-class CyberiaUniverseRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-universe',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
     const router = express.Router();
     router.get(
       '/instance/:instanceCode',
-      async (req, res) => await CyberiaUniverseController.ofInstance(req, res, options),
+      async (req, res) => await CyberiaUniverseController.ofInstance(req, res, context),
     );
-    router.get('/:id/view', async (req, res) => await CyberiaUniverseController.view(req, res, options));
-    return registerCrudRoutes(router, CyberiaUniverseController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaUniverseRouter.router(options);
-
-export { ApiRouter, CyberiaUniverseRouter };
+    router.get('/:id/view', async (req, res) => await CyberiaUniverseController.view(req, res, context));
+    return registerCrudRoutes(router, CyberiaUniverseController, context);
+  },
+};

@@ -16,34 +16,31 @@
 
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaMarketController } from './cyberia-market.controller.js';
 
-class CyberiaMarketRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-market',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    router.get('/schema/contract', async (req, res) => await CyberiaMarketController.contract(req, res, options));
-    router.get('/:id/view', async (req, res) => await CyberiaMarketController.view(req, res, options));
+    router.get('/schema/contract', async (req, res) => await CyberiaMarketController.contract(req, res, context));
+    router.get('/:id/view', async (req, res) => await CyberiaMarketController.view(req, res, context));
     router.post(
       '/:id/clone',
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaMarketController.clone(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaMarketController.clone(req, res, context),
     );
     router.post(
       '/:id/reload',
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaMarketController.reload(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaMarketController.reload(req, res, context),
     );
-    return registerCrudRoutes(router, CyberiaMarketController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaMarketRouter.router(options);
-
-export { ApiRouter, CyberiaMarketRouter };
+    return registerCrudRoutes(router, CyberiaMarketController, context);
+  },
+};

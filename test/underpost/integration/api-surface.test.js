@@ -4,7 +4,8 @@ import axios from 'axios';
 import express from 'express';
 
 import { expect } from 'chai';
-import { TestRouter } from '../../../src/api/test/test.router.js';
+import { ApiModule as TestModule } from '../../../src/api/test/test.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { loggerFactory } from '../../../src/server/ops/logger.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 
@@ -14,7 +15,10 @@ await logger.setUpInfo();
 
 describe(`GET 'Test' API Request `, async () => {
   const app = express();
-  app.use(`${apiPathOf()}/test`, TestRouter.router({ authMiddleware: (_req, _res, next) => next() }));
+  app.use(
+    `${apiPathOf()}/test`,
+    TestModule.createRouter(testApiContext(TestModule, { authenticate: (_req, _res, next) => next() })),
+  );
 
   let server;
   let baseUrl;

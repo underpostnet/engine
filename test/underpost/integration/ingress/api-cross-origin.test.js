@@ -67,14 +67,14 @@ describe('public API cross-origin policy', () => {
     // rather than restating the headers.
     const response = responseSpy();
     await serviceHandler(async () => ({ ok: true }), { crossOrigin: true })(
-      requestFrom('https://www.cyberiaonline.com'),
+      requestFrom('https://services.cyberiaonline.com'),
       response,
       {},
     );
-    expect(response.headers['Access-Control-Allow-Origin']).to.equal('https://www.cyberiaonline.com');
+    expect(response.headers['Access-Control-Allow-Origin']).to.equal('https://services.cyberiaonline.com');
 
     const direct = responseSpy();
-    setCrossOriginHeaders(requestFrom('https://www.cyberiaonline.com'), direct);
+    setCrossOriginHeaders(requestFrom('https://services.cyberiaonline.com'), direct);
     expect(direct.headers).to.deep.equal(response.headers);
   });
 });

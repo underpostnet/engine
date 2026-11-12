@@ -1,32 +1,31 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { EventSchedulerController } from './event-scheduler.controller.js';
 
-class EventSchedulerRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'event-scheduler',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
     router.get(
       `/creatorUser`,
-      options.authMiddleware,
-      async (req, res) => await EventSchedulerController.get(req, res, options),
+      auth.authenticate,
+      async (req, res) => await EventSchedulerController.get(req, res, context),
     );
     router.get(
       `/creatorUser/:id`,
-      options.authMiddleware,
-      async (req, res) => await EventSchedulerController.get(req, res, options),
+      auth.authenticate,
+      async (req, res) => await EventSchedulerController.get(req, res, context),
     );
     // Collection delete uses moderator (not admin) guard, matching prior behavior.
-    return registerCrudRoutes(router, EventSchedulerController, options, {
-      deleteAllGuards: [options.authMiddleware, moderatorGuard],
+    return registerCrudRoutes(router, EventSchedulerController, context, {
+      deleteAllGuards: auth.requireModerator,
     });
-  }
-}
-
-const ApiRouter = (options) => EventSchedulerRouter.router(options);
-
-export { ApiRouter, EventSchedulerRouter };
+  },
+};

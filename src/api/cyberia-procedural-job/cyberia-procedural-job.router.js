@@ -1,20 +1,44 @@
 import express from 'express';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { startProceduralWorker } from '../../projects/cyberia/procedural/jobs/worker.js';
 import { CyberiaProceduralJobController } from './cyberia-procedural-job.controller.js';
 
-class CyberiaProceduralJobRouter {
+/*
+  #swagger.components.schemas.ProceduralApprovalRequest = {
+    type: 'object',
+    required: ['cid'],
+    properties: {
+      cid: { type: 'string', description: 'The cid of the revision the approval covers.' },
+      reason: { type: 'string', description: 'Why the reviewer approves it.' },
+    },
+  }
+  #swagger.components.schemas.ProceduralRejectionRequest = {
+    type: 'object',
+    properties: { reason: { type: 'string', description: 'Why the reviewer rejects it.' } },
+  }
+*/
+
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-procedural-job',
+  services: ['database', 'auth'],
   /**
-   * The Procedural Engine API: every route needs a moderator. Building the router starts the
-   * background worker of the host.
-   * @param {import('../types.js').RouterOptions} options
+   * Starts the background worker of the host path.
+   * @param {import('../types.js').ApiRouterContext} context
+   * @returns {Promise<void>}
+   */
+  initialize: async (context) => {
+    startProceduralWorker(context);
+  },
+  /**
+   * The Procedural Engine API: every route needs a moderator.
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    const guards = [options.authMiddleware, moderatorGuard];
-    const handle = (method) => async (req, res) => await CyberiaProceduralJobController[method](req, res, options);
-    startProceduralWorker(options);
+    const guards = auth.requireModerator;
+    const handle = (method) => async (req, res) => await CyberiaProceduralJobController[method](req, res, context);
     router.post(`/`, ...guards, async (req, res) => {
       /*
         #swagger.summary = 'Create a generation job'
@@ -108,18 +132,39 @@ class CyberiaProceduralJobRouter {
     router.post(`/:jobId/items/:itemId/approve`, ...guards, async (req, res) => {
       /*
         #swagger.summary = 'Approve a revision'
-        #swagger.description = 'Body { cid, reason? }. Approves the revision the cid names; it must be the current one and technically valid.'
+        #swagger.description = 'Approves the revision the cid names. It must be the current revision of the item and technically valid, and no other candidate of the target item may be approved.'
         #swagger.path = '/cyberia-procedural-job/{jobId}/items/{itemId}/approve'
         #swagger.method = 'post'
+        #swagger.requestBody = {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ProceduralApprovalRequest' },
+              examples: { approval: { summary: 'Approve the current revision', value: { cid: '<revision-cid>', reason: 'Reviewed' } } },
+            },
+          },
+        }
+        #swagger.responses[409] = {
+          description: 'The cid is not the current revision, the revision is not technically valid, or another candidate of the target item is approved.',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+        }
       */
       return await handle('approve')(req, res);
     });
     router.post(`/:jobId/items/:itemId/reject`, ...guards, async (req, res) => {
       /*
         #swagger.summary = 'Reject an item'
-        #swagger.description = 'Body { reason? }. Rejects the current revision.'
+        #swagger.description = 'Rejects the current revision of the item.'
         #swagger.path = '/cyberia-procedural-job/{jobId}/items/{itemId}/reject'
         #swagger.method = 'post'
+        #swagger.requestBody = {
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ProceduralRejectionRequest' },
+              examples: { rejection: { summary: 'Reject with a reason', value: { reason: 'The silhouette breaks the palette' } } },
+            },
+          },
+        }
       */
       return await handle('reject')(req, res);
     });
@@ -151,9 +196,5 @@ class CyberiaProceduralJobRouter {
       return await handle('promoteJob')(req, res);
     });
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaProceduralJobRouter.router(options);
-
-export { ApiRouter, CyberiaProceduralJobRouter };
+  },
+};

@@ -1,22 +1,21 @@
 import express from 'express';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaMarketListingController } from './cyberia-market-listing.controller.js';
 
-class CyberiaMarketListingRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-market-listing',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     // The game server writes over gRPC; moderators read here.
     const router = express.Router();
-    const guards = [options.authMiddleware, moderatorGuard];
-    router.get('/:id', ...guards, async (req, res) => CyberiaMarketListingController.get(req, res, options));
-    router.get('/', ...guards, async (req, res) => CyberiaMarketListingController.get(req, res, options));
+    const guards = auth.requireModerator;
+    router.get('/:id', ...guards, async (req, res) => CyberiaMarketListingController.get(req, res, context));
+    router.get('/', ...guards, async (req, res) => CyberiaMarketListingController.get(req, res, context));
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaMarketListingRouter.router(options);
-
-export { ApiRouter, CyberiaMarketListingRouter };
+  },
+};

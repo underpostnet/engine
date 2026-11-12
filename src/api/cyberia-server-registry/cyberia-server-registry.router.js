@@ -22,25 +22,24 @@
  */
 
 import express from 'express';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { serverKeyGuard } from '../../projects/cyberia/runtime/server-key.js';
 import { CyberiaServerRegistryController } from './cyberia-server-registry.controller.js';
 
-class CyberiaServerRegistryRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-server-registry',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    const handle = (method) => async (req, res) => await CyberiaServerRegistryController[method](req, res, options);
+    const handle = (method) => async (req, res) => await CyberiaServerRegistryController[method](req, res, context);
     router.post('/', serverKeyGuard, handle('report'));
-    router.get('/servers', options.authMiddleware, moderatorGuard, handle('servers'));
+    router.get('/servers', auth.requireModerator, handle('servers'));
     router.get('/', handle('endpoints'));
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaServerRegistryRouter.router(options);
-
-export { ApiRouter, CyberiaServerRegistryRouter };
+  },
+};

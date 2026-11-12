@@ -20,8 +20,9 @@ import nodePath from 'path';
 import fs from 'fs-extra';
 import express from 'express';
 import { expect } from 'chai';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { applySecurity, authMiddlewareFactory } from '../../../src/server/security/auth.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { applySecurity } from '../../../src/server/security/auth.js';
+import { startTestApi } from '../../support/api-module.js';
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { findBinary } from '../../support/binary.js';
@@ -95,17 +96,16 @@ describe.skipIf(!puppeteer || !browserBinary || !mongodBinary || !clientBuilt)('
     await provider.models.Document.ensureStableSlugs();
     seeded = await seed(provider.models);
 
-    // Same middleware order as the runtime (`src/runtime/express/Express.js`): the shell is served
+    // Same middleware order as the runtime (`src/runtime/express/express.js`): the shell is served
     // like a static view, ahead of the security headers the API responses carry.
-    const options = { ...context, apiPath: apiPathOf(context.path), authMiddleware: authMiddlewareFactory(context) };
     const app = express();
     app.use(express.json());
     app.use(express.static(clientRoot));
     app.use(publicRouteFallbackFactory({ root: clientRoot, path: '/' }));
     applySecurity(app, { origin: [] });
     for (const api of apis) {
-      const { ApiRouter } = await import(`../../../src/api/${api}/${api}.router.js`);
-      app.use(`${options.apiPath}/${api}`, ApiRouter({ ...options, app }));
+      const { ApiModule } = await import(`../../../src/api/${api}/${api}.router.js`);
+      app.use(`${apiPathOf(context.path)}/${api}`, (await startTestApi(ApiModule, context)).router);
     }
     app.use((req, res) => res.sendStatus(404));
     server = await listen(app);

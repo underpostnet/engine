@@ -2,16 +2,15 @@ import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
 import { CyberiaSkillController } from './cyberia-skill.controller.js';
 
-class CyberiaSkillRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-skill',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
-    return registerCrudRoutes(express.Router(), CyberiaSkillController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaSkillRouter.router(options);
-
-export { ApiRouter, CyberiaSkillRouter };
+  createRouter(context) {
+    return registerCrudRoutes(express.Router(), CyberiaSkillController, context);
+  },
+};

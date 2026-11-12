@@ -1,22 +1,19 @@
 import express from 'express';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaPlayerAuditController } from './cyberia-player-audit.controller.js';
 
-class CyberiaPlayerAuditRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-player-audit',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     // The player API writes the trail; moderators read it.
     const router = express.Router();
-    router.get('/', options.authMiddleware, moderatorGuard, async (req, res) =>
-      CyberiaPlayerAuditController.get(req, res, options),
-    );
+    router.get('/', auth.requireModerator, async (req, res) => CyberiaPlayerAuditController.get(req, res, context));
     return router;
-  }
-}
-
-const ApiRouter = (options) => CyberiaPlayerAuditRouter.router(options);
-
-export { ApiRouter, CyberiaPlayerAuditRouter };
+  },
+};

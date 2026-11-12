@@ -1,35 +1,24 @@
 import express from 'express';
-import { adminGuard } from '../../server/security/auth.js';
 import { FileController } from './file.controller.js';
 
-class FileRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'file',
+  services: ['database', 'auth'],
   /**
    * authenticated writes, admin-only deletes and full listing.
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
-    router.post(`/:id`, options.authMiddleware, async (req, res) => await FileController.post(req, res, options));
-    router.post(`/`, options.authMiddleware, async (req, res) => await FileController.post(req, res, options));
-    router.get(`/blob/:id`, async (req, res) => await FileController.get(req, res, options));
-    router.get(
-      `/all`,
-      options.authMiddleware,
-      adminGuard,
-      async (req, res) => await FileController.get(req, res, options),
-    );
-    router.get(`/:id`, async (req, res) => await FileController.get(req, res, options));
-    router.delete(
-      `/:id`,
-      options.authMiddleware,
-      adminGuard,
-      async (req, res) => await FileController.delete(req, res, options),
-    );
+    router.post(`/:id`, auth.authenticate, async (req, res) => await FileController.post(req, res, context));
+    router.post(`/`, auth.authenticate, async (req, res) => await FileController.post(req, res, context));
+    router.get(`/blob/:id`, async (req, res) => await FileController.get(req, res, context));
+    router.get(`/all`, auth.requireAdmin, async (req, res) => await FileController.get(req, res, context));
+    router.get(`/:id`, async (req, res) => await FileController.get(req, res, context));
+    router.delete(`/:id`, auth.requireAdmin, async (req, res) => await FileController.delete(req, res, context));
     return router;
-  }
-}
-
-const ApiRouter = (options) => FileRouter.router(options);
-
-export { ApiRouter, FileRouter };
+  },
+};

@@ -30,9 +30,9 @@ describe('the versioned API contract', () => {
   });
 
   it('mounts every API router once, under the versioned path only', () => {
-    const express = read('src/runtime/express/Express.js');
+    const express = read('src/runtime/express/express.js');
     expect(express).toContain('const apiPath = apiPathOf(path);');
-    expect(express.match(/app\.use\(`\$\{apiPath\}\/\$\{api\}`, router\)/g)).toHaveLength(1);
+    expect(express.match(/app\.use\(`\$\{apiPath\}\/\$\{api\}`, built\.router\)/g)).toHaveLength(1);
   });
 
   it('is not configurable: no BASE_API in code, templates or tests', () => {

@@ -8,11 +8,11 @@ vi.mock('../../../src/client/components/core/Logger.js', () => ({
 vi.mock('../../../src/client/components/core/Router.js', () => ({ getProxyPath: () => '/' }));
 const manifest = {};
 vi.mock('../../../src/client/components/core/BuildManifest.js', () => ({ buildManifest: () => manifest }));
-vi.mock('../../../src/client/services/user/guest.service.js', () => ({
+vi.mock('../../../src/client/services/user/GuestService.js', () => ({
   GuestService: { getAuthorizationHeader: () => '' },
 }));
 
-const { getApiBaseUrl, readResponse } = await import('../../../src/client/services/core/core.service.js');
+const { getApiBaseUrl, readResponse } = await import('../../../src/client/services/core/CoreService.js');
 
 const answer = (status, body, url = 'http://localhost:4017/api/v1/object-layer') =>
   Object.defineProperty(new Response(body, { status }), 'url', { value: url });

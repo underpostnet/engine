@@ -1,39 +1,36 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { moderatorGuard } from '../../server/security/auth.js';
 import { CyberiaMapAudioConfController } from './cyberia-map-audio-conf.controller.js';
 
-class CyberiaMapAudioConfRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cyberia-map-audio-conf',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
 
     // Map-code routes are registered before the CRUD routes: the generic `/:id`
     // handlers capture every single-segment path once they are mounted.
     router.get(
       '/map-code/:mapCode',
-      async (req, res) => await CyberiaMapAudioConfController.getByMapCode(req, res, options),
+      async (req, res) => await CyberiaMapAudioConfController.getByMapCode(req, res, context),
     );
     router.post(
       '/map-code/:mapCode',
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaMapAudioConfController.assign(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaMapAudioConfController.assign(req, res, context),
     );
     router.post(
       '/map-code/:mapCode/seed-default',
-      options.authMiddleware,
-      moderatorGuard,
-      async (req, res) => await CyberiaMapAudioConfController.seedDefault(req, res, options),
+      auth.requireModerator,
+      async (req, res) => await CyberiaMapAudioConfController.seedDefault(req, res, context),
     );
 
-    return registerCrudRoutes(router, CyberiaMapAudioConfController, options);
-  }
-}
-
-const ApiRouter = (options) => CyberiaMapAudioConfRouter.router(options);
-
-export { ApiRouter, CyberiaMapAudioConfRouter };
+    return registerCrudRoutes(router, CyberiaMapAudioConfController, context);
+  },
+};

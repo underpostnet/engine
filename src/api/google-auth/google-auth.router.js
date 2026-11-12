@@ -1,9 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { Passport } from 'passport';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { loggerFactory } from '../../server/ops/logger.js';
-import { userGuard } from '../../server/security/auth.js';
 import { GoogleAuthController } from './google-auth.controller.js';
 import {
   GOOGLE_AUTH_SCOPES,
@@ -13,27 +10,35 @@ import {
   returnPath,
 } from './google-auth.service.js';
 
-const logger = loggerFactory(import.meta);
-
-class GoogleAuthRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'google-auth',
+  services: ['database', 'auth'],
+  /**
+   * Checks the OAuth client of the host, then builds the unique indexes that keep one user per
+   * Google account: production connections build no index on their own.
+   * @param {import('../types.js').ApiRouterContext} context
+   * @returns {Promise<void>}
+   * @throws {Error} When the OAuth client is not configured or an index cannot be built.
+   */
+  initialize: async (context) => {
+    googleAuthConfig(context);
+    await context.services.database.getModel('GoogleAuth').createIndexes();
+  },
   /**
    * Google sign-in: `GET /?view=` starts it, `GET /callback` is the redirect URI Google lists,
    * `POST /session` exchanges a flow's ticket for a session, and `POST /link` links a flow's
    * Google account to the signed-in user. Each host gets its own Passport instance, and no
    * Passport session.
-   * @param {import('../types.js').RouterOptions} options
-   * @returns {import('express').Router}
    * @throws {Error} When the deploy environment does not configure the OAuth client.
+   * @param {import('../types.js').ApiRouterContext} context
+   * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
     const passport = new Passport();
-    passport.use(GoogleAuthService.strategy(options, googleAuthConfig(options)));
-
-    // Production connections build no index on their own; the unique ones keep one user per Google account.
-    Promise.resolve()
-      .then(() => DataBaseProviderService.getModel('GoogleAuth', options).createIndexes())
-      .catch((error) => logger.error('GoogleAuth index build failed', { error: error.message }));
+    passport.use(GoogleAuthService.strategy(context, googleAuthConfig(context)));
 
     if (!process.env.DISABLE_API_RATE_LIMIT)
       router.use(
@@ -44,7 +49,7 @@ class GoogleAuthRouter {
           legacyHeaders: false,
           handler: (req, res) =>
             req.method === 'GET'
-              ? res.redirect(returnPath(options, GOOGLE_AUTH_STATUS.error, { view: req.query.view }))
+              ? res.redirect(returnPath(context, GOOGLE_AUTH_STATUS.error, { view: req.query.view }))
               : res.status(429).json({ status: 'error', message: 'Too many requests, please try again later.' }),
         }),
       );
@@ -56,22 +61,13 @@ class GoogleAuthRouter {
 
     router.get('/callback', (req, res, next) =>
       passport.authenticate('google', { session: false }, (error, identity, info) =>
-        GoogleAuthController.callback(req, res, options, { error, identity, info }),
+        GoogleAuthController.callback(req, res, context, { error, identity, info }),
       )(req, res, next),
     );
 
-    router.post('/session', async (req, res) => await GoogleAuthController.session(req, res, options));
-    router.post(
-      '/link',
-      options.authMiddleware,
-      userGuard,
-      async (req, res) => await GoogleAuthController.link(req, res, options),
-    );
+    router.post('/session', async (req, res) => await GoogleAuthController.session(req, res, context));
+    router.post('/link', auth.requireUser, async (req, res) => await GoogleAuthController.link(req, res, context));
 
     return router;
-  }
-}
-
-const ApiRouter = (options) => GoogleAuthRouter.router(options);
-
-export { ApiRouter, GoogleAuthRouter };
+  },
+};

@@ -1,23 +1,22 @@
 import express from 'express';
 import { registerCrudRoutes } from '../../server/network/middlewares.js';
-import { adminGuard } from '../../server/security/auth.js';
 import { CronController } from './cron.controller.js';
 
-class CronRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'cron',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
-    const adminOnly = [options.authMiddleware, adminGuard];
-    return registerCrudRoutes(express.Router(), CronController, options, {
+  createRouter(context) {
+    const { auth } = context.services;
+    const adminOnly = auth.requireAdmin;
+    return registerCrudRoutes(express.Router(), CronController, context, {
       readGuards: adminOnly,
       writeGuards: adminOnly,
       deleteAllGuards: adminOnly,
     });
-  }
-}
-
-const ApiRouter = (options) => CronRouter.router(options);
-
-export { ApiRouter, CronRouter };
+  },
+};

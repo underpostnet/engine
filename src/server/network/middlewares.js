@@ -8,9 +8,9 @@
 import fs from 'fs-extra';
 import nodePath from 'path';
 import { loggerFactory } from '../ops/logger.js';
-import { moderatorGuard, adminGuard } from '../security/auth.js';
 import { PublicRoutes, parsePublicRoute } from '../../client/components/core/CommonJs.js';
 import { BUILD_MANIFEST_FILE } from '../../client/components/core/BuildManifest.js';
+import { ENVELOPE_RESPONSES, LIST_PARAMETERS, documented } from '../domain/api-document.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -311,6 +311,21 @@ const buildCrudController = (service, extend = {}) => {
   return CrudController;
 };
 
+/** The documentation of each standard CRUD route, by method and path. */
+const CRUD_DOCUMENTS = Object.freeze({
+  'post /:id': {
+    summary: 'Create a record',
+    description: 'The id selects the variant of the create the API defines.',
+  },
+  'post /': { summary: 'Create a record' },
+  'get /:id': { summary: 'Read a record', description: 'The id names the record.' },
+  'get /': { summary: 'List records', description: 'One page of the records.', parameters: LIST_PARAMETERS },
+  'put /:id': { summary: 'Update a record', description: 'The id names the record.' },
+  'put /': { summary: 'Update records', description: 'The API defines which records the body selects.' },
+  'delete /:id': { summary: 'Delete a record', description: 'The id names the record.' },
+  'delete /': { summary: 'Delete every record' },
+});
+
 /**
  * Registers the standard CRUD routes with the standard guard policy:
  * public reads, moderator-guarded writes, admin-guarded collection delete.
@@ -319,25 +334,36 @@ const buildCrudController = (service, extend = {}) => {
  * @method registerCrudRoutes
  * @param {import('express').Router} router
  * @param {{ post, get, put, delete }} Controller
- * @param {import('../../api/types.js').RouterOptions} options
- * @param {{ readGuards?: Function[], writeGuards?: Function[], deleteAllGuards?: Function[] }} [config]
+ * @param {import('../../api/types.js').ApiRouterContext} context - Needs the `auth` service for a default guard.
+ * @param {{ readGuards?: import('../../api/types.js').ApiMiddleware[], writeGuards?: import('../../api/types.js').ApiMiddleware[],
+ *   deleteAllGuards?: import('../../api/types.js').ApiMiddleware[] }} [config]
  *   Pass empty arrays for unguarded endpoints (e.g. player-written progress)
  *   or explicit guard chains (e.g. admin-only reads).
  * @returns {import('express').Router}
  * @memberof Middlewares
  */
-const registerCrudRoutes = (router, Controller, options, { readGuards = [], writeGuards, deleteAllGuards } = {}) => {
-  const write = writeGuards ?? [options.authMiddleware, moderatorGuard];
-  const deleteAll = deleteAllGuards ?? [options.authMiddleware, adminGuard];
-  const handle = (method) => async (req, res) => await Controller[method](req, res, options);
-  router.post(`/:id`, ...write, handle('post'));
-  router.post(`/`, ...write, handle('post'));
-  router.get(`/:id`, ...readGuards, handle('get'));
-  router.get(`/`, ...readGuards, handle('get'));
-  router.put(`/:id`, ...write, handle('put'));
-  router.put(`/`, ...write, handle('put'));
-  router.delete(`/:id`, ...write, handle('delete'));
-  router.delete(`/`, ...deleteAll, handle('delete'));
+const registerCrudRoutes = (router, Controller, context, { readGuards = [], writeGuards, deleteAllGuards } = {}) => {
+  const write = writeGuards ?? context.services.auth.requireModerator;
+  const deleteAll = deleteAllGuards ?? context.services.auth.requireAdmin;
+  const routes = [
+    ['post', '/:id', write],
+    ['post', '/', write],
+    ['get', '/:id', readGuards],
+    ['get', '/', readGuards],
+    ['put', '/:id', write],
+    ['put', '/', write],
+    ['delete', '/:id', write],
+    ['delete', '/', deleteAll],
+  ];
+  for (const [method, path, guards] of routes)
+    router[method](
+      path,
+      ...guards,
+      documented(async (req, res) => await Controller[method](req, res, context), {
+        ...CRUD_DOCUMENTS[`${method} ${path}`],
+        responses: ENVELOPE_RESPONSES,
+      }),
+    );
   return router;
 };
 

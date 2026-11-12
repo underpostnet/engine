@@ -1,20 +1,19 @@
 import express from 'express';
 import { ItemLedgerCheckpointController } from './item-ledger-checkpoint.controller.js';
 
-class ItemLedgerCheckpointRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'item-ledger-checkpoint',
+  services: ['database'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
     const router = express.Router();
-    const get = async (req, res) => await ItemLedgerCheckpointController.get(req, res, options);
+    const get = async (req, res) => await ItemLedgerCheckpointController.get(req, res, context);
     router.get(`/:chainId/:contractAddress`, get);
     router.get(`/`, get);
     return router;
-  }
-}
-
-const ApiRouter = (options) => ItemLedgerCheckpointRouter.router(options);
-
-export { ApiRouter, ItemLedgerCheckpointRouter };
+  },
+};

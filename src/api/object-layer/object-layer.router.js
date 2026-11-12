@@ -1,7 +1,6 @@
 import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerController } from './object-layer.controller.js';
 import express from 'express';
-import { moderatorGuard, adminGuard } from '../../server/security/auth.js';
 import { sendError } from '../../server/network/middlewares.js';
 import { parseIdentityJson } from './object-layer.identity.js';
 
@@ -71,12 +70,16 @@ const logger = loggerFactory(import.meta);
   }
 */
 
-class ObjectLayerRouter {
+/** @type {import('../types.js').ApiModuleDefinition} */
+export const ApiModule = {
+  id: 'object-layer',
+  services: ['database', 'auth'],
   /**
-   * @param {import('../types.js').RouterOptions} options
+   * @param {import('../types.js').ApiRouterContext} context
    * @returns {import('express').Router}
    */
-  static router(options) {
+  createRouter(context) {
+    const { auth } = context.services;
     const router = express.Router();
     // A body feeds a canonical identity: two equal property names must not collapse into one.
     router.use((req, res, next) => {
@@ -88,35 +91,61 @@ class ObjectLayerRouter {
       }
       return next();
     });
-    router.post(`/canonical`, options.authMiddleware, moderatorGuard, async (req, res) => {
+    router.post(`/canonical`, auth.requireModerator, async (req, res) => {
       /*
         #swagger.summary = 'Publish a canonical definition'
         #swagger.description = 'Stores a canonical Object Layer { schemaVersion, profile, data } under its content identity. Idempotent. Accepts a user session or the cross-domain service key.'
         #swagger.path = '/object-layer/canonical'
         #swagger.method = 'post'
       */
-      return await ObjectLayerController.post(req, res, options);
+      return await ObjectLayerController.post(req, res, context);
     });
-    router.put(`/lifecycle/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
+    router.put(`/lifecycle/:id`, auth.requireModerator, async (req, res) => {
       /*
         #swagger.summary = 'Archive a definition, or offer it again'
-        #swagger.description = 'Body { archived: boolean }. The owner of the definition or an admin. A published definition stays stored under its cid.'
+        #swagger.description = 'Archives the definition, or offers it again. Only the owner of the definition or an admin may do it. A published definition stays stored under its cid.'
         #swagger.path = '/object-layer/lifecycle/{id}'
         #swagger.method = 'put'
+        #swagger.requestBody = {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['archived'],
+                properties: { archived: { type: 'boolean', description: 'true archives the definition, false offers it again.' } },
+              },
+              examples: { archive: { summary: 'Archive the definition', value: { archived: true } } },
+            },
+          },
+        }
       */
-      return await ObjectLayerController.lifecycle(req, res, options);
+      return await ObjectLayerController.lifecycle(req, res, context);
     });
-    router.delete(`/purge/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
+    router.delete(`/purge/:id`, auth.requireModerator, async (req, res) => {
       /*
         #swagger.summary = 'Purge a definition from this host'
-        #swagger.description = 'Removes every record this host stores of the definition: the document, render frames, atlas, render files, IPFS pin records, pinned content and MFS paths. Body { cid } names the definition. The owner of the definition (the domain that published it) or an admin. Not reversible, refused for a definition ItemLedger registers.'
+        #swagger.description = 'Removes every record this host stores of the definition: the document, render frames, atlas, render files, IPFS pin records, pinned content and MFS paths. Only the owner of the definition (the domain that published it) or an admin may do it. Not reversible, refused for a definition ItemLedger registers.'
         #swagger.path = '/object-layer/purge/{id}'
         #swagger.method = 'delete'
+        #swagger.requestBody = {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['cid'],
+                properties: { cid: { type: 'string', description: 'The cid of the definition the path names, as a confirmation.' } },
+              },
+              examples: { purge: { summary: 'Confirm the cid to purge', value: { cid: '<definition-cid>' } } },
+            },
+          },
+        }
       */
-      return await ObjectLayerController.purge(req, res, options);
+      return await ObjectLayerController.purge(req, res, context);
     });
     // Authoring routes of the host's Studio (`apiExtensions` in conf.server.json).
-    options.extension?.mount(router, options);
+    context.extension?.mount(router, context);
     router.get(`/render/:id`, async (req, res) => {
       /*
         #swagger.summary = 'Get object layer render data'
@@ -147,7 +176,7 @@ class ObjectLayerRouter {
           }
         }
       */
-      return await ObjectLayerController.get(req, res, options);
+      return await ObjectLayerController.get(req, res, context);
     });
     router.get(`/metadata/:id`, async (req, res) => {
       /*
@@ -179,7 +208,7 @@ class ObjectLayerRouter {
           }
         }
       */
-      return await ObjectLayerController.get(req, res, options);
+      return await ObjectLayerController.get(req, res, context);
     });
     router.get(`/search-item-ids`, async (req, res) => {
       /*
@@ -202,7 +231,7 @@ class ObjectLayerRouter {
           }
         }
       */
-      return await ObjectLayerController.get(req, res, options);
+      return await ObjectLayerController.get(req, res, context);
     });
     router.get(`/:id`, async (req, res) => {
       /*
@@ -234,7 +263,7 @@ class ObjectLayerRouter {
           }
         }
       */
-      return await ObjectLayerController.get(req, res, options);
+      return await ObjectLayerController.get(req, res, context);
     });
     router.get(`/`, async (req, res) => {
       /*
@@ -263,9 +292,9 @@ class ObjectLayerRouter {
           }
         }
       */
-      return await ObjectLayerController.get(req, res, options);
+      return await ObjectLayerController.get(req, res, context);
     });
-    router.delete(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
+    router.delete(`/:id`, auth.requireModerator, async (req, res) => {
       /*
           #swagger.summary = 'Delete object layer by ID'
           #swagger.description = 'Removes a draft or cache copy by ID: its owner or an admin. A published definition is archived, never deleted'
@@ -295,15 +324,11 @@ class ObjectLayerRouter {
             }
           }
         */
-      return await ObjectLayerController.delete(req, res, options);
+      return await ObjectLayerController.delete(req, res, context);
     });
-    router.delete(`/`, options.authMiddleware, adminGuard, async (req, res) => {
-      return await ObjectLayerController.delete(req, res, options);
+    router.delete(`/`, auth.requireAdmin, async (req, res) => {
+      return await ObjectLayerController.delete(req, res, context);
     });
     return router;
-  }
-}
-
-const ApiRouter = (options) => ObjectLayerRouter.router(options);
-
-export { ApiRouter, ObjectLayerRouter };
+  },
+};
