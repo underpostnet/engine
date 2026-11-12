@@ -7,7 +7,7 @@ import { join } from 'node:path';
 // IPFS answers with the CIDs a test names (or nothing), and the static frame writer records its calls.
 const models = {};
 const ipfs = vi.hoisted(() => ({ added: [], answer: null }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.service.js', () => ({ createPinRecord: async () => ({}) }));

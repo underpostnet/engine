@@ -1,8 +1,10 @@
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
+import { revisionGuard } from '../../server/storage/revision.js';
 
 const logger = loggerFactory(import.meta);
+const httpError = (status, message) => Object.assign(new Error(message), { status });
 
 // A step may not repeat the same (type, itemId) objective combination.
 const validateQuestObjectives = (body) => {
@@ -24,7 +26,8 @@ class CyberiaQuestService {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
     const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
     validateQuestObjectives(req.body);
-    return await new CyberiaQuest(req.body).save();
+    const { revision, ...fields } = req.body ?? {};
+    return await new CyberiaQuest(fields).save();
   };
   static get = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
@@ -65,11 +68,25 @@ class CyberiaQuestService {
       throw new Error('mapCode, cellX and cellY parameters are required');
     return await CyberiaQuest.find({ sourceMapCode: mapCode, sourceCellX: cellX, sourceCellY: cellY }).lean();
   };
+  /** The body names the revision it read; a field it leaves out stays as stored. */
   static put = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
     const CyberiaQuest = DataBaseProviderService.getModel('CyberiaQuest', options);
     validateQuestObjectives(req.body);
-    return await CyberiaQuest.findByIdAndUpdate(req.params.id, req.body);
+    const stored = await CyberiaQuest.findById(req.params.id).lean();
+    if (!stored) throw httpError(404, 'quest not found');
+    const { _id, revision, createdAt, updatedAt, __v, ...changes } = req.body ?? {};
+    const read = stored.revision ?? 1;
+    if (revision !== read)
+      throw httpError(409, `Quest ${stored.code} is at revision ${read}, not ${revision}: reload it`);
+    const { filter, next } = revisionGuard(stored);
+    const updated = await CyberiaQuest.findOneAndUpdate(
+      filter,
+      { $set: { ...changes, revision: next } },
+      { returnDocument: 'after', runValidators: true },
+    ).lean();
+    if (!updated) throw httpError(409, `Quest ${stored.code} changed while saving: reload it`);
+    return updated;
   };
   static delete = async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */

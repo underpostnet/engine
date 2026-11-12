@@ -54,7 +54,7 @@ const store = vi.hoisted(() => {
   state.invalidate = vi.fn();
   return state;
 });
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => store.models[name] },
 }));
 vi.mock('../../../src/server/storage/cache.js', () => ({ CacheService: { invalidate: store.invalidate } }));

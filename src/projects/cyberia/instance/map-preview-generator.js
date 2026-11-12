@@ -16,7 +16,7 @@
  */
 
 import sharp from 'sharp';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { counter, gauge } from '../../../server/ops/metrics.js';
 import { CacheService } from '../../../server/storage/cache.js';
@@ -199,7 +199,7 @@ async function clipped(input, { left, top, w, h, width, height }) {
  * @param {object} map               CyberiaMap-shaped (code, gridX/gridY, entities).
  * @param {object} [opts]
  * @param {number} [opts.cellPx=8]   Pixels per grid cell in the output.
- * @param {object} [opts.options]    Router options ({ host, path }) the stills are read with.
+ * @param {object} [opts.options]    The host path ({ host, path }) the stills are read with.
  * @returns {Promise<Buffer|null>}   PNG buffer, or null when nothing rendered.
  */
 async function renderMapPreviewPng(map, { cellPx = DEFAULT_CELL_PX, options } = {}) {
@@ -263,7 +263,7 @@ const mediaOf = (revision, status, error = '') => ({ revision, status, error, at
  * once no map names it, and a map that draws nothing keeps no preview.
  *
  * @param {object} map - A stored map with {@link PREVIEW_FIELDS} and `_id`.
- * @param {object} options - Router options ({ host, path }).
+ * @param {object} options - The host path ({ host, path }).
  * @returns {Promise<Buffer|null>} The stored picture, or null when none was stored.
  * @throws {Error} The error of the draw or the store, once the media records it.
  */
@@ -319,7 +319,7 @@ async function storeMapPreview(map, options) {
  * A failed render stays recorded in the media, so a retry runs it again.
  *
  * @param {object} filter - The map, by `_id` or `code`.
- * @param {object} options - Router options ({ host, path }).
+ * @param {object} options - The host path ({ host, path }).
  * @returns {Promise<{media:{revision:number,status:string,error:string,at:Date},preview:string|null}|null>}
  *   The media of the map now and its preview File, or null for an unknown map.
  */
@@ -342,7 +342,7 @@ async function refreshMapMedia(filter, options) {
  *
  * @param {Object} params
  * @param {string[]|null} params.itemIds - The labels whose pictures changed; null draws every map.
- * @param {Object} params.options - Router options ({ host, path }).
+ * @param {Object} params.options - The host path ({ host, path }).
  * @returns {Promise<{codes:string[],drawn:number,empty:number,failed:string[]}>} The codes of the
  *   maps taken, maps drawn, maps left without a picture, and the codes of the maps that failed.
  */

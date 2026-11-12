@@ -31,8 +31,8 @@ vi.mock('../../../src/client/components/core/Router.js', () => ({ getProxyPath: 
 vi.mock('../../../src/client/components/core/ListPager.js', () => ({
   ListPager: { instance: ui.pager, load: ui.load, search: ui.search },
 }));
-vi.mock('../../../src/client/services/core/core.service.js', () => ({ getApiBaseUrl: (url) => url }));
-vi.mock('../../../src/client/services/cyberia-instance/cyberia-instance.service.js', () => ({
+vi.mock('../../../src/client/services/core/CoreService.js', () => ({ getApiBaseUrl: (url) => url }));
+vi.mock('../../../src/client/services/cyberia-instance/CyberiaInstanceService.js', () => ({
   CyberiaInstanceService: { get: ui.get },
 }));
 vi.mock('../../../src/client/components/cyberia/GameLaunchCyberia.js', () => ({

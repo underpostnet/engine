@@ -9,7 +9,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { MARKET_PAGE, minBid } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { CyberiaMarketService } from '../../../src/api/cyberia-market/cyberia-market.service.js';
 import { CyberiaActionService } from '../../../src/api/cyberia-action/cyberia-action.service.js';
@@ -20,7 +20,7 @@ import { worldMarkets } from '../../../src/projects/cyberia/economy/market-profi
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { emptyState, playerSessions, stack } from '../../support/player-sessions.js';
 
-vi.mock('../../../src/db/valkey/Valkey.js', async () =>
+vi.mock('../../../src/db/valkey/valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
 );
 

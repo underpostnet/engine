@@ -57,13 +57,13 @@ A defect that the catalog held before the write is reported and blocks nothing. 
 instances claim keeps its stored owner: the registry never takes an arbitrary new owner.
 
 The CLI writes reconcile the registry of their catalog after they write: `cyberia content import`,
-and `cyberia instance <code> --import` or `--drop`. A promotion reconciles the registry of the
+and `cyberia instance snapshot <code> --import` or `--drop`. A promotion reconciles the registry of the
 release in the transaction that activates it. The validation of a release fails on each defect, so
 a release that the registry refuses never becomes active.
 
 ## Reconciliation
 
-`node bin/cyberia map-registry` compares the rows with the maps and instances of the served catalog.
+`node bin/cyberia content map-registry` compares the rows with the maps and instances of the served catalog.
 It prints the changes and the defects, and exits with 1 on a defect. `--apply` writes the changes in
 one transaction, and `--release <id>` takes the catalog of one release. An admin does the same with
 `POST /api/v1/cyberia-global-map-code-registry/reconcile`, and `{ "apply": true }` writes.

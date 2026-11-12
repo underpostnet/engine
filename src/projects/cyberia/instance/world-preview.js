@@ -11,7 +11,7 @@
 
 import crypto from 'node:crypto';
 import sharp from 'sharp';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { FileFactory } from '../../../api/file/file.service.js';
 import { hasWorldOrigin, resolveGraphLayout } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
@@ -205,7 +205,7 @@ const composeWorldPreview = async ({ maps, cells, portals, pictures }) => {
  * The stored maps of some codes, in their order, each with a stored picture: a map with none is drawn
  * and stored first.
  * @param {string[]} codes
- * @param {{host: string, path: string}} options - Router options.
+ * @param {{host: string, path: string}} options - The API context.
  * @returns {Promise<Object[]>} Lean maps with `preview`, `worldX` and `worldY`; a code with no map is left out.
  * @memberof CyberiaWorldPreview
  */
@@ -234,7 +234,7 @@ const storedMapsWithPictures = async (codes, options) => {
 /**
  * The stored picture of each map, null where it has none.
  * @param {Object[]} maps - With `preview`.
- * @param {{host: string, path: string}} options - Router options.
+ * @param {{host: string, path: string}} options - The API context.
  * @returns {Promise<Array<Buffer|null>>}
  * @memberof CyberiaWorldPreview
  */
@@ -251,7 +251,7 @@ const storedPictures = async (maps, options) => {
  * world is drawn and stored, and the File it replaced goes once nothing names it. A map with no
  * stored picture is drawn first, so the key names every picture the preview shows.
  * @param {string} instanceCode
- * @param {{host: string, path: string}} options - Router options.
+ * @param {{host: string, path: string}} options - The API context.
  * @returns {Promise<{key: string, png: Buffer}>}
  * @throws {Error} `status` 404 for an unknown world, or a world with no map.
  * @memberof CyberiaWorldPreview
@@ -299,7 +299,7 @@ const worldPreview = async (instanceCode, options) => {
  * a world that fails is reported and the others go on.
  * @param {Object} params
  * @param {string[]|null} params.mapCodes - The maps whose pictures changed; null takes every world.
- * @param {Object} params.options - Router options ({ host, path }).
+ * @param {Object} params.options - The host path ({ host, path }).
  * @returns {Promise<{current: number, failed: string[]}>} The worlds whose stored preview is current, and the codes that failed.
  * @memberof CyberiaWorldPreview
  */

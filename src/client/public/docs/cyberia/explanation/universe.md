@@ -140,8 +140,8 @@ version, the world code, every map with its grid, world origin, picture and cell
 serves the stored File while its key is the key of the world now, with that key as `ETag`; else it
 draws the world once, stores it, and the File it replaced goes once nothing names it. A changed map
 set, grid, picture, cell or portal, or a new generator, so draws a new preview, and a stale one is
-never served. `cyberia ol --sync` and every other `ol` write draw the map previews of the written
-labels, then bring the world previews of those maps in line. `instance --export` carries the
+never served. `cyberia content object-layer --sync` and every other `content object-layer` write draw the map previews of the written
+labels, then bring the world previews of those maps in line. `instance snapshot --export` carries the
 preview as `files/preview-instance-<code>.json`, and a drop takes it with the world. A world with
 no map answers `404`. The in-game map, the Studio instance and universe editors show the same
 picture, contained in its card; while it loads, or when there is none, the in-game map draws a

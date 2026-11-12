@@ -58,6 +58,10 @@ unique. A field the row leaves out inherits `itemDefaults`.
 `portalFee` exists only on a row: the profile defaults never set it, and unset is not 0.
 
 A salvage line never names its own item or coins, and a row with salvage cannot refuse `burn`.
+
+A world runs on the binding of each item its economy names: the item of each row and each salvage
+item, also an item the world holds nowhere else. The boot of the world loads their definitions, and
+the snapshot of the world carries them, so they never become global content.
 `resolveEconomyProfile` and `itemPolicyDefect` in
 `src/api/cyberia-server-defaults/cyberia-server-defaults.js` hold the defaults and the bounds. The
 models, the APIs and the import use them, and `node bin/cyberia stat-contract` writes the same

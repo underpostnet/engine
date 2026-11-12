@@ -71,7 +71,7 @@ Lifecycle across the boundary:
   definition stays at the Object Layer authority under its cid.
 - The authority archives a definition (`PUT /api/v1/object-layer/lifecycle/:cid`); it is never
   destroyed. Cyberia reconciles its bindings against the authority over the same REST contract it
-  reads content with (`cyberia catalog reconcile`): a label bound to an
+  reads content with (`cyberia content catalog reconcile`): a label bound to an
   archived or unknown definition is unbound. Idempotent, explicit, never implicit.
 - Every Cyberia write is authorized on the object: the creator of an instance or a map, or an
   admin, changes or removes it; the owner is set from the session and never from the body. The
@@ -185,11 +185,11 @@ Every `cyberiaonline.com` hostname is served through one Envoy Gateway data plan
 
 Status pages never reach the engine at all, and the engine knows nothing about them. All three runtimes are agnostic: they return a standard HTTP status code or become unreachable. `underpost-gateway` — one shared Nginx workload in the gateway tier — proxies the site paths and intercepts those statuses, serving the declared document with the original URI and the original status code.
 
-| Condition                   | Declared by                             | Answered from                                            |
-| --------------------------- | --------------------------------------- | -------------------------------------------------------- |
-| `404` on any unmatched path | a `CyberiaPortal` view with path `/404` | `www.cyberiaonline.com/root/status-pages/404/index.html` |
-| `502` / `503` / `504`       | the view flagged `maintenanceDefault`   | `www.cyberiaonline.com/root/maintenance/index.html`      |
-| `/offline`, `/maintenance`  | `offlineDefault` / `maintenanceDefault` | the matching context directory                           |
+| Condition                   | Declared by                             | Answered from                                                 |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------- |
+| `404` on any unmatched path | a `CyberiaPortal` view with path `/404` | `services.cyberiaonline.com/root/status-pages/404/index.html` |
+| `502` / `503` / `504`       | the view flagged `maintenanceDefault`   | `services.cyberiaonline.com/root/maintenance/index.html`      |
+| `/offline`, `/maintenance`  | `offlineDefault` / `maintenanceDefault` | the matching context directory                                |
 
 A request to an unknown path reaches the portal, which answers a bare 404; the gateway swaps in the page. The address bar keeps the path the player typed, and the response is a true 404 — no redirect, no client-side script, and nothing for `engine-cyberia`, `cyberia-server` or `cyberia-client` to implement. API sub-paths bypass the interception, so a JSON 404 stays JSON.
 

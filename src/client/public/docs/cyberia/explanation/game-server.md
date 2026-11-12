@@ -337,10 +337,10 @@ All content data (ObjectLayer metadata, asset blobs, optional client hints, the 
 Two endpoints are command-line flags, not variables. Both are required, and
 each is const for the life of the process.
 
-| Flag                 | Example                         | Description               |
-| -------------------- | ------------------------------- | ------------------------- |
-| `--data-server-url`  | `https://www.cyberiaonline.com` | Data Server REST origin   |
-| `--data-server-grpc` | `localhost:50051`               | Data Server gRPC endpoint |
+| Flag                 | Example                              | Description               |
+| -------------------- | ------------------------------------ | ------------------------- |
+| `--data-server-url`  | `https://services.cyberiaonline.com` | Data Server REST origin   |
+| `--data-server-grpc` | `localhost:50051`                    | Data Server gRPC endpoint |
 
 | Variable                          | Default      | Description                                                                                                                        |
 | --------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |

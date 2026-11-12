@@ -4,7 +4,7 @@ import sharp from 'sharp';
 // A world preview draws each map at the proportions of its grid on its layout cell, with the portals
 // between maps, and the world stores it under a key that names every input.
 const store = vi.hoisted(() => ({ instance: null, maps: [], files: new Map(), refreshed: [], saved: 0, nextId: 0 }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => {
+vi.mock('../../../src/db/database-provider.js', () => {
   const query = (value) => ({ lean: async () => value, then: (resolve) => resolve(value) });
   const matches = (value, expected) =>
     expected && typeof expected === 'object' && '$in' in expected

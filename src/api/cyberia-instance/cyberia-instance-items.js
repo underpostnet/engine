@@ -101,6 +101,26 @@ function collectSummonedItemIds(skills = []) {
 }
 
 /**
+ * Item ids a world's economy names: the item of each policy row and each item a burn salvages. The
+ * economy runs on their bindings, so the world carries them.
+ *
+ * @param {Array<{itemId?: string, salvage?: Array<{itemId?: string}>}>} itemPolicies - The item rows of the
+ *   world's economy.
+ * @returns {Set<string>} Item ids, placeholders excluded.
+ */
+function collectEconomyItemIds(itemPolicies = []) {
+  const itemIds = new Set();
+  const push = (itemId) => {
+    if (isMaterialItemId(itemId)) itemIds.add(itemId);
+  };
+  for (const policy of itemPolicies) {
+    push(policy?.itemId);
+    for (const output of policy?.salvage || []) push(output?.itemId);
+  }
+  return itemIds;
+}
+
+/**
  * Why a skill document cannot run, or '' when it can. It names its trigger item and at least one
  * skill, each skill names a handler the simulation knows, and `logicEventIds` lists exactly the
  * distinct handlers of its skills, in their order.
@@ -121,4 +141,11 @@ function skillDefect(skill) {
   return '';
 }
 
-export { collectInstanceItemIds, collectSummonedItemIds, isMaterialItemId, selectInstanceSkills, skillDefect };
+export {
+  collectEconomyItemIds,
+  collectInstanceItemIds,
+  collectSummonedItemIds,
+  isMaterialItemId,
+  selectInstanceSkills,
+  skillDefect,
+};

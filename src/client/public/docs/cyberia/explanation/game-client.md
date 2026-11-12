@@ -532,7 +532,7 @@ make -f Web.mk clean && make -f Web.mk all BUILD_MODE=RELEASE
 
 # Serve it against a local engine and game server
 CYBERIA_WS_ORIGIN=ws://localhost:8083 python3 wasm-driver.py --port=8082 --directory=bin \
-  --data-server-url=http://localhost:4008
+  --data-server-url=http://localhost:4004
 ```
 
 `BUILD_MODE` picks debug or release code only. No server URL is a build argument — see

@@ -502,7 +502,7 @@ describe.skipIf(!contentBuilt)('full world load', () => {
   });
 
   // A world runs the economy its conf names: every item row resolved over the profile defaults and
-  // stamped with the definition its item is bound to; what a burn of a world item salvages joins the world.
+  // stamped with the definition its item is bound to; every item the economy names joins the world.
   it('compiles the economy the conf names against the catalog binding', async () => {
     const models = (revision) => ({
       CyberiaInstance: {
@@ -517,11 +517,12 @@ describe.skipIf(!contentBuilt)('full world load', () => {
       },
       CyberiaQuest: { find: () => lean([]) },
       CyberiaSkill: { find: () => lean([]) },
-      ...catalog([ol('hatchet', 'weapon'), ol('log', 'resource'), ol('scrap', 'resource')]),
+      ...catalog([ol('hatchet', 'weapon'), ol('log', 'resource'), ol('scrap', 'resource'), ol('resin', 'resource')]),
       ...economyStore(
         [
           { itemId: 'hatchet', burn: true, burnCoinFee: 2, salvage: [{ itemId: 'scrap', qty: 1 }] },
           { itemId: 'log', buyback: true, buybackPayout: 3 },
+          { itemId: 'resin', buyback: true, buybackPayout: 1 },
           { itemId: 'ghost', trade: false },
         ],
         { code: 'frontier', revision },
@@ -533,10 +534,11 @@ describe.skipIf(!contentBuilt)('full world load', () => {
     expect(economy.itemPolicies.map(({ itemId, olCid }) => [itemId, olCid])).toEqual([
       ['hatchet', 'cid-hatchet'],
       ['log', 'cid-log'],
+      ['resin', 'cid-resin'],
     ]);
     expect(economy.itemPolicies[0]).toMatchObject({ burn: true, burnCoinFee: 2, trade: true, salvage: [{ itemId: 'scrap', qty: 1 }] });
     expect(world.actions[0]).toMatchObject({ burnItems: ['hatchet'], buybackItems: ['log'] });
-    expect(world.objectLayers.map(({ item }) => item.id).sort()).toEqual(['hatchet', 'log', 'scrap']);
+    expect(world.objectLayers.map(({ item }) => item.id).sort()).toEqual(['hatchet', 'log', 'resin', 'scrap']);
     expect((await fetchFullInstance(models(5), 'FOREST')).version).not.toBe(world.version);
   });
 

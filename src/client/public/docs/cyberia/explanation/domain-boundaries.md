@@ -5,15 +5,16 @@ one rule that keeps canonical content single-writer.
 
 ## Domain ownership
 
-| Domain                     | Owns                                                                                   | Consumes                                | Main client / instance |
-| -------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------- |
-| `underpost.net`            | Engineering journal, laboratory                                                        | —                                       | `underpost`            |
-| `objectlayer.org`          | `object-layer`, `object-layer-render-frames`, `atlas-sprite-sheet`, `ipfs`             | ItemLedger (read, over HTTP)            | `objectlayer`          |
-| `itemledger.com`           | `item-ledger`, `item-ledger-transfer`, `item-ledger-balance`, `item-ledger-checkpoint` | Object Layer (read, over HTTP)          | `itemledger`           |
-| `cryptokoyn.net`           | CKY finance views, the wallet UI                                                       | —                                       | `cryptokoyn`           |
-| `www.cyberiaonline.com`    | `cyberia-*` world, content and runtime APIs                                            | Object Layer (cache), ItemLedger (HTTP) | `cyberia-portal`       |
-| `server.cyberiaonline.com` | Authoritative simulation (Go), world state                                             | Cyberia engine gRPC + REST boot fallback | `mmo-server` instance  |
-| `client.cyberiaonline.com` | Runtime client (C/WASM)                                                                | Cyberia engine REST, cyberia-server WS  | `mmo-client` instance  |
+| Domain                       | Owns                                                                                   | Consumes                                 | Main client / instance |
+| ---------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------- |
+| `underpost.net`              | Engineering journal, laboratory                                                        | —                                        | `underpost`            |
+| `objectlayer.org`            | `object-layer`, `object-layer-render-frames`, `atlas-sprite-sheet`, `ipfs`             | ItemLedger (read, over HTTP)             | `objectlayer`          |
+| `itemledger.com`             | `item-ledger`, `item-ledger-transfer`, `item-ledger-balance`, `item-ledger-checkpoint` | Object Layer (read, over HTTP)           | `itemledger`           |
+| `cryptokoyn.net`             | CKY finance views, the wallet UI                                                       | —                                        | `cryptokoyn`           |
+| `services.cyberiaonline.com` | Accounts, Studio, `cyberia-*` world, content and runtime APIs                          | Object Layer (cache), ItemLedger (HTTP)  | `cyberia-portal`       |
+| `www.cyberiaonline.com`      | Public website: static landing, published worlds                                       | —                                        | `cyberia-public`       |
+| `server.cyberiaonline.com`   | Authoritative simulation (Go), world state                                             | Cyberia engine gRPC + REST boot fallback | `mmo-server` instance  |
+| `client.cyberiaonline.com`   | Runtime client (C/WASM)                                                                | Cyberia engine REST, cyberia-server WS   | `mmo-client` instance  |
 
 `conf.server.json` states the split. A host lists what it mounts in `apis`, and every API another
 domain owns in `consumes: { "<api>": "<domain>" }`. `cyberia run-workflow validate-domains` checks

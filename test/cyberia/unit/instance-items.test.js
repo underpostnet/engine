@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collectEconomyItemIds,
   collectInstanceItemIds,
   collectSummonedItemIds,
   isMaterialItemId,
@@ -87,6 +88,24 @@ describe('which skills an instance runs', () => {
     // does not thereby acquire the weapon skill that fires it.
     const owned = new Set(['atlas_pistol_mk2_bullet']);
     expect(selectInstanceSkills(SKILLS, owned)).toEqual([]);
+  });
+});
+
+describe('what the economy of a world names', () => {
+  it('names the item of each policy row and each item a burn salvages, whether the world holds them or not', () => {
+    const policies = [
+      { itemId: 'hatchet', burn: true, salvage: [{ itemId: 'scrap-alloy', qty: 1 }] },
+      { itemId: 'scrap-alloy', buyback: true, buybackPayout: 2 },
+      { itemId: 'resin', trade: false },
+    ];
+    expect([...collectEconomyItemIds(policies)].sort()).toEqual(['hatchet', 'resin', 'scrap-alloy']);
+  });
+
+  it('is empty for an economy with no rows, and leaves placeholders and ragged rows out', () => {
+    expect([...collectEconomyItemIds()]).toEqual([]);
+    expect([
+      ...collectEconomyItemIds([{}, null, { itemId: '$active_skin', salvage: [{}, { itemId: 'wire' }] }]),
+    ]).toEqual(['wire']);
   });
 });
 

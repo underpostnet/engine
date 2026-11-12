@@ -3,7 +3,7 @@
  * @namespace CyberiaMapAudioConfServiceServer
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import {
@@ -84,7 +84,7 @@ class CyberiaMapAudioConfService {
   static assertAudioCode = async (audioCode, options) => {
     const exists = await getAudioModel(options).exists({ code: audioCode });
     if (!exists) {
-      throw new Error(`Unknown audio asset "${audioCode}" — import it first with: cyberia audio ${audioCode} --import`);
+      throw new Error(`Unknown audio asset "${audioCode}" — import it first with: cyberia content audio ${audioCode} --import`);
     }
     return audioCode;
   };

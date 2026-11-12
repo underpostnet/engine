@@ -53,6 +53,8 @@ const CyberiaQuestSchema = new Schema(
         quantity: { type: Number, default: 1, min: 1 },
       },
     ],
+    // Each write raises it; a save names the revision it read.
+    revision: { type: Number, default: 1, min: 1 },
   },
   { timestamps: true },
 );

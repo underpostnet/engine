@@ -10,7 +10,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import express from 'express';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import {
   liveEndpoints,
   liveServers,
@@ -18,8 +18,14 @@ import {
   worldAvailable,
   SERVER_LIST_LIMIT,
 } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.service.js';
-import { CyberiaServerRegistryRouter } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.router.js';
-import { CyberiaUniverseService, routeLeads } from '../../../src/api/cyberia-universe/cyberia-universe.service.js';
+import { ApiModule as CyberiaServerRegistryModule } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.router.js';
+import { testApiContext } from '../../support/api-module.js';
+import {
+  CyberiaUniverseService,
+  routeLeads,
+  seedUniverse,
+} from '../../../src/api/cyberia-universe/cyberia-universe.service.js';
+import { resolveGraphLayout } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { CyberiaInstanceService } from '../../../src/api/cyberia-instance/cyberia-instance.service.js';
 import { CyberiaEconomyService } from '../../../src/api/cyberia-economy/cyberia-economy.service.js';
 import { CyberiaEconomicItemPolicyService } from '../../../src/api/cyberia-economic-item-policy/cyberia-economic-item-policy.service.js';
@@ -252,8 +258,13 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
     beforeAll(async () => {
       const app = express();
       app.use(express.json());
-      const authMiddleware = (req, res) => res.status(401).json({ status: 'error', message: 'unauthorized' });
-      app.use('/api/v1/cyberia-server-registry', CyberiaServerRegistryRouter.router({ ...CONTEXT, authMiddleware }));
+      const authenticate = (req, res) => res.status(401).json({ status: 'error', message: 'unauthorized' });
+      app.use(
+        '/api/v1/cyberia-server-registry',
+        CyberiaServerRegistryModule.createRouter(
+          testApiContext(CyberiaServerRegistryModule, { ...CONTEXT, authenticate }),
+        ),
+      );
       server = await new Promise((resolve) => {
         const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
       });
@@ -389,7 +400,7 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
           h: 1,
         }),
       ]);
-      await expect(universes.ofInstance('island')).rejects.toMatchObject({ status: 404 });
+      await expect(universes.ofInstance('island')).rejects.toMatchObject({ status: 404, expected: true });
       expect((await universes.view('cyberia')).instances).toHaveLength(2);
     });
 
@@ -423,6 +434,27 @@ describe.skipIf(!mongodBinary)('server registry and universes', () => {
       expect(after.instances.map((m) => m.instanceCode)).toEqual(['root', 'test']);
       expect(after.links).toHaveLength(1);
       expect(after.revision).toBe(current.revision + 2);
+    });
+
+    it('seeds a universe only while its code and its worlds are free, and never changes an authored one', async () => {
+      const seed = (code, instanceCodes) =>
+        seedUniverse({ code, instances: resolveGraphLayout(instanceCodes, [], 'instanceCode'), links: [] }, CONTEXT);
+      const authored = await universes.read('cyberia');
+      expect(await seed('cyberia', ['island'])).toEqual({ code: 'cyberia', created: false, taken: ['cyberia'] });
+      expect(await seed('islands', ['island', 'test'])).toEqual({
+        code: 'islands',
+        created: false,
+        taken: ['cyberia'],
+      });
+      expect(await universes.read('cyberia')).toEqual(authored);
+      await expect(seed('islands', ['island', 'frontier'])).rejects.toMatchObject({ status: 409 });
+
+      expect(await seed('islands', ['island'])).toEqual({ code: 'islands', created: true, taken: [] });
+      const seeded = await universes.read('islands');
+      expect(seeded).toMatchObject({ revision: 1, instances: [{ instanceCode: 'island', x: 0, y: 0 }] });
+      expect(seeded.creator).toBeUndefined();
+      expect(await seed('islands', ['island'])).toEqual({ code: 'islands', created: false, taken: ['islands'] });
+      await model('CyberiaUniverse').deleteOne({ code: 'islands' });
     });
   });
 

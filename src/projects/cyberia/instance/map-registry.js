@@ -9,8 +9,8 @@
  * @namespace CyberiaMapRegistry
  */
 import crypto from 'node:crypto';
-import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { MongooseDB } from '../../../db/mongo/mongoose-db.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { mapSpatialDefect, worldPlacementDefects } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { REGISTRY_STATUSES } from '../../../api/cyberia-global-map-code-registry/cyberia-global-map-code-registry.model.js';
@@ -250,7 +250,7 @@ export async function registryTransaction(models, write) {
 
 /**
  * The models of a deployment context: its served catalog and its registry.
- * @param {{host: string, path: string}} options - Router options.
+ * @param {{host: string, path: string}} options - The API context.
  * @returns {Object}
  * @memberof CyberiaMapRegistry
  */

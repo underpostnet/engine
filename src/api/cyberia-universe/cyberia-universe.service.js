@@ -8,7 +8,7 @@
  * stays in its universe while its server is offline or a release lacks it.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { assertOwnerOrAdmin } from '../../server/security/auth.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
@@ -102,6 +102,40 @@ const memberConflict = (error) => {
   throw error;
 };
 
+/**
+ * Creates a universe after the checks of every new topology.
+ * @param {{code: string, name?: string, description?: string, instances?: Object[], links?: Object[]}} body
+ * @param {*} creator - The id of the user; a bootstrap creates without one.
+ * @param {object} options The API context (host/path).
+ * @returns {Promise<Object>} The stored universe.
+ */
+const createUniverse = async ({ code, name = '', description = '', ...topology }, creator, options) => {
+  const universe = { code, name, description, ...topologyOf(topology) };
+  await assertTopology(universe, null, options);
+  return await model('CyberiaUniverse', options)
+    .create({ ...universe, creator })
+    .catch(memberConflict);
+};
+
+/**
+ * Creates the universe of a fresh database. It writes nothing while a universe holds its code or one
+ * of its worlds, so it never changes an authored universe.
+ * @param {Object} universe - The body {@link createUniverse} takes.
+ * @param {object} options The API context (host/path).
+ * @returns {Promise<{code: string, created: boolean, taken: string[]}>} `taken`: the universes that stop it.
+ */
+const seedUniverse = async (universe, options) => {
+  const taken = await model('CyberiaUniverse', options).distinct('code', {
+    $or: [
+      { code: universe.code },
+      { 'instances.instanceCode': { $in: universe.instances.map(({ instanceCode }) => instanceCode) } },
+    ],
+  });
+  const created = taken.length === 0;
+  if (created) await createUniverse(universe, undefined, options);
+  return { code: universe.code, created, taken };
+};
+
 /** The API URL of a picture, or '' without one. */
 const pictureUrl = (picture) => (picture ? `${apiPathOf()}/${picture.endpoint}/${picture.id}` : '');
 
@@ -111,7 +145,7 @@ const pictureUrl = (picture) => (picture ? `${apiPathOf()}/${picture.endpoint}/$
  * holds it, and the best live endpoint of its world. The content is the served one, or the one given:
  * the instances and maps of a working graph.
  * @param {Object} universe - Lean `CyberiaUniverse`.
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @param {{instances:Object[], maps:Object[]}} [content] - The members and their maps; read from the served content without it.
  */
 const universeView = async (universe, options, content) => {
@@ -173,7 +207,7 @@ const universeView = async (universe, options, content) => {
 /**
  * Removes an instance from its universe, with its links.
  * @param {string} instanceCode
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  */
 const removeUniverseMember = async (instanceCode, options) =>
   await model('CyberiaUniverse', options).updateOne(
@@ -190,7 +224,7 @@ const removeUniverseMember = async (instanceCode, options) =>
 /**
  * The code of the universe an instance belongs to, or ''.
  * @param {string} instanceCode
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @returns {Promise<string>}
  */
 const universeCodeOf = async (instanceCode, options) =>
@@ -202,7 +236,7 @@ const universeCodeOf = async (instanceCode, options) =>
  * bidirectional link between them.
  * @param {string} from - Instance code of the world a player leaves.
  * @param {string} to - Instance code of the world it travels to.
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @returns {Promise<boolean>}
  */
 const routeLeads = async (from, to, options) => {
@@ -217,14 +251,7 @@ const routeLeads = async (from, to, options) => {
 };
 
 class CyberiaUniverseService {
-  static post = async (req, res, options) => {
-    const { code, name = '', description = '' } = req.body ?? {};
-    const universe = { code, name, description, ...topologyOf(req.body ?? {}) };
-    await assertTopology(universe, null, options);
-    return await model('CyberiaUniverse', options)
-      .create({ ...universe, creator: req.auth.user._id })
-      .catch(memberConflict);
-  };
+  static post = async (req, res, options) => await createUniverse(req.body ?? {}, req.auth.user._id, options);
 
   static get = async (req, res, options) => {
     const Universe = model('CyberiaUniverse', options);
@@ -245,7 +272,8 @@ class CyberiaUniverseService {
   static ofInstance = async (req, res, options) => {
     const { instanceCode } = req.params;
     const universe = await model('CyberiaUniverse', options).findOne({ 'instances.instanceCode': instanceCode }).lean();
-    if (!universe) throw httpError(404, `Instance ${instanceCode} belongs to no universe`);
+    if (!universe)
+      throw Object.assign(httpError(404, `Instance ${instanceCode} belongs to no universe`), { expected: true });
     return await universeView(universe, options);
   };
 
@@ -290,6 +318,7 @@ export {
   CyberiaUniverseService,
   removeUniverseMember,
   routeLeads,
+  seedUniverse,
   topologyOf,
   universeCodeOf,
   universeDefect,

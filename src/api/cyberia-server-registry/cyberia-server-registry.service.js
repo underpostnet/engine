@@ -11,7 +11,7 @@
  * because the TTL monitor runs only once a minute.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { CONTENT_CODE_PATTERN } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { SERVER_STATES, SERVER_TTL_SECONDS } from './cyberia-server-registry.model.js';
 import { RELEASE_ID_PATTERN } from '../../server/release/source-release.js';
@@ -23,17 +23,18 @@ const SERVER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const BASE_PATH_PATTERN = /^\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BUILD_PATTERN = /^[0-9a-f]{0,64}$/;
 const LOOPBACK_HOSTS = Object.freeze(['localhost', '127.0.0.1', '[::1]']);
-const INTERNAL_SUFFIXES = Object.freeze(['.local', '.localhost', '.internal', '.svc', '.cluster.local']);
+const INTERNAL_SUFFIXES = Object.freeze(['.local', '.localhost', '.internal', '.svc']);
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
 const getModel = (options = {}) => DataBaseProviderService.getModel('CyberiaServerRegistry', options);
 
-/** An IP literal, a single-label name or a cluster-only name: no player can dial it. */
+/** An IP literal, a single-label name or a cluster-only name, in any cluster domain: no player can dial it. */
 const isInternalHost = (hostname) =>
   /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) ||
   hostname.startsWith('[') ||
   !hostname.includes('.') ||
+  hostname.includes('.svc.') ||
   INTERNAL_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
 
 /**
@@ -69,7 +70,7 @@ const liveSince = () => new Date(Date.now() - SERVER_TTL_SECONDS * 1000);
  * Records one report of one game server process. The write applies only above the stored `seq`,
  * so a report that arrives late changes nothing and comes back as `stale`.
  * @param {{serverId: string, url: string, instanceCode: string, name?: string, state: string, seq: number, build?: string, releaseId?: string}} report
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @returns {Promise<{stale: boolean, server: Object}>}
  * @throws {Error} 400 on an invalid report.
  */
@@ -116,7 +117,7 @@ const reportServer = async (report = {}, options = {}) => {
  * one process behind it is ready, else `draining`. A world with no live process has no row. `build`
  * names the binary when every live process of the endpoint runs one, else ''. `releases` lists the
  * content releases the processes serve: one entry once they converge.
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @param {{instanceCodes?: string[]}} [filter]
  * @returns {Promise<{instanceCode: string, url: string, name: string, status: 'available'|'draining', ready: number, draining: number, build: string, releases: string[]}[]>}
  */
@@ -154,7 +155,7 @@ const liveEndpoints = async (options = {}, { instanceCodes } = {}) =>
 /**
  * Whether a world has a logical endpoint that takes new sessions.
  * @param {string} instanceCode
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @returns {Promise<boolean>}
  */
 const worldAvailable = async (instanceCode, options = {}) =>
@@ -162,7 +163,7 @@ const worldAvailable = async (instanceCode, options = {}) =>
 
 /**
  * Every live process, newest report first. Operators only: it names the processes.
- * @param {object} options Router options (host/path context).
+ * @param {object} options The API context (host/path).
  * @returns {Promise<Object[]>}
  */
 const liveServers = async (options = {}) =>

@@ -8,11 +8,9 @@
  * @module src/projects/cyberia/runtime/game-origins.js
  * @namespace CyberiaGameOrigins
  */
-import dotenv from 'dotenv';
-import fs from 'fs-extra';
 import Underpost from '../../../index.js';
-import { deployEnvFilePath, readConfInstances, readConfJson } from '../../../server/runtime/conf.js';
-import { hostPortsFactory, instanceOriginsFactory } from '../../../server/network/router.js';
+import { readConfInstances, readConfJson } from '../../../server/runtime/conf.js';
+import { deployHostPortsFactory, instanceOriginsFactory } from '../../../server/network/router.js';
 
 /**
  * @param {string} deployId
@@ -32,8 +30,7 @@ const gameOrigins = (deployId, environment) => {
   );
   if (!client || !server) throw new Error(`gameOrigins: ${deployId} declares no cyberia-client or cyberia-server`);
   if (!development) return { portal: `https://${portal}`, client, server, engine: `https://${portal}` };
-  const { PORT } = dotenv.parse(fs.readFileSync(deployEnvFilePath(deployId, 'development'), 'utf8'));
-  const port = hostPortsFactory(confServer, Number(PORT) + 1)[`${portal}/`];
+  const port = deployHostPortsFactory(deployId, environment)[`${portal}/`];
   const service = Underpost.deploy.trafficServiceNameFactory({ deployId, env: environment });
   return { portal: `http://localhost:${port}`, client, server, engine: `http://${service}:${port}` };
 };

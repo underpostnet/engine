@@ -14,8 +14,9 @@
  */
 
 import crypto from 'crypto';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import {
+  collectEconomyItemIds,
   collectInstanceItemIds,
   collectSummonedItemIds,
   selectInstanceSkills,
@@ -47,13 +48,14 @@ import {
 import { contentArtifact, servedContentArtifact } from './content/content-artifact.js';
 import { buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 import { gameOriginEnv } from './runtime/game-origins.js';
+import { ssrData } from './instance/public-worlds.js';
 
 const logger = loggerFactory(import.meta);
 
 /**
  * Resolves the mongoose model bag for a DB context: the content it serves.
- * @param {{host?: string, path?: string}|string} context - RouterOptions-style
- *   context or a resolved `${host}${path}` key (the gRPC dbKey form).
+ * @param {{host?: string, path?: string}|string} context - An API context, a host path
+ *   or a resolved `${host}${path}` key (the gRPC dbKey form).
  */
 function getInstanceModels(context) {
   return DataBaseProviderService.servedModels(context);
@@ -624,10 +626,9 @@ async function loadWorld(models, instanceCode) {
   );
   for (const summoned of collectSummonedItemIds(skillDocs)) itemIds.add(summoned);
 
-  // The economy the world runs. What a burn of a world item salvages is an item the world grants.
+  // The economy the world runs, and every item it names.
   const economy = await compileEconomySnapshot(models, confEconomyCode(conf));
-  for (const policy of economy.itemPolicies)
-    if (policy.burn && itemIds.has(policy.itemId)) for (const { itemId } of policy.salvage) itemIds.add(itemId);
+  for (const itemId of collectEconomyItemIds(economy.itemPolicies)) itemIds.add(itemId);
   return {
     inst,
     conf,
@@ -751,6 +752,7 @@ async function fetchInstanceObjectLayerItemIds(models, instanceCode) {
 
 export {
   buildInstanceEnv,
+  ssrData,
   fetchInstanceObjectLayerItemIds,
   getInstanceModels,
   itemTypesOf,
