@@ -4,17 +4,21 @@
  * @namespace UnderpostSecret
  */
 
-import { shellExec } from '../server/runtime/process.js';
+import { shellArgumentFactory, shellExec, writeHostFile } from '../server/runtime/process.js';
+import { installHostBinary } from '../server/ops/host-tooling.js';
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import fs from 'fs-extra';
 import os from 'os';
+import nodePath from 'node:path';
 import dotenv from 'dotenv';
 import Underpost from '../index.js';
-import { domainContextFactory } from './domains.js';
+import { domainContextFactory, parseDomainList } from './domains.js';
 import { readDeployRoutes, resolveDeployList } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { activeExecutionProfile } from '../server/build/execution.js';
 import { scopeValuesFactory } from '../server/runtime/config-scope.js';
+import { assertRoleCapability } from '../server/network/node-capability.js';
+import { ENVIRONMENTS, environmentOf } from './namespace.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -23,17 +27,22 @@ const SOPS_MANIFEST_EXT = '.enc.yaml';
 const SOPS_MANIFEST_PATH_REGEX = `.*${SOPS_MANIFEST_EXT.replace(/\./g, '\\.')}$`;
 const SOPS_STAGE_DIR = './engine-private/secrets/.stage';
 const SOPS_ARCHIVE_DIR = `${SOPS_SECRETS_DIR}/.archive`;
+// The scopes of the store besides the environments: the Secrets of a resource every environment shares,
+// and the credentials Underpost distributes outside the cluster.
+const SHARED_SCOPE = 'shared';
+const EXTERNAL_SCOPE = 'external';
+// The sources whose Secrets come from the encrypted store.
+const STORED_SOURCES = ['sops', 'shared'];
 const SOPS_ENCRYPTED_REGEX = '^(data|stringData)$';
 const SOPS_VERSION = 'v3.10.2';
 const AGE_VERSION = 'v1.2.1';
 
-// GitHub Actions secrets this domain distributes to a deploy's repositories. `GIT_AUTH_TOKEN` is
-// the one with a mirror in the encrypted store: the stored manifest keeps this file's kebab-case
-// naming, while the data key keeps the environment spelling so a workload consumes it through
-// `envFrom` unchanged. Deliberately absent from MANAGED_SECRETS: its authoritative home is the
-// GitHub Actions secret store, and the encrypted manifest is an optional mirror rather than the origin.
+// GitHub Actions secrets this domain distributes to a deploy's repositories. `GIT_AUTH_TOKEN` has an
+// optional mirror in the external scope of the store: GitHub holds the credential, and no cluster object
+// reads the mirror.
 const GIT_AUTH_TOKEN_KEY = 'GIT_AUTH_TOKEN';
 const GIT_AUTH_TOKEN_SECRET = 'git-auth-token';
+const GIT_AUTH_TOKEN_MIRROR = `${SOPS_SECRETS_DIR}/${EXTERNAL_SCOPE}/github/${GIT_AUTH_TOKEN_SECRET}${SOPS_MANIFEST_EXT}`;
 const ACTIONS_SECRET_STAGE_DIR = '/dev/shm/underpost-actions-secret';
 // Where the writes go: the account type, its owner, and the credential `gh` runs under.
 const GITHUB_TARGET_ENV = Object.freeze({
@@ -70,15 +79,55 @@ const writeStageFileSync = (path, value) => {
   return path;
 };
 
-const MANAGED_SECRETS = [
-  'postgres-secret',
-  'mariadb-secret',
-  'mysql-secret',
-  'mongodb-secret',
-  'mongodb-keyfile',
-  'ipfs-cluster-secret',
-  'grafana-admin',
-];
+/** `<resource>/<id>`: the reference of a catalog Secret. */
+const referenceOf = ({ resource, id }) => `${resource}/${id}`;
+
+/** The path of a manifest relative to the store, without its extension: `<scope>/<owner>/<id>`. */
+const labelOf = (path) => nodePath.relative(SOPS_SECRETS_DIR, path).slice(0, -SOPS_MANIFEST_EXT.length);
+
+/** The directories of a path that are not dot-prefixed, sorted. */
+const directories = (path) =>
+  fs.existsSync(path)
+    ? fs
+        .readdirSync(path)
+        .filter((entry) => !entry.startsWith('.') && fs.statSync(`${path}/${entry}`).isDirectory())
+        .sort()
+    : [];
+
+/** The encrypted manifests directly inside a directory, sorted. */
+const manifestFiles = (path) =>
+  fs.existsSync(path)
+    ? fs
+        .readdirSync(path)
+        .filter((entry) => entry.endsWith(SOPS_MANIFEST_EXT))
+        .sort()
+    : [];
+
+/**
+ * A plaintext Secret manifest: no namespace, the placement supplies it at apply time. Values are single-quoted
+ * YAML scalars with doubled internal quotes, since they may carry characters YAML would interpret.
+ */
+const secretManifest = (name, data, type = 'Opaque') =>
+  [
+    'apiVersion: v1',
+    'kind: Secret',
+    'metadata:',
+    `  name: ${name}`,
+    '  labels:',
+    '    app.kubernetes.io/managed-by: underpost',
+    `type: ${type}`,
+    'stringData:',
+    ...Object.entries(data).map(([key, value]) => `  ${key}: '${`${value}`.replace(/'/g, "''")}'`),
+    '',
+  ].join('\n');
+
+/** Refuses a change to the Secrets of the production cluster on a node whose role does not administer them. */
+const assertSecretAdministration = (environment, operation) => {
+  const role = Underpost.wireguard.localRole();
+  if (role && environment === 'production')
+    assertRoleCapability({ role, capability: 'cluster-secret-administration', operation });
+};
+
 // Origin credentials for the workload secret system, the first link in
 // `origin secret -> SOPS/Age -> Kubernetes Secret -> workload`. They live in the deploy
 // secret area alongside the other deploy-scoped material (SSH keys, node and route lists).
@@ -209,11 +258,13 @@ const isReservedEnvKey = (key) =>
   !PRESERVED_ENV_KEYS.has(key) &&
   (RESERVED_ENV_KEYS.has(key) || RESERVED_ENV_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)));
 
-// Secrets `setup` onboards when no explicit list is passed: the full self-hosted data tier.
-// `mongodb-keyfile` is listed alongside `mongodb-secret` because the MongoDB StatefulSet mounts
-// it as a volume for intra-replica-set auth and will not start without it, so onboarding the
-// credentials alone would leave Mongo broken.
-const SOPS_SETUP_DEFAULT_SECRETS = ['postgres-secret', 'mariadb-secret', 'mongodb-secret', 'mongodb-keyfile'];
+// The Secrets `setup` onboards when no list is passed: the self-hosted data tier.
+const SOPS_SETUP_DEFAULT_SECRETS = [
+  'postgresql/credentials',
+  'mariadb/credentials',
+  'mongodb/credentials',
+  'mongodb/keyfile',
+];
 
 /**
  * Produces a value for a Secret data key that has no origin seed file and no `--args` override.
@@ -225,9 +276,8 @@ const SOPS_SETUP_DEFAULT_SECRETS = ['postgres-secret', 'mariadb-secret', 'mongod
  */
 const generateSeedValue = (key) => {
   if (key === 'username' || key === 'admin-user') return 'admin';
-  // MongoDB keyfile: 6-1024 base64 characters shared by every replica-set member. Newlines are
-  // stripped so the value round-trips identically through YAML and through
-  // MongoBootstrap.readCredential, which strips them too.
+  // MongoDB keyfile: 6-1024 base64 characters shared by every replica-set member, on one line so it
+  // round-trips identically through YAML.
   if (key === 'mongodb-keyfile')
     return shellExec(`openssl rand -base64 756`, { stdout: true, silent: true, disableLog: true }).replace(
       /\r?\n/g,
@@ -290,118 +340,119 @@ class UnderpostSecret {
     // are addressed through `--args` rather than through flags of their own.
 
     /**
-     * Onboards the workload secret store end to end: installs the SOPS and Age binaries,
-     * generates the key and creation rules, encrypts the managed Secrets into the Git-tracked
-     * store, then validates and applies them.
+     * Onboards the encrypted store of an environment: installs the SOPS and Age binaries, generates the
+     * key and creation rules, encrypts the Secrets of `--args names=<resource>/<id>|...` from their origin
+     * seeds, declares their resources `sops` (`shared` with `--args shared`) in conf.cluster.json, then
+     * validates and applies them. `--args store=legacy` instead moves the namespace-keyed store into the
+     * environment ({@link UnderpostSecret.migrateLegacyStore}).
      *
-     * Every step is idempotent. Notably it never regenerates a credential that already exists —
-     * an origin seed file is read through rather than replaced, so re-running this on a live
-     * cluster cannot rotate the password the data tier is running on.
-     * @param {object} context - Normalized domain context. `--args names=a,b` narrows the set.
+     * Every step is idempotent, and it never regenerates a credential that already exists.
+     * @param {object} context - Normalized domain context.
      * @returns {*} The onboarding report.
      * @memberof UnderpostSecret
      */
     setup(context = {}) {
       context = domainContextFactory(context);
+      if (context.args.store === 'legacy')
+        return Underpost.secret.migrateLegacyStore({ environment: context.env, dryRun: context.dryRun });
       return Underpost.secret.setupStore(`${context.args.names ?? ''}`, {
-        namespace: context.namespace,
+        environment: context.env,
+        shared: context.args.shared === true || `${context.args.shared}` === 'true',
         dryRun: context.dryRun,
         force: context.force,
         args: Object.entries(context.args)
-          .filter(([key]) => !['names', 'keys'].includes(key))
+          .filter(([key]) => !['names', 'shared'].includes(key))
           .map(([key, value]) => `${key}=${value}`),
       });
     },
 
     /**
-     * Loads decrypted secret values into the host store, so a local runtime can read a workload
-     * credential without a plaintext file ever touching disk.
-     *
-     * The local-development half of the propagation contract: production workloads receive these
-     * same values through `envFrom` off the Secret `apply` projects, and `npm run dev` receives
-     * them here. This domain has no local store of its own — a decrypted credential is node-local
-     * configuration, so it lands in the host domain's store rather than in a fourth one.
-     * `--args names=` narrows to one secret.
+     * Runs one local command with the decrypted values of the Secrets of `--args names=<resource>/<id>|...`
+     * in its environment, as `<NAME>_<KEY>`: `--args "names=mongodb/credentials,run=npm run dev"`. The
+     * values reach that process only; no store, file or log holds them.
      * @param {object} context - Normalized domain context.
-     * @returns {{loaded: Array<string>, keys: number}} Which secrets were loaded, and how many keys.
+     * @returns {{loaded: Array<string>, keys: number, command: string}} What was loaded, and for which command.
      * @memberof UnderpostSecret
      */
     load(context = {}) {
       context = domainContextFactory(context);
-      const requested = `${context.args.names ?? ''}`.split(/[,\s]+/).filter(Boolean);
-      const names = (requested.length > 0 ? requested : Underpost.secret.managedSecrets()).filter((name) =>
-        Underpost.secret.has(name, context.namespace),
-      );
+      const secrets = parseDomainList(context.args.names).map((reference) => Underpost.secret.reference(reference));
+      const command = `${context.args.run ?? ''}`.trim();
+      if (!secrets.length || !command)
+        throw new Error('[secret] load requires --args "names=<resource>/<id>,run=<command>"');
       const values = {};
-      for (const name of names)
-        for (const [key, value] of Object.entries(Underpost.secret.readData(name, context.namespace) ?? {}))
-          values[`${name.replace(/-/g, '_').toUpperCase()}_${key.replace(/-/g, '_').toUpperCase()}`] = value;
+      for (const secret of secrets)
+        for (const [key, value] of Object.entries(Underpost.secret.readData(secret, context.env)))
+          values[`${secret.name}_${key}`.replace(/-/g, '_').toUpperCase()] = value;
+      const report = { loaded: secrets.map(referenceOf), keys: Object.keys(values).length, command };
       if (context.dryRun) {
-        logger.info('[dry-run] secret load would populate the host store', {
-          loaded: names,
-          keys: Object.keys(values).length,
-        });
-        return { loaded: names, keys: Object.keys(values).length };
+        logger.info('[dry-run] secret load would run the command with the values', report);
+        return report;
       }
-      for (const [key, value] of Object.entries(values)) Underpost.host.store.set(key, value);
-      logger.info('Workload secrets loaded', { loaded: names, keys: Object.keys(values).length });
-      return { loaded: names, keys: Object.keys(values).length };
+      shellExec(command, { env: { ...process.env, ...values } });
+      return report;
     },
 
     /**
-     * Writes a plaintext Secret manifest into the encrypted store and shreds the source, making
-     * SOPS/Age the durable record for it.
-     * @param {object} context - Normalized domain context. Requires `--args path=<plaintext.yaml>`.
-     * @returns {*} The encryption result.
+     * Encrypts a plaintext Secret manifest into the store of an environment and shreds the source:
+     * `--args path=<plaintext.yaml>,name=<resource>/<id>`. The manifest names no namespace.
+     * @param {object} context - Normalized domain context.
+     * @returns {string} The path of the encrypted manifest.
      * @memberof UnderpostSecret
      */
     publish(context = {}) {
       context = domainContextFactory(context);
       const path = `${context.args.path ?? ''}`.trim();
-      if (!path) throw new Error('[secret] publish requires --args path=<plaintext-manifest>');
-      return Underpost.secret.encrypt(path, context.namespace, context);
+      if (!path || !context.args.name)
+        throw new Error('[secret] publish requires --args path=<plaintext-manifest>,name=<resource>/<id>');
+      const secret = Underpost.secret.reference(context.args.name);
+      return Underpost.secret.encrypt(path, Underpost.secret.manifestPath(secret, context.env), {
+        name: secret.name,
+        force: context.force,
+      });
     },
 
     /**
-     * Projects the encrypted store into the cluster: decrypts stored manifests and streams them
-     * straight into `kubectl apply`, so plaintext never reaches persistent storage.
-     * Idempotent — re-applying converges on the stored values.
-     * @param {object} context - Normalized domain context. `--args names=a,b` narrows the set.
-     * @returns {*} The apply result.
+     * Applies the stored Secrets of an environment, each into the namespace where the environment places its
+     * resource. Plaintext exists only in an anonymous pipe. `--args names=<resource>/<id>|...` narrows the set.
+     * @param {object} context - Normalized domain context.
+     * @returns {number} The count of applied Secrets.
      * @memberof UnderpostSecret
      */
     apply(context = {}) {
       context = domainContextFactory(context);
-      const names = `${context.args.names ?? ''}`.trim();
-      if (names) return Underpost.secret.applySelected(names, context.namespace, { dryRun: context.dryRun });
-      return Underpost.secret.applyStore(context.namespace, { dryRun: context.dryRun });
+      const names = parseDomainList(context.args.names);
+      return Underpost.secret.applyStore({
+        environment: context.env,
+        secrets: names.length ? names.map((reference) => Underpost.secret.reference(reference)) : undefined,
+        dryRun: context.dryRun,
+      });
     },
 
     /**
-     * Read-only report of the store: tooling, key and recipients, creation rules, stored
-     * manifests with decryptability and cluster drift.
-     * @param {object} context - Normalized domain context. `--args keys=mongo` narrows by substring.
-     * @returns {*} The status report.
+     * Read-only report of the store of an environment: tooling, key, creation rules, and for each Secret of
+     * the catalog its source, namespace, manifest, recipients, decryptability and live state.
+     * `--args keys=mongo` narrows by substring.
+     * @param {object} context - Normalized domain context.
+     * @returns {Object[]} The rows of the Secrets.
      * @memberof UnderpostSecret
      */
     status(context = {}) {
       context = domainContextFactory(context);
-      return Underpost.secret.statusReport(`${context.args.keys ?? ''}`, { namespace: context.namespace });
+      return Underpost.secret.statusReport(`${context.args.keys ?? ''}`, { environment: context.env });
     },
 
     /**
-     * Replaces the current projection: either the Age identity the store is sealed to, or the
-     * value of a credential itself.
+     * Replaces the current projection: either the Age identity the store is sealed to, or the value of a
+     * GitHub Actions credential.
      *
-     * `--args secret=<NAME|NAME>` selects the credential rotation — GitHub Actions secrets on
-     * every repository of a deploy, under a user account or an organization, with `GIT_AUTH_TOKEN`
-     * mirrored into the encrypted store. Without it the recipient rotation runs, which re-keys
-     * stored manifests onto a new Age recipient: secret values are unchanged there, so no
-     * workload restart is needed.
-     * @param {object} context - Normalized domain context. Requires either
-     *   `--args secret=<NAME|NAME>` (with `value=`, `source=host`, `deploy-id=`, `target=`,
-     *   `owner=`, `level=`, `repos=`, `store=true`, `apply=true`) or `--args recipient=age1...`
-     *   (with `prune=true` to revoke previous recipients and `keep=` to retain named ones).
+     * `--args secret=<NAME|NAME>` writes GitHub Actions secrets on every repository of a deploy, with
+     * `GIT_AUTH_TOKEN` mirrored into the external scope of the store. Without it the recipient rotation
+     * re-keys every stored manifest onto a new Age recipient: values are unchanged, so no workload restarts.
+     * @param {object} context - Normalized domain context. Requires either `--args secret=<NAME|NAME>`
+     *   (with `value=`, `source=host`, `deploy-id=`, `target=`, `owner=`, `level=`, `repos=`, `store=true`)
+     *   or `--args recipient=age1...` (with `prune=true` to revoke previous recipients and `keep=` to retain
+     *   named ones).
      * @returns {*} The rotation result.
      * @memberof UnderpostSecret
      */
@@ -411,7 +462,6 @@ class UnderpostSecret {
       if (keys)
         return Underpost.secret.rotateActionsSecrets({
           keys,
-          namespace: context.namespace,
           env: context.env,
           dryRun: context.dryRun,
           value: context.args.value,
@@ -422,7 +472,6 @@ class UnderpostSecret {
           level: context.args.level,
           repos: context.args.repos,
           store: context.args.store,
-          apply: context.args.apply,
         });
       const recipient = `${context.args.recipient ?? ''}`.trim();
       if (!recipient)
@@ -431,7 +480,6 @@ class UnderpostSecret {
             'Age identity, and --args secret=<NAME|NAME> writes GitHub Actions secrets.',
         );
       return Underpost.secret.rotateRecipient(recipient, {
-        namespace: context.namespace,
         dryRun: context.dryRun,
         force: context.force,
         pruneRecipients: context.args.prune === true || context.args.prune === 'true',
@@ -440,254 +488,164 @@ class UnderpostSecret {
     },
 
     /**
-     * Withdraws local plaintext traces of workload secrets. The Age private key is kept: the node
-     * needs it to re-apply the store on restart. `--args names=` with `--force` additionally
-     * purges those secrets from the cluster and takes their manifests out of the store.
-     *
-     * A purge archives the manifest under `.archive/` by default, so it stays reversible;
-     * `--args delete=true` is the irreversible variant. `--force` gates the cluster deletion
-     * itself, so it cannot double as the disposition — that would make the archive path
-     * unreachable from the CLI and every purge permanent.
+     * Withdraws local plaintext traces of workload secrets. The Age private key is kept: the node needs it
+     * to apply the store again. `--args names=<resource>/<id>|...` with `--force` also deletes those Secrets
+     * from the cluster and archives their manifests; `--args delete=true` deletes the manifests instead.
      * @param {object} context - Normalized domain context.
      * @returns {{staged: number, purged: Array<string>, disposition: string}} What was withdrawn.
      * @memberof UnderpostSecret
      */
     clean(context = {}) {
       context = domainContextFactory(context);
-      const purge = `${context.args.names ?? ''}`.split(/[,\s]+/).filter(Boolean);
+      const purge = parseDomainList(context.args.names).map((reference) => Underpost.secret.reference(reference));
       if (purge.length > 0 && !context.force)
-        throw new Error('[secret] clean --args names=<secret> removes cluster state; re-run with --force');
+        throw new Error('[secret] clean --args names=<resource>/<id> removes cluster state; re-run with --force');
       const deleteManifest = context.args.delete === true || `${context.args.delete}` === 'true';
       const disposition = deleteManifest ? 'delete' : 'archive';
       const staged = fs.existsSync(SOPS_STAGE_DIR) ? fs.readdirSync(SOPS_STAGE_DIR).length : 0;
+      const purged = purge.map(referenceOf);
       if (context.dryRun) {
-        logger.info('[dry-run] secret clean would withdraw', { staged, purge, disposition });
-        return { staged, purged: purge, disposition };
+        logger.info('[dry-run] secret clean would withdraw', { staged, purge: purged, disposition });
+        return { staged, purged, disposition };
       }
       if (fs.existsSync(SOPS_STAGE_DIR)) fs.removeSync(SOPS_STAGE_DIR);
-      for (const name of purge)
-        Underpost.secret.purge(name, { namespace: context.namespace, dryRun: false, force: deleteManifest });
-      logger.info('Workload secret traces withdrawn', { staged, purged: purge, disposition });
-      return { staged, purged: purge, disposition };
+      for (const secret of purge) Underpost.secret.purge(secret, { environment: context.env, force: deleteManifest });
+      logger.info('Workload secret traces withdrawn', { staged, purged, disposition });
+      return { staged, purged, disposition };
     },
 
     /**
-     * @method store
-     * @description Git-native encrypted credential management backed by Mozilla SOPS and Age, for
-     * fully self-hosted clusters with no cloud KMS or external secret store. Encrypted manifests
-     * live in `engine-private/secrets/<namespace>/<name>.enc.yaml` and are safe to commit; the Age
-     * private key stays at `~/.config/sops/age/keys.txt` (or `$SOPS_AGE_KEY_FILE`) and is never
-     * committed, rendered into a manifest, or shipped into a container. Decryption is always
-     * streamed straight into `kubectl apply -f -`, so plaintext never reaches persistent storage.
+     * @method setupStore
+     * @description Encrypts Secrets of the catalog into the store of an environment and declares their
+     * resources as their source. A manifest lives at `engine-private/secrets/<scope>/<resource>/<id>.enc.yaml`,
+     * where the scope is the environment or `shared`, names no namespace, and is safe to commit. The Age
+     * private key stays at `~/.config/sops/age/keys.txt` (or `$SOPS_AGE_KEY_FILE`) and never leaves the host.
+     *
+     * Each data key comes from its origin seed file, else the host environment, else `--args key=value`,
+     * else a generated value, so a run on a live cluster keeps the credentials it runs on. A resource is
+     * declared only with all its Secrets stored, so its source never names a manifest the store lacks.
+     * @param {string} names - References `<resource>/<id>`, separated by `|`; the data tier by default.
+     * @param {object} [options]
+     * @param {string} [options.environment='production']
+     * @param {boolean} [options.shared] - Store them in the shared scope, and declare their resources `shared`.
+     * @param {string[]} [options.args] - `key=value` values of data keys.
+     * @param {boolean} [options.dryRun] - Encrypt and validate; change neither the configuration nor the cluster.
+     * @param {boolean} [options.force] - Replace stored manifests.
+     * @returns {{secrets:string[], declared:Object<string,string>}}
      * @memberof UnderpostSecret
      */
-    /**
-     * @method setup
-     * @description End-to-end SOPS/Age onboarding for a host: installs tooling, generates the Age
-     * keypair and creation rules, pins the key path for non-interactive runs, encrypts the
-     * requested Secrets into the Git-tracked store, then validates and applies them.
-     *
-     * Every step is idempotent and re-runnable. Notably it delegates key generation to
-     * `secret setup` rather than calling `age-keygen` directly: a bare `age-keygen -o`
-     * overwrites an existing key, which would orphan every manifest already encrypted to the
-     * previous recipient with no way to recover them.
-     *
-     * On a host that pulled a store created elsewhere, the freshly generated key is not a recipient
-     * of the inherited manifests. `init()` registers this host in the creation rules so what it
-     * encrypts from here on stays readable, but existing manifests can only be re-keyed from a host
-     * that still holds a decrypting key. That case is reported per secret and then raised by the
-     * apply pre-flight with the available remedies, rather than surfacing as a sops decrypt error.
-     *
-     * Onboards the whole self-hosted data tier by default — PostgreSQL, MariaDB, and MongoDB
-     * (`postgres-secret`, `mariadb-secret`, `mongodb-secret`, `mongodb-keyfile`). The MongoDB
-     * keyfile is included because the StatefulSet mounts it for intra-replica-set auth and will
-     * not start without it. Pass an explicit comma-separated list to narrow the set.
-     *
-     * Secret values are resolved per data key, in order:
-     *   1. the origin seed file, when one exists (`engine-private/postgresql-password`) — this is
-     *      the real onboarding path, carrying the credential the cluster already runs on;
-     *   2. `--args` as `key=value` pairs, for a value supplied by the operator;
-     *   3. a freshly generated value: a base64 keyfile for `mongodb-keyfile`, `admin` for a
-     *      `username`, otherwise a 24-character secure password.
-     *
-     * Plaintext manifests are written by Node under `/dev/shm` at mode 600 and shredded by
-     * `encrypt()`. They are never emitted through a shell heredoc, which would place the
-     * credential in the command string and therefore in the process table and the command log.
-     *
-     * Usage:
-     *   underpost secret setup                                     # postgres + mariadb + mongo
-     *   underpost secret setup --args names=mongodb-secret,mongodb-keyfile --namespace prod
-     *   underpost secret setup --args "names=postgres-secret,password=s3cr3t"
-     *   underpost secret setup --dry-run                           # stop before mutating cluster
-     *   underpost secret setup --force                             # replace stored manifests
-     * @param {string} names - Comma-separated Secret names to onboard. Defaults to the full data
-     *   tier: postgres-secret, mariadb-secret, mongodb-secret, mongodb-keyfile.
-     * @param {object} options - Onboarding options
-     * @param {string} options.namespace - Target namespace for the store and the apply (default: 'default').
-     * @param {string} options.args - Comma-separated `key=value` overrides for Secret data keys.
-     * @param {boolean} options.dryRun - Validate and server-dry-run only; never apply.
-     * @param {boolean} options.force - Replace encrypted manifests that already exist.
-     * @memberof UnderpostSecret
-     */
-    setupStore(names = '', options = {}) {
-      const namespace = options.namespace || 'default';
-      const secretNames = (names || SOPS_SETUP_DEFAULT_SECRETS.join(','))
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean);
+    setupStore(
+      names = '',
+      { environment = 'production', shared = false, args = [], dryRun = false, force = false } = {},
+    ) {
+      const secrets = (names ? parseDomainList(names) : SOPS_SETUP_DEFAULT_SECRETS).map((reference) =>
+        Underpost.secret.reference(reference),
+      );
+      const scope = shared ? SHARED_SCOPE : environment;
+      const pathOf = ({ resource, id }) => `${SOPS_SECRETS_DIR}/${scope}/${resource}/${id}${SOPS_MANIFEST_EXT}`;
+      const resources = [...new Set(secrets.map(({ resource }) => resource))];
+      const missing = Underpost.namespace
+        .secrets()
+        .filter(
+          (secret) =>
+            resources.includes(secret.resource) &&
+            !secrets.some((own) => referenceOf(own) === referenceOf(secret)) &&
+            !fs.existsSync(pathOf(secret)),
+        );
+      if (missing.length)
+        throw new Error(
+          `[secret] name ${missing.map(referenceOf).join(', ')} too: a resource takes all its Secrets from one source`,
+        );
+      const overrides = Object.fromEntries(
+        args
+          .map((pair) => [pair.slice(0, pair.indexOf('=')).trim(), pair.slice(pair.indexOf('=') + 1).trim()])
+          .filter(([key]) => key),
+      );
+      logger.info('[secret setup]', { secrets: secrets.map(referenceOf), environment, scope, dryRun, force });
 
-      // `--args key=value,key2=value2` overrides, applied to any secret that declares that key.
-      const overrides = `${options.args || ''}`.split(',').reduce((acc, pair) => {
-        const separator = pair.indexOf('=');
-        if (separator > 0) acc[pair.slice(0, separator).trim()] = pair.slice(separator + 1).trim();
-        return acc;
-      }, {});
-
-      logger.info('[secret setup]', { secretNames, namespace, dryRun: !!options.dryRun, force: !!options.force });
-
-      // 1. Host tooling, then keypair + creation rules. Both no-op when already present.
       Underpost.secret.installTooling();
       Underpost.secret.init();
+      // The key path for non-interactive runs (systemd units, CronJobs, sudo): `sudo` resets HOME, so a guess
+      // would surface later as an opaque decrypt failure.
+      writeHostFile({
+        target: '/etc/profile.d/underpost-sops.sh',
+        content: `export SOPS_AGE_KEY_FILE="\${SOPS_AGE_KEY_FILE:-${Underpost.secret.keyFile()}}"\n`,
+        mode: '0644',
+      });
 
-      // 2. Pin the resolved key path for non-interactive runs (systemd units, CronJobs, sudo).
-      //    Written with the concrete path rather than a guessed default, because `sudo` resets
-      //    HOME and a wrong guess surfaces later as an opaque decrypt failure.
-      const keyFile = Underpost.secret.keyFile();
-      shellExec(
-        `sudo tee /etc/profile.d/underpost-sops.sh >/dev/null <<'UNDERPOST_SOPS_ENV_EOF'
-export SOPS_AGE_KEY_FILE="\${SOPS_AGE_KEY_FILE:-${keyFile}}"
-UNDERPOST_SOPS_ENV_EOF`,
-      );
-      shellExec(`sudo chmod 644 /etc/profile.d/underpost-sops.sh`);
-
-      // 3. Build and encrypt each requested Secret.
-      const stageDir = '/dev/shm/underpost-secrets';
       const held = Underpost.secret.localRecipients();
-      stageDirSync(stageDir);
-      try {
-        for (const name of secretNames) {
-          const stored = Underpost.secret.has(name, namespace);
-          if (stored && !options.force) {
-            // A stored manifest this host cannot open is present but unusable here, so reporting it
-            // as onboarded would send the operator on to an apply that is guaranteed to fail.
-            if (Underpost.secret.decryptable(Underpost.secret.manifestPath(name, namespace), held))
-              logger.info(`${name} is already onboarded in ns/${namespace}; skipping (use --force to replace)`);
-            else
-              logger.warn(
-                `${name} is stored in ns/${namespace} but is sealed to an Age recipient this host does not hold; ` +
-                  `skipping. Adopt the store's key, re-key it from a host that holds one, or re-onboard from the ` +
-                  `origin seed files with --force.`,
-              );
-            continue;
-          }
-
-          // Data keys come from the secret's origin seed contract, so an onboarded manifest
-          // carries exactly the keys the workload's secretKeyRef already expects.
-          const seedSources = Underpost.secret.seedSources(name);
-          const envKeys = Underpost.secret.seedEnvKeys(name);
-          const envValues = Underpost.secret.seedEnvValues(name, options);
-          const mappedKeys = [...new Set([...Object.keys(seedSources), ...Object.keys(envKeys)])];
-          const dataKeys = mappedKeys.length > 0 ? mappedKeys : ['password'];
-          const stringData = {};
-          for (const key of dataKeys) {
-            const seedPath = seedSources[key];
-            if (seedPath && fs.existsSync(seedPath)) {
-              stringData[key] = fs.readFileSync(seedPath, 'utf8').trim();
-              logger.info(`${name}.${key} seeded from ${seedPath}`);
-            } else if (envValues[key] !== undefined) {
-              stringData[key] = envValues[key];
-              logger.info(`${name}.${key} seeded from the cron deploy environment`);
-            } else if (overrides[key] !== undefined) {
-              stringData[key] = overrides[key];
-              logger.info(`${name}.${key} taken from --args`);
-            } else {
-              stringData[key] = generateSeedValue(key);
-              // Replacing a stored manifest with a value nothing seeded means the credential the
-              // running datastore still authenticates against is being thrown away.
-              if (stored)
-                logger.warn(
-                  `${name}.${key} generated while replacing the stored manifest — no seed file at ` +
-                    `${seedPath || '(unmapped)'} and no --args override. The running datastore keeps its old ` +
-                    `credential until this value is applied to it; pass --args "${key}=<value>" to keep the ` +
-                    `existing one.`,
-                );
-              else logger.info(`${name}.${key} generated`);
-            }
-          }
-
-          const stagePath = `${stageDir}/${name}.yaml`;
-          writeStageFileSync(
-            stagePath,
-            [
-              'apiVersion: v1',
-              'kind: Secret',
-              'metadata:',
-              `  name: ${name}`,
-              `  namespace: ${namespace}`,
-              '  labels:',
-              '    app.kubernetes.io/managed-by: underpost',
-              'type: Opaque',
-              'stringData:',
-              // Single-quoted YAML scalars with doubled internal quotes: values are generated or
-              // operator-supplied and may contain characters YAML would otherwise interpret.
-              ...Object.entries(stringData).map(([key, value]) => `  ${key}: '${`${value}`.replace(/'/g, "''")}'`),
-              '',
-            ].join('\n'),
-          );
-          // encrypt() stages, validates, moves into place, and shreds the plaintext source.
-          Underpost.secret.encrypt(stagePath, namespace, options);
+      for (const secret of secrets) {
+        const path = pathOf(secret);
+        const stored = fs.existsSync(path);
+        if (stored && !force) {
+          if (Underpost.secret.decryptable(path, held))
+            logger.info(`${labelOf(path)} is stored; kept (--force replaces it)`);
+          else
+            logger.warn(
+              `${labelOf(path)} is sealed to an Age recipient this host does not hold; kept. Adopt the store's key, ` +
+                're-key it from a host that holds one, or replace it from the origin seed files with --force.',
+            );
+          continue;
         }
-      } finally {
-        // Defense in depth: encrypt() shreds each source, but a throw mid-loop must not leave a
-        // plaintext manifest sitting in shared memory.
-        fs.removeSync(stageDir);
+        const sources = Underpost.secret.seedSources(secret.name);
+        const envKeys = Underpost.secret.seedEnvKeys(secret.name);
+        const envValues = Underpost.secret.seedEnvValues(secret.name, { env: environment });
+        const mapped = [...new Set([...Object.keys(sources), ...Object.keys(envKeys)])];
+        const data = {};
+        for (const key of mapped.length ? mapped : ['password']) {
+          if (sources[key] && fs.existsSync(sources[key])) data[key] = fs.readFileSync(sources[key], 'utf8').trim();
+          else if (envValues[key] !== undefined) data[key] = envValues[key];
+          else if (overrides[key] !== undefined) data[key] = overrides[key];
+          else {
+            data[key] = generateSeedValue(key);
+            // A generated value replacing a stored one is a credential the running datastore does not know.
+            if (stored)
+              logger.warn(
+                `${referenceOf(secret)}.${key} generated while replacing its manifest: the running datastore keeps ` +
+                  `its old credential until this value reaches it; pass --args "${key}=<value>" to keep it.`,
+              );
+          }
+        }
+        Underpost.secret.seal({ path, name: secret.name, data, force: stored });
       }
 
+      const selected = secrets.map((secret) => ({ ...secret, path: pathOf(secret) }));
+      for (const { path, name } of selected) Underpost.secret.assertManifest(path, { name });
       Underpost.secret.list();
-
-      // 4. Validate only the requested manifests, then apply unless this is a dry run.
-      Underpost.secret.applySelected(secretNames, namespace, { dryRun: true });
-      if (options.dryRun) return logger.info('--dry-run: validated only, cluster left unchanged');
-      Underpost.secret.applySelected(secretNames, namespace);
+      const declared = Object.fromEntries(resources.map((resource) => [resource, shared ? 'shared' : 'sops']));
+      if (dryRun) {
+        Underpost.secret.applyStore({ environment, secrets: selected, dryRun: true });
+        logger.info('--dry-run: encrypted and validated; the configuration and the cluster are unchanged', declared);
+        return { secrets: secrets.map(referenceOf), declared: {} };
+      }
+      const backup = Underpost.namespace.declareSecretSources({ environment, sources: declared });
+      logger.info('Declared secret sources', { environment, declared, backup });
+      Underpost.secret.applyStore({ environment, secrets: selected });
+      return { secrets: secrets.map(referenceOf), declared };
     },
     /**
-     * @method status
-     * @description Reports the live state of the SOPS/Age secret system: host tooling, the Age
-     * key and its recipient, the committed creation rules, every stored manifest with whether the
-     * local key can open it and whether the cluster still matches, and which managed Secrets are
-     * onboarded versus still seeding from their origin path.
-     *
-     * Read-only and safe to run anywhere. Decryption happens only for the drift check, only for
-     * manifests the local key is a recipient of, and only into `kubectl diff` with its output
-     * discarded — no secret value is ever printed or written to disk.
-     *
-     * Usage:
-     *   underpost secret status                                    # every managed key, ns default
-     *   underpost secret status --args keys=mongo                   # partial match: both mongo keys
-     *   underpost secret status --namespace prod                    # every managed key in ns prod
-     * @param {string} filter - Comma-separated managed Secret keys to report on; empty reports all.
-     *   Matched as case-insensitive substrings (`mongo` selects mongodb-secret and mongodb-keyfile).
-     *   Filters both the stored-manifest listing and the coverage table.
-     * @param {object} options - Reporting options
-     * @param {string} options.namespace - Namespace to inspect (default: 'default').
+     * @method statusReport
+     * @description Reports the store of an environment: host tooling, the Age key and its recipients, the
+     * creation rules, a namespace-keyed store that waits for `secret setup --args store=legacy`, then each
+     * Secret of the catalog with its source, the namespace of its resource, its manifest, whether the local
+     * key opens it and whether the cluster matches it, and the external manifests. Read-only: a drift check
+     * decrypts only into `kubectl diff`, whose output is discarded.
+     * @param {string} [filter] - Comma-separated substrings of references or names; empty reports every Secret.
+     * @param {{environment?:string}} [options]
+     * @returns {Object[]} One row per Secret.
      * @memberof UnderpostSecret
      */
-    statusReport(filter = '', options = {}) {
+    statusReport(filter = '', { environment = 'production' } = {}) {
       const sops = Underpost.secret;
-      // `--namespace` selects the namespace; `path` narrows which managed
-      // Secret keys to report on, so the two axes stay independent.
-      const namespace = options.namespace || 'default';
-      const manageSecretKeyFilter = `${filter || ''}`
+      const terms = `${filter || ''}`
         .split(',')
-        .map((key) => key.trim().toLowerCase())
+        .map((term) => term.trim().toLowerCase())
         .filter(Boolean);
-      // Partial, case-insensitive substring match, so `mongo` reaches both `mongodb-secret` and
-      // `mongodb-keyfile` without having to spell either out.
-      const matchesKeyFilter = (name) =>
-        manageSecretKeyFilter.length === 0 || manageSecretKeyFilter.some((key) => name.toLowerCase().includes(key));
+      const matches = (secret) =>
+        !terms.length ||
+        terms.some((term) => referenceOf(secret).includes(term) || secret.name.toLowerCase().includes(term));
       const mark = (ok) => (ok ? 'yes' : 'no');
 
-      // ── Tooling ────────────────────────────────────────────────────────────
       const version = (bin, flag) =>
         sops.hasBinary(bin)
           ? shellExec(`${bin} ${flag} 2>/dev/null | head -1`, { stdout: true, silent: true, disableLog: true }).trim()
@@ -699,11 +657,9 @@ UNDERPOST_SOPS_ENV_EOF`,
           `  age-keygen  ${sops.hasBinary('age-keygen') ? 'installed' : '(not installed)'}`,
       );
 
-      // ── Age key ────────────────────────────────────────────────────────────
+      // A key file may hold several identities: that is how a host joins a store it did not create.
       const keyFile = sops.keyFile();
       const keyExists = fs.existsSync(keyFile);
-      // A key file may hold several identities — that is how a host joins a store it did not
-      // create — so every check below works against the whole held set, not one recipient.
       const held = sops.localRecipients();
       const keyMode = keyExists ? (fs.statSync(keyFile).mode & 0o777).toString(8) : '';
       logger.info(
@@ -714,8 +670,7 @@ UNDERPOST_SOPS_ENV_EOF`,
           (keyExists ? '' : `\n  searched    ${sops.keyFileCandidates().join(', ')}`),
       );
 
-      // ── Creation rules ─────────────────────────────────────────────────────
-      const confPath = './engine-private/secrets/.sops.yaml';
+      const confPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
       const ruleRecipients = sops.creationRecipients();
       logger.info(
         '[secret status] Creation rules\n' +
@@ -724,72 +679,68 @@ UNDERPOST_SOPS_ENV_EOF`,
           `  local key listed  ${mark(held.some((recipient) => ruleRecipients.includes(recipient)))}`,
       );
 
-      // ── Stored manifests ───────────────────────────────────────────────────
-      const manifests = sops.manifests(namespace).filter((manifest) => matchesKeyFilter(manifest.name));
-      const onboarded = new Set();
-      if (manifests.length === 0)
+      const legacy = sops.legacyManifests();
+      if (legacy.length)
         logger.warn(
-          `[secret status] Store\n  no encrypted manifests in ns/${namespace}` +
-            (manageSecretKeyFilter.length > 0 ? ` matching ${manageSecretKeyFilter.join(', ')}` : ''),
+          `[secret status] Namespace-keyed store: ${legacy.map(({ path }) => labelOf(path)).join(', ')}. ` +
+            `Move it with node bin secret setup --env ${environment} --args store=legacy`,
         );
-      else {
-        const rows = manifests.map((manifest) => {
-          onboarded.add(manifest.name);
-          const recipients = sops.manifestRecipients(manifest.path);
-          const decryptable = sops.decryptable(manifest.path, held);
-          const live = shellExec(
-            `kubectl get secret ${manifest.name} -n ${manifest.namespace} --ignore-not-found -o name 2>/dev/null || true`,
-            { stdout: true, silent: true, silentOnError: true, disableLog: true },
-          ).trim();
-          // Drift is decided by kubectl's exit code; its stdout would contain the decrypted
-          // values, so it is discarded rather than captured.
+
+      const rows = Underpost.namespace
+        .secrets()
+        .filter(matches)
+        .map((secret) => {
+          const source = Underpost.namespace.secretSource({ resource: secret.resource, environment });
+          const namespace = Underpost.namespace.of(secret.resource, { environment });
+          const path = STORED_SOURCES.includes(source) ? sops.manifestPath(secret, environment) : '';
+          const stored = Boolean(path) && fs.existsSync(path);
+          const decryptable = stored && sops.decryptable(path, held);
+          const live = Boolean(sops.liveData(secret.name, namespace));
           let sync = 'n/a';
-          if (live && decryptable) {
+          if (path && !stored) sync = 'MISSING MANIFEST';
+          else if (stored && !decryptable) sync = 'no local key';
+          else if (!live) sync = 'not applied';
+          else if (stored) {
+            // Drift is decided by the exit code; stdout would hold the decrypted values, so it is discarded.
             const result = shellExec(
-              `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${manifest.path}" ` +
-                `| kubectl diff -f - -n "${manifest.namespace}" >/dev/null 2>&1'`,
+              `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${path}" ` +
+                `| kubectl diff -f - -n "${namespace}" >/dev/null 2>&1'`,
               { silentOnError: true, disableLog: true, stdout: false },
             );
             sync = result.code === 0 ? 'in-sync' : result.code === 1 ? 'DRIFT' : 'error';
-          } else if (!live) sync = 'not applied';
-          else if (!decryptable) sync = 'no local key';
-          return (
-            `  ${`${manifest.namespace}/${manifest.name}`.padEnd(34)} ` +
-            `recipients=${String(recipients.length).padEnd(3)} ` +
-            `decryptable=${mark(decryptable).padEnd(4)} ` +
-            `live=${mark(!!live).padEnd(4)} ` +
-            `${sync}`
-          );
+          }
+          return {
+            secret: referenceOf(secret),
+            name: secret.name,
+            source,
+            namespace,
+            manifest: stored ? labelOf(path) : '',
+            decryptable,
+            live,
+            sync,
+          };
         });
-        logger.info(`[secret status] Store — ns/${namespace} (${manifests.length} manifest(s))\n` + rows.join('\n'));
-      }
-
-      // ── Coverage ───────────────────────────────────────────────────────────
-      const coverage = sops
-        .managedSecrets()
-        .filter(matchesKeyFilter)
-        .map((name) => {
-          const seeds = Object.values(sops.seedSources(name));
-          const seedPresent = seeds.length > 0 && seeds.every((seed) => fs.existsSync(seed));
-          const envKeys = Object.keys(sops.seedEnvKeys(name));
-          const envValues = sops.seedEnvValues(name);
-          const envPresent = envKeys.length > 0 && envKeys.every((key) => envValues[key] !== undefined);
-          let source = 'unmapped';
-          if (onboarded.has(name)) source = 'sops';
-          else if (seedPresent) source = 'origin seed';
-          else if (envPresent) source = 'cron env';
-          else if (seeds.length || envKeys.length) source = 'MISSING';
-          return `  ${name.padEnd(24)} ${source.padEnd(12)} ${
-            seeds.length ? `seed=${mark(seedPresent)}` : envKeys.length ? `env=${mark(envPresent)}` : ''
-          }`;
-        });
-      if (coverage.length === 0)
-        logger.warn(
-          `[secret status] Coverage\n  no managed Secret matches ${manageSecretKeyFilter.join(', ')}\n` +
-            `  known keys: ${sops.managedSecrets().join(', ')}`,
+      logger.info(
+        `[secret status] Secrets of ${environment}\n` +
+          (rows.length
+            ? rows
+                .map(
+                  (row) =>
+                    `  ${row.secret.padEnd(26)} ${row.source.padEnd(9)} ${`${row.namespace}/${row.name}`.padEnd(40)} ` +
+                    `manifest=${(row.manifest || '-').padEnd(34)} decryptable=${mark(row.decryptable).padEnd(4)} ${row.sync}`,
+                )
+                .join('\n')
+            : `  no Secret matches ${terms.join(', ')}; known: ${Underpost.namespace.secrets().map(referenceOf).join(', ')}`),
+      );
+      const external = sops.manifests([EXTERNAL_SCOPE]);
+      if (external.length)
+        logger.info(
+          '[secret status] External manifests (never applied to the cluster)\n' +
+            external
+              .map(({ path }) => `  ${labelOf(path).padEnd(34)} decryptable=${mark(sops.decryptable(path, held))}`)
+              .join('\n'),
         );
-      else
-        logger.info('[secret status] Coverage (which source each managed Secret deploys from)\n' + coverage.join('\n'));
+      return rows;
     },
     /**
      * @method keyFileCandidates
@@ -858,17 +809,6 @@ UNDERPOST_SOPS_ENV_EOF`,
             `Run: chmod 600 ${keyFile}`,
         );
       return keyFile;
-    },
-
-    /**
-     * @method managedSecrets
-     * @description Names of every Secret wired to prefer the encrypted store, with the origin
-     * seed path as fallback. Used for coverage reporting.
-     * @returns {Array<string>} Managed Secret names.
-     * @memberof UnderpostSecret
-     */
-    managedSecrets() {
-      return [...MANAGED_SECRETS];
     },
 
     /**
@@ -957,18 +897,18 @@ UNDERPOST_SOPS_ENV_EOF`,
      * Kubernetes Secret, for a cluster whose credentials are not onboarded into the encrypted
      * store yet.
      *
-     * The fallback half of `applyIfPresent(name) || applyFromOriginSeed(name)`: SOPS/Age stays
-     * the source of truth wherever a manifest exists, and this keeps a not-yet-onboarded
-     * cluster deploying exactly as before. Paths come from {@link UnderpostSecret.workload.seedSources},
-     * so callers never spell out a credential path of their own.
+     * The `seed` source of {@link UnderpostSecret.provide}. Paths come from
+     * {@link UnderpostSecret.seedSources}, so callers never spell out a credential path of their own.
      *
      * Idempotent: `--dry-run=client | kubectl apply` converges on the seed contents.
      * @param {string} name - Managed secret name (e.g. 'postgres-secret').
-     * @param {string} [namespace='default'] - Target namespace.
+     * @param {string} namespace - Target namespace.
+     * @param {string} environment - The environment of the cluster.
      * @returns {boolean} True when the Secret was applied; false when no seed file is present.
      * @memberof UnderpostSecret
      */
-    applyFromOriginSeed(name, namespace = 'default') {
+    applyFromOriginSeed(name, namespace, environment) {
+      assertSecretAdministration(environment, `the origin seed of ${name}`);
       const sources = Underpost.secret.seedSources(name);
       const envKeys = Underpost.secret.seedEnvKeys(name);
       const fileKeys = Object.keys(sources);
@@ -1027,30 +967,34 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method manifestPath
-     * @description Builds the canonical store path for an encrypted Secret manifest.
-     * @param {string} name - Secret name (e.g. 'postgres-secret').
-     * @param {string} [namespace='default'] - Kubernetes namespace.
-     * @returns {string} Path to the `.enc.yaml` manifest.
+     * @method reference
+     * @description The catalog Secret a reference names.
+     * @param {string} reference - `<resource>/<id>`, e.g. `mongodb/credentials`.
+     * @returns {{resource:string, id:string, name:string}}
      * @memberof UnderpostSecret
      */
-    manifestPath(name, namespace = 'default') {
-      return `${SOPS_SECRETS_DIR}/${namespace}/${name}${SOPS_MANIFEST_EXT}`;
+    reference(reference) {
+      const secrets = Underpost.namespace.secrets();
+      const found = secrets.find((secret) => referenceOf(secret) === `${reference}`.trim());
+      if (!found)
+        throw new Error(`[secret] ${reference} names no Secret of the catalog: ${secrets.map(referenceOf).join(', ')}`);
+      return found;
     },
 
     /**
-     * @method has
-     * @description Reports whether an encrypted manifest exists for a secret. Lets callers
-     * prefer the SOPS store while keeping the origin seed path for clusters not yet onboarded.
-     * Existence only — integrity is {@link assertManifest}'s job, so a corrupt manifest is a
-     * hard failure rather than a silent slide back to the seed path.
-     * @param {string} name - Secret name.
-     * @param {string} [namespace='default'] - Kubernetes namespace.
-     * @returns {boolean} True when the encrypted manifest is present.
+     * @method manifestPath
+     * @description The encrypted manifest of a catalog Secret in an environment:
+     * `<scope>/<resource>/<id>.enc.yaml`, where the scope is `shared` when the environment declares its resource
+     * shared, else the environment. The namespace is never part of it.
+     * @param {{resource:string, id:string}} secret
+     * @param {string} environment
+     * @returns {string}
      * @memberof UnderpostSecret
      */
-    has(name, namespace = 'default') {
-      return fs.existsSync(Underpost.secret.manifestPath(name, namespace));
+    manifestPath({ resource, id }, environment) {
+      const scope =
+        Underpost.namespace.secretSource({ resource, environment }) === 'shared' ? SHARED_SCOPE : environment;
+      return `${SOPS_SECRETS_DIR}/${scope}/${resource}/${id}${SOPS_MANIFEST_EXT}`;
     },
 
     /**
@@ -1077,14 +1021,12 @@ UNDERPOST_SOPS_ENV_EOF`,
     /**
      * @method assertManifest
      * @description Fails closed on a manifest that exists but is not what the caller asked for.
-     * Guards three silent-failure modes that a plain existence check misses: a plaintext file
-     * that was never encrypted (credential disclosure in Git), a non-Secret resource, and a
-     * name/namespace mismatch — the last of which would otherwise apply cleanly while leaving
-     * the workload's `secretKeyRef` permanently unresolvable.
+     * Guards the silent-failure modes that a plain existence check misses: a plaintext file that was
+     * never encrypted (credential disclosure in Git), a non-Secret resource, a name mismatch that would
+     * leave the workload's `secretKeyRef` unresolvable, and a namespace, which only the placement names.
      * @param {string} manifestPath - Path to the `.enc.yaml` manifest.
      * @param {object} [expect={}] - Expected envelope.
      * @param {string} [expect.name] - Required `metadata.name`.
-     * @param {string} [expect.namespace] - Required `metadata.namespace` when the manifest sets one.
      * @memberof UnderpostSecret
      */
     assertManifest(manifestPath, expect = {}) {
@@ -1101,10 +1043,10 @@ UNDERPOST_SOPS_ENV_EOF`,
           `${manifestPath} declares metadata.name "${meta.name}" but is stored as "${expect.name}". ` +
             `Applying it would leave secretKeyRef "${expect.name}" unresolved.`,
         );
-      if (expect.namespace && meta.namespace && meta.namespace !== expect.namespace)
+      if (meta.namespace)
         throw new Error(
-          `${manifestPath} declares metadata.namespace "${meta.namespace}" but is being applied to ` +
-            `"${expect.namespace}".`,
+          `${manifestPath} names the namespace ${meta.namespace}: a stored Secret names none, and the placement ` +
+            'supplies it at apply time',
         );
     },
 
@@ -1171,12 +1113,12 @@ UNDERPOST_SOPS_ENV_EOF`,
      * pipe, which names neither the manifest nor a way out; this raises first, listing every
      * unreadable manifest, the recipients it is sealed to, the identities this host actually
      * holds, and the three ways to resolve it.
-     * @param {Array<{namespace: string, name: string, path: string}>} manifests - Manifests to check.
+     * @param {Array<string>} paths - The manifests to check.
      * @memberof UnderpostSecret
      */
-    assertDecryptable(manifests) {
+    assertDecryptable(paths) {
       const held = Underpost.secret.localRecipients();
-      const unreadable = manifests.filter((manifest) => !Underpost.secret.decryptable(manifest.path, held));
+      const unreadable = paths.filter((path) => !Underpost.secret.decryptable(path, held));
       if (unreadable.length === 0) return;
       const local =
         held.length > 0 ? held.join(', ') : `(none — no readable Age identity at ${Underpost.secret.keyFile()})`;
@@ -1185,9 +1127,8 @@ UNDERPOST_SOPS_ENV_EOF`,
           `so they cannot be decrypted here:\n` +
           unreadable
             .map(
-              (manifest) =>
-                `  ${manifest.namespace}/${manifest.name} -> ` +
-                `${Underpost.secret.manifestRecipients(manifest.path).join(', ') || 'no age recipients'}`,
+              (path) =>
+                `  ${labelOf(path)} -> ${Underpost.secret.manifestRecipients(path).join(', ') || 'no age recipients'}`,
             )
             .join('\n') +
           `\n  this host holds: ${local}\n` +
@@ -1219,7 +1160,7 @@ UNDERPOST_SOPS_ENV_EOF`,
         fs.ensureDirSync(keyFile.slice(0, keyFile.lastIndexOf('/')));
         shellExec(`umask 077 && age-keygen -o "${keyFile}"`);
       }
-      shellExec(`chmod 600 "${keyFile}"`);
+      fs.chmodSync(keyFile, 0o600);
 
       const recipient = Underpost.secret.recipient();
       const sopsConfPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
@@ -1316,135 +1257,151 @@ UNDERPOST_SOPS_ENV_EOF`,
 
     /**
      * @method encrypt
-     * @description Encrypts a plaintext Secret manifest into the Git-tracked store and shreds the
-     * source. Recipients resolve from the committed `.sops.yaml`, so a manifest cannot be
-     * encrypted to an unlisted key. Author the plaintext under `/dev/shm` so it never touches
-     * persistent storage.
-     * Written via a staged temp file and moved into place only after the output validates. A
-     * bare `sops … > out` redirect has the shell truncate `out` before sops runs, so a failed
-     * encrypt would destroy an existing manifest and leave a zero-byte file in its place.
-     * @param {string} plaintextPath - Path to the plaintext Secret manifest.
-     * @param {string} [namespace='default'] - Target namespace directory in the store.
-     * @param {object} [options={}] - Encryption options.
-     * @param {boolean} [options.force=false] - Replace an existing manifest at the target path.
-     * @returns {string} Path of the written encrypted manifest.
+     * @description Encrypts a plaintext Secret manifest into the store and shreds the source. Recipients
+     * resolve from the committed `.sops.yaml`, so a manifest cannot be encrypted to an unlisted key. The
+     * output is staged and moved into place only after it validates: a bare `sops … > out` would truncate an
+     * existing manifest before sops runs.
+     * @param {string} plaintextPath - The plaintext Secret manifest, on tmpfs.
+     * @param {string} outPath - Its place in the store ({@link UnderpostSecret.manifestPath}).
+     * @param {{name:string, force?:boolean}} options - The Kubernetes name it must declare; `force` replaces a
+     *   stored manifest.
+     * @returns {string} The encrypted manifest.
      * @memberof UnderpostSecret
      */
-    encrypt(plaintextPath, namespace = 'default', options = {}) {
+    encrypt(plaintextPath, outPath, { name, force = false }) {
       Underpost.secret.assertTooling(['sops']);
       if (!plaintextPath || !fs.existsSync(plaintextPath))
         throw new Error(`Plaintext manifest not found: ${plaintextPath}`);
       const sopsConfPath = `${SOPS_SECRETS_DIR}/.sops.yaml`;
       if (!fs.existsSync(sopsConfPath))
         throw new Error(`Missing creation rules: ${sopsConfPath} (run: underpost secret setup)`);
-
       const sourceMeta = Underpost.secret.manifestMeta(plaintextPath);
       if (sourceMeta.encrypted)
+        throw new Error(`${plaintextPath} already carries sops metadata: edit it in place with sops ${plaintextPath}`);
+      if (sourceMeta.namespace)
         throw new Error(
-          `${plaintextPath} already carries sops metadata. Re-encrypting would double-wrap it; ` +
-            `edit it in place with: sops ${plaintextPath}`,
+          `${plaintextPath} names the namespace ${sourceMeta.namespace}: remove it, the placement supplies it`,
         );
-
-      const name = plaintextPath
-        .split('/')
-        .pop()
-        .replace(/\.ya?ml$/, '');
-      const outPath = Underpost.secret.manifestPath(name, namespace);
-      if (fs.existsSync(outPath) && !options.force)
+      if (fs.existsSync(outPath) && !force)
         throw new Error(`${outPath} already exists. Edit it with \`sops ${outPath}\`, or pass --force to replace.`);
-      fs.ensureDirSync(`${SOPS_SECRETS_DIR}/${namespace}`);
+      fs.ensureDirSync(nodePath.dirname(outPath));
 
-      // Encrypt to a temp file and move into place only on success. A bare `sops … > out` has the
-      // shell truncate `out` before sops runs, so a failed encrypt destroys the manifest that was
-      // already there and leaves an empty file the apply path would happily skip over.
       const stagePath = `${outPath}.staged`;
       try {
-        // `--filename-override` makes sops match creation_rules against the destination path
-        // rather than the tmpfs source. Without it the rule never matches, because the plaintext
-        // deliberately lives outside the store (in /dev/shm) and is not named `*.enc.yaml`.
+        // `--filename-override` matches creation_rules against the destination, not the tmpfs source.
         shellExec(
           `sops --config "${sopsConfPath}" --filename-override "${outPath}" ` +
             `--encrypt "${plaintextPath}" > "${stagePath}"`,
         );
         Underpost.secret.assertManifest(stagePath, { name });
-        // Sealing to a recipient held elsewhere is legitimate (encrypting *for* another host),
-        // so this warns rather than fails — but it is also the shape of the store-adoption trap,
-        // where it would otherwise only surface at the next apply.
+        // Sealing to a recipient held elsewhere is legitimate, but it is also the store-adoption trap.
         if (!Underpost.secret.decryptable(stagePath))
           logger.warn(
             `${outPath} is sealed to ${Underpost.secret.manifestRecipients(stagePath).join(', ')}, none of ` +
-              `which this host holds a private key for — it cannot be decrypted here. Add this host's recipient ` +
-              `to ${sopsConfPath} and re-encrypt if that is not intended.`,
+              `which this host holds a private key for. Add this host's recipient to ${sopsConfPath} and ` +
+              're-encrypt if that is not intended.',
           );
         fs.moveSync(stagePath, outPath, { overwrite: true });
       } finally {
         fs.removeSync(stagePath);
       }
-
       shellExec(`shred -u "${plaintextPath}" 2>/dev/null || rm -f "${plaintextPath}"`, { silentOnError: true });
       logger.info(`Encrypted -> ${outPath}`);
       return outPath;
     },
 
     /**
-     * @method apply
-     * @description Decrypts every encrypted manifest for a namespace and streams each one
-     * directly into `kubectl apply -f -`. Plaintext exists only in an anonymous kernel pipe.
-     * @param {string} [namespace='default'] - Target namespace.
-     * @param {object} [options={}] - Apply options.
-     * @param {boolean} [options.dryRun=false] - Perform a server-side dry run instead of applying.
-     * @returns {number} Count of manifests applied.
+     * @method seal
+     * @description Encrypts a Secret into the store from its data. The plaintext manifest lives on tmpfs at
+     * mode 600 until {@link UnderpostSecret.encrypt} shreds it, and names no namespace.
+     * @param {{path:string, name:string, data:Object<string,string>, type?:string, force?:boolean}} params
+     * @returns {string} The encrypted manifest.
      * @memberof UnderpostSecret
      */
-    applyStore(namespace = 'default', options = {}) {
-      const dir = `${SOPS_SECRETS_DIR}/${namespace}`;
-      if (!fs.existsSync(dir)) throw new Error(`No encrypted secrets for namespace: ${namespace}`);
-      const manifests = Underpost.secret.manifests(namespace);
-      if (manifests.length === 0) throw new Error(`No *${SOPS_MANIFEST_EXT} manifests under ${dir}`);
-
-      // Validate-then-commit. Applying in a single pass means manifest N failing to decrypt
-      // leaves 1..N-1 already live — a half-rotated namespace nobody asked for. The envelope
-      // check plus a server dry run of every manifest catches wrong-key, malformed-YAML, schema
-      // and RBAC failures before the first mutation.
-      for (const manifest of manifests)
-        Underpost.secret.assertManifest(manifest.path, { name: manifest.name, namespace });
-      Underpost.secret.assertDecryptable(manifests);
-      if (!options.dryRun)
-        for (const manifest of manifests)
-          Underpost.secret.applyManifest(manifest.path, namespace, {
-            ...options,
-            dryRun: true,
-            quiet: true,
-          });
-
-      for (const manifest of manifests) Underpost.secret.applyManifest(manifest.path, namespace, options);
-      logger.info(`${options.dryRun ? 'Validated' : 'Applied'} ${manifests.length} manifest(s) in ns/${namespace}`);
-      return manifests.length;
+    seal({ path, name, data, type, force = false }) {
+      const stageDir = stageDirSync(`/dev/shm/underpost-seal-${process.pid}`);
+      try {
+        const plaintextPath = writeStageFileSync(`${stageDir}/${name}.yaml`, secretManifest(name, data, type));
+        return Underpost.secret.encrypt(plaintextPath, path, { name, force });
+      } finally {
+        fs.removeSync(stageDir);
+      }
     },
 
-    /** Applies a named subset without requiring access to unrelated manifests in the namespace. */
-    applySelected(names, namespace = 'default', options = {}) {
-      const manifests = [...new Set(names)]
-        .filter((name) => Underpost.secret.has(name, namespace))
-        .map((name) => ({
-          name,
-          namespace,
-          path: Underpost.secret.manifestPath(name, namespace),
-        }));
-      if (manifests.length === 0) throw new Error(`No requested encrypted secrets for namespace: ${namespace}`);
-      for (const manifest of manifests)
-        Underpost.secret.assertManifest(manifest.path, { name: manifest.name, namespace });
-      Underpost.secret.assertDecryptable(manifests);
-      for (const manifest of manifests)
-        Underpost.secret.applyManifest(manifest.path, namespace, {
-          ...options,
-          expectName: manifest.name,
-          quiet: true,
-        });
-      logger.info(
-        `${options.dryRun ? 'Validated' : 'Applied'} ${manifests.length} selected manifest(s) in ns/${namespace}`,
-      );
-      return manifests.length;
+    /**
+     * @method provide
+     * @description Applies the Secrets of a resource into its namespace, from the source its environment
+     * declares ({@link UnderpostNamespace.secretSource}): the encrypted manifests of the environment or of the
+     * shared scope, the origin seed files, or nothing for an unmanaged resource. A missing or unreadable
+     * manifest stops before any Secret changes; nothing falls back to the seed files.
+     * @param {{resource:string, namespace?:string, options?:Object}} params - `namespace` defaults to the
+     *   placement of the resource; `options` carry the environment (`env`, `dev`).
+     * @returns {{source:string, namespace:string, secrets:string[]}}
+     * @memberof UnderpostSecret
+     */
+    provide({ resource, namespace, options = {} }) {
+      const environment = environmentOf({ options });
+      const target = namespace ?? Underpost.namespace.of(resource, { options });
+      const source = Underpost.namespace.secretSource({ resource, environment });
+      const secrets = Underpost.namespace.secrets().filter((secret) => secret.resource === resource);
+      if (source === 'unmanaged')
+        logger.info(`The Secrets of ${resource} are unmanaged in ${environment}: the cluster keeps them as they are`);
+      else if (source === 'seed')
+        for (const { name } of secrets) Underpost.secret.applyFromOriginSeed(name, target, environment);
+      else Underpost.secret.applyStore({ environment, secrets, namespace: target });
+      return { source, namespace: target, secrets: secrets.map(({ name }) => name) };
+    },
+
+    /**
+     * @method applyStore
+     * @description Applies stored Secrets of an environment, each into the namespace of its resource:
+     * validate-then-commit, so a manifest that fails leaves none of the others half-applied. The envelope,
+     * the recipients and a server dry run of every manifest pass before the first change.
+     * @param {object} params
+     * @param {string} params.environment
+     * @param {Array<{resource:string, id:string, name:string, path?:string}>} [params.secrets] - Every Secret
+     *   whose resource the environment stores by default; `path` names a manifest before its declaration.
+     * @param {string} [params.namespace] - One namespace for all; the placement of each resource by default.
+     * @param {boolean} [params.dryRun] - A server dry run.
+     * @returns {number} The count of Secrets.
+     * @memberof UnderpostSecret
+     */
+    applyStore({ environment, secrets, namespace, dryRun = false }) {
+      const selected = (
+        secrets ??
+        Underpost.namespace
+          .secrets()
+          .filter(({ resource }) =>
+            STORED_SOURCES.includes(Underpost.namespace.secretSource({ resource, environment })),
+          )
+      ).map((secret) => ({
+        ...secret,
+        path: secret.path ?? Underpost.secret.manifestPath(secret, environment),
+        namespace: namespace ?? Underpost.namespace.of(secret.resource, { environment }),
+      }));
+      if (!selected.length) {
+        logger.info(`No resource of ${environment} takes its Secrets from the store`);
+        return 0;
+      }
+      const missing = selected.filter(({ path }) => !fs.existsSync(path));
+      if (missing.length)
+        throw new Error(
+          `[secret] the store of ${environment} lacks ${missing.map(({ path }) => labelOf(path)).join(', ')}, and ` +
+            'no Secret changed. Onboard them with node bin secret setup ' +
+            `--env ${environment} --args names=${missing.map(referenceOf).join('|')}`,
+        );
+      assertSecretAdministration(environment, 'secret apply');
+      for (const { path, name } of selected) Underpost.secret.assertManifest(path, { name });
+      Underpost.secret.assertDecryptable(selected.map(({ path }) => path));
+      if (!dryRun)
+        for (const { path, name, namespace: target } of selected)
+          Underpost.secret.applyManifest(path, target, { dryRun: true, quiet: true, expectName: name });
+      for (const { path, name, namespace: target } of selected)
+        Underpost.secret.applyManifest(path, target, { dryRun, quiet: true, expectName: name });
+      logger.info(`${dryRun ? 'Validated' : 'Applied'} ${selected.length} Secret(s) of ${environment}`, {
+        secrets: selected.map(({ name, namespace: target }) => `${target}/${name}`),
+      });
+      return selected.length;
     },
 
     /**
@@ -1454,22 +1411,20 @@ UNDERPOST_SOPS_ENV_EOF`,
      * failure yields an empty stream and `kubectl apply -f -` exits 0, silently applying nothing.
      * `disableLog` keeps the command (and therefore the key path) out of the log stream.
      * @param {string} manifestPath - Path to the `.enc.yaml` manifest.
-     * @param {string} [namespace='default'] - Target namespace.
+     * @param {string} namespace - The namespace the placement names for its resource.
      * @param {object} [options={}] - Apply options.
      * @param {boolean} [options.dryRun=false] - Perform a server-side dry run instead of applying.
      * @param {string} [options.expectName] - Require this `metadata.name` in the manifest envelope.
      * @param {boolean} [options.quiet=false] - Suppress the per-manifest log line.
      * @memberof UnderpostSecret
      */
-    applyManifest(manifestPath, namespace = 'default', options = {}) {
+    applyManifest(manifestPath, namespace, options = {}) {
       // Envelope first: it needs no private key, so a malformed or unencrypted store is reported
       // as such even on a host whose key is missing or wrongly permissioned.
-      Underpost.secret.assertManifest(manifestPath, { name: options.expectName, namespace });
+      Underpost.secret.assertManifest(manifestPath, { name: options.expectName });
       // Recipient set next: a manifest sealed to a key this host does not hold fails inside the
       // decrypt pipe with an error that names neither the file nor a remedy.
-      Underpost.secret.assertDecryptable([
-        { namespace, name: options.expectName || manifestPath.split('/').pop(), path: manifestPath },
-      ]);
+      Underpost.secret.assertDecryptable([manifestPath]);
       Underpost.secret.assertTooling(['sops']);
       const keyFile = Underpost.secret.assertKeyFile();
       const dryRun = options.dryRun ? ' --dry-run=server' : '';
@@ -1481,19 +1436,38 @@ UNDERPOST_SOPS_ENV_EOF`,
       if (!options.quiet) logger.info(`${options.dryRun ? 'Dry-run' : 'Applied'} ${manifestPath} -> ns/${namespace}`);
     },
 
-    /** Decrypts one stored Secret through an anonymous pipe and returns its data in memory. */
-    readData(name, namespace = 'default') {
-      const manifestPath = Underpost.secret.manifestPath(name, namespace);
-      Underpost.secret.assertManifest(manifestPath, { name, namespace });
-      Underpost.secret.assertDecryptable([{ namespace, name, path: manifestPath }]);
+    /**
+     * @method readData
+     * @description Decrypts the stored data of a catalog Secret in an environment into memory.
+     * @param {{resource:string, id:string, name:string}} secret
+     * @param {string} environment
+     * @returns {Object<string,string>}
+     * @memberof UnderpostSecret
+     */
+    readData(secret, environment) {
+      const path = Underpost.secret.manifestPath(secret, environment);
+      Underpost.secret.assertManifest(path, { name: secret.name });
+      Underpost.secret.assertDecryptable([path]);
+      return Underpost.secret.decryptData(path);
+    },
+
+    /**
+     * @method decryptData
+     * @description Decrypts the data of one encrypted manifest into memory, never onto a disk or a log.
+     * @param {string} path
+     * @returns {Object<string,string>}
+     * @memberof UnderpostSecret
+     */
+    decryptData(path) {
       Underpost.secret.assertTooling(['sops']);
       const keyFile = Underpost.secret.assertKeyFile();
-      const source = shellExec(
-        `bash -c 'set -o pipefail; SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt "${manifestPath}" ` +
-          `| kubectl create --dry-run=client -f - -o json'`,
-        { stdout: true, silent: true, disableLog: true },
+      const secret = JSON.parse(
+        shellExec(`bash -c 'SOPS_AGE_KEY_FILE="${keyFile}" sops --decrypt --output-type json "${path}"'`, {
+          stdout: true,
+          silent: true,
+          disableLog: true,
+        }),
       );
-      const secret = JSON.parse(source);
       const data = Object.fromEntries(
         Object.entries(secret.data || {}).map(([key, value]) => [
           key,
@@ -1504,47 +1478,46 @@ UNDERPOST_SOPS_ENV_EOF`,
     },
 
     /**
-     * @method applyIfPresent
-     * @description Applies a secret from the SOPS store when an encrypted manifest exists,
-     * reporting whether it did. Single decision point for callers that keep an origin seed path
-     * for clusters not yet onboarded to the encrypted store.
-     *
-     * Falls back to the seed path only when the manifest is *absent*. A manifest that exists but
-     * is corrupt, unencrypted, or names a different Secret raises instead: sliding back to the
-     * seed path there would mask a tampered store and silently deploy stale credentials the
-     * operator believes were replaced.
-     * @param {string} name - Secret name.
-     * @param {string} [namespace='default'] - Kubernetes namespace.
-     * @param {object} [options={}] - Apply options forwarded to {@link applyManifest}.
-     * @returns {boolean} True when the encrypted manifest was applied.
+     * @method liveData
+     * @description The data of a live Secret, decoded in memory: what its consumers read.
+     * @param {string} name
+     * @param {string} namespace
+     * @returns {{data:Object<string,string>, resourceVersion:string}|null} Null when it does not exist.
      * @memberof UnderpostSecret
      */
-    applyIfPresent(name, namespace = 'default', options = {}) {
-      if (!Underpost.secret.has(name, namespace)) return false;
-      Underpost.secret.applyManifest(Underpost.secret.manifestPath(name, namespace), namespace, {
-        ...options,
-        expectName: name,
+    liveData(name, namespace) {
+      const source = shellExec(`kubectl get secret ${name} -n ${namespace} --ignore-not-found -o json`, {
+        stdout: true,
+        silent: true,
+        silentOnError: true,
+        disableLog: true,
       });
-      return true;
+      if (!`${source || ''}`.trim()) return null;
+      const secret = JSON.parse(source);
+      return {
+        data: Object.fromEntries(
+          Object.entries(secret.data || {}).map(([key, value]) => [
+            key,
+            Buffer.from(`${value}`, 'base64').toString('utf8'),
+          ]),
+        ),
+        resourceVersion: `${secret.metadata?.resourceVersion || ''}`,
+      };
     },
 
     /**
      * @method list
-     * @description Lists encrypted manifests with their Age recipients. Reads only the plaintext
-     * `sops:` metadata block, so no private key is required and this is safe to run anywhere.
+     * @description Lists the encrypted manifests with their Age recipients. Reads only the plaintext `sops:`
+     * block, so it needs no private key.
      * @memberof UnderpostSecret
      */
     list() {
       const manifests = Underpost.secret.manifests();
       if (manifests.length === 0) return logger.warn(`No encrypted manifests under ${SOPS_SECRETS_DIR}`);
-      for (const manifest of manifests) {
-        const recipients = Underpost.secret.manifestRecipients(manifest.path);
+      for (const { path } of manifests)
         console.log(
-          `${manifest.namespace}/${manifest.name}${SOPS_MANIFEST_EXT}  ->  ${
-            recipients.join(', ') || 'no age recipients'
-          }`,
+          `${labelOf(path)}${SOPS_MANIFEST_EXT}  ->  ${Underpost.secret.manifestRecipients(path).join(', ') || 'no age recipients'}`,
         );
-      }
     },
 
     /**
@@ -1609,7 +1582,7 @@ UNDERPOST_SOPS_ENV_EOF`,
       // `updatekeys` re-wraps each data key, which means decrypting it first. A host that cannot
       // read the store cannot rotate it, dry run included — reporting a plan that can never run
       // is what sends an operator down the wrong remedy.
-      Underpost.secret.assertDecryptable(manifests);
+      Underpost.secret.assertDecryptable(manifests.map(({ path }) => path));
 
       if (options.dryRun) {
         logger.info('Rotation plan (dry run)', { from: current, to: next, revoked, manifests: manifests.length });
@@ -1649,7 +1622,7 @@ UNDERPOST_SOPS_ENV_EOF`,
             `${manifest.path} is still sealed to ${sealed.join(', ') || 'no recipients'} after updatekeys; ` +
               `expected ${recipient}. Rotation aborted with the store partially re-keyed — re-run once resolved.`,
           );
-        logger.info(`Re-keyed ${manifest.namespace}/${manifest.name}`);
+        logger.info(`Re-keyed ${labelOf(manifest.path)}`);
       }
 
       logger.info(`Rotated ${manifests.length} manifest(s)`, { recipients: next, revoked });
@@ -2006,41 +1979,19 @@ UNDERPOST_SOPS_ENV_EOF`,
 
     /**
      * @method writeGitAuthTokenManifest
-     * @description Records the token in the encrypted store as `git-auth-token`, replacing the
-     * stored manifest.
-     *
-     * The plaintext is written by Node onto tmpfs at mode 600 and handed to {@link encrypt},
-     * which stages to a temp file, validates the envelope, moves into place only on success and
-     * shreds the source — so a failed encrypt cannot leave a truncated manifest where a readable
-     * one was. The data key keeps the `GIT_AUTH_TOKEN` spelling, so a workload reading it through
-     * `envFrom` gets the environment variable its tooling already expects.
+     * @description Mirrors the token in the external scope of the store, replacing the stored manifest. The
+     * data key keeps the `GIT_AUTH_TOKEN` spelling.
      * @param {string} token - The token to store.
-     * @param {string} [namespace='default'] - Store namespace.
-     * @returns {string} Path of the written encrypted manifest.
+     * @returns {string} The encrypted manifest.
      * @memberof UnderpostSecret
      */
-    writeGitAuthTokenManifest(token, namespace = 'default') {
-      const stageDir = stageDirSync(ACTIONS_SECRET_STAGE_DIR);
-      const plaintextPath = `${stageDir}/${GIT_AUTH_TOKEN_SECRET}.yaml`;
-      writeStageFileSync(
-        plaintextPath,
-        [
-          'apiVersion: v1',
-          'kind: Secret',
-          'metadata:',
-          `  name: ${GIT_AUTH_TOKEN_SECRET}`,
-          `  namespace: ${namespace}`,
-          '  labels:',
-          '    app.kubernetes.io/managed-by: underpost',
-          'type: Opaque',
-          'stringData:',
-          // Single-quoted YAML scalar with doubled internal quotes: a token is opaque and may
-          // carry characters YAML would otherwise interpret.
-          `  ${GIT_AUTH_TOKEN_KEY}: '${`${token}`.replace(/'/g, "''")}'`,
-          '',
-        ].join('\n'),
-      );
-      return Underpost.secret.encrypt(plaintextPath, namespace, { force: true });
+    writeGitAuthTokenManifest(token) {
+      return Underpost.secret.seal({
+        path: GIT_AUTH_TOKEN_MIRROR,
+        name: GIT_AUTH_TOKEN_SECRET,
+        data: { [GIT_AUTH_TOKEN_KEY]: token },
+        force: true,
+      });
     },
 
     /**
@@ -2065,7 +2016,7 @@ UNDERPOST_SOPS_ENV_EOF`,
      *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run   # whole fleet
      *   node bin secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG|NPM_TOKEN,source=host,deploy-id=dd"
      *   node bin secret rotate --args "secret=NPM_TOKEN,source=host,target=org,level=org,deploy-id=template"
-     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,store=true,apply=true"
+     *   node bin secret rotate --args "secret=GIT_AUTH_TOKEN,store=true"
      * @param {object} [options={}] - Rotation options.
      * @param {string} [options.keys] - Secret names, separated by `|`, `;` or whitespace.
      * @param {string} [options.value] - The value, for a single key. When omitted: piped stdin,
@@ -2078,10 +2029,8 @@ UNDERPOST_SOPS_ENV_EOF`,
      * @param {string} [options.owner] - GitHub owner for the resolved repository names.
      * @param {string} [options.level] - `repo` or `org`; see {@link githubTargetFactory}.
      * @param {string} [options.repos] - Extra `owner/repo` targets, separated by `|`, `;` or space.
-     * @param {string} [options.namespace='default'] - Store namespace for the mirrored manifest.
-     * @param {boolean} [options.store=false] - Mirror `GIT_AUTH_TOKEN` into the encrypted store
-     *   even when no manifest is stored yet. An existing manifest is always updated.
-     * @param {boolean} [options.apply=false] - Project the updated manifest into the cluster.
+     * @param {boolean} [options.store=false] - Mirror `GIT_AUTH_TOKEN` into the external scope of the store
+     *   even when no mirror exists yet. An existing mirror is always updated; it is never applied to a cluster.
      * @param {boolean} [options.dryRun=false] - Report the plan without contacting GitHub,
      *   prompting, or writing anything.
      * @returns {{target: object, keys: Array<string>, targets: Array<string>,
@@ -2091,14 +2040,7 @@ UNDERPOST_SOPS_ENV_EOF`,
      * @memberof UnderpostSecret
      */
     rotateActionsSecrets(options = {}) {
-      const keys = [
-        ...new Set(
-          `${options.keys ?? ''}`
-            .split(/[|;\s]+/)
-            .map((key) => key.trim().toUpperCase())
-            .filter(Boolean),
-        ),
-      ];
+      const keys = [...new Set(parseDomainList(options.keys).map((key) => key.toUpperCase()))];
       if (keys.length === 0) throw new Error('[secret] rotate needs at least one secret name in --args secret=');
       const invalid = keys.filter((key) => !/^(?!GITHUB_)[A-Z_][A-Z0-9_]*$/.test(key));
       if (invalid.length > 0)
@@ -2106,7 +2048,6 @@ UNDERPOST_SOPS_ENV_EOF`,
           `[secret] ${invalid.join(', ')} cannot name a GitHub Actions secret: letters, digits and underscores ` +
             `only, and the GITHUB_ prefix is reserved by GitHub.`,
         );
-      const namespace = options.namespace || 'default';
       const target = Underpost.secret.githubTargetFactory(options);
       const targets = Underpost.secret.actionsSecretTargets(options);
       if (targets.length === 0)
@@ -2121,7 +2062,7 @@ UNDERPOST_SOPS_ENV_EOF`,
         );
       const hostValues = Underpost.host.read(options.env || 'production');
       const mirrorsToken = keys.includes(GIT_AUTH_TOKEN_KEY);
-      const stored = mirrorsToken && Underpost.secret.has(GIT_AUTH_TOKEN_SECRET, namespace);
+      const stored = mirrorsToken && fs.existsSync(GIT_AUTH_TOKEN_MIRROR);
       const store = mirrorsToken && (stored || options.store === true || `${options.store}` === 'true');
       const ghReady = Underpost.secret.hasBinary('gh');
       const ghEnv = Underpost.secret.ghEnvFactory(target);
@@ -2163,10 +2104,9 @@ UNDERPOST_SOPS_ENV_EOF`,
           targets,
           wouldWrite: probed ? probed.reachable : '(not probed)',
           unreachable: probed ? probed.unreachable : '(not probed)',
-          namespace,
           from: lines(sources),
           gh: ghReady ? (ghAuthenticated ? 'authenticated' : 'not authenticated') : 'missing',
-          manifest: store ? Underpost.secret.manifestPath(GIT_AUTH_TOKEN_SECRET, namespace) : '(store untouched)',
+          manifest: store ? GIT_AUTH_TOKEN_MIRROR : '(store untouched)',
           storedManifest: stored,
         });
         if (!ghReady) logger.warn('gh is not on PATH; this plan cannot run until the GitHub CLI is installed.');
@@ -2229,14 +2169,12 @@ UNDERPOST_SOPS_ENV_EOF`,
           failed[key] = outcome.failed;
 
           if (key === GIT_AUTH_TOKEN_KEY && outcome.written.length > 0) {
-            if (store) manifest = Underpost.secret.writeGitAuthTokenManifest(staged.value, namespace);
+            if (store) manifest = Underpost.secret.writeGitAuthTokenManifest(staged.value);
             else
               logger.info(
-                `No ${GIT_AUTH_TOKEN_SECRET} manifest in ns/${namespace}; the store was left untouched. ` +
-                  `Pass --args store=true to mirror this token into it.`,
+                `No ${labelOf(GIT_AUTH_TOKEN_MIRROR)} mirror; the store was left untouched. ` +
+                  'Pass --args store=true to mirror this token into it.',
               );
-            if (manifest && (options.apply === true || `${options.apply}` === 'true'))
-              Underpost.secret.applyIfPresent(GIT_AUTH_TOKEN_SECRET, namespace);
           }
         }
       } finally {
@@ -2281,100 +2219,171 @@ UNDERPOST_SOPS_ENV_EOF`,
 
     /**
      * @method purge
-     * @description Emergency removal of one secret: deletes the live Kubernetes Secret and takes
-     * its encrypted manifest out of the store. The manifest is archived rather than deleted so
-     * the purge stays reversible; `options.force` deletes it outright.
-     *
-     * Removing the manifest is what re-arms the origin seed path — with no `.enc.yaml`,
-     * `applyIfPresent` returns false and cluster init seeds the secret from the plaintext
-     * credential files instead. Whether that seed path is actually available is reported, not
-     * assumed: purging a secret whose seed files are gone leaves workloads with an unresolvable
-     * `secretKeyRef`, so the gap is surfaced at purge time rather than at the next deploy.
-     * @param {string} name - Secret name (e.g. 'postgres-secret').
-     * @param {object} [options={}] - Purge options.
-     * @param {string} [options.namespace='default'] - Namespace of the live Secret.
-     * @param {boolean} [options.force=false] - Delete the manifest instead of archiving it.
-     * @param {boolean} [options.dryRun=false] - Report what would happen without changing anything.
-     * @returns {{deleted: boolean, archived: string, seedFallback: boolean}} Purge outcome.
+     * @description Removes one Secret: deletes it from the namespace of its resource and takes its manifest
+     * out of the store of the environment, archived under `.archive/` unless `force` deletes it. A resource
+     * the environment still stores stops at its next {@link UnderpostSecret.provide} until the manifest
+     * returns or the resource takes another source; the purge reports it.
+     * @param {{resource:string, id:string, name:string}} secret
+     * @param {{environment?:string, force?:boolean, dryRun?:boolean}} [options]
+     * @returns {{deleted:boolean, archived:string}}
      * @memberof UnderpostSecret
      */
-    purge(name, options = {}) {
-      if (!name) throw new Error('Purge requires a secret name');
-      const namespace = options.namespace || 'default';
-      const manifestPath = Underpost.secret.manifestPath(name, namespace);
-      const seedSources = Object.values(Underpost.secret.seedSources(name));
-      const envKeys = Object.keys(Underpost.secret.seedEnvKeys(name));
-      const envValues = Underpost.secret.seedEnvValues(name);
-      const seedFallback =
-        (seedSources.length > 0 && seedSources.every((source) => fs.existsSync(source))) ||
-        (envKeys.length > 0 && envKeys.every((key) => envValues[key] !== undefined));
-
-      if (options.dryRun) {
+    purge(secret, { environment = 'production', force = false, dryRun = false } = {}) {
+      const namespace = Underpost.namespace.of(secret.resource, { environment });
+      const path = Underpost.secret.manifestPath(secret, environment);
+      const source = Underpost.namespace.secretSource({ resource: secret.resource, environment });
+      if (dryRun) {
         logger.info('Purge plan (dry run)', {
-          secret: `${namespace}/${name}`,
-          manifest: fs.existsSync(manifestPath) ? manifestPath : 'absent',
-          disposition: options.force ? 'delete' : 'archive',
-          seedFallbackAvailable: seedFallback,
+          secret: `${namespace}/${secret.name}`,
+          manifest: fs.existsSync(path) ? labelOf(path) : 'absent',
+          disposition: force ? 'delete' : 'archive',
+          source,
         });
-        return { deleted: false, archived: '', seedFallback };
+        return { deleted: false, archived: '' };
       }
-
-      shellExec(`kubectl delete secret ${name} -n ${namespace} --ignore-not-found`);
-
+      assertSecretAdministration(environment, 'secret clean');
+      shellExec(`kubectl delete secret ${secret.name} -n ${namespace} --ignore-not-found`);
       let archived = '';
-      if (!fs.existsSync(manifestPath)) logger.warn(`No encrypted manifest to remove at ${manifestPath}`);
-      else if (options.force) {
-        fs.removeSync(manifestPath);
-        logger.warn(`Deleted ${manifestPath}`);
+      if (!fs.existsSync(path)) logger.warn(`No encrypted manifest to remove at ${path}`);
+      else if (force) {
+        fs.removeSync(path);
+        logger.warn(`Deleted ${path}`);
       } else {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        archived = `${SOPS_ARCHIVE_DIR}/${namespace}/${name}.${stamp}${SOPS_MANIFEST_EXT}`;
-        fs.ensureDirSync(`${SOPS_ARCHIVE_DIR}/${namespace}`);
-        fs.moveSync(manifestPath, archived);
-        logger.info(`Archived ${manifestPath} -> ${archived}`);
+        archived = `${SOPS_ARCHIVE_DIR}/${labelOf(path)}.${new Date().toISOString().replace(/[:.]/g, '-')}${SOPS_MANIFEST_EXT}`;
+        fs.moveSync(path, archived);
+        logger.info(`Archived ${path} -> ${archived}`);
       }
-
-      if (seedFallback)
-        logger.info(`Origin seed path is available for ${name}; cluster init will seed from it.`, {
-          sources: seedSources,
-        });
-      else if (seedSources.length > 0)
+      if (STORED_SOURCES.includes(source))
         logger.warn(
-          `No origin seed path for ${name}. Re-encrypt a manifest or create the secret manually ` +
-            `before redeploying workloads that mount it.`,
-          { expected: seedSources },
+          `${environment} takes the Secrets of ${secret.resource} from the store: the next install stops until ` +
+            `${referenceOf(secret)} is stored again, or conf.cluster.json gives ${secret.resource} another source`,
         );
-
-      return { deleted: true, archived, seedFallback };
+      return { deleted: true, archived };
     },
 
     /**
      * @method manifests
-     * @description Enumerates every encrypted manifest in the store, or in one namespace.
-     * Dot-prefixed entries (`.archive`, `.sops.yaml`) are never treated as namespaces.
-     * @param {string} [namespace] - Restrict to one namespace; omit for the whole store.
-     * @returns {Array<{namespace: string, name: string, path: string}>} Manifest descriptors, sorted.
+     * @description The encrypted manifests of the store, `<scope>/<owner>/<id>.enc.yaml`, in every scope or in
+     * the ones named. A scope is an environment, `shared` or `external`; dot-prefixed entries (`.archive`,
+     * `.stage`, `.sops.yaml`) are none.
+     * @param {Array<string>} [scopes]
+     * @returns {Array<{scope:string, owner:string, id:string, path:string}>}
      * @memberof UnderpostSecret
      */
-    manifests(namespace) {
-      if (!fs.existsSync(SOPS_SECRETS_DIR)) return [];
-      const namespaces = namespace
-        ? [namespace]
-        : fs
-            .readdirSync(SOPS_SECRETS_DIR)
-            .filter((entry) => !entry.startsWith('.') && fs.statSync(`${SOPS_SECRETS_DIR}/${entry}`).isDirectory())
-            .sort();
-      const found = [];
-      for (const ns of namespaces) {
-        const dir = `${SOPS_SECRETS_DIR}/${ns}`;
-        if (!fs.existsSync(dir)) continue;
-        for (const file of fs
-          .readdirSync(dir)
-          .filter((entry) => entry.endsWith(SOPS_MANIFEST_EXT))
-          .sort())
-          found.push({ namespace: ns, name: file.slice(0, -SOPS_MANIFEST_EXT.length), path: `${dir}/${file}` });
+    manifests(scopes = [...ENVIRONMENTS, SHARED_SCOPE, EXTERNAL_SCOPE]) {
+      return scopes.flatMap((scope) =>
+        directories(`${SOPS_SECRETS_DIR}/${scope}`).flatMap((owner) =>
+          manifestFiles(`${SOPS_SECRETS_DIR}/${scope}/${owner}`).map((file) => ({
+            scope,
+            owner,
+            id: file.slice(0, -SOPS_MANIFEST_EXT.length),
+            path: `${SOPS_SECRETS_DIR}/${scope}/${owner}/${file}`,
+          })),
+        ),
+      );
+    },
+
+    /**
+     * @method legacyManifests
+     * @description The manifests of the namespace-keyed store, `<namespace>/<name>.enc.yaml`: every directory of
+     * the store that is not a scope.
+     * @returns {Array<{namespace:string, name:string, path:string}>}
+     * @memberof UnderpostSecret
+     */
+    legacyManifests() {
+      const scopes = [...ENVIRONMENTS, SHARED_SCOPE, EXTERNAL_SCOPE];
+      return directories(SOPS_SECRETS_DIR)
+        .filter((namespace) => !scopes.includes(namespace))
+        .flatMap((namespace) =>
+          manifestFiles(`${SOPS_SECRETS_DIR}/${namespace}`).map((file) => ({
+            namespace,
+            name: file.slice(0, -SOPS_MANIFEST_EXT.length),
+            path: `${SOPS_SECRETS_DIR}/${namespace}/${file}`,
+          })),
+        );
+    },
+
+    /**
+     * @method migrateLegacyStore
+     * @description Moves the namespace-keyed store into the store of an environment. Each manifest is
+     * decrypted by sops into memory, written without its namespace to `<environment>/<resource>/<id>.enc.yaml`
+     * through {@link UnderpostSecret.seal}, re-encrypted to the creation rule's recipients, and verified: the
+     * new manifest validates, this host opens it, and it holds the same data. Only then are the originals
+     * archived under `.archive/legacy/`, and each resource whose Secrets are all stored is declared `sops`.
+     * A name the catalog does not know, or one Secret in two namespaces, stops it before it writes. A verified
+     * destination is kept, so a second run only finishes what the first left.
+     * @param {{environment:string, dryRun?:boolean}} params
+     * @returns {{moved:string[], kept:string[], declared:Object<string,string>, archived:string[]}}
+     * @memberof UnderpostSecret
+     */
+    migrateLegacyStore({ environment, dryRun = false }) {
+      const catalog = Underpost.namespace.secrets();
+      const legacy = Underpost.secret.legacyManifests().map((manifest) => ({
+        ...manifest,
+        secret: catalog.find(({ name }) => name === manifest.name),
+      }));
+      const unknown = legacy.filter(({ secret }) => !secret).map(({ path }) => labelOf(path));
+      const repeated = legacy
+        .filter(({ name }, index) => legacy.findIndex((other) => other.name === name) !== index)
+        .map(({ name }) => name);
+      if (unknown.length || repeated.length)
+        throw new Error(
+          '[secret] the legacy store cannot move: ' +
+            [
+              ...(unknown.length ? [`${unknown.join(', ')} names no Secret of the catalog`] : []),
+              ...(repeated.length ? [`${[...new Set(repeated)].join(', ')} is stored in more than one namespace`] : []),
+            ].join('; ') +
+            '. Resolve it by hand; nothing was written.',
+        );
+      const steps = legacy.map(({ path, secret }) => {
+        const to = `${SOPS_SECRETS_DIR}/${environment}/${secret.resource}/${secret.id}${SOPS_MANIFEST_EXT}`;
+        return { from: path, to, secret, kept: fs.existsSync(to) };
+      });
+      const plan = steps.map(({ from, to, kept }) => `${labelOf(from)} -> ${labelOf(to)}${kept ? ' (stored)' : ''}`);
+      logger.info(`[secret setup] legacy store of ${environment}`, { steps: plan });
+      const result = { moved: [], kept: [], declared: {}, archived: [] };
+      if (dryRun || !steps.length) return result;
+
+      Underpost.secret.assertDecryptable(steps.map(({ from }) => from));
+      for (const { from, to, secret, kept } of steps) {
+        const data = Underpost.secret.decryptData(from);
+        if (!kept) Underpost.secret.seal({ path: to, name: secret.name, data });
+        Underpost.secret.assertManifest(to, { name: secret.name });
+        Underpost.secret.assertDecryptable([to]);
+        const stored = Underpost.secret.decryptData(to);
+        if (JSON.stringify(Object.entries(stored).sort()) !== JSON.stringify(Object.entries(data).sort()))
+          throw new Error(`[secret] ${labelOf(to)} does not hold the data of ${labelOf(from)}; ${labelOf(from)} stays`);
+        result[kept ? 'kept' : 'moved'].push(labelOf(to));
       }
-      return found;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      for (const { from } of steps) {
+        const archived = `${SOPS_ARCHIVE_DIR}/legacy/${labelOf(from)}.${stamp}${SOPS_MANIFEST_EXT}`;
+        fs.moveSync(from, archived);
+        result.archived.push(archived);
+      }
+      const resources = [...new Set(steps.map(({ secret }) => secret.resource))];
+      result.declared = Object.fromEntries(
+        resources
+          .filter((resource) =>
+            catalog
+              .filter((secret) => secret.resource === resource)
+              .every(({ id }) =>
+                fs.existsSync(`${SOPS_SECRETS_DIR}/${environment}/${resource}/${id}${SOPS_MANIFEST_EXT}`),
+              ),
+          )
+          .map((resource) => [resource, 'sops']),
+      );
+      const partial = resources.filter((resource) => !result.declared[resource]);
+      if (Object.keys(result.declared).length)
+        logger.info('Declared secret sources', {
+          environment,
+          declared: result.declared,
+          backup: Underpost.namespace.declareSecretSources({ environment, sources: result.declared }),
+        });
+      if (partial.length)
+        logger.warn(`${partial.join(', ')} keep their source: the store does not hold all their Secrets`);
+      logger.info(`[secret setup] legacy store of ${environment} moved`, result);
+      return result;
     },
 
     /**
@@ -2472,28 +2481,39 @@ UNDERPOST_SOPS_ENV_EOF`,
       logger.info('Installing SOPS and Age host tooling...', { ...archData, SOPS_VERSION, AGE_VERSION });
       const installed = { sops: false, age: false };
 
+      // Each binary is downloaded into a private scratch directory, then installed for every user.
+      const install = (binaries, download) => {
+        const scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-tooling-'));
+        try {
+          download(scratch);
+          for (const [source, name] of binaries) installHostBinary(nodePath.join(scratch, source), name);
+        } finally {
+          fs.removeSync(scratch);
+        }
+      };
+
       if (Underpost.secret.hasBinary('sops')) logger.info('SOPS is already installed; skipping.');
       else {
-        shellExec(
-          `curl -fsSL -o /tmp/sops https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${archData.alias}`,
+        install([['sops', 'sops']], (scratch) =>
+          shellExec(
+            `curl -fsSL -o ${shellArgumentFactory(nodePath.join(scratch, 'sops'))} https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${archData.alias}`,
+          ),
         );
-        shellExec(`sudo install -m 0755 /tmp/sops /usr/local/bin/sops`);
-        shellExec(`sudo ln -sf /usr/local/bin/sops /bin/sops`);
-        shellExec(`sudo rm -f /tmp/sops`);
         installed.sops = true;
       }
 
       if (Underpost.secret.hasBinary('age-keygen')) logger.info('Age is already installed; skipping.');
       else {
-        shellExec(
-          `curl -fsSL -o /tmp/age.tar.gz https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-${archData.alias}.tar.gz`,
+        install(
+          [
+            ['age/age', 'age'],
+            ['age/age-keygen', 'age-keygen'],
+          ],
+          (scratch) =>
+            shellExec(
+              `curl -fsSL https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-${archData.alias}.tar.gz | tar -xzf - -C ${shellArgumentFactory(scratch)}`,
+            ),
         );
-        shellExec(`tar -xzf /tmp/age.tar.gz -C /tmp`);
-        shellExec(`sudo install -m 0755 /tmp/age/age /usr/local/bin/age`);
-        shellExec(`sudo install -m 0755 /tmp/age/age-keygen /usr/local/bin/age-keygen`);
-        shellExec(`sudo ln -sf /usr/local/bin/age /bin/age`);
-        shellExec(`sudo ln -sf /usr/local/bin/age-keygen /bin/age-keygen`);
-        shellExec(`sudo rm -rf /tmp/age /tmp/age.tar.gz`);
         installed.age = true;
       }
 

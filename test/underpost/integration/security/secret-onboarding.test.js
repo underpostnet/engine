@@ -55,28 +55,39 @@ const secretFixture = (files = {}) => {
     removed.push(`${filePath}`);
   });
   vi.spyOn(fs, 'ensureDirSync').mockImplementation(() => undefined);
+  vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
+  vi.spyOn(fs, 'mkdtempSync').mockImplementation((prefix) => `${prefix}fixture`);
   vi.spyOn(fs, 'chmodSync').mockImplementation(() => undefined);
   vi.spyOn(fs, 'moveSync').mockImplementation((src, dest) => {
     written.set(`${dest}`, written.get(`${src}`) ?? table.get(`${src}`) ?? '');
     written.delete(`${src}`);
   });
-  vi.spyOn(fs, 'statSync').mockReturnValue({ mode: 0o600 });
-  vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
-    keys()
-      .filter((filePath) => filePath.startsWith(`${dir}/`))
-      .map((filePath) => filePath.slice(`${dir}/`.length))
-      .filter((name) => !name.includes('/')),
-  );
+  const isDirectory = (path) =>
+    !removed.includes(path) &&
+    !table.has(path) &&
+    !written.has(path) &&
+    keys().some((entry) => entry.startsWith(`${path}/`));
+  vi.spyOn(fs, 'statSync').mockImplementation((filePath) => ({
+    mode: 0o600,
+    isDirectory: () => isDirectory(`${filePath}`),
+  }));
+  vi.spyOn(fs, 'readdirSync').mockImplementation((dir) => [
+    ...new Set(
+      keys()
+        .filter((filePath) => filePath.startsWith(`${dir}/`) && !removed.includes(filePath))
+        .map((filePath) => filePath.slice(`${dir}/`.length).split('/')[0]),
+    ),
+  ]);
   return { table, written, removed };
 };
 
-const encryptedManifest = ({ name, namespace = 'default', recipients = [RECIPIENT] }) =>
+const encryptedManifest = ({ name, namespace, recipients = [RECIPIENT] }) =>
   [
     'apiVersion: v1',
     'kind: Secret',
     'metadata:',
     `    name: ${name}`,
-    `    namespace: ${namespace}`,
+    ...(namespace ? [`    namespace: ${namespace}`] : []),
     'type: Opaque',
     'stringData:',
     '    password: ENC[AES256_GCM,data:Lm8xQ2vT,iv:3fB7,tag:2cF5,type:str]',
@@ -362,7 +373,7 @@ describe('host tooling', () => {
     });
     harness.route({
       match: (command) => {
-        if (command.includes('ln -sf /usr/local/bin/age-keygen')) installed = true;
+        if (command.includes("ln -sfn -- '/usr/local/bin/age-keygen'")) installed = true;
         return false;
       },
     });
@@ -370,8 +381,12 @@ describe('host tooling', () => {
     expect(sops().installTooling()).to.deep.equal({ sops: true, age: true });
     expect(harness.ran('getsops/sops/releases/download')).to.equal(true);
     expect(harness.ran('FiloSottile/age/releases/download')).to.equal(true);
-    expect(harness.ran('install -m 0755 /tmp/sops /usr/local/bin/sops')).to.equal(true);
-    expect(harness.ran('rm -rf /tmp/age /tmp/age.tar.gz')).to.equal(true);
+    // Each binary installs for every user from a private scratch directory, never a fixed /tmp path.
+    expect(
+      harness.ran(/install -D -m 0755 -o root -g root '.*underpost-tooling-\w+\/sops' '\/usr\/local\/bin\/sops'/),
+    ).to.equal(true);
+    expect(harness.ran(/FiloSottile.*\| tar -xzf - -C .*underpost-tooling-/)).to.equal(true);
+    expect(harness.ran('/tmp/sops')).to.equal(false);
   });
 
   it('installs nothing on a host that already has both', () => {
@@ -386,15 +401,56 @@ describe('host tooling', () => {
   });
 });
 
-describe('encrypted manifest lifecycle', () => {
+const RULES = `creation_rules:\n  - path_regex: .*\\.enc\\.yaml$\n    age: ${RECIPIENT}\n`;
+const KEY = `# public key: ${RECIPIENT}\nAGE-SECRET-KEY-FIXTURE\n`;
+const stored = (scope, resource, id) => `${SECRETS_DIR}/${scope}/${resource}/${id}.enc.yaml`;
+const SEAL_DIR = `/dev/shm/underpost-seal-${process.pid}`;
+
+/** The secret source each resource takes, as conf.cluster.json would declare it; `seed` otherwise. */
+const declare = (sources = {}) =>
+  vi.spyOn(Underpost.namespace, 'secretSource').mockImplementation(({ resource }) => sources[resource] ?? 'seed');
+
+/** A shell where sops, age and the key file exist; the node holds no role unless a case gives it one. */
+const storeShell = () => {
+  const harness = shellHarness([
+    { match: 'command -v', code: 0, stdout: 'exists\n' },
+    { match: 'age-keygen -y', code: 0, stdout: `${RECIPIENT}\n` },
+  ]);
+  vi.spyOn(Underpost.wireguard, 'localRole').mockReturnValue('');
+  return harness;
+};
+
+/** Answers the decrypt of each manifest with its data, as `sops --output-type json` prints it. */
+const decrypting = (harness, table) =>
+  harness.route({
+    match: (command) => command.includes('sops --decrypt --output-type json'),
+    get stdout() {
+      const path = Object.keys(table).find((key) => harness.calls.at(-1).includes(`"${key}"`));
+      return JSON.stringify({ kind: 'Secret', stringData: table[path] });
+    },
+  });
+
+/** Writes the staged encrypted output of each encrypt, as sops would. */
+const sealing = (harness, written) =>
+  harness.route({
+    match: (command) => {
+      const [, path] = /--filename-override "([^"]+)"/.exec(command) ?? [];
+      if (path) {
+        const name = /^\s+name: (\S+)/m.exec(
+          [...written.values()].findLast((value) => value.includes('kind: Secret')),
+        )?.[1];
+        written.set(`${path}.staged`, encryptedManifest({ name }));
+      }
+      return false;
+    },
+  });
+
+describe('the encrypted store', () => {
   let harness;
   let restoreKeyFile;
 
   beforeEach(() => {
-    harness = shellHarness([
-      { match: 'command -v', code: 0, stdout: 'exists\n' },
-      { match: 'age-keygen -y', code: 0, stdout: `${RECIPIENT}\n` },
-    ]);
+    harness = storeShell();
     restoreKeyFile = pinKeyFile();
   });
 
@@ -405,136 +461,177 @@ describe('encrypted manifest lifecycle', () => {
   });
 
   const storeFixture = (files = {}) =>
-    secretFixture({
-      [`${SECRETS_DIR}/.sops.yaml`]: `creation_rules:\n  - path_regex: .*\\.enc\\.yaml$\n    age: ${RECIPIENT}\n`,
-      [KEY_FILE]: `# public key: ${RECIPIENT}\nAGE-SECRET-KEY-FIXTURE\n`,
-      ...files,
-    });
+    secretFixture({ [`${SECRETS_DIR}/.sops.yaml`]: RULES, [KEY_FILE]: KEY, ...files });
+
+  it('keys a manifest by environment, resource and id, never by namespace', () => {
+    declare({ mariadb: 'shared' });
+    const mongodb = sops().reference('mongodb/credentials');
+    expect(mongodb).to.deep.equal({ resource: 'mongodb', id: 'credentials', name: 'mongodb-secret' });
+    expect(sops().manifestPath(mongodb, 'production')).to.equal(stored('production', 'mongodb', 'credentials'));
+    expect(sops().manifestPath(mongodb, 'development')).to.equal(stored('development', 'mongodb', 'credentials'));
+    expect(sops().manifestPath(sops().reference('mariadb/credentials'), 'test')).to.equal(
+      stored('shared', 'mariadb', 'credentials'),
+    );
+    expect(() => sops().reference('mongodb-secret')).to.throw('names no Secret of the catalog');
+  });
 
   it('reads the recipients a manifest is sealed to without any private key', () => {
     const other = 'age1w7yx5kq0h3n2t4mzr9vp8ldjc6fs0eguya3hx2nq7r5tvk9m4dlq8zwptn';
+    const path = stored('production', 'mongodb', 'credentials');
+    storeFixture({ [path]: encryptedManifest({ name: 'mongodb-secret', recipients: [RECIPIENT, other] }) });
+    expect(sops().manifestRecipients(path)).to.deep.equal([RECIPIENT, other]);
+  });
+
+  it('refuses to encrypt a missing manifest, without creation rules, twice, or with a namespace', () => {
+    const out = stored('production', 'mongodb', 'credentials');
+    const name = 'mongodb-secret';
     storeFixture({
-      [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app', recipients: [RECIPIENT, other] }),
+      '/dev/shm/sealed.yaml': encryptedManifest({ name }),
+      '/dev/shm/placed.yaml': `apiVersion: v1\nkind: Secret\nmetadata:\n  name: ${name}\n  namespace: default\n`,
     });
-    expect(sops().manifestRecipients(`${SECRETS_DIR}/default/app.enc.yaml`)).to.deep.equal([RECIPIENT, other]);
-  });
-
-  it('refuses to encrypt a manifest that is not there', () => {
-    storeFixture();
-    expect(() => sops().encrypt('/dev/shm/absent.yaml')).to.throw('Plaintext manifest not found');
-  });
-
-  it('refuses to encrypt without creation rules', () => {
+    expect(() => sops().encrypt('/dev/shm/absent.yaml', out, { name })).to.throw('Plaintext manifest not found');
+    expect(() => sops().encrypt('/dev/shm/sealed.yaml', out, { name })).to.throw('already carries sops metadata');
+    expect(() => sops().encrypt('/dev/shm/placed.yaml', out, { name })).to.throw('names the namespace default');
+    vi.restoreAllMocks();
     secretFixture({ '/dev/shm/app.yaml': 'kind: Secret\n' });
-    expect(() => sops().encrypt('/dev/shm/app.yaml')).to.throw('Missing creation rules');
-  });
-
-  // Re-encrypting would double-wrap it, and the result decrypts to ciphertext.
-  it('refuses to re-encrypt a manifest that already carries sops metadata', () => {
-    storeFixture({ '/dev/shm/app.yaml': encryptedManifest({ name: 'app' }) });
-    expect(() => sops().encrypt('/dev/shm/app.yaml')).to.throw('already carries sops metadata');
+    expect(() => sops().encrypt('/dev/shm/app.yaml', out, { name })).to.throw('Missing creation rules');
   });
 
   it('refuses to replace a stored manifest without --force', () => {
+    const out = stored('production', 'mongodb', 'credentials');
     storeFixture({
-      '/dev/shm/app.yaml': 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: app\n',
-      [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app' }),
+      '/dev/shm/app.yaml': 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: mongodb-secret\n',
+      [out]: encryptedManifest({ name: 'mongodb-secret' }),
     });
-    expect(() => sops().encrypt('/dev/shm/app.yaml')).to.throw('pass --force to replace');
+    expect(() => sops().encrypt('/dev/shm/app.yaml', out, { name: 'mongodb-secret' })).to.throw(
+      'pass --force to replace',
+    );
   });
 
-  // A bare `sops … > out` truncates the destination before sops runs, so a
-  // failed encrypt would destroy the manifest already there.
-  it('encrypts through a staged file and shreds the plaintext source', () => {
-    const { written } = storeFixture({ '/dev/shm/app.yaml': 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: app\n' });
-    harness.route({
-      match: 'sops --config',
-      code: 0,
-      stdout: '',
-    });
-    // The staged file is what `assertManifest` reads back.
-    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => written.set(`${filePath}`, `${value}`));
-    written.set(`${SECRETS_DIR}/default/app.enc.yaml.staged`, encryptedManifest({ name: 'app' }));
-
-    expect(sops().encrypt('/dev/shm/app.yaml')).to.equal(`${SECRETS_DIR}/default/app.enc.yaml`);
-    expect(harness.ran('--filename-override "./engine-private/secrets/default/app.enc.yaml"')).to.equal(true);
-    expect(harness.ran('shred -u "/dev/shm/app.yaml"')).to.equal(true);
-    expect(written.get(`${SECRETS_DIR}/default/app.enc.yaml`)).to.include('sops:');
+  // A bare `sops … > out` truncates the destination before sops runs.
+  it('seals data through a staged file on tmpfs, without a namespace, and shreds the plaintext', () => {
+    const out = stored('production', 'mongodb', 'credentials');
+    const { written, removed } = storeFixture();
+    sealing(harness, written);
+    expect(sops().seal({ path: out, name: 'mongodb-secret', data: { password: "it's" } })).to.equal(out);
+    const plaintext = written.get(`${SEAL_DIR}/mongodb-secret.yaml`);
+    expect(plaintext).to.include("password: 'it''s'");
+    expect(plaintext).to.not.include('namespace:');
+    expect(harness.ran(`--filename-override "${out}"`)).to.equal(true);
+    expect(harness.ran(`shred -u "${SEAL_DIR}/mongodb-secret.yaml"`)).to.equal(true);
+    expect(written.get(out)).to.include('sops:');
+    expect(removed).to.include(SEAL_DIR);
+    expect(harness.calls.join('\n')).to.not.include("it's");
   });
 
-  it('applies only the requested manifests', () => {
-    storeFixture({
-      [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app' }),
-      [`${SECRETS_DIR}/default/other.enc.yaml`]: encryptedManifest({ name: 'other' }),
-    });
-    expect(sops().applySelected(['app'], 'default')).to.equal(1);
-    expect(harness.ran('sops --decrypt "./engine-private/secrets/default/app.enc.yaml"')).to.equal(true);
-    expect(harness.ran('other.enc.yaml')).to.equal(false);
-  });
-
-  it('refuses a selection matching nothing stored', () => {
-    storeFixture();
-    expect(() => sops().applySelected(['absent'], 'default')).to.throw('No requested encrypted secrets');
+  it('refuses a stored manifest that names a namespace', () => {
+    const path = stored('production', 'mongodb', 'credentials');
+    storeFixture({ [path]: encryptedManifest({ name: 'mongodb-secret', namespace: 'default' }) });
+    expect(() => sops().assertManifest(path, { name: 'mongodb-secret' })).to.throw('names the namespace default');
   });
 
   // Applying in one pass means manifest N failing leaves 1..N-1 already live.
-  it('server-dry-runs every manifest before the first mutation', () => {
+  it('applies one logical Secret into the namespace each placement names, dry-running every one first', () => {
+    declare({ mongodb: 'sops' });
     storeFixture({
-      [`${SECRETS_DIR}/default/a.enc.yaml`]: encryptedManifest({ name: 'a' }),
-      [`${SECRETS_DIR}/default/b.enc.yaml`]: encryptedManifest({ name: 'b' }),
+      [stored('production', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }),
+      [stored('production', 'mongodb', 'keyfile')]: encryptedManifest({ name: 'mongodb-keyfile' }),
     });
-    expect(sops().applyStore('default')).to.equal(2);
-    const firstMutation = harness.calls.findIndex(
-      (command) => command.includes('kubectl apply -f -') && !command.includes('--dry-run=server'),
+    const placement = vi.spyOn(Underpost.namespace, 'of').mockReturnValue('underpost-data');
+    expect(sops().applyStore({ environment: 'production' })).to.equal(2);
+    const applies = harness.calls.filter((command) => command.includes('kubectl apply -f -'));
+    expect(applies.map((command) => command.includes('--dry-run=server'))).to.deep.equal([true, true, false, false]);
+    expect(applies.every((command) => command.includes('-n "underpost-data"'))).to.equal(true);
+    harness.calls.length = 0;
+    placement.mockReturnValue('dd-data');
+    sops().applyStore({ environment: 'production', secrets: [sops().reference('mongodb/keyfile')] });
+    expect(harness.ran('sops --decrypt "./engine-private/secrets/production/mongodb/keyfile.enc.yaml"')).to.equal(true);
+    expect(harness.ran('-n "dd-data"')).to.equal(true);
+  });
+
+  it('stops before any change when a stored resource lacks a manifest', () => {
+    declare({ mongodb: 'sops' });
+    storeFixture({ [stored('production', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }) });
+    expect(() => sops().applyStore({ environment: 'production' })).to.throw(
+      'the store of production lacks production/mongodb/keyfile, and no Secret changed',
     );
-    const dryRuns = harness.calls
-      .slice(0, firstMutation)
-      .filter((command) => command.includes('--dry-run=server')).length;
-    expect(dryRuns).to.equal(2);
+    expect(harness.ran('kubectl apply')).to.equal(false);
   });
 
-  it('refuses to apply a namespace the store does not carry', () => {
-    storeFixture();
-    expect(() => sops().applyStore('absent')).to.throw('No encrypted secrets for namespace');
+  it('provides each resource from its declared source, and never seeds a stored one', () => {
+    declare({ mongodb: 'sops', mariadb: 'seed', postgresql: 'unmanaged' });
+    storeFixture({ [stored('production', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }) });
+    const seeded = vi.spyOn(sops(), 'applyFromOriginSeed').mockReturnValue(true);
+    expect(sops().provide({ resource: 'mariadb', namespace: 'db', options: { env: 'production' } })).to.deep.equal({
+      source: 'seed',
+      namespace: 'db',
+      secrets: ['mariadb-secret'],
+    });
+    expect(seeded.mock.calls).to.deep.equal([['mariadb-secret', 'db', 'production']]);
+    expect(sops().provide({ resource: 'postgresql', namespace: 'db' }).source).to.equal('unmanaged');
+    expect(() => sops().provide({ resource: 'mongodb', namespace: 'db' })).to.throw('lacks production/mongodb/keyfile');
+    expect(seeded.mock.calls.length).to.equal(1);
+    expect(harness.ran('kubectl')).to.equal(false);
   });
 
-  it('refuses to apply a namespace directory holding no manifests', () => {
-    storeFixture({ [`${SECRETS_DIR}/default/README.md`]: 'notes\n' });
-    expect(() => sops().applyStore('default')).to.throw('No *.enc.yaml manifests');
+  it('isolates the credentials of each environment', () => {
+    declare({ mongodb: 'sops' });
+    storeFixture({
+      [stored('development', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }),
+      [stored('development', 'mongodb', 'keyfile')]: encryptedManifest({ name: 'mongodb-keyfile' }),
+    });
+    expect(sops().applyStore({ environment: 'development', namespace: 'default' })).to.equal(2);
+    expect(() => sops().applyStore({ environment: 'production', namespace: 'default' })).to.throw(
+      'lacks production/mongodb/credentials, production/mongodb/keyfile',
+    );
   });
 
-  it('decrypts one secret through an anonymous pipe and returns it in memory', () => {
-    storeFixture({ [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app' }) });
+  it('refuses a role without secret administration on the production cluster only', () => {
+    declare({ mongodb: 'sops' });
+    storeFixture({
+      [stored('production', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }),
+      [stored('production', 'mongodb', 'keyfile')]: encryptedManifest({ name: 'mongodb-keyfile' }),
+      [stored('development', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }),
+      [stored('development', 'mongodb', 'keyfile')]: encryptedManifest({ name: 'mongodb-keyfile' }),
+    });
+    Underpost.wireguard.localRole.mockReturnValue('worker');
+    expect(() => sops().applyStore({ environment: 'production', namespace: 'default' })).to.throw(
+      "requires 'cluster-secret-administration', which the 'worker' role does not hold",
+    );
+    expect(sops().applyStore({ environment: 'development', namespace: 'default' })).to.equal(2);
+  });
+
+  it('decrypts one Secret into memory through sops alone', () => {
+    declare({ mongodb: 'sops' });
+    const path = stored('production', 'mongodb', 'credentials');
+    storeFixture({ [path]: encryptedManifest({ name: 'mongodb-secret' }) });
     harness.route({
-      match: 'kubectl create --dry-run=client',
-      code: 0,
+      match: 'sops --decrypt --output-type json',
       stdout: JSON.stringify({
         data: { password: Buffer.from('s3cr3t').toString('base64') },
         stringData: { username: 'admin' },
       }),
     });
-    expect(sops().readData('app')).to.deep.equal({ password: 's3cr3t', username: 'admin' });
+    expect(sops().readData(sops().reference('mongodb/credentials'), 'production')).to.deep.equal({
+      password: 's3cr3t',
+      username: 'admin',
+    });
+    expect(harness.ran('kubectl')).to.equal(false);
   });
 
-  it('applies a stored secret and reports that it did', () => {
-    storeFixture({ [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app' }) });
-    expect(sops().applyIfPresent('app')).to.equal(true);
-    expect(harness.ran('kubectl apply -f -')).to.equal(true);
-  });
-
-  // A manifest that is absent means the cluster is not onboarded yet; one that
-  // exists but is corrupt must not slide back to the origin seed path.
-  it('reports an absent manifest rather than applying anything', () => {
-    storeFixture();
-    expect(sops().applyIfPresent('app')).to.equal(false);
-    expect(harness.ran('kubectl apply')).to.equal(false);
-  });
-
-  it('lists every stored manifest with its recipients', () => {
-    storeFixture({ [`${SECRETS_DIR}/default/app.enc.yaml`]: encryptedManifest({ name: 'app' }) });
-    expect(() => sops().list()).not.to.throw();
-    vi.restoreAllMocks();
-    secretFixture({});
+  it('lists the manifests of every scope, and none of the archive', () => {
+    storeFixture({
+      [stored('production', 'mongodb', 'credentials')]: encryptedManifest({ name: 'mongodb-secret' }),
+      [stored('external', 'github', 'git-auth-token')]: encryptedManifest({ name: 'git-auth-token' }),
+      [`${SECRETS_DIR}/.archive/legacy/default/mongodb-secret.x.enc.yaml`]: encryptedManifest({
+        name: 'mongodb-secret',
+      }),
+    });
+    expect(
+      sops()
+        .manifests()
+        .map(({ scope, owner, id }) => `${scope}/${owner}/${id}`),
+    ).to.deep.equal(['production/mongodb/credentials', 'external/github/git-auth-token']);
     expect(() => sops().list()).not.to.throw();
   });
 });
@@ -542,16 +639,16 @@ describe('encrypted manifest lifecycle', () => {
 describe('secret onboarding', () => {
   let harness;
   let restoreKeyFile;
+  let declared;
+  let applied;
 
   beforeEach(() => {
-    harness = shellHarness([
-      { match: 'command -v', code: 0, stdout: 'exists\n' },
-      { match: 'age-keygen -y', code: 0, stdout: `${RECIPIENT}\n` },
-    ]);
+    harness = storeShell();
     restoreKeyFile = pinKeyFile();
     vi.spyOn(UnderpostBaremetal.API, 'getHostArch').mockReturnValue({ arch: 'x86_64', alias: 'amd64' });
     vi.spyOn(sops(), 'init').mockReturnValue(undefined);
-    vi.spyOn(sops(), 'applySelected').mockReturnValue(1);
+    applied = vi.spyOn(sops(), 'applyStore').mockReturnValue(1);
+    declared = vi.spyOn(Underpost.namespace, 'declareSecretSources').mockReturnValue('backup');
   });
 
   afterEach(() => {
@@ -560,108 +657,192 @@ describe('secret onboarding', () => {
     vi.restoreAllMocks();
   });
 
-  const onboardFixture = (files = {}) =>
-    secretFixture({
-      [`${SECRETS_DIR}/.sops.yaml`]: `creation_rules:\n  - path_regex: .*\\.enc\\.yaml$\n    age: ${RECIPIENT}\n`,
-      [KEY_FILE]: `# public key: ${RECIPIENT}\nAGE-SECRET-KEY-FIXTURE\n`,
+  const onboardFixture = (files = {}) => {
+    const fixture = secretFixture({
+      [`${SECRETS_DIR}/.sops.yaml`]: RULES,
+      [KEY_FILE]: KEY,
       [CRON_ID_PATH]: 'dd-cron',
       ...files,
     });
-
-  const stageEncrypted = (written, name, namespace = 'default') =>
-    harness.route({
-      match: (command) => {
-        if (command.includes(`--filename-override "${SECRETS_DIR}/${namespace}/${name}.enc.yaml"`))
-          written.set(`${SECRETS_DIR}/${namespace}/${name}.enc.yaml.staged`, encryptedManifest({ name, namespace }));
-        return false;
-      },
-    });
+    sealing(harness, fixture.written);
+    return fixture;
+  };
 
   it('pins the resolved key path so a non-interactive run can decrypt', () => {
     const { written } = onboardFixture();
-    stageEncrypted(written, 'postgres-secret');
-    sops().setupStore('postgres-secret', {});
-    expect(harness.ran(KEY_FILE)).to.equal(true);
-    expect(harness.ran('/etc/profile.d/underpost-sops.sh')).to.equal(true);
-    expect(harness.ran('chmod 644 /etc/profile.d/underpost-sops.sh')).to.equal(true);
+    sops().setupStore('postgresql/credentials', {});
+    const [, profile] = [...written].find(([path]) => path.includes('underpost-host-file-'));
+    expect(profile).to.include(KEY_FILE);
+    expect(harness.ran(/install -D -m 0644 .* .*\/etc\/profile\.d\/underpost-sops\.sh/)).to.equal(true);
   });
 
-  it('seeds a data key from its origin seed file', () => {
+  it('takes a data key from its origin seed', () => {
     const { written } = onboardFixture({ './engine-private/mariadb-password': ' fromSeedFile \n' });
-    stageEncrypted(written, 'mariadb-secret');
-    sops().setupStore('mariadb-secret', {});
-    expect(written.get('/dev/shm/underpost-secrets/mariadb-secret.yaml')).to.include("password: 'fromSeedFile'");
+    sops().setupStore('mariadb/credentials', {});
+    expect(written.get(`${SEAL_DIR}/mariadb-secret.yaml`)).to.include("password: 'fromSeedFile'");
   });
 
   it('takes a data key from --args when nothing seeded it', () => {
     const { written } = onboardFixture();
-    stageEncrypted(written, 'postgres-secret');
-    sops().setupStore('postgres-secret', { args: 'password=fromArgs,ignored' });
-    expect(written.get('/dev/shm/underpost-secrets/postgres-secret.yaml')).to.include("password: 'fromArgs'");
+    sops().setupStore('postgresql/credentials', { args: ['password=fromArgs'] });
+    expect(written.get(`${SEAL_DIR}/postgres-secret.yaml`)).to.include("password: 'fromArgs'");
   });
 
   it('generates a value when nothing else supplies one', () => {
     const { written } = onboardFixture();
-    stageEncrypted(written, 'postgres-secret');
-    sops().setupStore('postgres-secret', {});
-    const manifest = written.get('/dev/shm/underpost-secrets/postgres-secret.yaml');
-    expect(manifest).to.include('kind: Secret');
-    expect(manifest).to.match(/password: '.+'/);
+    sops().setupStore('postgresql/credentials', {});
+    expect(written.get(`${SEAL_DIR}/postgres-secret.yaml`)).to.match(/password: '.+'/);
   });
 
-  it('leaves an already onboarded secret alone', () => {
+  it('keeps a stored manifest, readable or not, and replaces it under --force', () => {
     onboardFixture({
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({ name: 'postgres-secret' }),
-    });
-    sops().setupStore('postgres-secret', {});
-    expect(harness.ran('--filename-override')).to.equal(false);
-  });
-
-  // A stored manifest this host cannot open is present but unusable here, so
-  // reporting it as onboarded would send the operator on to a failing apply.
-  it('reports a stored manifest sealed to a recipient this host does not hold', () => {
-    onboardFixture({
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({
+      [stored('production', 'postgresql', 'credentials')]: encryptedManifest({
         name: 'postgres-secret',
         recipients: ['age1w7yx5kq0h3n2t4mzr9vp8ldjc6fs0eguya3hx2nq7r5tvk9m4dlq8zwptn'],
       }),
     });
-    sops().setupStore('postgres-secret', {});
+    sops().setupStore('postgresql/credentials', {});
     expect(harness.ran('--filename-override')).to.equal(false);
-  });
-
-  it('replaces a stored manifest under --force', () => {
-    const { written } = onboardFixture({
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({ name: 'postgres-secret' }),
-    });
-    stageEncrypted(written, 'postgres-secret');
-    sops().setupStore('postgres-secret', { force: true });
+    sops().setupStore('postgresql/credentials', { force: true });
     expect(harness.ran('--filename-override')).to.equal(true);
   });
 
-  it('validates without touching the cluster under --dry-run', () => {
-    const { written } = onboardFixture();
-    stageEncrypted(written, 'postgres-secret');
-    const applySelected = vi.spyOn(sops(), 'applySelected').mockReturnValue(1);
-    sops().setupStore('postgres-secret', { dryRun: true });
-    expect(applySelected.mock.calls.length).to.equal(1);
-    expect(applySelected.mock.calls[0][2]).to.deep.equal({ dryRun: true });
+  it('onboards the data tier of an environment, then declares and applies it', () => {
+    onboardFixture();
+    expect(sops().setupStore('', { environment: 'production' })).to.deep.equal({
+      secrets: ['postgresql/credentials', 'mariadb/credentials', 'mongodb/credentials', 'mongodb/keyfile'],
+      declared: { postgresql: 'sops', mariadb: 'sops', mongodb: 'sops' },
+    });
+    expect(harness.count('--filename-override')).to.equal(4);
+    expect(harness.ran(`"${stored('production', 'mongodb', 'keyfile')}"`)).to.equal(true);
+    expect(declared.mock.calls).to.deep.equal([
+      [{ environment: 'production', sources: { postgresql: 'sops', mariadb: 'sops', mongodb: 'sops' } }],
+    ]);
+    expect(applied.mock.calls[0][0].secrets.map(({ path }) => path)).to.include(
+      stored('production', 'mongodb', 'keyfile'),
+    );
   });
 
-  it('onboards the whole data tier by default', () => {
-    const { written } = onboardFixture();
-    for (const name of ['postgres-secret', 'mariadb-secret', 'mongodb-secret', 'mongodb-keyfile'])
-      stageEncrypted(written, name, 'ops');
-    sops().setupStore('', { namespace: 'ops' });
-    expect(harness.count('--filename-override')).to.equal(4);
-    expect(harness.ran('/ops/mongodb-keyfile.enc.yaml')).to.equal(true);
+  it('stores shared Secrets in the shared scope and declares them shared', () => {
+    onboardFixture();
+    sops().setupStore('mariadb/credentials', { environment: 'test', shared: true });
+    expect(harness.ran(`"${stored('shared', 'mariadb', 'credentials')}"`)).to.equal(true);
+    expect(declared.mock.calls[0][0]).to.deep.equal({ environment: 'test', sources: { mariadb: 'shared' } });
+  });
+
+  it('refuses half a resource: it takes all its Secrets from one source', () => {
+    onboardFixture();
+    expect(() => sops().setupStore('mongodb/credentials', {})).to.throw('name mongodb/keyfile too');
+    expect(harness.ran('--filename-override')).to.equal(false);
+  });
+
+  it('validates without changing the configuration or the cluster under --dry-run', () => {
+    onboardFixture();
+    sops().setupStore('postgresql/credentials', { dryRun: true });
+    expect(applied.mock.calls.map(([params]) => params.dryRun)).to.deep.equal([true]);
+    expect(declared.mock.calls).to.deep.equal([]);
   });
 
   it('removes the shared-memory staging directory even when a step throws', () => {
     const { removed } = onboardFixture();
     harness.route({ match: 'sops --config', throws: new Error('sops refused') });
-    expect(() => sops().setupStore('postgres-secret', {})).to.throw('sops refused');
-    expect(removed).to.include('/dev/shm/underpost-secrets');
+    expect(() => sops().setupStore('postgresql/credentials', {})).to.throw('sops refused');
+    expect(removed).to.include(SEAL_DIR);
+  });
+});
+
+describe('the namespace-keyed store', () => {
+  let harness;
+  let restoreKeyFile;
+  let declared;
+
+  beforeEach(() => {
+    harness = storeShell();
+    restoreKeyFile = pinKeyFile();
+    declared = vi.spyOn(Underpost.namespace, 'declareSecretSources').mockReturnValue('backup');
+  });
+
+  afterEach(() => {
+    restoreKeyFile();
+    harness.restore();
+    vi.restoreAllMocks();
+  });
+
+  const legacy = (name) => `${SECRETS_DIR}/default/${name}.enc.yaml`;
+  const DATA = {
+    [legacy('mongodb-secret')]: { username: 'root', password: 'pw' },
+    [legacy('mongodb-keyfile')]: { 'mongodb-keyfile': 'key' },
+    [legacy('grafana-admin')]: { 'admin-user': 'admin', 'admin-password': 'gpw' },
+  };
+  const legacyFixture = (extra = {}) => {
+    const fixture = secretFixture({
+      [`${SECRETS_DIR}/.sops.yaml`]: RULES,
+      [KEY_FILE]: KEY,
+      ...Object.fromEntries(
+        Object.keys(DATA).map((path) => [
+          path,
+          encryptedManifest({ name: path.split('/').pop().slice(0, -9), namespace: 'default' }),
+        ]),
+      ),
+      ...extra,
+    });
+    sealing(harness, fixture.written);
+    return fixture;
+  };
+
+  it('plans the move without writing on a dry run', () => {
+    const { written } = legacyFixture();
+    expect(sops().migrateLegacyStore({ environment: 'production', dryRun: true }).moved).to.deep.equal([]);
+    expect([...written.keys()]).to.deep.equal([]);
+    expect(declared.mock.calls).to.deep.equal([]);
+  });
+
+  it('moves each manifest without its namespace, verifies it, archives the original and declares the resources', () => {
+    const { written } = legacyFixture();
+    decrypting(harness, {
+      ...DATA,
+      [stored('production', 'mongodb', 'credentials')]: DATA[legacy('mongodb-secret')],
+      [stored('production', 'mongodb', 'keyfile')]: DATA[legacy('mongodb-keyfile')],
+      [stored('production', 'observability', 'grafana-admin')]: DATA[legacy('grafana-admin')],
+    });
+    const result = sops().migrateLegacyStore({ environment: 'production' });
+    expect(result.moved).to.deep.equal([
+      'production/observability/grafana-admin',
+      'production/mongodb/keyfile',
+      'production/mongodb/credentials',
+    ]);
+    expect(written.get(`${SEAL_DIR}/mongodb-secret.yaml`) ?? '').to.not.include('namespace');
+    expect(
+      [...written.keys()].filter((path) => path.startsWith(`${SECRETS_DIR}/.archive/legacy/default/`)),
+    ).to.have.length(3);
+    expect(declared.mock.calls).to.deep.equal([
+      [{ environment: 'production', sources: { observability: 'sops', mongodb: 'sops' } }],
+    ]);
+    expect(harness.calls.join('\n')).to.not.include('gpw');
+  });
+
+  it('refuses a name the catalog does not know, or one Secret in two namespaces, before it writes', () => {
+    const { written } = legacyFixture({
+      [`${SECRETS_DIR}/default/unknown-secret.enc.yaml`]: encryptedManifest({ name: 'unknown-secret' }),
+      [`${SECRETS_DIR}/ops/mongodb-secret.enc.yaml`]: encryptedManifest({ name: 'mongodb-secret' }),
+    });
+    expect(() => sops().migrateLegacyStore({ environment: 'production' })).to.throw(
+      'default/unknown-secret names no Secret of the catalog; mongodb-secret is stored in more than one namespace',
+    );
+    expect([...written.keys()]).to.deep.equal([]);
+  });
+
+  it('keeps the original when the new manifest does not hold its data', () => {
+    const { written } = legacyFixture();
+    decrypting(harness, {
+      ...DATA,
+      [stored('production', 'observability', 'grafana-admin')]: { 'admin-user': 'other' },
+    });
+    expect(() => sops().migrateLegacyStore({ environment: 'production' })).to.throw(
+      'production/observability/grafana-admin does not hold the data of default/grafana-admin',
+    );
+    expect([...written.keys()].some((path) => path.includes('.archive'))).to.equal(false);
+    expect(declared.mock.calls).to.deep.equal([]);
   });
 });
 
@@ -670,10 +851,7 @@ describe('secret status report', () => {
   let restoreKeyFile;
 
   beforeEach(() => {
-    harness = shellHarness([
-      { match: 'command -v', code: 0, stdout: 'exists\n' },
-      { match: 'age-keygen -y', code: 0, stdout: `${RECIPIENT}\n` },
-    ]);
+    harness = storeShell();
     restoreKeyFile = pinKeyFile();
   });
 
@@ -684,50 +862,55 @@ describe('secret status report', () => {
   });
 
   const statusFixture = (files = {}) =>
-    secretFixture({
-      [`${SECRETS_DIR}/.sops.yaml`]: `creation_rules:\n  - path_regex: .*\\.enc\\.yaml$\n    age: ${RECIPIENT}\n`,
-      [KEY_FILE]: `# public key: ${RECIPIENT}\nAGE-SECRET-KEY-FIXTURE\n`,
-      ...files,
+    secretFixture({ [`${SECRETS_DIR}/.sops.yaml`]: RULES, [KEY_FILE]: KEY, ...files });
+  const live = (name) =>
+    harness.route({
+      match: `kubectl get secret ${name} `,
+      stdout: JSON.stringify({ data: {}, metadata: { resourceVersion: '1' } }),
     });
 
-  it('reports tooling, key, rules, store and coverage', () => {
+  it('reports the source, namespace, manifest and drift of each Secret', () => {
+    declare({ postgresql: 'sops', mariadb: 'sops' });
     statusFixture({
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({ name: 'postgres-secret' }),
-      './engine-private/mariadb-username': 'root\n',
-      './engine-private/mariadb-password': 'pw\n',
+      [stored('production', 'postgresql', 'credentials')]: encryptedManifest({ name: 'postgres-secret' }),
     });
-    harness.route({ match: 'kubectl get secret', code: 0, stdout: 'secret/postgres-secret\n' });
-    harness.route({ match: 'kubectl diff', code: 0 });
-    expect(() => sops().statusReport('', {})).not.to.throw();
-    expect(harness.ran('kubectl diff -f -')).to.equal(true);
-  });
-
-  // Its stdout would contain the decrypted values, so drift is decided by the
-  // exit code alone.
-  it('reports drift from the diff exit code without capturing its output', () => {
-    statusFixture({
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({ name: 'postgres-secret' }),
-    });
-    harness.route({ match: 'kubectl get secret', code: 0, stdout: 'secret/postgres-secret\n' });
+    live('postgres-secret');
     harness.route({ match: 'kubectl diff', code: 1 });
-    sops().statusReport('', {});
-    const diff = harness.calls.find((command) => command.includes('kubectl diff'));
-    expect(diff).to.include('>/dev/null 2>&1');
+    const rows = sops().statusReport('', { environment: 'production' });
+    expect(rows.find(({ secret }) => secret === 'postgresql/credentials')).to.deep.equal({
+      secret: 'postgresql/credentials',
+      name: 'postgres-secret',
+      source: 'sops',
+      namespace: 'default',
+      manifest: 'production/postgresql/credentials',
+      decryptable: true,
+      live: true,
+      sync: 'DRIFT',
+    });
+    expect(rows.find(({ secret }) => secret === 'mariadb/credentials').sync).to.equal('MISSING MANIFEST');
+    expect(rows.find(({ secret }) => secret === 'mongodb/credentials').source).to.equal('seed');
+    // Its stdout would hold the decrypted values, so drift is decided by the exit code alone.
+    expect(harness.calls.find((command) => command.includes('kubectl diff'))).to.include('>/dev/null 2>&1');
   });
 
-  it('narrows both the store listing and the coverage table by a partial key', () => {
+  it('narrows the Secrets by a partial reference or name', () => {
+    statusFixture();
+    expect(
+      sops()
+        .statusReport('mongo', {})
+        .map(({ secret }) => secret),
+    ).to.deep.equal(['mongodb/credentials', 'mongodb/keyfile']);
+    expect(sops().statusReport('not-a-secret', {})).to.deep.equal([]);
+  });
+
+  it('names a namespace-keyed store that waits for its move', () => {
     statusFixture({
       [`${SECRETS_DIR}/default/mongodb-secret.enc.yaml`]: encryptedManifest({ name: 'mongodb-secret' }),
-      [`${SECRETS_DIR}/default/postgres-secret.enc.yaml`]: encryptedManifest({ name: 'postgres-secret' }),
     });
-    sops().statusReport('mongo', {});
-    expect(harness.calls.some((command) => command.includes('mongodb-secret'))).to.equal(true);
-    expect(harness.calls.some((command) => command.includes('postgres-secret'))).to.equal(false);
-  });
-
-  it('reports an empty store and a filter matching no managed secret', () => {
-    statusFixture();
-    expect(() => sops().statusReport('not-a-managed-key', {})).not.to.throw();
+    expect(sops().legacyManifests()).to.deep.equal([
+      { namespace: 'default', name: 'mongodb-secret', path: `${SECRETS_DIR}/default/mongodb-secret.enc.yaml` },
+    ]);
+    expect(() => sops().statusReport('', {})).not.to.throw();
   });
 
   it('reports a host with no tooling and no key at all', () => {

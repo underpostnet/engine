@@ -12,7 +12,7 @@ Git-native encrypted Kubernetes secrets for 100% self-hosted bare-metal `kubeadm
 - [Host Prerequisites](#host-prerequisites)
 - [1. Age Keypair Generation](#1-age-keypair-generation)
 - [2. Secret Encryption Workflow](#2-secret-encryption-workflow)
-- [3. Underpost CLI / Production Bash Workflow](#3-underpost-cli--production-bash-workflow)
+- [3. Underpost CLI Workflow](#3-underpost-cli-workflow)
 - [4. Bare-Metal Disaster Recovery Protocol](#4-bare-metal-disaster-recovery-protocol)
 - [5. Joining a Store Created on Another Host](#5-joining-a-store-created-on-another-host)
 - [Key Rotation](#key-rotation)
@@ -30,12 +30,27 @@ durable source, one local runtime, and one cluster projection. Nothing is config
 general — a value is app, host, or workload-secret, and which one it is decides the command that
 touches it.
 
-| Domain   | Owns                                   | Durable source                                                                      | Local runtime                             | Cluster projection                                                |
-| -------- | -------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
-| `app`    | one deployment's runtime environment   | `engine-private/conf/<deployId>/.env.<env>[.<sub-conf>]` + `.env.<env>.oci` overlay | working-tree `./.env*` + `Config.default` | `<deployId>-<env>-env` Secret                                     |
-| `host`   | the node-level operational environment | `engine-private/deploy/scopes/<scope>.env.<env>`, one file per scope, mode `0600`   | host configuration store `<root>/.env`    | `underpost-config` Secret, and one scoped projection per workload |
-| `secret` | workload credentials                   | `engine-private/secrets/<namespace>/<name>.enc.yaml` (SOPS/Age)                     | host configuration store, via `host`      | one Kubernetes Secret per name                                    |
-| `state`  | one container's live execution state   | none — an observation is only true of a running container                           | container state store `<root>/.state`     | in-pod `/_internal/*` endpoints                                   |
+| Domain   | Owns                                   | Durable source                                                                      | Local runtime                             | Cluster projection                                                   |
+| -------- | -------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| `app`    | one deployment's runtime environment   | `engine-private/conf/<deployId>/.env.<env>[.<sub-conf>]` + `.env.<env>.oci` overlay | working-tree `./.env*` + `Config.default` | `<deployId>-<env>-env` Secret                                        |
+| `host`   | the node-level operational environment | `engine-private/deploy/scopes/<scope>.env.<env>`, one file per scope, mode `0600`   | host configuration store `<root>/.env`    | `underpost-config` Secret, and one scoped projection per workload    |
+| `secret` | workload credentials                   | `engine-private/secrets/<environment>/<resource>/<id>.enc.yaml` (SOPS/Age)          | one command, through `secret load`        | one Kubernetes Secret per catalog entry, in its resource's namespace |
+| `state`  | one container's live execution state   | none — an observation is only true of a running container                           | container state store `<root>/.state`     | in-pod `/_internal/*` endpoints                                      |
+
+### TLS Secrets
+
+A TLS Secret belongs to no domain above, and the SOPS store never holds one. `node bin tls` owns it:
+cert-manager issues it into the namespace of its `Certificate` and renews it there, or this machine issues
+a self-signed one where the environment says so. A Gateway reads it from its own namespace, so a TLS
+Secret and its Certificate live where the Gateway that serves the host runs. The two stores never share a
+Secret: `secret` projects the credentials of the catalog, and `tls` the certificates of the hosts.
+
+- `node bin tls reconcile --deploy-id <deploy-id> --env <env> --apply` creates the Certificate of each
+  host of a deployment, and `node bin tls status` shows where each Secret is.
+- A migration unit prepares the TLS of the hosts of its Gateways before it deletes the source.
+- `node bin namespace repair --apply` runs the TLS reconcile of every host.
+
+See [Manage TLS certificates](manage-tls-certificates.md).
 
 ### Configuration scopes inside the host domain
 
@@ -166,9 +181,8 @@ instance's own `engine-private/conf/<deployId>/instances/<id>/env/<env>.env` and
 `<deployId>-<instanceId>-<env>-env` Secret, so an instance's runtime environment is managed
 through the same four verbs rather than by editing the private conf tree by hand.
 
-The `secret` domain has no store of its own by design. A decrypted credential is node-local
-configuration, so `secret load` lands it in the host domain's store rather than in a fifth
-place that would then have to be kept in sync.
+The `secret` domain has no local store by design. `secret load` gives the decrypted values to one
+command and writes them to no store, so no plaintext copy has to be kept in sync.
 
 Two stores exist on a node and never share a file: the host configuration store (`<root>/.env`,
 owned by the `host` domain) and the container state store (`<root>/.state`, owned by the
@@ -229,26 +243,83 @@ that produced it.
 
 Single source of truth per concern:
 
-| Concern                | Location                                                | Git tracked |
-| ---------------------- | ------------------------------------------------------- | ----------- |
-| Encrypted manifests    | `engine-private/secrets/<namespace>/<name>.enc.yaml`    | Yes         |
-| Encryption rules       | `engine-private/secrets/.sops.yaml`                     | Yes         |
-| Age **public** keys    | `engine-private/secrets/.sops.yaml` (`age:` recipients) | Yes         |
-| Age **private** key    | `~/.config/sops/age/keys.txt` (mode `0600`)             | **Never**   |
-| Offline private backup | Encrypted USB / paper / HSM, off-cluster                | **Never**   |
+| Concern                | Location                                                                 | Git tracked |
+| ---------------------- | ------------------------------------------------------------------------ | ----------- |
+| Encrypted manifests    | `engine-private/secrets/<scope>/<resource>/<id>.enc.yaml`                | Yes         |
+| Encryption rules       | `engine-private/secrets/.sops.yaml`                                      | Yes         |
+| Age **public** keys    | `engine-private/secrets/.sops.yaml` (`age:` recipients)                  | Yes         |
+| Secret source policy   | `engine-private/deploy/conf.cluster.json` (`environments.<env>.secrets`) | Yes         |
+| Age **private** key    | `~/.config/sops/age/keys.txt` (mode `0600`)                              | **Never**   |
+| Offline private backup | Encrypted USB / paper / HSM, off-cluster                                 | **Never**   |
 
-`engine-private/` is a per-deploy private repository (`engine-<conf-id>-private`) — the encrypted manifests version alongside the deploy config they belong to. This supersedes the plaintext credential files `UnderpostCluster.API.init` falls back to in `src/cli/cluster.js` (`--from-file=password=/home/dd/engine/engine-private/postgresql-password`), which store credentials unencrypted on disk. Onboarding is per-secret: the encrypted store wins whenever a manifest exists, and the **origin seed path** — the plaintext credential file the secret was originally seeded from — remains in place until it does. See [§3.3](#33-cluster-initialization-hook).
+A manifest is keyed by what it is, never by where it runs:
+
+- **The scope** is an environment (`production`, `development`, `test`), `shared` for a resource every
+  environment shares, or `external` for a credential Underpost distributes outside the cluster (the
+  `GIT_AUTH_TOKEN` mirror). Each environment keeps its own credentials.
+- **The resource and the id** come from the resource catalog, `NAMESPACE_RESOURCES` in
+  `src/cli/namespace.js`: `mongodb/credentials` is the Secret `mongodb-secret`, `mongodb/keyfile` is
+  `mongodb-keyfile`. The catalog is the only list of workload Secrets.
+- **No manifest names a namespace.** At apply time, the placement of the environment names the namespace
+  of the resource, and `kubectl apply -n` receives it. A move of MongoDB from `default` to
+  `underpost-data` changes nothing in the store.
+
+| Reference                     | Kubernetes Secret     | Resource     |
+| ----------------------------- | --------------------- | ------------ |
+| `mongodb/credentials`         | `mongodb-secret`      | MongoDB      |
+| `mongodb/keyfile`             | `mongodb-keyfile`     | MongoDB      |
+| `mariadb/credentials`         | `mariadb-secret`      | MariaDB      |
+| `mysql/credentials`           | `mysql-secret`        | MySQL        |
+| `postgresql/credentials`      | `postgres-secret`     | PostgreSQL   |
+| `ipfs/cluster`                | `ipfs-cluster-secret` | IPFS Cluster |
+| `observability/grafana-admin` | `grafana-admin`       | Monitoring   |
+| `operations/environment`      | `underpost-cron-env`  | Cron jobs    |
+| `operations/ssh-key`          | `underpost-ssh-key`   | Cron jobs    |
 
 ```
 engine-private/
 └── secrets/
     ├── .sops.yaml                       # creation rules + recipients (public keys)
-    └── default/
-        ├── postgres-secret.enc.yaml
-        ├── mariadb-secret.enc.yaml
-        ├── mongodb-secret.enc.yaml
-        └── grafana-admin.enc.yaml
+    ├── production/
+    │   ├── mongodb/
+    │   │   ├── credentials.enc.yaml
+    │   │   └── keyfile.enc.yaml
+    │   ├── mariadb/credentials.enc.yaml
+    │   └── observability/grafana-admin.enc.yaml
+    ├── development/ …
+    ├── shared/ …                        # resources an environment declares `shared`
+    ├── external/github/git-auth-token.enc.yaml
+    └── .archive/                        # purged and moved manifests; never listed or applied
 ```
+
+### Secret sources
+
+Each environment declares where the Secrets of each resource come from, in
+`engine-private/deploy/conf.cluster.json`:
+
+```json
+{
+  "environments": {
+    "production": {
+      "profile": "recommended",
+      "secrets": { "mongodb": "sops", "mariadb": "sops", "observability": "sops" }
+    }
+  }
+}
+```
+
+| Source      | Behavior                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| `sops`      | Applies the manifests of the environment. A missing or unreadable manifest stops the install. |
+| `shared`    | The same, from the `shared` scope.                                                            |
+| `seed`      | Projects the origin seed files (`engine-private/deploy/mongodb-password`, …). The default.    |
+| `unmanaged` | Creates and overwrites nothing: the cluster keeps the Secret it holds.                        |
+
+A resource takes all its Secrets from one source. A `sops` resource never falls back to its seed files:
+an absent, corrupt or foreign-sealed manifest stops the install before any Secret or workload changes.
+`secret setup` writes the declaration when it onboards a resource.
+
+---
 
 ---
 
@@ -399,18 +470,19 @@ Committed rules make encryption reproducible — operators never pass recipients
 ```yaml
 # engine-private/secrets/.sops.yaml
 creation_rules:
-  - path_regex: engine-private/secrets/.*\.enc\.yaml$
+  - path_regex: .*\.enc\.yaml$
     encrypted_regex: '^(data|stringData)$'
     age: >-
       age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p,
       age1w7yx5kq0h3n2t4mzr9vp8ldjc6fs0eguya3hx2nq7r5tvk9m4dlq8zwptn
 ```
 
-`encrypted_regex: '^(data|stringData)$'` encrypts only the value tree under those keys. `apiVersion`, `kind`, `metadata`, and `type` stay plaintext, so `kubectl`, `kustomize`, and code review all still work on the encrypted file. Listing two recipients means either key can decrypt — the second is the offline break-glass key.
+sops matches `path_regex` relative to the directory of `.sops.yaml`, so the rule names no store prefix. `encrypted_regex: '^(data|stringData)$'` encrypts only the value tree under those keys. `apiVersion`, `kind`, `metadata`, and `type` stay plaintext, so `kubectl`, `kustomize`, and code review all still work on the encrypted file. Listing two recipients means either key can decrypt — the second is the offline break-glass key.
 
 ### 2.2 Plaintext manifest
 
-Authored in a `tmpfs` working directory, encrypted, then destroyed. Never committed.
+Authored in a `tmpfs` working directory, encrypted, then destroyed. Never committed. It names no
+namespace: the placement supplies one at apply time, and the store refuses a manifest that names one.
 
 ```yaml
 # /dev/shm/underpost-secrets/postgres-secret.yaml  (plaintext — transient, never committed)
@@ -418,7 +490,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: default
   labels:
     app: postgres
     app.kubernetes.io/managed-by: underpost
@@ -435,13 +506,13 @@ stringData:
 
 ```bash
 mkdir -p /dev/shm/underpost-secrets && chmod 700 /dev/shm/underpost-secrets
-mkdir -p engine-private/secrets/default
+mkdir -p engine-private/secrets/production/postgresql
 
 # Encrypt to a distinct output file (recipients resolved from .sops.yaml).
 sops --config engine-private/secrets/.sops.yaml \
      --encrypt \
      /dev/shm/underpost-secrets/postgres-secret.yaml \
-  > engine-private/secrets/default/postgres-secret.enc.yaml
+  > engine-private/secrets/production/postgresql/credentials.enc.yaml
 
 # Destroy the plaintext immediately — tmpfs, so it never reached persistent storage.
 shred -u /dev/shm/underpost-secrets/postgres-secret.yaml 2>/dev/null || \
@@ -455,7 +526,7 @@ sops --encrypt \
      --age "$AGE_RECIPIENT" \
      --encrypted-regex '^(data|stringData)$' \
      /dev/shm/underpost-secrets/postgres-secret.yaml \
-  > engine-private/secrets/default/postgres-secret.enc.yaml
+  > engine-private/secrets/production/postgresql/credentials.enc.yaml
 ```
 
 #### Choosing between redirect, edit, and `--in-place`
@@ -479,10 +550,10 @@ Two failure modes to avoid:
 # Safe redirect: nothing replaces the live manifest until sops has succeeded.
 sops --config engine-private/secrets/.sops.yaml --encrypt \
      /dev/shm/underpost-secrets/postgres-secret.yaml \
-  > engine-private/secrets/default/postgres-secret.enc.yaml.staged \
-  && mv engine-private/secrets/default/postgres-secret.enc.yaml.staged \
-        engine-private/secrets/default/postgres-secret.enc.yaml
-rm -f engine-private/secrets/default/postgres-secret.enc.yaml.staged
+  > engine-private/secrets/production/postgresql/credentials.enc.yaml.staged \
+  && mv engine-private/secrets/production/postgresql/credentials.enc.yaml.staged \
+        engine-private/secrets/production/postgresql/credentials.enc.yaml
+rm -f engine-private/secrets/production/postgresql/credentials.enc.yaml.staged
 ```
 
 `UnderpostSecret.API.encrypt()` does exactly this — stage, validate the envelope, then `moveSync` — and refuses to overwrite an existing manifest without `--force`.
@@ -490,12 +561,11 @@ rm -f engine-private/secrets/default/postgres-secret.enc.yaml.staged
 ### 2.4 Encrypted result
 
 ```yaml
-# engine-private/secrets/default/postgres-secret.enc.yaml  (safe to commit)
+# engine-private/secrets/production/postgresql/credentials.enc.yaml  (safe to commit)
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: default
   labels:
     app: postgres
     app.kubernetes.io/managed-by: underpost
@@ -528,141 +598,26 @@ sops:
 Verify round-trip before committing — this is the only check that proves the file is recoverable:
 
 ```bash
-sops --decrypt engine-private/secrets/default/postgres-secret.enc.yaml \
-  | kubectl apply --dry-run=client -f - -o name
+sops --decrypt engine-private/secrets/production/postgresql/credentials.enc.yaml \
+  | kubectl apply --dry-run=client -n default -f - -o name
 # secret/postgres-secret
 ```
 
 Commit:
 
 ```bash
-git -C engine-private add secrets/.sops.yaml secrets/default/postgres-secret.enc.yaml
-git -C engine-private commit -m "secrets: add sops/age postgres-secret for default namespace"
+git -C engine-private add secrets/.sops.yaml secrets/production/postgresql/credentials.enc.yaml
+git -C engine-private commit -m "secrets: add the production postgresql credentials"
 git -C engine-private push
 ```
 
 ---
 
-## 3. Underpost CLI / Production Bash Workflow
+## 3. Underpost CLI Workflow
 
-### 3.1 Apply script
+### 3.1 `UnderpostSecret` domain
 
-Decrypts on-the-fly and streams straight into `kubectl apply -f -`. Plaintext exists only in an anonymous kernel pipe — never a file, never a temp path, never a log line.
-
-```bash
-#!/usr/bin/env bash
-# src/cli/scripts/sops-apply.sh
-# Decrypt SOPS/Age manifests and stream them into kubectl. No plaintext touches disk.
-# Validate-then-commit: every manifest must pass a server dry run before any is applied.
-set -euo pipefail
-IFS=$'\n\t'
-umask 077
-
-SECRETS_DIR="${SECRETS_DIR:-engine-private/secrets}"
-NAMESPACE="${NAMESPACE:-default}"
-KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-KUBECONFIG_PATH="${KUBECONFIG:-/etc/kubernetes/admin.conf}"
-DRY_RUN="${DRY_RUN:-0}"
-
-log()  { printf '[sops-apply] %s\n' "$*" >&2; }
-fail() { printf '[sops-apply][ERROR] %s\n' "$*" >&2; exit 1; }
-
-# Decrypted material flows through this shell; a trace would echo it into logs.
-set +x
-
-# ── Validate: tooling ────────────────────────────────────────────────────────
-for bin in sops kubectl; do
-  command -v "$bin" >/dev/null 2>&1 || fail "$bin not found in PATH"
-done
-
-# ── Validate: private Age key present, readable, and correctly permissioned ──
-# Identity context matters here: a key generated as an unprivileged user is NOT at
-# $HOME/.config when this runs under sudo, where HOME is root's. Pass SOPS_AGE_KEY_FILE
-# explicitly rather than relying on whichever HOME the caller happens to have.
-[[ -f "$KEY_FILE" ]] || fail "Age private key not found: $KEY_FILE (uid $(id -u), HOME=$HOME). Pass SOPS_AGE_KEY_FILE=<path>."
-[[ -r "$KEY_FILE" ]] || fail "Age private key not readable by $(id -un): $KEY_FILE"
-KEY_MODE="$(stat -c '%a' "$KEY_FILE")"
-[[ "$KEY_MODE" == "600" || "$KEY_MODE" == "400" ]] \
-  || fail "Age private key has unsafe mode $KEY_MODE (expected 600/400): chmod 600 $KEY_FILE"
-grep -q 'AGE-SECRET-KEY-1' "$KEY_FILE" || fail "No AGE-SECRET-KEY-1 material in $KEY_FILE"
-export SOPS_AGE_KEY_FILE="$KEY_FILE"
-
-# ── Validate: cluster reachable and namespace exists ─────────────────────────
-[[ -r "$KUBECONFIG_PATH" ]] || fail "kubeconfig not readable: $KUBECONFIG_PATH"
-export KUBECONFIG="$KUBECONFIG_PATH"
-kubectl version --request-timeout=10s -o yaml >/dev/null 2>&1 \
-  || fail "control plane unreachable via $KUBECONFIG_PATH"
-if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
-  kubectl create namespace "$NAMESPACE" || fail "namespace $NAMESPACE is absent and could not be created"
-fi
-
-# ── Resolve targets ──────────────────────────────────────────────────────────
-TARGET_DIR="$SECRETS_DIR/$NAMESPACE"
-[[ -d "$TARGET_DIR" ]] || fail "secrets directory not found: $TARGET_DIR"
-
-mapfile -t MANIFESTS < <(find "$TARGET_DIR" -maxdepth 1 -type f -name '*.enc.yaml' | sort)
-(( ${#MANIFESTS[@]} > 0 )) || fail "no *.enc.yaml manifests under $TARGET_DIR"
-
-# ── Envelope check: refuse anything that is not an encrypted Secret ──────────
-# metadata/kind stay plaintext under encrypted_regex, so this needs no key. Catches a
-# manifest that was never encrypted (disclosed credentials) and name/file mismatches
-# that would apply cleanly while leaving secretKeyRef unresolvable.
-for manifest in "${MANIFESTS[@]}"; do
-  grep -q '^sops:' "$manifest" || fail "$manifest carries no sops metadata — it is not encrypted"
-  grep -q 'ENC\[AES256_GCM' "$manifest" || fail "$manifest has no encrypted values"
-  kind="$(grep -m1 '^kind:' "$manifest" | awk '{print $2}')"
-  [[ "$kind" == "Secret" ]] || fail "$manifest is a ${kind:-<none>}, not a Secret"
-  declared="$(grep -m1 -E '^[[:space:]]{2,}name:' "$manifest" | awk '{print $2}')"
-  expected="$(basename "$manifest" .enc.yaml)"
-  [[ "$declared" == "$expected" ]] \
-    || fail "$manifest declares metadata.name '$declared' but is stored as '$expected'"
-done
-
-# ── Phase 1: dry-run every manifest before mutating anything ─────────────────
-# Applying in one pass means manifest N failing to decrypt leaves 1..N-1 already live,
-# i.e. a half-applied namespace. `pipefail` is load-bearing throughout: without it a sops
-# failure yields an empty stream and `kubectl apply -f -` exits 0, applying nothing.
-for manifest in "${MANIFESTS[@]}"; do
-  sops --decrypt --output-type yaml "$manifest" \
-    | kubectl apply -f - --dry-run=server -n "$NAMESPACE" >/dev/null \
-    || fail "validation failed for $manifest (check the Age key matches a recipient in its sops block)"
-done
-log "validated ${#MANIFESTS[@]} manifest(s) against ns/$NAMESPACE"
-
-if [[ "$DRY_RUN" == "1" ]]; then
-  log "dry run requested; stopping before apply"
-  exit 0
-fi
-
-# ── Phase 2: commit ──────────────────────────────────────────────────────────
-applied=0
-for manifest in "${MANIFESTS[@]}"; do
-  log "applying $(basename "$manifest") -> ns/$NAMESPACE"
-  sops --decrypt --output-type yaml "$manifest" | kubectl apply -f - -n "$NAMESPACE" \
-    || fail "APPLY FAILED for $manifest after validation passed. ${applied} manifest(s) are already live; \
-namespace $NAMESPACE is partially applied. Re-run once resolved — kubectl apply is idempotent."
-  applied=$(( applied + 1 ))
-done
-
-log "applied $applied manifest(s) to namespace $NAMESPACE"
-```
-
-Usage:
-
-```bash
-chmod +x src/cli/scripts/sops-apply.sh
-
-# Apply every encrypted secret for the default namespace.
-sudo -E SOPS_AGE_KEY_FILE=/root/.config/sops/age/keys.txt \
-  ./src/cli/scripts/sops-apply.sh
-
-# Server-side dry run against a non-default namespace.
-DRY_RUN=1 NAMESPACE=cyberia ./src/cli/scripts/sops-apply.sh
-```
-
-### 3.2 `UnderpostSecret` domain
-
-`secret` is one of the three configuration domains, registered from the shared factory in `src/cli/domains.js` so its seven actions and five flags are the same as `host`'s and `app`'s. The SOPS/Age implementation behind them is `src/cli/secrets.js` as `UnderpostSecret.API` — read that file for the authoritative behavior; it is not duplicated here.
+`secret` is one of the configuration domains, registered from the shared factory in `src/cli/domains.js` so its seven actions and five flags are the same as `host`'s and `app`'s. The SOPS/Age implementation behind them is `src/cli/secrets.js` as `UnderpostSecret.API` — read that file for the authoritative behavior; it is not duplicated here.
 
 Each action is one direction of travel, identically on all three domains:
 
@@ -676,54 +631,52 @@ Each action is one direction of travel, identically on all three domains:
 | `rotate`  | replace the projection or the identity |
 | `clean`   | withdraw local traces                  |
 
-Everything a single domain once carried its own flag for — an Age recipient, a secret name list, a sub-configuration — passes through `--args` instead, so the visible surface does not grow when one domain gains a parameter.
+`--env` selects the store of an environment. A Secret is named by its reference, `<resource>/<id>`, in
+`--args names=`. `--namespace` names the namespace of the workloads only: the namespace of each Secret
+comes from the placement of its resource.
 
-| Method                                    | Purpose                                                                                  |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `keyFile()`                               | Resolves the Age private key path, honoring `SOPS_AGE_KEY_FILE`                          |
-| `manifestPath(name, namespace)`           | Canonical store path, `<store>/<namespace>/<name>.enc.yaml`                              |
-| `manifests(namespace?)`                   | Enumerates stored manifests, skipping dot-prefixed entries like `.archive`               |
-| `manifestMeta(path)`                      | Reads the plaintext envelope: `kind`, name, namespace, whether it is actually encrypted  |
-| `assertManifest(path, expect)`            | Fails closed on unencrypted, non-Secret, or name/namespace-mismatched manifests          |
-| `keyFileCandidates()`                     | Every key path tried, so a not-found error can name them (incl. the `sudo` case)         |
-| `assertKeyFile()`                         | Requires the key to exist and be unreadable by group/other before any decrypt            |
-| `has(name, namespace)`                    | Whether an encrypted manifest exists for a secret                                        |
-| `recipient()`                             | Derives the `age1…` public recipient from the private key                                |
-| `manifestRecipients(path)`                | Recipients a manifest is sealed to, read from its plaintext metadata                     |
-| `creationRecipients()`                    | Recipients configured in the `.sops.yaml` creation rule                                  |
-| `writeCreationRecipients(recipients)`     | Rewrites that rule in place, collapsing any folded form to one line                      |
-| `init()`                                  | Generates the keypair and `.sops.yaml`; never overwrites an existing key                 |
-| `encrypt(plaintextPath, namespace)`       | Encrypts into the store and shreds the plaintext source                                  |
-| `applyStore(namespace, options)`          | Decrypts and applies every manifest for a namespace                                      |
-| `applyManifest(path, namespace, options)` | Streams one manifest through `sops --decrypt` into `kubectl apply -f -` under `pipefail` |
-| `applyIfPresent(name, namespace)`         | Applies from the store when present; returns `false` so callers use the origin seed path |
-| `rotateRecipient(recipient, options)`     | Re-keys every manifest onto a new recipient; `pruneRecipients` revokes the old ones      |
-| `purge(name, options)`                    | Deletes the live Secret and archives (or with `force`, deletes) its manifest             |
-| `list()`                                  | Lists manifests and their recipients from plaintext metadata, no private key required    |
-| `hasBinary(bin)`                          | Shared PATH probe behind `assertTooling` and `installTooling`                            |
-| `assertTooling(bins)`                     | Fails fast with an actionable message when `sops`/`age-keygen` are missing               |
-| `installTooling()`                        | Idempotent install of the pinned `sops` and `age` binaries; owns both version pins       |
-| `setupStore(names, options)`              | End-to-end onboarding: tooling, keypair, creation rules, encrypt, validate, apply        |
-| `statusReport(filter, options)`           | Read-only report of tooling, key, rules, stored manifests, drift, and coverage           |
+| Method                                  | Purpose                                                                                             |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `reference(reference)`                  | The catalog Secret of `<resource>/<id>`; refuses a name the catalog does not know                   |
+| `manifestPath(secret, environment)`     | Its manifest: `<environment or shared>/<resource>/<id>.enc.yaml`                                    |
+| `manifests(scopes?)`                    | Every stored manifest, by scope; `.archive` and `.stage` are never scopes                           |
+| `legacyManifests()`                     | The manifests of the namespace-keyed store that wait for `secret setup --args store=legacy`         |
+| `manifestMeta(path)`                    | Reads the plaintext envelope: `kind`, name, namespace, whether it is actually encrypted             |
+| `assertManifest(path, expect)`          | Fails closed on an unencrypted, non-Secret, misnamed or namespace-naming manifest                   |
+| `provide({ resource, namespace })`      | Applies the Secrets of a resource from the source its environment declares                          |
+| `applyStore({ environment, secrets })`  | Validates every manifest (envelope, recipients, server dry run), then applies each                  |
+| `applyManifest(path, namespace)`        | Streams one manifest through `sops --decrypt` into `kubectl apply -n` under `pipefail`              |
+| `applyFromOriginSeed(name, namespace)`  | The `seed` source: projects the origin seed files, staged on tmpfs                                  |
+| `encrypt(plaintextPath, outPath)`       | Encrypts into the store through a staged file, and shreds the plaintext source                      |
+| `seal({ path, name, data })`            | Writes the plaintext manifest on tmpfs, then `encrypt`s it                                          |
+| `readData(secret, environment)`         | Decrypts one stored Secret into memory                                                              |
+| `liveData(name, namespace)`             | The data of a live Secret, in memory: what its consumers read                                       |
+| `migrateLegacyStore({ environment })`   | Moves the namespace-keyed store into an environment; see [§3.3](#33-move-the-namespace-keyed-store) |
+| `setupStore(names, options)`            | Onboarding: tooling, keypair, creation rules, encrypt, declare, validate, apply                     |
+| `statusReport(filter, { environment })` | Tooling, key, rules, and per Secret: source, namespace, manifest, decryptability, drift             |
+| `rotateRecipient(recipient, options)`   | Re-keys every manifest onto a new recipient; `pruneRecipients` revokes the old ones                 |
+| `purge(secret, options)`                | Deletes the live Secret and archives (or with `force`, deletes) its manifest                        |
+| `installTooling()`                      | Idempotent install of the pinned `sops` and `age` binaries; owns both version pins                  |
 
-`installTooling()` is the single source of truth for host provisioning — `underpost cluster --init-host` calls it rather than carrying its own copy of the download logic.
-
-CLI surface — every domain carries the identical action set and the identical five flags:
+On the production cluster, a change to its Secrets requires the `cluster-secret-administration`
+capability of the node role: only the `control` role holds it. Other environments are a development
+cluster of the host.
 
 ```bash
 #   actions: setup | load | publish | apply | status | rotate | clean
 #   flags:   --env <env> --namespace <ns> --args <k=v,...> --dry-run --force
 
 # ── workload cluster secrets (SOPS/Age encrypted store) ───────────────────────
-node bin secret setup                                     # tooling + key + rules + encrypt + apply
-node bin secret setup --args names=grafana-admin --namespace default
-node bin secret setup --dry-run                           # validate, leave the cluster alone
-node bin secret setup --force                             # replace stored manifests
-node bin secret status                                    # every managed key, ns default
-node bin secret status --args keys=mongo                  # partial match: both mongo keys
-node bin secret apply                                     # store -> cluster Secrets
-node bin secret load                                      # store -> local runtime env (npm run dev)
-node bin secret publish --args path=./plaintext.yaml      # plaintext -> encrypted store
+node bin secret setup --env production                    # data tier: encrypt, declare `sops`, apply
+node bin secret setup --env production --args names=observability/grafana-admin
+node bin secret setup --env test --args "names=mariadb/credentials,shared"   # the shared scope
+node bin secret setup --env production --args store=legacy --dry-run         # plan the one-time move
+node bin secret status --env production                   # source, namespace, manifest and drift of each
+node bin secret status --env production --args keys=mongo
+node bin secret apply --env production                    # every stored Secret, each in its namespace
+node bin secret apply --env production --args names=mongodb/credentials --dry-run
+node bin secret load --env development --args "names=mongodb/credentials,run=npm run dev"
+node bin secret publish --env production --args path=/dev/shm/underpost-secrets/postgres-secret.yaml,name=postgresql/credentials
 node bin secret rotate --args recipient=age1...           # re-key onto a new Age recipient
 node bin secret rotate --args "recipient=age1...,prune=true" --force
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd-cyberia"
@@ -731,8 +684,8 @@ node bin secret rotate --args "secret=GIT_AUTH_TOKEN,value=<new>,deploy-id=dd"  
 node bin secret rotate --args "secret=GIT_AUTH_TOKEN,deploy-id=dd" --dry-run
 node bin secret rotate --args "secret=SOCKET_CLI_API_TOKEN|SOCKET_CLI_ORG_SLUG|NPM_TOKEN,source=host,deploy-id=dd"
 node bin secret rotate --args "secret=NPM_TOKEN,source=host,target=org,deploy-id=template"   # organization mirrors
-node bin secret clean --args names=postgres-secret --force          # archives the manifest
-node bin secret clean --args "names=postgres-secret,delete=true" --force
+node bin secret clean --env production --args names=postgresql/credentials --force          # archives the manifest
+node bin secret clean --env production --args "names=postgresql/credentials,delete=true" --force
 
 # ── host cluster configuration (node-level operational environment) ───────────
 node bin host setup                                       # resolve, validate, load
@@ -776,62 +729,76 @@ node bin state clean
 
 `app apply` resolves `.env.<env>.oci` over the deployment source before projecting the Secret, because that Secret is read only by pods. `app load` on a host does not — the overlay describes a container runtime, not this machine. That asymmetry is the whole of the OCI override, and it lives in the app domain alone.
 
-An explicit setup list is isolated: `secret setup --args names=grafana-admin` validates and applies only `grafana-admin`. Unrelated manifests sealed to another host's recipient do not block that targeted operation. Omitting the list retains the full data-tier setup behavior.
+`secret load` writes nothing: it runs one command with the named Secrets in that process's environment, as `<NAME>_<KEY>` (`MONGODB_SECRET_PASSWORD`). The values reach no store, file or log.
 
-### 3.3 Cluster initialization hook
+The `GIT_AUTH_TOKEN` mirror lives in the `external` scope. GitHub holds the credential, and no cluster object reads the mirror, so `secret apply` never applies it.
 
-Secrets must exist before the StatefulSets that mount them, so the store is applied ahead of `kubectl apply -k`. The encrypted store is **preferred, not mandatory**: `applyIfPresent` returns `false` when no encrypted manifest exists for that secret, and the branch seeds it from the origin seed path instead. A cluster not yet onboarded keeps deploying exactly as before.
+### 3.2 Cluster initialization
+
+Secrets must exist before the workloads that mount them, so every installer calls `provide` first:
 
 ```js
 // src/cli/cluster.js — UnderpostCluster.API.init()
 if (options.postgresql) {
+  const namespace = await placed('postgresql');
   if (options.pullImage) Underpost.cluster.pullImage('postgres:latest', options);
-  if (!Underpost.secret.applyIfPresent('postgres-secret', options.namespace))
-    shellExec(
-      `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-    );
-  shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
+  Underpost.secret.provide({ resource: 'postgresql', namespace, options });
+  Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/postgresql'] });
+  applyScheduled('postgresql', 'manifests/postgresql', namespace);
 }
 ```
 
-The `mariadb` and `mysql` branches follow the same shape. Onboarding is therefore per-secret and reversible — encrypting `postgres-secret.enc.yaml` switches only Postgres to the encrypted path; removing that file reverts it. Once every secret in a namespace is onboarded, the origin seed files under `engine-private/{mariadb,mysql,postgresql}-*` can be deleted.
+MongoDB, MariaDB, MySQL, IPFS, the monitoring stack and the cron jobs do the same. MongoDB then reads its
+root credentials from the live `mongodb-secret`, so the user it bootstraps matches the Secret its members
+mount, whatever the source. A namespace migration provides the Secrets of a unit in its destination
+before it deletes the source, and refuses to start when a stored manifest is missing or unreadable.
 
-> **The seed fallback triggers on absence only — never on corruption.** `applyIfPresent` seeds from plaintext when the manifest is _missing_. A manifest that exists but is unencrypted, malformed, or names a different Secret raises instead of falling through. That distinction is deliberate: a fail-open here would let a tampered or truncated store silently redeploy the stale credentials the operator believes they replaced, and would mask an accidentally-committed plaintext manifest rather than flagging the disclosure. `assertManifest` enforces it before any decrypt is attempted, reading only the plaintext envelope:
->
-> - no `sops:` block or no `ENC[AES256_GCM` values → the file was never encrypted; refuse and treat its contents as disclosed
-> - `kind` is not `Secret` → refuse
-> - `metadata.name` ≠ the stored filename → refuse, because applying it would succeed while leaving `secretKeyRef: postgres-secret` permanently unresolvable
-> - `metadata.namespace` ≠ the target namespace → refuse
->
-> None of these checks need the private key, so they run identically on a host that cannot decrypt.
+`assertManifest` reads only the plaintext envelope, so it runs on a host that cannot decrypt:
 
-Onboarding one secret from its seed path:
+- no `sops:` block or no `ENC[AES256_GCM` values → the file was never encrypted; refuse and treat its contents as disclosed
+- `kind` is not `Secret` → refuse
+- `metadata.name` ≠ the Kubernetes name of the catalog entry → refuse, because the apply would succeed while leaving `secretKeyRef` unresolvable
+- `metadata.namespace` is set → refuse: only the placement names a namespace
+
+Onboarding one resource from its origin seed files:
 
 ```bash
-# 1. Reconstruct the manifest in tmpfs from the origin seed file.
-mkdir -p /dev/shm/underpost-secrets && chmod 700 /dev/shm/underpost-secrets
-cat > /dev/shm/underpost-secrets/postgres-secret.yaml <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: default
-  labels:
-    app.kubernetes.io/managed-by: underpost
-type: Opaque
-stringData:
-  password: $(cat engine-private/postgresql-password)
-EOF
+# Encrypt from the seed files, declare `sops`, validate, then apply.
+node bin secret setup --env production --args names=postgresql/credentials
 
-# 2. Encrypt into the store (the tmpfs source is shredded automatically).
-node bin secret publish --args path=/dev/shm/underpost-secrets/postgres-secret.yaml --namespace default
+# The status names the source, the namespace and the drift.
+node bin secret status --env production --args keys=postgres
 
-# 3. Verify the encrypted manifest round-trips before retiring the seed file.
-node bin secret apply --namespace default --dry-run
-
-# 4. From here `cluster --postgresql` takes the encrypted path automatically.
-rm -f engine-private/postgresql-password
+# Commit the store and the declaration from the host that ran it.
+git -C engine-private add secrets deploy/conf.cluster.json
+git -C engine-private commit -m "secrets: onboard the production postgresql credentials"
 ```
+
+Keep the origin seed files until the status shows the live Secret `in-sync` with its manifest.
+
+### 3.3 Move the namespace-keyed store
+
+A store written before this layout keeps `engine-private/secrets/<namespace>/<name>.enc.yaml`.
+`secret status` names it. Move it once, from the host that holds a decrypting key:
+
+```bash
+node bin secret setup --env production --args store=legacy --dry-run   # the plan: each source and destination
+node bin secret setup --env production --args store=legacy
+node bin secret status --env production
+git -C engine-private add secrets deploy/conf.cluster.json
+git -C engine-private commit -m "secrets: move the store to the production scope"
+```
+
+For each manifest, the move:
+
+1. maps its name to a catalog Secret, and stops before it writes when a name is unknown or one Secret is stored in two namespaces;
+2. decrypts it with sops into memory and seals it without a namespace into `production/<resource>/<id>.enc.yaml`, re-encrypted to the recipients of `.sops.yaml`;
+3. verifies the new manifest: its envelope, this host's key, and the same data as the original;
+4. archives the originals under `.archive/legacy/` only after every manifest verifies;
+5. declares `sops` for each resource whose Secrets are all stored; a resource with a missing Secret keeps its source.
+
+A second run finds nothing to move. The move never changes a credential value, and it applies nothing:
+the next install, or `secret apply`, projects the Secrets.
 
 ---
 
@@ -871,8 +838,8 @@ node bin secret status
 Proves key/manifest integrity while still read-only. A failure here is a key problem, not a cluster problem.
 
 ```bash
-for f in engine-private/secrets/*/*.enc.yaml; do
-  sops --decrypt "$f" | kubectl apply --dry-run=client -f - -o name \
+for f in engine-private/secrets/production/*/*.enc.yaml; do
+  sops --decrypt "$f" | kubectl apply --dry-run=client -n default -f - -o name \
     || { echo "DECRYPT FAILED: $f" >&2; exit 1; }
 done
 ```
@@ -880,13 +847,11 @@ done
 ### Step 4 — Restore secrets, then workloads
 
 ```bash
-# Streamed decrypt+apply per namespace. Re-runnable; kubectl apply is idempotent.
-for ns in $(ls engine-private/secrets); do
-  node bin secret apply --namespace "$ns"
-done
+# Each stored Secret goes to the namespace of its resource. Re-runnable; kubectl apply is idempotent.
+node bin secret apply --env production
 
 # Bring up the data plane now that every secretKeyRef resolves.
-# Any secret without a manifest is seeded from its origin seed path, if one survived.
+# A resource declared `seed` takes its origin seed files; a `sops` one never does.
 node bin cluster --kubeadm --postgresql --mongodb --valkey --contour --cert-manager
 
 # Confirm the pods actually consumed the restored credentials.
@@ -909,7 +874,7 @@ node bin secret setup
 
 ```
 N encrypted manifest(s) are sealed to Age recipients this host does not hold, so they cannot be decrypted here:
-  default/mariadb-secret -> age1mq5jhnym3w2cgexypl5law8my77uvqt2pxaxdqfs8gs0eqcltseq27nquw
+  production/mariadb/credentials -> age1mq5jhnym3w2cgexypl5law8my77uvqt2pxaxdqfs8gs0eqcltseq27nquw
   this host holds: age1myykjrfvjg55hddhetqxs4kkpe9mzjd8yae87c8d2c335kghgquqsgrl8q
 ```
 
@@ -950,19 +915,19 @@ node bin secret setup
 Last resort, and only valid when this host's origin seed files (`engine-private/postgresql-password`, `engine-private/mongodb-username`, …) carry the credentials the cluster **already runs on**. `--force` replaces the stored manifests:
 
 ```bash
-node bin secret setup --force
+node bin secret setup --env production --force
 ```
 
 Any data key with no seed file and no `--args` override is **regenerated**. The running datastore keeps authenticating against its old credential until the new one is applied to it, so `secret setup` warns per key when this happens. Pass the existing value explicitly to avoid it:
 
 ```bash
-node bin secret setup --args "names=postgres-secret,password=<current-password>" --force
+node bin secret setup --env production --args "names=postgresql/credentials,password=<current-password>" --force
 ```
 
 Verify the outcome either way:
 
 ```bash
-node bin secret status          # decryptable=yes for every manifest, live/in-sync per secret
+node bin secret status --env production   # decryptable=yes for every manifest, live/in-sync per secret
 ```
 
 ---
@@ -986,7 +951,7 @@ node bin secret rotate --args "recipient=$NEW_RECIPIENT"
 
 # 4. Verify the new key alone can decrypt, before retiring the old one.
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys-new.txt \
-  sops --decrypt engine-private/secrets/default/postgres-secret.enc.yaml >/dev/null
+  sops --decrypt engine-private/secrets/production/postgresql/credentials.enc.yaml >/dev/null
 
 # 5. Promote the new key and commit the re-keyed manifests.
 install -m 0600 ~/.config/sops/age/keys-new.txt ~/.config/sops/age/keys.txt
@@ -1239,7 +1204,7 @@ node bin secret rotate --args "recipient=age1me…,keep=age1colleague…|age1ci�
 >
 > ```yaml
 > creation_rules:
->   - path_regex: engine-private/secrets/.*\.enc\.yaml$
+>   - path_regex: .*\.enc\.yaml$
 >     encrypted_regex: '^(data|stringData)$'
 >     # age1ql3z…mcac8p  operator: <operator email>
 >     # age1w7yx…8zwptn  break-glass: offline safe
@@ -1252,42 +1217,44 @@ Rotation is also partially-applied-safe in the other direction: if verification 
 Credential rotation (new password) is a different operation — it changes the value and does require a rollout:
 
 ```bash
-sops engine-private/secrets/default/postgres-secret.enc.yaml   # edit in $EDITOR, re-encrypts on save
-node bin secret apply --namespace default
-kubectl rollout restart statefulset/postgres -n default
+sops engine-private/secrets/production/postgresql/credentials.enc.yaml   # edit in $EDITOR, re-encrypts on save
+node bin secret apply --env production --args names=postgresql/credentials
+kubectl rollout restart statefulset/postgres -n "$(node bin namespace resolve postgresql --env production --plain)"
 ```
 
 ---
 
 ## Emergency Purge
 
-`secret clean --args names=<secret>` removes that secret from the live cluster and takes its manifest out of the store. `--force` is required because the deletion is cluster state. The manifest is **archived, not deleted**, so the purge stays reversible; `--args delete=true` removes it outright.
+`secret clean --args names=<resource>/<id>` removes that Secret from the namespace of its resource and takes its manifest out of the store of the environment. `--force` is required because the deletion is cluster state. The manifest is **archived, not deleted**, so the purge stays reversible; `--args delete=true` removes it outright.
 
 Disposition is deliberately not `--force`'s job: `--force` authorizes touching the cluster, `delete=true` authorizes losing the manifest. Folding them into one flag would make every purge permanent and leave the archive path unreachable.
 
 ```bash
-# Preview: what gets deleted, whether an origin seed path still exists.
-node bin secret clean --args names=postgres-secret --namespace default --dry-run --force
+# Preview: what gets deleted, and the source the environment declares.
+node bin secret clean --env production --args names=postgresql/credentials --dry-run --force
 
 # Delete the live Secret; archive the manifest under engine-private/secrets/.archive/.
-node bin secret clean --args names=postgres-secret --namespace default --force
+node bin secret clean --env production --args names=postgresql/credentials --force
 
 # Irreversible variant — no archive copy is kept.
-node bin secret clean --args names=postgres-secret,delete=true --namespace default --force
+node bin secret clean --env production --args "names=postgresql/credentials,delete=true" --force
 ```
 
-Removing the manifest is what re-arms the origin seed path: with no `.enc.yaml`, `applyIfPresent` returns `false` and cluster init seeds the secret from the origin seed files again (see [§3.3](#33-cluster-initialization-hook)). Whether that seed path is actually available is reported rather than assumed — if the seed files are absent, the purge warns that the secret must be re-encrypted or created manually before redeploying workloads that mount it. Purging a secret whose seed files were already deleted otherwise surfaces only at the next deploy, as a pod stuck on an unresolvable `secretKeyRef`.
+A purge never re-arms the seed files. While the environment declares the resource `sops`, its next install
+stops until the manifest returns, and the purge says so. To fall back on the seed files, declare the
+resource `seed` in `conf.cluster.json`.
 
 Restoring from the archive:
 
 ```bash
-ls engine-private/secrets/.archive/default/
-mv engine-private/secrets/.archive/default/postgres-secret.2026-08-03T14-22-07-000Z.enc.yaml \
-   engine-private/secrets/default/postgres-secret.enc.yaml
-node bin secret apply --namespace default
+ls engine-private/secrets/.archive/production/postgresql/
+mv engine-private/secrets/.archive/production/postgresql/credentials.2026-08-03T14-22-07-000Z.enc.yaml \
+   engine-private/secrets/production/postgresql/credentials.enc.yaml
+node bin secret apply --env production --args names=postgresql/credentials
 ```
 
-`.archive` is dot-prefixed so `list()`, `apply()`, and `manifests()` never treat it as a namespace.
+`.archive` is dot-prefixed, so no listing, status or apply reads it.
 
 ---
 
@@ -1300,8 +1267,9 @@ node bin secret apply --namespace default
 | A failed encrypt never destroys the manifest it was replacing            | Staged temp file + validate + `moveSync`, never a bare `>` redirect         |
 | A manifest is never double-encrypted                                     | `encrypt()` refuses a source that already carries sops metadata             |
 | An unencrypted or mismatched manifest is never applied                   | `assertManifest()` envelope check, before any decrypt, needs no key         |
-| The seed fallback triggers on absence only, never on corruption          | `applyIfPresent()` returns `false` only for a missing file; else it raises  |
-| A namespace is never left half-applied by a mid-loop failure             | Validate-then-commit: envelope + server dry run of all, then apply          |
+| A stored resource never falls back to its seed files                     | `provide()` takes one declared source; a missing manifest stops the install |
+| A manifest never names a namespace, so a move never changes the store    | `assertManifest()` refuses one; `kubectl apply -n` takes the placement      |
+| A store is never left half-applied by a mid-loop failure                 | Validate-then-commit: envelope + server dry run of all, then apply          |
 | The Age private key never enters Git, a manifest, or a container         | `.gitignore` on `keys.txt`; `SOPS_AGE_KEY_FILE` path-only pointer           |
 | The private key is never exposed in process listings                     | `SOPS_AGE_KEY_FILE`, never `SOPS_AGE_KEY`; `disableLog` on every sops call  |
 | A group/world-readable private key is never used                         | `assertKeyFile()` rejects any mode with `0o077` bits set                    |
@@ -1311,7 +1279,7 @@ node bin secret apply --namespace default
 | A manifest cannot be encrypted to an unlisted recipient                  | Committed `.sops.yaml` `creation_rules`                                     |
 | Recipients are never revoked by accident                                 | Prune refuses without `--force`; `--dry-run` lists the revoked set first    |
 | A rotation is never reported complete while a file stays on the old key  | Post-`updatekeys` re-read asserts the new recipient is in the `sops:` block |
-| Secrets exist before the workloads that mount them                       | `secret apply` ahead of `kubectl apply -k` in `cluster.init()`              |
+| Secrets exist before the workloads that mount them                       | Every installer calls `provide()` before it applies its manifests           |
 | A purge is reversible unless `delete=true` says otherwise                | `clean` passes the disposition, not `--force`, through to `purge()`         |
 | Re-running apply, rotate, or purge is safe                               | `kubectl apply` and `updatekeys` are idempotent; purge archives by default  |
 | Losing the key is recoverable                                            | Second break-glass recipient + verified offline backup                      |

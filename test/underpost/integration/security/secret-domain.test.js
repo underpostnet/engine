@@ -9,50 +9,74 @@ import { vi } from 'vitest';
 import Underpost from '../../../../src/index.js';
 
 const secret = () => Underpost.secret;
+const MONGODB = { resource: 'mongodb', id: 'credentials', name: 'mongodb-secret' };
 
 describe('secret domain actions', () => {
-  afterEach(() => vi.restoreAllMocks());
+  const cwd = process.cwd();
+  let root;
 
-  it('loads the stored workload secrets into the host store under their environment names', () => {
-    vi.spyOn(secret(), 'has').mockImplementation((name) => name === 'mongodb-secret');
+  // An empty working directory has no cluster configuration: every resource seeds, in `default`.
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-secret-domain-'));
+    process.chdir(root);
+  });
+
+  afterEach(() => {
+    process.chdir(cwd);
+    vi.restoreAllMocks();
+    fs.removeSync(root);
+  });
+
+  it('runs one command with the named Secrets in its environment, and keeps them out of every store', () => {
     vi.spyOn(secret(), 'readData').mockReturnValue({ 'root-password': 'p', username: 'u' });
     const set = vi.spyOn(Underpost.host.store, 'set').mockImplementation(() => {});
-
-    expect(secret().load({ args: { names: 'mongodb-secret,absent-secret' }, namespace: 'ns' })).to.deep.equal({
-      loaded: ['mongodb-secret'],
-      keys: 2,
+    const commands = [];
+    vi.spyOn(shell, 'exec').mockImplementation((command, options, callback) => {
+      commands.push({ command, env: options.env });
+      callback?.(0, '', '');
+      return { code: 0, stdout: '', stderr: '' };
     });
-    expect(set.mock.calls).to.deep.equal([
-      ['MONGODB_SECRET_ROOT_PASSWORD', 'p'],
-      ['MONGODB_SECRET_USERNAME', 'u'],
-    ]);
 
-    set.mockClear();
-    // Without names it reads every managed secret the store holds; a dry run writes nothing.
-    expect(secret().load({ dryRun: true })).to.deep.equal({ loaded: ['mongodb-secret'], keys: 2 });
+    expect(
+      secret().load({ env: 'development', args: { names: 'mongodb/credentials', run: 'npm run dev' } }),
+    ).to.deep.equal({ loaded: ['mongodb/credentials'], keys: 2, command: 'npm run dev' });
+    expect(secret().readData.mock.calls).to.deep.equal([[MONGODB, 'development']]);
+    expect(commands.map(({ command }) => command)).to.deep.equal(['npm run dev']);
+    expect(commands[0].env).to.include({ MONGODB_SECRET_ROOT_PASSWORD: 'p', MONGODB_SECRET_USERNAME: 'u' });
     expect(set).not.toHaveBeenCalled();
+    expect(() => secret().load({ args: { names: 'mongodb/credentials' } })).to.throw(/load requires --args/);
   });
 
-  it('publishes a plaintext manifest through the encrypt path and refuses one without a path', () => {
+  it('publishes a plaintext manifest into the store of its environment, and refuses one without a reference', () => {
     const encrypt = vi.spyOn(secret(), 'encrypt').mockReturnValue('encrypted');
-    expect(secret().publish({ args: { path: ' ./plain.yaml ' }, namespace: 'ns' })).to.equal('encrypted');
-    expect(encrypt.mock.calls[0].slice(0, 2)).to.deep.equal(['./plain.yaml', 'ns']);
-    expect(() => secret().publish({ args: {} })).to.throw(/publish requires --args path=/);
+    expect(secret().publish({ env: 'test', args: { path: ' ./plain.yaml ', name: 'mongodb/credentials' } })).to.equal(
+      'encrypted',
+    );
+    expect(encrypt.mock.calls[0]).to.deep.equal([
+      './plain.yaml',
+      './engine-private/secrets/test/mongodb/credentials.enc.yaml',
+      { name: 'mongodb-secret', force: false },
+    ]);
+    expect(() => secret().publish({ args: { path: './plain.yaml' } })).to.throw(/name=<resource>\/<id>/);
   });
 
-  it('applies the named secrets, or the whole store', () => {
-    const selected = vi.spyOn(secret(), 'applySelected').mockReturnValue('selected');
-    const store = vi.spyOn(secret(), 'applyStore').mockReturnValue('store');
-    expect(secret().apply({ args: { names: 'a' }, namespace: 'ns', dryRun: true })).to.equal('selected');
-    expect(selected).toHaveBeenCalledWith('a', 'ns', { dryRun: true });
-    expect(secret().apply({})).to.equal('store');
-    expect(store).toHaveBeenCalledWith('default', { dryRun: false });
+  it('applies the named Secrets, or every stored one of the environment', () => {
+    const store = vi.spyOn(secret(), 'applyStore').mockReturnValue(2);
+    expect(secret().apply({ env: 'test', args: { names: 'mongodb/credentials' }, dryRun: true })).to.equal(2);
+    expect(store).toHaveBeenCalledWith({ environment: 'test', secrets: [MONGODB], dryRun: true });
+    secret().apply({});
+    expect(store).toHaveBeenLastCalledWith({ environment: 'production', secrets: undefined, dryRun: false });
+    secret().apply({ args: 'names=mongodb/credentials|mongodb/keyfile,unused' });
+    expect(store.mock.lastCall[0].secrets).to.deep.equal([
+      MONGODB,
+      { resource: 'mongodb', id: 'keyfile', name: 'mongodb-keyfile' },
+    ]);
   });
 
-  it('reports the status of the keys a filter names', () => {
-    const report = vi.spyOn(secret(), 'statusReport').mockReturnValue({ ok: true });
-    expect(secret().status({ args: { keys: 'mongo' }, namespace: 'ns' })).to.deep.equal({ ok: true });
-    expect(report).toHaveBeenCalledWith('mongo', { namespace: 'ns' });
+  it('reports the status of the Secrets a filter names in an environment', () => {
+    const report = vi.spyOn(secret(), 'statusReport').mockReturnValue([]);
+    expect(secret().status({ env: 'development', args: { keys: 'mongo' } })).to.deep.equal([]);
+    expect(report).toHaveBeenCalledWith('mongo', { environment: 'development' });
   });
 
   it('rotates Actions secrets for a secret name and the Age recipient for a recipient', () => {
@@ -67,7 +91,6 @@ describe('secret domain actions', () => {
       deployId: 'template',
       target: 'org',
       store: 'true',
-      namespace: 'default',
       env: 'production',
     });
 
@@ -75,7 +98,6 @@ describe('secret domain actions', () => {
       'recipient',
     );
     expect(recipient).toHaveBeenCalledWith('age1new', {
-      namespace: 'default',
       dryRun: false,
       force: true,
       pruneRecipients: true,
@@ -107,22 +129,22 @@ describe('secret clean', () => {
     expect(fs.existsSync(stage())).to.equal(true);
   });
 
-  it('withdraws the staged plaintext and purges the named secrets, archived or deleted', () => {
+  it('withdraws the staged plaintext and purges the named Secrets, archived or deleted', () => {
     const purge = vi.spyOn(secret(), 'purge').mockReturnValue(undefined);
-    expect(secret().clean({ args: { names: 'a' }, force: true })).to.deep.equal({
+    expect(secret().clean({ args: { names: 'mongodb/credentials' }, force: true })).to.deep.equal({
       staged: 2,
-      purged: ['a'],
+      purged: ['mongodb/credentials'],
       disposition: 'archive',
     });
     expect(fs.existsSync(stage())).to.equal(false);
-    expect(purge).toHaveBeenCalledWith('a', { namespace: 'default', dryRun: false, force: false });
+    expect(purge).toHaveBeenCalledWith(MONGODB, { environment: 'production', force: false });
 
-    expect(secret().clean({ args: { names: 'b', delete: 'true' }, force: true }).disposition).to.equal('delete');
-    expect(purge).toHaveBeenLastCalledWith('b', { namespace: 'default', dryRun: false, force: true });
+    secret().clean({ env: 'test', args: { names: 'mongodb/credentials', delete: 'true' }, force: true });
+    expect(purge).toHaveBeenLastCalledWith(MONGODB, { environment: 'test', force: true });
   });
 
   it('refuses to purge cluster state without --force', () => {
-    expect(() => secret().clean({ args: { names: 'a' } })).to.throw(/re-run with --force/);
+    expect(() => secret().clean({ args: { names: 'mongodb/credentials' } })).to.throw(/re-run with --force/);
   });
 });
 
@@ -130,12 +152,7 @@ describe('secret purge', () => {
   const cwd = process.cwd();
   let root;
   let commands;
-  const manifest = () => path.join(root, 'engine-private/secrets/ns/probe-secret.enc.yaml');
-  const seeds = ({ files = [], keys = {}, values = {} } = {}) => {
-    vi.spyOn(secret(), 'seedSources').mockReturnValue(Object.fromEntries(files.map((file, index) => [index, file])));
-    vi.spyOn(secret(), 'seedEnvKeys').mockReturnValue(keys);
-    vi.spyOn(secret(), 'seedEnvValues').mockReturnValue(values);
-  };
+  const manifest = () => path.join(root, 'engine-private/secrets/production/mongodb/credentials.enc.yaml');
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-secret-purge-'));
@@ -146,6 +163,7 @@ describe('secret purge', () => {
       commands.push(command);
       return { code: 0, stdout: '', stderr: '' };
     });
+    vi.spyOn(Underpost.wireguard, 'localRole').mockReturnValue('');
   });
 
   afterEach(() => {
@@ -155,37 +173,24 @@ describe('secret purge', () => {
   });
 
   it('plans the purge on a dry run without touching the cluster or the store', () => {
-    seeds({ keys: { password: 'PROBE_PASSWORD' }, values: { password: 'p' } });
-    expect(secret().purge('probe-secret', { namespace: 'ns', dryRun: true })).to.deep.equal({
-      deleted: false,
-      archived: '',
-      seedFallback: true,
-    });
+    expect(secret().purge(MONGODB, { dryRun: true })).to.deep.equal({ deleted: false, archived: '' });
     expect(commands).to.deep.equal([]);
     expect(fs.existsSync(manifest())).to.equal(true);
   });
 
-  it('deletes the live Secret and archives the manifest, reporting the seed files it can fall back to', () => {
-    fs.outputFileSync(path.join(root, 'seed.txt'), 'p');
-    seeds({ files: [path.join(root, 'seed.txt')] });
-    const outcome = secret().purge('probe-secret', { namespace: 'ns' });
+  it('deletes the live Secret from the namespace of its resource and archives the manifest', () => {
+    const outcome = secret().purge(MONGODB, {});
     expect(outcome.deleted).to.equal(true);
-    expect(outcome.seedFallback).to.equal(true);
-    expect(outcome.archived).to.match(/^\.\/engine-private\/secrets\/\.archive\/ns\/probe-secret\..+\.enc\.yaml$/);
+    expect(outcome.archived).to.match(
+      /^\.\/engine-private\/secrets\/\.archive\/production\/mongodb\/credentials\..+\.enc\.yaml$/,
+    );
     expect(fs.existsSync(path.join(root, outcome.archived))).to.equal(true);
-    expect(commands).to.deep.equal(['kubectl delete secret probe-secret -n ns --ignore-not-found']);
+    expect(commands).to.deep.equal(['kubectl delete secret mongodb-secret -n default --ignore-not-found']);
   });
 
-  it('deletes the manifest with force, and reports a missing seed path', () => {
-    seeds({ files: [path.join(root, 'absent.txt')] });
-    expect(secret().purge('probe-secret', { namespace: 'ns', force: true })).to.deep.equal({
-      deleted: true,
-      archived: '',
-      seedFallback: false,
-    });
+  it('deletes the manifest with force, and finds none on a second purge', () => {
+    expect(secret().purge(MONGODB, { force: true })).to.deep.equal({ deleted: true, archived: '' });
     expect(fs.existsSync(manifest())).to.equal(false);
-    // A second purge finds no manifest left to remove.
-    expect(secret().purge('probe-secret', { namespace: 'ns', force: true }).archived).to.equal('');
-    expect(() => secret().purge('')).to.throw(/Purge requires a secret name/);
+    expect(secret().purge(MONGODB, { force: true }).archived).to.equal('');
   });
 });

@@ -133,10 +133,9 @@ describe('underpost-config secret', () => {
 describe('ipfs cluster origin credentials', () => {
   const secret = () => Underpost.secret;
 
-  it('registers an origin for every managed secret, leaving none unmapped', () => {
-    // `--status` reports which source each managed Secret deploys from; a managed secret with
-    // no registered origin and no env mapping reports `unmapped` and tells an operator nothing.
-    for (const name of secret().managedSecrets()) {
+  it('registers an origin for every Secret of the catalog, leaving none unmapped', () => {
+    // A resource seeds unless its environment declares another source, so every Secret needs an origin.
+    for (const { name } of Underpost.namespace.secrets()) {
       const seeded = Object.keys(secret().seedSources(name)).length > 0;
       const envMapped = Object.keys(secret().seedEnvKeys(name)).length > 0;
       expect(seeded || envMapped, `${name} has no registered origin`).to.equal(true);
@@ -169,7 +168,7 @@ describe('ipfs cluster origin credentials', () => {
 
   it('names no credential path of its own', () => {
     const ipfsSource = fs.readFileSync(new URL('../../../../src/cli/ipfs.js', import.meta.url), 'utf8');
-    expect(ipfsSource).to.include('Underpost.secret.seedSources(IPFS_SECRET_NAME)');
+    expect(ipfsSource).to.include("Underpost.secret.seedSources(Underpost.secret.reference('ipfs/cluster').name)");
     expect(ipfsSource).to.not.match(/['"`][^'"`]*engine-private\/ipfs-cluster/);
   });
 });
@@ -296,9 +295,9 @@ describe('container state store', () => {
   it('latches a failure through one helper rather than a literal in each module', () => {
     for (const [module, helper] of [
       ['../../../../src/server/runtime/process.js', 'latchRuntimeError()'],
-      ['../../../../src/db/DataBaseProvider.js', 'latchRuntimeError()'],
-      ['../../../../src/db/valkey/Valkey.js', 'recordConnectionFailure('],
-      ['../../../../src/db/mariadb/MariaDB.js', 'latchRuntimeError()'],
+      ['../../../../src/db/database-provider.js', 'latchRuntimeError()'],
+      ['../../../../src/db/valkey/valkey.js', 'recordConnectionFailure('],
+      ['../../../../src/db/mariadb/mariadb.js', 'latchRuntimeError()'],
     ]) {
       const source = fs.readFileSync(new URL(module, import.meta.url), 'utf8');
       expect(source, module).to.include(helper);

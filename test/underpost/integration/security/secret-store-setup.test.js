@@ -47,7 +47,7 @@ describe('secret store setup and recipient rotation', () => {
       vi.spyOn(secret(), 'localRecipients').mockReturnValue([RECIPIENT]);
       secret().init();
       expect(commands.some((command) => command.startsWith('umask 077 && age-keygen -o'))).to.equal(true);
-      expect(commands).to.include(`chmod 600 "${process.env.SOPS_AGE_KEY_FILE}"`);
+      expect(fs.statSync(process.env.SOPS_AGE_KEY_FILE).mode & 0o777).to.equal(0o600);
       expect(fs.readFileSync(conf(), 'utf8')).to.include(`    age: ${RECIPIENT}`);
     });
 

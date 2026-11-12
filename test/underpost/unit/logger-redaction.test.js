@@ -110,7 +110,7 @@ describe('central logger redaction', () => {
 
   it('filters the authorization code and state of an OAuth redirect from a request line', () => {
     const line =
-      '127.0.0.1 GET www.cyberiaonline.com/api/v1/google-auth/callback?state=9f2c41d7&code=4/0AeanS0aXyZ&scope=email 302';
+      '127.0.0.1 GET services.cyberiaonline.com/api/v1/google-auth/callback?state=9f2c41d7&code=4/0AeanS0aXyZ&scope=email 302';
     const output = renderLog(line);
     expect(output).to.not.include('9f2c41d7');
     expect(output).to.not.include('4/0AeanS0aXyZ');

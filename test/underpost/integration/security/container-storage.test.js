@@ -1,6 +1,9 @@
 'use strict';
 
 import { expect } from 'chai';
+import { afterEach, vi } from 'vitest';
+import { shellHarness } from '../../../support/shell-harness.js';
+import { shellExec } from '../../../../src/server/runtime/process.js';
 import ContainerStorageService, {
   absoluteStoragePaths,
   assertSafeStoragePaths,
@@ -16,7 +19,7 @@ import ContainerStorageService, {
   normalizeStorageRoots,
   storageDirectoryCommandFactory,
 } from '../../../../src/server/security/container-storage.js';
-import { MongoBootstrap } from '../../../../src/db/mongo/MongoBootstrap.js';
+import { MongoBootstrap } from '../../../../src/db/mongo/mongo-bootstrap.js';
 
 const collect = (paths, options = {}) => {
   const executed = [];
@@ -166,12 +169,12 @@ describe('Container storage SELinux preparation', () => {
   describe('directory creation', () => {
     it('creates a missing directory and leaves an existing one untouched', () => {
       const command = storageDirectoryCommandFactory('/data/mysql');
-      expect(command).to.equal(`[ -d '/data/mysql' ] || sudo install -d -m 0755 '/data/mysql'`);
+      expect(command).to.equal(`[ -d '/data/mysql' ] || install -d -m 0755 '/data/mysql'`);
     });
 
     it('applies an explicit mode and owner only at creation time', () => {
       expect(storageDirectoryCommandFactory('/data/x', { mode: '0700', owner: '999:999' })).to.equal(
-        `[ -d '/data/x' ] || sudo install -d -m 0700 -o '999' -g '999' '/data/x'`,
+        `[ -d '/data/x' ] || install -d -m 0700 -o '999' -g '999' '/data/x'`,
       );
     });
 
@@ -297,14 +300,37 @@ describe('Container storage SELinux preparation', () => {
       expect(() => ensureContainerStorageSubtree('/data', {})).to.throw(TypeError);
     });
 
+    describe('on this host, through shellExec', () => {
+      let harness;
+      afterEach(() => {
+        harness?.restore();
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+      });
+
+      it('runs every command as root through the privilege boundary', () => {
+        vi.stubEnv('CI', 'true');
+        harness = shellHarness();
+        ensureContainerStorage('/data', { execute: shellExec });
+        ensureContainerStorageSubtree('/data/mongodb', { execute: shellExec });
+        expect(harness.calls.length).to.be.greaterThan(0);
+        for (const call of harness.calls) expect(call).to.match(/^'sudo' '-n' '--' 'env' '[^']*' '\/bin\/sh' '-c' /);
+      });
+
+      it('runs every command as it is in a root process', () => {
+        harness = shellHarness([], { uid: 0 });
+        ensureContainerStorage('/data', { execute: shellExec });
+        expect(harness.calls).to.deep.equal(containerStorageCommandsFactory('/data'));
+      });
+    });
+
     it('rejects an empty or relative target', () => {
       expect(() => containerStorageSubtreeCommandsFactory([])).to.throw(TypeError);
       expect(() => containerStorageSubtreeCommandsFactory(['relative'])).to.throw(TypeError);
     });
 
-    it('drops sudo when already running as root on the node', () => {
-      const commands = containerStorageCommandsFactory(['/data'], { sudo: false });
-      expect(commands.join('\n')).to.not.include('sudo ');
+    it('renders root commands, and leaves the elevation to the executor', () => {
+      expect(containerStorageCommandsFactory(['/data']).join('\n')).to.not.include('sudo');
     });
 
     it('propagates an executor failure instead of reporting success', () => {

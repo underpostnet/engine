@@ -9,16 +9,27 @@ import { classifyCommand, EXECUTION_PROFILES } from '../../../../src/server/buil
 import { resolveDeployList } from '../../../../src/server/network/router.js';
 
 const sops = () => Underpost.secret;
-// Unique namespace so the fixture can never collide with (or clean up) a real
-// encrypted store under the gitignored engine-private tree.
-const TEST_NAMESPACE = 'sops-store-test-ns';
-const TEST_DIR = `./engine-private/secrets/${TEST_NAMESPACE}`;
+const TEST_PATH = './engine-private/secrets/production/mongodb/credentials.enc.yaml';
+
+/** Runs each case of a block in a scratch checkout, so no fixture reaches the real store. */
+const scratchCheckout = () => {
+  const cwd = process.cwd();
+  let root;
+  beforeEach(() => {
+    root = fs.mkdtempSync(`${os.tmpdir()}/underpost-sops-store-`);
+    process.chdir(root);
+  });
+  afterEach(() => {
+    process.chdir(cwd);
+    vi.restoreAllMocks();
+    fs.removeSync(root);
+  });
+};
 
 const encryptedFixture = `apiVersion: v1
 kind: Secret
 metadata:
-    name: fixture-secret
-    namespace: ${TEST_NAMESPACE}
+    name: mongodb-secret
 type: Opaque
 stringData:
     password: ENC[AES256_GCM,data:Lm8xQ2vT,iv:3fB7yU1jH6sD0gW2cN8mZ4kP5qX9tA7rE1vL3oI6uY0=,tag:2cF5nQ8sW1zA4dG7jL0mB==,type:str]
@@ -59,20 +70,14 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('store layout', () => {
-    it('resolves a manifest to <store>/<namespace>/<name>.enc.yaml', () => {
-      expect(sops().manifestPath('postgres-secret', 'default')).to.equal(
-        './engine-private/secrets/default/postgres-secret.enc.yaml',
-      );
-    });
-
-    it('defaults to the default namespace', () => {
-      expect(sops().manifestPath('mariadb-secret')).to.equal(
-        './engine-private/secrets/default/mariadb-secret.enc.yaml',
+    it('resolves a manifest to <store>/<environment>/<resource>/<id>.enc.yaml', () => {
+      expect(sops().manifestPath(sops().reference('postgresql/credentials'), 'production')).to.equal(
+        './engine-private/secrets/production/postgresql/credentials.enc.yaml',
       );
     });
 
     it('maps Grafana credentials to the dedicated Secret keys', () => {
-      expect(sops().managedSecrets()).to.include('grafana-admin');
+      expect(sops().reference('observability/grafana-admin').name).to.equal('grafana-admin');
       expect(sops().seedEnvKeys('grafana-admin')).to.deep.equal({
         'admin-user': 'GF_SECURITY_ADMIN_USER',
         'admin-password': 'GF_SECURITY_ADMIN_PASSWORD',
@@ -80,59 +85,21 @@ describe('sops encrypted secret store', () => {
     });
   });
 
-  describe('presence detection and origin seed fallback', () => {
-    const storeRoot = './engine-private/secrets';
-    let createdStoreRoot = false;
-
-    beforeAll(() => {
-      createdStoreRoot = !fs.existsSync(storeRoot);
-      fs.ensureDirSync(TEST_DIR);
-      fs.writeFileSync(`${TEST_DIR}/fixture-secret.enc.yaml`, encryptedFixture, 'utf8');
-    });
-
-    afterAll(() => {
-      fs.removeSync(TEST_DIR);
-      // Only reclaim the store root when this suite created it, so a real
-      // encrypted store is never touched.
-      if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
-        fs.removeSync(storeRoot);
-    });
-
-    it('detects an encrypted manifest that exists', () => {
-      expect(sops().has('fixture-secret', TEST_NAMESPACE)).to.equal(true);
-    });
-
-    it('reports no manifest for a secret not yet onboarded', () => {
-      expect(sops().has('not-onboarded-secret', TEST_NAMESPACE)).to.equal(false);
-    });
-
-    it('reports no manifest for a namespace with no store', () => {
-      expect(sops().has('fixture-secret', 'namespace-without-a-store')).to.equal(false);
-    });
-
-    it('declines to apply when no encrypted manifest exists, leaving the caller its origin seed path', () => {
-      // Must return false rather than throw: this is the branch that keeps clusters
-      // not yet onboarded to the encrypted store seeding from plaintext credentials.
-      expect(sops().applyIfPresent('not-onboarded-secret', TEST_NAMESPACE)).to.equal(false);
-    });
+  describe('store listing', () => {
+    scratchCheckout();
 
     it('lists recipients from the plaintext sops metadata block without a private key', () => {
+      fs.outputFileSync(TEST_PATH, encryptedFixture);
       const lines = [];
-      const originalLog = console.log;
-      console.log = (line) => lines.push(line);
-      try {
-        sops().list();
-      } finally {
-        console.log = originalLog;
-      }
-      const entry = lines.find((line) => line.includes(`${TEST_NAMESPACE}/fixture-secret.enc.yaml`));
-      expect(entry).to.be.a('string');
+      vi.spyOn(console, 'log').mockImplementation((line) => lines.push(line));
+      sops().list();
+      const entry = lines.find((line) => line.includes('production/mongodb/credentials.enc.yaml'));
       expect(entry).to.include('age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p');
       expect(entry).to.include('age1w7yx5kq0h3n2t4mzr9vp8ldjc6fs0eguya3hx2nq7r5tvk9m4dlq8zwptn');
     });
 
-    it('refuses to apply a namespace with no stored manifests', () => {
-      expect(() => sops().applyStore('namespace-without-a-store')).to.throw(/No encrypted secrets for namespace/);
+    it('applies nothing when no resource of the environment takes its Secrets from the store', () => {
+      expect(sops().applyStore({ environment: 'production' })).to.equal(0);
     });
   });
 
@@ -144,20 +111,14 @@ describe('sops encrypted secret store', () => {
       ['mysql', 'mysql-secret'],
       ['postgresql', 'postgres-secret'],
     ]) {
-      it(`prefers the encrypted store for ${secretName} and keeps the origin seed path`, () => {
+      it(`provides ${secretName} from the source its environment declares`, () => {
         const start = clusterSource.indexOf(`if (options.${flag}) {`);
         expect(start, `options.${flag} branch not found`).to.be.greaterThan(-1);
-        const branch = clusterSource.slice(start, start + 1200);
-        expect(branch).to.include(`Underpost.secret.applyIfPresent('${secretName}', options.namespace)`);
-        // The origin seed projection must stay guarded by the negated store lookup, never run
-        // unconditionally alongside the decrypted apply. Its paths come from the workload
-        // domain, so the branch names no credential path of its own.
-        expect(branch).to.match(
-          new RegExp(
-            `if \\(!Underpost\\.secret\\.applyIfPresent\\('${secretName}'[\\s\\S]{0,120}` +
-              `Underpost\\.secret\\.applyFromOriginSeed\\('${secretName}'`,
-          ),
-        );
+        const branch = clusterSource.slice(start, start + 600);
+        // The Secret lands in the namespace the datastore resolves to, where its StatefulSet reads it.
+        expect(branch).to.include(`const namespace = await placed('${flag}');`);
+        expect(branch).to.include(`Underpost.secret.provide({ resource: '${flag}', namespace, options });`);
+        expect(branch).to.not.include(secretName);
         expect(branch).to.not.include('engine-private/');
       });
     }
@@ -578,9 +539,11 @@ describe('sops encrypted secret store', () => {
       );
     });
 
-    it('replaces the stored manifest through the validating atomic encrypt path', () => {
-      const body = methodBody("    writeGitAuthTokenManifest(token, namespace = 'default') {");
-      expect(body).to.include('Underpost.secret.encrypt(plaintextPath, namespace, { force: true })');
+    it('mirrors the token through the validating atomic encrypt path, in the external scope', () => {
+      const body = methodBody('    writeGitAuthTokenManifest(token) {');
+      expect(body).to.include('Underpost.secret.seal({');
+      expect(body).to.include('path: GIT_AUTH_TOKEN_MIRROR');
+      expect(secretsSource).to.include('/${EXTERNAL_SCOPE}/github/${GIT_AUTH_TOKEN_SECRET}');
     });
 
     it('classifies gh as a network effect so a rotation cannot run under a hermetic profile', () => {
@@ -703,22 +666,23 @@ describe('sops encrypted secret store', () => {
   describe('emergency purge', () => {
     it('archives rather than deletes unless forced', () => {
       const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
-      const start = secretsSource.indexOf('    purge(name, options = {}) {');
+      const start = secretsSource.indexOf('    purge(secret, {');
       expect(start, 'purge() not found').to.be.greaterThan(-1);
       const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
-      expect(body).to.include('kubectl delete secret ${name} -n ${namespace} --ignore-not-found');
-      expect(body).to.include('options.force');
+      expect(body).to.include('kubectl delete secret ${secret.name} -n ${namespace} --ignore-not-found');
+      expect(body).to.include('else if (force)');
       expect(body).to.include('fs.moveSync');
     });
 
     it('reports the plan without mutating anything on a dry run', () => {
-      const result = sops().purge('postgres-secret', { namespace: 'default', dryRun: true });
-      expect(result).to.include({ deleted: false, archived: '' });
-      expect(result.seedFallback).to.be.a('boolean');
+      expect(sops().purge(sops().reference('postgresql/credentials'), { dryRun: true })).to.deep.equal({
+        deleted: false,
+        archived: '',
+      });
     });
 
-    it('requires a secret name', () => {
-      expect(() => sops().purge('')).to.throw(/requires a secret name/);
+    it('takes a Secret of the catalog only', () => {
+      expect(() => sops().reference('postgres-secret')).to.throw(/names no Secret of the catalog/);
     });
   });
 
@@ -765,10 +729,8 @@ describe('sops encrypted secret store', () => {
   });
 
   describe('fail-closed manifest validation', () => {
-    const storeRoot = './engine-private/secrets';
-    const NS = 'sops-validate-ns';
-    const dir = `${storeRoot}/${NS}`;
-    let createdStoreRoot = false;
+    scratchCheckout();
+    const dir = './engine-private/secrets/production/fixture';
 
     const encrypted = (name, namespace) =>
       [
@@ -785,54 +747,48 @@ describe('sops encrypted secret store', () => {
         '        - recipient: age1aaa',
         '',
       ].join('\n');
-
-    beforeAll(() => {
-      createdStoreRoot = !fs.existsSync(storeRoot);
-      fs.ensureDirSync(dir);
-    });
-
-    afterAll(() => {
-      fs.removeSync(dir);
-      if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
-        fs.removeSync(storeRoot);
-    });
+    const write = (file, content) => {
+      fs.outputFileSync(`${dir}/${file}`, content, 'utf8');
+      return `${dir}/${file}`;
+    };
 
     it('accepts a well-formed encrypted Secret', () => {
-      const path = `${dir}/good.enc.yaml`;
-      fs.writeFileSync(path, encrypted('good', NS), 'utf8');
-      expect(() => sops().assertManifest(path, { name: 'good', namespace: NS })).to.not.throw();
+      expect(() => sops().assertManifest(write('good.enc.yaml', encrypted('good')), { name: 'good' })).to.not.throw();
     });
 
     it('refuses a manifest that was never encrypted', () => {
-      const path = `${dir}/plain.enc.yaml`;
-      fs.writeFileSync(path, 'kind: Secret\nmetadata:\n    name: plain\nstringData:\n    password: hunter2\n', 'utf8');
+      const path = write(
+        'plain.enc.yaml',
+        'kind: Secret\nmetadata:\n    name: plain\nstringData:\n    password: hunter2\n',
+      );
       expect(() => sops().assertManifest(path, { name: 'plain' })).to.throw(/not encrypted/);
     });
 
     it('refuses a non-Secret resource', () => {
-      const path = `${dir}/cm.enc.yaml`;
-      fs.writeFileSync(path, encrypted('cm', NS).replace('kind: Secret', 'kind: ConfigMap'), 'utf8');
+      const path = write('cm.enc.yaml', encrypted('cm').replace('kind: Secret', 'kind: ConfigMap'));
       expect(() => sops().assertManifest(path, { name: 'cm' })).to.throw(/is a ConfigMap, not a Secret/);
     });
 
-    it('refuses a manifest whose metadata.name does not match its filename', () => {
-      const path = `${dir}/postgres-secret.enc.yaml`;
-      fs.writeFileSync(path, encrypted('some-other-secret', NS), 'utf8');
+    it('refuses a manifest whose metadata.name is not the name of its Secret', () => {
+      const path = write('credentials.enc.yaml', encrypted('some-other-secret'));
       expect(() => sops().assertManifest(path, { name: 'postgres-secret' })).to.throw(/secretKeyRef .* unresolved/);
     });
 
-    it('refuses a manifest targeting a different namespace', () => {
-      const path = `${dir}/elsewhere.enc.yaml`;
-      fs.writeFileSync(path, encrypted('elsewhere', 'other-ns'), 'utf8');
-      expect(() => sops().assertManifest(path, { name: 'elsewhere', namespace: NS })).to.throw(/metadata.namespace/);
+    it('refuses a manifest that names a namespace: only the placement names one', () => {
+      const path = write('elsewhere.enc.yaml', encrypted('elsewhere', 'other-ns'));
+      expect(() => sops().assertManifest(path, { name: 'elsewhere' })).to.throw(/names the namespace other-ns/);
     });
 
     it('raises rather than seeding when a present manifest is invalid', () => {
-      // The security-critical distinction: absent -> seed fallback, corrupt -> hard failure.
-      const path = `${dir}/corrupt-secret.enc.yaml`;
-      fs.writeFileSync(path, 'kind: Secret\nmetadata:\n    name: corrupt-secret\n', 'utf8');
-      expect(() => sops().applyIfPresent('corrupt-secret', NS)).to.throw(/not encrypted/);
-      expect(sops().applyIfPresent('absent-secret', NS)).to.equal(false);
+      fs.outputFileSync(
+        './engine-private/secrets/production/postgresql/credentials.enc.yaml',
+        'kind: Secret\nmetadata:\n    name: postgres-secret\n',
+      );
+      vi.spyOn(Underpost.namespace, 'secretSource').mockReturnValue('sops');
+      vi.spyOn(Underpost.wireguard, 'localRole').mockReturnValue('');
+      const seeded = vi.spyOn(sops(), 'applyFromOriginSeed');
+      expect(() => sops().provide({ resource: 'postgresql', namespace: 'default' })).to.throw(/not encrypted/);
+      expect(seeded).not.toHaveBeenCalled();
     });
   });
 
@@ -887,16 +843,14 @@ describe('sops encrypted secret store', () => {
     // The production trap: a host pulls engine-private, generates its own Age key, and every
     // inherited manifest is sealed to somebody else's recipient. sops reports that from inside a
     // decrypt pipe as "no identity matched any of the recipients", naming neither file nor remedy.
-    const storeRoot = './engine-private/secrets';
-    const NS = 'sops-adoption-ns';
-    const dir = `${storeRoot}/${NS}`;
+    scratchCheckout();
+    const path = './engine-private/secrets/production/mariadb/credentials.enc.yaml';
     const FOREIGN = 'age1mq5jhnym3w2cgexypl5law8my77uvqt2pxaxdqfs8gs0eqcltseq27nquw';
     const LOCAL = 'age1myykjrfvjg55hddhetqxs4kkpe9mzjd8yae87c8d2c335kghgquqsgrl8q';
     const originalKeyFile = process.env.SOPS_AGE_KEY_FILE;
     // A present, correctly permissioned key file carrying no usable identity: assertKeyFile passes,
     // so the adoption check is what the caller actually hits, exactly as on the production host.
     const keyPath = `${os.tmpdir()}/underpost-adoption-test-key.txt`;
-    let createdStoreRoot = false;
 
     const sealedTo = (name, recipient) =>
       [
@@ -904,7 +858,6 @@ describe('sops encrypted secret store', () => {
         'kind: Secret',
         'metadata:',
         `    name: ${name}`,
-        `    namespace: ${NS}`,
         'type: Opaque',
         'stringData:',
         '    password: ENC[AES256_GCM,data:Lm8x,iv:3fB7,tag:2cF5,type:str]',
@@ -914,22 +867,21 @@ describe('sops encrypted secret store', () => {
         '',
       ].join('\n');
 
-    beforeAll(() => {
-      createdStoreRoot = !fs.existsSync(storeRoot);
-      fs.ensureDirSync(dir);
-      fs.writeFileSync(`${dir}/mariadb-secret.enc.yaml`, sealedTo('mariadb-secret', FOREIGN), 'utf8');
+    beforeEach(() => {
+      fs.outputFileSync(path, sealedTo('mariadb-secret', FOREIGN), 'utf8');
       fs.writeFileSync(keyPath, '# no identity here\n', 'utf8');
       fs.chmodSync(keyPath, 0o600);
       process.env.SOPS_AGE_KEY_FILE = keyPath;
+      vi.spyOn(Underpost.namespace, 'secretSource').mockImplementation(({ resource }) =>
+        resource === 'mariadb' ? 'sops' : 'seed',
+      );
+      vi.spyOn(Underpost.wireguard, 'localRole').mockReturnValue('');
     });
 
-    afterAll(() => {
+    afterEach(() => {
       if (originalKeyFile === undefined) delete process.env.SOPS_AGE_KEY_FILE;
       else process.env.SOPS_AGE_KEY_FILE = originalKeyFile;
       fs.removeSync(keyPath);
-      fs.removeSync(dir);
-      if (createdStoreRoot && fs.existsSync(storeRoot) && fs.readdirSync(storeRoot).length === 0)
-        fs.removeSync(storeRoot);
     });
 
     it('holds no recipients when the key file is absent or carries no identity', () => {
@@ -943,7 +895,6 @@ describe('sops encrypted secret store', () => {
     });
 
     it('decides decryptability by recipient-set intersection, without a decrypt attempt', () => {
-      const path = `${dir}/mariadb-secret.enc.yaml`;
       expect(sops().decryptable(path, [FOREIGN])).to.equal(true);
       expect(sops().decryptable(path, [LOCAL])).to.equal(false);
       expect(sops().decryptable(path, [LOCAL, FOREIGN])).to.equal(true);
@@ -953,24 +904,31 @@ describe('sops encrypted secret store', () => {
     it('names the manifest, its recipients, and every remedy instead of failing inside sops', () => {
       let error;
       try {
-        sops().assertDecryptable(sops().manifests(NS));
+        sops().assertDecryptable(
+          sops()
+            .manifests()
+            .map(({ path: manifest }) => manifest),
+        );
       } catch (thrown) {
         error = thrown;
       }
       expect(error, 'expected assertDecryptable to throw').to.be.an('error');
-      expect(error.message).to.include(`${NS}/mariadb-secret`);
+      expect(error.message).to.include('production/mariadb/credentials');
       expect(error.message).to.include(FOREIGN);
       expect(error.message).to.include('underpost secret rotate --args recipient=');
       expect(error.message).to.include('underpost secret setup --force');
     });
 
     it('raises the adoption error before any manifest reaches kubectl', () => {
-      expect(() => sops().applyStore(NS)).to.throw(/sealed to Age recipients this host does not hold/);
+      expect(() => sops().applyStore({ environment: 'production', namespace: 'default' })).to.throw(
+        /sealed to Age recipients this host does not hold/,
+      );
     });
 
     it('raises rather than sliding back to the origin seed path for a present-but-unreadable manifest', () => {
-      expect(() => sops().applyIfPresent('mariadb-secret', NS)).to.throw(/does not hold/);
-      expect(sops().applyIfPresent('absent-secret', NS)).to.equal(false);
+      const seeded = vi.spyOn(sops(), 'applyFromOriginSeed');
+      expect(() => sops().provide({ resource: 'mariadb', namespace: 'default' })).to.throw(/does not hold/);
+      expect(seeded).not.toHaveBeenCalled();
     });
   });
 
@@ -1029,7 +987,7 @@ describe('sops encrypted secret store', () => {
 
   describe('secret --setup onboarding reports', () => {
     const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
-    const start = secretsSource.indexOf("    setupStore(names = '', options = {}) {");
+    const start = secretsSource.indexOf('    setupStore(');
     const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
 
     it('does not report a manifest it cannot decrypt as onboarded', () => {
@@ -1039,12 +997,12 @@ describe('sops encrypted secret store', () => {
     });
 
     it('warns when --force replaces a stored credential with a generated one', () => {
-      expect(body).to.include('generated while replacing the stored manifest');
+      expect(body).to.include('generated while replacing its manifest');
     });
 
     it('validates and applies only the explicitly requested manifests', () => {
-      expect(body).to.include('applySelected(secretNames, namespace');
-      expect(body).to.not.include('sops.apply(namespace');
+      expect(body).to.include('Underpost.secret.applyStore({ environment, secrets: selected, dryRun: true })');
+      expect(body).to.include('Underpost.secret.applyStore({ environment, secrets: selected })');
     });
   });
 
@@ -1069,8 +1027,8 @@ describe('sops encrypted secret store', () => {
       // rotate it — including on a dry run, where a reported plan would be pure misdirection.
       const start = secretsSource.indexOf('    rotateRecipient(recipient, options = {}) {');
       const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
-      expect(body).to.include('assertDecryptable(manifests)');
-      expect(body.indexOf('assertDecryptable(manifests)')).to.be.lessThan(body.indexOf('if (options.dryRun)'));
+      expect(body).to.include('assertDecryptable(manifests.map(');
+      expect(body.indexOf('assertDecryptable(manifests.map(')).to.be.lessThan(body.indexOf('if (options.dryRun)'));
     });
   });
 
@@ -1078,7 +1036,7 @@ describe('sops encrypted secret store', () => {
     const secretsSource = fs.readFileSync(new URL('../../../../src/cli/secrets.js', import.meta.url), 'utf8');
 
     it('stages and moves rather than redirecting straight onto the target', () => {
-      const start = secretsSource.indexOf('    encrypt(plaintextPath, namespace');
+      const start = secretsSource.indexOf('    encrypt(plaintextPath, outPath');
       const body = secretsSource.slice(start, secretsSource.indexOf('\n    /**', start));
       expect(body).to.include('.staged');
       expect(body).to.include('fs.moveSync');

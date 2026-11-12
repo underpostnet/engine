@@ -142,16 +142,23 @@ describe('Actions secret writes', () => {
 });
 
 describe('Actions secret rotation', () => {
+  const cwd = process.cwd();
+  let root;
   const rotate = (options) =>
     secret().rotateActionsSecrets({ target: 'user', owner: 'acme', value: 'rotated', ...options });
 
+  // An empty working directory has no cluster configuration and no secret store.
   beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-actions-rotation-'));
+    process.chdir(root);
     vi.spyOn(Underpost.host, 'read').mockReturnValue({});
   });
 
   afterEach(() => {
+    process.chdir(cwd);
     vi.restoreAllMocks();
     fs.removeSync(STAGE_DIR);
+    fs.removeSync(root);
   });
 
   it('writes the staged value to every reachable target, reports the rest and shreds the stage', () => {
@@ -176,21 +183,21 @@ describe('Actions secret rotation', () => {
     expect(writes(commands)).to.deep.equal([]);
   });
 
-  it('mirrors a written GIT_AUTH_TOKEN into the store and applies it when asked', () => {
+  // GitHub holds the credential: the mirror lives in the external scope, and no cluster object reads it.
+  it('mirrors a written GIT_AUTH_TOKEN into the external scope of the store, and applies nothing', () => {
     vi.spyOn(secret(), 'hasBinary').mockReturnValue(true);
     const manifest = vi.spyOn(secret(), 'writeGitAuthTokenManifest').mockReturnValue('stored.enc.yaml');
-    const apply = vi.spyOn(secret(), 'applyIfPresent').mockReturnValue(true);
+    const store = vi.spyOn(secret(), 'applyStore');
     ghFactory({ visible: ['acme/one'] });
     const report = rotate({
       keys: 'GIT_AUTH_TOKEN',
       value: 'ghp_abcdefghijklmnopqrstuvwxyz',
       repos: 'acme/one',
       store: 'true',
-      apply: 'true',
     });
     expect(report.manifest).to.equal('stored.enc.yaml');
-    expect(manifest).toHaveBeenCalledWith('ghp_abcdefghijklmnopqrstuvwxyz', 'default');
-    expect(apply).toHaveBeenCalledWith('git-auth-token', 'default');
+    expect(manifest).toHaveBeenCalledWith('ghp_abcdefghijklmnopqrstuvwxyz');
+    expect(store).not.toHaveBeenCalled();
   });
 
   it('leaves the store untouched for a GIT_AUTH_TOKEN it does not hold', () => {

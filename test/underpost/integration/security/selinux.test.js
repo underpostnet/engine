@@ -1,6 +1,8 @@
 'use strict';
 
 import { expect } from 'chai';
+import { vi } from 'vitest';
+import { shellHarness } from '../../../support/shell-harness.js';
 import SELinuxService, {
   runSELinuxCommands,
   selinuxContainerSharedContextCommandsFactory,
@@ -11,6 +13,7 @@ import SELinuxService, {
   selinuxSshPortCommandsFactory,
   shellArgumentFactory,
 } from '../../../../src/server/security/selinux.js';
+import { shellExec } from '../../../../src/server/runtime/process.js';
 
 describe('SELinux utilities', () => {
   it('provides one canonical class API with named factory aliases', () => {
@@ -61,9 +64,27 @@ describe('SELinux utilities', () => {
     expect(() => selinuxSshPortCommandsFactory({ port: 70000 })).to.throw(RangeError);
   });
 
-  it('executes generated commands with an injected executor', () => {
+  it('gives its executor each generated command with the reason it needs root', () => {
     const executed = [];
-    runSELinuxCommands(['one', 'two'], { execute: (command) => executed.push(command) });
-    expect(executed).to.deep.equal(['one', 'two']);
+    runSELinuxCommands(['one', 'two'], { execute: (...call) => executed.push(call) });
+    expect(executed).to.deep.equal([
+      ['one', { privileged: 'applies SELinux policy' }],
+      ['two', { privileged: 'applies SELinux policy' }],
+    ]);
+    expect(() => runSELinuxCommands(['one'])).to.throw(TypeError);
+  });
+
+  it('runs through the privilege boundary of shellExec on this host', () => {
+    vi.stubEnv('CI', 'true');
+    const harness = shellHarness();
+    try {
+      runSELinuxCommands(['setenforce 1'], { execute: shellExec });
+      expect(harness.calls).to.have.length(1);
+      expect(harness.calls[0]).to.match(/^'sudo' '-n' '--' 'env' '[^']*' '\/bin\/sh' '-c' 'setenforce 1'$/);
+    } finally {
+      harness.restore();
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+    }
   });
 });
