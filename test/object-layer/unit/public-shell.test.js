@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import {
   buildObjectLayerMetadata,
   objectLayerShellRendererFactory,
@@ -9,8 +9,8 @@ import { shellContext } from '../../../src/server/network/shell-metadata.js';
 const CID = 'bafkreiffm7bhq4erjqglbx7fh5todzdt4adjdq7fjbhhz7lojzgyrf54q4';
 const site = { title: 'Cyberia Online', siteName: 'Cyberia', description: 'An MMORPG', thumbnail: 'assets/social.png' };
 const context = {
-  ...shellContext({ host: 'www.cyberiaonline.com', path: '/', metadata: site }),
-  previewBase: 'https://www.cyberiaonline.com/api/v1',
+  ...shellContext({ host: 'services.cyberiaonline.com', path: '/', metadata: site }),
+  previewBase: 'https://services.cyberiaonline.com/api/v1',
 };
 const definition = (overrides = {}) => ({
   cid: CID,
@@ -33,7 +33,7 @@ describe('object layer shell metadata', () => {
       title: 'atlas_pistol_mk2 | Cyberia',
       headline: 'atlas_pistol_mk2',
       description: 'A compact sidearm.',
-      canonicalUrl: `https://www.cyberiaonline.com/object-layer/${CID}`,
+      canonicalUrl: `https://services.cyberiaonline.com/object-layer/${CID}`,
       siteName: 'Cyberia',
       type: 'website',
     });
@@ -42,12 +42,12 @@ describe('object layer shell metadata', () => {
   });
 
   it('shows the idle preview of a rendered definition, else the site image', () => {
-    const idle = `https://www.cyberiaonline.com/api/v1/atlas-sprite-sheet/idle-preview/${CID}`;
+    const idle = `https://services.cyberiaonline.com/api/v1/atlas-sprite-sheet/idle-preview/${CID}`;
     expect(buildObjectLayerMetadata(definition(), context).image).toEqual({ url: idle, representative: true });
     expect(buildObjectLayerMetadata(definition(), context).jsonLd.image).toEqual([idle]);
     const unrendered = definition({ data: { item: { id: 'purple', type: 'skin' } } });
     expect(buildObjectLayerMetadata(unrendered, context).image).toEqual({
-      url: 'https://www.cyberiaonline.com/assets/social.png',
+      url: 'https://services.cyberiaonline.com/assets/social.png',
       representative: false,
     });
     expect(buildObjectLayerMetadata(unrendered, context).jsonLd.image).toBeUndefined();
@@ -92,7 +92,7 @@ describe('object layer shell renderer', () => {
   afterEach(() => vi.restoreAllMocks());
 
   const render = objectLayerShellRendererFactory({
-    host: 'www.cyberiaonline.com',
+    host: 'services.cyberiaonline.com',
     path: '/',
     metadata: site,
     apis: ['object-layer', 'atlas-sprite-sheet'],
@@ -101,9 +101,9 @@ describe('object layer shell renderer', () => {
   it('writes the definition the cid names into the shell head', async () => {
     const html = await render({}, shell, CID);
     expect(html).toContain('<title>atlas_pistol_mk2 | Cyberia</title>');
-    expect(html).toContain(`<link rel="canonical" href="https://www.cyberiaonline.com/object-layer/${CID}">`);
+    expect(html).toContain(`<link rel="canonical" href="https://services.cyberiaonline.com/object-layer/${CID}">`);
     expect(html).toContain(
-      '<meta property="og:image" content="https://www.cyberiaonline.com/api/v1/atlas-sprite-sheet/idle-preview/',
+      '<meta property="og:image" content="https://services.cyberiaonline.com/api/v1/atlas-sprite-sheet/idle-preview/',
     );
     expect(html).not.toContain('content="site"');
   });

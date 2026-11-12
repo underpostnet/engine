@@ -8,7 +8,7 @@
 // The page renders nothing the server knows about the player, and the ticket lives only in this
 // script and in the fragment of the next address. The game client origin comes from the build
 // manifest and the world path from the engine, so no query parameter chooses where it navigates.
-// The portal session keys are those of `services/user/guest.service.js`.
+// The portal session keys are those of `services/user/GuestService.js`.
 
 const s = (el) => document.querySelector(el);
 

@@ -6,7 +6,12 @@ import { execFileSync } from 'node:child_process';
 const root = new URL('../../../', import.meta.url);
 const read = (file) => fs.readFileSync(new URL(file, root), 'utf8');
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
-const tracked = git('ls-files', 'src/client/public/cyberia', 'src/client/public/underpost').split('\n');
+const tracked = git(
+  'ls-files',
+  'src/client/public/cyberia',
+  'src/client/public/cyberia-public',
+  'src/client/public/underpost',
+).split('\n');
 const conf = new URL('engine-private/conf/dd-cyberia/', root);
 const deployment = new URL('cyberia-deployment/', root);
 
@@ -19,13 +24,19 @@ const privateDirectories = [
 ];
 const privatePaths = privateDirectories.map((directory) => `${directory}/private.png`);
 
+/** The application source each public tree tracks. The Cyberia public website owns the Cyberia structured data. */
+const APPLICATION_FILES = {
+  cyberia: ['favicon.ico', 'browserconfig.xml', 'manifest.webmanifest', 'sitemap'],
+  underpost: ['favicon.ico', 'browserconfig.xml', 'manifest.webmanifest', 'microdata.json', 'sitemap'],
+};
+
 // A sliced tree that carries no application source has no assets to own.
 const carriesApplications = fs.existsSync(new URL('src/client/public/cyberia', root));
 
 describe.skipIf(!carriesApplications)('application asset ownership', () => {
   it.each(['cyberia', 'underpost'])('tracks the %s application source in engine', (client) => {
     const base = `src/client/public/${client}`;
-    for (const file of ['favicon.ico', 'browserconfig.xml', 'manifest.webmanifest', 'microdata.json', 'sitemap']) {
+    for (const file of APPLICATION_FILES[client]) {
       expect(tracked).toContain(`${base}/${file}`);
       expect(fs.statSync(new URL(`${base}/${file}`, root)).isFile()).toBe(true);
     }
@@ -34,6 +45,10 @@ describe.skipIf(!carriesApplications)('application asset ownership', () => {
     const linked = [...head.matchAll(/href="\$\{ssrPath\}([^"]+)"/g)].map(([, file]) => `${base}/${file}`);
     expect(linked.length).toBeGreaterThan(0);
     expect(linked.filter((file) => !tracked.includes(file))).toEqual([]);
+  });
+
+  it('tracks the structured data of the Cyberia public website in engine', () => {
+    expect(tracked).toContain('src/client/public/cyberia-public/microdata.json');
   });
 
   it('excludes private files from Git', () => {
