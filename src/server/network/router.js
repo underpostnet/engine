@@ -23,10 +23,12 @@ import { API_BASE_PATH } from '../domain/api-contract.js';
 import {
   Config,
   DEFAULT_DEPLOY_ID,
+  deployBasePortFactory,
   devProxyHostFactory,
   isDevProxyContext,
   isTlsDevProxy,
   loadConfServerJson,
+  readConfJson,
 } from '../runtime/conf.js';
 
 const logger = loggerFactory(import.meta);
@@ -129,6 +131,18 @@ const hostPortsFactory = (confServer, firstPort = parseInt(process.env.PORT) + 1
   }
   return ports;
 };
+
+/**
+ * @method deployHostPortsFactory
+ * @description {@link hostPortsFactory} of a deployment in an environment: its server conf, from the
+ * base port of its env file.
+ * @param {string} deployId - Deployment id.
+ * @param {string} env - Environment selector.
+ * @returns {Object<string,number>} `${host}${path}` → port.
+ * @memberof ServerRouter
+ */
+const deployHostPortsFactory = (deployId, env) =>
+  hostPortsFactory(readConfJson(deployId, 'server', { loadReplicas: true }), deployBasePortFactory(deployId, env) + 1);
 
 /**
  * @method localHostAddress
@@ -436,6 +450,7 @@ export {
   buildPortProxyRouter,
   buildProxyRouter,
   developmentOrigins,
+  deployHostPortsFactory,
   hostPortsFactory,
   instanceOriginsFactory,
   localHostAddress,

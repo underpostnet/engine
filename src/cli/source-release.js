@@ -65,7 +65,7 @@ class UnderpostSourceRelease {
       for (const key of ['deployId', 'image', 'cmd', 'scope'])
         if (!options[key])
           throw new Error(`source-release job needs --${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`);
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('releases', { options });
       const timeoutSeconds = Number(options.timeout) || 3600;
       const name = releaseJobName({ deployId: options.deployId, releaseId: id });
       const storePath = options.store || RELEASE_STORE_ROOT;
@@ -78,7 +78,7 @@ class UnderpostSourceRelease {
         variables: variablesFactory(options.setEnv),
         deployId: options.deployId,
         releaseId: id,
-        nodeName: options.nodeName || '',
+        scheduling: Underpost.namespace.podScheduling({ resource: 'releases', options, node: options.nodeName }),
         storePath,
         timeoutSeconds,
         imagePullPolicy: options.imagePullPolicy || 'IfNotPresent',
@@ -87,6 +87,7 @@ class UnderpostSourceRelease {
         console.log(manifest);
         return true;
       }
+      await Underpost.namespace.ensure({ resource: 'releases', options });
       const engine = stageReleaseEngine({ root: storePath, deployId: options.deployId });
       // The Job reads the store through a hostPath, so the store carries the label a container reads.
       ensureContainerStorage(storePath, { execute: shellExec });

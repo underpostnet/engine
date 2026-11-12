@@ -29,19 +29,14 @@ main() {
           --replicas 1 \
           --image '${DEPLOY_IMAGE}' \
           --kubeadm \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --sync \
           --build-manifest \
           --cmd '${pod_cmd}'"
 
-    deploy_step "Issue $DEPLOY_ID certificates" \
+    deploy_step "Apply $DEPLOY_ID workloads" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin deploy $DEPLOY_ID $DEPLOY_ENV \
           --kubeadm \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
-          --cert \
           --disable-update-proxy"
 
     deploy_step "Promote $DEPLOY_ID deployment" \
@@ -51,6 +46,13 @@ main() {
           --promote \
           --versions green \
           --replicas 1"
+
+    deploy_step "Reconcile $DEPLOY_ID TLS" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin tls reconcile \
+          --deploy-id $DEPLOY_ID \
+          --env $DEPLOY_ENV \
+          --apply"
 }
 
 main "$@"

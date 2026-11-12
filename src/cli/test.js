@@ -435,7 +435,7 @@ class UnderpostTest {
         console.log(manifests);
         return manifests;
       }
-      shellExec(`sudo kubectl apply -f - <<'EOF'\n${manifests}\nEOF`);
+      shellExec(`kubectl apply -f - <<'EOF'\n${manifests}\nEOF`);
       const { allure } = UNDERPOST_TESTING;
       logger.info('Allure dashboard applied', {
         namespace,
@@ -470,7 +470,7 @@ class UnderpostTest {
         console.log(manifest);
         return true;
       }
-      shellExec(`sudo kubectl apply -f - <<'EOF'\n${manifest}\nEOF`);
+      shellExec(`kubectl apply -f - <<'EOF'\n${manifest}\nEOF`);
       return await Underpost.test.statusMonitor(name, 'Completed', 'pods');
     },
 

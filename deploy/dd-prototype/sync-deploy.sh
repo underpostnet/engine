@@ -8,7 +8,6 @@ source "$SCRIPT_DIR/../lib/host.sh"
 DEPLOY_ID=dd-prototype
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 # Empty: nothing is pinned, so the CLI resolves the node the deploy runs on.
-TARGET_NODE="${TARGET_NODE:-}"
 # The source the pod bootstraps from, and the private configuration the host reads: the host
 # takes the monorepo conf (cron, scopes, routes), the pod clones this deploy's own conf
 # repository itself. Left unset, `run pull` force-replaces the checkout with the monorepo tip
@@ -30,9 +29,6 @@ main() {
         "cd $ENGINE_ROOT && node bin run sync \
           --deploy-id $DEPLOY_ID \
           --kubeadm \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --cmd '${pod_cmd}'"
 }
 

@@ -9,7 +9,7 @@ How per-deploy SSR views are declared and how they drive the PWA offline lifecyc
 The PWA pipeline has two inputs:
 
 - the deploy `ssr` configuration in `underpost.config.dd-*.js` or `conf.ssr.json`
-- the service worker source in `src/client/sw/core.sw.js`
+- the service worker source in `src/client/sw/CoreServiceWorker.js`
 
 Everything else is generated from those inputs during the client build. Do not hand-edit generated `index.html` files, `sw.js`, or precache output.
 
@@ -104,7 +104,7 @@ Some views carry no request-time logic at all, so the gateway answers them and t
 | `path` is a bare status code (`/404`, `/503`) | a status page                 | `<host>/<sub-path>/status-pages/<status>/index.html` |
 | `offlineDefault` or `maintenanceDefault`      | an intercepted static context | `<host>/<sub-path>/<context>/index.html`             |
 
-`<sub-path>` is the client's proxy sub-path with `/` written as `root`, so the `CyberiaPortal` `/404` view on `www.cyberiaonline.com` lands at `www.cyberiaonline.com/root/status-pages/404/index.html`.
+`<sub-path>` is the client's proxy sub-path with `/` written as `root`, so the `CyberiaPortal` `/404` view on `services.cyberiaonline.com` lands at `services.cyberiaonline.com/root/status-pages/404/index.html`.
 
 `deploy --build-manifest` emits one HTTPRoute rule per entry, rewriting the request prefix onto that **directory** — so `/404` resolves the document through `index.html` and `/404/logo.png` resolves the asset beside it, from one rule. `deploy --sync-static` places the documents those rules point at. Both read the same selectors, so a new edge-served view needs nothing beyond its `views[]` entry.
 
@@ -116,7 +116,7 @@ The application runtime does nothing. It returns a bare 404 and no more; no runt
 
 The gateway proxies the site path through `underpost-gateway`, whose Nginx has `proxy_intercept_errors on` and an `error_page` per declared status. When the workload answers 404, Nginx swaps in the declared document from disk. Three things hold as a result:
 
-- the client keeps its own URI — `https://www.cyberiaonline.com/no-exist-page` stays in the address bar
+- the client keeps its own URI — `https://services.cyberiaonline.com/no-exist-page` stays in the address bar
 - the response keeps the workload's status code — a true `404`, not a `200` carrying an error page
 - the document has no size limit, because it is read from disk rather than inlined into the gateway config
 
@@ -132,7 +132,7 @@ If a document is missing from the tree, the request falls through to a shared de
 
 ## Service worker lifecycle
 
-The SW source lives at `src/client/sw/core.sw.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and writes the [build manifest](../reference/build-manifest.md#service-worker) of the instance before the bundle, as `self.buildManifest`. The worker reads its `serviceWorker` section, resolved from the `views` array:
+The SW source lives at `src/client/sw/CoreServiceWorker.js`. The client build (`src/client-builder/client-build.js`) bundles it via esbuild and writes the [build manifest](../reference/build-manifest.md#service-worker) of the instance before the bundle, as `self.buildManifest`. The worker reads its `serviceWorker` section, resolved from the `views` array:
 
 | Manifest field              | Source                                                                              |
 | --------------------------- | ----------------------------------------------------------------------------------- |
@@ -174,6 +174,6 @@ To make the new view a fallback target, set `offlineDefault: true` or `maintenan
 
 ## Updating the service worker
 
-`core.sw.js` is bundled inline by esbuild and shipped as `sw.js` per host instance. After editing it, rebuild the client; the SW takes effect on the next page load (via `skipWaiting + clientsClaim`).
+`CoreServiceWorker.js` is bundled inline by esbuild and shipped as `sw.js` per host instance. After editing it, rebuild the client; the SW takes effect on the next page load (via `skipWaiting + clientsClaim`).
 
 For manual cache invalidation during development, the Settings panel exposes a **clean-cache** action that calls `Worker.resetAndRestart()` — unregistering the SW, dropping all caches, clearing local/session storage, and re-registering.

@@ -11,7 +11,7 @@
  */
 
 import fs from 'fs-extra';
-import { DefaultConf } from '../../underpost.config.js';
+import underpostConfig from '../../underpost.config.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import { readDeployRoutes } from '../server/network/router.js';
 import { loggerFactory } from '../server/ops/logger.js';
@@ -47,7 +47,7 @@ const deploySource = (deployId) => {
 };
 
 const templateSource = () =>
-  structuredClone({ server: DefaultConf.server, client: DefaultConf.client, ssr: DefaultConf.ssr });
+  structuredClone({ server: underpostConfig.server, client: underpostConfig.client, ssr: underpostConfig.ssr });
 
 const sourceClient = (source, clientId, origin) => {
   if (!source.client[clientId]) throw new Error(`Client "${clientId}" not found in ${origin}`);
@@ -76,7 +76,7 @@ class UnderpostSite {
       const { applied, plan } = applyChangeSet(changes, { dryRun });
       for (const { action, path, summary } of plan)
         logger.info(`${operation} ${action}`, summary ? `${path} (${summary})` : path);
-      if (applied) for (const deployId of deployIds) Underpost.repo.updateDefaultConf({ deployId });
+      if (applied) for (const deployId of deployIds) Underpost.repo.writeConfManifest({ deployId });
       const pending = plan.filter(({ action }) => action !== 'unchanged').length;
       logger.info(`${operation} ${applied ? 'applied' : pending ? 'planned' : 'unchanged'}`, { files: pending });
       return { applied, plan };

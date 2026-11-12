@@ -6,12 +6,14 @@ import {
   Config,
   buildApiConf,
   buildClientStaticConf,
+  deployBasePortFactory,
   deployEnvContentFactory,
   deployOciEnvFilePath,
   getConfFilePath,
   loadConf,
   ociEnvContentFactory,
 } from '../../../src/server/runtime/conf.js';
+import { deployHostPortsFactory } from '../../../src/server/network/router.js';
 
 const restoreEnv = (name, value) => {
   if (value === undefined) delete process.env[name];
@@ -24,6 +26,7 @@ describe('deploy configuration loading', () => {
   const originalDeployId = process.env.DEPLOY_ID;
   const originalKubernetesHost = process.env.KUBERNETES_SERVICE_HOST;
   const originalRuntimeFixture = process.env.CONF_RUNTIME_FIXTURE;
+  const originalValkeyHost = process.env.VALKEY_HOST;
   const originalConfig = structuredClone(Config.default);
 
   afterEach(() => {
@@ -33,6 +36,7 @@ describe('deploy configuration loading', () => {
     restoreEnv('DEPLOY_ID', originalDeployId);
     restoreEnv('KUBERNETES_SERVICE_HOST', originalKubernetesHost);
     restoreEnv('CONF_RUNTIME_FIXTURE', originalRuntimeFixture);
+    restoreEnv('VALKEY_HOST', originalValkeyHost);
     for (const key of Object.keys(Config.default)) delete Config.default[key];
     Object.assign(Config.default, structuredClone(originalConfig));
   });
@@ -132,6 +136,41 @@ describe('deploy configuration loading', () => {
     expect(process.env.CONF_RUNTIME_FIXTURE).to.equal('container');
     expect(files.get('./.env')).to.include('CONF_RUNTIME_FIXTURE=container');
     expect(files.get('./.env')).to.not.include('CONF_RUNTIME_FIXTURE=host');
+  });
+
+  // The pod's conf checkout holds no placement: the projected Secret carries the endpoint layer.
+  it('keeps the endpoint values the projected Secret injects inside a container, and only there', () => {
+    const folder = './engine-private/conf/dd-placed';
+    const files = new Map([
+      [`${folder}/conf.server.json`, JSON.stringify({ 'placed.test': { '/': { port: 3000 } } })],
+      [`${folder}/.env.production`, 'DEPLOY_ID=dd-placed\nVALKEY_HOST=127.0.0.1\nCONF_RUNTIME_FIXTURE=file\n'],
+      [`${folder}/.env.production.oci`, 'VALKEY_HOST=valkey-service.underpost-data.svc.cluster.local\n'],
+      [`${folder}/package.json`, JSON.stringify({ name: 'placed', scripts: { start: 'node src/server' } })],
+      ['./package.json', JSON.stringify({ name: 'engine', scripts: { prod: 'node src/server' } })],
+    ]);
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}` === folder || files.has(`${filePath}`));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+    vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
+      [...files.keys()].filter((path) => path.startsWith(`${dir}/`)).map((path) => path.slice(`${dir}/`.length)),
+    );
+    vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, content) => files.set(`${filePath}`, content));
+    const projected = 'valkey-service.default.svc.cluster.local';
+    process.env.NODE_ENV = 'production';
+    process.env.KUBERNETES_SERVICE_HOST = '10.96.0.1';
+    process.env.VALKEY_HOST = projected;
+    process.env.CONF_RUNTIME_FIXTURE = 'injected';
+
+    loadConf('dd-placed');
+
+    expect(process.env.VALKEY_HOST).to.equal(projected);
+    expect(files.get('./.env')).to.include(`VALKEY_HOST=${projected}`);
+    expect(files.get('./.env')).to.not.include('underpost-data');
+    expect(process.env.CONF_RUNTIME_FIXTURE).to.equal('file');
+
+    delete process.env.KUBERNETES_SERVICE_HOST;
+    process.env.VALKEY_HOST = projected;
+    loadConf('dd-placed');
+    expect(process.env.VALKEY_HOST).to.equal('127.0.0.1');
   });
 });
 
@@ -243,6 +282,50 @@ describe('OCI runtime env overlay', () => {
     expect(resolved.source).to.equal(`${folder}/.env.production.api`);
     expect(resolved.values.PORT).to.equal('4000');
     expect(resolved.values.DB_HOST).to.equal('mongodb://mongodb-0.mongodb-service:27017');
+  });
+});
+
+describe('deploy port topology', () => {
+  const folder = './engine-private/conf/dd-ports';
+  const confServer = { 'a.test': { '/': { peer: true } }, 'b.test': { '/': {} } };
+  const originalSubConf = process.env.DEPLOY_SUB_CONF;
+  const originalKubernetesHost = process.env.KUBERNETES_SERVICE_HOST;
+
+  const mockDeploy = (env) => {
+    const files = new Map([
+      [`${folder}/.env.development`, env],
+      [`${folder}/conf.server.json`, JSON.stringify(confServer)],
+    ]);
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => files.has(`${filePath}`));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => files.get(`${filePath}`));
+  };
+
+  beforeEach(() => {
+    delete process.env.DEPLOY_SUB_CONF;
+    delete process.env.KUBERNETES_SERVICE_HOST;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    restoreEnv('DEPLOY_SUB_CONF', originalSubConf);
+    restoreEnv('KUBERNETES_SERVICE_HOST', originalKubernetesHost);
+  });
+
+  it('starts the host ports of a deploy after the base port of its env file', () => {
+    mockDeploy('DEPLOY_ID=dd-ports\nPORT=4000\n');
+    expect(deployBasePortFactory('dd-ports', 'development')).to.equal(4000);
+    expect(deployHostPortsFactory('dd-ports', 'development')).to.deep.equal({
+      'a.test/': 4001,
+      'a.test/peer': 4002,
+      'b.test/': 4003,
+    });
+  });
+
+  it('names the sync command when the env file sets no port', () => {
+    mockDeploy('DEPLOY_ID=dd-ports\n');
+    expect(() => deployBasePortFactory('dd-ports', 'development')).to.throw(
+      `${folder}/.env.development sets no PORT: run node bin client --sync-env-port`,
+    );
   });
 });
 

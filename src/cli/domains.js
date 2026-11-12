@@ -13,6 +13,8 @@
  * @namespace UnderpostDomains
  */
 
+import UnderpostNamespace from './namespace.js';
+
 /**
  * The canonical action set. Every domain implements all of these with the same meaning:
  *
@@ -49,14 +51,23 @@ const DOMAIN_ACTIONS = [
  */
 const DOMAIN_OPTIONS = [
   { flags: '--env <env>', description: 'Target environment: development | production | test (default: production).' },
-  { flags: '--namespace <namespace>', description: 'Kubernetes namespace to act on (default: default).' },
+  {
+    flags: '--namespace <namespace>',
+    description: 'The namespace of the workloads; without it, conf.cluster.json places them.',
+  },
   {
     flags: '--args <key=value-list>',
     description:
-      'Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`.',
+      'Comma-separated domain parameters; a list separates its entries with `|`, e.g. ' +
+      '`names=mongodb/credentials|mongodb/keyfile`, `recipient=age1...`, `sub-conf=nexodev`.',
   },
   { flags: '--dry-run', description: 'Reports what the action would change without changing anything.' },
-  { flags: '--force', description: 'Confirms the irreversible variant of the action.' },
+  {
+    flags: '--force',
+    description:
+      'Confirms the irreversible variant of the action. For app apply: projects an environment whose endpoint ' +
+      'its consumers do not reach.',
+  },
 ];
 
 /**
@@ -103,19 +114,38 @@ const parseDomainArgs = (value) => {
 };
 
 /**
- * Normalizes the parsed options handed to a domain action, so every domain receives the same
- * shape and none of them re-derives a default of its own.
- * @param {object} [options] - Commander options for the invocation.
- * @returns {{env: string, namespace: string, args: object, dryRun: boolean, force: boolean}} Normalized context.
+ * Splits a list parameter of `--args`. A comma separates parameters, so list entries take `|`: `names=a|b`.
+ * @param {string|boolean} [value] - The raw parameter value.
+ * @returns {string[]} The entries.
  * @memberof UnderpostDomains
  */
-const domainContextFactory = (options = {}) => ({
-  env: `${options.env ?? ''}`.trim() || 'production',
-  namespace: `${options.namespace ?? ''}`.trim() || 'default',
-  args: parseDomainArgs(options.args),
-  dryRun: options.dryRun === true,
-  force: options.force === true,
-});
+const parseDomainList = (value) =>
+  `${value ?? ''}`
+    .split(/[|;\s]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+/**
+ * Normalizes the parsed options handed to a domain action, so every domain receives the same
+ * shape and none of them re-derives a default of its own. Normalizing a context again keeps it.
+ * @param {object} [options] - Commander options for the invocation.
+ * @returns {{env: string, namespace: string, overrides: object, args: object, dryRun: boolean, force: boolean}}
+ *   Normalized context: `namespace` is the namespace of the workloads; `overrides` are the namespace
+ *   options, for a projection whose consumers run elsewhere.
+ * @memberof UnderpostDomains
+ */
+const domainContextFactory = (options = {}) => {
+  const env = `${options.env ?? ''}`.trim() || 'production';
+  const overrides = options.overrides ?? UnderpostNamespace.API.overrides(options);
+  return {
+    env,
+    namespace: UnderpostNamespace.API.of('workloads', { environment: env, options: overrides }),
+    overrides,
+    args: parseDomainArgs(options.args),
+    dryRun: options.dryRun === true,
+    force: options.force === true,
+  };
+};
 
 /**
  * Registers one domain as a top-level command carrying the full canonical surface.
@@ -180,5 +210,6 @@ export {
   DOMAIN_STORE_OPERATORS,
   domainContextFactory,
   parseDomainArgs,
+  parseDomainList,
   registerDomainCommand,
 };

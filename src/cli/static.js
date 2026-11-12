@@ -416,7 +416,7 @@ class UnderpostStatic {
       // Load config from file if specified
       if (options.configFile) {
         const fileConfig = ConfigLoader.load(options.configFile);
-        options = { ...fileConfig, ...options }; // CLI options override file config
+        options = { ...fileConfig, ...options, metadata: { ...fileConfig.metadata, ...options.metadata } }; // CLI options override file config
       }
       // Set defaults
       if (!options.outputPath) options.outputPath = '.';

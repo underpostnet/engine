@@ -127,7 +127,15 @@ service key, and nothing else: no GitHub credential and no host configuration.
 
 `underpost image --release --image-name <repository> --revision <sha>` names the image of an exact
 revision by digest. On the public channel it pulls the image CI pushed as `latest`; with
-`--path <checkout>` it builds the image on the host. On a kubeadm node the image lands where the
-runtime reads it: CRI-O shares root Podman's storage, containerd imports it with its digests.
+`--path <checkout>` it builds the image on the host. That build stages this engine as
+`underpost-cli.tgz` in the checkout, as CI does, and removes it after. On this host the image
+lands where the runtime reads it: CRI-O shares root Podman's storage, containerd imports it with
+its digests.
+
 `underpost run instance --source-revision <sha> [--build-path <checkout>]` deploys an instance on
-that digest.
+that digest. Its pods run on the workload nodes of the placement, which are not always the build
+host. The run streams the build into the runtime of each other workload node: a kubeadm or k3s
+node through its SSH peer in `deploy/nodes` (`--ssh-key-path` replaces the peer key), a kind node
+through its container. An archive load never keeps the build digest, and one archive gives the
+same digest in every store. So the release pins the digest that every workload node resolves, and
+refuses a release when no digest is common to all of them.

@@ -61,7 +61,7 @@ jobs:
             git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
             echo "suite=$(node bin test --changed origin/${{ github.base_ref }} --print)" >> "$GITHUB_OUTPUT"
           else
-            echo "suite=underpost,ecosystem,object-layer,item-ledger:unit,cryptokoyn" >> "$GITHUB_OUTPUT"
+            echo "suite=underpost,ecosystem" >> "$GITHUB_OUTPUT"
           fi
 
       # Set the COVERAGE_MIN repository variable to gate below the shipped

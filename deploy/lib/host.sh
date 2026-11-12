@@ -94,6 +94,45 @@ source_repository() {
     sudo -n -- /bin/bash -lc "cd ${3:-$ENGINE_ROOT} && node bin source-release repository $1 --channel $2" | tail -n 1
 }
 
+# The placement of ${DEPLOY_ENV:-production} from engine-private/deploy/conf.cluster.json, read once
+# from the CLI resolver: UNDERPOST_KUBECONFIG pins its context, UNDERPOST_NAMESPACE_<RESOURCE> names
+# the namespace of each resource, for ${DEPLOY_ID} when the script sets it, so a migration that moves
+# that deployment alone places it, and UNDERPOST_NODES_<CATEGORY> the nodes of its node group, separated by spaces.
+# Call it in the shell that reads the variables, never inside a
+# deploy_step. Needs the engine installed, so it runs after prepare_host.
+#
+# Usage: cluster_placement
+cluster_placement() {
+    local placement
+
+    [ -n "${UNDERPOST_NAMESPACE_WORKLOADS:-}" ] && return 0
+    placement="$(sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin namespace env --env ${DEPLOY_ENV:-production}${DEPLOY_ID:+ --deploy-id $DEPLOY_ID}" | tail -n 1)" || return 1
+    case "$placement" in
+        UNDERPOST_KUBECONFIG=*) eval "$placement" ;;
+        *) echo "The CLI printed no placement: $placement" >&2; return 1 ;;
+    esac
+}
+
+# kubectl in the context of ${DEPLOY_ENV:-production}. `sudo` drops the environment, so the context
+# pin is passed to it.
+#
+# Usage: cluster_kubectl <kubectl args...>
+cluster_kubectl() {
+    cluster_placement
+    sudo -n -- env KUBECONFIG="$UNDERPOST_KUBECONFIG" kubectl "$@"
+}
+
+# Waits until one node of a space-separated list is Ready: the pods of a node group need one.
+#
+# Usage: cluster_wait_any_node "<node> <node>..."
+cluster_wait_any_node() {
+    local node
+    for node in $1; do
+        cluster_kubectl wait --for=condition=Ready "node/${node}" --timeout=2m && return 0
+    done
+    return 1
+}
+
 # Installs the node's dependencies from the deploy's own package manifest and links the checkout's
 # CLI globally. Every later bare `underpost` command must execute this checkout, never a package
 # left behind by an older image or host preparation.

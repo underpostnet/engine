@@ -79,17 +79,7 @@ const clientRenameFactory = (fromId, toId) => {
     /** Renames source text. */
     text: (source) => source.replace(PASCAL_IDENTIFIER, pascal).replace(idReference, toId),
     /** Renames each segment of a relative path. */
-    path: (relative) =>
-      relative
-        .split('/')
-        .map((segment) =>
-          segment === fromId
-            ? toId
-            : segment.startsWith(`${fromId}.`)
-              ? `${toId}${segment.slice(fromId.length)}`
-              : token(segment),
-        )
-        .join('/'),
+    path: (relative) => relative.split('/').map(token).join('/'),
   };
 };
 

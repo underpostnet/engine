@@ -8,7 +8,6 @@ source "$SCRIPT_DIR/../lib/content-release.sh"
 
 DEPLOY_ID=dd-cyberia
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
-TARGET_NODE="${TARGET_NODE:-$HOST_NODE}"
 
 player_job() {
     local image

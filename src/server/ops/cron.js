@@ -43,6 +43,7 @@ import { DEPLOY_ROUTES_PATH, readDeployRoutes } from '../network/router.js';
 import { UNDERPOST_MONITORING } from './monitoring.js';
 import ContainerStorageService, { ensureContainerStorage } from '../security/container-storage.js';
 import { assertRoleCapability } from '../network/node-capability.js';
+import { podSchedulingYaml } from '../runtime/pod-scheduling.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -108,6 +109,38 @@ const loadCronDeployEnv = () => {
   }
 };
 
+/** A CronJob name as a DNS label of at most 52 characters, so each Job name Kubernetes derives from it fits. */
+const cronJobLabel = (name) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/--+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 52);
+
+/**
+ * The name of the CronJob that runs a job of a deployment.
+ * @param {string} deployId
+ * @param {string} job - A key of {@link UnderpostCron.JOB}.
+ * @returns {string}
+ * @memberof UnderpostCron
+ */
+export const cronJobNameFactory = (deployId, job) => cronJobLabel(`${deployId}-${job}`);
+
+/**
+ * The jobs that read or write the datastores of the deployments: `backup` runs `node bin db` for each one.
+ * @memberof UnderpostCron
+ */
+export const DATASTORE_CRON_JOBS = Object.freeze(['backup']);
+
+/**
+ * The job a CronJob of {@link cronJobNameFactory} runs: the job its name ends with, or ''.
+ * @param {string} name
+ * @returns {string}
+ * @memberof UnderpostCron
+ */
+export const cronJobOf = (name) => Object.keys(UnderpostCron.JOB).find((job) => name.endsWith(`-${job}`)) ?? '';
+
 /**
  * Generates a Kubernetes CronJob YAML manifest string.
  *
@@ -125,8 +158,8 @@ const loadCronDeployEnv = () => {
  * @param {boolean} [params.k3s=false] - Pass --k3s flag to the cron command inside the container
  * @param {boolean} [params.kind=false] - Pass --kind flag to the cron command inside the container
  * @param {boolean} [params.kubeadm=false] - Pass --kubeadm flag to the cron command inside the container
- * @param {string} [params.nodeName] - Pin the Job pod to this node via a `kubernetes.io/hostname` nodeSelector.
- *   Placement is a manifest concern only, so it is never forwarded to the cron command inside the container.
+ * @param {{affinity?:Object, tolerations?:Object[]}} [params.scheduling] - The node of the Job pods. Placement is a
+ *   manifest concern only, so it is never forwarded to the cron command inside the container.
  * @returns {string} Kubernetes CronJob YAML manifest
  * @memberof UnderpostCron
  */
@@ -144,16 +177,11 @@ const cronJobYamlFactory = ({
   k3s = false,
   kind = false,
   kubeadm = false,
-  nodeName = '',
+  scheduling = {},
 }) => {
   const containerImage = image || `underpost/underpost-engine:${Underpost.version}`;
 
-  const sanitizedName = name
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/--+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 52);
+  const sanitizedName = cronJobLabel(name);
 
   const cronDeployId = cronDeployIdResolve();
 
@@ -193,13 +221,7 @@ spec:
             app: ${sanitizedName}
             managed-by: underpost
         spec:
-${
-  nodeName
-    ? `          nodeSelector:
-            kubernetes.io/hostname: ${nodeName}
-`
-    : ''
-}          containers:
+${podSchedulingYaml(scheduling, 10)}          containers:
             - name: ${sanitizedName}
               image: ${containerImage}
               command:
@@ -279,7 +301,7 @@ const prepareCronHostStorage = () => {
       path: ENGINE_MIRROR_PATH,
       type: mirror.type,
       effect: `every job body fails with Cannot find module '${enginePath}/bin'`,
-      remedy: `label it ${ContainerStorageService.SHARED_CONTAINER_TYPE}: sudo restorecon -RF ${ENGINE_MIRROR_PATH}`,
+      remedy: `label it ${ContainerStorageService.SHARED_CONTAINER_TYPE}: run restorecon -RF ${ENGINE_MIRROR_PATH} as root`,
     });
 
   return paths;
@@ -417,6 +439,7 @@ const engineMirrorContentsFactory = () => [
   '--include=/src/**',
   '--include=/package.json',
   '--include=/underpost.config.js',
+  '--include=/underpost.cluster.config.js',
   '--include=/node_modules/',
   '--include=/node_modules/**',
   // The deploy configuration the job bodies resolve, named file-shape by file-shape rather than
@@ -448,13 +471,16 @@ const syncEngineMirror = () => {
 
   logger.info('Refreshing the engine mirror the CronJob pods mount', { source, target: ENGINE_MIRROR_PATH });
   shellExec(
-    `sudo rsync -a --delete ${filters} ${shellArgumentFactory(`${source}/`)} ${shellArgumentFactory(`${ENGINE_MIRROR_PATH}/`)}`,
+    `rsync -a --delete ${filters} ${shellArgumentFactory(`${source}/`)} ${shellArgumentFactory(`${ENGINE_MIRROR_PATH}/`)}`,
+    {
+      privileged: 'refreshes the root-owned engine mirror the CronJob pods mount',
+    },
   );
   return { source, target: ENGINE_MIRROR_PATH };
 };
 
 /**
- * Resolves the node a generated CronJob's pods are pinned to.
+ * The node a generated CronJob's pods are pinned to when neither `--node-name` nor the scheduling names one.
  *
  * Placement is not optional for these manifests. The job body runs the engine checkout they
  * hostPath-mount, and a hostPath is node-local: an unpinned pod is free to land on a node whose
@@ -464,14 +490,10 @@ const syncEngineMirror = () => {
  * claimed only when the cluster actually knows it under that name, so a workstation that is not
  * a node keeps producing the portable manifest it produced before.
  *
- * @param {string} [nodeName] - Explicit `--node-name`, which always wins.
  * @memberof UnderpostCron
  * @returns {string} Node to pin to, or `''` to leave the pods unpinned.
  */
-const cronNodeNameFactory = (nodeName) => {
-  const requested = `${nodeName || ''}`.trim();
-  if (requested) return requested;
-
+const localCronNodeName = () => {
   const local = os.hostname();
   if (!local || !nodeExists(local)) return '';
   logger.info('Pinning CronJob pods to the node holding the mounted checkout', { nodeName: local });
@@ -707,7 +729,7 @@ class UnderpostCron {
      * @memberof UnderpostCron
      */
     generateK8sCronJobs: async function (options = {}) {
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('operations', { options });
       const jobDeployId = resolveDeployId(options.deployId);
 
       if (!jobDeployId) {
@@ -749,11 +771,28 @@ class UnderpostCron {
       // that only writes manifests stays offline and portable — the same reason `--apply` is what
       // makes a manifest node-specific: it is the run that knows which node's checkout the pods
       // will mount.
-      const nodeName = options.apply === true ? cronNodeNameFactory(options.nodeName) : options.nodeName || '';
+      const { nodes } = Underpost.namespace.schedule({ resource: 'operations', options, node: options.nodeName });
+      const scheduling = Underpost.namespace.podScheduling({
+        resource: 'operations',
+        options,
+        node: options.nodeName || (options.apply === true && !nodes.length ? localCronNodeName() : ''),
+      });
+      const nodeName = Underpost.namespace.soleNode(scheduling.nodes, 'The operational CronJobs');
       const cluster =
         options.apply === true
           ? cronClusterContextFactory(options)
           : { k3s: !!options.k3s, kind: !!options.kind, kubeadm: !!options.kubeadm };
+
+      // One active copy owns each schedule: a copy applied while another namespace runs it stays
+      // suspended until `node bin namespace migrate` hands the schedule over.
+      const scheduledElsewhere =
+        options.apply === true
+          ? await Underpost.namespace.activeSchedules({
+              names: targetJobs.map((job) => `${jobDeployId}-${job}`),
+              namespace,
+              options,
+            })
+          : new Map();
 
       const outputDir = `./manifests/cronjobs/${jobDeployId}`;
       fs.mkdirSync(outputDir, { recursive: true });
@@ -778,7 +817,14 @@ class UnderpostCron {
 
         const deployIdList = Underpost.cron.getRelatedDeployIdList(job);
         const expression = jobConfig.expression || '0 0 * * *';
-        const cronJobName = `${jobDeployId}-${job}`;
+        const cronJobName = cronJobNameFactory(jobDeployId, job);
+        if (scheduledElsewhere.has(cronJobName))
+          logger.warn(`CronJob runs active in another namespace: this copy stays suspended`, {
+            cronJobName,
+            namespace,
+            activeIn: scheduledElsewhere.get(cronJobName),
+            handover: `node bin namespace plan, then node bin namespace migrate --step operations`,
+          });
 
         const yamlContent = cronJobYamlFactory({
           name: cronJobName,
@@ -789,10 +835,10 @@ class UnderpostCron {
           namespace,
           dev: !!options.dev,
           cmd: options.cmd,
-          suspend: false,
+          suspend: scheduledElsewhere.has(cronJobName),
           dryRun: !!options.dryRun,
           ...cluster,
-          nodeName,
+          scheduling,
         });
 
         const yamlFilePath = `${outputDir}/${cronJobName}.yaml`;
@@ -810,9 +856,10 @@ class UnderpostCron {
       if (options.apply) {
         // Publishing is the privileged half: it stages credentials on the node and writes cluster
         // resources. Generating manifests is neither, which is why the gate is here and not around
-        // the whole command — a workstation or CI runner has no node role and keeps working.
+        // the whole command — a CI runner has no node role and keeps working.
         const role = Underpost.wireguard.localRole();
         if (role) assertRoleCapability({ role, capability: 'cron-publication', operation: 'cron --apply' });
+        await Underpost.namespace.ensure({ resource: 'operations', options });
 
         // A nodeSelector naming a node that is not registered leaves every Job Pending at its
         // next fire, silently. Warn rather than throw: the node may join before the schedule.
@@ -826,23 +873,18 @@ class UnderpostCron {
         // `envFrom` reference is `optional: true`, so a cluster with neither seed files nor the
         // values in its environment still schedules — the jobs that need a GitHub token simply
         // report their own failure instead of the pod refusing to start.
-        for (const name of [cronEnvSecretName, cronSshSecretName])
-          if (!Underpost.secret.applyIfPresent(name, namespace)) Underpost.secret.applyFromOriginSeed(name, namespace);
+        Underpost.secret.provide({ resource: 'operations', namespace, options });
 
         // Delete existing CronJobs before applying new ones
         for (const job of targetJobs) {
-          const cronJobName = `${jobDeployId}-${job}`;
+          const cronJobName = cronJobNameFactory(jobDeployId, job);
           shellExec(`kubectl delete cronjob ${cronJobName} --namespace=${namespace} --ignore-not-found`);
         }
 
-        // Ensure default dockerhub image is loaded on the cluster when no custom image is provided
+        // Ensure default dockerhub image is loaded on the node the jobs run on when no custom image is provided
         if (!options.image) {
           logger.info('Ensuring default image is loaded on cluster');
-          Underpost.image.pullDockerHubImage({
-            dockerhubImage: 'underpost',
-            ...cluster,
-            dev: !!options.dev,
-          });
+          Underpost.image.pullDockerHubImage({ dockerhubImage: 'underpost', nodes: nodeName, ...cluster });
         }
 
         // Sync engine volume to kind-worker node if using kind cluster
@@ -865,12 +907,7 @@ class UnderpostCron {
           const jobConfig = confCronConfig.jobs[job];
           if (jobConfig.enabled === false) continue;
 
-          const cronJobName = `${jobDeployId}-${job}`
-            .toLowerCase()
-            .replace(/[^a-z0-9-]/g, '-')
-            .replace(/--+/g, '-')
-            .replace(/^-|-$/g, '')
-            .substring(0, 52);
+          const cronJobName = cronJobNameFactory(jobDeployId, job);
 
           if (!cronJobExists(cronJobName, namespace)) {
             logger.warn(`CronJob not found on the cluster, skipping immediate Job`, {
@@ -934,6 +971,8 @@ class UnderpostCron {
 export default UnderpostCron;
 
 export {
+  cronEnvSecretName,
+  cronSshSecretName,
   cronCheckoutContextFactory,
   cronDeployIdResolve,
   cronJobYamlFactory,

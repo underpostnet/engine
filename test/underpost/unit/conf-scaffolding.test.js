@@ -46,11 +46,11 @@ describe('conf scaffolding', () => {
 
     it('copies the four API modules and the client service under the new API name', async () => {
       sourceApi();
-      write('src/client/services/item/item.service.js', 'const ItemService = {};\n');
+      write('src/client/services/item/ItemService.js', 'const ItemService = {};\n');
       await buildApiSrc({ toOptions: { apiId: 'order' }, fromOptions: { apiId: 'item' } });
       for (const type of ['model', 'controller', 'service', 'router'])
         expect(read(`src/api/order/order.${type}.js`)).to.equal(`// Order ${type} of order\n`);
-      expect(read('src/client/services/order/order.service.js')).to.equal('const OrderService = {};\n');
+      expect(read('src/client/services/order/OrderService.js')).to.equal('const OrderService = {};\n');
     });
 
     it('creates an empty client service directory when the source API has no client service', async () => {

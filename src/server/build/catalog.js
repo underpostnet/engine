@@ -26,10 +26,9 @@ import * as path from 'node:path';
  * manifest under its own identity, and one with a catalog adds exactly what it declares here.
  */
 const EMPTY_CATALOG = {
-  sourceMoves: [],
+  sourcePaths: [],
   privateConfPaths: [],
   templatePaths: [],
-  stripPaths: [],
   moves: [],
   copies: [],
   keywords: [],
@@ -64,8 +63,8 @@ const loadDeployCatalog = async (deployId) => {
 
 /**
  * Loads every product catalog present alongside this module (`catalog-*.js`,
- * excluding the base `catalog-underpost` and this resolver). Used to aggregate
- * product `stripPaths` for the base template without naming any product.
+ * excluding the base `catalog-underpost` and this resolver). The base template drops the
+ * `templatePaths` of every product through it, without naming any product.
  *
  * @method loadProductCatalogs
  * @returns {Promise<object[]>} Loaded product catalogs (uniform shape), each with the `deployId` it loads for.
@@ -90,14 +89,14 @@ const loadProductCatalogs = async () => {
  *
  * @method loadProductContexts
  * @param {object} [packageJson] - The checkout's manifest; `./package.json` otherwise.
- * @returns {Promise<Array<{deployId: string, stripPaths: string[], missing: string[], active: boolean}>>}
+ * @returns {Promise<Array<{deployId: string, templatePaths: string[], missing: string[], active: boolean}>>}
  * @memberof Catalog
  */
 const loadProductContexts = async (packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'))) =>
-  (await loadProductCatalogs()).map(({ deployId, stripPaths, packageDependencies }) => {
+  (await loadProductCatalogs()).map(({ deployId, templatePaths, packageDependencies }) => {
     const declared = { ...packageJson.devDependencies, ...packageJson.dependencies };
     const missing = Object.keys(packageDependencies).filter((name) => !declared[name]);
-    return { deployId, stripPaths, missing, active: missing.length === 0 };
+    return { deployId, templatePaths, missing, active: missing.length === 0 };
   });
 
 export { loadDeployCatalog, loadProductCatalogs, loadProductContexts, EMPTY_CATALOG };

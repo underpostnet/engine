@@ -8,6 +8,7 @@
  */
 import { shellExec } from '../runtime/process.js';
 import { RELEASE_STORE_ROOT } from './release-workspace.js';
+import { podSchedulingYaml } from '../runtime/pod-scheduling.js';
 
 /** Finished Jobs stay this long for their logs, then Kubernetes removes them. */
 const JOB_TTL_SECONDS = 24 * 60 * 60;
@@ -44,7 +45,7 @@ export function releaseJobName({ deployId, releaseId, now = Date.now() }) {
  * @param {Object<string,string>} [params.variables] - Plain, non-secret environment values.
  * @param {string} params.deployId
  * @param {string} params.releaseId
- * @param {string} [params.nodeName] - Pins the Job to the node that holds the release store.
+ * @param {{affinity?:Object, tolerations?:Object[]}} [params.scheduling] - The node that holds the release store.
  * @param {string} [params.storePath]
  * @param {number} [params.timeoutSeconds=3600]
  * @param {string} [params.imagePullPolicy='IfNotPresent']
@@ -60,7 +61,7 @@ export function releaseJobManifestFactory({
   variables = {},
   deployId,
   releaseId,
-  nodeName = '',
+  scheduling = {},
   storePath = RELEASE_STORE_ROOT,
   timeoutSeconds = 3600,
   imagePullPolicy = 'IfNotPresent',
@@ -92,7 +93,7 @@ spec:
 ${labels(8)}
     spec:
       restartPolicy: Never
-${nodeName ? `      nodeSelector:\n        kubernetes.io/hostname: ${nodeName}\n` : ''}      containers:
+${podSchedulingYaml(scheduling, 6)}      containers:
         - name: release
           image: ${image}
           imagePullPolicy: ${imagePullPolicy}

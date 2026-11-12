@@ -5,7 +5,8 @@ import nodePath from 'path';
 import UnderpostStatic from '../../../src/cli/static.js';
 import { BUILD_MANIFEST_ELEMENT_ID, BUILD_MANIFEST_REL } from '../../../src/client/components/core/BuildManifest.js';
 
-const PAGE = './examples/static-page/ssr-components/CustomPage.js';
+const PAGE = './src/client/ssr/body/CustomPage.js';
+const CONF = './src/client/ssr/conf/CustomPage.json';
 const INLINE = new RegExp(`<script id="${BUILD_MANIFEST_ELEMENT_ID}" type="application/json">([\\s\\S]*?)</script>`);
 
 // `node bin static`: every page links the manifest the build writes at its site root.
@@ -65,6 +66,17 @@ describe('the build manifest of a static page', () => {
       expect(fs.readFileSync(`${root}/${page}`, 'utf8').match(INLINE)[1], page).toBe(file);
     expect(JSON.parse(file).application).toBe('site');
     expect(fs.existsSync(`${root}/404/underpost.manifest`)).toBe(false);
+  });
+
+  it('builds a page from its conf, and an option overrides the conf', async () => {
+    await UnderpostStatic.API.callback({ configFile: CONF, outputPath: `${root}/index.html`, title: 'Override' });
+    const html = fs.readFileSync(`${root}/index.html`, 'utf8');
+    expect(html).toContain('<title>Override</title>');
+    expect(html).toContain('A simple working example of the static site generator');
+    expect(JSON.parse(fs.readFileSync(`${root}/underpost.manifest`, 'utf8'))).toMatchObject({
+      application: 'CustomPage',
+      runtime: { siteName: 'Example Site' },
+    });
   });
 
   it('serializes its structured data like every other data block in HTML', async () => {

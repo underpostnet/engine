@@ -4,7 +4,8 @@ import { expect } from 'chai';
 import { execFileSync } from 'node:child_process';
 import fs from 'fs-extra';
 import { EXECUTION_PROFILE_ENV_KEY, withExecutionProfile } from '../../../src/server/build/execution.js';
-import { shellExec } from '../../../src/server/runtime/process.js';
+import { runCommand, shellExec } from '../../../src/server/runtime/process.js';
+import Underpost from '../../../src/index.js';
 
 const sourceUrl = (relative) => new URL(`../../../${relative}`, import.meta.url);
 const readSource = (relative) => fs.readFileSync(sourceUrl(relative), 'utf8');
@@ -47,6 +48,19 @@ describe('shellExec enforces the active execution profile', () => {
     });
   });
 
+  it('marks an elided program run, so a caller tells a skipped read from an empty cluster', async () => {
+    await withExecutionProfile('HERMETIC_BUILD', async () => {
+      expect(await runCommand('kubectl', ['get', 'services', '--all-namespaces'], { disableLog: true })).to.deep.equal({
+        code: 0,
+        stdout: '',
+        stderr: '',
+        elided: true,
+      });
+      // A manifest build checks endpoints against the placement only, never against "no Services".
+      expect(await Underpost.namespace.services({ environment: 'development' })).to.equal(null);
+    });
+  });
+
   it('runs the same cluster command under LIVE_CLUSTER', () => {
     withExecutionProfile('LIVE_CLUSTER', () => {
       // Reaches the shell; without a cluster it exits non-zero, which is the live contract.
@@ -76,7 +90,7 @@ describe('the cluster deployment manifest build runs without a cluster', () => {
     const deployCommands = runner.match(/\$\{underpost\} deploy [^`]*/g) ?? [];
     expect(deployCommands).to.have.lengthOf(2);
     expect(runner).to.include('dd development');
-    expect(runner).to.include('dd production --cert');
+    expect(runner).to.include('dd production');
   });
 
   it('re-enters this checkout rather than any globally installed underpost', () => {

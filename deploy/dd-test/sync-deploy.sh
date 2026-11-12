@@ -7,7 +7,6 @@ source "$SCRIPT_DIR/../lib/host.sh"
 
 DEPLOY_ID=dd-test
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
-TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 # The source the pod bootstraps from; the host takes the same pair through prepare_host.
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-test}"
@@ -31,9 +30,6 @@ main() {
           --kubeadm \
           --deploy-id-cron-jobs none \
           --timeout-response 10000ms \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --cmd '${pod_cmd}'"
 }
 

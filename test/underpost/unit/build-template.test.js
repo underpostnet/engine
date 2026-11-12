@@ -7,7 +7,7 @@ import path from 'node:path';
 import { expect } from 'chai';
 import fs from 'fs-extra';
 
-import { DefaultConf } from '../../../underpost.config.js';
+import underpostConfig from '../../../underpost.config.js';
 import {
   CONF_MANIFEST_BASENAME,
   confManifestPath,
@@ -102,8 +102,10 @@ describe('template work tree prune', () => {
 
 // The filter resolves the base template against the default host and client that only
 // the engine's conf declares; a product build ships its own deploy conf instead.
-const defaultHostConf = DefaultConf.server?.['default.net']?.['/'];
-const describeBaseTemplate = describe.skipIf(!defaultHostConf?.apis?.length || !DefaultConf.client?.default?.services);
+const defaultHostConf = underpostConfig.server?.['default.net']?.['/'];
+const describeBaseTemplate = describe.skipIf(
+  !defaultHostConf?.apis?.length || !underpostConfig.client?.default?.services,
+);
 
 describeBaseTemplate('template path selection', () => {
   // A skipped suite still runs its body at collection time, so nothing here may dereference
@@ -126,7 +128,7 @@ describeBaseTemplate('template path selection', () => {
   });
 
   it('carries every component the default client lists', () => {
-    const components = DefaultConf.client?.default?.components ?? {};
+    const components = underpostConfig.client?.default?.components ?? {};
     for (const [module, names] of Object.entries(components))
       for (const name of names)
         expect(validateTemplatePath(`.//src/client/components/${module}/${name}.js`), `${module}/${name}`).to.equal(
@@ -177,7 +179,7 @@ const COMPONENTS = './src/client/components';
 // A product tree carries its own clients in the default conf, and no `default` client.
 describe('components of each client in the default conf', () => {
   it('lists every component that a listed component imports', () => {
-    for (const [client, { components }] of Object.entries(DefaultConf.client)) {
+    for (const [client, { components }] of Object.entries(underpostConfig.client)) {
       const listed = new Set(
         Object.entries(components).flatMap(([module, names]) => names.map((name) => `${module}/${name}`)),
       );

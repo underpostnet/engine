@@ -5,11 +5,13 @@
  * {@link module:src/server/build/catalog.js} so the base build and template assembly never
  * statically depend on it. Exports the uniform product-catalog shape:
  *
- *   - `sourceMoves`       — public `[src, dest]` pairs moved into the engine tree before a build.
+ *   - `sourcePaths`       — engine paths the deploy's source repo owns (`engine-<id>` public,
+ *                           `engine-test-<id>` private); the engine tree is their working copy.
  *   - `privateConfPaths`  — extra payloads synced into the deploy's private repo.
- *   - `templatePaths`     — engine paths packaged into the standalone product CLI template.
- *   - `stripPaths`        — paths removed from the base `pwa-microservices-template`.
- *   - `moves`             — `[src, dest]` pairs moved into the template during assembly (like sourceMoves but into the template target).
+ *   - `templatePaths`     — engine paths this product owns: its template ships them, the base
+ *                           `pwa-microservices-template` drops them, and the test projects under
+ *                           them run only in this product's context.
+ *   - `moves`             — `[src, dest]` pairs moved into the template during assembly.
  *   - `copies`            — `[src, dest]` pairs copied into the template during assembly (like moves but copied instead of moved).
  *   - `keywords`          — npm keywords for the standalone product CLI package.
  *   - `description`       — npm description for the standalone product CLI package.
@@ -88,13 +90,19 @@ export default {
     },
   ],
   graphify: true,
-  sourceMoves: [],
+  sourcePaths: [],
   privateConfPaths: [],
   templatePaths: [
     '/src/grpc/cyberia',
     '/src/client/ssr/views/CyberiaServerMetrics.js',
     '/src/client/ssr/views/Cyberia404.js',
+    '/src/client/ssr/head/CyberiaPublicCss.js',
+    '/src/client/ssr/body/CyberiaPublicLanding.js',
+    '/src/client/public/cyberia-public',
     '/test/cyberia',
+    '/test/object-layer',
+    '/test/item-ledger',
+    '/test/cryptokoyn',
     '/src/projects/cyberia',
     '/src/runtime/cyberia-server',
     '/src/runtime/cyberia-client',
@@ -115,18 +123,6 @@ export default {
     // them if it packages them here.
     '/deploy/cyberia-client',
     '/deploy/cyberia-server',
-  ],
-  stripPaths: [
-    './src/projects/cyberia',
-    './src/grpc/cyberia',
-    './src/runtime/cyberia-server',
-    './src/runtime/cyberia-client',
-    './src/runtime/engine-cyberia',
-    './test/cyberia',
-    './bin/cyberia.js',
-    './hardhat',
-    './deploy/cyberia-client',
-    './deploy/cyberia-server',
   ],
   moves: [],
   copies: [

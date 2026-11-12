@@ -5,8 +5,12 @@
  */
 
 import {
+  chownHostPath,
   daemonProcess,
+  hostOwner,
+  makeHostDirectory,
   pbcopy,
+  removeHostPath,
   shellArgumentFactory,
   shellCd,
   shellExec,
@@ -15,6 +19,8 @@ import {
 import { cli, withExecutionProfile } from '../server/build/execution.js';
 import { syncDeployPackages } from '../server/build/package.js';
 import { RUNTIME_STATUS } from '../server/runtime/runtime-status.js';
+import { admissionRefusals, HOSTNAME_LABEL } from '../server/runtime/pod-scheduling.js';
+import { controllerData, storageRefusals, volumeRecord } from '../server/runtime/storage-placement.js';
 import {
   awaitDeployMonitor,
   clusterContextFactory,
@@ -27,7 +33,6 @@ import {
   exposePortListFactory,
   exposePortPlanFactory,
   exposeTcpPortsFactory,
-  gatewayApiEnabledFactory,
   generateSecurePassword,
   instanceHttpRouteRulesFactory,
   instanceInterceptStatusesFactory,
@@ -43,7 +48,6 @@ import {
   resolveReplicaCount,
   selectConfInstances,
   undeclaredInstanceBuildsFactory,
-  waitForPort,
   clusterInstancesFactory,
   deployTrafficEntriesFactory,
   publicIngressProbeFactory,
@@ -68,6 +72,7 @@ import {
 import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
 import { deployEnvFactory, getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
 import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
+import { controlHostService, installHostTool, updateHostPackages } from '../server/ops/host-tooling.js';
 
 import fs from 'fs-extra';
 import { range, s4, setPad, timer } from '../client/components/core/CommonJs.js';
@@ -79,8 +84,8 @@ import { ensureInotifyLimits } from './cluster.js';
 import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
-import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
-import { MongoExpress } from '../db/mongo/MongoExpress.js';
+import { MongoBootstrap } from '../db/mongo/mongo-bootstrap.js';
+import { MongoExpress } from '../db/mongo/mongo-express.js';
 import {
   UNDERPOST_GATEWAY,
   assertStaticAssets,
@@ -95,6 +100,42 @@ import {
   writeHostServerConf,
 } from '../server/network/underpost-gateway.js';
 const logger = loggerFactory(import.meta);
+
+const refusal = (message) => Object.assign(new Error(message), { expected: true });
+
+/** The namespace of a placed resource for a run: the application workloads unless it names another. */
+const namespaceOf = (options, resource = 'workloads') => Underpost.namespace.of(resource, { options });
+
+/**
+ * Where the pods of a deploy run, and how this host reaches them: the cluster type of the flags, the
+ * workload nodes of the placement and the `--ssh-key-path` that replaces their peer key. Image releases,
+ * pre-pulls and volumes target these node runtimes.
+ * @param {object} options - Runner options.
+ * @param {string} env - Deployment environment.
+ * @param {string} [defaultType='kind'] - The cluster type without a cluster flag.
+ * @returns {{clusterType:string, nodes:string[], kind:boolean, k3s:boolean, sshKeyPath:string}}
+ */
+const workloadTargetFactory = (options, env, defaultType = 'kind') => {
+  const clusterType = clusterTypeFactory(options, defaultType);
+  const kind = clusterType === 'kind';
+  const k3s = clusterType === 'k3s';
+  return {
+    clusterType,
+    nodes: Underpost.deploy.resolveDeployNodes({ node: options.nodeName, kind, kubeadm: !kind && !k3s, k3s, env }),
+    kind,
+    k3s,
+    sshKeyPath: options.sshKeyPath || '',
+  };
+};
+
+/** The kinds `node-move` places: each owns a pod template whose change rolls its pods out. */
+const NODE_MOVE_KINDS = Object.freeze(['deployment', 'statefulset', 'daemonset', 'cronjob']);
+
+/** The annotation where `node-move` records the nodeSelector keys it owns. */
+const NODE_PLACEMENT_ANNOTATION = 'underpost.net/node-placement';
+
+/** How long `node-move` waits for a rollout before it reports the resource as not placed. */
+const NODE_MOVE_ROLLOUT_TIMEOUT = '5m';
 
 /** Upper bound of a `playwright` run, from the pod rollout to the artifact copy. */
 const PLAYWRIGHT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -120,7 +161,7 @@ const PLAYWRIGHT_TIMEOUT_MS = 10 * 60 * 1000;
  * @property {string} image - Container image the deployment pulls and runs (`sync`).
  * @property {string} versions - Comma-separated blue/green deployment versions (`sync`).
  * @property {string} containerName - The name of the container to run.
- * @property {string} namespace - The namespace to run in.
+ * @property {string} namespace - The legacy namespace override of the workloads and datastores; conf.cluster.json places them without it.
  * @property {string} timeoutResponse - The response timeout duration.
  * @property {string} timeoutIdle - The idle timeout duration.
  * @property {string} retryCount - The number of retries.
@@ -130,8 +171,6 @@ const PLAYWRIGHT_TIMEOUT_MS = 10 * 60 * 1000;
  * @property {boolean} force - Whether to force the operation.
  * @property {boolean} reset - Whether to reset the operation.
  * @property {boolean} tls - Whether to use TLS.
- * @property {boolean} gatewayApi - Apply the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated.
- * @property {boolean} disableGatewayApi - Fall back to the Contour HTTPProxy stack in runners where the Gateway API is the default (`cluster`).
  * @property {string} gatewayClass - GatewayClass name baked into generated Gateway manifests.
  * @property {boolean} disableHttp3 - Omit QUIC/HTTP3 listener config and the Alt-Svc advertisement.
  * @property {number} quicPort - UDP port advertised for QUIC/HTTP3.
@@ -190,11 +229,10 @@ const PLAYWRIGHT_TIMEOUT_MS = 10 * 60 * 1000;
  * @property {boolean} copy - Whether to copy the command to the clipboard instead of executing it.
  * @property {boolean} skipFullBuild - Whether to skip the full client bundle build during deployment (supported by: sync, template-deploy).
  * @property {boolean} pullBundle - Whether to pull the bundle before running. Use together with --skip-full-build to skip the local build entirely (supported by: sync, template-deploy).
- * @property {boolean} remove - Whether to remove/teardown resources instead of creating them (e.g. delete-expose for k3s proxy devices in dev-cluster).
- * @property {boolean} test - Whether to enable test/generic-purpose mode (e.g. use self-signed TLS instead of cert-manager).
+ * @property {boolean} remove - Whether to remove/teardown resources instead of creating them.
+ * @property {boolean} test - Whether to enable test/generic-purpose mode (e.g. resolve no runtime repository of its own).
  * @property {string} hostAliases - Pod `/etc/hosts` entries, as semicolon-separated `ip=host1,host2` groups.
  * @property {string} args - Comma-separated arguments forwarded to the runner's own command.
- * @property {boolean} cert - Issue cert-manager certificates; set implicitly by `tls` in the promote workflow.
  * @property {boolean} instanceOnly - Act on the one instance id given, without expanding its variant family.
  * @property {string} labels - Comma-separated `key=value` pairs applied to the created resources.
  * @property {string} npmRoot - Resolved npm global root, cached on the options once looked up.
@@ -224,7 +262,7 @@ const DEFAULT_OPTION = {
   runtimeImage: '',
   versions: '',
   containerName: '',
-  namespace: 'default',
+  namespace: '',
   timeoutResponse: '',
   timeoutIdle: '',
   retryCount: '',
@@ -234,8 +272,6 @@ const DEFAULT_OPTION = {
   force: false,
   reset: false,
   tls: false,
-  gatewayApi: false,
-  disableGatewayApi: false,
   gatewayClass: '',
   disableHttp3: false,
   quicPort: 0,
@@ -295,7 +331,6 @@ const DEFAULT_OPTION = {
   test: false,
   branch: '',
   args: '',
-  cert: false,
   instanceOnly: false,
   gatewayBootstrapComplete: false,
   noBackendCheckpoint: false,
@@ -334,13 +369,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     status: async (path = '', options = DEFAULT_OPTION) => {
-      options = {
-        ...options,
-        gatewayApi: gatewayApiEnabledFactory(options),
-        namespace: options.namespace || 'default',
-      };
-      if (!/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(options.namespace))
-        throw new Error(`Invalid Kubernetes namespace: ${options.namespace}`);
+      options = { ...options, gatewayApi: Underpost.ingress.provider({ options }) === 'gateway-api' };
       if (options.nodeName && !/^[a-zA-Z0-9._-]+$/.test(options.nodeName))
         throw new Error(`Invalid Kubernetes node name: ${options.nodeName}`);
       const env = options.dev ? 'development' : 'production';
@@ -383,7 +412,7 @@ class UnderpostRun {
               fromDebugPort: instance.fromDebugPort,
               toDebugPort: instance.toDebugPort,
               traffic: Underpost.deploy.getCurrentTraffic(instanceDeployId, {
-                namespace: options.namespace,
+                namespace: namespaceOf(options),
                 hostTest: instance.host,
                 env,
                 gatewayApi: options.gatewayApi,
@@ -395,12 +424,12 @@ class UnderpostRun {
           deployId,
           env,
           traffic: Underpost.deploy.getCurrentTraffic(deployId, {
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env,
             gatewayApi: options.gatewayApi,
           }),
           router: await Underpost.deploy.routerFactory(deployId, env),
-          pods: Underpost.kubectl.get(deployId, 'pods', options.namespace),
+          pods: Underpost.kubectl.get(deployId, 'pods', namespaceOf(options)),
           instances,
         };
         deployments.push(deployment);
@@ -434,7 +463,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     expose: (path, options = DEFAULT_OPTION) => {
-      const namespace = options.namespace || 'default';
+      const namespace = namespaceOf(options);
       const clusterType = clusterTypeFactory(options);
       const pathParts = exposePathPartsFactory(path || options.podName);
       if (!/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(namespace))
@@ -454,7 +483,7 @@ class UnderpostRun {
       const portsOf = (resource) => {
         let declaredPorts = exposeTcpPortsFactory(resource);
         if (kindType === 'pod' && declaredPorts.length === 0) {
-          const podJson = shellExec(`sudo kubectl get pod ${resource.NAME} -n ${namespace} -o json`, {
+          const podJson = shellExec(`kubectl get pod ${resource.NAME} -n ${namespace} -o json`, {
             stdout: true,
             silent: true,
           });
@@ -475,8 +504,9 @@ class UnderpostRun {
         plan,
       });
       for (const { kindType, name, localPort, remotePort } of plan)
-        shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${name} ${localPort}:${remotePort}`, {
+        shellExec(`kubectl port-forward -n ${namespace} ${kindType}/${name} ${localPort}:${remotePort}`, {
           async: true,
+          ...(Number(localPort) < 1024 ? { privileged: `binds the host port ${localPort}` } : {}),
         });
 
       if (options.localProxy) {
@@ -499,94 +529,20 @@ class UnderpostRun {
     },
 
     /**
-     * @method dev-cluster
-     * @description Resets and deploys a full development cluster including MongoDB, Valkey, exposes services, and updates `/etc/hosts` for local access.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'dev-cluster': (path, options = DEFAULT_OPTION) => {
-      const baseCommand = cli('underpost', { local: true });
-      const mongoHosts = ['mongodb-0.mongodb-service'];
-      let primaryPodName = 'mongodb-0';
-      const clusterType = clusterTypeFactory(options);
-      const clusterFlag = ` --${clusterType}`;
-      const clusterInitFlag = clusterType === 'kind' ? '' : clusterFlag;
-      const clusterOptions = `${options.dev ? ' --dev' : ''}${clusterInitFlag} --namespace ${options.namespace}`;
-      if (!options.expose && !options.remove) {
-        shellExec(`${baseCommand} cluster${clusterOptions} --reset`);
-        shellExec(`${baseCommand} cluster${clusterOptions}`);
-
-        // A Kind rebuild starts MongoDB on empty data.
-        const mongoResetFlag = clusterType === 'kind' ? ' --reset-mongodb' : '';
-        shellExec(
-          `${baseCommand} cluster${clusterOptions} --mongodb${mongoResetFlag} --service-host ${mongoHosts.join(',')} --pull-image`,
-        );
-        shellExec(`${baseCommand} cluster${clusterOptions} --valkey --pull-image`);
-      }
-      if (options.remove) {
-        shellExec(`${baseCommand} run kill '6379,27017'`);
-      } else {
-        try {
-          primaryPodName =
-            MongoBootstrap.getPrimaryPodName({
-              namespace: options.namespace,
-              podName: primaryPodName,
-            }) || primaryPodName;
-        } catch (error) {
-          logger.warn('Failed to detect MongoDB primary pod, using default', {
-            error: error.message,
-            default: primaryPodName,
-          });
-        }
-        // Forward the primary pod, not the service: the service picks any member.
-        shellExec(
-          `${baseCommand} run expose ${primaryPodName} --namespace ${options.namespace}${clusterFlag} --expose-container-ports 27017 --expose-host-ports 27017`,
-          { async: true },
-        );
-        shellExec(
-          `${baseCommand} run expose valkey-service --namespace ${options.namespace}${clusterFlag} --expose-container-ports 6379 --expose-host-ports 6379`,
-          { async: true },
-        );
-      }
-      const hostListenResult = etcHostFactory([`${primaryPodName}.mongodb-service`], { blockId: 'dev-cluster' });
-      logger.info(hostListenResult.renderHosts);
-    },
-
-    /**
      * @method metadata
-     * @description Generates metadata for the specified path after exposing the development cluster.
+     * @description Generates metadata for the specified path while the Development Sandbox session exposes its services.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     metadata: async (path, options = DEFAULT_OPTION) => {
-      const ports = '6379,27017';
-      shellExec(`node bin run kill '${ports}'`);
-      shellExec(`node bin run dev-cluster --dev --expose --namespace ${options.namespace}`, { async: true });
-      logger.info('Waiting for port-forward services to be ready...');
-      const ready = await Promise.all([27017, 6379].map((port) => waitForPort({ port })));
-      if (ready.some((reachable) => !reachable)) {
-        shellExec(`node bin run kill '${ports}'`);
-        throw new Error('Port-forward services failed to become ready');
+      const session = await Underpost.sandbox.up({ options });
+      try {
+        shellExec(`node bin metadata --generate ${path}`);
+        shellExec(`node bin db --dev --clean-fs-collection dd`);
+      } finally {
+        await session.close();
       }
-      logger.info('Port-forward services are ready');
-      shellExec(`node bin metadata --generate ${path}`);
-      shellExec(`node bin db --dev --clean-fs-collection dd`);
-      shellExec(`node bin run kill '${ports}'`);
-    },
-
-    /**
-     * @method ipfs-expose
-     * @description Exposes every declared TCP port on the matching IPFS Cluster Service.
-     * @type {Function}
-     * @memberof UnderpostRun
-     */
-    'ipfs-expose': (path, options = DEFAULT_OPTION) => {
-      // 5001 Kubo RPC API / WebUI: Kubo/IPFS HTTP API + IPFS WebUI (e.g., http://localhost:5001/webui).
-      // 9094 IPFS Cluster HTTP API: IPFS Cluster REST API consumed by ipfs-cluster-ctl and WebUI clients (e.g., http://localhost:9094/).
-      // 8080 (or 8081) IPFS Gateway: Public HTTP Gateway for accessing pinned content by CID (e.g., http://localhost:8080/ipfs/Qm...).
-      shellExec(`node bin run expose ipfs --expose-host-ports 5001,9094,8080`);
     },
 
     /**
@@ -617,231 +573,227 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'svc-rm': (path, options = DEFAULT_OPTION) => {
-      shellExec(`sudo systemctl stop ${path}`);
-      shellExec(`sudo systemctl disable --now ${path}`);
-      shellExec(`sudo dnf remove -y ${path}*`);
-      shellExec(`sudo rm -f /usr/lib/systemd/system/${path}.service`);
-      shellExec(`sudo rm -f /etc/yum.repos.d/${path}*.repo`);
+      controlHostService('disable --now', path);
+      shellExec(`dnf remove -y ${shellArgumentFactory(`${path}*`)}`, { privileged: `removes the ${path} packages` });
+      const reason = `removes the ${path} service of the host`;
+      removeHostPath(`/usr/lib/systemd/system/${path}.service`, { reason });
+      for (const repository of fs.readdirSync('/etc/yum.repos.d'))
+        if (repository.startsWith(path) && repository.endsWith('.repo'))
+          removeHostPath(`/etc/yum.repos.d/${repository}`, { reason });
     },
 
     /**
      * @method node-move
-     * @description Abstract runner that relocates any schedulable Kubernetes workload
-     * (Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, ReplicationController)
-     * onto a target node by patching its pod-template `nodeSelector` and rolling it out.
-     * Resource-kind agnostic: it resolves the kind dynamically and applies the right
-     * patch path, so it works for `sts`, `deployment`, etc. without bespoke logic.
+     * @description Moves the pods of Deployments, StatefulSets and DaemonSets, and the Jobs of CronJobs, onto a
+     * node with a nodeSelector: `kubernetes.io/hostname=<node>`, or the `--labels` it puts on the node. It
+     * reads the cluster first and refuses a node that is not Ready, cordoned or tainted against the pods, a
+     * node the required node affinity or another nodeSelector key excludes, and a node that does not hold the
+     * data of a host path or local volume (`src/server/runtime/storage-placement.js`). It changes only the
+     * nodeSelector keys it records in the `underpost.net/node-placement` annotation, waits for the rollout and
+     * checks where the pods run. `--remove` deletes only the keys it recorded.
      *
-     * Selection grammar via `path`:
-     *   - `<kind>/<name>`  -> a single resource (e.g. `deployment/dd-core-production-blue`)
-     *   - `<kind>`         -> every resource of that kind in the namespace (e.g. `statefulset`)
-     *   - ``               -> all movable workloads (deployment, statefulset, daemonset) in the namespace
-     *
-     * Placement:
-     *   - default: built-in `kubernetes.io/hostname=<node>` (no node mutation required)
-     *   - `--labels k=v,...`: label the target node with those pairs and use them as the
-     *     nodeSelector (matches the "label node + nodeSelector" pattern), enabling reusable
-     *     workload pools instead of pinning to a single hostname.
-     *
-     * Flags: `--node-name <node>` (target), `--namespace <ns>`, `--dry-run` (preview only),
-     *        `--remove` (clear the nodeSelector / unpin placement).
-     *
-     * Caveats: Services/ConfigMaps and bare Pods are not schedulable controllers and are
-     * skipped (move the owning controller). StatefulSets bound to node-local PVs may stay
-     * Pending after a move until their volume is available on the target node.
+     * Selection grammar via `path`: `<kind>/<name>`, `<kind>` (each of that kind in the namespace), or empty
+     * (each Deployment, StatefulSet and DaemonSet in the namespace).
      * @param {string} path - Resource selector (`kind/name`, `kind`, or empty).
-     * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
+     * @param {UnderpostRunDefaultOptions} options - `--node-name`, `--labels`, `--namespace`, `--dry-run`, `--remove`.
      * @memberof UnderpostRun
-     * @returns {Array<{ref:string,kind:string,status:string,node?:string}>} Per-resource outcome.
+     * @returns {Array<{ref:string, status:string, node?:string, reasons?:string[]}>} Per-resource outcome.
+     * @throws {Error} An expected error when a resource is refused or does not run where it was moved.
      */
     'node-move': (path = '', options = DEFAULT_OPTION) => {
       const node = options.nodeName;
-      const ns = options.namespace || 'default';
+      const ns = namespaceOf(options);
       const dryRun = options.dryRun === true;
       const remove = options.remove === true;
-
-      if (!remove && !node) {
+      if (!remove && !node)
         throw new Error('node-move requires --node-name <target-node> (or --remove to clear placement)');
-      }
 
-      const normalizeKind = (k) =>
+      const json = (args) =>
+        JSON.parse(
+          shellExec(`kubectl ${args} -o json`, { silent: true, stdout: true, silentOnError: true, disableLog: true }) ||
+            '{"items":[]}',
+        );
+      const selectorOf = (labels) =>
+        Object.entries(labels)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(',');
+      const kindOf = (value) =>
         ({
           deploy: 'deployment',
           deployments: 'deployment',
-          deployment: 'deployment',
           sts: 'statefulset',
           statefulsets: 'statefulset',
-          statefulset: 'statefulset',
           ds: 'daemonset',
           daemonsets: 'daemonset',
-          daemonset: 'daemonset',
-          rs: 'replicaset',
-          replicasets: 'replicaset',
-          replicaset: 'replicaset',
-          rc: 'replicationcontroller',
-          replicationcontroller: 'replicationcontroller',
-          job: 'job',
-          jobs: 'job',
           cj: 'cronjob',
-          cronjob: 'cronjob',
           cronjobs: 'cronjob',
-          po: 'pod',
-          pod: 'pod',
-          pods: 'pod',
-          svc: 'service',
-          service: 'service',
-          services: 'service',
-        })[k] || k;
+        })[value] ?? value;
+      const templateOf = (controller) =>
+        controller.kind === 'CronJob' ? controller.spec.jobTemplate.spec.template : controller.spec.template;
+      const templatePath = (controller) =>
+        controller.kind === 'CronJob'
+          ? ['spec', 'jobTemplate', 'spec', 'template', 'spec']
+          : ['spec', 'template', 'spec'];
 
-      // Kinds that own a pod template we can patch. Changing that template is
-      // itself the controller's rollout trigger.
-      const templated = [
-        'deployment',
-        'statefulset',
-        'daemonset',
-        'replicaset',
-        'job',
-        'cronjob',
-        'replicationcontroller',
-      ];
-      const templateSelectorPath = (kind) =>
-        kind === 'cronjob'
-          ? ['spec', 'jobTemplate', 'spec', 'template', 'spec', 'nodeSelector']
-          : ['spec', 'template', 'spec', 'nodeSelector'];
-
-      // Resolve the desired nodeSelector. Custom --labels enables reusable pools;
-      // otherwise pin by the always-present hostname label.
-      let selector = { 'kubernetes.io/hostname': node };
-      if (!remove && options.labels) {
-        selector = {};
-        for (const pair of `${options.labels}`
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)) {
-          const eq = pair.indexOf('=');
-          if (eq < 0) continue;
-          selector[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
-        }
+      const selector = remove
+        ? {}
+        : options.labels
+          ? Object.fromEntries(
+              `${options.labels}`
+                .split(',')
+                .map((pair) => pair.trim().split('='))
+                .filter(([key, value]) => key && value !== undefined)
+                .map(([key, value]) => [key.trim(), value.trim()]),
+            )
+          : { [HOSTNAME_LABEL]: node };
+      const destination = remove ? null : json(`get node ${shellArgumentFactory(node)}`);
+      if (destination && !destination.metadata) throw refusal(`Target node not found: ${node}`);
+      // The checks read the node with the pool labels; the node takes them before the first patch only.
+      let labelNode = () => {};
+      if (destination && options.labels) {
+        destination.metadata.labels = { ...destination.metadata.labels, ...selector };
+        labelNode = () => {
+          shellExec(`kubectl label node ${node} ${selectorOf(selector).replaceAll(',', ' ')} --overwrite`);
+          labelNode = () => {};
+        };
       }
 
-      // Verify the target node exists, and apply custom labels to it if provided.
-      if (!remove) {
-        const found = shellExec(`kubectl get node ${node} -o name`, {
-          silent: true,
-          stdout: true,
-          silentOnError: true,
-        }).trim();
-        if (!found) throw new Error(`Target node not found: ${node}`);
-        if (options.labels) {
-          const labelArgs = Object.entries(selector)
-            .map(([k, v]) => `${k}=${v}`)
-            .join(' ');
-          const labelCmd = `kubectl label node ${node} ${labelArgs} --overwrite`;
-          if (dryRun) logger.info(`[dry-run] ${labelCmd}`);
-          else shellExec(labelCmd);
-        }
-      }
-
-      const kubectlNames = (kind) =>
-        (
-          shellExec(`kubectl get ${kind} -n ${ns} -o name`, {
-            silent: true,
-            stdout: true,
-            silentOnError: true,
-          }).trim() || ''
-        )
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-      // Build the list of "kind/name" targets from the selection grammar.
-      let targets = [];
-      if (!path) {
-        for (const kind of ['deployment', 'statefulset', 'daemonset']) targets.push(...kubectlNames(kind));
-      } else if (path.includes('/')) {
-        targets = [path];
-      } else {
-        targets = kubectlNames(path);
-      }
-
-      if (targets.length === 0) {
+      const refs = path.includes('/')
+        ? [path]
+        : (path ? [kindOf(path)] : NODE_MOVE_KINDS).flatMap((kind) =>
+            json(`get ${kind} -n ${ns}`).items.map((item) => `${item.kind.toLowerCase()}/${item.metadata.name}`),
+          );
+      if (!refs.length) {
         logger.warn('node-move: no matching resources found', { path, namespace: ns });
         return [];
       }
-
-      // Merge-patch body that sets (or clears, when --remove) the nodeSelector.
-      const buildPatch = (kind) => {
-        const keys = templateSelectorPath(kind);
-        let obj = remove ? null : selector;
-        for (let i = keys.length - 1; i >= 0; i--) obj = { [keys[i]]: obj };
-        return JSON.stringify(obj);
-      };
+      const claims = json(`get pvc -n ${ns}`).items;
+      const volumes = json('get pv').items.map(volumeRecord);
+      const podsOf = (controller) =>
+        controller.spec.selector?.matchLabels
+          ? json(`get pods -n ${ns} -l ${shellArgumentFactory(selectorOf(controller.spec.selector.matchLabels))}`).items
+          : [];
 
       const results = [];
-      for (const ref of targets) {
-        const slash = ref.indexOf('/');
-        const rawKind = slash >= 0 ? ref.slice(0, slash) : path && !path.includes('/') ? path : '';
-        const name = slash >= 0 ? ref.slice(slash + 1) : ref;
-        const kind = normalizeKind(`${rawKind}`.split('.')[0].toLowerCase());
-
-        if (!templated.includes(kind)) {
-          logger.warn(`node-move: ${kind}/${name} is not a schedulable controller; skipping`, {
-            hint: 'move its owning controller (deployment/statefulset/daemonset) instead',
+      for (const ref of refs) {
+        const [rawKind, name] = ref.split('/');
+        const kind = kindOf(rawKind.toLowerCase());
+        if (!NODE_MOVE_KINDS.includes(kind)) {
+          results.push({
+            ref,
+            status: 'refused',
+            reasons: [`${kind} is not movable: move its Deployment, StatefulSet, DaemonSet or CronJob`],
           });
-          results.push({ ref, kind, status: 'skipped' });
           continue;
         }
-
-        // Idempotency: skip the patch if the resource is already where we want
-        // it. Compares the live pod-template nodeSelector against the desired
-        // placement so a repeated run does not trigger an unnecessary rollout.
-        const basePath = kind === 'cronjob' ? 'spec.jobTemplate.spec.template.spec' : 'spec.template.spec';
-        const jsonpath = (expr) =>
-          shellExec(`kubectl get ${kind} ${name} -n ${ns} -o jsonpath='${expr}'`, {
-            silent: true,
-            stdout: true,
-            silentOnError: true,
-            disableLog: true,
-          }).trim();
+        const controller = json(`get ${kind} ${name} -n ${ns}`);
+        if (!controller.metadata) {
+          results.push({ ref, status: 'refused', reasons: [`${kind}/${name} does not exist in ${ns}`] });
+          continue;
+        }
+        const pod = templateOf(controller).spec;
+        const owned = JSON.parse(controller.metadata.annotations?.[NODE_PLACEMENT_ANNOTATION] ?? '{}');
+        const keyPath = (key) =>
+          `/${[...templatePath(controller), 'nodeSelector', key].map((part) => part.replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}`;
+        const annotationPath = `/metadata/annotations/${NODE_PLACEMENT_ANNOTATION.replaceAll('/', '~1')}`;
 
         if (remove) {
-          const current = jsonpath(`{.${basePath}.nodeSelector}`);
-          if (!current || current === 'map[]') {
-            logger.info(`node-move: ${kind}/${name} already has no nodeSelector; nothing to clear`);
-            results.push({ ref, kind, status: 'already-cleared' });
+          const present = Object.entries(owned).filter(([key, value]) => pod.nodeSelector?.[key] === value);
+          if (!Object.keys(owned).length) {
+            results.push({ ref, status: 'already-cleared' });
             continue;
           }
-        } else {
-          const alreadyOnNode = Object.entries(selector).every(([k, v]) => {
-            const esc = k.replace(/\./g, '\\.');
-            return jsonpath(`{.${basePath}.nodeSelector.${esc}}`) === v;
-          });
-          if (alreadyOnNode) {
-            logger.info(`node-move: ${kind}/${name} already pinned to ${node}; skipping`, { namespace: ns });
-            results.push({ ref, kind, status: 'already-on-node', node });
-            continue;
-          }
-        }
-
-        const patchCmd = `kubectl patch ${kind} ${name} -n ${ns} --type=merge -p '${buildPatch(kind)}'`;
-        if (dryRun) {
-          logger.info(`[dry-run] ${patchCmd}`);
-          results.push({ ref, kind, status: 'dry-run', node: remove ? undefined : node });
+          const operations = [
+            ...present.flatMap(([key, value]) => [
+              { op: 'test', path: keyPath(key), value },
+              { op: 'remove', path: keyPath(key) },
+            ]),
+            { op: 'remove', path: annotationPath },
+          ];
+          const patch = `kubectl patch ${kind} ${name} -n ${ns} --type=json -p ${shellArgumentFactory(JSON.stringify(operations))}`;
+          if (dryRun) logger.info(`[dry-run] ${patch}`);
+          else shellExec(patch);
+          results.push({ ref, status: dryRun ? 'dry-run' : 'cleared' });
           continue;
         }
 
-        shellExec(patchCmd);
-        // nodeSelector is part of the pod template, so this patch already
-        // creates a new controller revision. A rollout restart here creates a
-        // second, immediately superseding revision and can strand the previous
-        // Ready replica in "pending termination" while the newest pod starts.
-        logger.info(remove ? `Cleared node placement: ${kind}/${name}` : `Moved ${kind}/${name} -> ${node}`, {
-          namespace: ns,
+        const data = controllerData({
+          controller,
+          claims,
+          volumes,
+          podNodes: podsOf(controller)
+            .map(({ spec }) => spec.nodeName)
+            .filter(Boolean),
         });
-        results.push({ ref, kind, status: remove ? 'cleared' : 'moved', node: remove ? undefined : node });
+        const reasons = [
+          ...admissionRefusals({ pod, node: destination, replaced: [...Object.keys(selector), ...Object.keys(owned)] }),
+          ...(kind === 'daemonset' ? [] : storageRefusals({ controller, data, nodes: [node] })),
+        ];
+        if (reasons.length) {
+          results.push({ ref, status: 'refused', reasons });
+          continue;
+        }
+        if (
+          Object.entries(selector).every(([key, value]) => pod.nodeSelector?.[key] === value && owned[key] === value)
+        ) {
+          results.push({ ref, status: 'already-on-node', node });
+          continue;
+        }
+        const patch = {
+          metadata: { annotations: { [NODE_PLACEMENT_ANNOTATION]: JSON.stringify(selector) } },
+          ...templatePath(controller).reduceRight((inner, key) => ({ [key]: inner }), {
+            nodeSelector: { ...Object.fromEntries(Object.keys(owned).map((key) => [key, null])), ...selector },
+          }),
+        };
+        const patchCmd = `kubectl patch ${kind} ${name} -n ${ns} --type=merge -p ${shellArgumentFactory(JSON.stringify(patch))}`;
+        if (dryRun) {
+          logger.info(`[dry-run] ${patchCmd}`);
+          results.push({ ref, status: 'dry-run', node });
+          continue;
+        }
+        labelNode();
+        shellExec(patchCmd);
+        if (kind === 'cronjob') {
+          results.push({ ref, status: 'moved', node });
+          continue;
+        }
+        const rollout = shellExec(
+          `kubectl rollout status ${kind}/${name} -n ${ns} --timeout=${NODE_MOVE_ROLLOUT_TIMEOUT}`,
+          {
+            silentOnError: true,
+          },
+        );
+        // A pod is placed on the node, or with --labels on any node of the pool.
+        const pool = options.labels ? json('get nodes').items : [];
+        const placed = (nodeName) =>
+          nodeName === node ||
+          pool.some(
+            ({ metadata }) =>
+              metadata.name === nodeName &&
+              Object.entries(selector).every(([key, value]) => metadata.labels?.[key] === value),
+          );
+        const elsewhere = podsOf(controller)
+          .filter(({ metadata, spec }) => !metadata.deletionTimestamp && !placed(spec.nodeName))
+          .map(({ metadata, spec }) => `${metadata.name} on ${spec.nodeName || 'no node (Pending)'}`);
+        results.push(
+          rollout.code === 0 && !elsewhere.length
+            ? { ref, status: 'moved', node }
+            : {
+                ref,
+                status: 'not-placed',
+                node,
+                reasons: elsewhere.length ? elsewhere : ['the rollout did not complete'],
+              },
+        );
       }
 
-      logger.info('node-move complete', { namespace: ns, node: remove ? null : node, count: results.length });
+      for (const { ref, status, reasons = [] } of results)
+        logger[reasons.length ? 'warn' : 'info'](`node-move: ${ref} ${status}`, { namespace: ns, reasons });
+      const failed = results.filter(({ status }) => status === 'refused' || status === 'not-placed');
+      if (failed.length)
+        throw refusal(
+          `node-move: ${failed.map(({ ref, status, reasons }) => `${ref} ${status}: ${reasons.join('; ')}`).join(' | ')}`,
+        );
       return results;
     },
 
@@ -1151,7 +1103,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
      */
     sync: async (path, options = DEFAULT_OPTION) => {
       const env = deployEnvFactory(options);
-      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
+      options = { ...options, gatewayApi: Underpost.ingress.provider({ environment: env, options }) === 'gateway-api' };
       const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
@@ -1159,16 +1111,13 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const deployId = options.deployId || 'dd-default';
       const replicas = options.replicas || 1;
       const image = options.image || '';
-      const node = options.nodeName || (!options.kubeadm && !options.k3s ? 'kind-control-plane' : os.hostname());
+      const nodeFlag = options.nodeName ? ` --node ${options.nodeName}` : '';
       let versions = options.versions || '';
-      shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
 
       if (image && !image.startsWith('localhost'))
         Underpost.image.pullDockerHubImage({
           dockerhubImage: image,
-          kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
-          kubeadm: options.nodeName || options.kubeadm,
-          k3s: options.k3s,
+          ...workloadTargetFactory(options, env, 'kubeadm'),
         });
 
       if (deploying) {
@@ -1184,14 +1133,15 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           if (cronDeployId && !/^[a-zA-Z0-9._,-]+$/.test(cronDeployId))
             throw new Error(`Invalid cron deploy-id: ${cronDeployId}`);
           shellExec(
-            `node bin cron${cronDeployId ? ` ${cronDeployId}` : ''}${baseClusterCommand}${clusterFlag} --setup-start --apply`,
+            `node bin cron${cronDeployId ? ` ${cronDeployId}` : ''}${baseClusterCommand}${clusterFlag} --setup-start --apply` +
+              `${options.cmdCronJobs ? ` --cmd ${shellArgumentFactory(options.cmdCronJobs)}` : ''}`,
           );
         }
       }
 
       const currentTraffic = deploying
         ? Underpost.deploy.getCurrentTraffic(deployId, {
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env,
             gatewayApi: options.gatewayApi,
           })
@@ -1208,13 +1158,15 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         hasReadyEndpoints: (colour) =>
           Underpost.deploy.serviceHasReadyEndpoints({
             service: `${deployId}-${env}-${colour}-service`,
-            namespace: options.namespace || 'default',
+            namespace: namespaceOf(options),
           }),
       });
 
       const ignorePods =
         deploying && targetTraffic
-          ? Underpost.kubectl.get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace).map((p) => p.NAME)
+          ? Underpost.kubectl
+              .get(`${deployId}-${env}-${targetTraffic}`, 'pods', namespaceOf(options))
+              .map((p) => p.NAME)
           : [];
 
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
@@ -1231,9 +1183,9 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       // deployed. `underpost host load` reads it back inside the
       // pod, so a stale Secret makes the container resolve the wrong NODE_ENV.
       if (deploying) {
-        Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
-        Underpost.app.apply(
-          domainContextFactory({ env, namespace: options.namespace, args: { 'deploy-id': deployId } }),
+        Underpost.host.apply(domainContextFactory({ env, ...Underpost.namespace.overrides(options) }));
+        await Underpost.app.apply(
+          domainContextFactory({ env, ...Underpost.namespace.overrides(options), args: { 'deploy-id': deployId } }),
         );
       }
 
@@ -1245,21 +1197,19 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       if (deploying && !options.skipFullBuild) shellExec(`${baseCommand} client ${deployId} --env ${env} --ssr`);
 
       shellExec(
-        `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+        `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas}${nodeFlag}${
           image ? ` --image ${image}` : ''
-        }${versions ? ` --versions ${versions}` : ''}${
-          options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags} ${deployId} ${env}`,
+        }${versions ? ` --versions ${versions}` : ''}${Underpost.namespace.flags(options)}${timeoutFlags}${cmdString}${gitCleanFlag}${skipFullBuildFlag}${pullBundleFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags} ${deployId} ${env}`,
       );
 
       if (deploying) {
         if (options.gatewayApi) {
-          const namespace = options.namespace || 'default';
           const gatewayRoot = Underpost.deploy.underpostGatewayRootFactory(options);
-          shellExec(`kubectl rollout status deployment/${UNDERPOST_GATEWAY.name} -n ${namespace} --timeout=5m`);
+          shellExec(
+            `kubectl rollout status deployment/${UNDERPOST_GATEWAY.name} -n ${namespaceOf(options, 'platform')} --timeout=5m`,
+          );
           const staticAssets = Underpost.deploy.syncStaticAssets(deployId, env, {
             ...options,
-            namespace,
             // Prefer the currently serving workload as the document source. On
             // an initial deploy there is none, so sync falls back to the checkout.
             versions: currentTraffic || versions || targetTraffic,
@@ -1277,18 +1227,16 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
             // this cleanup the probe could hit a stale Ready pod and never exercise
             // the configured unavailable-backend fallback.
             shellExec(
-              `kubectl delete service ${deployId}-${env}-${targetTraffic}-service -n ${namespace} --ignore-not-found`,
+              `kubectl delete service ${deployId}-${env}-${targetTraffic}-service -n ${namespaceOf(options)} --ignore-not-found`,
             );
             shellExec(
-              `kubectl delete deployment ${deployId}-${env}-${targetTraffic} -n ${namespace} --ignore-not-found`,
+              `kubectl delete deployment ${deployId}-${env}-${targetTraffic} -n ${namespaceOf(options)} --ignore-not-found`,
             );
             // Publish the target-colour route while its Service is deliberately
             // absent. Site paths reach underpost-gateway and must return the
             // configured maintenance body before deployment.yaml is submitted.
             shellExec(
-              `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --node ${node} --disable-update-deployment ${deployId} ${env} --versions ${versions}${
-                options.namespace ? ` --namespace ${options.namespace}` : ''
-              }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags}`,
+              `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas}${nodeFlag} --disable-update-deployment ${deployId} ${env} --versions ${versions}${Underpost.namespace.flags(options)}${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags}`,
             );
             await gatewayFallbackProbeRunner({
               gatewayStatusRunner: UnderpostRun.RUNNERS['gateway-status'],
@@ -1301,24 +1249,22 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
 
         // The live pods push their site repositories before the new pods replace them.
         loadCronDeployEnv();
-        Underpost.repo.backupPodRepositories({ deployId, namespace: options.namespace || 'default', env });
+        Underpost.repo.backupPodRepositories({ deployId, namespace: namespaceOf(options), env });
         shellExec(
-          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --node ${node} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
-            options.namespace ? ` --namespace ${options.namespace}` : ''
-          }${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags}`,
+          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas}${nodeFlag} --disable-update-proxy ${deployId} ${env} --versions ${versions}${Underpost.namespace.flags(options)}${timeoutFlags}${gitCleanFlag}${imagePullPolicyFlag}${sshKeyPathFlag}${gatewayApiFlags}`,
         );
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env,
             gatewayApi: options.gatewayApi,
           });
-        await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
-        Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
+        await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, namespaceOf(options));
+        Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, namespaceOf(options), options);
       } else
         logger.info(
           'current traffic',
-          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }),
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: namespaceOf(options), env }),
         );
     },
 
@@ -1374,10 +1320,10 @@ sudo nft list table ip nat | awk '
      * # Literal: exactly this Deployment, flags ignored
      * node bin run stop dd-cyberia-mmo-server-forest-development-blue
      *
-     * # The deploy's PWA workload, inactive colour
+     * # The deploy's PWA workload only, inactive colour
      * node bin run stop --deploy-id dd-cyberia
      *
-     * # ...plus every variant of each instance family, inactive colour
+     * # Only every variant of each instance family, inactive colour
      * node bin run stop --deploy-id dd-cyberia --instance-id mmo-client,mmo-server
      *
      * # Explicit colours; both, where they exist
@@ -1388,9 +1334,8 @@ sudo nft list table ip nat | awk '
      * serving, so a stop is safe against a live host unless `--traffic` names the
      * serving colour outright — which is warned about, not refused.
      *
-     * That colour is read through the same routing stack that published it: the
-     * Gateway API HTTPRoute by default, the Contour HTTPProxy under
-     * `--disable-gateway-api`. Reading the wrong kind finds no colour, degrades to
+     * That colour is read through the routing provider of the environment, which
+     * published it. Reading the wrong kind finds no colour, degrades to
      * "blue", and stops whichever Deployment happens to carry that name. It is
      * resolved per target too — an instance's colour lives under its own
      * `<deployId>-<instanceId>` prefix, and on a shared host the parent's answer
@@ -1401,8 +1346,8 @@ sudo nft list table ip nat | awk '
      */
     stop: async (path = '', options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      const namespace = options.namespace || 'default';
-      const gatewayApi = gatewayApiEnabledFactory(options);
+      const namespace = namespaceOf(options);
+      const gatewayApi = Underpost.ingress.provider({ environment: env, options }) === 'gateway-api';
 
       // Memoized because the plan and the serving check ask the same question,
       // and `--traffic` skips the plan's lookup entirely — which is exactly when
@@ -1492,11 +1437,6 @@ sudo nft list table ip nat | awk '
      * @memberof UnderpostRun
      */
     'get-traffic': async (path = '', options = DEFAULT_OPTION) => {
-      options = {
-        ...options,
-        gatewayApi: gatewayApiEnabledFactory(options),
-        namespace: options.namespace || 'default',
-      };
       // A report answers "what is live", so it cannot pick one environment from a
       // flag and call the other absent: a cluster running `development` would be
       // reported as entirely unrouted. Both are scanned and the environment is a
@@ -1517,7 +1457,7 @@ sudo nft list table ip nat | awk '
               .sort()
           : [];
 
-      const deployments = Underpost.kubectl.get('', 'deployment', options.namespace);
+      const deployments = Underpost.kubectl.get('', 'deployment', namespaceOf(options));
       const deployedNames = deployments.map((entry) => entry.NAME);
 
       // Four cluster-wide reads, correlated once: which kind describes a host,
@@ -1547,7 +1487,7 @@ sudo nft list table ip nat | awk '
         listResources('service')
           .filter((service) => service?.metadata?.labels?.['underpost.net/traffic-service'] === 'true')
           .map((service) => [
-            `${service?.metadata?.namespace || 'default'}/${service?.metadata?.name}`,
+            `${service.metadata.namespace}/${service.metadata.name}`,
             service?.spec?.selector?.app || '',
           ]),
       );
@@ -1565,7 +1505,7 @@ sudo nft list table ip nat | awk '
         const key = `${entry.id}/${env}`;
         if (trafficState[key]) return trafficState[key];
         const stableService = Underpost.deploy.trafficServiceNameFactory({ deployId: entry.id, env });
-        const selector = trafficServiceSelectors[`${options.namespace}/${stableService}`] || '';
+        const selector = trafficServiceSelectors[`${namespaceOf(options)}/${stableService}`] || '';
         const stableTraffic = trafficFromRoutingInfoFactory({ info: selector, deployId: entry.id, env });
         if (stableTraffic)
           return (trafficState[key] = {
@@ -1586,11 +1526,11 @@ sudo nft list table ip nat | awk '
       const servesTraffic = (entry, env) => {
         const service = liveTrafficStateOf(entry, env).service;
         if (!service) return false;
-        const key = `${options.namespace}/${service}`;
+        const key = `${namespaceOf(options)}/${service}`;
         if (servingState[key] === undefined)
           servingState[key] = Underpost.deploy.serviceHasReadyEndpoints({
             service,
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
           });
         return servingState[key];
       };
@@ -1611,7 +1551,7 @@ sudo nft list table ip nat | awk '
           hosts,
           envs,
           deployList,
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
         });
         return rows;
       }
@@ -1756,7 +1696,9 @@ sudo nft list table ip nat | awk '
      */
     'restore-mongo': async (path, options = DEFAULT_OPTION) => {
       await MongoBootstrap.initReplicaSet({
-        namespace: options.namespace || 'default',
+        namespace: namespaceOf(options, 'mongodb'),
+        environment: Underpost.namespace.resolve({ resource: 'mongodb', options }).environment,
+        serviceDomain: Underpost.namespace.serviceHost({ resource: 'mongodb', options }),
         reset: options.reset || false,
         clusterType: options.kubeadm ? 'kubeadm' : options.k3s ? 'k3s' : 'kind', // o 'k3s' / 'kubeadm' según corresponda
         underpostRoot: '.',
@@ -1775,7 +1717,7 @@ sudo nft list table ip nat | awk '
      * @memberof UnderpostRun
      */
     'ingress-refresh': (path = '', options = DEFAULT_OPTION) => {
-      const namespace = options.namespace || 'default';
+      const namespace = namespaceOf(options, 'platform');
       const ingressNode = options.ingressNode || `${path || ''}`.trim();
       const updated = Underpost.cluster.refreshUnderpostIngress({
         namespace,
@@ -1794,7 +1736,7 @@ sudo nft list table ip nat | awk '
 
     'instance-promote': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
+      options = { ...options, gatewayApi: Underpost.ingress.provider({ environment: env, options }) === 'gateway-api' };
       let [deployId, id] = path.split(',');
       const confInstances = loadConfInstances(deployId);
       const promoted = selectConfInstances(confInstances, id);
@@ -1813,7 +1755,7 @@ sudo nft list table ip nat | awk '
       // variant leaves the render only once its Deployment is gone.
       const promotedIds = new Set(promoted.map((instance) => instance.id));
       const hosts = [...new Set(promoted.map((instance) => instance.host))];
-      const namespace = options.namespace || 'default';
+      const namespace = namespaceOf(options);
       const gatewayConfDir = Underpost.deploy.gatewayConfDirFactory({ deployId, env });
       const deployedNames = Underpost.kubectl.get('', 'deployment', namespace).map((entry) => entry.NAME);
       const instancesByHost = Object.fromEntries(
@@ -1834,7 +1776,7 @@ sudo nft list table ip nat | awk '
       for (const instance of affected) {
         const currentTraffic = Underpost.deploy.getCurrentTraffic(`${deployId}-${instance.id}`, {
           hostTest: instance.host,
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           env,
           gatewayApi: options.gatewayApi,
         });
@@ -1843,7 +1785,10 @@ sudo nft list table ip nat | awk '
           trafficById[instance.id] = currentTraffic || 'blue';
           continue;
         }
-        trafficById[instance.id] = nextTrafficFactory(currentTraffic, options.targetTrafficById?.[instance.id]);
+        trafficById[instance.id] = nextTrafficFactory(
+          currentTraffic,
+          options.targetTrafficById?.[instance.id] ?? options.traffic,
+        );
         promotedTraffic = trafficById[instance.id];
       }
 
@@ -1894,10 +1839,9 @@ sudo nft list table ip nat | awk '
       // on 443 it keeps an SNI filter chain whose route table is left empty.
       // Either way every path on the instance host answers 404 while the
       // Gateway reports Programmed and the route reports Accepted.
-      const gatewayName = Underpost.deploy.gatewayNameFactory({ deployId, env });
+      const gatewayName = Underpost.ingress.gatewayNameFactory({ deployId, env });
       for (const host of hosts) {
         const hostInstances = instancesByHost[host];
-        const routingEnv = options.tls ? 'production' : env;
         // Every variant of this host contributes one proxied sub-path to the
         // shared gateway, whose interception turns each workload's own error
         // into that variant's declared document.
@@ -1907,7 +1851,8 @@ sudo nft list table ip nat | awk '
             host,
             conf: hostServerConfFactory({
               host,
-              namespace: options.namespace || 'default',
+              namespace: namespaceOf(options),
+              clusterDomain: Underpost.namespace.cluster({ options }).clusterDomain,
               routes: hostInstances.map((instance) => ({
                 path: instance.path,
                 upstream: `${Underpost.deploy.trafficServiceNameFactory({
@@ -1929,34 +1874,25 @@ sudo nft list table ip nat | awk '
           installGatewayConf({
             hostRoot: Underpost.deploy.underpostGatewayRootFactory(options),
             confSourceDir: gatewayConfDir,
-            namespace: options.namespace,
+            namespace: namespaceOf(options, 'platform'),
           });
-        let proxyYaml = options.gatewayApi
-          ? Underpost.deploy.httpRouteYamlFactory({
+        const proxyYaml = options.gatewayApi
+          ? Underpost.ingress.httpRouteYamlFactory({
               host,
               options,
               parentName: gatewayName,
+              owner: gatewayName,
               rules: instanceHttpRouteRulesFactory({ deployId, instances: hostInstances, env, trafficById, options }),
             })
-          : Underpost.deploy.baseProxyYamlFactory({ host, env: routingEnv, options }) +
+          : Underpost.ingress.baseProxyYamlFactory({ host, env, options }) +
             instanceProxyRoutesFactory({ deployId, instances: hostInstances, env, trafficById });
-        if (options.tls) {
-          if (options.test) {
-            Underpost.deploy.selfSignedTlsSecretFactory({
-              host,
-              namespace: options.namespace,
-              underpostRoot: options.underpostRoot || '.',
-            });
-          } else {
-            shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
-            proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host });
-          }
-        }
         if (options.gatewayApi) {
           // Left by the per-host model this replaces. Both outlive the route
           // that referenced them and keep contending for the merged listener.
           for (const name of [`Gateway ${host}`, `ClientTrafficPolicy ${host}-http3`])
-            shellExec(`kubectl delete ${name} --namespace ${options.namespace} --ignore-not-found`, { silent: true });
+            shellExec(`kubectl delete ${name} --namespace ${namespaceOf(options)} --ignore-not-found`, {
+              silent: true,
+            });
         }
         // The host's route object is replaced in place, never deleted first:
         // `apply` moves the whole spec in one transition, so the hostname always
@@ -1964,7 +1900,7 @@ sudo nft list table ip nat | awk '
         // answered every request that landed in it 404 — an outage on each
         // promote, independent of which colour was healthy.
         shellExec(
-          `kubectl apply -f - -n ${options.namespace} <<'EOF'
+          `kubectl apply -f - -n ${namespaceOf(options)} <<'EOF'
 ${proxyYaml}
 EOF
 `,
@@ -1975,10 +1911,11 @@ EOF
       // first time. A shared edge that has not been told answers them from the
       // other data plane, which has no route for them — a 404 in front of a
       // healthy workload. No-op when no shared edge is installed.
-      const sharedIngressUpdated = Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+      const platform = namespaceOf(options, 'platform');
+      const sharedIngressUpdated = Underpost.cluster.refreshUnderpostIngress({ namespace: platform, options });
       if (sharedIngressUpdated) {
-        Underpost.deploy.removeInactiveHostRoutes({ hosts, gatewayApi: options.gatewayApi, namespace });
-        Underpost.cluster.refreshUnderpostIngress({ namespace, options });
+        Underpost.ingress.removeInactiveHostRoutes({ hosts, gatewayApi: options.gatewayApi, namespace });
+        Underpost.cluster.refreshUnderpostIngress({ namespace: platform, options });
       }
       if (!options.noBackendCheckpoint)
         for (const instance of affected.filter((entry) => promotedIds.has(entry.id))) {
@@ -2011,15 +1948,15 @@ EOF
       // Refresh the gRPC service to ensure it points to the parent deploy's current traffic.
       if (promotedTraffic) {
         const parentTraffic =
-          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }) || 'blue';
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: namespaceOf(options), env }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           traffic: parentTraffic,
         });
-        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
+        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${namespaceOf(options)}`);
       }
     },
 
@@ -2039,8 +1976,7 @@ EOF
       const env = deployEnvFactory(options);
       options = {
         ...options,
-        gatewayApi: gatewayApiEnabledFactory(options),
-        namespace: options.namespace || 'default',
+        gatewayApi: Underpost.ingress.provider({ environment: env, options }) === 'gateway-api',
       };
       const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -2053,24 +1989,34 @@ EOF
       // Retarget `underpost-config` at this run's environment before any instance
       // Deployment is submitted: it is what `underpost host load` reads inside the pod,
       // and a stale one makes the container resolve the wrong NODE_ENV.
-      if (!options.expose) Underpost.host.apply(domainContextFactory({ env, namespace: options.namespace }));
+      if (!options.expose) {
+        const placement = Underpost.namespace.overrides(options);
+        Underpost.host.apply(domainContextFactory({ env, ...placement }));
+        // Each instance env file reaches its pods as the `envFrom` Secret the Deployment names.
+        for (const instance of confInstances)
+          if (fs.existsSync(instanceEnvFilePath(deployId, instance.id, env)))
+            await Underpost.app.apply(
+              domainContextFactory({ env, ...placement, args: { 'deploy-id': deployId, 'instance-id': instance.id } }),
+            );
+      }
       const { liveTrafficById, targetTrafficById, serving } = instanceTrafficPlanFactory({
         instances: confInstances,
         requestedTraffic: options.traffic,
         liveTrafficOf: (instance) =>
           Underpost.deploy.getCurrentTraffic(`${deployId}-${instance.id}`, {
             hostTest: instance.host,
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env,
             gatewayApi: options.gatewayApi,
           }),
         servesTraffic: (instance, colour) =>
           Underpost.deploy.serviceHasReadyEndpoints({
             service: `${deployId}-${instance.id}-${env}-${colour}-service`,
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
           }),
       });
 
+      const workloadTarget = workloadTargetFactory(options, env);
       const releasedImages = new Map();
       const releasedImage = (image) => {
         if (!releasedImages.has(image))
@@ -2080,7 +2026,7 @@ EOF
               imageName: image,
               revision: options.sourceRevision,
               path: options.buildPath,
-              k3s: options.k3s,
+              ...workloadTarget,
             }),
           );
         return releasedImages.get(image);
@@ -2104,8 +2050,8 @@ EOF
         // this into a stale-app probe instead of a no-backend fallback probe.
         for (const instance of confInstances) {
           const podId = `${deployId}-${instance.id}-${env}-${targetTrafficById[instance.id]}`;
-          shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
-          shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
+          shellExec(`kubectl delete service ${podId}-service --namespace ${namespaceOf(options)} --ignore-not-found`);
+          shellExec(`kubectl delete deployment ${podId} --namespace ${namespaceOf(options)} --ignore-not-found`);
         }
         // A direct `run instance` must publish and prove its configured static
         // fallback before it submits the first instance Deployment document.
@@ -2136,7 +2082,7 @@ EOF
           path: _path,
           image: _image,
           cmd: _cmd,
-          volumes: _volumes,
+          volumes: _volumes = [],
           metadata: _metadata,
           lifecycle: _lifecycle,
           readinessProbe: _readinessProbe,
@@ -2155,55 +2101,49 @@ EOF
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
         if (_image && !_image.startsWith('localhost'))
-          Underpost.image.pullDockerHubImage({
-            dockerhubImage: _image,
-            kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
-            kubeadm: options.nodeName || options.kubeadm,
-            k3s: options.k3s,
-          });
+          Underpost.image.pullDockerHubImage({ dockerhubImage: _image, ...workloadTarget });
 
         const targetTraffic = targetTrafficById[instance.id];
         const podId = `${_deployId}-${env}-${targetTraffic}`;
-        const ignorePods = Underpost.kubectl.get(podId, 'pods', options.namespace).map((p) => p.NAME);
-        shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
+        const ignorePods = Underpost.kubectl.get(podId, 'pods', namespaceOf(options)).map((p) => p.NAME);
+        shellExec(`kubectl delete service ${podId}-service --namespace ${namespaceOf(options)} --ignore-not-found`);
+        shellExec(`kubectl delete deployment ${podId} --namespace ${namespaceOf(options)} --ignore-not-found`);
         for (const _volume of _volumes)
           if (_volume.claimName)
             Underpost.deploy.deployVolume(_volume, {
-              namespace: options.namespace,
+              namespace: namespaceOf(options),
               deployId: _deployId,
               env,
               version: targetTraffic,
-              nodeName: Underpost.deploy.resolveDeployNode({
-                node: options.nodeName,
-                kind: options.kind,
-                kubeadm: options.kubeadm,
-                k3s: options.k3s,
-                env,
-              }),
-              clusterContext: clusterTypeFactory(options),
+              nodeNames: workloadTarget.nodes,
+              clusterContext: workloadTarget.clusterType,
               gitClean: options.gitClean || false,
-              sshKeyPath: options.sshKeyPath || '',
+              sshKeyPath: workloadTarget.sshKeyPath,
             });
         // Regenerate the parent deploy's gRPC ClusterIP service pointing to the
         // parent's current traffic colour and apply it before the instance pod starts so
         // DNS is resolvable the moment the pod boots.
         const parentTraffic =
-          Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env }) || 'blue';
+          Underpost.deploy.getCurrentTraffic(deployId, { namespace: namespaceOf(options), env }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           traffic: parentTraffic,
           host: _host,
         });
-        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
+        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${namespaceOf(options)}`);
 
         const resolvedCmd = _cmd[env].map((c) =>
           c.replaceAll(
             '{{grpc-service-dns}}',
-            `${Underpost.deploy.grpcServiceNameFactory({ deployId, env })}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+            Underpost.namespace.serviceFqdn({
+              service: Underpost.deploy.grpcServiceNameFactory({ deployId, env }),
+              namespace: namespaceOf(options),
+              port: 50051,
+              options,
+            }),
           ),
         );
 
@@ -2229,7 +2169,7 @@ ${Underpost.deploy
     resources: Underpost.deploy.resourcesFactory(options),
     replicas,
     image: _image,
-    namespace: options.namespace,
+    namespace: namespaceOf(options),
     volumes: _volumes,
     cmd: resolvedCmd,
     lifecycle: lifecycleForManifest,
@@ -2243,21 +2183,13 @@ ${Underpost.deploy
     // Pin the pod in the manifest submitted for its only rollout. Volumes were
     // already resolved against this node; leaving the pod unconstrained could
     // schedule it away from its data and require a second, post-ready move.
-    nodeName: options.nodeName
-      ? Underpost.deploy.resolveDeployNode({
-          node: options.nodeName,
-          kind: options.kind,
-          kubeadm: options.kubeadm,
-          k3s: options.k3s,
-          env,
-        })
-      : '',
+    scheduling: Underpost.namespace.podScheduling({ resource: 'workloads', environment: env, node: options.nodeName }),
   })
   .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
         // console.log(deploymentYaml);
         shellExec(
-          `${KUBECTL_SERVER_SIDE_APPLY} -f - -n ${options.namespace} <<'EOF'
+          `${KUBECTL_SERVER_SIDE_APPLY} -f - -n ${namespaceOf(options)} <<'EOF'
 ${deploymentYaml}
 EOF
 `,
@@ -2271,7 +2203,7 @@ EOF
           env,
           targetTraffic,
           ignorePods,
-          options.namespace,
+          namespaceOf(options),
           { readyGate: 'kubernetes', statusTransport: 'exec' },
         );
 
@@ -2303,7 +2235,10 @@ EOF
     'deploy-key': (path, options = DEFAULT_OPTION) => {
       const prefix = 'dd-key';
       if (options.reset) {
-        shellExec(`rm -rf /home/dd/tmp/${prefix}_*`);
+        const keys = '/home/dd/tmp';
+        if (fs.existsSync(keys))
+          for (const entry of fs.readdirSync(keys))
+            if (entry.startsWith(`${prefix}_`)) fs.rmSync(`${keys}/${entry}`, { recursive: true, force: true });
         return;
       }
       if (!options.user) {
@@ -2470,7 +2405,12 @@ EOF
       const resolvedCmd = _cmd[env].map((c) =>
         c.replaceAll(
           '{{grpc-service-dns}}',
-          `${Underpost.deploy.grpcServiceNameFactory({ deployId, env })}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+          Underpost.namespace.serviceFqdn({
+            service: Underpost.deploy.grpcServiceNameFactory({ deployId, env }),
+            namespace: namespaceOf(options),
+            port: 50051,
+            options,
+          }),
         ),
       );
 
@@ -2494,7 +2434,7 @@ EOF
             resources: Underpost.deploy.resourcesFactory(options),
             replicas: options.replicas,
             image: _image,
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             volumes: _volumes,
             cmd: resolvedCmd,
             lifecycle: lifecycleForManifest,
@@ -2505,15 +2445,11 @@ EOF
             livenessProbe: resolveEnvScoped(_livenessProbe, env),
             containerPort: _toPort,
             imagePullPolicy: instanceImagePullPolicy,
-            nodeName: options.nodeName
-              ? Underpost.deploy.resolveDeployNode({
-                  node: options.nodeName,
-                  kind: options.kind,
-                  kubeadm: options.kubeadm,
-                  k3s: options.k3s,
-                  env,
-                })
-              : '',
+            scheduling: Underpost.namespace.podScheduling({
+              resource: 'workloads',
+              environment: env,
+              node: options.nodeName,
+            }),
           })
           .replace('{{ports}}', buildKindPorts(_fromPort, _toPort));
 
@@ -2531,7 +2467,7 @@ EOF
       // more than just deployment.yaml. Content matches what `run instance`
       // creates dynamically at deploy time (deployVolume / instance-promote /
       // the parent gRPC ClusterIP), so a static `kubectl apply` is equivalent.
-      const pvDataNode = Underpost.deploy.resolveDeployNode({
+      const pvDataNodes = Underpost.deploy.resolveDeployNodes({
         node: options.nodeName,
         kind: options.kind,
         kubeadm: options.kubeadm,
@@ -2547,9 +2483,9 @@ EOF
         const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${_deployId}-${env}-${targetTraffic}`;
         pvPvcYaml += `---\n${Underpost.deploy.persistentVolumeFactory({
           pvcId,
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           hostPath: `/home/dd/engine/volume/${pvId}`,
-          nodeName: pvDataNode,
+          nodeNames: pvDataNodes,
         })}\n`;
       }
 
@@ -2560,7 +2496,7 @@ EOF
       // fqdn, each pointing at its live colour — is assembled and applied by
       // `instance-promote` at deploy time, and only once EVERY variant is ready.
       const proxyYaml =
-        Underpost.deploy.baseProxyYamlFactory({ host: _host, env, options }) +
+        Underpost.ingress.baseProxyYamlFactory({ host: _host, env, options }) +
         instanceProxyRoutesFactory({
           deployId,
           instances: [instance],
@@ -2583,10 +2519,11 @@ EOF
       // emitted beside it: the parent deploy owns the one Gateway that
       // terminates every hostname it serves, and a second, hostname-scoped one
       // would contend with it for the merged listener rather than add to it.
-      const httpRouteYaml = Underpost.deploy.httpRouteYamlFactory({
+      const httpRouteYaml = Underpost.ingress.httpRouteYamlFactory({
         host: _host,
         options,
-        parentName: Underpost.deploy.gatewayNameFactory({ deployId, env }),
+        parentName: Underpost.ingress.gatewayNameFactory({ deployId, env }),
+        owner: Underpost.ingress.gatewayNameFactory({ deployId, env }),
         rules: instanceHttpRouteRulesFactory({
           deployId,
           instances: [instance],
@@ -2616,7 +2553,7 @@ EOF
           deployId: _deployId,
           env,
           traffic: targetTraffic,
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           fromPort: _fromPort,
           toPort: _toPort,
         }),
@@ -2642,7 +2579,7 @@ EOF
         statusPages: statusPageEntries.length,
         grpcService: !!grpcServiceYaml,
       });
-      const { gatewayClassName, http3, quicPort, altSvc } = Underpost.deploy.gatewayApiConfigFactory(options);
+      const { gatewayClassName, http3, quicPort, altSvc } = Underpost.ingress.gatewayApiConfigFactory(options, env);
       logger.info('[instance-build-manifest] Gateway API manifests written', {
         host: _host,
         gatewayClass: gatewayClassName,
@@ -2664,8 +2601,8 @@ EOF
       // normalized instance path/code.
       //
       // Both development.env and production.env are written on every build, so a
-      // deploy in either environment finds the env file its `cmd` sources, no
-      // matter which mode this build ran. The default instance's files are their
+      // deploy in either environment finds the env file `run instance` projects
+      // into its Secret, no matter which mode this build ran. The default instance's files are their
       // own template, so its refresh is idempotent.
       if (instance.templateId) {
         const instanceEnvDir = nodePath.dirname(instanceEnvFilePath(deployId, _id, env));
@@ -2755,7 +2692,7 @@ EOF
      * @memberof UnderpostRun
      */
     'ls-deployments': async (path, options = DEFAULT_OPTION) => {
-      console.table(await Underpost.kubectl.get(path, 'deployments', options.namespace));
+      console.table(await Underpost.kubectl.get(path, 'deployments', namespaceOf(options)));
     },
 
     /**
@@ -2765,64 +2702,20 @@ EOF
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'host-update': async (path, options = DEFAULT_OPTION) => {
-      shellExec(`chmod +x ${options.underpostRoot}/scripts/rocky-setup.sh`);
-      shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh${options.dev ? ' --install-dev' : ``}`);
-    },
+    'host-update': async (path, options = DEFAULT_OPTION) =>
+      updateHostPackages({ underpostRoot: options.underpostRoot, dev: options.dev }),
 
     /**
      * @method install-crio
-     * @description Installs and configures CRI-O as the container runtime for kubeadm clusters.
-     * Adds the stable v1.33 CRI-O yum repository, installs the `cri-o` package, configures
-     * the systemd cgroup driver, enables the `crio` service, and writes `/etc/crictl.yaml`
-     * so that `crictl` targets the CRI-O socket by default.
+     * @description Installs CRI-O, the container runtime of kubeadm clusters, as the `crio` tool of
+     * `HOST_TOOLS`: its repository, `cri-o` and `cri-tools`, the systemd cgroup driver, `/etc/crictl.yaml`
+     * and the `crio` service.
      * @param {string} path - Unused.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow.
      * @memberof UnderpostRun
      */
-    'install-crio': (path, options = DEFAULT_OPTION) => {
-      logger.info('Installing CRI-O...');
-      shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
-[cri-o]
-name=CRI-O
-baseurl=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.33/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.33/rpm/repodata/repomd.xml.key
-EOF`);
-      shellExec(`sudo dnf -y install cri-o`);
-      // Add the Kubernetes repo so cri-tools (crictl CLI) is available.
-      // The repo has exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni, so we
-      // use --disableexcludes=kubernetes to override and install cri-tools.
-      shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
-[kubernetes]
-name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.36/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.36/rpm/repodata/repomd.xml.key
-exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
-EOF`);
-      shellExec(`sudo yum install -y cri-tools --disableexcludes=kubernetes 2>/dev/null || {
-        CRICTL_VERSION="v1.31.0"
-        ARCH="amd64"
-        log "Kubernetes repo not available, downloading crictl binary directly..."
-        curl -sL "https://github.com/kubernetes-sigs/cri-tools/releases/download/\${CRICTL_VERSION}/crictl-\${CRICTL_VERSION}-\${ARCH}.tar.gz" | sudo tar -C /usr/local/bin -xz
-      }`);
-      // Ensure CRI-O uses systemd cgroup driver (matches kubelet default)
-      shellExec(`sudo sed -i 's/^#\?cgroup_manager =.*/cgroup_manager = "systemd"/' /etc/crio/crio.conf`, {
-        silentOnError: true,
-      });
-      shellExec(`sudo systemctl enable --now crio`);
-      logger.info('CRI-O installed and started.');
-      // Write crictl config so all crictl calls default to the CRI-O socket
-      shellExec(`cat <<EOF | sudo tee /etc/crictl.yaml
-runtime-endpoint: unix:///var/run/crio/crio.sock
-image-endpoint: unix:///var/run/crio/crio.sock
-timeout: 10
-debug: false
-EOF`);
-    },
+    'install-crio': (path, options = DEFAULT_OPTION) =>
+      installHostTool('crio', { arch: Underpost.baremetal.getHostArch().alias }),
 
     /**
      * @method dd-container
@@ -2837,7 +2730,7 @@ EOF`);
       const currentImage = options.imageName
         ? options.imageName
         : Underpost.image
-            .getCurrentLoaded(options.nodeName ? options.nodeName : 'kind-worker', false)
+            .list({ nodes: options.nodeName, kind: !options.nodeName })
             .find((o) => o.IMAGE.match('underpost'));
       const podName = options.podName || `underpost-dev-container`;
       const volumeHostPath = options.claimName || '/home/dd';
@@ -2851,7 +2744,7 @@ EOF`);
           `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath}; chmod -R 755 ${volumeHostPath}"`,
         );
       } else {
-        shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml -n ${options.namespace}`);
+        shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml -n ${namespaceOf(options)}`);
       }
 
       if (!currentImage)
@@ -2892,8 +2785,7 @@ EOF`);
      */
     'ip-info': (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      shellExec(`chmod +x ${underpostRoot}/scripts/ip-info.sh`);
-      shellExec(`${underpostRoot}/scripts/ip-info.sh ${path}`);
+      shellExec(`bash ${underpostRoot}/scripts/ip-info.sh ${path}`);
     },
 
     /**
@@ -2910,12 +2802,15 @@ EOF`);
         dockerhubImage: 'adminer',
         version: '4.7.6-standalone',
         kind: options.kind,
-        kubeadm: options.kubeadm,
         k3s: options.k3s,
       });
 
-      shellExec(`kubectl delete deployment adminer -n ${options.namespace} --ignore-not-found`);
-      shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/. -n ${options.namespace}`);
+      shellExec(`kubectl delete deployment adminer -n ${namespaceOf(options, 'mariadb')} --ignore-not-found`);
+      Underpost.kubectl.applyScheduled({
+        path: `${underpostRoot}/manifests/deployment/adminer`,
+        namespace: namespaceOf(options, 'mariadb'),
+        scheduling: Underpost.namespace.podScheduling({ resource: 'mariadb', options, node: options.nodeName }),
+      });
       const successInstance = await Underpost.test.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
 
       if (successInstance) return UnderpostRun.RUNNERS.expose(path || 'adminer', options);
@@ -2970,54 +2865,39 @@ EOF`);
      * @method promote
      * @description Routes a deployment to one of its blue/green colours, deployed and Ready: the one `--traffic`
      * names, else the one not live (uses `dd.routes` for 'dd', or a specific ID). No build and no restart.
-     * When `--tls` is set, rebuilds the proxy manifest with `--cert` so the HTTPProxy includes
-     * TLS config, deletes stale Certificate resources, then reapplies the proxy and secret.yaml
-     * (cert-manager Certificate resources) for each affected deployment.
      * @param {string} path - `deployId[,env[,replicas]]`: env defaults to production, replicas to `--replicas`, else 1.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     promote: async (path, options = DEFAULT_OPTION) => {
-      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
       let [inputDeployId, inputEnv, inputReplicas] = path.split(',');
       if (!inputEnv) inputEnv = 'production';
+      options = {
+        ...options,
+        gatewayApi: Underpost.ingress.provider({ environment: inputEnv, options }) === 'gateway-api',
+      };
       if (!inputReplicas) inputReplicas = options.replicas || 1;
       const targetOf = (currentTraffic) => options.traffic || (currentTraffic === 'blue' ? 'green' : 'blue');
-      // TODO: normalize: --tls maps to --cert for deploy.js isValidTLSContext compatibility
-      if (options.tls) options.cert = true;
-
-      const applyCerts = (deployId, targetTraffic) => {
-        if (!options.tls) return;
-        // Rebuild proxy.yaml with --cert so the HTTPProxy includes TLS virtualhost config
-        shellExec(
-          `node bin deploy --build-manifest --cert --traffic ${targetTraffic} --replicas ${inputReplicas} --namespace ${options.namespace} ${deployId} ${inputEnv}`,
-        );
-        // Delete stale Certificate resources before reapplying
-        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        if (fs.existsSync(confServerPath)) {
-          for (const host of Object.keys(JSON.parse(fs.readFileSync(confServerPath, 'utf8'))))
-            shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
-        }
-        shellExec(
-          `sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${inputEnv}/proxy.yaml -n ${options.namespace}`,
-        );
-        const secretPath = `./engine-private/conf/${deployId}/build/${inputEnv}/secret.yaml`;
-        if (fs.existsSync(secretPath)) shellExec(`kubectl apply -f ${secretPath} -n ${options.namespace}`);
-      };
 
       if (inputDeployId === 'dd') {
         for (const deployId of readDeployRoutes()) {
           const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env: inputEnv,
           });
           const targetTraffic = targetOf(currentTraffic);
-          Underpost.deploy.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace, options);
-          applyCerts(deployId, targetTraffic);
+          Underpost.deploy.switchTraffic(
+            deployId,
+            inputEnv,
+            targetTraffic,
+            inputReplicas,
+            namespaceOf(options),
+            options,
+          );
         }
       } else {
         const currentTraffic = Underpost.deploy.getCurrentTraffic(inputDeployId, {
-          namespace: options.namespace,
+          namespace: namespaceOf(options),
           env: inputEnv,
         });
         const targetTraffic = targetOf(currentTraffic);
@@ -3026,10 +2906,9 @@ EOF`);
           inputEnv,
           targetTraffic,
           inputReplicas,
-          options.namespace,
+          namespaceOf(options),
           options,
         );
-        applyCerts(inputDeployId, targetTraffic);
       }
     },
     /**
@@ -3037,18 +2916,15 @@ EOF`);
      * @description Deploys a full production/development ready Kubernetes cluster environment including MongoDB,
      * MariaDB, Valkey, the Gateway API data plane (Envoy Gateway), Contour, and Cert-Manager, and deploys all services.
      *
-     * Ingress is served by the Gateway API stack (Gateway + HTTPRoute) with QUIC/HTTP3 in **both** environments;
-     * `--disable-gateway-api` falls back to the Contour HTTPProxy stack. Because HTTP/3 has no cleartext transport,
-     * development terminates TLS too: a self-signed certificate per host (mkcert via `scripts/ssl.sh`, whose root CA
-     * the script installs into the system + NSS trust stores) is issued into the secret the Gateway listener
-     * references, and every host is written to `/etc/hosts` so the operator's browser reaches the PWA at
-     * `https://<host>` on the local machine.
+     * Ingress is served by the routing provider of the environment (`environments.<env>.routing.provider`): the
+     * Gateway API stack (Gateway + HTTPRoute) with QUIC/HTTP3, or the Contour HTTPProxy stack. The TLS of every host
+     * follows the TLS policy of the environment ({@link UnderpostTls.reconcile}). In development every
+     * host is written to `/etc/hosts`, so the operator's browser reaches the PWA at `https://<host>` on this machine.
      *
      * Custom instances come from `--instance-id`. They are resolved per deploy against that deploy's
      * own `conf.instances.json`, so an id only runs where its deploy declares it, and each one is deployed after its
      * deploy's default workload is serving — an instance reads the parent's world configuration over the parent's
-     * gRPC ClusterIP at boot. Instance hosts share the deploy's environment: the same self-signed certificates and
-     * `/etc/hosts` pass in development, the same cert-manager issuance in production.
+     * gRPC ClusterIP at boot. Instance hosts share the deploy's TLS and its `/etc/hosts` pass.
      *
      * Every input is a flag: `--runtime-image` (default `express`), `--deploy-id` (comma-separated, or the `dd` meta
      * id; unset reads the route table) and `--instance-id` (comma-separated; a template id such as `mmo-server`
@@ -3059,7 +2935,6 @@ EOF`);
      * @memberof UnderpostRun
      */
     cluster: async (path = '', options = DEFAULT_OPTION) => {
-      const { underpostRoot } = options;
       const env = deployEnvFactory(options);
       const baseCommand = cli('underpost', { local: true });
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -3094,9 +2969,7 @@ EOF`);
       }
       await timer(5000);
       for (const deployId of deployList) {
-        shellExec(
-          `${baseCommand} db ${deployId} --import --drop --preserveUUID${options.namespace ? ` --ns ${options.namespace}` : ''}`,
-        );
+        shellExec(`${baseCommand} db ${deployId} --import --drop --preserveUUID${Underpost.namespace.flags(options)}`);
       }
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --valkey`);
@@ -3107,8 +2980,8 @@ EOF`);
       // no HTTPProxy objects to program (this workflow applies HTTPRoutes),
       // Contour's Envoy has no listeners and refuses the redirected connection,
       // which looks exactly like a gateway that is not listening at all.
-      const gatewayApi = gatewayApiEnabledFactory(options);
-      const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory({ ...options, gatewayApi });
+      const gatewayApi = Underpost.ingress.provider({ environment: env, options }) === 'gateway-api';
+      const gatewayApiFlags = Underpost.deploy.gatewayApiFlagsFactory(options);
       await timer(5000);
       if (gatewayApi) {
         shellExec(
@@ -3119,7 +2992,7 @@ EOF`);
       } else shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --contour`);
       if (gatewayApi)
         shellExec(
-          `kubectl rollout status deployment/${UNDERPOST_GATEWAY.name} -n ${options.namespace || 'default'} --timeout=5m`,
+          `kubectl rollout status deployment/${UNDERPOST_GATEWAY.name} -n ${namespaceOf(options, 'platform')} --timeout=5m`,
         );
       if (env === 'production') {
         await timer(5000);
@@ -3136,24 +3009,10 @@ EOF`);
           deployList,
         });
 
-      // Development terminates TLS with a locally trusted certificate instead of
-      // cert-manager: QUIC/HTTP3 has no cleartext transport, so without it the
-      // dev gateway would fall back to an HTTP-only listener. The hosts are
-      // written to /etc/hosts in a single pass — etcHostFactory rewrites the
-      // file, so one call per deploy would drop the previous deploy's entries.
-      // Instance hosts come through the same resolver the Gateway's certificate
-      // list uses, so the two can never disagree about what the deploy serves.
+      // The hosts are written to /etc/hosts in a single pass: etcHostFactory rewrites the file, so one call
+      // per deploy would drop the previous deploy's entries.
       const hosts = [...new Set(deployList.flatMap((deployId) => deployHostsFactory(deployId)))];
-      if (env === 'development') {
-        for (const host of hosts)
-          Underpost.deploy.selfSignedTlsSecretFactory({
-            host,
-            namespace: options.namespace || 'default',
-            underpostRoot,
-          });
-        const hostListenResult = etcHostFactory(hosts);
-        logger.info(hostListenResult.renderHosts);
-      }
+      if (env === 'development') logger.info(etcHostFactory(hosts).renderHosts);
       const version = 'v4.0.0';
       const instanceOptionsFactory = (deployId, instanceId) => ({
         ...options,
@@ -3163,10 +3022,8 @@ EOF`);
         replicas: options.replicas || 1,
         gatewayApi,
         gatewayBootstrapComplete: true,
-        tls: true,
-        test: env === 'development',
         etcHosts: false,
-        namespace: options.namespace || 'default',
+        namespace: namespaceOf(options),
         imageName:
           deployId === 'dd-cyberia' && env === 'development' && instanceId === 'mmo-server'
             ? `underpost/cyberia-server-dev:${version}`
@@ -3177,15 +3034,10 @@ EOF`);
       const deployFlagsById = {};
       const fallbackChecks = new Map();
 
-      // Regenerating the manifests is required, not incidental: the TLS listener
-      // — and with it the QUIC policy and the HTTPRoute set — is only emitted
-      // when the TLS and gateway flags are known at generation time. It takes two
-      // passes because `--build-manifest` returns after writing the manifests, so
-      // the same flags have to be repeated on the apply call.
+      // It takes two passes because `--build-manifest` returns after writing the manifests, so the same flags
+      // are repeated on the apply call.
       for (const deployId of deployList) {
-        const deployFlags =
-          `--${clusterType}${env === 'production' ? ' --cert' : ' --self-signed'}${gatewayApiFlags}` +
-          `${options.namespace ? ` --namespace ${options.namespace}` : ''}`;
+        const deployFlags = `--${clusterType}${gatewayApiFlags}` + Underpost.namespace.flags(options);
         deployFlagsById[deployId] = deployFlags;
         // SSR status and context documents belong to the ingress bootstrap, so
         // build them on the host before any workload Deployment is submitted.
@@ -3201,7 +3053,7 @@ EOF`);
             ...options,
             ...clusterContextFactory(clusterType),
             gatewayApi,
-            namespace: options.namespace || 'default',
+            namespace: namespaceOf(options),
             versions: /--versions\s+([^\s]+)/.exec(deployFlags)?.[1] || options.versions || 'blue',
           });
           const missingAssets = staticAssets.filter((entry) => !entry.source);
@@ -3258,6 +3110,16 @@ EOF`);
         }
       }
 
+      // The TLS of every host follows the routing objects it needs: the issuer lists each new Gateway.
+      await Underpost.tls.reconcile({
+        apply: true,
+        options: {
+          ...Underpost.namespace.overrides(options),
+          env,
+          deployId: deployList.join(','),
+        },
+      });
+
       // This is the deliberate no-backend checkpoint. The static Nginx pod, all
       // Gateway listeners, parent HTTPRoutes and selected instance HTTPRoutes
       // must be live before the first application Deployment YAML is submitted.
@@ -3265,7 +3127,7 @@ EOF`);
         const fallbackResults = await gatewayFallbackProbeRunner({
           gatewayStatusRunner: UnderpostRun.RUNNERS['gateway-status'],
           checks: [...fallbackChecks.values()],
-          options: { ...options, gatewayApi, namespace: options.namespace || 'default' },
+          options: { ...options, gatewayApi },
           label: 'cluster',
         });
         logger.info('[cluster] Gateway fallback checkpoint passed; starting application deployments', {
@@ -3281,7 +3143,7 @@ EOF`);
         // the site route continues to reach underpost-gateway throughout.
         shellExec(`${baseCommand} deploy ${deployId} ${env} --disable-update-proxy ${deployFlags}`);
         if (gatewayApi) {
-          const namespace = options.namespace || 'default';
+          const namespace = namespaceOf(options);
           const version = /--versions\s+([^\s,]+)/.exec(deployFlags)?.[1] || 'blue';
           shellExec(`kubectl rollout status deployment/${deployId}-${env}-${version} -n ${namespace} --timeout=15m`);
           shellExec(`${baseCommand} deploy ${deployId} ${env} --sync-static ${deployFlags}`);
@@ -3298,9 +3160,9 @@ EOF`);
       logger.info('[cluster] Ingress stack deployed', {
         env,
         stack: gatewayApi ? 'gateway-api' : 'httpproxy',
-        gatewayClass: gatewayApi ? Underpost.deploy.gatewayApiConfigFactory(options).gatewayClassName : null,
+        gatewayClass: gatewayApi ? Underpost.ingress.gatewayApiConfigFactory(options).gatewayClassName : null,
         http3: gatewayApi && options.disableHttp3 !== true,
-        tls: env === 'production' ? 'cert-manager' : 'self-signed',
+        tls: Underpost.tls.mode({ environment: env }),
         hosts,
         instances: Object.fromEntries(
           deployList
@@ -3324,8 +3186,9 @@ EOF`);
      * @memberof UnderpostRun
      */
     'gateway-status': async (path = '', options = DEFAULT_OPTION) => {
-      const namespace = options.namespace || 'default';
-      const dataPlaneNamespace = 'envoy-gateway-system';
+      const namespace = namespaceOf(options);
+      const platform = namespaceOf(options, 'platform');
+      const dataPlaneNamespace = namespaceOf(options, 'envoyGateway');
       const capture = (cmd) => shellExec(cmd, { stdout: true, silent: true, silentOnError: true })?.trim?.() || '';
 
       const programmed = shellExec(
@@ -3522,17 +3385,17 @@ EOF`);
           capture(`kubectl get httproute -n ${namespace} -o json`) || '{"items":[]}',
         ).items.filter((route) => failing.some((entry) => route.spec?.hostnames?.includes(entry.host)));
         // Exec into the static utility rather than spawning a probe pod: it is
-        // installed with the gateway stack, sits in this namespace, and its
+        // installed with the gateway stack in the platform namespace, and its
         // BusyBox shell already carries wget — no image pull, no pod churn.
         const probePod = capture(
-          `kubectl get pods -n ${namespace} -l app=${UNDERPOST_GATEWAY.name} -o jsonpath='{.items[0].metadata.name}'`,
+          `kubectl get pods -n ${platform} -l app=${UNDERPOST_GATEWAY.name} -o jsonpath='{.items[0].metadata.name}'`,
         );
         if (!probePod || routes.length === 0) {
           logger.warn(
             '[gateway-status] Cannot probe backends directly: ' +
               (probePod
                 ? 'no HTTPRoute matched a failing hostname'
-                : `no ${UNDERPOST_GATEWAY.name} pod in ${namespace}`),
+                : `no ${UNDERPOST_GATEWAY.name} pod in ${platform}`),
           );
         } else {
           const backendProbes = [];
@@ -3549,9 +3412,15 @@ EOF`);
                   : rewrite?.type === 'ReplacePrefixMatch'
                     ? rewrite.replacePrefixMatch
                     : match;
+              const upstream = Underpost.namespace.serviceFqdn({
+                service: backend.name,
+                namespace: backend.namespace || namespace,
+                port: backend.port,
+                options,
+              });
               const raw = capture(
-                `kubectl exec -n ${namespace} ${probePod} -- wget -S -O /dev/null -T 5 ` +
-                  `--header 'Host: ${host}' http://${backend.name}:${backend.port}${target} 2>&1 || true`,
+                `kubectl exec -n ${platform} ${probePod} -- wget -S -O /dev/null -T 5 ` +
+                  `--header 'Host: ${host}' http://${upstream}${target} 2>&1 || true`,
               );
               const code = /HTTP\/[0-9.]+\s+([0-9]{3})/.exec(raw)?.[1];
               const failure = raw.split('\n').find((line) => line.includes('wget:'));
@@ -3702,10 +3571,10 @@ EOF`);
     deploy: async (path, options = DEFAULT_OPTION) => {
       const deployId = path;
       const env = options.dev ? 'development' : 'production';
-      const namespace = options.namespace || 'default';
+      const namespace = namespaceOf(options);
       const { validVersion } = Underpost.repo.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
-      options = { ...options, gatewayApi: gatewayApiEnabledFactory(options) };
+      options = { ...options, gatewayApi: Underpost.ingress.provider({ environment: env, options }) === 'gateway-api' };
       const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
         namespace,
         env,
@@ -3726,10 +3595,7 @@ EOF`);
         // manifest and apply it, leaving the live colour routed until the
         // promotion below.
         const replicas = options.replicas || 1;
-        const node =
-          (currentTraffic
-            ? Underpost.deploy.deploymentNode({ deployment: `${deployId}-${env}-${currentTraffic}`, namespace })
-            : '') || options.nodeName;
+        const node = options.nodeName;
         logger.info('Target traffic colour is not deployed; creating it', {
           deployId,
           env,
@@ -3737,7 +3603,7 @@ EOF`);
           node: node || '(unpinned)',
         });
         const deployFlags =
-          ` --versions ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${node ? ` --node ${node}` : ''}` +
+          ` --versions ${targetTraffic} --replicas ${replicas}${Underpost.namespace.flags(options)}${node ? ` --node ${node}` : ''}` +
           `${options.image ? ` --image ${options.image}` : ''}` +
           `${Underpost.deploy.timeoutFlagsFactory(options)}${options.imagePullPolicy ? ` --image-pull-policy ${options.imagePullPolicy}` : ''}` +
           `${Underpost.deploy.gatewayApiFlagsFactory(options)}`;
@@ -3748,7 +3614,7 @@ EOF`);
           `node bin deploy --build-manifest --info-router --traffic ${currentTraffic || targetTraffic}${deployFlags} ${deployId} ${env}`,
         );
         shellExec(`node bin deploy --disable-update-proxy${deployFlags} ${deployId} ${env}`);
-      } else shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${namespace}`);
+      } else shellExec(`kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${namespace}`);
 
       await Underpost.monitor.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, namespace);
 
@@ -3764,8 +3630,7 @@ EOF`);
      */
     'disk-clean': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      shellExec(`chmod +x ${underpostRoot}/scripts/disk-clean.sh`);
-      shellExec(`./scripts/disk-clean.sh`);
+      shellExec(`bash ${underpostRoot}/scripts/disk-clean.sh`);
     },
 
     /**
@@ -3777,8 +3642,7 @@ EOF`);
      */
     'disk-devices': async (path = '/', options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      shellExec(`chmod +x ${underpostRoot}/scripts/disk-devices.sh`);
-      shellExec(`${underpostRoot}/scripts/disk-devices.sh`);
+      shellExec(`bash ${underpostRoot}/scripts/disk-devices.sh`);
     },
 
     /**
@@ -3834,10 +3698,12 @@ EOF`);
         envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
         writeEnv(envPath, envObj);
       }
+      if (options.k3s || options.kubeadm)
+        throw new Error(
+          '[run dev] The development servers use the Development Sandbox, a Kind cluster: drop --k3s and --kubeadm',
+        );
       dotenv.config({ path: `./engine-private/conf/${deployId}/.env.development`, override: true });
-      shellExec(`node bin run dev-cluster --expose --${clusterTypeFactory(options)} --namespace ${options.namespace}`, {
-        async: true,
-      });
+      await Underpost.sandbox.up({ options });
       {
         const cmd = `npm run dev:api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${
           options.tls ? ' tls' : ''
@@ -3880,9 +3746,8 @@ EOF`);
       const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
       // const confSSR = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.ssr.json`, 'utf8'));
       // const packageData = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
-      const services = fs.existsSync(`./engine-private/deploy/${deployId}/conf.services.json`)
-        ? JSON.parse(fs.readFileSync(`./engine-private/deploy/${deployId}/conf.services.json`, 'utf8'))
-        : [];
+      const servicesPath = `./engine-private/conf/${deployId}/conf.services.json`;
+      const services = fs.existsSync(servicesPath) ? JSON.parse(fs.readFileSync(servicesPath, 'utf8')) : [];
       let serviceData = services.findIndex((s) => s.serviceId === serviceId);
       const payload = {
         serviceId,
@@ -3913,16 +3778,12 @@ EOF`);
       } else {
         services[serviceData] = payload;
       }
-      fs.writeFileSync(
-        `./engine-private/conf/${deployId}/conf.services.json`,
-        JSON.stringify(services, null, 4),
-        'utf8',
-      );
+      fs.writeFileSync(servicesPath, JSON.stringify(services, null, 4), 'utf8');
       switch (serviceId) {
         case 'mongo-express-service': {
           // One deploy path for the client, shared with `cluster --mongo-express`: the secret,
           // the auth-mode overlay selection and the readiness wait live there.
-          await MongoExpress.deploy({ namespace: options.namespace, options });
+          await MongoExpress.deploy({ namespace: namespaceOf(options, 'mongodb'), options });
           podToMonitor = 'mongo-express';
           break;
         }
@@ -3938,15 +3799,14 @@ EOF`);
       if (success) {
         const versions =
           Underpost.deploy.getCurrentTraffic(deployId, {
-            namespace: options.namespace,
+            namespace: namespaceOf(options),
             env: options.dev ? 'development' : 'production',
           }) || 'blue';
-        if (!node) node = os.hostname();
         const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${
             options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
-          } --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+          } --build-manifest --sync --info-router --replicas ${replicas}${node ? ` --node ${node}` : ''}${
             image ? ` --image ${image}` : ''
           }${versions ? ` --versions ${versions}` : ''}${timeoutFlags} dd ${env}`,
         );
@@ -4102,8 +3962,7 @@ EOF`);
      * @memberof UnderpostRun
      */
     ports: async (path = '', options = DEFAULT_OPTION) => {
-      shellExec(`chmod +x ${options.underpostRoot}/scripts/ports-ls.sh`);
-      shellExec(`${options.underpostRoot}/scripts/ports-ls.sh`);
+      shellExec(`bash ${options.underpostRoot}/scripts/ports-ls.sh`);
     },
 
     /**
@@ -4152,7 +4011,7 @@ EOF`);
             // const pid = getTerminalPid();
             // shellExec(`sudo kill -9 ${pid}`);
             (async () => {
-              const nameSpace = options.namespace;
+              const nameSpace = namespaceOf(options);
               const basePath = '/home/dd';
               const scriptPath = '/site/en/tutorials/generative/cvae.py';
 
@@ -4164,7 +4023,7 @@ EOF`);
                 }
 
                 return {
-                  close: () => shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkAwaitPath}"`),
+                  close: () => shellExec(`kubectl exec -i ${podName} -- sh -c "rm -rf ${checkAwaitPath}"`),
                 };
               })();
 
@@ -4173,7 +4032,7 @@ EOF`);
                 throw new Error(`Local override script not found: ${localScriptPath}`);
               }
 
-              shellExec(`sudo kubectl cp ${localScriptPath} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`);
+              shellExec(`kubectl cp ${localScriptPath} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`);
 
               close();
 
@@ -4194,7 +4053,7 @@ EOF`);
                 {
                   const toPath = `${labDir}${checkPath}`;
                   outsPaths.push(toPath);
-                  shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${checkPath} ${toPath}`);
+                  shellExec(`kubectl cp ${nameSpace}/${podName}:${basePath}/docs${checkPath} ${toPath}`);
                 }
 
                 for (let i of range(1, 10)) {
@@ -4202,7 +4061,7 @@ EOF`);
                   const fromPath = `/${fileName}`;
                   const toPath = `${labDir}/${fileName}`;
                   outsPaths.push(toPath);
-                  shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${fromPath} ${toPath}`);
+                  shellExec(`kubectl cp ${nameSpace}/${podName}:${basePath}/docs${fromPath} ${toPath}`);
                 }
 
                 shellExec(`firefox ${outsPaths.join(' ')}`);
@@ -4242,7 +4101,7 @@ EOF`);
      */
     'spark-template': (path, options = DEFAULT_OPTION) => {
       const dir = '/home/dd/spark-template';
-      shellExec(`sudo rm -rf ${dir}`);
+      removeHostPath(dir, { reason: 'removes the previous Spark template checkout' });
       shellCd('/home/dd');
 
       // pbcopy(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8`);
@@ -4253,11 +4112,8 @@ EOF`);
 
       Underpost.repo.initLocalRepo({ path: dir });
       shellExec(`git add . && git commit -m "Base implementation"`);
-      shellExec(`chmod +x ./replace_params.sh`);
-      shellExec(`chmod +x ./build.sh`);
-
-      shellExec(`./replace_params.sh`);
-      shellExec(`./build.sh`);
+      shellExec('bash ./replace_params.sh');
+      shellExec('bash ./build.sh');
 
       shellCd('/home/dd/engine');
     },
@@ -4413,7 +4269,7 @@ EOF`);
       const containerName = options.containerName || `${podName}-container`;
       const gpuEnable = imageName.match('nvidia');
       const runtimeClassName = options.runtimeClassName ? options.runtimeClassName : gpuEnable ? 'nvidia' : '';
-      const namespace = options.namespace || 'default';
+      const namespace = namespaceOf(options);
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
       const claimName = options.claimName || '';
@@ -4657,7 +4513,7 @@ EOF`;
         const underpost = cli('underpost', { local: true });
         const flags = '--build-manifest --sync --info-router --replicas 1';
         shellExec(`${underpost} deploy ${flags} dd development`);
-        shellExec(`${underpost} deploy ${flags} dd production --cert`);
+        shellExec(`${underpost} deploy ${flags} dd production`);
         // What the build just produced is what the project repository carries.
         if (deployRoutesExists()) Underpost.deploy.mirrorDefaultManifests();
       }),
@@ -4704,9 +4560,9 @@ EOF`;
 
       shellExec(`sudo groupadd ${group} 2>/dev/null || true`);
       shellExec(`sudo usermod -aG ${group} ${user}`);
-      shellExec(`sudo mkdir -p ${dir}`);
-      shellExec(`sudo chown -R ${user}:${group} ${dir}`);
-      shellExec(`sudo chmod -R 2775 ${dir}`);
+      const reason = `shares ${dir} with the ${group} group`;
+      makeHostDirectory(dir, { reason });
+      chownHostPath(dir, { owner: hostOwner(`${user}:${group}`), modes: { directory: '2775', file: '2775' }, reason });
       shellExec(`sudo setfacl -d -m g:${group}:rwx ${dir}`);
       shellExec(`sudo setfacl -m g:${group}:rwx ${dir}`);
 
@@ -4791,10 +4647,9 @@ EOF`;
         if (options.cmd) options.cmd = options.cmd.split(',');
         if (options.args) options.args = options.args.split(',');
         if (!options.underpostRoot) options.underpostRoot = underpostRoot;
-        if (!options.namespace) options.namespace = 'default';
         options.replicas = resolveReplicaCount(options.replicas);
         options.npmRoot = npmRoot;
-        logger.info(`Executing runner`, { runner, namespace: options.namespace });
+        logger.info(`Executing runner`, { runner, namespace: namespaceOf(options) });
         if (!Underpost.run.RUNNERS.includes(runner)) throw new Error(`Runner not found: ${runner}`);
         const result = await Underpost.run.CALL(runner, path, options);
         return result;

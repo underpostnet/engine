@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// A fixture default conf, so the filter runs the same in the engine tree and in a product build,
-// which ships a default conf of its own.
+// A fixture project config, so the filter runs the same in the engine tree and in a product build,
+// which ships a config of its own.
 vi.mock('../../../underpost.config.js', () => ({
-  DefaultConf: {
+  default: {
     server: { 'default.net': { '/': { apis: ['user'] } } },
     client: { default: { services: ['user'], components: { core: ['Docs'] } } },
     ssr: {
@@ -26,14 +26,14 @@ describe('template path filter of the default conf', () => {
     ['.//src/api/shop/shop.service.js', false],
     [`.//${CONF_MANIFEST_BASENAME}.js`, true],
     [`.//${CONF_MANIFEST_BASENAME}.dd-core.js`, false],
-    ['.//src/client/services/user/user.service.js', true],
-    ['.//src/client/services/shop/shop.service.js', false],
+    ['.//src/client/services/user/UserService.js', true],
+    ['.//src/client/services/shop/ShopService.js', false],
     ['.//src/client/public/user/index.html', true],
     ['.//src/client/public/shop/index.html', false],
     ['.//src/client/components/core/Docs.js', true],
     ['.//src/client/components/shop/Cart.js', false],
-    ['.//src/client/sw/core.sw.js', true],
-    ['.//src/client/sw/shop.sw.js', false],
+    ['.//src/client/sw/CoreServiceWorker.js', true],
+    ['.//src/client/sw/ShopServiceWorker.js', false],
     ['.//src/client/ssr/body/CacheControl.js', true],
     ['.//src/client/ssr/body/Shop.js', false],
     ['.//src/client/ssr/head/Seo.js', true],

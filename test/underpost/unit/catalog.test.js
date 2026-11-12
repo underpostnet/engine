@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import { EMPTY_CATALOG, loadProductCatalogs, loadProductContexts } from '../../../src/server/build/catalog.js';
 import { TEST_PROJECTS, productContextOf } from '../../../src/server/build/testing.js';
+import { validateTemplatePath } from '../../../src/server/runtime/conf.js';
 import { unslicedTree } from '../../support/tree.js';
 
 // A broken catalog path fails during template assembly, long after the commit
@@ -29,37 +30,26 @@ describeProducts('product catalogs', () => {
       for (const path of templatePaths) expect(fs.existsSync(`.${path}`), path).to.equal(true);
   });
 
-  it('every path stripped from the base template exists', () => {
-    for (const { stripPaths } of catalogs)
-      for (const path of stripPaths) expect(fs.existsSync(path), path).to.equal(true);
-  });
-
   it('every moved or copied source exists', () => {
-    // `sourceMoves` alone are exempt: they read from private sibling repos that
-    // are an external input and are not expected to be checked out here.
+    // `sourcePaths` are exempt: their source repos sit beside the engine and are
+    // an external input, not expected to be checked out here.
     for (const { moves, copies } of catalogs)
       for (const [source] of [...moves, ...copies]) expect(fs.existsSync(source), source).to.equal(true);
   });
 
   it('resolves paths against the roots the build actually uses', () => {
-    // `templatePaths` are copied as `.${path}`, `stripPaths` as `${toPath}/${path}`.
-    for (const { templatePaths, stripPaths } of catalogs) {
-      for (const path of templatePaths) expect(path, path).to.match(/^\//);
-      for (const path of stripPaths) expect(path, path).to.match(/^\.\//);
-    }
+    // `templatePaths` are read as `.${path}` and written or dropped as `${toPath}${path}`.
+    for (const { templatePaths } of catalogs) for (const path of templatePaths) expect(path, path).to.match(/^\//);
   });
 });
 
 describeProducts('product catalogs and the test projects', () => {
-  // A project a product strips from the base template but does not ship is a
-  // project nothing runs: the template keeps no tests for the code it removed,
-  // and the product CLI arrives without the suite that covers what it added. A
-  // product strips its whole domain directory, so a project inside it is stripped
-  // with it.
-  const strippedProjects = TEST_PROJECTS.filter((project) => productContextOf(project, catalogs));
+  // A product owns the projects under its `templatePaths`: its template ships them and
+  // the base template drops them.
+  const productProjects = TEST_PROJECTS.filter((project) => productContextOf(project, catalogs));
 
   it.skipIf(!unslicedTree)('has products that own at least one project', () => {
-    expect(strippedProjects).to.not.be.empty;
+    expect(productProjects).to.not.be.empty;
   });
 
   it.skipIf(!unslicedTree)('gives every project a directory that exists in an unsliced tree', () => {
@@ -68,16 +58,16 @@ describeProducts('product catalogs and the test projects', () => {
 
   it('carries the directory of every project a present product owns', () => {
     // Holds in a product template too: what it kept of itself must be whole.
-    for (const { name, directory } of strippedProjects) expect(fs.existsSync(directory), name).to.equal(true);
+    for (const { name, directory } of productProjects) expect(fs.existsSync(directory), name).to.equal(true);
   });
 
-  it('ships every project it strips from the base template', () => {
-    for (const { name, directory } of strippedProjects) {
-      const owner = productContextOf({ directory }, catalogs);
-      expect(
-        owner.templatePaths.some((path) => `/${directory}`.startsWith(path)),
-        `${name} is packaged by its product`,
-      ).to.equal(true);
+  it.skipIf(!unslicedTree)('gives a product every project whose sources the base template drops', () => {
+    // The base template ships every project no product owns, so it must ship that project's sources too.
+    const productPath = (source) =>
+      catalogs.some(({ templatePaths }) => templatePaths.some((path) => `/${source}/`.startsWith(`${path}/`)));
+    for (const { name, directory, sources = [] } of TEST_PROJECTS.filter((p) => !productProjects.includes(p))) {
+      const dropped = sources.filter((source) => !validateTemplatePath(source) || productPath(source));
+      expect(dropped, `${name}: add /${directory} to the templatePaths of its product`).to.be.empty;
     }
   });
 });

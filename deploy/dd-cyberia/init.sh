@@ -28,8 +28,6 @@ main() {
           --replicas 1 \
           --kubeadm \
           --timeout-response 10000ms \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --sync \
           --build-manifest \
           --cmd '${pod_cmd}'"
@@ -38,8 +36,6 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin deploy $DEPLOY_ID $DEPLOY_ENV \
           --kubeadm \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --disable-update-proxy \
           --git-clean"
 

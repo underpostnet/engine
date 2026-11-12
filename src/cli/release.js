@@ -639,14 +639,15 @@ class UnderpostRelease {
       shellExec(`node bin/build dd`);
       shellExec(`node bin run build-cluster-deployment-manifests`);
       shellExec(`node bin new --default-conf --conf-workflow-id template`);
-      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      fs.removeSync('./engine-private/conf/dd-default');
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
-      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      fs.removeSync('./engine-private/conf/dd-default');
       shellExec(`node bin cron --kubeadm --setup-start`); // --apply
       shellExec(`node bin cmt --changelog-build`);
       shellExec(`npm run security`);
-      shellExec(`sudo rm -rf ./underpost.config.dd*.js`);
+      for (const file of fs.readdirSync('.').filter((name) => /^underpost\.config\.dd.*\.js$/.test(name)))
+        fs.removeSync(file);
       let graph;
       if (options.graphify !== false)
         try {
@@ -681,7 +682,7 @@ class UnderpostRelease {
       const buildTarget = `dd-${suffix}`;
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
       shellCd('/home/dd');
-      shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
+      fs.removeSync('/home/dd/pwa-microservices-template');
       shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
       // Use the message passed from the caller (engine repo changelog);
       // fall back to the engine repo's last commit if not provided.
@@ -702,8 +703,8 @@ class UnderpostRelease {
       // source carries the reports; without it the pod serves the unavailable page.
       shellExec(`node bin/build ${shellArgumentFactory(buildTarget)} --coverage`);
       shellCd('/home/dd/pwa-microservices-template');
-      shellExec(`rm -rf ./.git`);
-      shellExec(`mv ${shellArgumentFactory(`../${repoName}.git`)} ./.git`);
+      fs.removeSync('./.git');
+      fs.moveSync(`../${repoName}.git`, './.git');
       shellExec(`git config --local core.bare false`);
       shellExec(`git reset`);
       Underpost.repo.initLocalRepo({ path: '/home/dd/pwa-microservices-template' });
@@ -740,7 +741,7 @@ class UnderpostRelease {
       }
       commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
       shellCd('/home/dd');
-      shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
+      fs.removeSync('/home/dd/pwa-microservices-template');
       shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
       shellCd('/home/dd/engine');
       shellExec(`npm run build:template`);

@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import fs from 'fs-extra';
 import { loggerFactory } from '../src/server/ops/logger.js';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
@@ -8,6 +8,7 @@ import {
   clientPublicTreesFactory,
   getPathsSSR,
   syncPrivateConf,
+  deploySourceRepoPath,
   syncDeployIdSources,
   syncDeployIdSourcesBack,
   buildTemplate,
@@ -16,6 +17,7 @@ import {
 } from '../src/server/runtime/conf.js';
 import { resolveDeployList } from '../src/server/network/router.js';
 import { loadDeployCatalog } from '../src/server/build/catalog.js';
+import { SOURCE_CHANNELS } from '../src/server/release/source-release.js';
 import {
   STAGED_CLI_PACKAGE,
   buildProductPackageJson,
@@ -46,30 +48,38 @@ const basePath = '../pwa-microservices-template';
  * its deploy-id-specific public sources, then mirrors the APIs, client components,
  * SSR assets, manifests, and packaging declared by its conf into the template repo.
  * @param {string} confName - A concrete deploy id (e.g. `dd-prototype`).
+ * @param {object} options
+ * @param {boolean} [options.force=false] - Pulls the source repo before the sync.
+ * @param {string} options.channel - Source channel of the source repo: `public` or `private`.
  */
-const buildDeployTemplate = async (confName, { force = false } = {}) => {
+const buildDeployTemplate = async (confName, { force = false, channel }) => {
   const repoName = Underpost.repo.engineRepoFactory(confName);
+  const sourceRepoName = Underpost.repo.engineSourceRepoFactory(confName, channel);
   const catalog = await loadDeployCatalog(confName);
+  const { sourcePaths } = catalog;
 
-  if (catalog.sourceMoves.length) {
+  if (sourcePaths.length) {
     Underpost.repo.sparseCheckoutDirectory(`conf/${confName}`);
     // Only a path neither tree holds needs the repo: one the engine holds is mirrored out.
     // --force pulls regardless, to bring the repo up to date before the mirror.
-    if (force || catalog.sourceMoves.some(([src, dest]) => !fs.existsSync(src) && !fs.existsSync(dest)))
-      Underpost.repo.pullSourceRepo(repoName);
+    if (
+      force ||
+      sourcePaths.some((path) => !fs.existsSync(path) && !fs.existsSync(deploySourceRepoPath(sourceRepoName, path)))
+    )
+      Underpost.repo.pullSourceRepo(sourceRepoName);
   }
-  syncDeployIdSources(catalog.sourceMoves);
+  syncDeployIdSources(sourceRepoName, sourcePaths);
 
   const confDir = `./engine-private/conf/${confName}`;
-  const DefaultConf = {
+  const deployConf = {
     server: JSON.parse(fs.readFileSync(`${confDir}/conf.server.json`, 'utf8')),
     client: JSON.parse(fs.readFileSync(`${confDir}/conf.client.json`, 'utf8')),
     ssr: JSON.parse(fs.readFileSync(`${confDir}/conf.ssr.json`, 'utf8')),
   };
 
-  for (const host of Object.keys(DefaultConf.server)) {
-    for (const path of Object.keys(DefaultConf.server[host])) {
-      const { apis, ws } = DefaultConf.server[host][path];
+  for (const host of Object.keys(deployConf.server)) {
+    for (const path of Object.keys(deployConf.server[host])) {
+      const { apis, ws } = deployConf.server[host][path];
       if (apis)
         for (const api of apis) {
           const apiSrc = `./src/api/${api}`;
@@ -90,9 +100,9 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
     }
   }
 
-  for (const client of Object.keys(DefaultConf.client)) {
+  for (const client of Object.keys(deployConf.client)) {
     const capName = getCapVariableName(client);
-    for (const component of Object.keys(DefaultConf.client[client].components)) {
+    for (const component of Object.keys(deployConf.client[client].components ?? {})) {
       const originPath = `./src/client/components/${component}`;
       if (fs.existsSync(originPath)) {
         logger.info(`Build`, originPath);
@@ -107,14 +117,14 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
       }
     }
     // The documents and the TypeDoc readme the client docs build reads.
-    const { docs } = DefaultConf.client[client];
+    const { docs } = deployConf.client[client];
     for (const originPath of [...docsReferencesFactory(docs), docs?.typedoc?.readme].filter(Boolean)) {
       if (!fs.existsSync(originPath)) continue;
       fs.copySync(originPath, `${basePath}/${originPath}`);
     }
   }
 
-  for (const publicId of clientPublicTreesFactory(DefaultConf.client)) {
+  for (const publicId of clientPublicTreesFactory(deployConf.client)) {
     const originPath = `./src/client/public/${publicId}`;
     if (fs.existsSync(originPath)) {
       logger.info(`Build`, originPath);
@@ -122,8 +132,8 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
     }
   }
 
-  for (const client of Object.keys(DefaultConf.ssr)) {
-    const ssrPaths = getPathsSSR(DefaultConf.ssr[client]);
+  for (const client of Object.keys(deployConf.ssr)) {
+    const ssrPaths = getPathsSSR(deployConf.ssr[client]);
     for (const originPath of ssrPaths) {
       if (fs.existsSync(originPath)) {
         logger.info(`Build`, originPath);
@@ -198,9 +208,9 @@ const buildDeployTemplate = async (confName, { force = false } = {}) => {
 
   // The template carries the engine default config; a product overwrites it in place with the
   // options its canonical client declares, so the product repo holds one root typedoc config.
-  const canonicalClient = canonicalDocsClient(DefaultConf.client);
+  const canonicalClient = canonicalDocsClient(deployConf.client);
   if (canonicalClient) {
-    const typedocOptions = typedocOptionsFactory({ docs: DefaultConf.client[canonicalClient].docs });
+    const typedocOptions = typedocOptionsFactory({ docs: deployConf.client[canonicalClient].docs });
     if (typedocOptions) {
       logger.info('Build typedoc config', { client: canonicalClient, to: `${basePath}/typedoc.json` });
       fs.writeFileSync(`${basePath}/typedoc.json`, JSON.stringify(typedocOptions, null, 2), 'utf8');
@@ -315,19 +325,27 @@ program
     'After assembling each deploy id, publish it to its private test source repo (underpostnet/engine-test-<id>), which the sync deploys run. Implies --coverage unless --no-coverage: the published source carries the reports of its own run.',
     false,
   )
+  .addOption(
+    new Option(
+      '--channel <channel>',
+      'Source channel of each deploy id source repo beside the engine: public (../engine-<id>) or private (../engine-test-<id>).',
+    )
+      .choices(SOURCE_CHANNELS)
+      .default('private'),
+  )
   .option(
     '--force',
-    'Always pull each deploy id source repo (e.g. ../engine-prototype) before syncing its sourceMoves, instead of only when a path is missing from both trees.',
+    'Always pull each deploy id source repo before syncing its catalog sourcePaths, instead of only when a path is missing from both trees.',
     false,
   )
   .option(
     '--sync-sources',
-    'Copy each deploy id catalog sourceMoves path from this tree back to its source repo (e.g. ../engine-prototype) and exit (no template assembly). The engine ignores these paths, so the change is reviewed and committed there.',
+    'Copy each deploy id catalog sourcePaths entry from this tree to its source repo and exit (no template assembly). The engine ignores these paths, so the change is reviewed and committed there.',
     false,
   )
   .action(async (confName, env, options) => {
     const deployList = resolveDeployList(confName);
-    logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf });
+    logger.info('Build repository', { confName, basePath, deployList, conf: !!options.conf, channel: options.channel });
 
     if (options.conf) {
       for (const deployId of deployList) {
@@ -339,18 +357,20 @@ program
 
     if (options.syncSources) {
       for (const deployId of deployList) {
-        const { sourceMoves } = await loadDeployCatalog(deployId);
-        if (!sourceMoves.length) {
-          logger.warn('No sourceMoves declared; nothing to sync back', { deployId });
+        const sourceRepoName = Underpost.repo.engineSourceRepoFactory(deployId, options.channel);
+        const { sourcePaths } = await loadDeployCatalog(deployId);
+        if (!sourcePaths.length) {
+          logger.warn('No sourcePaths declared; nothing to sync back', { deployId });
           continue;
         }
-        const mirrored = syncDeployIdSourcesBack(sourceMoves);
-        for (const src of mirrored) logger.info('Build sync source', src);
-        if (mirrored.length !== sourceMoves.length)
+        const mirrored = syncDeployIdSourcesBack(sourceRepoName, sourcePaths);
+        for (const repoPath of mirrored) logger.info('Build sync source', repoPath);
+        if (mirrored.length !== sourcePaths.length)
           logger.warn('Some declared sources are not in this tree and were left as they are in the source repo', {
             deployId,
-            hint: `node bin/build ${deployId}`,
-            skipped: sourceMoves.length - mirrored.length,
+            sourceRepoName,
+            hint: `node bin/build ${deployId} --channel ${options.channel}`,
+            skipped: sourcePaths.length - mirrored.length,
           });
       }
       return;
@@ -366,7 +386,7 @@ program
       // build run nor the deploy id assembled before this one leaks into it. Opt out with
       // --no-template-rebuild.
       if (options.templateRebuild) await buildTemplate({ toPath: basePath });
-      await buildDeployTemplate(deployId, { force: options.force });
+      await buildDeployTemplate(deployId, { force: options.force, channel: options.channel });
       bundleDeployCoverage(deployId);
       // Publish the just-assembled tree to the deploy id's private test repo so a
       // pod started with `--private-test-repo` clones this work-in-progress source.

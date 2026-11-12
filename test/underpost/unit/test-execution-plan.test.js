@@ -109,7 +109,7 @@ describe('test budgets', () => {
 
 describe('execution plan', () => {
   const inactive = [
-    { deployId: 'dd-product', stripPaths: ['./test/cyberia', './hardhat'], missing: ['sharp'], active: false },
+    { deployId: 'dd-product', templatePaths: ['/test/cyberia', '/hardhat'], missing: ['sharp'], active: false },
   ];
 
   it('runs every project in its own batch, in group order', () => {

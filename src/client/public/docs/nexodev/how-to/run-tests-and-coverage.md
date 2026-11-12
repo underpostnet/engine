@@ -300,6 +300,11 @@ failed tests, and the report to the job summary.
 Ctrl+C stops the running batch and the run. A second Ctrl+C sends SIGKILL. When
 a batch ends, the runner kills every process the batch left behind.
 
+Vitest keeps the modules it transformed in `node_modules/.vitest-cache` between
+runs. A cached module does not see a directory added after the cache was written:
+a new `src/api/<api>/` directory then fails with `Unknown variable dynamic import`.
+Run `npx vitest --clearCache` once, then run the tests again.
+
 ### Diagnosis
 
 `--diagnose` adds the peak resident memory and the CPU time of each batch to
@@ -349,9 +354,15 @@ Solidity coverage is Hardhat's own instrumentation and is not merged into
 
 ## Product contexts
 
-A product owns the test projects in the directories its catalog strips from the
-base template. `dd-cyberia` strips `test/cyberia` and `hardhat`, so it owns the
-`cyberia:*` projects and `item-ledger:contract`.
+A product owns the test projects in the directories its catalog lists in
+`templatePaths`. The product template ships these paths and the base template
+drops them. `dd-cyberia` lists `test/cyberia`, `test/object-layer`,
+`test/item-ledger`, `test/cryptokoyn` and `hardhat`, so it owns the `cyberia:*`,
+`object-layer:*`, `item-ledger:*` and `cryptokoyn:*` projects.
+
+A project that no product owns ships with the base template, so the base
+template must also carry the sources of that project. The catalog unit test
+fails when a project tests sources that the base template drops.
 
 A product project runs only in its product context. The context is active when
 the product catalog is present and `package.json` declares every package the
@@ -439,7 +450,7 @@ A client declares its whole documentation surface in `conf.client.json`, under
   "typedoc": {
     "name": "CYBERIA Online",
     "entryPoints": ["./src/server", "./src/api"],
-    "out": "./public/www.cyberiaonline.com/docs/",
+    "out": "./public/services.cyberiaonline.com/docs/",
     "readme": "./src/client/public/docs/cyberia/overview/index.md"
   },
   "coverage": [
@@ -680,12 +691,12 @@ path above covers dynamic triggering without it.
 
 ## CI
 
-| Workflow                                 | Push to `master`                                               | Pull request                    |
-| ---------------------------------------- | -------------------------------------------------------------- | ------------------------------- |
-| `coverall.ci.yml`                        | `underpost,ecosystem,object-layer,item-ledger:unit,cryptokoyn` | `--changed` from the merge base |
-| `coverall.cyberia.ci.yml`                | the same, plus `cyberia`                                       | `--changed` from the merge base |
-| `pwa-microservices-template-test.ci.yml` | `underpost,ecosystem`                                          | —                               |
-| `hardhat.ci.yml`                         | `npm test` in `hardhat/`                                       | —                               |
+| Workflow                                 | Push to `master`                                                       | Pull request                    |
+| ---------------------------------------- | ---------------------------------------------------------------------- | ------------------------------- |
+| `coverall.ci.yml`                        | `underpost,ecosystem`                                                  | `--changed` from the merge base |
+| `coverall.cyberia.ci.yml`                | `underpost,ecosystem,object-layer,item-ledger:unit,cryptokoyn,cyberia` | `--changed` from the merge base |
+| `pwa-microservices-template-test.ci.yml` | `underpost,ecosystem`                                                  | —                               |
+| `hardhat.ci.yml`                         | `npm test` in `hardhat/`                                               | —                               |
 
 The workflows run the default `safe` footprint. A workflow on a large runner can
 pass `--footprint ci`: one process for the whole selection.
@@ -698,8 +709,9 @@ release validation.
 
 The platform job measures the platform and the contracts, and the cyberia job the
 whole tree, so the two badges read the same metric over the surfaces each product
-ships. The base template strips `test/cyberia`; the `cyberia:*` projects then
-match no files, which is not an error as long as another project has some.
+ships. The base template drops the test directories of every product; the
+projects of a product then match no files, which is not an error as long as
+another project has some.
 
 `hardhat.ci.yml` is path-filtered to `hardhat/**` and installs only that
 project's lockfile, so it stays on Hardhat's own tasks rather than pulling the

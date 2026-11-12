@@ -6,8 +6,8 @@ Generate static HTML pages using the `underpost static` CLI.
 
 ```sh
 # From the project root directory:
-underpost static --page ./examples/static-page/ssr-components/CustomPage.js \
-                 --output-path ./dist/example/index.html
+underpost static --page ./src/client/ssr/body/CustomPage.js \
+                 --output-path ./dist/custom-page/index.html
 ```
 
 ## Using a Config File
@@ -20,11 +20,22 @@ A JSON config file lets you define all options in one place instead of passing C
 underpost static --generate-config ./static-config.json
 ```
 
-**Build from the included example config:**
+**Build the example page from its conf:**
 
 ```sh
-underpost static --config-file ./examples/static-page/static-config-example.json
+underpost static --config-file ./src/client/ssr/conf/CustomPage.json
 ```
+
+## Page Confs
+
+`src/client/ssr/conf/` holds the static page confs. Name each conf after the page component it builds:
+
+| Conf                                  | Page                                |
+| ------------------------------------- | ----------------------------------- |
+| `src/client/ssr/conf/CustomPage.json` | `src/client/ssr/body/CustomPage.js` |
+
+A CLI flag overrides the conf field of the same name. A metadata flag, such as `--title`, overrides
+one `metadata` field and keeps the other fields of the conf.
 
 ## Preview with Static Server
 
@@ -32,12 +43,12 @@ Use `--run-sv` to start a standalone Express static file server that serves the 
 
 ```sh
 # Build and serve on default port 5000:
-underpost static --page ./examples/static-page/ssr-components/CustomPage.js \
+underpost static --page ./src/client/ssr/body/CustomPage.js \
                  --output-path ./dist/index.html \
                  --run-sv
 
 # Build and serve on a custom port:
-underpost static --page ./examples/static-page/ssr-components/CustomPage.js \
+underpost static --page ./src/client/ssr/body/CustomPage.js \
                  --output-path ./dist/index.html \
                  --run-sv 3000
 
@@ -69,7 +80,7 @@ See [Underpost Build Manifest](../reference/build-manifest.md#static-output).
 
 ## Config File Reference
 
-See `static-config-example.json` for a complete working example.
+See `src/client/ssr/conf/CustomPage.json` for a complete working example.
 
 | Field            | Type      | Description                                                                                                 |
 | ---------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
@@ -156,7 +167,8 @@ underpost static --page <path>                  # SSR component path
 
 ## SSR Component
 
-The page content is defined in an SSR component file. See `ssr-components/CustomPage.js` for an example.
+The page content is defined in an SSR component file. Page components live in `src/client/ssr/body/` and use
+PascalCase file names. See `src/client/ssr/body/CustomPage.js` for an example.
 
 A component exports an `SSRComponent` function that returns an HTML template literal:
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const calls = [];
 
@@ -22,6 +22,7 @@ vi.mock('../../../src/server/release/release-job.js', async (importOriginal) => 
 }));
 
 const { default: UnderpostSourceRelease } = await import('../../../src/cli/source-release.js');
+const { default: Underpost } = await import('../../../src/index.js');
 
 const job = (options = {}) =>
   UnderpostSourceRelease.API.job('r1', {
@@ -36,11 +37,21 @@ const job = (options = {}) =>
 describe('a Release Job run', () => {
   beforeEach(() => {
     calls.length = 0;
+    // A unit test reaches no cluster: the namespace check stays in memory.
+    vi.spyOn(Underpost.namespace, 'ensure').mockImplementation(async ({ resource }) =>
+      calls.push(`ensure ${resource}`),
+    );
   });
+  afterEach(() => vi.restoreAllMocks());
 
-  it('stages the deployed engine, labels the store for a container, then runs the Job', async () => {
+  it('ensures the release namespace, stages the deployed engine, labels the store, then runs the Job', async () => {
     expect(await job()).toBe(true);
-    expect(calls).toEqual(['stage /srv/release-store', 'label /srv/release-store', 'run dd-widget-release-r1']);
+    expect(calls).toEqual([
+      'ensure releases',
+      'stage /srv/release-store',
+      'label /srv/release-store',
+      'run dd-widget-release-r1',
+    ]);
   });
 
   it('touches nothing on the host for a dry run', async () => {

@@ -14,9 +14,7 @@ main() {
 
     deploy_step "Deploy $DEPLOY_ID" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin run deploy $DEPLOY_ID \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE}"
+        "cd $ENGINE_ROOT && node bin run deploy $DEPLOY_ID"
 }
 
 main "$@"

@@ -17,7 +17,7 @@ import {
 } from './build-manifest.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { getCapVariableName, orderArrayFromAttrInt, uniqueArray } from '../client/components/core/CommonJs.js';
-import { publicClientIdFactory, readConfInstances, readConfJson } from '../server/runtime/conf.js';
+import { loadProjectExport, publicClientIdFactory, readConfInstances, readConfJson } from '../server/runtime/conf.js';
 import { minify } from 'html-minifier-terser';
 import { extractZipTo, findZipEntry, isZipBuffer, loadZip, zipFromLocalFiles } from '../server/storage/zip.js';
 import * as dir from 'path';
@@ -44,6 +44,15 @@ const STATUS_PAGE_VIEW_PATH = /^\/([1-5]\d{2})$/;
 // condition, so a new one becomes edge-served by adding its flag here rather
 // than by naming its path in a second place.
 const INTERCEPT_VIEW_FLAGS = ['maintenanceDefault', 'offlineDefault'];
+
+/**
+ * Whether a view ships a client bundle: its `src/client/<Client>.index.js` exists. A view without
+ * one is a static document: no script and no service worker.
+ * @param {{client: string}} view - A view of `conf.client.json`.
+ * @returns {boolean}
+ * @memberof clientBuild
+ */
+const viewShipsBundle = (view) => fs.existsSync(`./src/client/${view.client}.index.js`);
 
 /** TypeDoc outcomes that leave a site unpublished. */
 const UNPUBLISHED_TYPEDOC = ['failed', 'rejected'];
@@ -724,6 +733,8 @@ const buildClient = async (
     fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`) ? readConfInstances(deployId) : [],
     isDevelopment,
   );
+  // Build-time data the deploy project gives the SSR components of a client.
+  const ssrDataFactory = await loadProjectExport(deployId, 'instance-data.js', 'ssrData');
   const recordTypedoc = (host, path, result) => {
     typedocResults.push({ host, path, ...result });
     if (result.status === 'cancelled') throw new Error(`TypeDoc of ${host}${path} ${result.reason}`);
@@ -871,7 +882,7 @@ const buildClient = async (
 
             const serviceFiles = fs
               .readdirSync(moduleDir)
-              .filter((name) => name.endsWith('.service.js') || name.endsWith('.management.js'))
+              .filter((name) => name.endsWith('.js'))
               .sort();
 
             for (const serviceFile of serviceFiles) {
@@ -891,37 +902,11 @@ const buildClient = async (
               });
               fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
             }
-
-            // Auto-build guest module files when user module is processed
-            if (module === 'user') {
-              const guestModuleDir = './src/client/services/user';
-              const guestServicePath = `${guestModuleDir}/guest.service.js`;
-              if (fs.existsSync(guestServicePath)) {
-                if (!fs.existsSync(`${rootClientPath}/services/user`))
-                  fs.mkdirSync(`${rootClientPath}/services/user`, { recursive: true });
-
-                const guestJsPublicPath = `${rootClientPath}/services/user/guest.service.js`;
-
-                if (
-                  !enableLiveRebuild ||
-                  options.liveClientBuildPaths.find((p) => p.srcBuildPath === guestServicePath)
-                ) {
-                  const guestJsSrc = await transformClientJs(guestServicePath, {
-                    dists,
-                    proxyPath: path,
-                    basePath: 'services',
-                    module: 'user',
-                    baseHost,
-                    minify: minifyBuild,
-                  });
-                  fs.writeFileSync(guestJsPublicPath, guestJsSrc, 'utf8');
-                }
-              }
-            }
           }
         }
 
         const buildId = `${client}.index`;
+        const bundled = (views ?? []).some(viewShipsBundle);
         const siteMapLinks = [];
         const ssrPath = path === '/' ? path : `${path}/`;
         // The SSR views of the client: its status pages, and the offline and maintenance fallbacks.
@@ -948,18 +933,18 @@ const buildClient = async (
               // The reports the docs menu offers, each published at /docs/coverage/<id>.
               coverage: coverageReportsFactory(docs),
             },
-            ...(views ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
+            ...(bundled ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
           });
           manifestHead = buildManifestHead({ manifest: buildManifest });
           writeBuildManifest(rootClientPath, buildManifest);
         }
         const Render = await ssrFactory();
 
-        const swSrcPath = `./src/client/sw/core.sw.js`;
+        const swSrcPath = `./src/client/sw/CoreServiceWorker.js`;
         const swPublicPath = `${rootClientPath}/sw.js`;
         const swShouldRebuild =
           !ssrOnly &&
-          views &&
+          bundled &&
           !(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === swSrcPath));
         // Transformed SW JS is held in memory; it gets prepended with the manifest prelude
         // and written once below, after the SSR views are built.
@@ -975,14 +960,15 @@ const buildClient = async (
         }
 
         if (!ssrOnly && views) {
-          if (
-            !(
-              enableLiveRebuild &&
-              !options.liveClientBuildPaths.find(
-                (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
-              )
+          if (!(
+            enableLiveRebuild &&
+            !options.liveClientBuildPaths.find(
+              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
             )
-          )
+          )) {
+            const ssrData = ssrDataFactory
+              ? await ssrDataFactory({ deployId, client, host, path, development: isDevelopment })
+              : undefined;
             for (const view of views) {
               const buildPath = `${
                 rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -992,14 +978,18 @@ const buildClient = async (
 
               logger.info('View build', buildPath);
 
-              const jsSrc = await transformClientJs(`./src/client/${view.client}.index.js`, {
-                dists,
-                proxyPath: path,
-                baseHost,
-                minify: minifyBuild,
-              });
-
-              fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
+              const viewBundled = viewShipsBundle(view);
+              if (viewBundled)
+                fs.writeFileSync(
+                  `${buildPath}${buildId}.js`,
+                  await transformClientJs(`./src/client/${view.client}.index.js`, {
+                    dists,
+                    proxyPath: path,
+                    baseHost,
+                    minify: minifyBuild,
+                  }),
+                  'utf8',
+                );
               const title = metadata.title ? metadata.title : title;
 
               const canonicalURL = `https://${host}${path}${
@@ -1076,7 +1066,13 @@ const buildClient = async (
                       break;
                     case 'Seo':
                       if (metadata) {
-                        ssrHeadComponents += SSRComponent({ title, ssrPath, canonicalURL, ...metadata });
+                        ssrHeadComponents += SSRComponent({
+                          title,
+                          ssrPath,
+                          canonicalURL,
+                          ...metadata,
+                          thumbnail: metadata.thumbnail && new URL(metadata.thumbnail, canonicalURL).href,
+                        });
                       }
                       break;
                     case 'Microdata':
@@ -1092,7 +1088,7 @@ const buildClient = async (
                       }
                       break;
                     default:
-                      ssrHeadComponents += SSRComponent({ ssrPath, host, path });
+                      ssrHeadComponents += SSRComponent({ ssrPath, host, path, data: ssrData });
                       break;
                   }
                 }
@@ -1107,6 +1103,7 @@ const buildClient = async (
                     ttiLoadTimeLimit,
                     version: Underpost.version,
                     backgroundImage: backgroundImage ? (path === '/' ? path : `${path}/`) + backgroundImage : undefined,
+                    data: ssrData,
                   });
                 }
               }
@@ -1121,7 +1118,7 @@ const buildClient = async (
 
               const htmlSrc = Render({
                 title,
-                buildId,
+                buildId: viewBundled ? buildId : undefined,
                 ssrPath,
                 ssrHeadComponents,
                 ssrBodyComponents,
@@ -1142,6 +1139,7 @@ const buildClient = async (
                 'utf8',
               );
             }
+          }
         }
         if (!ssrOnly && !enableLiveRebuild && siteMapLinks.length > 0) {
           const hasSitemapTemplate = fs.existsSync(`${rootClientPath}/sitemap`);

@@ -151,6 +151,9 @@ describe('release pipeline commands', () => {
       return { code: 0, stdout: '', stderr: '', toString: () => '' };
     });
     vi.spyOn(process, 'chdir').mockImplementation((dir) => directories.push(`${dir}`));
+    // File operations join the command log: no real path is touched.
+    vi.spyOn(fs, 'removeSync').mockImplementation((target) => commands.push(`remove ${target}`));
+    vi.spyOn(fs, 'moveSync').mockImplementation((from, to) => commands.push(`move ${from} ${to}`));
     // `release build` and `release deploy` load dd-cron's production env with
     // `override: true`; on a checkout that carries it, that would replace this
     // process's own environment with live deploy credentials.
@@ -186,7 +189,6 @@ describe('release pipeline commands', () => {
       return '';
     });
     vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
-    vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
     vi.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined);
     vi.spyOn(Dns, 'getLocalIPv4Address').mockReturnValue('10.0.0.8');
   };
@@ -267,7 +269,6 @@ describe('release pipeline commands', () => {
         return '';
       });
       vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
-      vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
       vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => writes.set(`${filePath}`, value));
       vi.spyOn(Dns, 'getLocalIPv4Address').mockReturnValue('10.0.0.8');
 
@@ -296,9 +297,7 @@ describe('release pipeline commands', () => {
       expect(commands).to.include('node bin cmt --changelog-build');
       // The default conf is generated and removed again — leaving it behind
       // makes the next `dd` fan-out build a deploy the release never declared.
-      expect(commands.filter((command) => command.includes('rm -rf ./engine-private/conf/dd-default')).length).to.equal(
-        2,
-      );
+      expect(commands.filter((command) => command === 'remove ./engine-private/conf/dd-default').length).to.equal(2);
       // The code graph describes the release tree: it runs once, after every other regeneration.
       expect(result.graph).to.deep.equal({ built: true, version: '0.9.97' });
       expect(graph).toHaveBeenCalledTimes(1);
@@ -360,8 +359,8 @@ describe('release pipeline commands', () => {
 
     it('replaces the template git directory with the bare clone of the target repository', async () => {
       await UnderpostRelease.API.ci('core', 'fixture message');
-      expect(commands).to.include('rm -rf ./.git');
-      expect(commands).to.include("mv '../engine-core.git' ./.git");
+      expect(commands).to.include('remove ./.git');
+      expect(commands).to.include('move ../engine-core.git ./.git');
       expect(commands).to.include('git config --local core.bare false');
       expect(directories).to.include('/home/dd/pwa-microservices-template');
     });
@@ -390,7 +389,7 @@ describe('release pipeline commands', () => {
   describe('pwa', () => {
     it('re-clones, rebuilds and stages the template', async () => {
       const { triggerCmd } = await UnderpostRelease.API.pwa('fixture message');
-      expect(commands).to.include('sudo rm -rf /home/dd/pwa-microservices-template');
+      expect(commands).to.include('remove /home/dd/pwa-microservices-template');
       expect(commands).to.include('npm run build:template');
       expect(commands).to.include('git add .');
       expect(triggerCmd).to.include("git commit -m 'fixture message'");
@@ -439,13 +438,24 @@ describe('site root provisioning', () => {
 
   beforeEach(() => {
     commands = [];
+    // An unprivileged user: the ownership change of the document root reaches the shell, never the disk.
+    vi.spyOn(process, 'getuid').mockReturnValue(1000);
+    vi.stubEnv('CI', 'true');
     vi.spyOn(shell, 'exec').mockImplementation((command) => {
       commands.push(command);
       return { code: 0, stdout: '', stderr: '', toString: () => '' };
     });
+    vi.spyOn(fs, 'removeSync').mockImplementation(
+      (target) => target.endsWith('.tmp') || commands.push(`remove ${target}`),
+    );
+    vi.spyOn(fs, 'copySync').mockImplementation((from, to) => commands.push(`copy ${from} ${to}`));
+    vi.spyOn(fs, 'moveSync').mockImplementation((from, to) => commands.push(`move ${from} ${to}`));
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
 
   it('separates an unresolved conf reference from an unreachable remote', () => {
     const isRemote = vi.spyOn(UnderpostRepository.API, 'isRemoteRepo').mockReturnValue(true);
@@ -506,8 +516,10 @@ describe('site root provisioning', () => {
     expect(commands.some((command) => command.includes('git clone'))).to.equal(true);
     // Copied in, not renamed over: the path can be image-provided or a mount point, and a
     // rename onto one fails where a copy succeeds.
-    expect(commands).to.include('sudo cp -a "/home/dd/netlify_example.tmp/." "/home/dd/netlify_example/"');
-    expect(commands.some((command) => command.startsWith('sudo mv'))).to.equal(false);
+    expect(commands).to.include('copy /home/dd/netlify_example.tmp /home/dd/netlify_example');
+    expect(commands.some((command) => command.startsWith('move'))).to.equal(false);
+    // The web server user takes the document root: the only step that needs root.
+    expect(commands.at(-1)).to.match(/find .*\/home\/dd\/netlify_example.* -xdev -exec chown -h \d+:\d+ /);
   });
 
   it('renames the clone into place when the document root does not exist at all', () => {
@@ -521,7 +533,7 @@ describe('site root provisioning', () => {
         repository: 'owner/netlify_example',
       }),
     ).to.deep.equal({ accessible: true, cloned: true });
-    expect(commands).to.include('sudo mv "/home/dd/netlify_example.tmp" "/home/dd/netlify_example"');
+    expect(commands).to.include('move /home/dd/netlify_example.tmp /home/dd/netlify_example');
   });
 });
 

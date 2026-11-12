@@ -6,8 +6,8 @@
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$LIB_DIR/config.sh"
 
+# The state domain reads the namespace of STATE_ENV from conf.cluster.json.
 STATE_ENV="${STATE_ENV:-production}"
-STATE_NAMESPACE="${STATE_NAMESPACE:-default}"
 STATE_STREAM="${STATE_STREAM:-1}"
 # Seconds between frames. The live table is the default; 0 observes once and exits, which is
 # what a non-interactive caller wants.
@@ -47,7 +47,6 @@ stream_state() {
             frame=$(sudo -n -- /bin/bash -lc \
                 "cd ${engine_root} && node bin state status \
                   --env ${STATE_ENV} \
-                  --namespace ${STATE_NAMESPACE} \
                   --args ${args},refresh=${refresh}" 2>/dev/null)
             [ "$lines" -gt 0 ] && printf '\033[%dA' "$lines"
             printf '%s\n' "$frame" | while IFS= read -r line; do printf '%s\033[K\n' "$line"; done
@@ -60,6 +59,5 @@ stream_state() {
     sudo -n -- /bin/bash -lc \
         "cd ${engine_root} && RUN_QUIET_CI=${RUN_QUIET_CI:-} node bin state publish \
           --env ${STATE_ENV} \
-          --namespace ${STATE_NAMESPACE} \
           --args ${args}"
 }

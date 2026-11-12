@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import Underpost from '../../../src/index.js';
-import { DefaultConf } from '../../../underpost.config.js';
+import underpostConfig from '../../../underpost.config.js';
 
 // Site operations read and write paths relative to the engine root, so every case runs in a fixture tree.
 describe('site provisioning', () => {
@@ -56,7 +56,7 @@ describe('site provisioning', () => {
     write('engine-private/conf/dd-shop/conf.ssr.json', {
       Shop: {
         head: ['Seo', 'PwaShop', 'ShopScripts'],
-        body: ['ShopSplashScreen', '404'],
+        body: ['ShopSplashScreen', 'Page404'],
         mailer: { userVerifyEmail: 'ShopVerifyEmail' },
         views: [{ path: '/offline', client: 'Shop', offlineDefault: true }],
       },
@@ -77,7 +77,7 @@ describe('site provisioning', () => {
       'src/client/components/shop/AppShellShop.js',
       [
         "import { Css } from '../core/Css.js';",
-        "import { ShopService } from '../../services/shop/shop.service.js';",
+        "import { ShopService } from '../../services/shop/ShopService.js';",
         "const shopTheme = 'shop';",
         'class AppShellShop {}',
         'export default AppShellShop;',
@@ -86,7 +86,7 @@ describe('site provisioning', () => {
     );
     write('src/client/components/core/Css.js', 'export const Css = {};\n');
     write('src/client/components/core/Chart.js', 'export const Chart = {};\n');
-    write('src/client/services/shop/shop.service.js', "const endpoint = 'shop';\nexport class ShopService {}\n");
+    write('src/client/services/shop/ShopService.js', "const endpoint = 'shop';\nexport class ShopService {}\n");
     write('src/client/public/shop/favicon.ico', FAVICON);
     write('src/client/Shop.index.js', "import AppShellShop from './components/shop/AppShellShop.js';\n");
     for (const [kind, name] of [
@@ -94,7 +94,7 @@ describe('site provisioning', () => {
       ['head', 'PwaShop'],
       ['head', 'ShopScripts'],
       ['body', 'ShopSplashScreen'],
-      ['body', '404'],
+      ['body', 'Page404'],
       ['mailer', 'ShopVerifyEmail'],
     ])
       write(`src/client/ssr/${kind}/${name}.js`, `// ${name}\n`);
@@ -105,7 +105,7 @@ describe('site provisioning', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-site-'));
     process.chdir(root);
     fixture();
-    defaultConf = vi.spyOn(Underpost.repo, 'updateDefaultConf').mockImplementation(() => undefined);
+    defaultConf = vi.spyOn(Underpost.repo, 'writeConfManifest').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -154,7 +154,7 @@ describe('site provisioning', () => {
       });
       expect(readJson('engine-private/conf/dd-blog/conf.ssr.json').Example).to.deep.equal({
         head: ['Seo', 'PwaExample', 'ExampleScripts'],
-        body: ['ExampleSplashScreen', '404'],
+        body: ['ExampleSplashScreen', 'Page404'],
         mailer: { userVerifyEmail: 'ExampleVerifyEmail' },
         views: [{ path: '/offline', client: 'Example', offlineDefault: true }],
       });
@@ -166,14 +166,14 @@ describe('site provisioning', () => {
       expect(read('src/client/components/example/AppShellExample.js')).to.equal(
         [
           "import { Css } from '../core/Css.js';",
-          "import { ExampleService } from '../../services/example/example.service.js';",
+          "import { ExampleService } from '../../services/example/ExampleService.js';",
           "const shopTheme = 'example';",
           'class AppShellExample {}',
           'export default AppShellExample;',
           '',
         ].join('\n'),
       );
-      expect(read('src/client/services/example/example.service.js')).to.equal(
+      expect(read('src/client/services/example/ExampleService.js')).to.equal(
         "const endpoint = 'example';\nexport class ExampleService {}\n",
       );
       expect(read('src/client/Example.index.js')).to.equal(
@@ -260,7 +260,7 @@ describe('site provisioning', () => {
         fs.outputJsonSync(path.join(scratch, `engine-private/conf/dd-site/conf.${type}.json`), {});
       process.chdir(scratch);
       // A sliced repository carries its own deploy conf as the default template.
-      const from = Object.values(DefaultConf.server)
+      const from = Object.values(underpostConfig.server)
         .flatMap((routes) => Object.values(routes))
         .find((route) => route.client).client;
       const { applied, plan } = Underpost.site.create('example.com', {
@@ -409,14 +409,14 @@ describe('site provisioning', () => {
     beforeEach(() => {
       for (const type of ['model', 'controller', 'service', 'router'])
         write(`src/api/default/default.${type}.js`, `// Default ${type} of default\n`);
-      write('src/client/services/default/default.service.js', 'const DefaultService = {};\n');
+      write('src/client/services/default/DefaultService.js', 'const DefaultService = {};\n');
       write('src/ws/default/default.ws.server.js', "export const DefaultWsServer = 'default';\n");
     });
 
     it('generates an API from the template and registers it in the deployment', async () => {
       await Underpost.repo.newApi('invoice', { deployId: 'dd-shop', client: 'shop' });
       expect(read('src/api/invoice/invoice.router.js')).to.equal('// Invoice router of invoice\n');
-      expect(read('src/client/services/invoice/invoice.service.js')).to.equal('const InvoiceService = {};\n');
+      expect(read('src/client/services/invoice/InvoiceService.js')).to.equal('const InvoiceService = {};\n');
       expect(readJson('engine-private/conf/dd-shop/conf.client.json').shop.services).to.include('invoice');
       await expect(Underpost.repo.newApi('invoice', {})).rejects.toThrow('API already exists');
     });

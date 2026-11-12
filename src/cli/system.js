@@ -202,8 +202,8 @@ logdir /var/log/chrony
 
           // Install essential system tools (avoiding duplicates from container packages)
           `dnf -y install --allowerasing bzip2 openssh-server nano vim-enhanced less openssl-devel git gnupg2 libnsl perl`,
-          selinuxPackagesCommandFactory({ sudo: false }),
-          ...selinuxEnforcingCommandsFactory({ sudo: false }),
+          selinuxPackagesCommandFactory(),
+          ...selinuxEnforcingCommandsFactory(),
           `dnf clean all`,
 
           // Install Node.js
@@ -241,7 +241,7 @@ logdir /var/log/chrony
             `printf '%s\n' ${shellArgumentFactory(publicKey)} > ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
             `chown ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
             `chmod 0600 ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}`,
-            ...selinuxSshContextCommandsFactory({ sshDirectory, sudo: false }),
+            ...selinuxSshContextCommandsFactory({ sshDirectory }),
           ];
         },
         /**

@@ -7,7 +7,6 @@ source "$SCRIPT_DIR/../lib/host.sh"
 
 DEPLOY_ID=dd-core
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
-TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 ENGINE_SRC_REPO="${ENGINE_SRC_REPO:-underpostnet/engine-test-core}"
 ENGINE_SRC_PRIVATE_REPO="${ENGINE_SRC_PRIVATE_REPO:-underpostnet/engine-private}"
 
@@ -27,9 +26,6 @@ main() {
     "cd $ENGINE_ROOT && node bin run sync \
           --deploy-id $DEPLOY_ID \
           --kubeadm \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
     --cmd '${pod_cmd}'"
 }

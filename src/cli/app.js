@@ -27,12 +27,13 @@ import {
   deployOciEnvFilePath,
   instanceEnvFilePath,
   loadConf,
+  ociEnvContentFactory,
 } from '../server/runtime/conf.js';
 import { domainContextFactory } from './domains.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { readDeployRoutes } from '../server/network/router.js';
 import { shellExec } from '../server/runtime/process.js';
-import { writeEnv } from '../server/runtime/environment.js';
+import { renderEnv, writeEnv } from '../server/runtime/environment.js';
 import { isReservedEnvKey } from './host.js';
 import { SCOPE_ENTITLEMENTS, scopeReceivesKey } from '../server/runtime/config-scope.js';
 import Underpost from '../index.js';
@@ -46,6 +47,9 @@ const logger = loggerFactory(import.meta);
  */
 const appSecretName = (deployId, env, instanceId = '', scope = '') =>
   `${instanceId ? `${deployId}-${instanceId}` : deployId}-${env}-${scope || 'env'}`;
+
+/** The placed resource whose pods read the Secret of a scope; the workloads read any other. */
+const SCOPE_CONSUMERS = Object.freeze({ 'data-release': 'releases' });
 
 // This domain's local runtime: the working-tree file `loadConf` materializes and the server
 // reads. `publish` is the inverse of `load`, so both ends name the same file.
@@ -113,30 +117,41 @@ class UnderpostApp {
 
     /**
      * Resolves the environment for a container runtime: the durable source with its
-     * `.env.<env>.oci` overlay applied. Used wherever the consumer is a container image rather
-     * than this host — the cluster Secret projection above all.
+     * `.env.<env>.oci` overlay applied, then the endpoint layer: each datastore endpoint as the fully
+     * qualified name of its Service in the namespace where it runs now, which follows a migration. Used
+     * wherever the consumer is a container image rather than this host — the cluster Secret projection
+     * above all. The files stay as they are.
      * @param {object} [context] - Normalized domain context.
-     * @returns {{source: string, overlay: string|null, content: string, values: Object<string,string>}}
-     *   The resolved environment.
+     * @returns {{source: string, overlay: string|null, content: string, values: Object<string,string>,
+     *   endpoints: Array<{key:string, resource:string, from:string[], to:string[]}>}} The resolved
+     *   environment, and the endpoint changes of its layer.
      * @memberof UnderpostApp
      */
     ociEnv(context = {}) {
       // An instance env file is already the container's environment — `instance-build-manifest`
       // derives it for that runtime — so there is no host/container split to overlay away.
       const source = UnderpostApp.API.envPath(context);
-      if (UnderpostApp.API.instanceId(context))
-        return {
-          source,
-          overlay: null,
-          content: fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '',
-          values: UnderpostApp.API.read(context),
-        };
-      return deployEnvContentFactory(
-        UnderpostApp.API.deployId(context),
-        `${context.env ?? ''}`.trim() || 'production',
-        `${context.args?.['sub-conf'] ?? process.env.DEPLOY_SUB_CONF ?? ''}`.trim(),
-        { oci: true },
-      );
+      const env = `${context.env ?? ''}`.trim() || 'production';
+      const resolved = UnderpostApp.API.instanceId(context)
+        ? {
+            source,
+            overlay: null,
+            content: fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '',
+            values: UnderpostApp.API.read(context),
+          }
+        : deployEnvContentFactory(
+            UnderpostApp.API.deployId(context),
+            env,
+            `${context.args?.['sub-conf'] ?? process.env.DEPLOY_SUB_CONF ?? ''}`.trim(),
+            { oci: true },
+          );
+      const layer = Underpost.namespace.endpointLayer({
+        values: resolved.values,
+        environment: env,
+        options: context.overrides ?? {},
+      });
+      const content = ociEnvContentFactory(resolved.content, renderEnv(layer.values));
+      return { ...resolved, content, values: dotenv.parse(content), endpoints: layer.changes };
     },
 
     /**
@@ -261,15 +276,17 @@ class UnderpostApp {
     },
 
     /**
-     * Projects the deployment environment into the cluster as its own Secret, so a workload can
-     * inject it with `envFrom` alongside the host configuration. With `--args scope=<scope>`, only
-     * the keys that scope is entitled to, into the scope's own Secret.
-     * Idempotent — delete-then-apply converges on the current source.
+     * Projects the effective container environment ({@link UnderpostApp.ociEnv}) into the cluster as
+     * its own Secret, in the namespace where the pods that read it run now, so a workload can inject it
+     * with `envFrom` alongside the host configuration. With `--args scope=<scope>`, only the keys that
+     * scope is entitled to, into the scope's own Secret. Each endpoint is checked against its live
+     * Services when the cluster answers: an endpoint whose namespace holds no such Service stops the
+     * projection unless `--force`. Idempotent — delete-then-apply converges on the current source.
      * @param {object} context - Normalized domain context.
-     * @returns {{secret: string, namespace: string, env: string}} What was projected.
+     * @returns {Promise<{secret: string, namespace: string, env: string}>} What was projected.
      * @memberof UnderpostApp
      */
-    apply(context = {}) {
+    async apply(context = {}) {
       context = domainContextFactory(context);
       const deployId = UnderpostApp.API.deployId(context);
       const envFilePath = UnderpostApp.API.envPath(context);
@@ -277,18 +294,43 @@ class UnderpostApp {
       const scope = `${context.args?.scope ?? ''}`.trim();
       if (scope && !SCOPE_ENTITLEMENTS[scope]) throw new Error(`[app] scope ${scope} entitles no key`);
       const secret = appSecretName(deployId, context.env, UnderpostApp.API.instanceId(context), scope);
-      // This Secret is consumed only by container workloads, so the OCI overlay is applied
-      // unconditionally here — the host projecting it is not the runtime that reads it.
-      const { overlay, content } = UnderpostApp.API.ociEnv(context);
+      const instanceId = UnderpostApp.API.instanceId(context);
+      const placement = {
+        environment: context.env,
+        options: context.overrides,
+        deployId: instanceId ? `${deployId}-${instanceId}` : deployId,
+      };
+      const namespace = Underpost.namespace.of(SCOPE_CONSUMERS[scope] ?? 'workloads', placement);
+      // This Secret is consumed only by container workloads, so the OCI overlay and the endpoint layer
+      // are applied unconditionally here — the host projecting it is not the runtime that reads it.
+      const { overlay, content, endpoints } = UnderpostApp.API.ociEnv(context);
+      for (const { key, from, to } of endpoints)
+        logger.info(`[app] ${key}: ${from.join(',')} → ${to.join(',')}`, { secret, env: context.env });
+      const issues = Underpost.namespace
+        .endpoints({
+          ...placement,
+          values: dotenv.parse(content),
+          files: { base: envFilePath, overlay },
+          services: await Underpost.namespace.services(placement),
+        })
+        .filter(({ severity }) => severity);
+      for (const { message } of issues) logger.warn(`[app] ${message}`, { secret, env: context.env });
+      const errors = issues.filter(({ severity }) => severity === 'error');
+      if (errors.length && !context.force)
+        throw new Error(
+          `[app] ${deployId} ${context.env}: ${errors.map(({ key, state }) => `${key} ${state}`).join(', ')}: ` +
+            'install the Service where the placement names it, or pass --force to project it as it is',
+        );
       if (context.dryRun) {
         logger.info('[dry-run] app apply would publish the Secret', {
           secret,
-          namespace: context.namespace,
+          namespace,
           source: envFilePath,
           overlay,
         });
-        return { secret, namespace: context.namespace, env: context.env, overlay };
+        return { secret, namespace, env: context.env, overlay };
       }
+      await Underpost.namespace.ensure({ resource: SCOPE_CONSUMERS[scope] ?? 'workloads', ...placement });
       // The same reserved-key filter the host domain applies: an injected PATH would override
       // the container image's own no matter which Secret carried it.
       const sanitizedEnvPath = `${envFilePath}.secret`;
@@ -306,20 +348,15 @@ class UnderpostApp {
           .join('\n'),
       );
       try {
-        shellExec(`kubectl delete secret ${secret} -n ${context.namespace} --ignore-not-found`);
+        shellExec(`kubectl delete secret ${secret} -n ${namespace} --ignore-not-found`);
         shellExec(
-          `kubectl create secret generic ${secret} --from-env-file=${sanitizedEnvPath} --dry-run=client -o yaml | kubectl apply -f - -n ${context.namespace}`,
+          `kubectl create secret generic ${secret} --from-env-file=${sanitizedEnvPath} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
         );
       } finally {
         fs.removeSync(sanitizedEnvPath);
       }
-      logger.info('Deployment environment applied', {
-        secret,
-        env: context.env,
-        namespace: context.namespace,
-        overlay,
-      });
-      return { secret, namespace: context.namespace, env: context.env, overlay };
+      logger.info('Deployment environment applied', { secret, env: context.env, namespace, overlay });
+      return { secret, namespace, env: context.env, overlay };
     },
 
     /**

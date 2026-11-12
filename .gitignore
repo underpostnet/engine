@@ -6,6 +6,7 @@
 .claude
 /tmp
 /logs
+*.log
 /build
 /coverage
 /.vitest

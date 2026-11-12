@@ -203,7 +203,7 @@ describe('the copies of the build manifest', () => {
   });
 
   it('is the only configuration of the service worker', () => {
-    const worker = fs.readFileSync('./src/client/sw/core.sw.js', 'utf8');
+    const worker = fs.readFileSync('./src/client/sw/CoreServiceWorker.js', 'utf8');
     expect(worker).toContain('= self.buildManifest;');
     expect(worker).not.toContain('renderPayload');
   });

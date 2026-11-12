@@ -85,7 +85,7 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 
 1. **Container-status lifecycle**. Stamp `initializing` and `stopping` from `lifecycle.postStart.exec` / `lifecycle.preStop.exec` hooks (see the next subsection) — never inside the `cmd` chain. The `running` state is owned by Kubernetes: when the `readinessProbe` succeeds the pod's `status.conditions[Ready]` flips to True, and the orchestrator reads that condition directly. The runtime process must never shell out to a wrapper command after starting; if it cannot bind its listening socket it must exit non-zero, which surfaces as CrashLoopBackOff.
 
-2. **Image-baked CLI**. The runtime image must already include the `underpost` CLI; do **not** `npm install -g underpost` in `cmd`. That step belongs in the Dockerfile (see `src/runtime/cyberia-server/Dockerfile` and `src/runtime/cyberia-client/Dockerfile` for the `ARG UNDERPOST_VERSION` + `npm install -g` pattern).
+2. **Image-baked CLI**. The runtime image must already include the `underpost` CLI; do **not** `npm install -g underpost` in `cmd`. The Dockerfile installs it from `underpost-cli.tgz`, the engine package staged into the build context (see `src/runtime/cyberia-server/Dockerfile` and `src/runtime/cyberia-client/Dockerfile`).
 
 ### `runtime` field and Dockerfile resolution
 
@@ -104,9 +104,11 @@ When you set `runtime: "<name>"`, `underpost run instance-build-manifest` copies
 Every runtime Dockerfile must:
 
 - Multi-stage build (builder → runtime).
-- Install `underpost@<image-tag-version>` in the runtime stage (so `cmd` skips the slow install at every pod boot).
+- Install the CLI in the runtime stage from `underpost-cli.tgz` in the build context (`COPY`, then `npm install -g --omit=dev`), so `cmd` skips the install at every pod boot.
 - Expose the port that `fromPort` references.
 - Ship a useful default `ENTRYPOINT` / `CMD` for `docker run` direct invocations; K8S deploys override this with `cmd[env]`.
+
+The archive is a build input, never a checkout file. CI stages it with `node bin/cyberia run-workflow stage-cli --output-path <context>`. A private-channel `run instance --source-revision <sha> --build-path <checkout>` stages it from the host engine checkout before the build and removes it after.
 
 ### Lifecycle, readiness, and liveness — moving status hooks out of `cmd`
 
@@ -121,7 +123,7 @@ An instance config may declare K8S-native lifecycle hooks and probes. These spli
   "toPort": 8081,
   "cmd": {
     "production": [
-      "set -a && . /env/production.env && set +a && exec /home/dd/engine/cyberia-server/server --data-server-url=$CYBERIA_DATA_SERVER_URL --data-server-grpc={{grpc-service-dns}}",
+      "exec /home/dd/engine/cyberia-server/server --data-server-url=$CYBERIA_DATA_SERVER_URL --data-server-grpc={{grpc-service-dns}}",
     ],
   },
   "lifecycle": {
@@ -179,6 +181,7 @@ K8S marks the pod **Ready** only when `readinessProbe` succeeds (TCP socket on t
 - **Running signal = K8s Ready.** Success is declared when every pod's `readinessProbe` passes — the instance runtime never stamps `running-deployment`, so the monitor does not wait for it.
 - **Status read = `kubectl exec … underpost state get container-status`.** Instances have no `/_internal/status` HTTP endpoint (that belongs to `underpost start` runtimes only), so the monitor reads the env-file value the `lifecycle` hooks stamp. It is used for fast `error` fast-fail and for the display column, not as the readiness gate.
 - **Crash detection = pod state.** A crashing binary surfaces as `CrashLoopBackOff`/`Error` and the monitor fails immediately.
+- **Node fault = sandbox failures.** A pod whose sandbox fails six times, as on a node whose CNI is down, fails the monitor with that node.
 
 By contrast, `underpost start` deploys (the engine itself, `dd-*` with `conf.server.json`) run in the default **runtime-gate + http-transport** mode: they serve `/_internal/status`, their HTTP `readinessProbe` (`/_internal/ready`) gates K8s Ready on `running-deployment`, and `buildManifest` injects `UNDERPOST_INTERNAL_PORT` so the endpoint, the probes, and the monitor's port-forward target all agree.
 
@@ -309,8 +312,8 @@ and operator-owned secrets, with no templating annotations:
 # mmo-server/env/production.env
 INSTANCE_CODE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
-CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
-CYBERIA_CORS_ALLOWED_ORIGINS=https://www.cyberiaonline.com,https://client.cyberiaonline.com
+CYBERIA_DATA_SERVER_URL=https://services.cyberiaonline.com
+CYBERIA_CORS_ALLOWED_ORIGINS=https://services.cyberiaonline.com,https://client.cyberiaonline.com
 CYBERIA_SERVER_API_KEY=<operator-owned-secret>
 ```
 
@@ -319,7 +322,7 @@ CYBERIA_SERVER_API_KEY=<operator-owned-secret>
 CYBERIA_INSTANCE_CODE=amethyst-strata-expansion
 CYBERIA_BASE_PATH=/
 CYBERIA_WS_ORIGIN=wss://server.cyberiaonline.com
-CYBERIA_DATA_SERVER_URL=https://www.cyberiaonline.com
+CYBERIA_DATA_SERVER_URL=https://services.cyberiaonline.com
 ```
 
 The generic `dispatchBuildInstanceEnv` hook in `src/server/runtime/conf.js` selects a
@@ -330,6 +333,15 @@ the code of the world the variant path serves. It takes the origins of each envi
 `cyberia release build` writes the same paths into the `variants` of `mmo-server` and `mmo-client`.
 API keys and other operator values remain unchanged, and separate canonical files continue to
 provide environment-specific values. Every build writes both env files of each instance.
+
+### How the env reaches the container
+
+`run instance` projects `instances/<id>/env/<env>.env` into the Secret `<deploy-id>-<id>-<env>-env`
+before it submits the Deployment. It uses `underpost app apply --args deploy-id=<deploy-id>,instance-id=<id>`.
+The Deployment injects that Secret with `envFrom`, after `underpost-config`, so an instance key
+wins over a host key. The process, the lifecycle hooks and `kubectl exec` all see the same
+environment. `cmd` reads the values as plain variables (`$CYBERIA_DATA_SERVER_URL`) and never
+sources a file. Blue and green share the Secret, and no volume or node copy is needed.
 
 Do not add an `env` object to `multiInstance`. It is rejected so configuration
 and secrets cannot drift into topology JSON. Add application-specific derived
@@ -448,7 +460,7 @@ A direct `run instance` resolves the next blue/green colour before creating anyt
 node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server --dev
 ```
 
-Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass — self-signed in development, cert-manager in production. See [Main cluster lifecycle commands → Custom instances](../reference/cluster-lifecycle.md).
+Each id is resolved against every deploy in the list and runs only where that deploy's `conf.instances.json` declares it. Instances start after their deploy's default workload has rolled out, and their hosts are folded into the run's existing TLS and `/etc/hosts` pass: `node bin tls reconcile` covers every host the deploy declares, self-signed in development and cert-manager in production. See [Main cluster lifecycle commands → Custom instances](../reference/cluster-lifecycle.md).
 
 ### 2. Promote Instance (Blue-Green Deployment)
 
@@ -522,11 +534,11 @@ underpost run ls-deployments myapp
 View images loaded in the cluster:
 
 ```bash
-# Default node (kind-worker)
-underpost image --ls
+# This host
+underpost image --ls --kubeadm
 
-# Specific node
-underpost image --node-name worker-01 --ls
+# Specific nodes, through their node identity
+underpost image --ls --kubeadm --nodes worker-01
 
 # Detailed specification
 underpost image --ls --spec
@@ -696,10 +708,10 @@ pair. There are four ways to say what to stop, in precedence order:
 # 1. Literal — exactly this Deployment and its Service. Every flag is ignored.
 node bin run stop dd-cyberia-mmo-server-forest-development-blue
 
-# 2. The deploy's PWA workload, inactive colour
+# 2. The deploy's PWA workload only, inactive colour
 node bin run stop --deploy-id dd-cyberia
 
-# 3. ...plus every variant of each instance family, inactive colour
+# 3. Only every variant of each instance family, inactive colour
 node bin run stop --deploy-id dd-cyberia --instance-id mmo-client,mmo-server
 
 # 4. Explicit colours — both, wherever they exist
@@ -709,16 +721,17 @@ node bin run stop --deploy-id dd-cyberia --instance-id mmo-server --traffic blue
 | Input                           | Stops                                                                |
 | ------------------------------- | -------------------------------------------------------------------- |
 | literal path                    | only the named Deployments; nothing is derived                       |
-| `--deploy-id`                   | that deploy's PWA workload                                           |
-| `--deploy-id` + `--instance-id` | the PWA workload **and** every variant of each instance family       |
+| `--deploy-id`                   | that deploy's PWA workload, never a custom instance                  |
+| `--deploy-id` + `--instance-id` | every variant of each instance family, never the PWA workload        |
 | `--traffic blue,green`          | those colours instead of the inactive one, for every selected target |
 | `--instance-id` alone           | refused — an instance id is only unique inside a deploy              |
+| unknown `--instance-id`         | refused — the id matches no instance of the deploy                   |
 
 Without `--traffic`, each target resolves to the blue/green partner of whatever
 **it** is serving, read per target: a shared host can legitimately have `/` on
 green and `/FOREST` on blue, so one answer would be wrong for the other. That
-colour is read from the routing stack in use (HTTPRoute, or HTTPProxy under
-`--disable-gateway-api`).
+colour is read through the routing provider of the environment (HTTPRoute with
+`gateway-api`, HTTPProxy with `contour`).
 
 Naming the serving colour with `--traffic` is allowed and warned about — the
 routes stay published and will have no backend until something is deployed
@@ -777,15 +790,10 @@ underpost run get-traffic myapp.example.com
 
 ```bash
 # List loaded images
-underpost image --node-name worker-01 --ls
+underpost image --ls --kubeadm --nodes worker-01
 
-# Load image manually
-kind load docker-image my-custom-image:latest
-
-# Or for Kubeadm
-docker save my-custom-image:latest -o /tmp/image.tar
-scp /tmp/image.tar worker-01:/tmp/
-ssh worker-01 'sudo crictl load -i /tmp/image.tar'
+# Load an image archive into the runtime of a worker
+underpost image --import-tar /tmp/image.tar --kubeadm --nodes worker-01
 ```
 
 ### Configuration Errors
@@ -823,15 +831,17 @@ kubectl top pods -n production
 
 ## Related Commands
 
-### Development Cluster Setup
+### Development Sandbox
 
 ```bash
-# Setup complete dev cluster
-underpost run --dev dev-cluster
+# Create the Kind cluster when it is missing, provision MongoDB and Valkey, and expose them on 127.0.0.1
+underpost sandbox up
 
-# With service exposure
-underpost run --dev --expose dev-cluster
+# Check the identity, the session and each service
+underpost sandbox status
 ```
+
+See [Run a Development Sandbox](run-a-development-sandbox.md).
 
 ### Deploy Job (One-off Tasks)
 
@@ -906,11 +916,11 @@ kubectl delete HTTPProxy myapp.example.com -n production
     "cmd": {
       "development": [
         "underpost state set container-status dd-mywebapp-api-development-initializing-deployment",
-        "set -a && . /var/run/secrets/mywebapp/api/development.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
+        "export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
       ],
       "production": [
         "underpost state set container-status dd-mywebapp-api-production-initializing-deployment",
-        "set -a && . /var/run/secrets/mywebapp/api/production.env && set +a && export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
+        "export ENGINE_GRPC_ADDRESS={{grpc-service-dns}} && node dist/main.js"
       ]
     },
     "volumes": [],
@@ -960,11 +970,11 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 
 **File:** `./engine-private/conf/dd-cyberia/conf.instances.json`
 
-- **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` sources a deployment-secret env file from the `instance-cyberia-server` PVC, then exec's the binary with its two Data Server endpoints as flags: the REST origin from the env file, and the gRPC endpoint from the runner-resolved `{{grpc-service-dns}}` template. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
+- **`mmo-server`** — `runtime: "cyberia-server"` (Dockerfile at `src/runtime/cyberia-server/Dockerfile`). The Go binary `/home/dd/engine/cyberia-server/server` is the long-running process. `cmd[env]` exec's the binary with its two Data Server endpoints as flags: the REST origin from the env Secret (see [How the env reaches the container](#how-the-env-reaches-the-container)), and the gRPC endpoint from the runner-resolved `{{grpc-service-dns}}` template. The instance declares no volume. Readiness is observed by Kubernetes through the `readinessProbe` (TCP socket on port 8081).
 
 - **`mmo-client`** — `runtime: "cyberia-client"` (Dockerfile at `src/runtime/cyberia-client/Dockerfile`). The Python static-file server `server.py` serves the pre-built WASM bundle from `bin/`. Development uses `8082` (debug port); production uses `8081`. Its canonical env files provide the client build/runtime origins and annotated instance code/base path; it needs no gRPC wiring.
 
-Both Dockerfiles install `underpost@${UNDERPOST_VERSION}` at build time (`ARG UNDERPOST_VERSION=4.0.0`), so the `cmd` entries can call `underpost state set container-status …` without paying an `npm install -g` cost on every pod boot. The two CI workflows that publish these images forward `UNDERPOST_VERSION` as a build-arg to keep the in-image CLI aligned with the image tag.
+Both Dockerfiles install the CLI from the staged `underpost-cli.tgz` at build time, so the lifecycle hooks can call `underpost state set container-status …` without an `npm install -g` on every pod boot. The CI workflows that publish these images stage the archive from their engine checkout; a private-channel deploy stages it from the host engine checkout.
 
 Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v4.0.0`, `v4.0.0`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
 

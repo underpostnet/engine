@@ -8,7 +8,6 @@ source "$SCRIPT_DIR/../lib/host.sh"
 DEPLOY_ID=dd-lampp
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
 # Empty: nothing is pinned, so the CLI resolves the node the deploy runs on.
-TARGET_NODE="${TARGET_NODE:-}"
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 # The source the host and the pod both run: left unset, `run pull` resets the host to the monorepo
 # while the pod clones another repository.
@@ -33,9 +32,6 @@ main() {
           --kubeadm \
           --deploy-id-cron-jobs none \
           --timeout-response 10000ms \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
     --cmd '${pod_cmd}'"
 }
 

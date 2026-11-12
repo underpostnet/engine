@@ -10,6 +10,7 @@ import {
   assertSourceRevision,
 } from '../../../src/server/release/source-release.js';
 import { releaseJobManifestFactory, releaseJobName } from '../../../src/server/release/release-job.js';
+import { podSchedulingFactory } from '../../../src/server/runtime/pod-scheduling.js';
 
 const hostLib = new URL('../../../deploy/lib/host.sh', import.meta.url).pathname;
 
@@ -39,6 +40,9 @@ describe('source channels', () => {
       });
     expect(engine('public')).toBe('underpostnet/engine-cyberia');
     expect(engine('private')).toBe('underpostnet/engine-test-cyberia');
+    for (const channel of SOURCE_CHANNELS)
+      expect(`underpostnet/${Underpost.repo.engineSourceRepoFactory('dd-cyberia', channel)}`).toBe(engine(channel));
+    expect(() => Underpost.repo.engineSourceRepoFactory('dd-cyberia', 'staging')).toThrow(/public or private/);
     expect(() =>
       execFileSync('bash', ['-c', `source "${hostLib}"; engine_source_repo dd-cyberia staging`], { stdio: 'pipe' }),
     ).toThrow();
@@ -79,7 +83,7 @@ describe('the Release Job', () => {
         variables: { NODE_ENV: 'production' },
         deployId: 'dd-x',
         releaseId: 'v1-abc',
-        nodeName: 'node-1',
+        scheduling: podSchedulingFactory({ hostnames: ['node-1'] }),
         storePath: '/store',
         ...params,
       }),
@@ -91,7 +95,7 @@ describe('the Release Job', () => {
     expect(job.spec.backoffLimit).toBe(0);
     const pod = job.spec.template.spec;
     expect(pod.restartPolicy).toBe('Never');
-    expect(pod.nodeSelector).toEqual({ 'kubernetes.io/hostname': 'node-1' });
+    expect(pod.affinity).toEqual(podSchedulingFactory({ hostnames: ['node-1'] }).affinity);
     expect(pod.initContainers).toBeUndefined();
     const [container] = pod.containers;
     expect(container.envFrom).toEqual([{ secretRef: { name: 'dd-x-production-data-release' } }]);

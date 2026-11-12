@@ -7,7 +7,6 @@ source "$SCRIPT_DIR/../lib/host.sh"
 
 DEPLOY_ID=dd-test
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
-TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-$DEPLOY_WP_IMAGE}"
 
 main() {
@@ -19,9 +18,10 @@ main() {
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
-    deploy_step "Wait for target node readiness" \
-        sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
+    cluster_placement
+
+    [ -z "${UNDERPOST_NODES_WORKLOADS:-}" ] || deploy_step "Wait for target node readiness" \
+        cluster_wait_any_node "$UNDERPOST_NODES_WORKLOADS"
 
     local pod_cmd
     pod_cmd="$(pod_bootstrap_cmd $DEPLOY_ID $DEPLOY_ENV), \
@@ -35,21 +35,14 @@ main() {
           --image '${DEPLOY_IMAGE}' \
           --kubeadm \
           --timeout-response 10000ms \
-          ${TARGET_NODE:+--node ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
           --sync \
           --build-manifest \
           --cmd '${pod_cmd}'"
 
-    deploy_step "Issue $DEPLOY_ID certificates" \
+    deploy_step "Apply $DEPLOY_ID workloads" \
         sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin deploy $DEPLOY_ID $DEPLOY_ENV \
           --kubeadm \
-          ${TARGET_NODE:+--node ${TARGET_NODE}} \
-          --gateway-api \
-          --ingress-node ${INGRESS_NODE} \
-          --cert \
           --disable-update-proxy"
 
     deploy_step "Promote $DEPLOY_ID deployment" \
@@ -60,6 +53,13 @@ main() {
           --timeout-response 10000ms \
           --versions green \
           --replicas 1"
+
+    deploy_step "Reconcile $DEPLOY_ID TLS" \
+        sudo -n -- /bin/bash -lc \
+        "cd $ENGINE_ROOT && node bin tls reconcile \
+          --deploy-id $DEPLOY_ID \
+          --env $DEPLOY_ENV \
+          --apply"
 }
 
 main "$@"

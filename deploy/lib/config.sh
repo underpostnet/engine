@@ -9,17 +9,8 @@
 # back to this, so a caller driving a second checkout passes that one explicitly.
 ENGINE_ROOT="${ENGINE_ROOT:-/home/dd/engine}"
 
-# The fleet's nodes, named once. A deploy pins its own placement in TARGET_NODE, declared beside
-# its deploy id and left empty where the CLI resolves the node itself.
-#
-# `node bin deploy` publishes that flag as `--node` while `run sync` and `run instance` publish
-# it as `--node-name`. Both are public option names, so a script holds the value once and spells
-# the flag the way the command it drives publishes it.
-HOST_NODE="${HOST_NODE:-localhost.localdomain}"
-WORKER_NODE="${WORKER_NODE:-hp-envy-iso-ram-rocky9}"
-
-# The node carrying the shared host-network ingress.
-INGRESS_NODE="${INGRESS_NODE:-$HOST_NODE}"
+# The Kubernetes nodes of each resource come from the node groups of engine-private/deploy/conf.cluster.json:
+# no script names a node. `cluster_placement` exports them as UNDERPOST_NODES_<CATEGORY>.
 
 # The key the sync and instance steps ship volume data with.
 DEPLOY_SSH_KEY_PATH="${DEPLOY_SSH_KEY_PATH:-/home/dd/tmp/897as9dxhaskd9}"

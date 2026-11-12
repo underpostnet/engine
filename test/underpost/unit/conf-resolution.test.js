@@ -20,7 +20,6 @@ import {
   exposePortListFactory,
   exposePortPlanFactory,
   exposeTcpPortsFactory,
-  gatewayApiEnabledFactory,
   generateSecurePassword,
   getConfFilePath,
   getConfFolder,
@@ -331,8 +330,13 @@ describe('deploy value helpers', () => {
     ]);
   });
 
-  it('tolerates a conf that declares no views', () => {
+  it('tolerates a conf that declares no views or no mailer', () => {
     expect(getPathsSSR({ head: [], body: [], mailer: {} })).to.deep.equal(['src/client/ssr/RootDocument.js']);
+    expect(getPathsSSR({ head: ['Css'], body: [], views: [{ client: 'Home' }] })).to.deep.equal([
+      'src/client/ssr/RootDocument.js',
+      'src/client/ssr/head/Css.js',
+      'src/client/ssr/views/Home.js',
+    ]);
   });
 });
 
@@ -474,15 +478,6 @@ describe('cluster context', () => {
     expect(clusterContextFactory('kubeadm')).to.deep.equal({ kind: false, kubeadm: true, k3s: false });
     expect(clusterContextFactory('kind')).to.deep.equal({ kind: true, kubeadm: false, k3s: false });
     expect(clusterContextFactory('k3s')).to.deep.equal({ kind: false, kubeadm: false, k3s: true });
-  });
-
-  // The Gateway API is the platform routing stack; the Contour set is what a
-  // caller opts into, never what a missing flag falls back to.
-  it('routes through the Gateway API unless it is explicitly disabled', () => {
-    expect(gatewayApiEnabledFactory({})).to.equal(true);
-    expect(gatewayApiEnabledFactory({ gatewayApi: true })).to.equal(true);
-    expect(gatewayApiEnabledFactory({ disableGatewayApi: true })).to.equal(false);
-    expect(gatewayApiEnabledFactory({ gatewayApi: true, disableGatewayApi: true })).to.equal(true);
   });
 });
 
@@ -788,6 +783,26 @@ describe('private conf sync', () => {
     expect(copy).to.be.greaterThan(remove);
   });
 
+  it('never mirrors the cluster state: the placement, its backups, the captures and the migration plans', () => {
+    let filter;
+    checkout({ present: true });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    vi.spyOn(fs, 'copySync').mockImplementation((src, _dest, options) => {
+      if (src === './engine-private/deploy') filter = options.filter;
+    });
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
+    for (const path of [
+      'conf.cluster.json',
+      'conf.cluster.json.20261108T120000Z.bak',
+      'captures',
+      'captures/production/x.json',
+      'migrations/20261108T120000Z-production-recommended/plan.json',
+    ])
+      expect(filter(`./engine-private/deploy/${path}`), path).to.equal(false);
+    for (const path of ['dd.router', 'dd.cron', 'capture-notes.md'])
+      expect(filter(`./engine-private/deploy/${path}`), path).to.equal(true);
+  });
+
   it('mirrors the cron conf the checkout declares', () => {
     const copied = [];
     checkout({ present: true, cronId: 'dd-cron' });
@@ -811,33 +826,29 @@ describe('private conf sync', () => {
     );
   });
 
-  it('reports that a deploy declares no public sources to move', () => {
-    expect(syncDeployIdSources()).to.equal(false);
-    expect(syncDeployIdSources([])).to.equal(false);
+  it('reports that a deploy declares no sources', () => {
+    expect(syncDeployIdSources('engine-x')).to.equal(false);
+    expect(syncDeployIdSources('engine-x', [])).to.equal(false);
   });
 
   it('copies in only the sources the engine tree lacks, and never moves', () => {
     // Regression: the repo copy used to be moved over the engine copy, so a build discarded
     // every edit made in the engine tree and left the repo reading as wholesale deletions.
     const calls = [];
-    const present = new Set(['../engine-x/src/new.js', '../engine-x/src/edited.js', 'src/api/edited.js']);
+    const present = new Set(['../engine-x/src/api/new.js', '../engine-x/src/api/edited.js', 'src/api/edited.js']);
     vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
     vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => present.has(`${filePath}`));
     vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
     vi.spyOn(fs, 'moveSync').mockImplementation(() => calls.push('move'));
-    expect(
-      syncDeployIdSources([
-        ['../engine-x/src/new.js', 'src/api/new.js'],
-        ['../engine-x/src/edited.js', 'src/api/edited.js'],
-        ['../engine-x/src/absent.js', 'src/api/absent.js'],
-      ]),
-    ).to.equal(true);
+    expect(syncDeployIdSources('engine-x', ['src/api/new.js', 'src/api/edited.js', 'src/api/absent.js'])).to.equal(
+      true,
+    );
     expect(calls).to.deep.equal([
       // The engine copy wins: it is mirrored out before anything is copied in.
-      'remove ../engine-x/src/edited.js',
-      'copy src/api/edited.js -> ../engine-x/src/edited.js',
-      'copy ../engine-x/src/new.js -> src/api/new.js',
+      'remove ../engine-x/src/api/edited.js',
+      'copy src/api/edited.js -> ../engine-x/src/api/edited.js',
+      'copy ../engine-x/src/api/new.js -> src/api/new.js',
     ]);
   });
 
@@ -845,21 +856,18 @@ describe('private conf sync', () => {
     // The engine ignores the moved-in paths, so the source repo is the only place a change to
     // them is diffed; replacing rather than overlaying makes deletions reach that diff too.
     const calls = [];
-    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}`.includes('present'));
+    vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => `${filePath}` === 'src/api/present.js');
     vi.spyOn(fs, 'removeSync').mockImplementation((target) => calls.push(`remove ${target}`));
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => calls.push(`copy ${src} -> ${dest}`));
     vi.spyOn(fs, 'moveSync').mockImplementation(() => calls.push('move'));
-    expect(
-      syncDeployIdSourcesBack([
-        ['../engine-x/src/present.js', 'src/api/present.js'],
-        ['../engine-x/src/absent.js', 'src/api/absent.js'],
-      ]),
-    ).to.deep.equal(['../engine-x/src/present.js']);
-    expect(calls).to.deep.equal([
-      'remove ../engine-x/src/present.js',
-      'copy src/api/present.js -> ../engine-x/src/present.js',
+    expect(syncDeployIdSourcesBack('engine-test-x', ['src/api/present.js', 'src/api/absent.js'])).to.deep.equal([
+      '../engine-test-x/src/api/present.js',
     ]);
-    expect(syncDeployIdSourcesBack()).to.deep.equal([]);
+    expect(calls).to.deep.equal([
+      'remove ../engine-test-x/src/api/present.js',
+      'copy src/api/present.js -> ../engine-test-x/src/api/present.js',
+    ]);
+    expect(syncDeployIdSourcesBack('engine-test-x')).to.deep.equal([]);
   });
 });
 
@@ -956,6 +964,7 @@ describe('template checkout identity', () => {
 describe('private template publishing', () => {
   let commands;
 
+  // Shell commands and file operations share one ordered log; no real path is touched.
   const stubShell = (hasChanges) => {
     commands = [];
     vi.spyOn(shell, 'exec').mockImplementation((command) => {
@@ -963,6 +972,9 @@ describe('private template publishing', () => {
       const stdout = command.includes('--has-changes') ? hasChanges : '';
       return { code: 0, stdout, stderr: '', toString: () => stdout };
     });
+    vi.spyOn(process, 'chdir').mockImplementation(() => {});
+    vi.spyOn(fs, 'removeSync').mockImplementation((target) => commands.push(`remove ${target}`));
+    vi.spyOn(fs, 'moveSync').mockImplementation((from, to) => commands.push(`move ${from} ${to}`));
   };
 
   afterEach(() => vi.restoreAllMocks());
@@ -1019,9 +1031,9 @@ describe('private template publishing', () => {
           ) && command.includes('update-ref HEAD FETCH_HEAD'),
       ),
     ).to.equal(true);
-    const kept = commands.indexOf('mv /home/dd/engine-test-core/.git /home/dd/engine-test-core.git');
+    const kept = commands.indexOf('move /home/dd/engine-test-core/.git /home/dd/engine-test-core.git');
     expect(kept).to.be.greaterThan(-1);
-    expect(kept).to.be.lessThan(commands.indexOf('sudo rm -rf /home/dd/engine-test-core'));
+    expect(kept).to.be.lessThan(commands.indexOf('remove /home/dd/engine-test-core'));
   });
 
   it('reports nothing to publish when the test repo is up to date', async () => {

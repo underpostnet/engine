@@ -19,12 +19,12 @@ import * as dir from 'path';
 import net from 'net';
 import crypto from 'crypto';
 import { loggerFactory } from '../ops/logger.js';
-import { isOciRuntime, writeEnv } from './environment.js';
+import { isOciRuntime, renderEnv, writeEnv } from './environment.js';
 import { configRejectionFactory } from './config-scope.js';
 import { shellArgumentFactory, shellExec } from './process.js';
-import { UNDERPOST_GATEWAY, statusPageAssetPathFactory } from '../network/underpost-gateway.js';
+import { statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
-import { DefaultConf } from '../../../underpost.config.js';
+import underpostConfig from '../../../underpost.config.js';
 import splitFile from 'split-file';
 import { readDeployRoutes } from '../network/router.js';
 import { servablePublicRoutesOf } from '../network/public-route-renderers.js';
@@ -61,7 +61,7 @@ const ENV_REF_PREFIX = 'env:';
 const DEFAULT_DEPLOY_ID = 'dd-default';
 
 /**
- * Basename of the serialized {@link DefaultConf} manifest a source tree carries.
+ * Basename of the serialized `underpost.config.js` manifest a source tree carries.
  * @constant {string}
  * @memberof ServerConfBuilder
  */
@@ -280,7 +280,7 @@ const Config = {
    * @description The default configuration of the server.
    * @memberof ServerConfBuilder
    */
-  default: DefaultConf,
+  default: underpostConfig,
   /**
    * @method build
    * @description Builds the configuration of the server.
@@ -484,6 +484,41 @@ const instanceEnvFilePath = (deployId, instanceId, env = 'production') =>
   `${getConfFolder(deployId)}/instances/${instanceId}/env/${env || 'production'}.env`;
 
 /**
+ * The Kubernetes placement of the cluster: host configuration, which a deployment never carries.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const CLUSTER_CONF_PATH = './engine-private/deploy/conf.cluster.json';
+
+/**
+ * The live captures of each cluster environment: private cluster state, never in a deployment.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const CLUSTER_CAPTURES_PATH = './engine-private/deploy/captures';
+
+/**
+ * The namespace migration plans and their step history: private cluster state, never in a deployment.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const CLUSTER_MIGRATIONS_PATH = './engine-private/deploy/migrations';
+
+/**
+ * Whether a path holds cluster state: the placement, its recoverable copies, the captures and the plans.
+ * @param {string} path
+ * @returns {boolean}
+ * @memberof ServerConfBuilder
+ */
+const isClusterStatePath = (path) => {
+  const resolved = dir.resolve(path);
+  return (
+    resolved.startsWith(dir.resolve(CLUSTER_CONF_PATH)) ||
+    [CLUSTER_CAPTURES_PATH, CLUSTER_MIGRATIONS_PATH].some((root) => `${resolved}/`.startsWith(`${dir.resolve(root)}/`))
+  );
+};
+
+/**
  * Suffix marking a deployment env file's OCI (container) runtime overlay.
  * @constant {string}
  * @memberof ServerConfBuilder
@@ -575,6 +610,25 @@ const deployEnvContentFactory = (deployId, env = 'production', subConf = '', opt
 };
 
 /**
+ * @method deployBasePortFactory
+ * @description The base port of a deployment in an environment: the `PORT` of its env file.
+ * `client --sync-env-port` sets it from the order of the route table. Each host path listens from
+ * `PORT + 1` upward.
+ * @param {string} deployId - Deployment id.
+ * @param {string} env - Environment selector.
+ * @returns {number} The base port.
+ * @throws {Error} When the env file sets no port.
+ * @memberof ServerConfBuilder
+ */
+const deployBasePortFactory = (deployId, env) => {
+  const { source, values } = deployEnvContentFactory(deployId, env);
+  const port = Number(values.PORT);
+  if (!Number.isInteger(port) || port <= 0)
+    throw new Error(`${source} sets no PORT: run node bin client --sync-env-port`);
+  return port;
+};
+
+/**
  * @method cleanDeployEnvFiles
  * @description Removes the working-tree env files {@link loadConf} materializes.
  * Single source of the file list, shared with the app domain's `clean` action.
@@ -608,7 +662,7 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
     let srcConf;
     if (fs.existsSync(confPath)) srcConf = fs.readFileSync(confPath, 'utf8');
     else {
-      Config.default[typeConf] = newInstance(DefaultConf[typeConf]);
+      Config.default[typeConf] = newInstance(underpostConfig[typeConf]);
       continue;
     }
     // Same precedence as getConfFilePath, so loadConf and every later read agree on which file
@@ -644,9 +698,18 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
           reason: `no environment source; ${getConfFolder(deployId)} carries ${available.join(', ')}`,
         }),
       );
-    const { content, values } = deployEnvContentFactory(deployId, envName, subConf);
-    fs.writeFileSync(`./.env`, content, 'utf8');
-    process.env = { ...process.env, ...values, NODE_ENV: envName };
+    const resolved = deployEnvContentFactory(deployId, envName, subConf);
+    // In a container, the projected Secret carries the endpoint layer: its endpoint values win over the files.
+    const projected = isOciRuntime()
+      ? Object.fromEntries(
+          Underpost.namespace
+            .endpointKeys()
+            .filter((key) => resolved.values[key] && process.env[key])
+            .map((key) => [key, process.env[key]]),
+        )
+      : {};
+    fs.writeFileSync(`./.env`, ociEnvContentFactory(resolved.content, renderEnv(projected)), 'utf8');
+    process.env = { ...process.env, ...resolved.values, ...projected, NODE_ENV: envName };
   } else process.env.NODE_ENV = envName;
   const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const packageJson = JSON.parse(fs.readFileSync(`${folder}/package.json`, 'utf8'));
@@ -724,13 +787,13 @@ const buildApiSrc = async ({ toOptions, fromOptions }, fromDefaultOptions = { ap
     );
   }
 
+  const clientServicePath = (apiId, variableName) => `./src/client/services/${apiId}/${variableName}Service.js`;
+  const fromClientService = clientServicePath(fromOptions.apiId, fromClientVariableName);
   fs.mkdirSync(`./src/client/services/${toOptions.apiId}`, { recursive: true });
-  if (fs.existsSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`))
+  if (fs.existsSync(fromClientService))
     fs.writeFileSync(
-      `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.service.js`,
-      formattedSrc(
-        fs.readFileSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`, 'utf8'),
-      ),
+      clientServicePath(toOptions.apiId, toClientVariableName),
+      formattedSrc(fs.readFileSync(fromClientService, 'utf8')),
       'utf8',
     );
 };
@@ -902,10 +965,10 @@ const validateTemplatePath = (absolutePath = '') => {
   const path = '/';
   const client = 'default';
   const ssr = 'Default';
-  const confServer = DefaultConf.server[host][path];
-  const confClient = DefaultConf.client[client];
-  const confSsr = DefaultConf.ssr[ssr];
-  const clients = DefaultConf.client.default.services;
+  const confServer = underpostConfig.server[host][path];
+  const confClient = underpostConfig.client[client];
+  const confSsr = underpostConfig.ssr[ssr];
+  const clients = underpostConfig.client.default.services;
 
   if (
     absolutePath.match('src/api/') &&
@@ -930,7 +993,7 @@ const validateTemplatePath = (absolutePath = '') => {
   ) {
     return false;
   }
-  if (absolutePath.match('src/client/sw/') && !absolutePath.match('src/client/sw/core.sw.js')) {
+  if (absolutePath.match('src/client/sw/') && !absolutePath.match('src/client/sw/CoreServiceWorker.js')) {
     return false;
   }
   if (
@@ -1023,7 +1086,7 @@ const getPathsSSR = (conf) => {
   const paths = ['src/client/ssr/RootDocument.js'];
   for (const o of conf.head) paths.push(`src/client/ssr/head/${o}.js`);
   for (const o of conf.body) paths.push(`src/client/ssr/body/${o}.js`);
-  for (const o of Object.keys(conf.mailer)) paths.push(`src/client/ssr/mailer/${conf.mailer[o]}.js`);
+  for (const o of Object.values(conf.mailer ?? {})) paths.push(`src/client/ssr/mailer/${o}.js`);
   for (const o of conf.views || []) paths.push(`src/client/ssr/views/${o.client}.js`);
   return paths;
 };
@@ -1806,10 +1869,10 @@ const schedulableNodeFactory = ({ nodes = [], node = '' }) => {
  * 1. A literal comma path names the Deployments outright and every flag is
  *    ignored — the caller already knows the exact object, so nothing is derived
  *    and nothing else can be caught by accident.
- * 2. `deployId` alone selects that deploy's PWA workload.
- * 3. `deployId` with `instanceId` adds every custom instance of each id; a
- *    template id expands to its whole variant family, since each variant is its
- *    own Deployment.
+ * 2. `deployId` alone selects that deploy's PWA workload and no custom instance.
+ * 3. `deployId` with `instanceId` selects only those custom instances, never the
+ *    PWA workload; a template id expands to its whole variant family, since each
+ *    variant is its own Deployment. An id that matches no instance is refused.
  * 4. `instanceId` without `deployId` is refused: an instance id is only unique
  *    inside a deploy, so acting on it alone would be a guess.
  *
@@ -1818,7 +1881,7 @@ const schedulableNodeFactory = ({ nodes = [], node = '' }) => {
  * blue/green partner of whatever it is currently serving — the colour that is by
  * definition not carrying traffic.
  * @param {string} [path] - Literal comma-separated Deployment names.
- * @param {string} [deployId] - Deploy id whose workload and instances are targeted.
+ * @param {string} [deployId] - Deploy id whose workload or instances are targeted.
  * @param {string} [instanceId] - Comma-separated instance or template ids.
  * @param {string} [traffic] - Comma-separated colours; empty means the inactive one.
  * @param {string} [env] - `development` | `production`.
@@ -1864,10 +1927,17 @@ const stopPlanFactory = ({
   if (requestedRaw.length > 0 && requested.length === 0)
     return { deployments: [], error: `--traffic accepts blue and/or green, got: ${requestedRaw.join(',')}` };
 
-  const targets = [{ id: deployId, host: '', kind: 'pwa' }];
-  for (const id of instanceIds)
-    for (const instance of instancesFor(id))
+  const targets = [];
+  if (instanceIds.length === 0) targets.push({ id: deployId, host: '', kind: 'pwa' });
+  const unknown = [];
+  for (const id of instanceIds) {
+    const instances = instancesFor(id);
+    if (instances.length === 0) unknown.push(id);
+    for (const instance of instances)
       targets.push({ id: `${deployId}-${instance.id}`, host: instance.host || '', kind: 'instance' });
+  }
+  if (unknown.length > 0)
+    return { deployments: [], error: `--instance-id matches no instance of ${deployId}: ${unknown.join(',')}` };
 
   const deployments = [];
   const seen = new Set();
@@ -2326,14 +2396,14 @@ const instanceProxyRoutesFactory = ({ deployId, instances, env, trafficById }) =
  * @memberof ServerConfBuilder
  */
 const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, options, servedStatuses }) => {
-  const { http3, altSvc } = Underpost.deploy.gatewayApiConfigFactory(options);
+  const { http3, altSvc } = Underpost.ingress.gatewayApiConfigFactory(options, env);
   const sorted = sortInstancesByPath(instances);
   // The `/` status fallback is only emitted when no workload claims the root
   // path: two rules matching `/` would leave gateway precedence ambiguous.
   const rootClaimed = sorted.some((instance) => (instance.path || '/') === '/');
   let rules = '';
   for (const [i, instance] of sorted.entries()) {
-    rules += Underpost.deploy.statusPageRouteRulesFactory({
+    rules += Underpost.ingress.statusPageRouteRulesFactory({
       deployId: instanceStatusPageDeployIdFactory(deployId, instance),
       host: instance.host,
       basePath: instance.path,
@@ -2341,6 +2411,7 @@ const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, 
       altSvc: http3 ? altSvc : undefined,
       catchAll: !rootClaimed && i === sorted.length - 1,
       servedStatuses,
+      options: { ...options, env },
     });
     // An instance that declares a status page is reached through the shared
     // gateway, which proxies to its workload and intercepts the errors. One that
@@ -2348,10 +2419,10 @@ const instanceHttpRouteRulesFactory = ({ deployId, instances, env, trafficById, 
     // it buys something. Any explicit generic `pathRewritePolicy` moves to the
     // gateway with the workload route.
     const intercepted = Object.keys(instanceInterceptStatusesFactory(instance)).length > 0;
-    rules += Underpost.deploy.httpRouteRuleFactory({
+    rules += Underpost.ingress.httpRouteRuleFactory({
       path: instance.path,
       ...(intercepted
-        ? { serviceId: UNDERPOST_GATEWAY.serviceName, port: UNDERPOST_GATEWAY.port }
+        ? Underpost.ingress.gatewayBackendFactory({ ...options, env })
         : {
             port: instancePortFactory({ instance, env }),
             serviceId: Underpost.deploy.trafficServiceNameFactory({ deployId: `${deployId}-${instance.id}`, env }),
@@ -2542,22 +2613,6 @@ const exposePortPlanFactory = ({
   return plan;
 };
 /**
- * @method gatewayApiEnabledFactory
- * @description Whether a workflow routes through the Gateway API stack.
- *
- * On unless explicitly disabled, in every runner: the Gateway API with QUIC/HTTP3
- * is the platform's routing stack, and the Contour HTTPProxy set is the fallback
- * a caller opts into with `--disable-gateway-api`. `--gateway-api` stays
- * meaningful as an explicit request, so a caller that passes it is never
- * second-guessed. Reading it from one place is what keeps a runner from
- * defaulting to a different stack than the one that deployed the routes.
- * @param {object} [options] - Runner/deploy options.
- * @returns {boolean} True when the Gateway API stack is in effect.
- * @memberof ServerConfBuilder
- */
-const gatewayApiEnabledFactory = (options = {}) => options.gatewayApi === true || options.disableGatewayApi !== true;
-
-/**
  * @method clusterContextFactory
  * @description The inverse of {@link ServerConfBuilder.clusterTypeFactory}: a
  * cluster type as the option flags a runner reads.
@@ -2722,7 +2777,9 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   // A checkout that declares no cron deploy has no `conf/<cron-id>` to mirror. Without this
   // the path resolves to `conf/null` and the whole sync fails over an absent optional.
   if (cronDeployId) fs.copySync(`./engine-private/conf/${cronDeployId}`, `${privateRepoPath}/conf/${cronDeployId}`);
-  fs.copySync(`./engine-private/deploy`, `${privateRepoPath}/deploy`);
+  fs.copySync(`./engine-private/deploy`, `${privateRepoPath}/deploy`, {
+    filter: (source) => !isClusterStatePath(source),
+  });
   fs.removeSync(`${privateRepoPath}/replica`);
   fs.removeSync(`${privateRepoPath}/logs`);
   const replicaSrcDir = `./engine-private/replica`;
@@ -2744,50 +2801,65 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
 };
 
 /**
- * Mirrors a deploy's public template sources from the engine working tree to the source
- * repo they came from. The engine ignores every one of these paths, so an edit made there
- * never reaches a diff; the source repo is where it is reviewed and committed. Each path
- * the engine holds is replaced wholesale there (removed, then copied) so the source repo's
- * `git status` reads as exactly the engine tree's state, deletions included. The engine
- * copies stay in place: this is a copy, not a move. A path the engine tree does not hold
- * is left untouched in the source repo rather than deleted.
- *
- * @method syncDeployIdSourcesBack
- * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` pairs.
- * @returns {string[]} The source paths that were mirrored.
+ * The place of an engine path in a deploy's source repo, which sits beside the engine and
+ * holds each source at the same path.
+ * @method deploySourceRepoPath
+ * @param {string} repoName - Source repo (e.g. `engine-test-prototype`).
+ * @param {string} sourcePath - Engine path (e.g. `src/client/components/healthcare`).
+ * @returns {string}
  * @memberof ServerConfBuilder
  */
-const syncDeployIdSourcesBack = (sourceMoves = []) => {
+const deploySourceRepoPath = (repoName, sourcePath) => `../${repoName}/${sourcePath}`;
+
+/**
+ * Mirrors a deploy's catalog sources from the engine working tree to its source repo. The
+ * engine ignores every one of these paths, so an edit made there never reaches a diff; the
+ * source repo is where it is reviewed and committed. Each path the engine holds is replaced
+ * wholesale there (removed, then copied) so the source repo's `git status` reads as exactly
+ * the engine tree's state, deletions included. The engine copies stay in place: this is a
+ * copy, not a move. A path the engine tree does not hold is left untouched in the source repo.
+ *
+ * @method syncDeployIdSourcesBack
+ * @param {string} repoName - Source repo (e.g. `engine-test-prototype`).
+ * @param {string[]} [sourcePaths=[]] - Catalog `sourcePaths`.
+ * @returns {string[]} The source repo paths that were mirrored.
+ * @memberof ServerConfBuilder
+ */
+const syncDeployIdSourcesBack = (repoName, sourcePaths = []) => {
   const mirrored = [];
-  for (const [src, dest] of sourceMoves) {
-    if (!fs.existsSync(dest)) continue;
-    fs.removeSync(src);
-    fs.copySync(dest, src);
-    mirrored.push(src);
+  for (const sourcePath of sourcePaths) {
+    if (!fs.existsSync(sourcePath)) continue;
+    const repoPath = deploySourceRepoPath(repoName, sourcePath);
+    fs.removeSync(repoPath);
+    fs.copySync(sourcePath, repoPath);
+    mirrored.push(repoPath);
   }
   return mirrored;
 };
 
 /**
- * Brings a deploy's public template sources into line ahead of the build copy step. The
- * engine working tree is the working copy and the source repo its git view, so a path the
- * engine already holds is mirrored out to the repo ({@link syncDeployIdSourcesBack}) and
- * only a path the engine lacks is copied in. Nothing is moved: the repo's working tree
- * keeps every file, so a build never leaves it reading as wholesale deletions, and an
- * engine-side edit is never overwritten by the repo's copy. Safe to rerun: each step is
- * guarded by `existsSync`.
+ * Brings a deploy's catalog sources into line ahead of the build copy step. The engine
+ * working tree is the working copy and the source repo its git view, so a path the engine
+ * already holds is mirrored out to the repo ({@link syncDeployIdSourcesBack}) and only a
+ * path the engine lacks is copied in. Nothing is moved: the repo's working tree keeps every
+ * file, so a build never leaves it reading as wholesale deletions, and an engine-side edit is
+ * never overwritten by the repo's copy. Safe to rerun: each step is guarded by `existsSync`.
  *
  * @method syncDeployIdSources
- * @param {Array<[string, string]>} [sourceMoves=[]] - Public `[src, dest]` pairs.
+ * @param {string} repoName - Source repo (e.g. `engine-test-prototype`).
+ * @param {string[]} [sourcePaths=[]] - Catalog `sourcePaths`.
  * @returns {boolean} `true` when any sources were declared, else `false`.
  * @memberof ServerConfBuilder
  */
-const syncDeployIdSources = (sourceMoves = []) => {
-  if (!sourceMoves.length) return false;
+const syncDeployIdSources = (repoName, sourcePaths = []) => {
+  if (!sourcePaths.length) return false;
   for (const dir of ['src/api', 'src/client/components', 'src/client/public', 'src/client/services'])
     fs.mkdirSync(dir, { recursive: true });
-  syncDeployIdSourcesBack(sourceMoves);
-  for (const [src, dest] of sourceMoves) if (!fs.existsSync(dest) && fs.existsSync(src)) fs.copySync(src, dest);
+  syncDeployIdSourcesBack(repoName, sourcePaths);
+  for (const sourcePath of sourcePaths) {
+    const repoPath = deploySourceRepoPath(repoName, sourcePath);
+    if (!fs.existsSync(sourcePath) && fs.existsSync(repoPath)) fs.copySync(repoPath, sourcePath);
+  }
   return true;
 };
 
@@ -2894,7 +2966,7 @@ const templateGitignoreFactory = (source = '.gitignore') =>
  * Clones the template repo next to the engine when the checkout is missing or belongs to
  * another repository, empties it so the result cannot inherit anything from a previous run,
  * then syncs every engine-tracked file the template is allowed to carry
- * ({@link validateTemplatePath}), strips engine-only + product modules, restores the template's
+ * ({@link validateTemplatePath}), drops the engine-only paths and every product's `templatePaths`, restores the template's
  * own CI workflows + guest services, and rewrites `package.json` / `package-lock.json` / `README`
  * so the result is a standalone, installable project. Throws on failure; callers own exit codes.
  *
@@ -2950,17 +3022,14 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
   // Preserve the template's own README + package.json identity before merging engine metadata.
   for (const checkoutPath of ['README.md', 'package.json']) shellExec(`cd ${toPath} && git checkout ${checkoutPath}`);
 
-  // Strip each product catalog's `stripPaths` (aggregated dynamically) plus the engine-only
-  // workflows, deploy manifests, and product catalog modules.
-  const productStripPaths = (await loadProductCatalogs()).flatMap((c) => c.stripPaths);
-  for (const deletePath of productStripPaths) {
-    const target = `${toPath}/${deletePath}`;
-    if (fs.existsSync(target)) fs.removeSync(target);
-  }
-  shellExec(`rm -rf ${toPath}/.github`);
-  shellExec(`rm -rf ${toPath}/manifests/deployment/dd-*`);
-  shellExec(`rm -rf ${toPath}/deploy`);
-  fs.removeSync(`${toPath}/${ENGINE_GRAPH.out}`);
+  // Drop every path a product owns, then the engine-only workflows, deploy tree and code graph.
+  for (const productPath of (await loadProductCatalogs()).flatMap((catalog) => catalog.templatePaths))
+    fs.removeSync(`${toPath}${productPath}`);
+  for (const path of ['.github', 'deploy', ENGINE_GRAPH.out]) fs.removeSync(`${toPath}/${path}`);
+  const deploymentManifests = `${toPath}/manifests/deployment`;
+  if (fs.existsSync(deploymentManifests))
+    for (const name of fs.readdirSync(deploymentManifests).filter((entry) => entry.startsWith('dd-')))
+      fs.removeSync(`${deploymentManifests}/${name}`);
 
   fs.mkdirSync(`${toPath}/.github/workflows`, { recursive: true });
   for (const restorePath of TEMPLATE_RESTORE_PATHS)
@@ -3006,17 +3075,18 @@ const buildTemplate = async ({ srcPath = './', toPath = '../pwa-microservices-te
 
 const updatePrivateTemplateRepo = async () => {
   const templatePath = '/home/dd/pwa-microservices-template';
-  shellExec(`sudo rm -rf ${templatePath}
-cd /home/dd/engine && npm run build:template
-cd /home/dd
-underpost clone --bare underpostnet/pwa-microservices-template-private
-sudo rm -rf ${templatePath}/.git
-mv ./pwa-microservices-template-private.git ${templatePath}/.git
-cd ${templatePath}
-npm install --omit=dev --ignore-scripts
-git init
-${Underpost.repo.gitIdentityCommands().join('\n')}
-git add .`);
+  const parentPath = dir.dirname(templatePath);
+  fs.removeSync(templatePath);
+  shellExec('npm run build:template', { cwd: '/home/dd/engine' });
+  shellExec('underpost clone --bare underpostnet/pwa-microservices-template-private', { cwd: parentPath });
+  fs.removeSync(`${templatePath}/.git`);
+  fs.moveSync(`${parentPath}/pwa-microservices-template-private.git`, `${templatePath}/.git`);
+  shellExec(
+    ['npm install --omit=dev --ignore-scripts', 'git init', ...Underpost.repo.gitIdentityCommands(), 'git add .'].join(
+      ' && ',
+    ),
+    { cwd: templatePath },
+  );
   const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
     stdout: true,
     silent: true,
@@ -3057,10 +3127,10 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   const parentPath = dir.dirname(templatePath);
   const publishPath = `${parentPath}/${repoName}`;
   const gitDir = `${parentPath}/${repoName}.git`;
-  shellExec(`sudo rm -rf ${gitDir}`);
+  fs.removeSync(gitDir);
   if (fs.existsSync(`${publishPath}/.git`)) {
     logger.info('Fetch the published history', { repoName });
-    shellExec(`mv ${publishPath}/.git ${gitDir}`);
+    fs.moveSync(`${publishPath}/.git`, gitDir);
     const auth = Underpost.repo.gitAuthFactory(`${username}/${repoName}`);
     shellExec(
       `git --git-dir=${gitDir} fetch "${auth.url}" HEAD && git --git-dir=${gitDir} update-ref HEAD FETCH_HEAD`,
@@ -3070,12 +3140,12 @@ const updatePrivateEngineTestRepo = async (deployId) => {
     );
   } else {
     logger.info('Clone the published history', { repoName });
-    shellExec(`cd ${parentPath} && underpost clone --bare ${username}/${repoName}`, { silentOnError: true });
+    shellExec(`underpost clone --bare ${username}/${repoName}`, { cwd: parentPath, silentOnError: true });
   }
 
   // Publishing from a work tree of its own leaves the template checkout its own git
   // history, and copying that tree from 0 keeps a stale file out of the published one.
-  shellExec(`sudo rm -rf ${publishPath}`);
+  fs.removeSync(publishPath);
   logger.info('Copy the assembled template', { from: templatePath, to: publishPath });
   fs.copySync(templatePath, publishPath, {
     filter: (src) => {
@@ -3083,7 +3153,7 @@ const updatePrivateEngineTestRepo = async (deployId) => {
       return !entries.includes('.git') && !entries.includes('node_modules');
     },
   });
-  if (fs.existsSync(gitDir)) shellExec(`mv ${gitDir} ${publishPath}/.git`);
+  if (fs.existsSync(gitDir)) fs.moveSync(gitDir, `${publishPath}/.git`);
 
   // `git init` converts the moved bare repo into a normal work-tree repo (bare
   // clones have no work tree, so `git add` would fail), and bootstraps a fresh
@@ -3203,7 +3273,11 @@ export {
   getConfFolder,
   getConfFilePath,
   deployEnvContentFactory,
+  deployBasePortFactory,
   deployOciEnvFilePath,
+  CLUSTER_CAPTURES_PATH,
+  CLUSTER_CONF_PATH,
+  CLUSTER_MIGRATIONS_PATH,
   ociEnvContentFactory,
   OCI_ENV_SUFFIX,
   readConfJson,
@@ -3220,7 +3294,6 @@ export {
   deployHostsFactory,
   clusterInstancesFactory,
   etcHostFactory,
-  gatewayApiEnabledFactory,
   instanceHttpRouteRulesFactory,
   instanceInterceptStatusesFactory,
   instancePortFactory,
@@ -3247,6 +3320,7 @@ export {
   sortInstancesByPath,
   waitForPort,
   syncPrivateConf,
+  deploySourceRepoPath,
   syncDeployIdSources,
   syncDeployIdSourcesBack,
   gitOriginRepositoryName,

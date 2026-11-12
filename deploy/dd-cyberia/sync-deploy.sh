@@ -9,7 +9,6 @@ source "$SCRIPT_DIR/../lib/content-release.sh"
 
 DEPLOY_ID=dd-cyberia
 DEPLOY_ENV="${DEPLOY_ENV:-production}"
-TARGET_NODE="${TARGET_NODE:-$HOST_NODE}"
 REPLICAS="${REPLICAS:-1}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the private
 # mirrors. A private release is the same production release.
@@ -45,11 +44,13 @@ CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
 # The new pod serves the release that is already active.
 SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"
 # Live changes of the active release that its build does not hold stop the deploy before the
-# rollout. Export them to cyberia-content first, or set DISCARD_LIVE_CHANGES=1 to stop serving them.
-DISCARD_LIVE_CHANGES="${DISCARD_LIVE_CHANGES:-0}"
+# rollout. Export them to cyberia-content first, or name that active release in DISCARD_LIVE_CHANGES
+# and say why in DISCARD_REASON to stop serving them; the release ledger records both.
+DISCARD_LIVE_CHANGES="${DISCARD_LIVE_CHANGES:-}"
+DISCARD_REASON="${DISCARD_REASON:-}"
 
 # The routing a traffic switch applies: the sync and a switch back render the same routes.
-ROUTING_FLAGS="--replicas $REPLICAS --timeout-response 10000ms --gateway-api"
+ROUTING_FLAGS="--replicas $REPLICAS --timeout-response 10000ms"
 
 # What served before this deploy, and how far it got: `switched` from the rollout on, `promoting`
 # once the release it replaces is known, `committed` once the new release serves. A failure
@@ -108,13 +109,15 @@ stage_build() {
             fi
             ;;
     esac
-    DEPLOY_IMAGE="$(sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin image --digest '$image_tag'" | tail -n 1)"
+    # The workload nodes pull the image and resolve its digest: it lands where the pods run.
+    DEPLOY_IMAGE="$(sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin image --digest '$image_tag'${UNDERPOST_NODES_WORKLOADS:+ --nodes '${UNDERPOST_NODES_WORKLOADS// /,}' --ssh-key-path '$DEPLOY_SSH_KEY_PATH'}" | tail -n 1)"
     local content_revision
     ENGINE_REVISION="$(engine_commit)"
     content_revision="$(checkout_revision cyberia-content)"
     CONTENT_RELEASE_ID="${CONTENT_RELEASE_ID:-v${version}-${ENGINE_REVISION:0:7}-${content_revision:0:8}}"
     CONTENT_RELEASE_ID="$(printf '%s' "$CONTENT_RELEASE_ID" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')"
     ENGINE_API_PATH="$(engine_api_path)"
+    CYBERIA_API_ORIGIN="$(engine_api_origin)"
     echo "$RUN_QUIET_NODE_TAG image=$image_tag digest=${DEPLOY_IMAGE#*@} release=$CONTENT_RELEASE_ID engine=$ENGINE_REVISION channel=$CYBERIA_SOURCE_CHANNEL"
 }
 
@@ -158,6 +161,17 @@ content_release_skipped() {
     echo "$RUN_QUIET_NODE_TAG SKIP_CONTENT_RELEASE=1: $1 skipped"
 }
 
+# A discard says why in one argument the promotion passes quoted: no quote, $, backtick or backslash.
+require_discard_reason() {
+    [ -n "$DISCARD_LIVE_CHANGES" ] || return 0
+    case "$DISCARD_REASON" in
+    "" | *[\"\'\$\`\\]*)
+        echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES needs DISCARD_REASON: why the live changes stop serving, without quotes, \$, backticks or backslashes" >&2
+        exit 1
+        ;;
+    esac
+}
+
 # ── Stage D — Data ───────────────────────────────────────────────────────────────────────
 #
 # The data-release credentials go to their Secret, then two Release Jobs run on the deployed image
@@ -178,16 +192,16 @@ stage_content_candidate() {
     ! content_release_skipped "content candidate" || return 0
     deploy_step "Prepare content release $CONTENT_RELEASE_ID" \
         sudo -n -- /bin/bash -lc \
-        "cd $ENGINE_ROOT && node bin/cyberia content-release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL"
+        "cd $ENGINE_ROOT && node bin/cyberia content release prepare $CONTENT_RELEASE_ID --channel $CYBERIA_SOURCE_CHANNEL"
     deploy_step "Build content release $CONTENT_RELEASE_ID" \
         content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE" \
         build "$CONTENT_RELEASE_ID" --from source ${CONTENT_INSTANCES:+--instances "$CONTENT_INSTANCES"}
-    if [ "$DISCARD_LIVE_CHANGES" = "1" ]; then
-        echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=1: the promotion stops serving the live changes of the active release"
+    if [ -n "$DISCARD_LIVE_CHANGES" ]; then
+        echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=$DISCARD_LIVE_CHANGES: the promotion stops serving its live changes ($DISCARD_REASON)"
     else
         deploy_step "No live change the promotion stops serving" \
             content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes || {
-            echo "$RUN_QUIET_NODE_TAG Capture a baseline with \`node bin/cyberia content-baseline capture\`, export it on a development host with \`node bin/cyberia content-release export-live\`, commit it to cyberia-content, then deploy again with DISCARD_LIVE_CHANGES=1" >&2
+            echo "$RUN_QUIET_NODE_TAG Capture a baseline with \`node bin/cyberia content baseline capture\`, export it on a development host with \`node bin/cyberia content source export-live\`, commit it to cyberia-content, then deploy again; or name the active release in DISCARD_LIVE_CHANGES and say why in DISCARD_REASON" >&2
             exit 1
         }
     fi
@@ -218,8 +232,6 @@ stage_rollout() {
           --image '${DEPLOY_IMAGE}' \
           --kubeadm \
           --deploy-id-cron-jobs none \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
-          --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
           --image-pull-policy Always \
           ${sync_flags} \
@@ -244,7 +256,8 @@ stage_promotion() {
         return 0
     fi
     local discard=""
-    [ "$DISCARD_LIVE_CHANGES" != "1" ] || discard="--discard-live-changes"
+    [ -z "$DISCARD_LIVE_CHANGES" ] ||
+        discard="--discard-live-changes $DISCARD_LIVE_CHANGES --discard-reason \"$DISCARD_REASON\""
     PREVIOUS_RELEASE="$(served_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH")"
     RELEASE_STATE=promoting
     deploy_step "Promote content release $CONTENT_RELEASE_ID" \
@@ -295,13 +308,16 @@ revert_release() {
 
 main() {
     require_bundle_mode
+    require_discard_reason
     deploy_start "Starting remote sync and deploy"
     stage_sources
+    # Read once: every later stage and its subshells take the placement of this shell.
+    cluster_placement
     stage_build
     stage_configuration
     stage_runtime_indexes
     stage_content_candidate
-    PREVIOUS_COLOUR="$(live_colour || true)"
+    PREVIOUS_COLOUR="$(serving_colour || true)"
     RELEASE_STATE=switched
     trap revert_release EXIT
     stage_rollout

@@ -97,14 +97,15 @@ You should now have the API running on port 4001 and the client on port 4004, wi
 then opens the real domain, for example `https://www.nexodev.org`, with a trusted local certificate.
 
 ```bash
-node bin run dev dd-core,nexodev,www.nexodev.org,/,localhost:3333 --tls --kubeadm
+node bin run dev dd-core,nexodev,www.nexodev.org,/,localhost:3333 --tls
 ```
 
 The argument is `deployId,subConf,host,path,client-host:port`. The runner does these steps in order:
 
-1. It forwards the MongoDB primary and Valkey of the cluster to the host ports `27017` and `6379`
-   (`node bin run dev-cluster --expose`). `--kubeadm`, `--k3s` or `--kind` selects the cluster; Kind
-   is the default. The API server uses this database.
+1. It opens a [Development Sandbox](run-a-development-sandbox.md) session: the MongoDB primary and
+   Valkey of the local Kind cluster on `127.0.0.1:27017` and `127.0.0.1:6379`. The API server uses
+   this database. The runner refuses `--kubeadm` and `--k3s`: a fleet cluster is never a development
+   database.
 2. It starts the API server, and waits until it is ready.
 3. It starts the client server, and waits until it is ready.
 4. It starts the dev proxy (`node src/proxy proxy ...`). The proxy sends `/api` and `/socket.io` to
@@ -122,8 +123,8 @@ certificate covers the host, or the certificate expires within 7 days, the proxy
 and installs the mkcert root CA in the system trust store of this machine, which `curl` and the RHEL
 browsers read. A browser on another machine must import `.underpost/ssl/<host>/rootCA.pem`.
 
-The proxy and `dev-cluster` write their host names to `/etc/hosts`, each in its own marked block
-(`# underpost hosts dev-proxy-643:begin`). A new run replaces its block and keeps all other lines.
+The proxy and the sandbox session write their host names to `/etc/hosts`, each in its own marked
+block (`# underpost hosts dev-proxy-643:begin`). A new run replaces its block and keeps all other lines.
 
 Run the command as root, because the proxy binds a port below 1024 and writes `/etc/hosts`. The host
 names apply to this machine only. To use a browser on another machine, add the host name with the
