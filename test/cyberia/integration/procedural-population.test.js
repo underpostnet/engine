@@ -54,7 +54,7 @@ import { POPULATION_VERSION } from '../../../src/api/cyberia-procedural-populati
 import { STAGES } from '../../../src/projects/cyberia/procedural/population/stages.js';
 import { ITEM_TYPES } from '../../../src/client/components/cyberia/SharedDefaultsCyberia.js';
 import { paletteCatalog } from '../../../src/projects/cyberia/procedural/palettes/catalog.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
 import { CyberiaItemCatalogService } from '../../../src/api/cyberia-item-catalog/cyberia-item-catalog.service.js';
 import { CyberiaEntityTypeDefaultService } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
@@ -1568,7 +1568,7 @@ describe.skipIf(!mongodBinary)('map population on a real MongoDB', () => {
       });
       expect(await rejection(getPopulation(all(), String(old)))).toMatchObject({
         status: 409,
-        message: `Population ${old} is a version 1 record: run \`cyberia population migrate --apply\`, or delete it and start the map again`,
+        message: `Population ${old} is a version 1 record: run \`cyberia content population migrate --apply\`, or delete it and start the map again`,
       });
       const { data } = await listPopulations(all(), DataQuery.parse({ limit: 50 }));
       expect(data.find((row) => String(row._id) === String(old))).toMatchObject({ status: 'outdated', groups: [] });

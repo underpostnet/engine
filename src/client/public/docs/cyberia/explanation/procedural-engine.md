@@ -656,7 +656,7 @@ waits: the worker tries it again with a longer wait each time. A second publish 
 runs answers the same publication.
 
 **Records of an earlier version.** A population keeps its version. A record of another version shows
-as outdated and read-only. `cyberia population migrate` reports what a move of each version 2 to 6
+as outdated and read-only. `cyberia content population migrate` reports what a move of each version 2 to 6
 record would do, and writes nothing; `--apply` writes it. No deploy runs it. Every record: its
 targets drop their run lists, each job names the item of the target that listed it (or of its
 candidate when none did), and the population counts its jobs as its next run index; no draft is
@@ -942,7 +942,7 @@ are then copies, and a population that publishes or is cancelled takes no write 
 | Eligible | closed for longer                                                         |
 | Cleaned  | `draftsPrunedAt` is set: the copies are gone, the record and targets stay |
 
-`cyberia population prune` clears the copies of every eligible population and reports what it
+`cyberia content population prune` clears the copies of every eligible population and reports what it
 clears: the bytes each record held, its drafts, and the files it deletes and keeps; and what the
 window keeps. `--retention-days` sets the window. It writes nothing without `--apply`, and the dry
 run reports the same as the apply. It never touches an open population, a publication that runs or
@@ -1059,7 +1059,7 @@ src/projects/cyberia/procedural/
 | Audit trail                | `CyberiaProceduralAudit`             | The runtime database |
 
 Genesis Templates and palettes are content, not collections. A job stores the ones it uses, as they
-were. A job stored before the global palettes runs again only after `cyberia population migrate
+were. A job stored before the global palettes runs again only after `cyberia content population migrate
 --apply` moves its spec; until then a retry, a regeneration or a Studio edit of one of its items
 fails with the reason. Its candidates and their artwork stay.
 

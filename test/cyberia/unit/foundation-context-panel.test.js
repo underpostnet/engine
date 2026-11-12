@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../../src/client/services/cyberia-saga/cyberia-saga.service.js', () => ({ CyberiaSagaService: {} }));
+vi.mock('../../../src/client/services/cyberia-saga/CyberiaSagaService.js', () => ({ CyberiaSagaService: {} }));
 
 const { itemContextPanel, mapContextPanel } =
   await import('../../../src/client/components/cyberia/FoundationContextCyberia.js');

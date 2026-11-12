@@ -44,7 +44,7 @@ const closedAt = ({ cancelledAt, publication }) => {
  * nothing without `apply`, and reports the same either way.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
- * @param {Object} params.options - Router options: the File model of the host.
+ * @param {Object} params.options - The API context: the File model of the host.
  * @param {boolean} [params.apply=false]
  * @param {number} [params.retentionDays] - {@link DRAFT_RETENTION_DAYS} by default.
  * @param {Date} [params.now]

@@ -26,7 +26,7 @@
 import { randomUUID } from 'node:crypto';
 import canonicalize from 'canonicalize';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../../db/database-provider.js';
 import {
   CONTENT_CODE_PATTERN,
   graphLayoutDefect,
@@ -81,7 +81,7 @@ const MAP_FIELDS = Object.freeze({
  * A model of the host as its readers read it, from the database each partition serves; null when the host
  * loads no such model.
  * @param {string} name - Model name.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {import('mongoose').Model|null}
  * @memberof CyberiaPopulationWorkingGraph
  */
@@ -166,7 +166,7 @@ export async function workingInstances(models, population) {
  * them. Each document carries its `state`.
  * @param {Object} models - {@link populationModels}.
  * @param {Object} population - A lean population.
- * @param {Object} options - Router options of the host: its universes.
+ * @param {Object} options - The API context of the host: its universes.
  * @returns {Promise<Object>}
  * @memberof CyberiaPopulationWorkingGraph
  */
@@ -296,7 +296,7 @@ function portalProblems(graph, instance) {
  * persisted documents hold already is not the population's.
  * @param {Object} models - {@link populationModels}.
  * @param {Object} graph - {@link workingGraph}.
- * @param {Object} options - Router options of the host: its economies.
+ * @param {Object} options - The API context of the host: its economies.
  * @returns {Promise<{errors:string[], warnings:string[]}>}
  * @memberof CyberiaPopulationWorkingGraph
  */
@@ -479,7 +479,7 @@ const draftsWorld = (graph, instance) =>
  * its conf names and its entity-type defaults; each universe of those instances and each universe the population drafts,
  * with the members it gains and loses.
  * @param {Object} graph - {@link workingGraph}.
- * @param {Object} options - Router options of the host: its server registry.
+ * @param {Object} options - The API context of the host: its server registry.
  * @returns {Promise<Object>}
  * @memberof CyberiaPopulationWorkingGraph
  */
@@ -732,7 +732,7 @@ function baseRevisionOf(current, stored, body, kind) {
  * @param {string} params.code - Instance code.
  * @param {Object} params.body
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link instanceDraftView}.
  * @throws {Error} 400 for a defect; 409 for a stale revision or a closed population.
  * @memberof CyberiaPopulationWorkingGraph
@@ -787,7 +787,7 @@ export async function saveInstanceDraft({ models, id, code, body, actor, options
  * @param {string} params.code - Universe code.
  * @param {Object} params.body
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link universeDraftView}.
  * @throws {Error} 400 for a defect; 409 for a stale revision or a closed population; 503 on a host with no universes.
  * @memberof CyberiaPopulationWorkingGraph
@@ -868,7 +868,7 @@ function mergeFields(base, draft, stored, prefer, prefix = '') {
  * @param {string} params.code
  * @param {{prefer?:'draft'}} [params.body]
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link instanceDraftView} or {@link universeDraftView}.
  * @throws {Error} 404 for no such draft; 409 for a conflict, a new or deleted document, or a closed population.
  * @memberof CyberiaPopulationWorkingGraph
@@ -927,7 +927,7 @@ export async function rebaseDocumentDraft({ models, id, kind, code, body = {}, a
  * @param {string} params.id - Population id.
  * @param {'instance'|'universe'} params.kind
  * @param {string} params.code
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<{discarded:boolean}>}
  * @throws {Error} 409 for a closed population.
  * @memberof CyberiaPopulationWorkingGraph
@@ -988,7 +988,7 @@ async function storedDefault(models, rowId) {
  * @param {string} params.code - Instance code.
  * @param {string} params.rowId - A row the instance shares with other instances, or a global row.
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link instanceDraftView}, with `key` of the variant.
  * @throws {Error} 404 for an unknown instance or row; 409 for a row the instance does not run, or runs alone.
  * @memberof CyberiaPopulationWorkingGraph
@@ -1048,7 +1048,7 @@ export async function proposeVariant({ models, id, code, rowId, actor, options }
  * @param {string} params.key - Variant key.
  * @param {Object} params.body
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link instanceDraftView}.
  * @throws {Error} 400 for a defect; 404 for an unknown variant; 409 for a stale revision.
  * @memberof CyberiaPopulationWorkingGraph
@@ -1085,7 +1085,7 @@ export async function saveVariant({ models, id, code, key, body, actor, options 
  * @param {string} params.code - Instance code.
  * @param {string} params.key - Variant key.
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link instanceDraftView}.
  * @throws {Error} 404 for an unknown variant; 409 for a closed population.
  * @memberof CyberiaPopulationWorkingGraph
@@ -1123,7 +1123,7 @@ export async function dropVariant({ models, id, code, key, actor, options }) {
  * The picture of the map draft of a population, as the map preview draws a stored map.
  * @param {Object} models - {@link populationModels}.
  * @param {string} id - Population id.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {number|string} [revision] - The draft revision the picture is for.
  * @returns {Promise<Buffer|null>} Null when the draft draws nothing.
  * @throws {Error} 404 when the population drafts no map; 409 when the draft is at another revision.
@@ -1144,7 +1144,7 @@ export async function draftMapPicture(models, id, options, revision) {
  * @param {Object} models - {@link populationModels}.
  * @param {string} id - Population id.
  * @param {string} code - Instance code.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {number|string} [revision] - The population revision the picture is for.
  * @returns {Promise<Buffer>}
  * @throws {Error} 404 for an unknown instance, or a world with no map; 409 when the population is at another revision.

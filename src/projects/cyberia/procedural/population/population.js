@@ -23,8 +23,8 @@
  */
 import { createHash } from 'node:crypto';
 import canonicalize from 'canonicalize';
-import { DataBaseProviderService } from '../../../../db/DataBaseProvider.js';
-import { MongooseDB } from '../../../../db/mongo/MongooseDB.js';
+import { DataBaseProviderService } from '../../../../db/database-provider.js';
+import { MongooseDB } from '../../../../db/mongo/mongoose-db.js';
 import { CONTENT_PARTITION } from '../../content/content-release.js';
 import {
   CLOSED_BEFORE_COMMIT,
@@ -545,7 +545,7 @@ export async function findPopulation({ CyberiaProceduralPopulation }, id) {
   if (!population) throw requestError('Population not found', 404);
   if (population.version !== POPULATION_VERSION)
     throw requestError(
-      `Population ${id} is a version ${population.version} record: run \`cyberia population migrate --apply\`, or delete it and start the map again`,
+      `Population ${id} is a version ${population.version} record: run \`cyberia content population migrate --apply\`, or delete it and start the map again`,
       409,
     );
   return population;
@@ -1476,7 +1476,7 @@ async function contentDatabases(options) {
  * @param {Object} models - {@link populationModels}.
  * @param {string[]} ids - File ids.
  * @param {Object} params
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {{populationId:*, codes:string[]}} [params.exclude]
  * @returns {Promise<Set<string>>}
  * @memberof CyberiaPopulation
@@ -1515,7 +1515,7 @@ export async function referencedFiles(models, ids, { options, exclude = null }) 
  * @param {Object} models - {@link populationModels}.
  * @param {Object[]} entries - Instance drafts.
  * @param {Object} params
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {{populationId:*, codes:string[]}} [params.exclude] - Drafts that go with the files.
  * @param {boolean} [params.apply=true]
  * @returns {Promise<{deleted:string[], kept:string[]}>} The files nothing references, and the ones something does.
@@ -1544,7 +1544,7 @@ export async function dropDraftThumbnails(models, entries, { options, exclude, a
  * @param {Object} params
  * @param {Object} params.models
  * @param {string} params.id
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<{jobs:number,stopped:number,candidates:number,drafts:number}>}
  * @throws {Error} 404 for an unknown population; 409 while a publication runs before its commit.

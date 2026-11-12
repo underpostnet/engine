@@ -723,7 +723,7 @@ with `{ itemId, cid, bindingRevision }`, `assets`, `media` `{ mapCode, revision 
 
 ## Migration
 
-`node bin/cyberia population migrate` prints, as JSON, what moving every version 2 to 6
+`node bin/cyberia content population migrate` prints, as JSON, what moving every version 2 to 6
 population to version 7 would do, and writes nothing: `migrated` and `outdated` (each record of
 another version, with its recovery). Each `migrated` entry has `nextRun`: the jobs the population
 stored, the run index its next run takes. Each version 2 to 4 entry has `resolutions`

@@ -24,7 +24,7 @@ import { auditOf, conflict, findItem } from './review.js';
  * @param {Object} params
  * @param {Object} params.models
  * @param {string} params.revisionCid - The revision a moderator approved, selected or authored.
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} The published definition.
  * @throws {Error} 409 with `integrity` when the revision or its render frames are not stored, or the
  *   authority answers another definition.
@@ -53,7 +53,7 @@ export async function publishRevision({ models, revisionCid, options }) {
  * @param {string} params.actor
  * @param {string} params.action - `item.promoted` for an update, `item.created` for a create.
  * @param {import('mongoose').ClientSession} params.session
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} params.now
  * @returns {Promise<Object>} The promoted candidate.
  * @throws {Error} 409 when the binding or the candidate moved meanwhile.
@@ -94,7 +94,7 @@ export async function commitPromotion({ models, item, definition, actor, action,
  * @param {string} params.jobId
  * @param {string} params.id - The item's document id.
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<Object>} The promoted item.
  * @throws {Error} 404 for an unknown item; 409 when the approval does not cover the current revision, the
@@ -132,7 +132,7 @@ export async function promoteItem({ models, jobId, id, actor, options, now = new
  * @param {Object} params.models
  * @param {string} params.jobId
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<{promoted:string[],failed:Array<{targetItemId:string,message:string}>}>}
  * @throws {Error} 404 for an unknown job.

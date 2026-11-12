@@ -157,7 +157,7 @@ async function recordRevision({ models, id, cid, actor, now = new Date() }) {
  * @param {string} params.id - The item's document id.
  * @param {{data:Object,objectLayerRenderFramesData:Object}} params.body - What the Studio sends.
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} The stored definition.
  * @throws {Error} 400 when the save changes the item id or has no render; 404/409 as {@link recordRevision}.
  * @memberof CyberiaProceduralReview

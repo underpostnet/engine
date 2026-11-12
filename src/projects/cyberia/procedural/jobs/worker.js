@@ -54,7 +54,7 @@ const messageOf = (error) => String(error?.message ?? error);
  * @param {Object} params.models
  * @param {{data:Object,renderSource:Object}} params.result - A generator result.
  * @param {string} params.createdBy
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} The stored definition.
  * @memberof CyberiaProceduralWorker
  */
@@ -265,7 +265,7 @@ async function batchOf(models, job, item) {
  * @param {Object} params.models
  * @param {Object} params.item - A claimed item.
  * @param {string} params.holder - The worker that claimed it.
- * @param {Object} [params.options] - Router options.
+ * @param {Object} [params.options] - The API context.
  * @param {typeof persistCandidate} [params.persist]
  * @param {Date} [params.now]
  * @returns {Promise<void>}
@@ -382,7 +382,7 @@ export async function runItem({ models, item, holder, options, persist = persist
  * worker left generated. A generator never sees the concurrency.
  * @param {Object} params
  * @param {Object} params.models
- * @param {Object} [params.options] - Router options.
+ * @param {Object} [params.options] - The API context.
  * @param {string} [params.holder] - Name of this worker.
  * @param {number} [params.concurrency=1]
  * @param {typeof persistCandidate} [params.persist]
@@ -419,7 +419,7 @@ const workers = new Map();
 /**
  * Starts the worker of a deployment context: it stores the shipped profiles once, then drains the
  * queue and the publications on an interval. A second start for the same context returns the first worker.
- * @param {{host:string,path:string}} options - Router options.
+ * @param {{host:string,path:string}} options - The API context.
  * @param {Object} [params]
  * @param {number} [params.intervalMs]
  * @param {number} [params.concurrency]

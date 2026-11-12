@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import { Types } from 'mongoose';
-import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
-import { CyberiaProceduralAuditRouter } from '../../../src/api/cyberia-procedural-audit/cyberia-procedural-audit.router.js';
-import { CyberiaProceduralJobItemRouter } from '../../../src/api/cyberia-procedural-job-item/cyberia-procedural-job-item.router.js';
-import { CyberiaProceduralJobRouter } from '../../../src/api/cyberia-procedural-job/cyberia-procedural-job.router.js';
-import { CyberiaProceduralProfileRouter } from '../../../src/api/cyberia-procedural-profile/cyberia-procedural-profile.router.js';
+import { jwtSign } from '../../../src/server/security/auth.js';
+import { ApiModule as CyberiaProceduralAuditModule } from '../../../src/api/cyberia-procedural-audit/cyberia-procedural-audit.router.js';
+import { ApiModule as CyberiaProceduralJobItemModule } from '../../../src/api/cyberia-procedural-job-item/cyberia-procedural-job-item.router.js';
+import { ApiModule as CyberiaProceduralJobModule } from '../../../src/api/cyberia-procedural-job/cyberia-procedural-job.router.js';
+import { ApiModule as CyberiaProceduralProfileModule } from '../../../src/api/cyberia-procedural-profile/cyberia-procedural-profile.router.js';
+import { ApiModule as ObjectLayerModule } from '../../../src/api/object-layer/object-layer.router.js';
 import { mount } from '../../../src/projects/cyberia/object-layer.extension.js';
+import { startTestApi, testApiContext } from '../../support/api-module.js';
 import { stopProceduralWorkers } from '../../../src/projects/cyberia/procedural/jobs/worker.js';
 import {
   fromWire,
@@ -45,17 +47,16 @@ describe.skipIf(!mongodBinary)('the Procedural Engine HTTP API on a real MongoDB
     await startEngine();
     process.env.JWT_SECRET = 'procedural-engine-test-secret';
     for (const role of ['user', 'moderator'])
-      tokens[role] = jwtSign({ _id: `${new Types.ObjectId()}`, role }, host, 5, 10);
-    const options = { ...host, authMiddleware: authMiddlewareFactory(host) };
+      tokens[role] = jwtSign({ _id: `${new Types.ObjectId()}`, role, host: host.host, path: host.path }, host, 5, 10);
     const app = express();
     app.use(express.json());
     const studio = express.Router();
-    mount(studio, options);
+    mount(studio, testApiContext(ObjectLayerModule, host));
     app.use('/api/v1/object-layer', studio);
-    app.use(`/api/v1${PROFILES}`, CyberiaProceduralProfileRouter.router(options));
-    app.use(`/api/v1${JOBS}`, CyberiaProceduralJobRouter.router(options));
-    app.use('/api/v1/cyberia-procedural-job-item', CyberiaProceduralJobItemRouter.router(options));
-    app.use('/api/v1/cyberia-procedural-audit', CyberiaProceduralAuditRouter.router(options));
+    app.use(`/api/v1${PROFILES}`, (await startTestApi(CyberiaProceduralProfileModule, host)).router);
+    app.use(`/api/v1${JOBS}`, (await startTestApi(CyberiaProceduralJobModule, host)).router);
+    app.use('/api/v1/cyberia-procedural-job-item', (await startTestApi(CyberiaProceduralJobItemModule, host)).router);
+    app.use('/api/v1/cyberia-procedural-audit', (await startTestApi(CyberiaProceduralAuditModule, host)).router);
     server = await new Promise((resolve) => {
       const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
     });

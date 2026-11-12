@@ -28,7 +28,7 @@
  * @module src/projects/cyberia/procedural/population/map-context.js
  * @namespace CyberiaPopulationMapContext
  */
-import { DataBaseProviderService } from '../../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../../db/database-provider.js';
 import { POPULATION_VERSION } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import {
   ENTITY_TYPES,
@@ -53,7 +53,7 @@ const ITEM_LISTS = Object.freeze(['liveItemIds', 'deadItemIds', 'dropItemIds', '
 /**
  * The models a population reads: the procedural ones, the maps, the instances, their confs and the
  * entity-type defaults.
- * @param {{host:string,path:string}} options - Router options.
+ * @param {{host:string,path:string}} options - The API context.
  * @returns {Object<string,import('mongoose').Model>}
  * @memberof CyberiaPopulationMapContext
  */

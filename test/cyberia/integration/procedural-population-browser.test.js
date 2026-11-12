@@ -6,7 +6,7 @@ import express from 'express';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { findBinary } from '../../support/binary.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { mongodBinary } from '../../support/mongod.js';
 import { VIOLET_STRATA } from '../../support/procedural-content.js';
 import {
@@ -38,6 +38,7 @@ import {
   advancePublication,
   claimPublication,
 } from '../../../src/projects/cyberia/procedural/population/publication.js';
+import { startTestApi } from '../../support/api-module.js';
 
 const driver = await import(process.env.CYBERIA_BROWSER_DRIVER || 'playwright').catch(() => null);
 const browserBinary = findBinary('chromium', 'UNDERPOST_BROWSER_BIN');
@@ -150,7 +151,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     );
     const options = {
       ...host,
-      authMiddleware: (req, res, next) => {
+      authenticate: (req, res, next) => {
         req.auth = { user: { _id: MODERATOR, role: 'moderator' } };
         next();
       },
@@ -158,9 +159,9 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('Map Population in a
     const app = express();
     app.use(express.json({ limit: '20mb' }));
     for (const api of APIS) {
-      const { ApiRouter } = await import(`../../../src/api/${api}/${api}.router.js`);
+      const { ApiModule } = await import(`../../../src/api/${api}/${api}.router.js`);
       const extension = await import(`../../../src/projects/cyberia/${api}.extension.js`).catch(() => undefined);
-      app.use(`/api/v1/${api}`, ApiRouter({ ...options, extension }));
+      app.use(`/api/v1/${api}`, (await startTestApi(ApiModule, { ...options, extension })).router);
     }
     const bundle = await build({
       stdin: {

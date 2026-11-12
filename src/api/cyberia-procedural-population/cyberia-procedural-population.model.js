@@ -30,7 +30,7 @@ import { CyberiaUniverseSchema } from '../cyberia-universe/cyberia-universe.mode
 
 /**
  * The version of the population record. A record of another version is read-only until
- * `cyberia population migrate` moves it to this version.
+ * `cyberia content population migrate` moves it to this version.
  * @constant {number}
  * @memberof CyberiaProceduralPopulationModel
  */

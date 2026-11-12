@@ -318,7 +318,7 @@ export async function generateTarget({ models, id, itemId, count = 1, actor }) {
  * @param {string} params.itemId
  * @param {{data:Object,objectLayerRenderFramesData:Object}} params.body - What the Studio sends.
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} The stored definition.
  * @throws {Error} 400 when the save changes the item id or the item type, or has no render; 404 for an
  *   unknown target; 409 for a closed population or a target that keeps {@link RESULT_LIMIT} results.
@@ -486,7 +486,7 @@ async function deleteDraft(models, population, target, cid, { actor, options }) 
  * @param {string} params.itemId
  * @param {{ids:string[]}} params.body
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<Object>} {@link populationView} with `deleted` `{ removed, retained, failures, purged }`:
  *   what went, what stayed and why, what failed, and the CIDs removed from storage.
@@ -531,7 +531,7 @@ export async function deleteResults({ models, id, itemId, body, actor, options, 
  * @param {string} params.id
  * @param {string} params.itemId
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<Object>} {@link populationView} with `reset` `{ removed, retained, failures, purged,
  *   remaining: { runs, drafts } }`: what went, what stayed and why, what failed, the CIDs removed from

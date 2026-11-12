@@ -11,7 +11,7 @@
  * @module src/projects/cyberia/procedural/engine.js
  * @namespace CyberiaProceduralEngine
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { purgeObjectLayers } from '../../../api/object-layer/object-layer.purge.js';
 import { isObjectLayerAuthority } from '../../../api/object-layer/object-layer.publication.js';
 import { purgeObjectLayer, resolveRegisteredCids } from '../../../server/domain/object-layer-resolver.js';
@@ -32,7 +32,7 @@ export const PROCEDURAL_APIS = Object.freeze([
 
 /**
  * The models of the engine in a deployment context.
- * @param {{host:string,path:string}} options - Router options.
+ * @param {{host:string,path:string}} options - The API context.
  * @returns {Object<string,import('mongoose').Model>}
  * @memberof CyberiaProceduralEngine
  */
@@ -192,7 +192,7 @@ export async function revisionKeepers(models, cids, besides) {
  * revision ItemLedger registers stays.
  * @param {Object} params
  * @param {Object} params.models
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {string[]} params.cids - Revisions to check.
  * @param {import('mongoose').Types.ObjectId|string} [params.besides] - A job whose candidates do not count.
  * @returns {Promise<string[]>} The revisions removed here.
@@ -222,7 +222,7 @@ export async function purgeRevisions({ models, options, cids, besides }) {
  * @param {Object} params
  * @param {Object} params.models
  * @param {import('mongoose').Types.ObjectId|string} params.jobId
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Date} [params.now]
  * @returns {Promise<{stopped:number,candidates:number,drafts:string[],audit:number}>} What was stopped and removed.
  * @throws {Error} 404 for an unknown job.

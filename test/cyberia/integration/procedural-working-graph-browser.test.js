@@ -12,7 +12,7 @@ import { mongodBinary } from '../../support/mongod.js';
 import { resolveEntityDefaultBuild } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { CyberiaEntityTypeDefaultService } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { MODERATOR, host, publishItem, startEngine, stopEngine } from '../../support/procedural-engine.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
 import { PROCEDURAL_APIS } from '../../../src/projects/cyberia/procedural/engine.js';
 import { stopProceduralWorkers } from '../../../src/projects/cyberia/procedural/jobs/worker.js';
@@ -33,6 +33,7 @@ import {
   instanceDraftView,
   populationGraph,
 } from '../../../src/projects/cyberia/procedural/population/working-graph.js';
+import { startTestApi } from '../../support/api-module.js';
 
 const driver = await import(process.env.CYBERIA_BROWSER_DRIVER || 'playwright').catch(() => null);
 const browserBinary = findBinary('chromium', 'UNDERPOST_BROWSER_BIN');
@@ -182,7 +183,7 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
     });
     const options = {
       ...host,
-      authMiddleware: (req, res, next) => {
+      authenticate: (req, res, next) => {
         if (req.headers.authorization !== `Bearer ${TOKEN}`) {
           refused.push(req.originalUrl);
           return res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -192,9 +193,9 @@ describe.skipIf(!driver || !browserBinary || !mongodBinary)('the working graph i
       },
     };
     for (const api of APIS) {
-      const { ApiRouter } = await import(`../../../src/api/${api}/${api}.router.js`);
+      const { ApiModule } = await import(`../../../src/api/${api}/${api}.router.js`);
       const extension = await import(`../../../src/projects/cyberia/${api}.extension.js`).catch(() => undefined);
-      app.use(`/api/v1/${api}`, ApiRouter({ ...options, extension }));
+      app.use(`/api/v1/${api}`, (await startTestApi(ApiModule, { ...options, extension })).router);
     }
     const bundle = await build({
       stdin: {

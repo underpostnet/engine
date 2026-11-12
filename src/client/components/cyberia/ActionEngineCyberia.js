@@ -9,15 +9,15 @@ import { EditorLayout } from '../core/EditorLayout.js';
 import { Tabs } from '../core/Tabs.js';
 import { DropDown } from '../core/DropDown.js';
 import { ListPager } from '../core/ListPager.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
-import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
-import { CyberiaActionService } from '../../services/cyberia-action/cyberia-action.service.js';
-import { CyberiaDialogueService } from '../../services/cyberia-dialogue/cyberia-dialogue.service.js';
-import { CyberiaSkillService } from '../../services/cyberia-skill/cyberia-skill.service.js';
-import { CyberiaSagaService } from '../../services/cyberia-saga/cyberia-saga.service.js';
-import { CyberiaMarketService } from '../../services/cyberia-market/cyberia-market.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
+import { ObjectLayerService } from '../../services/object-layer/ObjectLayerService.js';
+import { CyberiaMapService } from '../../services/cyberia-map/CyberiaMapService.js';
+import { CyberiaQuestService } from '../../services/cyberia-quest/CyberiaQuestService.js';
+import { CyberiaActionService } from '../../services/cyberia-action/CyberiaActionService.js';
+import { CyberiaDialogueService } from '../../services/cyberia-dialogue/CyberiaDialogueService.js';
+import { CyberiaSkillService } from '../../services/cyberia-skill/CyberiaSkillService.js';
+import { CyberiaSagaService } from '../../services/cyberia-saga/CyberiaSagaService.js';
+import { CyberiaMarketService } from '../../services/cyberia-market/CyberiaMarketService.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { contextIconSrc } from '../objectlayer-studio/ContextPanel.js';
 import { QUEST_STEPS_TYPES, SKILL_LOGIC_IDS, skillSummonedItemId } from './SharedDefaultsCyberia.js';
@@ -27,6 +27,8 @@ import { StudioCyberia } from './StudioCyberia.js';
 import { STUDIO_FORM_STYLE, toggleField } from './StudioFormCyberia.js';
 
 const textFilter = (filter) => ({ filterType: 'text', type: 'equals', filter });
+// The id of the saga synchronization panel of this editor.
+const SAGA_SYNC_PANEL = 'action-engine';
 // The map marker of each kind a map places.
 const MARKERS = {
   quest: { color: 'rgba(40,120,220,0.92)', glyph: 'Q' },
@@ -91,6 +93,8 @@ class ActionEngineCyberia {
 
   static questSteps = [];
   static questRewards = [];
+  // The revision of the loaded quest: a save names it.
+  static questRevision = 1;
   static actionQuestDialogues = [];
   static loadedActionPayloadExtras = {};
   static capabilities = blankCapabilities();
@@ -925,6 +929,7 @@ class ActionEngineCyberia {
         objectives: st.objectives.map((o) => ({ ...o })),
       })),
       rewards: ActionEngineCyberia.questRewards.map((r) => ({ ...r })),
+      revision: ActionEngineCyberia.questRevision,
     };
     const mapCode = s('.action-engine-quest-map-code')?.value?.trim();
     const cellX = parseInt(s('.action-engine-cell-x')?.value);
@@ -938,6 +943,7 @@ class ActionEngineCyberia {
   static async loadQuest(doc, { quiet = false } = {}) {
     ActionEngineCyberia.setMode('quest');
     ActionEngineCyberia.setCurrent('quest', doc);
+    ActionEngineCyberia.questRevision = doc.revision ?? 1;
     if (s('.action-engine-quest-code')) s('.action-engine-quest-code').value = doc.code || '';
     if (s('.action-engine-quest-title')) s('.action-engine-quest-title').value = doc.title || '';
     if (s('.action-engine-quest-description')) s('.action-engine-quest-description').value = doc.description || '';
@@ -966,6 +972,7 @@ class ActionEngineCyberia {
 
   static newQuest() {
     ActionEngineCyberia.setCurrent('quest', null);
+    ActionEngineCyberia.questRevision = 1;
     setQueryParams({ questCode: null }, { replace: true });
     ActionEngineCyberia.questSteps = [];
     ActionEngineCyberia.questRewards = [];
@@ -1700,14 +1707,16 @@ class ActionEngineCyberia {
       if (contract?.status === 'success') ActionEngineCyberia.marketContract = contract.data;
       ActionEngineCyberia.renderCapabilities();
       ActionEngineCyberia.renderDiagnostics();
-      await Promise.all([ActionEngineCyberia.refreshAll(), SagaSync.mount()]);
+      await Promise.all([ActionEngineCyberia.refreshAll(), SagaSync.mount(SAGA_SYNC_PANEL)]);
 
-      const followQuery = async ({ questCode, actionCode }) => {
+      const followQuery = async ({ questCode, actionCode, dialogueCode }) => {
         if (!s('.action-engine-container')) return;
         if (questCode && questCode !== ActionEngineCyberia.current.quest?.name)
           await ActionEngineCyberia.openByKey('quest', questCode);
         if (actionCode && actionCode !== ActionEngineCyberia.current.action?.name)
           await ActionEngineCyberia.openByKey('action', actionCode);
+        if (dialogueCode && dialogueCode !== ActionEngineCyberia.current.dialogue?.name)
+          await ActionEngineCyberia.openByKey('dialogue', dialogueCode);
       };
       listenQueryParamsChange({ id: 'cyberia-action-engine-query-listener', event: followQuery });
       await followQuery(getQueryParams());
@@ -2184,11 +2193,12 @@ class ActionEngineCyberia {
                 label: 'Saga integration',
                 image: contextIconSrc(),
                 content: await SagaSync.render({
+                  id: SAGA_SYNC_PANEL,
                   canMutate: ActionEngineCyberia.canMutate,
                   onOpen: (kind, key) => ActionEngineCyberia.openByKey(kind, key),
-                  onSynced: async () => {
+                  onSynced: async (report) => {
                     await ActionEngineCyberia.refreshAll();
-                    await ActionEngineCyberia.reloadSynced(SagaSync.report);
+                    await ActionEngineCyberia.reloadSynced(report);
                   },
                 }),
               },

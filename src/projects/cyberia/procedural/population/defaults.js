@@ -387,7 +387,7 @@ const runnersOf = (graph, ref) => ({
  * @param {Object} models - {@link populationModels}.
  * @param {string} id - Population id.
  * @param {string} ref - A row id, a draft key, or `new`.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<Object>}
  * @throws {Error} 404 for an unknown population, row or draft.
  * @memberof CyberiaPopulationDefaults
@@ -429,7 +429,7 @@ export async function defaultView(models, id, ref, options) {
  * @param {string} params.id - Population id.
  * @param {Object} params.body
  * @param {string} params.actor
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<Object>} {@link defaultView}.
  * @throws {Error} 400 for a row the canonical model refuses, an unknown instance, or no instance and no
  *   `global`; 404 for an unknown row; 409 when the population, the draft or the stored row changed since

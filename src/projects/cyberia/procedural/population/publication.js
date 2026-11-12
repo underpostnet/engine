@@ -130,7 +130,7 @@ function acknowledgementsOf({ acknowledged = [] }) {
  * @param {Object} params.models - {@link populationModels}.
  * @param {string} params.id
  * @param {{acknowledged?:string[]}} [params.body]
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<{ready:boolean,problems:string[],warnings:string[],plan:Object|null}>}
  * @throws {Error} 400 for an invalid acknowledgement; 404 for an unknown population.
  * @memberof CyberiaPopulationPublication
@@ -242,7 +242,7 @@ async function transition(models, population, { holder, from, to, set = {}, now 
  * from, and the worlds the commit changes.
  * @param {Object} models
  * @param {Object} population
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<{plan:Object|null,problems:string[],warnings:string[]}>}
  * @memberof CyberiaPopulationPublication
  */
@@ -745,7 +745,7 @@ async function mediaOfCommit(media, options) {
  * @param {Object} params
  * @param {Object} params.models
  * @param {Object} params.population
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @returns {Promise<{cache:boolean,media:Object|null,previews:string,servers:Object[]}>}
  * @memberof CyberiaPopulationPublication
  */
@@ -856,7 +856,7 @@ export async function claimPublication({ models, holder, now = new Date() }) {
  * @param {Object} params.models - {@link populationModels}.
  * @param {Object} params.population - A leased population.
  * @param {string} params.holder
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {Function} [params.publish] - Publishes a revision: {@link publishRevision}.
  * @param {Function} [params.refresh] - Refreshes the runtime: {@link refreshPublication}.
  * @returns {Promise<string>} The status it stops in.
@@ -891,7 +891,7 @@ export async function advancePublication({
  * Runs every publication that waits for the worker.
  * @param {Object} params
  * @param {Object} params.models - {@link populationModels}.
- * @param {Object} params.options - Router options.
+ * @param {Object} params.options - The API context.
  * @param {string} params.holder
  * @returns {Promise<number>} Publications run.
  * @memberof CyberiaPopulationPublication
