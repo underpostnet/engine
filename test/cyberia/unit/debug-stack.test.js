@@ -1,13 +1,43 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
+import os from 'node:os';
+import nodePath from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   debugCommand,
   debugInstance,
   debugTopology,
+  loadDebugTopology,
   startDebugGateway,
 } from '../../../src/projects/cyberia/stack/debug-stack.js';
+
+// The conf of a deploy whose portal listens on base port + 2: 4002 for base port 4000.
+const fixture = vi.hoisted(() => ({
+  dir: '',
+  confServer: {
+    'docs.test': { '/': {} },
+    'portal.test': { '/': { apis: ['cyberia-game-ticket'], grpc: { port: 50051 } } },
+  },
+  instances: [
+    { id: 'mmo-server', runtime: 'cyberia-server', path: '/', host: 'server.test', fromDebugPort: 8083 },
+    { id: 'mmo-client', runtime: 'cyberia-client', path: '/', host: 'client.test', fromDebugPort: 8082 },
+  ],
+}));
+
+vi.mock(import('../../../src/server/runtime/conf.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  readConfJson: vi.fn(() => fixture.confServer),
+  readConfInstances: vi.fn(() => fixture.instances),
+  loadConfInstances: vi.fn(() => fixture.instances),
+  instanceEnvFilePath: vi.fn((deployId, id) => nodePath.join(fixture.dir, `${id}.env`)),
+}));
+
+vi.mock(import('../../../src/server/network/router.js'), async (importOriginal) => {
+  const router = await importOriginal();
+  return { ...router, deployHostPortsFactory: vi.fn(() => router.hostPortsFactory(fixture.confServer, 4001)) };
+});
 
 const ORIGINS = { portal: 'http://localhost:4008', server: 'http://localhost:8083', client: 'http://localhost:8082' };
 const SERVER_ENV = {
@@ -42,6 +72,36 @@ describe('debug topology', () => {
       ['mmo-client', 'http://localhost:8082', 8092],
       ['mmo-client-test', 'http://localhost:8082', 8102],
     ]);
+  });
+
+  describe('from the deploy conf', () => {
+    beforeAll(() => {
+      fixture.dir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'debug-stack-'));
+      // Env files written before a port change: the portal was on 4008.
+      fs.writeFileSync(
+        nodePath.join(fixture.dir, 'mmo-server.env'),
+        'CYBERIA_DATA_SERVER_URL=http://dd-fixture-development-traffic-service:4008\n' +
+          'CYBERIA_CORS_ALLOWED_ORIGINS=http://localhost:4008,http://localhost:8082\n' +
+          'CYBERIA_SERVER_API_KEY=operator-key\n',
+      );
+      fs.writeFileSync(
+        nodePath.join(fixture.dir, 'mmo-client.env'),
+        'CYBERIA_DATA_SERVER_URL=http://localhost:4008\nEMSDK=/opt/emsdk\n',
+      );
+    });
+    afterAll(() => fs.rmSync(fixture.dir, { recursive: true, force: true }));
+
+    it('takes the origins of each world from the current port topology, and keeps the operator values', () => {
+      const loaded = loadDebugTopology('dd-fixture');
+      expect(loaded.engine).toEqual({ url: 'http://localhost:4002', grpc: 'localhost:50051' });
+      const [server, client] = loaded.instances;
+      expect(server.env).toMatchObject({
+        CYBERIA_DATA_SERVER_URL: 'http://dd-fixture-development-traffic-service:4002',
+        CYBERIA_CORS_ALLOWED_ORIGINS: 'http://localhost:4002,http://localhost:8082',
+        CYBERIA_SERVER_API_KEY: 'operator-key',
+      });
+      expect(client.env).toMatchObject({ CYBERIA_DATA_SERVER_URL: 'http://localhost:4002', EMSDK: '/opt/emsdk' });
+    });
   });
 
   it('selects the instance of a runtime by world path, and names the paths it runs otherwise', () => {

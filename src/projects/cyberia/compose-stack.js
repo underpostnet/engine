@@ -8,7 +8,7 @@
 
 import Underpost from '../../index.js';
 import { getConfFolder, loadConfServerJson, normalizeInstanceTopology } from '../../server/runtime/conf.js';
-import { hostPortsFactory } from '../../server/network/router.js';
+import { deployHostPortsFactory, hostPortsFactory } from '../../server/network/router.js';
 import { RELEASE_CONTENT, buildCyberiaMmoInstanceEnv } from './content/release-content.js';
 
 /** The API whose host is the Cyberia data plane: the WASM client's `/api/` and the game servers' engine. */
@@ -50,6 +50,7 @@ const SERVER_PASSTHROUGH = [
 ];
 
 const healthy = { condition: 'service_healthy' };
+const completed = { condition: 'service_completed_successfully' };
 
 const healthcheck = (test, startPeriod, retries = 5) => ({
   test,
@@ -95,15 +96,15 @@ const pathLocations = (prefix, target) =>
  * Declares the dd-cyberia gateway on `nginx` and returns the compose document.
  * @param {object} context
  * @param {string} context.deployId
- * @param {string} context.env - `development` or `production`: the default images and environments.
- * @param {Object<string,string>} context.composeEnv - The operator-owned compose.env.
- * @param {import('../../runtime/nginx/Nginx.js').NginxService} context.nginx
+ * @param {string} context.env - `development` or `production`: the default images and environments, and
+ *   the env file whose base port the engine ports start from.
+ * @param {import('../../runtime/nginx/nginx.js').NginxService} context.nginx
  * @returns {object} The compose document.
  * @memberof CyberiaComposeStack
  */
-const cyberiaComposeStack = ({ deployId, env, composeEnv, nginx }) => {
+const cyberiaComposeStack = ({ deployId, env, nginx }) => {
   const confServer = confServerOf(deployId);
-  const ports = hostPortsFactory(confServer, Number(composeEnv.PORT) + 1);
+  const ports = deployHostPortsFactory(deployId, env);
   const domains = servedDomains(confServer);
   const dataPlaneHost = domains.find((host) => confServer[host]['/'].apis?.includes(DATA_PLANE_API));
   if (!dataPlaneHost) throw new Error(`${deployId}: no domain serves the ${DATA_PLANE_API} API at /`);
@@ -166,6 +167,18 @@ const cyberiaComposeStack = ({ deployId, env, composeEnv, nginx }) => {
     VALKEY_PORT: '${VALKEY_PORT:-6379}',
   };
 
+  /** A one-shot `bin/cyberia` command of the bootstrap, run in the network of the engine. */
+  const bootstrapStep = (name, args, dependsOn) => ({
+    image: engineImage,
+    container_name: `${deployId}-${name}`,
+    network_mode: `service:${ENGINE_SERVICE}`,
+    command: ['node', 'bin/cyberia', ...args],
+    env_file: ['./compose.env'],
+    environment: engineEnv,
+    depends_on: dependsOn,
+    restart: 'no',
+  });
+
   const gameServers = Object.fromEntries(
     worlds.map(({ path, prefix, server, container }) => [
       server,
@@ -177,7 +190,6 @@ const cyberiaComposeStack = ({ deployId, env, composeEnv, nginx }) => {
           CYBERIA_PUBLIC_URL: `\${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:${GAME_PORT}}${prefix}`,
           CYBERIA_SERVER_API_KEY: '${CYBERIA_SERVER_API_KEY:-}',
           CYBERIA_DATA_SERVER_URL: '${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}',
-          ENGINE_PUBLIC_URL: `\${ENGINE_PUBLIC_URL:-http://localhost:${restPort}}`,
           CYBERIA_DATA_SERVER_GRPC: `\${CYBERIA_DATA_SERVER_GRPC:-${ENGINE_SERVICE}:50051}`,
           ENGINE_GRPC_RELOAD_INTERVAL_SEC: '${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}',
           STATIC_DIR: '${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}',
@@ -191,7 +203,7 @@ const cyberiaComposeStack = ({ deployId, env, composeEnv, nginx }) => {
           ['CMD-SHELL', `curl -fsS http://127.0.0.1:${GAME_PORT}${prefix}${SERVER_READY_PATH} >/dev/null || exit 1`],
           '30s',
         ),
-        depends_on: { proxy: healthy, 'engine-cyberia-content': { condition: 'service_completed_successfully' } },
+        depends_on: { proxy: healthy, 'engine-cyberia-universe': completed },
         restart: 'unless-stopped',
       },
     ]),
@@ -326,18 +338,14 @@ const cyberiaComposeStack = ({ deployId, env, composeEnv, nginx }) => {
         depends_on: { mongodb: healthy, 'valkey-service': healthy, ipfs: healthy, 'ipfs-cluster': healthy },
         restart: 'unless-stopped',
       },
-      // Imports the artifact the image carries into the workspace the engine serves: a development
-      // bootstrap, not a release. Every import is idempotent, so a rerun is safe.
-      'engine-cyberia-content': {
-        image: engineImage,
-        container_name: `${deployId}-content`,
-        network_mode: `service:${ENGINE_SERVICE}`,
-        command: ['node', 'bin/cyberia', 'run-workflow', 'import-content'],
-        env_file: ['./compose.env'],
-        environment: engineEnv,
-        depends_on: { [ENGINE_SERVICE]: healthy },
-        restart: 'no',
-      },
+      // The development bootstrap, not a release: the content of the image into the workspace the
+      // engine serves, then the universe of its worlds. Each step is idempotent, so a rerun is safe.
+      'engine-cyberia-content': bootstrapStep('content', ['content', 'workspace', 'import'], {
+        [ENGINE_SERVICE]: healthy,
+      }),
+      'engine-cyberia-universe': bootstrapStep('universe', ['run-workflow', 'seed-universe'], {
+        'engine-cyberia-content': completed,
+      }),
       ...gameServers,
       ...gameClients,
       proxy: {

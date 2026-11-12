@@ -17,7 +17,7 @@ services:
   # Mirrors manifests/mongodb/statefulset.yaml: replSet rs0, keyFile cluster
   # auth, --auth, bind to all interfaces. Single-node replica set for local dev.
   #
-  # Bootstrap follows src/db/mongo/MongoBootstrap.js rather than the image's
+  # Bootstrap follows src/db/mongo/mongo-bootstrap.js rather than the image's
   # MONGO_INITDB_ROOT_USERNAME auto-init (whose temp server + keyFile combination
   # is unreliable). The generated entrypoint (docker/mongodb/entrypoint.sh)
   # generates the keyfile, starts mongod, and bootstraps the replica set + root

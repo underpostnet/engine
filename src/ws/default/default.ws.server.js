@@ -5,7 +5,7 @@
 
 'use strict';
 
-import { IoServer } from '../IoServer.js';
+import { IoServer } from '../io-server.js';
 import { DefaultWsConnectionHandler } from './default.ws.connection.js';
 import { DefaultWsMainChannel } from './channels/default.ws.main.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
@@ -33,7 +33,7 @@ class DefaultWsServer {
   }
 }
 
-/** Required by Express.js dynamic import: `const { createIoServer } = await import(...)` */
+/** Required by the dynamic import in `src/runtime/express/express.js`. */
 const createIoServer = DefaultWsServer.create.bind(DefaultWsServer);
 
 export { DefaultWsServer, createIoServer };

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import NginxService from '../../../src/runtime/nginx/Nginx.js';
+import NginxService from '../../../src/runtime/nginx/nginx.js';
 import Underpost from '../../../src/index.js';
 
 // Ports run from PORT+1 in declaration order: portal 4001, docs 4002 and its peer 4003, www 4004.
@@ -8,19 +8,29 @@ const CONF_SERVER = {
   'docs.test': { '/': { apis: [], peer: true } },
   'www.portal.test': { '/': {} },
 };
+const BASE_PORTS = { development: 4000, production: 3000 };
 
 vi.mock(import('../../../src/server/runtime/conf.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   loadConfServerJson: vi.fn(() => CONF_SERVER),
 }));
 
+vi.mock(import('../../../src/server/network/router.js'), async (importOriginal) => {
+  const router = await importOriginal();
+  return {
+    ...router,
+    deployHostPortsFactory: vi.fn((deployId, env) => router.hostPortsFactory(CONF_SERVER, BASE_PORTS[env] + 1)),
+  };
+});
+
 const { composeStacks, cyberiaComposeStack, gatewayHostAliases } =
   await import('../../../src/projects/cyberia/compose-stack.js');
 const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/content/release-content.js');
+const { deployHostPortsFactory } = await import('../../../src/server/network/router.js');
 
 const generate = (env = 'development') => {
   const nginx = new NginxService();
-  const compose = cyberiaComposeStack({ deployId: 'dd-fixture', env, composeEnv: { PORT: '4000' }, nginx });
+  const compose = cyberiaComposeStack({ deployId: 'dd-fixture', env, nginx });
   return { compose, services: compose.services, nginx: nginx.render() };
 };
 
@@ -51,19 +61,31 @@ describe('the dd-cyberia compose stack', () => {
     expect(services['cyberia-server-test'].healthcheck.test[1]).toContain(':8081/test/api/v1/health/ready');
   });
 
-  it('starts each client after its own server, and every server after the content import', () => {
+  it('starts each client after its own server, and every server after the content import and the universe seed', () => {
     const { services } = generate();
+    const completed = { condition: 'service_completed_successfully' };
     expect(services['cyberia-client-test'].depends_on).toEqual({
       'cyberia-server-test': { condition: 'service_healthy' },
     });
     for (const server of ['cyberia-server-runtime', 'cyberia-server-test'])
-      expect(services[server].depends_on['engine-cyberia-content'].condition).toBe('service_completed_successfully');
-    const content = services['engine-cyberia-content'];
-    expect(content.image).toBe(services['engine-cyberia-runtime'].image);
-    expect(content.network_mode).toBe('service:engine-cyberia-runtime');
-    // A development bootstrap: the ordered artifact import into the workspace, no release.
-    expect(content.command).toEqual(['node', 'bin/cyberia', 'run-workflow', 'import-content']);
-    expect(content.environment).toEqual(services['engine-cyberia-runtime'].environment);
+      expect(services[server].depends_on['engine-cyberia-universe']).toEqual(completed);
+    // A development bootstrap, no release: the ordered artifact import into the workspace, then the universe.
+    const steps = {
+      'engine-cyberia-content': [
+        ['content', 'workspace', 'import'],
+        { 'engine-cyberia-runtime': { condition: 'service_healthy' } },
+      ],
+      'engine-cyberia-universe': [['run-workflow', 'seed-universe'], { 'engine-cyberia-content': completed }],
+    };
+    for (const [name, [args, dependsOn]] of Object.entries(steps)) {
+      const step = services[name];
+      expect(step.image, name).toBe(services['engine-cyberia-runtime'].image);
+      expect(step.network_mode, name).toBe('service:engine-cyberia-runtime');
+      expect(step.command, name).toEqual(['node', 'bin/cyberia', ...args]);
+      expect(step.depends_on, name).toEqual(dependsOn);
+      expect(step.environment, name).toEqual(services['engine-cyberia-runtime'].environment);
+      expect(step.restart, name).toBe('no');
+    }
     expect(services['engine-cyberia-runtime'].command).toBeUndefined();
   });
 
@@ -73,9 +95,12 @@ describe('the dd-cyberia compose stack', () => {
     expect(engine.ports[0]).toBe('4001-4004:4001-4004');
     expect(engine.expose).toEqual(['4001-4004', '50051']);
     expect(engine.healthcheck.test[1]).toContain('/dev/tcp/127.0.0.1/4001');
-    expect(services['cyberia-server-runtime'].environment.ENGINE_PUBLIC_URL).toBe(
-      '${ENGINE_PUBLIC_URL:-http://localhost:4001}',
-    );
+  });
+
+  it('starts the engine ports at the base port of the deploy env of the stack', () => {
+    const { services } = generate('production');
+    expect(deployHostPortsFactory).toHaveBeenLastCalledWith('dd-fixture', 'production');
+    expect(services['engine-cyberia-runtime'].ports[0]).toBe('3001-3004:3001-3004');
   });
 
   it('routes every domain to its own engine port and an unknown host to the data plane', () => {

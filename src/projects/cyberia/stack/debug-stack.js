@@ -20,6 +20,7 @@ import {
 } from '../../../server/runtime/conf.js';
 import { proxyErrorStatusFactory, proxyTargetFactory } from '../../../server/network/proxy.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
+import { buildInstanceEnv } from '../instance-data.js';
 import { gameOrigins } from '../runtime/game-origins.js';
 
 const logger = loggerFactory(import.meta);
@@ -60,7 +61,8 @@ const debugTopology = ({ origins, grpcPort, instances }) => ({
 
 /**
  * Reads the debug topology of a deploy: its conf, and the development env `instance-build-manifest`
- * writes for each game instance.
+ * writes for each game instance. The builder of that env sets its origins again from the current
+ * port topology.
  * @param {string} deployId
  * @returns {ReturnType<typeof debugTopology>}
  * @throws {Error} When no host runs the gRPC server, or an instance has no development env.
@@ -79,7 +81,8 @@ const loadDebugTopology = (deployId) => {
         throw new Error(
           `${envPath} is missing: build the manifests of ${instance.templateId} with instance-build-manifest`,
         );
-      return { ...instance, env: dotenv.parse(fs.readFileSync(envPath, 'utf8')) };
+      const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+      return { ...instance, env: buildInstanceEnv({ deployId, instance, environment: 'development', env }) };
     });
   return debugTopology({ origins: gameOrigins(deployId, 'development'), grpcPort, instances });
 };

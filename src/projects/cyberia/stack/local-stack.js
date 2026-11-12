@@ -16,6 +16,7 @@ import nodePath from 'path';
 import Underpost from '../../../index.js';
 import { API_BASE_PATH } from '../../../server/domain/api-contract.js';
 import { git } from '../../../server/release/release-workspace.js';
+import { resolveGraphLayout } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { openContentArtifact } from '../content/content-artifact.js';
 import { SERVER_READY_PATH, STACK_IMAGES } from '../compose-stack.js';
 import { RELEASE_CONTENT } from '../content/release-content.js';
@@ -112,7 +113,7 @@ const engineCloneArgs = ({ channel, deploymentRepository, contentRepository }) =
   const [owner] = deploymentRepository.split('/');
   return {
     CYBERIA_SOURCE: 'clone',
-    ENGINE_REPOSITORY: `${owner}/${Underpost.repo.engineRepoFactory('dd-cyberia', { test: channel === 'private' })}`,
+    ENGINE_REPOSITORY: `${owner}/${Underpost.repo.engineSourceRepoFactory('dd-cyberia', channel)}`,
     DEPLOYMENT_REPOSITORY: Underpost.repo.sourceRepoFactory(deploymentRepository, channel),
     CONTENT_REPOSITORY: Underpost.repo.sourceRepoFactory(contentRepository, channel),
   };
@@ -152,13 +153,34 @@ const stageLocalEngineSource = ({ context, engineRoot, deploymentRoot, contentRo
 };
 
 /**
- * The requests that show the running stack serves: the engine, then each world's client and server,
- * by the gateway names.
+ * The universe the stack bootstrap seeds: every release world on its default cell, and a two-way
+ * link from the world at `/` to each other world.
+ * @returns {{code:string, name:string, instances:Object[], links:Object[]}}
+ * @memberof CyberiaLocalStack
+ */
+const stackUniverse = () => {
+  const codes = RELEASE_CONTENT.instances.map(({ instanceCode }) => instanceCode);
+  const [root, ...others] = codes;
+  return {
+    code: 'cyberia',
+    name: 'Cyberia',
+    instances: resolveGraphLayout(codes, [], 'instanceCode'),
+    links: others.map((target) => ({ sourceInstanceCode: root, targetInstanceCode: target, bidirectional: true })),
+  };
+};
+
+/**
+ * The requests that show the running stack serves: the engine and the seeded universe, then each
+ * world's client and server, by the gateway names.
  * @returns {Array<{name:string, url:string}>}
  * @memberof CyberiaLocalStack
  */
 const stackProbes = () => [
   { name: 'engine-cyberia', url: `http://engine-cyberia/${API_BASE_PATH}/cyberia-content-release/active` },
+  {
+    name: 'cyberia-universe',
+    url: `http://engine-cyberia/${API_BASE_PATH}/cyberia-universe/instance/${RELEASE_CONTENT.instances[0].instanceCode}`,
+  },
   ...RELEASE_CONTENT.instances.flatMap(({ path, instanceCode }) => {
     const prefix = path === '/' ? '' : path;
     return [
@@ -180,5 +202,6 @@ export {
   localImage,
   localImageEnv,
   stackProbes,
+  stackUniverse,
   stageLocalEngineSource,
 };

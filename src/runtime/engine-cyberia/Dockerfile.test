@@ -77,12 +77,14 @@ RUN --mount=type=secret,id=github_token \
     node bin client dd-cyberia; \
     \
     # --- bake NON-secret env (placeholders; real creds come from runtime env) -
+    # Each env keeps the base port that the route table assigns to it.
     CONF=/home/dd/engine/engine-private/conf/dd-cyberia; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.development"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.production"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" "$CONF/.env.test"; \
+    for name in development production test; do \
+      port="$(grep '^PORT=' "$CONF/.env.$name")"; \
+      { cat "$CONF/docker-compose/cyberia/compose.env"; echo "$port"; } > "$CONF/.env.$name"; \
+    done; \
     cp -a "$CONF/conf.server.dev.dev.json" "$CONF/conf.server.json"; \
-    cp -a "$CONF/docker-compose/cyberia/compose.env" /home/dd/engine/.env; \
+    cp -a "$CONF/.env.development" /home/dd/engine/.env; \
     \
     # --- drop build-only / non-runtime private material ----------------------
     rm -rf /home/dd/engine/engine-private/itc-scripts; \
@@ -149,7 +151,7 @@ RUN chown -R dd:dd /home/dd/engine/src/client/public
 USER dd
 WORKDIR /home/dd/engine
 
-EXPOSE 4005
+# The gRPC data service. The PORT of the deploy env sets the host ports.
 EXPOSE 50051
 
 CMD ["/bin/sh", "-c", "underpost start --run dd-cyberia development"]

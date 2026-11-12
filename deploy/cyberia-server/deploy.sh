@@ -11,7 +11,6 @@ DEPLOY_ID=dd-cyberia
 INSTANCE_ID=mmo-server
 # The repository the instance image is built from.
 RELEASE_REPOSITORY=underpostnet/cyberia-server
-TARGET_NODE="${TARGET_NODE:-$WORKER_NODE}"
 REPLICAS="${REPLICAS:-1}"
 # The source channel of every repository the deploy fetches: `public`, or `private` for the
 # private mirrors.
@@ -35,19 +34,18 @@ main() {
     "cd $ENGINE_ROOT && node bin/build $DEPLOY_ID --conf"
 
     deploy_step "Engine serves its content release" \
-    require_serving_content_release "$CYBERIA_API_ORIGIN/$(engine_api_path)"
+    require_serving_content_release "$(engine_api_origin)/$(engine_api_path)"
 
-    deploy_step "Wait for target node readiness" \
-    sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && kubectl wait --for=condition=Ready node/${TARGET_NODE} --timeout=2m"
+    cluster_placement
+
+    [ -z "${UNDERPOST_NODES_WORKLOADS:-}" ] || deploy_step "Wait for target node readiness" \
+    cluster_wait_any_node "$UNDERPOST_NODES_WORKLOADS"
 
     deploy_step "Wait for ingress rollout" \
-    sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-ingress -n default --timeout=5m"
+    cluster_kubectl rollout status deployment/underpost-ingress -n "$UNDERPOST_NAMESPACE_PLATFORM" --timeout=5m
 
     deploy_step "Wait for gateway rollout" \
-    sudo -n -- /bin/bash -lc \
-    "cd $ENGINE_ROOT && kubectl rollout status deployment/underpost-gateway -n default --timeout=5m"
+    cluster_kubectl rollout status deployment/underpost-gateway -n "$UNDERPOST_NAMESPACE_PLATFORM" --timeout=5m
 
     # The public channel runs the image CI built for the revision; the private channel builds it
     # here. Either way the instance runs it by digest.
@@ -57,13 +55,10 @@ main() {
     sudo -n -- /bin/bash -lc \
     "cd $ENGINE_ROOT && node bin run instance \
           --kubeadm \
-          ${TARGET_NODE:+--node-name ${TARGET_NODE}} \
           --replicas ${REPLICAS} \
-          --gateway-api \
           --source-revision $revision \
           ${build_path:+--build-path $build_path} \
           --image-pull-policy IfNotPresent \
-          --ingress-node ${INGRESS_NODE} \
           --ssh-key-path ${DEPLOY_SSH_KEY_PATH} \
           --deploy-id $DEPLOY_ID \
     --instance-id $INSTANCE_ID"

@@ -19,7 +19,8 @@ import path from 'path';
 import { keccak256 as ethersKeccak256 } from 'ethers';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { shellExec } from '../../../server/runtime/process.js';
-import { crictlCommandFactory } from '../../../server/ops/cri.js';
+import { CRICTL_PRIVILEGE, crictlCommandFactory } from '../../../server/ops/cri.js';
+import { DEFAULT_CLUSTER_DOMAIN, serviceDnsName } from '../../../server/network/service-dns.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -178,6 +179,8 @@ function computeIbft2ExtraData(validatorAddresses) {
  * @property {string} privateKey - 64-char hex private key.
  * @property {string} publicKey - 128-char hex public key.
  * @property {string} address - 40-char hex Ethereum address.
+ * @property {string} dnsHost - The DNS name of its pod, by its headless Service.
+ * @property {string} serviceHost - The DNS name of its Service.
  * @property {string} enodeDns - Full enode URL with K8s DNS hostname.
  * @memberof BesuGenesisGenerator
  */
@@ -189,23 +192,38 @@ function computeIbft2ExtraData(validatorAddresses) {
  * @returns {ValidatorKeySet[]}
  * @memberof BesuGenesisGenerator
  */
-function generateValidatorKeys(count = 4, namespace = 'besu') {
+function generateValidatorKeys(count = 4, namespace = 'besu', clusterDomain = DEFAULT_CLUSTER_DOMAIN) {
   const validators = [];
   for (let i = 1; i <= count; i++) {
     const privateKey = generatePrivateKey();
     const publicKey = derivePublicKey(privateKey);
     const address = publicKeyToAddress(publicKey);
-    const dnsHost = `validator${i}-0.besu-validator${i}.${namespace}.svc.cluster.local`;
-    const enodeDns = `enode://${publicKey}@${dnsHost}:30303`;
+    const { dnsHost, serviceHost } = validatorHosts({ index: i, namespace, clusterDomain });
     validators.push({
       index: i,
       privateKey,
       publicKey,
       address,
-      enodeDns,
+      dnsHost,
+      serviceHost,
+      enodeDns: `enode://${publicKey}@${dnsHost}:30303`,
     });
   }
   return validators;
+}
+
+/**
+ * The DNS names of a validator: its pod by its headless Service, and the Service itself.
+ * @param {{index: number, namespace: string, clusterDomain?: string}} params
+ * @returns {{dnsHost: string, serviceHost: string}}
+ * @memberof BesuGenesisGenerator
+ */
+function validatorHosts({ index, namespace, clusterDomain }) {
+  const service = `besu-validator${index}`;
+  return {
+    dnsHost: serviceDnsName({ member: `validator${index}-0`, service, namespace, clusterDomain }),
+    serviceHost: serviceDnsName({ service, namespace, clusterDomain }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -387,10 +405,7 @@ ${entries}
  * @memberof BesuGenesisGenerator
  */
 function generateConfigTomlConfigMapYaml(validators, namespace = 'besu') {
-  const staticNodes = validators.map((v) => {
-    const dnsHost = `validator${v.index}-0.besu-validator${v.index}.${namespace}.svc.cluster.local`;
-    return `      "${`enode://${v.publicKey}@${dnsHost}:30303`}"`;
-  });
+  const staticNodes = validators.map((v) => `      "${v.enodeDns}"`);
   const staticNodesJson = `[\n${staticNodes.join(',\n')}\n    ]`;
 
   return `apiVersion: v1
@@ -469,10 +484,7 @@ data:
  * @memberof BesuGenesisGenerator
  */
 function generateNodePermissionsConfigMapYaml(validators, namespace = 'besu') {
-  const entries = validators.map((v) => {
-    const dnsHost = `validator${v.index}-0.besu-validator${v.index}.${namespace}.svc.cluster.local`;
-    return `      "enode://${v.publicKey}@${dnsHost}:30303"`;
-  });
+  const entries = validators.map((v) => `      "${v.enodeDns}"`);
   return `apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -561,7 +573,7 @@ metadata:
   namespace: ${namespace}
 spec:
   # Headless service (clusterIP: None) is required for StatefulSet pod-specific
-  # DNS entries like validator1-0.besu-validator1.besu.svc.cluster.local to resolve.
+  # DNS entries like validator1-0.besu-validator1.besu.svc.<cluster domain> to resolve.
   # Without this, enode URLs in --bootnodes and static-nodes.json won't work
   # because K8s only creates per-pod DNS records for headless services.
   clusterIP: None
@@ -664,10 +676,7 @@ function generateValidatorStatefulSetYaml(
   // Bootnode references: validator1 and validator2 (or just validator1 if only 1)
   const bootnodeIndices = allValidators.length >= 2 ? [1, 2] : [1];
   const bootnodeArgs = bootnodeIndices
-    .map(
-      (bi) =>
-        `enode://\${VALIDATOR${bi}_PUBKEY}@validator${bi}-0.besu-validator${bi}.${namespace}.svc.cluster.local:30303`,
-    )
+    .map((bi) => `enode://\${VALIDATOR${bi}_PUBKEY}@${allValidators[bi - 1].dnsHost}:30303`)
     .join(',');
 
   // Environment variables for bootnode public keys
@@ -696,7 +705,7 @@ function generateValidatorStatefulSetYaml(
               until curl -sf -X POST --connect-timeout 3 \\
                 -H 'Content-Type: application/json' \\
                 -d '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' \\
-                http://besu-validator1.${namespace}.svc.cluster.local:8545; do
+                http://${allValidators[0].serviceHost}:8545; do
                 echo "validator1 not ready yet, retrying in 5s..."
                 sleep 5
               done
@@ -1069,6 +1078,7 @@ function buildNetworkConfigJson(validators, genesis, opts = {}) {
  * @property {string} [networkConfigDir='./hardhat/networks'] - Where to write the network config JSON.
  * @property {number} [validatorCount=4] - Number of IBFT2 validators.
  * @property {string} [namespace='besu'] - Kubernetes namespace.
+ * @property {string} [clusterDomain='cluster.local'] - The DNS domain of the cluster.
  * @property {number} [chainId=777771] - Chain ID.
  * @property {number} [blockPeriodSeconds=5] - IBFT2 block period.
  * @property {number} [epochLength=30000] - IBFT2 epoch length.
@@ -1102,6 +1112,7 @@ async function generateBesuManifests(opts = {}) {
     networkConfigDir = './hardhat/networks',
     validatorCount = 4,
     namespace = 'besu',
+    clusterDomain = DEFAULT_CLUSTER_DOMAIN,
     chainId = 777771,
     blockPeriodSeconds = 5,
     epochLength = 30000,
@@ -1123,7 +1134,7 @@ async function generateBesuManifests(opts = {}) {
   logger.info(`  Output: ${outputDir}`);
 
   // 1. Generate validator keys
-  const validators = generateValidatorKeys(validatorCount, namespace);
+  const validators = generateValidatorKeys(validatorCount, namespace, clusterDomain);
 
   for (const v of validators) {
     logger.info(`  Validator ${v.index}:`);
@@ -1247,6 +1258,7 @@ async function generateBesuManifests(opts = {}) {
  * @property {number} [nodePortRpc=30545] - NodePort for external JSON-RPC.
  * @property {number} [nodePortWs=30546] - NodePort for external WebSocket.
  * @property {string} [namespace='besu'] - Kubernetes namespace.
+ * @property {string} [clusterDomain='cluster.local'] - The DNS domain of the cluster.
  * @property {boolean} [skipGenerate=false] - Skip manifest generation and use existing manifests as-is.
  * @property {boolean} [skipWait=false] - Skip waiting for validators to reach Running state.
  * @property {string} [manifestsPath='./manifests/besu'] - Path to write/read manifests.
@@ -1288,6 +1300,7 @@ async function deployBesu(options = {}) {
     nodePortRpc = 30545,
     nodePortWs = 30546,
     namespace = 'besu',
+    clusterDomain = DEFAULT_CLUSTER_DOMAIN,
     skipGenerate = false,
     skipWait = false,
     manifestsPath: besuManifestsPath = './manifests/besu',
@@ -1320,7 +1333,7 @@ async function deployBesu(options = {}) {
     if (healthyCount >= validatorCount) {
       logger.info(`Besu network already running in namespace '${namespace}' with ${healthyCount} healthy pod(s).`);
       logger.info('Deployment is already up-to-date. Use "chain remove" first to redeploy with fresh keys.');
-      logger.info(`  Internal RPC: http://besu-validator1.${namespace}.svc.cluster.local:8545`);
+      logger.info(`  Internal RPC: http://${validatorHosts({ index: 1, namespace, clusterDomain }).serviceHost}:8545`);
       logger.info(`  External RPC (NodePort): http://<node-ip>:${nodePortRpc}`);
       return { alreadyRunning: true, namespace, validators: healthyCount };
     }
@@ -1356,6 +1369,7 @@ async function deployBesu(options = {}) {
         networkConfigDir,
         validatorCount,
         namespace,
+        clusterDomain,
         chainId,
         blockPeriodSeconds,
         epochLength,
@@ -1386,8 +1400,8 @@ async function deployBesu(options = {}) {
   // ── Step 2: Pull container images if requested ─────────────────────────
   if (pullImage) {
     logger.info('Pulling Besu images via crictl...');
-    shellExec(crictlCommandFactory(`pull ${besuImage}`));
-    shellExec(crictlCommandFactory(`pull ${curlImage}`));
+    shellExec(crictlCommandFactory(`pull ${besuImage}`), { privileged: CRICTL_PRIVILEGE });
+    shellExec(crictlCommandFactory(`pull ${curlImage}`), { privileged: CRICTL_PRIVILEGE });
   }
 
   // ── Step 3: Apply all besu resources via kustomize ─────────────────────
@@ -1497,7 +1511,7 @@ async function deployBesu(options = {}) {
   logger.info(`  Validators: ${validatorCount} (IBFT2 consensus)`);
   logger.info(`  Chain ID: ${chainId}`);
   logger.info(`  Namespace: ${namespace}`);
-  logger.info(`  Internal RPC: http://besu-validator1.${namespace}.svc.cluster.local:8545`);
+  logger.info(`  Internal RPC: http://${validatorHosts({ index: 1, namespace, clusterDomain }).serviceHost}:8545`);
   logger.info(`  External RPC (NodePort): http://<node-ip>:${nodePortRpc}`);
   logger.info('');
   logger.info('Next steps:');

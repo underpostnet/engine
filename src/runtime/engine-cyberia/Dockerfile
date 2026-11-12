@@ -142,9 +142,7 @@ RUN chown -R dd:dd /home/dd/engine/src/client/public
 USER dd
 WORKDIR /home/dd/engine
 
-# One port per host of conf.server.json, from PORT+1 upward, plus the gRPC data
-# service. Compose publishes the same block (ENGINE_CYBERIA_PORT_RANGE).
-EXPOSE 3005-3019
+# The gRPC data service. The PORT of the deploy env sets the host ports; compose and the cluster publish them.
 EXPOSE 50051
 
 CMD ["/bin/sh", "-c", "underpost start --run dd-cyberia production"]

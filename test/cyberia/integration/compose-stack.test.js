@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
+import { load as yamlLoad } from 'js-yaml';
 import UnderpostDockerCompose from '../../../src/cli/docker-compose.js';
-import { loadConfServerJson } from '../../../src/server/runtime/conf.js';
-import { hostPortsFactory } from '../../../src/server/network/router.js';
+import { deployHostPortsFactory } from '../../../src/server/network/router.js';
 
-// The dd-cyberia compose stack is rendered from conf.server.json, compose.env and the release
-// instances. This pins the canonical files to that rendering and the images to the same ports.
+// The dd-cyberia compose stack is rendered from conf.server.json, the base port of the deploy env
+// and the release instances. This pins the canonical files to that rendering.
 const OPTIONS = { deployId: 'dd-cyberia', dockerComposeId: 'cyberia' };
 const CANONICAL = './engine-private/conf/dd-cyberia/docker-compose/cyberia';
 const MIRROR = './src/runtime/engine-cyberia';
@@ -31,22 +31,13 @@ describe.skipIf(!present)('the dd-cyberia compose stack', () => {
     for (const name of [...names, 'compose.env']) expect(read(MIRROR, name), name).toBe(read(CANONICAL, name));
   });
 
-  it('points the public engine URL at the host that owns the Cyberia APIs', () => {
-    const conf = loadConfServerJson(CONF_SERVER);
-    const env = composeEnv();
-    const cyberiaHost = env.DEFAULT_DEPLOY_HOST;
-    expect(conf[cyberiaHost]['/'].apis).toContain('cyberia-instance');
-    const port = hostPortsFactory(conf, Number(env.PORT) + 1)[`${cyberiaHost}/`];
-    expect(env.ENGINE_PUBLIC_URL).toBe(`http://localhost:${port}`);
-  });
-
-  it('declares the same port block in the image as the stack publishes', () => {
-    const ports = Object.values(hostPortsFactory(loadConfServerJson(CONF_SERVER), Number(composeEnv().PORT) + 1));
-    const span = Math.max(...ports) - Math.min(...ports);
-    for (const name of ['Dockerfile', 'Dockerfile.dev']) {
-      const [, first, last] = read(MIRROR, name).match(/^EXPOSE (\d+)-(\d+)$/m);
-      expect(Number(last) - Number(first), name).toBe(span);
-    }
+  it('publishes the engine ports that the development env of the deploy assigns', () => {
+    const ports = Object.values(deployHostPortsFactory('dd-cyberia', 'development'));
+    const block = `${Math.min(...ports)}-${Math.max(...ports)}`;
+    const { services } = yamlLoad(read(CANONICAL, 'docker-compose.yml'));
+    expect(services['engine-cyberia-runtime'].ports[0]).toBe(`${block}:${block}`);
+    // The base port has one source: the deploy env, never the operator env-file.
+    expect(composeEnv()).not.toHaveProperty('PORT');
   });
 
   it('sets every env value the engine conf reads', () => {

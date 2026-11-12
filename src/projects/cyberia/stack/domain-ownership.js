@@ -11,14 +11,24 @@ import { domainOrigin } from '../../../server/domain/domain-client.js';
 import { CONTENT_PARTITION } from '../content/content-release.js';
 import { PROCEDURAL_APIS } from '../procedural/engine.js';
 
+/** The Cyberia host of accounts, Studio and the Cyberia APIs. */
+export const CYBERIA_SERVICES_HOST = 'services.cyberiaonline.com';
+
+/** The Cyberia public website: static documents, no API. */
+export const CYBERIA_PUBLIC_HOST = 'www.cyberiaonline.com';
+
 /** Hosts of the deploy, their main client, and the domain key other domains address them by. */
 export const DOMAIN_HOSTS = Object.freeze({
   'underpost.net': { client: 'underpost', domain: '' },
   'objectlayer.org': { client: 'objectlayer', domain: 'object-layer' },
   'itemledger.com': { client: 'itemledger', domain: 'item-ledger' },
   'cryptokoyn.net': { client: 'cryptokoyn', domain: '' },
-  'www.cyberiaonline.com': { client: 'cyberia-portal', domain: 'cyberia' },
+  [CYBERIA_SERVICES_HOST]: { client: 'cyberia-portal', domain: 'cyberia' },
+  [CYBERIA_PUBLIC_HOST]: { client: 'cyberia-public', domain: '' },
 });
+
+/** Runtime capabilities the public website never carries. */
+const PUBLIC_SITE_FORBIDDEN = Object.freeze(['db', 'mailer', 'ws', 'peer', 'valkey', 'grpc', 'redirect']);
 
 /** The APIs each domain owns. An API no domain lists here is shared platform infrastructure. */
 export const DOMAIN_APIS = Object.freeze({
@@ -51,12 +61,15 @@ export const CYBERIA_PLAYER_APIS = Object.freeze([
   'cyberia-quest-progress',
 ]);
 
-/** Cyberia records that are runtime state or Studio workflow: never inside a content release. */
+/** Cyberia records that are runtime state, Studio workflow or lifecycle history: never inside a content release. */
 export const CYBERIA_RUNTIME_APIS = Object.freeze([
   ...CYBERIA_PLAYER_APIS,
   'cyberia-server-registry',
   'cyberia-global-map-code-registry',
   'cyberia-content-release',
+  'cyberia-content-lifecycle',
+  'cyberia-content-lifecycle-event',
+  'cyberia-saga-workflow',
   ...PROCEDURAL_APIS,
 ]);
 
@@ -82,6 +95,9 @@ export const CLIENT_COMPONENTS = Object.freeze({
   },
   'cyberia-portal': {
     required: { cyberia: ['ObjectLayerProfileCyberia'], 'objectlayer-studio': ['ObjectLayerEngineViewer'] },
+  },
+  'cyberia-public': {
+    forbidden: { core: ['*'], cyberia: ['*'], 'cyberia-portal': ['*'], 'objectlayer-studio': ['*'] },
   },
   underpost: { forbidden: { 'objectlayer-studio': ['*'], wallet: ['*'] } },
 });
@@ -143,28 +159,35 @@ export function validateDomainConf({ confServer, confClient, env = 'development'
       errors.push(`${host}: consumes another domain but DOMAIN_API_SERVICE_KEY is not configured`);
   }
 
-  const cyberia = confServer['www.cyberiaonline.com']?.['/'];
+  const publicSite = confServer[CYBERIA_PUBLIC_HOST]?.['/'];
+  if (publicSite) {
+    if ((publicSite.apis ?? []).length > 0) errors.push(`${CYBERIA_PUBLIC_HOST}: the public website mounts APIs`);
+    for (const key of PUBLIC_SITE_FORBIDDEN)
+      if (publicSite[key]) errors.push(`${CYBERIA_PUBLIC_HOST}: the public website declares ${key}`);
+  }
+
+  const cyberia = confServer[CYBERIA_SERVICES_HOST]?.['/'];
   if (cyberia) {
     for (const api of CYBERIA_STUDIO_EXTENSIONS)
       if ((cyberia.apis ?? []).includes(api) && cyberia.apiExtensions?.[api] !== 'cyberia')
-        errors.push(`www.cyberiaonline.com: mounts ${api} without its Cyberia Studio extension`);
+        errors.push(`${CYBERIA_SERVICES_HOST}: mounts ${api} without its Cyberia Studio extension`);
     const partition = cyberia.db?.partitions?.[CONTENT_PARTITION];
-    if (!partition?.name) errors.push(`www.cyberiaonline.com: no "${CONTENT_PARTITION}" database partition`);
+    if (!partition?.name) errors.push(`${CYBERIA_SERVICES_HOST}: no "${CONTENT_PARTITION}" database partition`);
     else {
       for (const api of partition.apis ?? []) {
         if (!(cyberia.apis ?? []).includes(api))
-          errors.push(`www.cyberiaonline.com: content partition names unmounted api ${api}`);
+          errors.push(`${CYBERIA_SERVICES_HOST}: content partition names unmounted api ${api}`);
         if (CYBERIA_RUNTIME_APIS.includes(api))
-          errors.push(`www.cyberiaonline.com: runtime api ${api} is inside the content partition`);
+          errors.push(`${CYBERIA_SERVICES_HOST}: runtime api ${api} is inside the content partition`);
         if (ownerDomainOf(api) && ownsApi(cyberia, api))
-          errors.push(`www.cyberiaonline.com: owned authority ${api} is inside the content partition`);
+          errors.push(`${CYBERIA_SERVICES_HOST}: owned authority ${api} is inside the content partition`);
       }
       for (const api of cyberia.apis ?? []) {
         if (api.startsWith('cyberia-') && !CYBERIA_RUNTIME_APIS.includes(api) && !partition.apis?.includes(api))
-          errors.push(`www.cyberiaonline.com: content api ${api} is outside the content partition`);
+          errors.push(`${CYBERIA_SERVICES_HOST}: content api ${api} is outside the content partition`);
       }
       if (partition.name === cyberia.db.name)
-        errors.push('www.cyberiaonline.com: content and runtime share one database');
+        errors.push(`${CYBERIA_SERVICES_HOST}: content and runtime share one database`);
     }
   }
 

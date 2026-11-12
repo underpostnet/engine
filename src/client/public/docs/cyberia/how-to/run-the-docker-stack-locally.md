@@ -64,12 +64,12 @@ lock. The private channel needs `GITHUB_TOKEN`. The build reads it as a build se
 `engine-private/conf/dd-cyberia/docker-compose/cyberia/` holds the stack. Only `compose.env` is
 written by hand.
 
-| File                                              | Source                                                                                             |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `compose.env`                                     | The operator: credentials, images, public origins and `PORT`                                       |
-| `docker-compose.yml`                              | `src/projects/cyberia/compose-stack.js`, from `conf.server.json`, `PORT` and the release instances |
-| `nginx.conf`                                      | The same stack, through the primitives of `src/runtime/nginx/Nginx.js`                             |
-| `mongodb/entrypoint.sh`, `ipfs/configure-ipfs.sh` | The platform init scripts of `node bin docker-compose`                                             |
+| File                                              | Source                                                                                                             |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `compose.env`                                     | The operator: credentials, images and public origins                                                               |
+| `docker-compose.yml`                              | `src/projects/cyberia/compose-stack.js`, from `conf.server.json`, `PORT` of `.env.<env>` and the release instances |
+| `nginx.conf`                                      | The same stack, through the primitives of `src/runtime/nginx/nginx.js`                                             |
+| `mongodb/entrypoint.sh`, `ipfs/configure-ipfs.sh` | The platform init scripts of `node bin docker-compose`                                                             |
 
 ```bash
 node bin docker-compose --generate --deploy-id dd-cyberia --docker-compose-id cyberia
@@ -81,13 +81,18 @@ node bin docker-compose --generate --deploy-id dd-cyberia --docker-compose-id cy
 generates the stack again and copies it into `src/runtime/engine-cyberia/`.
 
 The services start in this order: MongoDB, Valkey and IPFS, then the engine, then the content
-job. The content job runs `cyberia run-workflow import-content`: it imports the artifact the image
-carries into the workspace the engine serves, the foundation first, then the sagas and the
-instances. It is a development bootstrap: it builds no release, and a rerun is safe. Only after it
-completes do the game servers start, so each one finds its world. A game server reports
+job, then the universe job. The content job runs `cyberia content workspace import`: it imports the
+artifact the image carries into the workspace the engine serves, the foundation first, then the
+sagas and the instances. The universe job runs `cyberia run-workflow seed-universe`: it creates the
+universe `cyberia` of the release instances, with a link both ways from the world at `/` to each
+other world, so an account can play and travel. It writes nothing while a universe holds that code
+or one of these worlds, so it never changes a universe that an author made in Studio. Both jobs are
+a development bootstrap: they build no release, and a rerun is safe. Only after both complete do the
+game servers start, so each one finds its world. A game server reports
 `CYBERIA_SERVER_PUBLIC_ORIGIN` and its path to the engine registry, and a promotion reloads it.
 
 The engine publishes one port for each domain of `conf.server.json`, from `PORT+1` upward, as one block.
+`PORT` is the base port of `engine-private/conf/dd-cyberia/.env.<env>`.
 
 | Address                                   | Serves                                                 |
 | ----------------------------------------- | ------------------------------------------------------ |
@@ -97,8 +102,23 @@ The engine publishes one port for each domain of `conf.server.json`, from `PORT+
 | `http://<domain>/`                        | The engine port of that domain                         |
 | `http://engine-cyberia/`                  | The same host as `/api/`, for every container          |
 
-`--test` requests the engine, then the client and the server readiness of each world, by these
-names. It exits with code 1 if one request fails or answers 400 or more.
+`--test` requests the engine and the universe of the world at `/`, then the client and the server
+readiness of each world, by these names. It exits with code 1 if one request fails or answers 400 or
+more.
+
+## Follow a port change
+
+The order of `engine-private/deploy/dd.routes` sets the base port of each deploy. After you change
+that order:
+
+1. Run `node bin/cyberia release build`. It syncs `PORT` in the `.env.<env>` of every deploy first.
+   Then it writes the instance envs, the stack, its copy in `src/runtime/engine-cyberia/`, and the
+   `.env.<env>` of the deployment, which is `compose.env` with the `PORT` of that environment.
+2. Run `node bin/cyberia run-workflow dev-env`. The engine image keeps the `PORT` of the deployment
+   env it was built from, so build it again.
+
+`--generate`, `--up` and `node bin/cyberia debug` read `PORT` each time they run.
+`node bin client --sync-env-port` syncs the ports without a build.
 
 ## Release instances
 
@@ -119,7 +139,7 @@ The same module checks the release content and applies it:
 - Each game instance env file gets `INSTANCE_CODE` or `CYBERIA_INSTANCE_CODE` from its path, and
   the origins of its environment. Every manifest build writes both env files.
 - The compose stack runs one game server and one game client for each instance.
-- A content release and `run-workflow import-content` import the release sagas, then these
+- A content release and `content workspace import` import the release sagas, then these
   instances, and no other saga or instance of the artifact.
 
 To change the worlds, change `release-content.js`, then run `cyberia release build`.

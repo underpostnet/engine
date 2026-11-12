@@ -13,6 +13,7 @@ vi.mock(import('../../../src/projects/cyberia/content/content-artifact.js'), asy
 const { openContentArtifact } = await import('../../../src/projects/cyberia/content/content-artifact.js');
 const { STACK_IMAGES } = await import('../../../src/projects/cyberia/compose-stack.js');
 const { RELEASE_CONTENT } = await import('../../../src/projects/cyberia/content/release-content.js');
+const { universeDefect } = await import('../../../src/api/cyberia-universe/cyberia-universe.service.js');
 const {
   STACK_BUILDER_STAGE,
   STACK_IMAGE_IDS,
@@ -22,6 +23,7 @@ const {
   localImage,
   localImageEnv,
   stackProbes,
+  stackUniverse,
   stageLocalEngineSource,
 } = await import('../../../src/projects/cyberia/stack/local-stack.js');
 
@@ -106,10 +108,13 @@ describe('the local stack', () => {
     });
   });
 
-  it('probes the engine and each world through the gateway names', () => {
+  it('probes the engine, the seeded universe and each world through the gateway names', () => {
     const probes = stackProbes();
-    expect(probes).toHaveLength(1 + 2 * RELEASE_CONTENT.instances.length);
+    expect(probes).toHaveLength(2 + 2 * RELEASE_CONTENT.instances.length);
     expect(probes[0].url).toBe('http://engine-cyberia/api/v1/cyberia-content-release/active');
+    expect(probes[1].url).toBe(
+      `http://engine-cyberia/api/v1/cyberia-universe/instance/${RELEASE_CONTENT.instances[0].instanceCode}`,
+    );
     expect(probes.map(({ url }) => url)).toEqual(
       expect.arrayContaining([
         'http://cyberia-client/',
@@ -117,6 +122,16 @@ describe('the local stack', () => {
         'http://cyberia-client/test/',
         'http://cyberia-server/test/api/v1/health/ready',
       ]),
+    );
+  });
+
+  it('seeds one valid universe of the release worlds, each linked both ways to the world at /', () => {
+    const universe = stackUniverse();
+    const [root, ...others] = RELEASE_CONTENT.instances.map(({ instanceCode }) => instanceCode);
+    expect(universeDefect(universe)).toBe('');
+    expect(universe.instances.map(({ instanceCode }) => instanceCode)).toEqual([root, ...others]);
+    expect(universe.links).toEqual(
+      others.map((target) => ({ sourceInstanceCode: root, targetInstanceCode: target, bidirectional: true })),
     );
   });
 

@@ -137,15 +137,15 @@ services:
     networks:
       - dd-cyberia-internal
     expose:
-      - 4005-4019
+      - 4001-4016
       - '50051'
     ports:
-      - 4005-4019:4005-4019
+      - 4001-4016:4001-4016
       - ${ENGINE_CYBERIA_GRPC_PORT:-50051}:50051
     healthcheck:
       test:
         - CMD-SHELL
-        - timeout 2 bash -c '</dev/tcp/127.0.0.1/4008' || exit 1
+        - timeout 2 bash -c '</dev/tcp/127.0.0.1/4004' || exit 1
       interval: 15s
       timeout: 5s
       retries: 5
@@ -167,8 +167,9 @@ services:
     command:
       - node
       - bin/cyberia
-      - run-workflow
-      - import-content
+      - content
+      - workspace
+      - import
     env_file:
       - ./compose.env
     environment:
@@ -185,6 +186,31 @@ services:
       engine-cyberia-runtime:
         condition: service_healthy
     restart: 'no'
+  engine-cyberia-universe:
+    image: ${ENGINE_CYBERIA_IMAGE:-underpost/engine-cyberia-dev}:${ENGINE_CYBERIA_TAG:-v4.0.0}
+    container_name: dd-cyberia-universe
+    network_mode: service:engine-cyberia-runtime
+    command:
+      - node
+      - bin/cyberia
+      - run-workflow
+      - seed-universe
+    env_file:
+      - ./compose.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_PROVIDER: ${DB_PROVIDER:-mongoose}
+      DB_HOST: ${DB_HOST:-mongodb://mongodb:27017}
+      DB_REPLICA_SET: ${DB_REPLICA_SET:-rs0}
+      DB_AUTH_SOURCE: ${DB_AUTH_SOURCE:-admin}
+      DB_USER: ${MONGO_INITDB_ROOT_USERNAME:?}
+      DB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?}
+      VALKEY_HOST: ${VALKEY_HOST:-valkey-service}
+      VALKEY_PORT: ${VALKEY_PORT:-6379}
+    depends_on:
+      engine-cyberia-content:
+        condition: service_completed_successfully
+    restart: 'no'
   cyberia-server-runtime:
     image: ${CYBERIA_SERVER_IMAGE:-underpost/cyberia-server-dev}:${CYBERIA_SERVER_TAG:-v4.0.0}
     container_name: dd-cyberia-server
@@ -194,7 +220,6 @@ services:
       CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
-      ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4008}
       CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
@@ -225,7 +250,7 @@ services:
     depends_on:
       proxy:
         condition: service_healthy
-      engine-cyberia-content:
+      engine-cyberia-universe:
         condition: service_completed_successfully
     restart: unless-stopped
   cyberia-server-test:
@@ -237,7 +262,6 @@ services:
       CYBERIA_PUBLIC_URL: ${CYBERIA_SERVER_PUBLIC_ORIGIN:-http://localhost:8081}/test
       CYBERIA_SERVER_API_KEY: ${CYBERIA_SERVER_API_KEY:-}
       CYBERIA_DATA_SERVER_URL: ${CYBERIA_DATA_SERVER_URL:-http://engine-cyberia}
-      ENGINE_PUBLIC_URL: ${ENGINE_PUBLIC_URL:-http://localhost:4008}
       CYBERIA_DATA_SERVER_GRPC: ${CYBERIA_DATA_SERVER_GRPC:-engine-cyberia-runtime:50051}
       ENGINE_GRPC_RELOAD_INTERVAL_SEC: ${ENGINE_GRPC_RELOAD_INTERVAL_SEC:-300}
       STATIC_DIR: ${CYBERIA_SERVER_STATIC_DIR:-/home/dd/engine/cyberia-server/public}
@@ -268,7 +292,7 @@ services:
     depends_on:
       proxy:
         condition: service_healthy
-      engine-cyberia-content:
+      engine-cyberia-universe:
         condition: service_completed_successfully
     restart: unless-stopped
   cyberia-client-runtime:
@@ -334,6 +358,7 @@ services:
           - engine-cyberia
           - underpost.net
           - www.underpost.net
+          - services.cyberiaonline.com
           - www.cyberiaonline.com
           - cyberiaonline.com
           - cryptokoyn.net

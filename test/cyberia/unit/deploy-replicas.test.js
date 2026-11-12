@@ -7,8 +7,9 @@ import { spawnSync } from 'node:child_process';
 const deployRoot = new URL('../../../deploy/', import.meta.url).pathname;
 
 // A step prints the host command it would run; every other library function does nothing.
-const libraryStub = `ENGINE_ROOT=/engine HOST_NODE=host WORKER_NODE=worker INGRESS_NODE=ingress DEPLOY_SSH_KEY_PATH=key CYBERIA_API_ORIGIN=https://api
+const libraryStub = `ENGINE_ROOT=/engine DEPLOY_SSH_KEY_PATH=key CYBERIA_API_ORIGIN=https://api
 deploy_step() { shift; "$@"; }
+cluster_placement() { UNDERPOST_NAMESPACE_WORKLOADS=default; UNDERPOST_NAMESPACE_PLATFORM=default; }
 sudo() { printf '%s\\n' "\${@: -1}"; }
 command_not_found_handle() { return 0; }
 `;

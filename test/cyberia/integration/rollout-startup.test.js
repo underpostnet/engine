@@ -19,7 +19,7 @@ describe('engine rollout startup', () => {
       DEPLOY_ID=dd-cyberia DEPLOY_ENV=${env} BUNDLE_MODE=${bundleMode} CLIENT_BUNDLE=${BUNDLE} ENGINE_REVISION=rev
       ENGINE_SRC_REPO=example/engine POD_SRC_PRIVATE_REPO=example/config POD_SRC_PRIVATE_DIR=config
       ENGINE_ROOT=/engine ROUTING_FLAGS="--replicas 2" DEPLOY_IMAGE=engine@sha256:abc
-      TARGET_NODE= INGRESS_NODE=ingress DEPLOY_SSH_KEY_PATH=key
+      DEPLOY_SSH_KEY_PATH=key
       pod_bootstrap_cmd() { printf 'bootstrap %s' "$4"; }
       deploy_step() { shift; "$@"; }
       sudo() { printf '%s' "\${@: -1}"; }

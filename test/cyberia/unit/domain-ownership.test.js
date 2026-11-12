@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import {
+  CYBERIA_PUBLIC_HOST,
   CYBERIA_RUNTIME_APIS,
   DOMAIN_APIS,
   DOMAIN_HOSTS,
@@ -28,17 +29,18 @@ const fixture = () => ({
   confServer: {
     'underpost.net': host('underpost', ['user', 'file', 'test', 'document']),
     'objectlayer.org': host('objectlayer', [...SHARED, ...OL], {
-      origins: ['https://objectlayer.org', 'https://itemledger.com', 'https://www.cyberiaonline.com'],
+      origins: ['https://objectlayer.org', 'https://itemledger.com', 'https://services.cyberiaonline.com'],
     }),
     'itemledger.com': host('itemledger', [...SHARED, ...LEDGER], {
-      origins: ['https://itemledger.com', 'https://objectlayer.org', 'https://www.cyberiaonline.com'],
+      origins: ['https://itemledger.com', 'https://objectlayer.org', 'https://services.cyberiaonline.com'],
     }),
     'cryptokoyn.net': host('cryptokoyn', SHARED),
-    'www.cyberiaonline.com': host('cyberia-portal', [...SHARED, ...OL, ...CONTENT, ...CYBERIA_RUNTIME_APIS], {
+    'services.cyberiaonline.com': host('cyberia-portal', [...SHARED, ...OL, ...CONTENT, ...CYBERIA_RUNTIME_APIS], {
       consumes: Object.fromEntries(OL.map((api) => [api, 'object-layer'])),
       apiExtensions: { 'object-layer': 'cyberia', 'atlas-sprite-sheet': 'cyberia' },
       db: { name: 'cyberia', partitions: { content: { name: 'cyberia-content', apis: [...CONTENT, ...OL] } } },
     }),
+    'www.cyberiaonline.com': { '/': { client: 'cyberia-public', runtime: 'nodejs', apis: [], origins: [] } },
   },
   confClient: {
     underpost: { components: { core: ['Docs'] }, services: ['user'], views: [{ path: '/' }, { path: '/docs' }] },
@@ -79,6 +81,7 @@ const fixture = () => ({
       views: [{ path: '/' }, { path: '/server' }, { path: '/docs' }],
       docs: {},
     },
+    'cyberia-public': { views: [{ path: '/' }] },
   },
 });
 
@@ -96,8 +99,26 @@ describe('domain ownership', () => {
       'objectlayer.org',
       'itemledger.com',
       'cryptokoyn.net',
+      'services.cyberiaonline.com',
       'www.cyberiaonline.com',
     ]);
+  });
+
+  it('keeps the public website free of APIs and runtime services', () => {
+    const conf = fixture();
+    Object.assign(conf.confServer[CYBERIA_PUBLIC_HOST]['/'], { apis: ['user'], db: { name: 'cyberia' }, ws: 'core' });
+    const errors = validateDomainConf(conf);
+    expect(errors).toContain('www.cyberiaonline.com: the public website mounts APIs');
+    expect(errors).toContain('www.cyberiaonline.com: the public website declares db');
+    expect(errors).toContain('www.cyberiaonline.com: the public website declares ws');
+  });
+
+  it('refuses portal and Studio components in the public website', () => {
+    const conf = fixture();
+    conf.confClient['cyberia-public'].components = { 'cyberia-portal': ['AppShellCyberiaPortal'], core: ['Modal'] };
+    const errors = validateDomainConf(conf);
+    expect(errors).toContain('cyberia-public: carries component cyberia-portal/AppShellCyberiaPortal it does not use');
+    expect(errors).toContain('cyberia-public: carries component core/Modal it does not use');
   });
 
   it('refuses an ItemLedger API mounted by the Object Layer host', () => {
@@ -116,7 +137,7 @@ describe('domain ownership', () => {
 
   it('refuses ItemLedger mounted by Cyberia, even when declared consumed', () => {
     const conf = fixture();
-    const cyberia = conf.confServer['www.cyberiaonline.com']['/'];
+    const cyberia = conf.confServer['services.cyberiaonline.com']['/'];
     cyberia.apis.push('item-ledger');
     cyberia.consumes['item-ledger'] = 'item-ledger';
     expect(validateDomainConf(conf).join('\n')).toMatch(/mounts ItemLedger API item-ledger/);
@@ -124,7 +145,7 @@ describe('domain ownership', () => {
 
   it('refuses a consumption that names the wrong owner', () => {
     const conf = fixture();
-    conf.confServer['www.cyberiaonline.com']['/'].consumes['object-layer'] = 'item-ledger';
+    conf.confServer['services.cyberiaonline.com']['/'].consumes['object-layer'] = 'item-ledger';
     expect(validateDomainConf(conf).join('\n')).toMatch(
       /consumes object-layer from item-ledger, which does not own it/,
     );
@@ -132,47 +153,49 @@ describe('domain ownership', () => {
 
   it('keeps runtime state out of the content partition, and content in it', () => {
     const conf = fixture();
-    const partition = conf.confServer['www.cyberiaonline.com']['/'].db.partitions.content;
+    const partition = conf.confServer['services.cyberiaonline.com']['/'].db.partitions.content;
     partition.apis.push('cyberia-quest-progress');
     partition.apis.splice(partition.apis.indexOf('cyberia-map'), 1);
     const errors = validateDomainConf(conf);
     expect(errors).toContain(
-      'www.cyberiaonline.com: runtime api cyberia-quest-progress is inside the content partition',
+      'services.cyberiaonline.com: runtime api cyberia-quest-progress is inside the content partition',
     );
-    expect(errors).toContain('www.cyberiaonline.com: content api cyberia-map is outside the content partition');
+    expect(errors).toContain('services.cyberiaonline.com: content api cyberia-map is outside the content partition');
   });
 
   it('keeps the Procedural Engine records out of a content release', () => {
     expect(CYBERIA_RUNTIME_APIS).toEqual(expect.arrayContaining(PROCEDURAL_APIS));
     const conf = fixture();
-    conf.confServer['www.cyberiaonline.com']['/'].db.partitions.content.apis.push('cyberia-procedural-job');
+    conf.confServer['services.cyberiaonline.com']['/'].db.partitions.content.apis.push('cyberia-procedural-job');
     expect(validateDomainConf(conf)).toContain(
-      'www.cyberiaonline.com: runtime api cyberia-procedural-job is inside the content partition',
+      'services.cyberiaonline.com: runtime api cyberia-procedural-job is inside the content partition',
     );
   });
 
   it('requires a content database apart from the runtime database', () => {
     const conf = fixture();
-    const db = conf.confServer['www.cyberiaonline.com']['/'].db;
+    const db = conf.confServer['services.cyberiaonline.com']['/'].db;
     db.partitions.content.name = db.name;
-    expect(validateDomainConf(conf)).toContain('www.cyberiaonline.com: content and runtime share one database');
+    expect(validateDomainConf(conf)).toContain('services.cyberiaonline.com: content and runtime share one database');
     delete db.partitions;
-    expect(validateDomainConf(conf)).toContain('www.cyberiaonline.com: no "content" database partition');
+    expect(validateDomainConf(conf)).toContain('services.cyberiaonline.com: no "content" database partition');
   });
 
   it('keeps an owned authority out of a content release', () => {
     const conf = fixture();
-    delete conf.confServer['www.cyberiaonline.com']['/'].consumes['object-layer'];
+    delete conf.confServer['services.cyberiaonline.com']['/'].consumes['object-layer'];
     expect(validateDomainConf(conf).join('\n')).toMatch(/owned authority object-layer is inside the content partition/);
   });
 
   it('keeps the Cyberia Studio on the Cyberia host, over the Object Layer APIs it mounts', () => {
     const conf = fixture();
-    delete conf.confServer['www.cyberiaonline.com']['/'].apiExtensions['atlas-sprite-sheet'];
+    delete conf.confServer['services.cyberiaonline.com']['/'].apiExtensions['atlas-sprite-sheet'];
     conf.confServer['objectlayer.org']['/'].apiExtensions = { 'object-layer': 'cyberia' };
     conf.confServer['itemledger.com']['/'].apiExtensions = { 'object-layer': 'cyberia', 'item-ledger': '../x' };
     const errors = validateDomainConf(conf);
-    expect(errors).toContain('www.cyberiaonline.com: mounts atlas-sprite-sheet without its Cyberia Studio extension');
+    expect(errors).toContain(
+      'services.cyberiaonline.com: mounts atlas-sprite-sheet without its Cyberia Studio extension',
+    );
     expect(errors).toContain('objectlayer.org: carries the Cyberia extension of object-layer');
     expect(errors).toContain('itemledger.com: extends object-layer, which it does not mount');
     expect(errors).toContain('itemledger.com: Invalid extension project "../x" for API "item-ledger"');
@@ -180,8 +203,10 @@ describe('domain ownership', () => {
 
   it('refuses an extension module that does not exist', () => {
     const conf = fixture();
-    conf.confServer['www.cyberiaonline.com']['/'].apiExtensions['cyberia-map'] = 'cyberia';
-    expect(validateDomainConf(conf)).toContain('www.cyberiaonline.com: extension cyberia/cyberia-map does not exist');
+    conf.confServer['services.cyberiaonline.com']['/'].apiExtensions['cyberia-map'] = 'cyberia';
+    expect(validateDomainConf(conf)).toContain(
+      'services.cyberiaonline.com: extension cyberia/cyberia-map does not exist',
+    );
   });
 
   it('finds duplicate views', () => {
@@ -247,9 +272,11 @@ describe('domain ownership', () => {
 
     it('needs the owner URL and the service key of every consumed domain', () => {
       const errors = validateDomainConf({ ...fixture(), env: 'production' });
-      expect(errors).toContain('www.cyberiaonline.com: consumes object-layer but its API origin is not configured');
       expect(errors).toContain(
-        'www.cyberiaonline.com: consumes another domain but DOMAIN_API_SERVICE_KEY is not configured',
+        'services.cyberiaonline.com: consumes object-layer but its API origin is not configured',
+      );
+      expect(errors).toContain(
+        'services.cyberiaonline.com: consumes another domain but DOMAIN_API_SERVICE_KEY is not configured',
       );
 
       process.env.OBJECT_LAYER_API_ORIGIN = 'https://objectlayer.org';
@@ -261,7 +288,7 @@ describe('domain ownership', () => {
 
 describe('API ownership of one host', () => {
   it('tells owned from consumed APIs', () => {
-    const cyberia = fixture().confServer['www.cyberiaonline.com']['/'];
+    const cyberia = fixture().confServer['services.cyberiaonline.com']['/'];
     expect(ownsApi(cyberia, 'cyberia-map')).toBe(true);
     expect(ownsApi(cyberia, 'object-layer')).toBe(false);
     expect(ownsApi(cyberia, 'item-ledger')).toBe(false);
@@ -273,7 +300,7 @@ describe('API ownership of one host', () => {
       /not in the host's apis/,
     );
     const conf = fixture();
-    conf.confServer['www.cyberiaonline.com']['/'].consumes['object-layer'] = 'objectlayer';
+    conf.confServer['services.cyberiaonline.com']['/'].consumes['object-layer'] = 'objectlayer';
     expect(validateDomainConf(conf).join('\n')).toMatch(
       /consumes object-layer from objectlayer, which does not own it/,
     );

@@ -5,7 +5,7 @@
 
 'use strict';
 
-import { IoServer } from '../IoServer.js';
+import { IoServer } from '../io-server.js';
 import { CoreWsConnectionHandler } from './core.ws.connection.js';
 import { CoreWsChatChannel } from './channels/core.ws.chat.js';
 import { CoreWsMailerChannel } from './channels/core.ws.mailer.js';
@@ -38,7 +38,7 @@ class CoreWsServer {
   }
 }
 
-/** Required by Express.js dynamic import: `const { createIoServer } = await import(...)` */
+/** Required by the dynamic import in `src/runtime/express/express.js`. */
 const createIoServer = CoreWsServer.create.bind(CoreWsServer);
 
 export { CoreWsServer, createIoServer };
