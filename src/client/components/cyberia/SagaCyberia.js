@@ -5,7 +5,7 @@
  *
  * @module src/client/components/cyberia/SagaCyberia.js
  */
-import { CyberiaSagaService } from '../../services/cyberia-saga/cyberia-saga.service.js';
+import { CyberiaSagaService } from '../../services/cyberia-saga/CyberiaSagaService.js';
 import { SAGA_FILTER_KEY } from './SharedDefaultsCyberia.js';
 
 /** The color of a saga: a hue its code fixes, the same wherever the saga shows. */

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
 import { refreshMapPreview } from '../../../src/projects/cyberia/instance/map-preview-generator.js';
 import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';

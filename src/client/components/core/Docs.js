@@ -12,7 +12,7 @@ import {
   getQueryParams,
 } from './Router.js';
 import { s } from './VanillaJs.js';
-import { GuestService } from '../../services/user/guest.service.js';
+import { GuestService } from '../../services/user/GuestService.js';
 /**
  * The user session a response body opens, as the user API answers a login: null for anything else,
  * a guest session included.

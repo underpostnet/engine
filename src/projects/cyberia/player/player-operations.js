@@ -15,7 +15,7 @@
  * @module src/projects/cyberia/player/player-operations.js
  * @namespace CyberiaPlayerOperations
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { restrictionOf } from '../../../api/user/user.model.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS,

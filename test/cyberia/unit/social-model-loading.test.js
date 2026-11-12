@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
-import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
+import { MongooseDB } from '../../../src/db/mongo/mongoose-db.js';
 import { CyberiaSocialModel } from '../../../src/api/cyberia-social/cyberia-social.model.js';
 import { canonicalPair } from '../../../src/api/cyberia-social/relationship.js';
 

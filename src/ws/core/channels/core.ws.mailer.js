@@ -4,7 +4,7 @@
  * @module ws/core/channels/core.ws.mailer
  */
 
-import { IoChannel } from '../../IoInterface.js';
+import { IoChannel } from '../../io-interface.js';
 
 /**
  * @class CoreWsMailerChannel

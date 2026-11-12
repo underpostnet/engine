@@ -35,14 +35,14 @@ import {
   shortCid,
   stamp,
 } from './ProceduralReviewCyberia.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
-import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
-import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
-import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
-import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
-import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
+import { CyberiaEntityTypeDefaultService } from '../../services/cyberia-entity-type-default/CyberiaEntityTypeDefaultService.js';
+import { CyberiaInstanceService } from '../../services/cyberia-instance/CyberiaInstanceService.js';
+import { CyberiaMapService } from '../../services/cyberia-map/CyberiaMapService.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/CyberiaProceduralJobService.js';
+import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/CyberiaProceduralPopulationService.js';
+import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/CyberiaProceduralProfileService.js';
 
 const MAP_STUDIO = 'cyberia-map-engine';
 const ENTITY_STUDIO = 'cyberia-entity-engine';

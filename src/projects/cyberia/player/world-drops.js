@@ -6,7 +6,7 @@
  * @module src/projects/cyberia/player/world-drops.js
  * @namespace CyberiaWorldDrops
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { WORLD_DROP_MAX_LIFETIME_MS } from '../../../api/cyberia-world-drop/cyberia-world-drop.model.js';
 
 const ID_LENGTH = 128;

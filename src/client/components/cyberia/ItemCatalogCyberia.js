@@ -30,9 +30,9 @@ import {
   DEFINITION_DOCUMENT_BYTES,
   definitionDocumentProblems,
 } from './ObjectLayerProfileCyberia.js';
-import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { CyberiaGlobalContentService } from '../../services/cyberia-global-content/cyberia-global-content.service.js';
+import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/CyberiaItemCatalogService.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
+import { CyberiaGlobalContentService } from '../../services/cyberia-global-content/CyberiaGlobalContentService.js';
 
 const GRID = 'item-catalog-grid';
 const GLOBAL_LIST = 'item-catalog-global';

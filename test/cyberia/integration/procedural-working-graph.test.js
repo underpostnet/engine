@@ -1,7 +1,7 @@
 // Requires mongod (UNDERPOST_MONGOD_BIN). A stub game server answers the hot reloads over HTTP.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { portalTopology } from '../../../src/api/cyberia-instance/cyberia-portal-connector.js';
 import { findGlobalDefaults } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { populationModels } from '../../../src/projects/cyberia/procedural/population/map-context.js';

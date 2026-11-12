@@ -15,9 +15,9 @@ import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
 import { Content } from './Content.js';
 import { attachMarkdownLinkHandlers } from './Markdown.js';
-import { DocumentService } from '../../services/document/document.service.js';
+import { DocumentService } from '../../services/document/DocumentService.js';
 import { NotificationManager } from './NotificationManager.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
 import { navigatePublicRoute, publicRoutePath } from './Router.js';
 import { ShellLayout } from './ShellLayout.js';
 

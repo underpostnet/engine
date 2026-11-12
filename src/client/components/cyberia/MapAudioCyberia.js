@@ -12,8 +12,8 @@ import { DropDown } from '../core/DropDown.js';
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { CyberiaAudioService } from '../../services/cyberia-audio/cyberia-audio.service.js';
-import { CyberiaMapAudioConfService } from '../../services/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
+import { CyberiaAudioService } from '../../services/cyberia-audio/CyberiaAudioService.js';
+import { CyberiaMapAudioConfService } from '../../services/cyberia-map-audio-conf/CyberiaMapAudioConfService.js';
 import { AUDIO_LOGIC_IDS, SKILL_LOGIC_IDS } from './SharedDefaultsCyberia.js';
 
 /** Every runtime event an audio binding answers. */

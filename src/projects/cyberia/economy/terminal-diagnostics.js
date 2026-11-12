@@ -7,7 +7,7 @@
  * @module src/projects/cyberia/economy/terminal-diagnostics.js
  * @namespace CyberiaTerminalDiagnostics
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import {
   effectiveItemPolicy,
   resolveEconomyProfile,

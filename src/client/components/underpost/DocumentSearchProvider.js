@@ -7,7 +7,7 @@
  */
 
 import { loggerFactory } from '../core/Logger.js';
-import { DocumentService } from '../../services/document/document.service.js';
+import { DocumentService } from '../../services/document/DocumentService.js';
 import { Translate } from '../core/Translate.js';
 import { navigatePublicRoute } from '../core/Router.js';
 import { Css, ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';

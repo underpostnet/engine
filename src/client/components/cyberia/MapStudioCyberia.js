@@ -8,7 +8,7 @@
  *
  * @module src/client/components/cyberia/MapStudioCyberia.js
  */
-import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
+import { CyberiaMapService } from '../../services/cyberia-map/CyberiaMapService.js';
 import { contextIcon, contextPanelStyle, mountContextPanel } from '../objectlayer-studio/ContextPanel.js';
 import { mapContextPanel } from './FoundationContextCyberia.js';
 import { trackComposition } from './MapPlacementCyberia.js';

@@ -8,7 +8,7 @@
  */
 
 import { loggerFactory } from '../../server/ops/logger.js';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DocumentDto } from './document.model.js';
 import { isValidStableSlug } from '../../client/components/core/CommonJs.js';
 import { getBearerToken, verifyJWT } from '../../server/security/auth.js';

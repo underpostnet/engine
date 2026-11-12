@@ -5,7 +5,7 @@
  * @module src/api/cyberia-procedural-profile/cyberia-procedural-profile.service.js
  * @namespace CyberiaProceduralProfileService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralProfileDto } from './cyberia-procedural-profile.model.js';
 import {
@@ -21,7 +21,7 @@ class CyberiaProceduralProfileService {
    * Templates, the palette catalog and the limits.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static config = async (req, res, options) =>
@@ -41,7 +41,7 @@ class CyberiaProceduralProfileService {
    * palette `?paletteId=` names.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{templateId:string,palettes:Object[],slots:Object}>}
    */
   static templatePalette = async (req, res, options) =>
@@ -63,7 +63,7 @@ class CyberiaProceduralProfileService {
    * GET `/` (paginated) or `/:profileId` (one profile).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {
@@ -84,7 +84,7 @@ class CyberiaProceduralProfileService {
    * POST `/`: stores a profile over the one stored under its id.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static post = async (req, res, options) =>

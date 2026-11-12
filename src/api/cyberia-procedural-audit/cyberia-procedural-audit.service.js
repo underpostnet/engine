@@ -5,7 +5,7 @@
  * @module src/api/cyberia-procedural-audit/cyberia-procedural-audit.service.js
  * @namespace CyberiaProceduralAuditService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralAuditDto } from './cyberia-procedural-audit.model.js';
 
@@ -17,7 +17,7 @@ class CyberiaProceduralAuditService {
    * GET `/` (paginated; `?jobId=`, `?jobItemId=`, `?populationId=`, `?itemId=`, `?action=` filter).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

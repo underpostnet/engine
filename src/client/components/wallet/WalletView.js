@@ -1,6 +1,6 @@
 import { EmbeddedWallet } from './EmbeddedWallet.js';
 import { WALLET_CAPABILITIES, caip10, discoverExternalWallets, hasCapability } from './WalletProvider.js';
-import { WalletAccountService } from '../../services/wallet-account/wallet-account.service.js';
+import { WalletAccountService } from '../../services/wallet-account/WalletAccountService.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';

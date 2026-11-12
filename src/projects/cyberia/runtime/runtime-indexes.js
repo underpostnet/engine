@@ -12,7 +12,7 @@
  * @module src/projects/cyberia/runtime/runtime-indexes.js
  * @namespace CyberiaRuntimeIndexes
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { getCapVariableName } from '../../../client/components/core/CommonJs.js';
 import { CYBERIA_RUNTIME_APIS } from '../stack/domain-ownership.js';
 

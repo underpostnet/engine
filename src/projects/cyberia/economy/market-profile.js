@@ -10,7 +10,7 @@
  * @module src/projects/cyberia/economy/market-profile.js
  * @namespace CyberiaMarketProfile
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { CONTENT_CODE_PATTERN } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import {
   MARKET_MODES,

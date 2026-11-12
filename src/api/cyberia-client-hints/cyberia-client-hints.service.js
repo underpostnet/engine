@@ -13,7 +13,7 @@
  * document stays for the mutable policy's TTL, the defaults are never kept.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
 import { CacheService } from '../../server/storage/cache.js';

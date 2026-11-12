@@ -5,7 +5,7 @@
  *
  * @module test/support/player-sessions.js
  */
-import { DataBaseProviderService } from '../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../src/db/database-provider.js';
 import { GuestService } from '../../src/api/user/guest.service.js';
 import { createGameTicket } from '../../src/api/cyberia-game-ticket/cyberia-game-ticket.service.js';
 import { acquireSession, consumeLaunch } from '../../src/projects/cyberia/player/player-session.js';

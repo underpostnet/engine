@@ -1,7 +1,7 @@
 // The instance map serves authored topology and capabilities. AOI owns live stats.
 
 import { CyberiaEntityTypeDefaultService } from '../cyberia-entity-type-default/cyberia-entity-type-default.service.js';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { worldPreview } from '../../projects/cyberia/instance/world-preview.js';
 import { instanceMapLayout } from '../../projects/cyberia/instance/instance-map-layout.js';
 import { entrySpawn } from '../../projects/cyberia/instance/entry-spawn.js';

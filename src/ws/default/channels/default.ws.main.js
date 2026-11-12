@@ -3,7 +3,7 @@
  * @module ws/default/channels/default.ws.main
  */
 
-import { IoChannel } from '../../IoInterface.js';
+import { IoChannel } from '../../io-interface.js';
 
 /**
  * @class DefaultWsMainChannel

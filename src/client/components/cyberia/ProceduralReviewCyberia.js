@@ -8,8 +8,8 @@
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
 import { swatches } from './ProceduralPaletteCyberia.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/CyberiaProceduralJobService.js';
 
 export const ACCESS_MESSAGE = 'Moderator access required to manage procedural generation.';
 export const ITEM_STATUS = Object.freeze([

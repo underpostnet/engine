@@ -7,7 +7,7 @@ class CyberiaGlobalContentService {
    * bound to it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{data:Object[],total:number,page:number,totalPages:number}>}
    */
   static get = async (req, res, options) => {
@@ -20,7 +20,7 @@ class CyberiaGlobalContentService {
    * DELETE `/:cid`: removes a definition from global content, while no item and no player holds it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static delete = async (req, res, options) => await unregisterGlobalContent(options, req.params.cid);

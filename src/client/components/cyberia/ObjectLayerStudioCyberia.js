@@ -9,12 +9,12 @@
  */
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/cyberia-item-catalog.service.js';
-import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
-import { CyberiaProceduralJobItemService } from '../../services/cyberia-procedural-job-item/cyberia-procedural-job-item.service.js';
-import { CyberiaProceduralPopulationService } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
-import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
-import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { CyberiaItemCatalogService } from '../../services/cyberia-item-catalog/CyberiaItemCatalogService.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/CyberiaProceduralJobService.js';
+import { CyberiaProceduralJobItemService } from '../../services/cyberia-procedural-job-item/CyberiaProceduralJobItemService.js';
+import { CyberiaProceduralPopulationService } from '../../services/cyberia-procedural-population/CyberiaProceduralPopulationService.js';
+import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/CyberiaProceduralProfileService.js';
+import { ObjectLayerService } from '../../services/object-layer/ObjectLayerService.js';
 import { CyberiaObjectLayerTemplates } from './ObjectLayerTemplatesCyberia.js';
 import { itemContextPanel } from './FoundationContextCyberia.js';
 import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';

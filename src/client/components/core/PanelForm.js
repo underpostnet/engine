@@ -2,8 +2,8 @@ import { capFirst, getCapVariableName, newInstance, PublicRoutes, range, timer, 
 import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
-import { DocumentService } from '../../services/document/document.service.js';
-import { FileService } from '../../services/file/file.service.js';
+import { DocumentService } from '../../services/document/DocumentService.js';
+import { FileService } from '../../services/file/FileService.js';
 import { getSrcFromFileData } from './Input.js';
 import { renderMarkdown } from './Markdown.js';
 import { renderCssAttr, darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
@@ -24,7 +24,7 @@ import {
 import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
 const logger = loggerFactory(import.meta, { trace: true });
 function sanitizeFilename(title, options = {}) {
   const { replacement = '-', maxLength = 255, preserveExtension = true } = options;

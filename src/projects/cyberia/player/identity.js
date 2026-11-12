@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { FRIENDS_MAX, FRIEND_REQUESTS_MAX } from '../../../api/cyberia-social/social-contract.js';
 import { presenceOf } from './player-session.js';
 import { accountAppearances } from './appearance-preview.js';

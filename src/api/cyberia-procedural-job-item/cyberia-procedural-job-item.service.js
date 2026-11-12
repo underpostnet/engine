@@ -5,7 +5,7 @@
  * @module src/api/cyberia-procedural-job-item/cyberia-procedural-job-item.service.js
  * @namespace CyberiaProceduralJobItemService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralJobItemDto } from './cyberia-procedural-job-item.model.js';
 
@@ -17,7 +17,7 @@ class CyberiaProceduralJobItemService {
    * GET `/` (paginated; `?jobId=`, `?targetItemId=`, `?status=` filter) or `/:id` (one record).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

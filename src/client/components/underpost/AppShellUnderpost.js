@@ -22,7 +22,7 @@ import { PublicProfile } from '../core/PublicProfile.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Content } from '../core/Content.js';
-import { UserManagement } from '../../services/user/user.management.js';
+import { UserManagement } from '../../services/user/UserManagement.js';
 
 class AppShellUnderpost {
   static async instance() {

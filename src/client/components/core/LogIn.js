@@ -1,6 +1,6 @@
-import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
-import { FileService } from '../../services/file/file.service.js';
-import { UserService } from '../../services/user/user.service.js';
+import { CoreService, getApiBaseUrl } from '../../services/core/CoreService.js';
+import { FileService } from '../../services/file/FileService.js';
+import { UserService } from '../../services/user/UserService.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';

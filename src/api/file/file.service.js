@@ -6,7 +6,7 @@
  * @namespace FileServiceServer
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { findCookieSession, getBearerToken, jwtVerify } from '../../server/security/auth.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import crypto from 'crypto';

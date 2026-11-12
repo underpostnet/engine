@@ -20,7 +20,7 @@
  */
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import {
   ECONOMY_OPERATION_KINDS,
   OPERATION_RECORD_DAYS,

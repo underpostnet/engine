@@ -14,7 +14,7 @@ import { SettingsItemledger } from './SettingsItemledger.js';
 import { Docs } from '../core/Docs.js';
 import { deployPackageReleaseUrl } from '../core/Repository.js';
 import { Recover } from '../core/Recover.js';
-import { ItemLedgerManagement } from '../../services/item-ledger/item-ledger.management.js';
+import { ItemLedgerManagement } from '../../services/item-ledger/ItemLedgerManagement.js';
 import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
 import { MainBodyDocument } from '../core/MainBodyDocument.js';
 

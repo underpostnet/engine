@@ -13,7 +13,7 @@
  */
 import fs from 'fs-extra';
 import path from 'node:path';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { documentFileIds } from '../../../api/file/file.ref.js';
 import { ATLAS_FILE_FIELDS, AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';

@@ -1,0 +1,362 @@
+/**
+ * A service dedicated to creating and configuring an Express.js application
+ * instance based on server configuration data.
+ * @module src/runtime/express/express.js
+ * @namespace ExpressService
+ */
+
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import swaggerUi from 'swagger-ui-express';
+import compression from 'compression';
+import { createServer } from 'http';
+
+import { loggerFactory, loggerMiddleware } from '../../server/ops/logger.js';
+import { getCapVariableName, newInstance } from '../../client/components/core/CommonJs.js';
+import { MailerProvider } from '../../mailer/mailer-provider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
+import { createPeerServer } from '../../server/network/peer.js';
+import { createValkeyConnection } from '../../db/valkey/valkey.js';
+import { applySecurity } from '../../server/security/auth.js';
+import { ssrMiddlewareFactory } from '../../client-builder/ssr.js';
+
+import { Config, devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/runtime/conf.js';
+import { developmentOrigins } from '../../server/network/router.js';
+import { metricsPathFactory } from '../../server/ops/monitoring.js';
+import {
+  keepRawBody,
+  publicRouteFallbackFactory,
+  ssrViewHeaderRoutes,
+  staticFileHeaders,
+} from '../../server/network/middlewares.js';
+import { publicRouteRenderersFactory } from '../../server/network/public-route-renderers.js';
+import { apiPathOf } from '../../server/domain/api-contract.js';
+import { TLS } from '../../server/network/tls.js';
+import {
+  apiAnnotationsOf,
+  apiDocumentFactory,
+  apiDocumentPathOf,
+  ownRoutesOf,
+} from '../../server/domain/api-document.js';
+import { apiExtensionUrl, consumedApisOf } from '../../server/domain/consumed-api.js';
+import { buildApiModule } from '../../server/domain/api-module.js';
+import { latchRuntimeError } from '../../server/runtime/runtime-status.js';
+
+import Underpost from '../../index.js';
+
+const logger = loggerFactory(import.meta);
+
+/**
+ * @class ExpressService
+ * @description A service dedicated to creating and configuring an Express.js application
+ * instance based on server configuration data.
+ * @memberof ExpressService
+ */
+class ExpressService {
+  /**
+   * Creates and configures a complete Express application instance for a specific host/path configuration.
+   *
+   * @method createApp
+   * @memberof ExpressService
+   * @param {string} config.host - The host name for the instance (e.g., 'www.example.com').
+   * @param {string} config.path - The URL path for the instance (e.g., '/', '/api/v1').
+   * @param {number} config.port - The primary listening port for the instance.
+   * @param {string} config.client - The client associated with the instance (used for SSR/Mailer configuration lookup).
+   * @param {string[]} [config.apis] - A list of API names to load and attach routers for.
+   * @param {string[]} config.origins - Allowed origins for CORS.
+   * @param {string} [config.directory] - The directory for static files (if overriding default).
+   * @param {boolean} [config.useLocalSsl] - Whether to use local SSL for the instance.
+   * @param {string} [config.ws] - The WebSocket server name to use.
+   * @param {object} [config.mailer] - Mailer configuration.
+   * @param {object} [config.db] - Database configuration.
+   * @param {string} [config.redirect] - URL or flag to indicate an HTTP redirect should be configured.
+   * @param {Object<string,string>} [config.consumes] - APIs another domain owns, api → domain: served here from a local cache of the owner's content.
+   * @param {string[]} [config.publicRoutes] - `PublicRoutes` names whose shell this host renders with the resource's own metadata.
+   * @param {Object<string,string>} [config.apiExtensions] - api → project whose `<api>.extension.js` adds this host's own routes to that API.
+   * @param {boolean} [config.peer] - Whether to enable the peer server.
+   * @param {object} [config.valkey] - Valkey connection configuration.
+   * @param {string} [config.apiBaseHost] - Base host for the API (if running separate API).
+   * @param {string} [config.apiBaseProxyPath] - Host path of the separate API runtime.
+   * @param {string} config.redirectTarget - The full target URL for redirection (used if `redirect` is true).
+   * @param {string} config.rootHostPath - The root path for public host assets (e.g., `/public/hostname`).
+   * @param {object} config.confSSR - The SSR configuration object, used to look up Mailer templates.
+   * @param {object} [config.metadata] - The client's `metadata` block (site name, description, social image): the site-level values of an entry's rendered head.
+   * @param {object} [config.docs] - The client's `docs` block: the host publishes its API document and view.
+   * @param {import('prom-client').Counter<string>} config.promRequestCounter - Prometheus request counter instance.
+   * @param {import('prom-client').Registry} config.promRegister - Prometheus register instance for metrics.
+   * @returns {Promise<{portsUsed: number}>} An object indicating how many additional ports were used (e.g., for PeerServer).
+   */
+  async createApp({
+    host,
+    path,
+    port,
+    client,
+    apis,
+    consumes,
+    apiExtensions,
+    publicRoutes,
+    origins,
+    directory,
+    useLocalSsl,
+    ws,
+    mailer,
+    db,
+    redirect,
+    peer,
+    valkey,
+    apiBaseHost,
+    apiBaseProxyPath,
+    grpc,
+    redirectTarget,
+    rootHostPath,
+    confSSR,
+    metadata,
+    docs,
+    promRequestCounter,
+    promRegister,
+  }) {
+    let portsUsed = 0;
+    const consumed = consumedApisOf({ apis, consumes });
+    const runningData = {
+      host,
+      path,
+      runtime: 'nodejs',
+      client,
+      meta: import.meta,
+      apis,
+    };
+
+    const app = express();
+
+    if (origins && isDevProxyContext())
+      origins.push(devProxyHostFactory({ host, includeHttp: true, tls: isTlsDevProxy() }));
+    // A development browser reaches every host on its local port, or through the dev proxy.
+    if (origins && process.env.NODE_ENV === 'development') origins = developmentOrigins(Config.default.server, origins);
+    app.set('trust proxy', 1);
+
+    app.use((req, res, next) => {
+      res.on('finish', () => {
+        promRequestCounter.inc({
+          instance: `${host}:${port}${path}`,
+          method: req.method,
+          status_code: res.statusCode,
+        });
+      });
+      return next();
+    });
+
+    // Metrics endpoint. The route is shared with the Prometheus scrape config
+    // so a target can never point at a path this server does not serve.
+    app.get(metricsPathFactory(path), async (req, res) => {
+      res.set('Content-Type', promRegister.contentType);
+      return res.end(await promRegister.metrics());
+    });
+
+    // Logging, Compression, and Body Parsers
+    app.use(loggerMiddleware(import.meta));
+    app.use(compression({ filter: (req, res) => !req.headers['x-no-compression'] && compression.filter(req, res) }));
+    app.use(express.json({ limit: '100MB', verify: keepRawBody }));
+    app.use(express.urlencoded({ extended: true, limit: '20MB' }));
+    app.use(fileUpload());
+
+    if (process.env.NODE_ENV === 'development') app.set('json spaces', 2);
+
+    // Language handling middleware
+    app.use((req, res, next) => {
+      const lang = req.headers['accept-language'] || 'en';
+      req.lang = typeof lang === 'string' && lang.toLowerCase().match('es') ? 'es' : 'en';
+      return next();
+    });
+
+    for (const [route, setHeaders] of ssrViewHeaderRoutes(
+      (client && confSSR[getCapVariableName(client)]?.views) || [],
+      path,
+    ))
+      app.use(route, setHeaders);
+
+    // Static file serving
+    app.use('/', express.static(directory ? directory : `.${rootHostPath}`, { setHeaders: staticFileHeaders }));
+    // The PWA shell for the dynamic public routes is the same built document a static view is,
+    // served under the same headers: the security middleware below applies a nonce CSP that the
+    // shell's inline scripts cannot satisfy. Only its own namespaces match, so no API route,
+    // asset or document is ever answered with it. The host declares in `publicRoutes` the routes
+    // whose shell carries the resource's own metadata.
+    app.use(
+      publicRouteFallbackFactory({
+        root: directory ? directory : `.${rootHostPath}`,
+        path,
+        renderers: await publicRouteRenderersFactory({
+          host,
+          path,
+          metadata,
+          publicRoutes,
+          apis,
+          consumes: consumed,
+          db,
+          apiBaseHost,
+        }),
+      }),
+    );
+
+    // Handle redirection-only instances
+    if (redirect) {
+      app.use((req, res, next) => {
+        if (process.env.NODE_ENV === 'production' && !req.url.startsWith(`/.well-known/acme-challenge`)) {
+          return res.status(302).redirect(redirectTarget + req.url);
+        }
+        return next();
+      });
+      await Underpost.start.listenPortController(app, port, runningData);
+      return { portsUsed };
+    }
+
+    // Create HTTP server for regular instances (required for WebSockets)
+    const server = createServer({}, app);
+
+    // Swagger path definition. The UI is served by every instance that renders the
+    // client, so a split client/API deployment keeps `api-docs` same-origin with the
+    // page that frames it.
+    const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
+
+    // Flag swagger requests before security middleware
+    if (docs) {
+      app.use(swaggerPath, (req, res, next) => {
+        res.locals.isSwagger = true;
+        next();
+      });
+    }
+
+    if (!apiBaseHost) {
+      // Security and CORS — must run before swagger-ui so CSP headers are included in swagger responses
+      if (process.env.NODE_ENV === 'development' && useLocalSsl)
+        origins = origins.map((origin) => origin.replace('http', 'https'));
+
+      applySecurity(app, {
+        origin: origins,
+      });
+
+      // Database and Valkey connections
+      if (db && apis) await DataBaseProviderService.load({ apis, host, path, db });
+
+      if (valkey) await createValkeyConnection({ host, path }, valkey);
+
+      // Mailer setup
+      if (mailer) {
+        const mailerSsrConf = confSSR[getCapVariableName(client)];
+        await MailerProvider.load({
+          id: `${host}${path}`,
+          meta: `mailer-${host}${path}`,
+          host,
+          path,
+          ...mailer,
+          templates: mailerSsrConf ? mailerSsrConf.mailer : {},
+        });
+      }
+
+      // gRPC server
+      if (path === '/' && grpc && grpc.module) {
+        const { GrpcServer } = await import(`../../grpc/${grpc.module}/grpc-server.js`);
+        await GrpcServer.start({ host, path, port: grpc.port || 50051 });
+      }
+
+      // API modules: each one starts before its router mounts; a module that fails to start stays unmounted.
+      if (apis && apis.length > 0) {
+        const apiPath = apiPathOf(path);
+        const routes = [];
+        const sources = [];
+        for (const api of apis) {
+          logger.info(
+            `Build api server`,
+            `${host}${apiPath}/${api}${consumed[api] ? ` (consumed from ${consumed[api]})` : ''}`,
+          );
+          let built;
+          try {
+            built = await buildApiModule({ api, host, path, consumes: consumed, origins, apiExtensions });
+          } catch (error) {
+            logger.error(error.message, error.cause?.stack);
+            latchRuntimeError();
+            continue;
+          }
+          app.use(`${apiPath}/${api}`, built.router);
+          if (!docs) continue;
+          routes.push(...ownRoutesOf(api, built.router, built.context));
+          sources.push({ url: built.url, own: !consumed[api] });
+          if (built.context.extension) sources.push({ url: apiExtensionUrl(api, apiExtensions[api]), own: true });
+        }
+        if (docs) {
+          const apiDocument = apiDocumentFactory({
+            host,
+            metadata,
+            annotations: apiAnnotationsOf(sources),
+            routes,
+            path,
+          });
+          app.get(apiDocumentPathOf(path), (req, res) => res.json(apiDocument));
+        }
+      }
+
+      // WebSocket server setup
+      if (ws) {
+        const { createIoServer } = await import(`../../ws/${ws}/${ws}.ws.server.js`);
+        const { options, meta, ioServer } = await createIoServer(server, { host, path, db, port, origins });
+
+        // Listen on the main port for the WS server
+        await Underpost.start.listenPortController(ioServer, port, {
+          runtime: 'nodejs',
+          client: null,
+          host,
+          path: options.path,
+          meta,
+        });
+      }
+
+      // Peer server setup
+      if (peer) {
+        portsUsed++; // Peer server uses one additional port
+        const peerPort = newInstance(port + portsUsed); // portsUsed is 1 here
+        const { options, meta, peerServer } = await createPeerServer({
+          port: peerPort,
+          origins,
+          path,
+        });
+        await Underpost.start.listenPortController(peerServer, peerPort, {
+          runtime: 'nodejs',
+          client: null,
+          host,
+          path: options.path,
+          meta,
+        });
+      }
+    }
+
+    // Swagger UI setup (after security middleware so responses carry correct CSP headers)
+    // serveFiles keeps one UI per host: the shared `serve` answers every host with the last setup.
+    if (docs) {
+      const swaggerUrl = apiBaseHost
+        ? `//${apiBaseHost}${apiDocumentPathOf(apiBaseProxyPath)}`
+        : apiDocumentPathOf(path);
+      app.use(swaggerPath, swaggerUi.serveFiles(null, { swaggerUrl }), swaggerUi.setup(null, { swaggerUrl }));
+    }
+
+    // SSR middleware loading
+    const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
+    for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
+
+    // Start listening on the main port
+    // When behind a dev proxy (isDevProxyContext), the proxy handles TLS termination,
+    // so backend servers should listen on plain HTTP to be reachable via http://localhost:PORT
+    if (
+      (useLocalSsl || process.argv.find((arg) => arg === 'tls')) &&
+      process.env.NODE_ENV === 'development' &&
+      !isDevProxyContext()
+    ) {
+      if (!TLS.validateSecureContext()) TLS.issueCertificate();
+      const { ServerSSL } = await TLS.createSslServer(app);
+      await Underpost.start.listenPortController(ServerSSL, port, runningData);
+    } else await Underpost.start.listenPortController(server, port, runningData);
+
+    return { portsUsed };
+  }
+}
+
+export default new ExpressService();

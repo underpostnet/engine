@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { UserDto } from './user.model.js';
-import { ValkeyAPI } from '../../db/valkey/Valkey.js';
+import { ValkeyAPI } from '../../db/valkey/valkey.js';
 import { jwtSign } from '../../server/security/auth.js';
 import { counter } from '../../server/ops/metrics.js';
 

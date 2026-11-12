@@ -34,7 +34,7 @@ import { Keyboard } from './Keyboard.js';
 import { Badge } from './Badge.js';
 import { Worker } from './Worker.js';
 import { Scroll } from './Scroll.js';
-import { windowGetH, windowGetW } from './windowGetDimensions.js';
+import { windowGetH, windowGetW } from './WindowGetDimensions.js';
 import { SearchBox } from './SearchBox.js';
 import { createModalEvents } from './ClientEvents.js';
 import { ShellLayout, ShellLayoutPresets, SHELL_BAR_SIZE } from './ShellLayout.js';

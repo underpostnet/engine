@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { CyberiaAudioModel } from '../../../src/api/cyberia-audio/cyberia-audio.model.js';
 import { CyberiaAudioService } from '../../../src/api/cyberia-audio/cyberia-audio.service.js';
 import { CyberiaMapAudioConfModel } from '../../../src/api/cyberia-map-audio-conf/cyberia-map-audio-conf.model.js';

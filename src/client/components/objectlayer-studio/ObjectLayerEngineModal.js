@@ -8,13 +8,13 @@ import { getProxyPath, getQueryParams, setPath, setQueryParams, RouterEvents } f
 import { s4, commonModeratorGuard } from '../core/CommonJs.js';
 import { Input } from '../core/Input.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
-import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { ObjectLayerService } from '../../services/object-layer/ObjectLayerService.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
-import { DefaultManagement } from '../../services/default/default.management.js';
+import { DefaultManagement } from '../../services/default/DefaultManagement.js';
 import { ObjectLayerEngineElement } from './ObjectLayerEngine.js';
 import { OBJECT_LAYER_DIRECTION_CODES, OBJECT_LAYER_DIRECTION_LABELS } from './ObjectLayerProtocol.js';
 import { framesByDirection, fromWire, sourceFromDirectionFrames, toWire } from './RenderSource.js';

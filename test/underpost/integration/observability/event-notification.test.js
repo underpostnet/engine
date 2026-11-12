@@ -4,8 +4,8 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
-import { MailerProvider, MailerProviderClass } from '../../../../src/mailer/MailerProvider.js';
-import { mailerInterceptorFactory } from '../../../../src/mailer/MailerInterceptor.js';
+import { MailerProvider, MailerProviderClass } from '../../../../src/mailer/mailer-provider.js';
+import { mailerInterceptorFactory } from '../../../../src/mailer/mailer-interceptor.js';
 import {
   EVENT_CONF_PATH,
   assertNotificationRoutes,

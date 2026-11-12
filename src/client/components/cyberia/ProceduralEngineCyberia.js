@@ -48,8 +48,8 @@ import {
   showCandidate,
   stamp,
 } from './ProceduralReviewCyberia.js';
-import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
-import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/CyberiaProceduralJobService.js';
+import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/CyberiaProceduralProfileService.js';
 
 const ROUTE = 'cyberia-procedural-engine';
 /** Pixels per cell of a template preview. */

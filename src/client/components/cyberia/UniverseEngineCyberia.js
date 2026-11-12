@@ -24,10 +24,10 @@ import {
 } from '../core/Router.js';
 import { Tabs } from '../core/Tabs.js';
 import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
-import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/cyberia-procedural-population.service.js';
-import { CyberiaServerRegistryService } from '../../services/cyberia-server-registry/cyberia-server-registry.service.js';
-import { CyberiaUniverseService } from '../../services/cyberia-universe/cyberia-universe.service.js';
+import { CyberiaInstanceService } from '../../services/cyberia-instance/CyberiaInstanceService.js';
+import { CyberiaProceduralPopulationService as Population } from '../../services/cyberia-procedural-population/CyberiaProceduralPopulationService.js';
+import { CyberiaServerRegistryService } from '../../services/cyberia-server-registry/CyberiaServerRegistryService.js';
+import { CyberiaUniverseService } from '../../services/cyberia-universe/CyberiaUniverseService.js';
 import { GraphLayoutCyberia } from './GraphLayoutCyberia.js';
 import { InstanceEngineCyberia } from './InstanceEngineCyberia.js';
 import { ProceduralEngineCyberia } from './ProceduralEngineCyberia.js';

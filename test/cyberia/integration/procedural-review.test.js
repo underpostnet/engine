@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { catalogModels } from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { ObjectLayerEngine } from '../../../src/projects/cyberia/object-layer/object-layer.js';
 import { cancelJob, deleteJob } from '../../../src/projects/cyberia/procedural/engine.js';
 import { GENERATORS } from '../../../src/projects/cyberia/procedural/generator-registry.js';

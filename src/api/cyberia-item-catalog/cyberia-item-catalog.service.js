@@ -5,7 +5,7 @@
  * @module src/api/cyberia-item-catalog/cyberia-item-catalog.service.js
  * @namespace CyberiaItemCatalogService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { objectLayerCache } from '../object-layer/object-layer.publication.js';
 import { objectLayerIpfsState, objectLayerMfsPaths } from '../object-layer/object-layer.ipfs.js';
@@ -40,7 +40,7 @@ class CyberiaItemCatalogService {
    * GET `/` (a page of bindings with the state of each, see `listBindings`) or `/:id` (one binding).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {
@@ -62,7 +62,7 @@ class CyberiaItemCatalogService {
    * an unbound one.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object<string,{cid:string,hasRender:boolean}|null>>}
    */
   static resolve = async (req, res, options) => {
@@ -90,7 +90,7 @@ class CyberiaItemCatalogService {
    * GET `/unbound?q=`: the items a bind can add, see `unboundItems`.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{items:Array<{itemId:string,itemType:string,definitions:number}>}>}
    */
   static unbound = async (req, res, options) => ({
@@ -101,7 +101,7 @@ class CyberiaItemCatalogService {
    * GET `/:id/history`: the binding history of an item and the definitions it could run.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static history = async (req, res, options) => await itemBindingHistory(catalogModels(options), req.params.id);
@@ -112,7 +112,7 @@ class CyberiaItemCatalogService {
    * its path lists.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{itemId:string,objectLayerCid:string,cid:string,root:string,files:Array}>}
    */
   static diagnostics = async (req, res, options) => {
@@ -137,7 +137,7 @@ class CyberiaItemCatalogService {
    * binding made meanwhile answers 409. The game servers then reload their object layers.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The catalog entry.
    */
   static post = async (req, res, options) => {
@@ -162,7 +162,7 @@ class CyberiaItemCatalogService {
    * holds `q`, or the one `q` names by its CID.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{data:Object[]}>}
    */
   static importSearch = async (req, res, options) => await searchAuthority({ q: req.query.q });
@@ -171,7 +171,7 @@ class CyberiaItemCatalogService {
    * GET `/import/:cid?itemId=`: what an import of a definition of the authority would do. Stores nothing.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static importPreview = async (req, res, options) =>
@@ -182,7 +182,7 @@ class CyberiaItemCatalogService {
    * Stores nothing.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static importDocumentPreview = async (req, res, options) =>
@@ -193,7 +193,7 @@ class CyberiaItemCatalogService {
    * expectedCid?, replace?, acknowledged }`. With `bind`, it binds the item to it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static importDefinition = async (req, res, options) =>
@@ -218,7 +218,7 @@ class CyberiaItemCatalogService {
    * offers. Idempotent.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{checked:number,unbound:Array}>}
    */
   static reconcile = async (req, res, options) => await reconcileItemCatalog(catalogModels(options), options);
@@ -227,7 +227,7 @@ class CyberiaItemCatalogService {
    * DELETE `/:itemId`: unbinds an item.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static delete = async (req, res, options) => {

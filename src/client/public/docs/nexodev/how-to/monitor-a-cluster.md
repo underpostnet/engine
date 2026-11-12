@@ -22,7 +22,7 @@ underpost monitor [deploy-id] [env] [options]
 - `--replicas <n>` — set number of replicas (default: 1).
 - `--type <type>` — e.g., `blue-green`; enables traffic switching and restart behavior on sustained failures.
 - `--sync` — sync current traffic/proxy state before monitoring.
-- `--namespace <name>` — Kubernetes namespace (default: `default`).
+- `--namespace <name>` — Kubernetes namespace (default: the workloads namespace of [the placement](place-resources-in-namespaces.md)).
 - `--ready-deployment` — wait until specified versions are ready (use with `--versions`).
 - `--versions <v1,v2>` — comma-separated versions to monitor in ready-deployment mode.
 - `--promote` — promote the monitored version after it becomes ready.
@@ -38,7 +38,7 @@ underpost monitor [deploy-id] [env] [options]
 - `--extra-targets <targets>` — comma-separated additional `host:port` scrape targets.
 - `--node-name <node>` — pin every deployed workload to this node via a `kubernetes.io/hostname` nodeSelector.
 - `--kubeadm` / `--kind` / `--k3s` — cluster runtime, used to resolve node and host addresses (default: Kind under `--dev`, kubeadm otherwise).
-- `--grafana-host <host>` — publish Grafana at `https://<host>/grafana` through the Gateway that already serves that hostname.
+- `--grafana-host <host>` — publish Grafana at `https://<host>/grafana` through the Gateway of the deployment that declares that hostname (`node bin ingress` owns the route).
 - `--node-port` — publish Grafana on the node's LAN address (port 32300).
 - `--expose-grafana` — republish Grafana with the two flags above without redeploying the stack.
 - `--webhook-token` — print the shared event webhook token, to persist as `UNDERPOST_EVENT_TOKEN` in the host configuration (`engine-private/deploy/scopes/host.env.<env>`).

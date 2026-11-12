@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import NginxService from '../../../src/runtime/nginx/Nginx.js';
+import NginxService from '../../../src/runtime/nginx/nginx.js';
 
 const blockOf = (conf, head) => conf.slice(conf.indexOf(head), conf.indexOf('\n}', conf.indexOf(head)) + 2);
 

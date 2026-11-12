@@ -8,7 +8,7 @@
 import { io } from 'socket.io/client-dist/socket.io.esm.min.js';
 import { SocketEventType, socketEvents } from './ClientEvents.js';
 import { loggerFactory } from './Logger.js';
-import { getWsBasePath, getWsBaseUrl } from '../../services/core/core.service.js';
+import { getWsBasePath, getWsBaseUrl } from '../../services/core/CoreService.js';
 
 const logger = loggerFactory(import.meta);
 

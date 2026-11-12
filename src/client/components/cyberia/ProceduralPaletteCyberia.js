@@ -12,8 +12,8 @@
 import { DropDown } from '../core/DropDown.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { s } from '../core/VanillaJs.js';
-import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/cyberia-procedural-job.service.js';
-import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/cyberia-procedural-profile.service.js';
+import { CyberiaProceduralJobService } from '../../services/cyberia-procedural-job/CyberiaProceduralJobService.js';
+import { CyberiaProceduralProfileService } from '../../services/cyberia-procedural-profile/CyberiaProceduralProfileService.js';
 
 /** The `paletteId` that gives each candidate a palette the seed picks. */
 const RANDOM_PALETTE = 'random';

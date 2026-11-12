@@ -6,7 +6,7 @@
  * @namespace EntryMetadata
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { findReadableByStableSlug } from '../../api/document/document.service.js';
 import { capFirst, publicRoutePathFactory } from '../../client/components/core/CommonJs.js';
 import {

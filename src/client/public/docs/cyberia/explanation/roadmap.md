@@ -178,7 +178,7 @@ queue is pending.
 - Object Layer hot reload over gRPC manifest diff by `cid`
 - Go server metrics REST API (`/api/v1/metrics*`)
 - Procedural content pipeline: floor, skin and resource generators
-- CLI toolchain: `cyberia ol`, `cyberia instance`, `cyberia run-workflow`
+- CLI toolchain: `cyberia content object-layer`, `cyberia instance`, `cyberia run-workflow`
 - Session player identity: a `PlayerID` and a guest name per connection ([player identity](player-identity-and-profile.md))
 - Level-based bag capacity on every grant path, and personal storage beside the NPC vaults
   ([inventory capacity](inventory-capacity.md), [personal storage](player-storage.md))

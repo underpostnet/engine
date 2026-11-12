@@ -5,7 +5,7 @@ import { Modal } from './Modal.js';
 import { Translate } from './Translate.js';
 import { append, htmls, s, sa } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
-import { windowGetW } from './windowGetDimensions.js';
+import { windowGetW } from './WindowGetDimensions.js';
 let ThemesScope = [];
 // https://css.github.io/csso/csso.html
 // https://www.fontspace.com/

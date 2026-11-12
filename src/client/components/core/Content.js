@@ -1,10 +1,10 @@
-import { FileService } from '../../services/file/file.service.js';
+import { FileService } from '../../services/file/FileService.js';
 import { append, escapeHtml, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
-import { DocumentService } from '../../services/document/document.service.js';
-import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
+import { DocumentService } from '../../services/document/DocumentService.js';
+import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/CoreService.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
 import { attachMarkdownLinkHandlers, renderMarkdown } from './Markdown.js';

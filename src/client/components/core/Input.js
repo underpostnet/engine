@@ -15,8 +15,8 @@ import { RichText } from './RichText.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { FileService } from '../../services/file/file.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
+import { FileService } from '../../services/file/FileService.js';
 /**
  * Logger instance for this module.
  * @type {Function}

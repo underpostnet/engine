@@ -1,5 +1,5 @@
-import { UserService } from '../../services/user/user.service.js';
-import { FileService } from '../../services/file/file.service.js';
+import { UserService } from '../../services/user/UserService.js';
+import { FileService } from '../../services/file/FileService.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance, s4 } from './CommonJs.js';
@@ -14,7 +14,7 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
 import { AccountEventType, accountEvents } from './ClientEvents.js';
 import { loggerFactory } from './Logger.js';
 

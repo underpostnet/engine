@@ -10,12 +10,12 @@ import * as promClient from 'prom-client';
 
 import { loggerFactory } from '../ops/logger.js';
 import { newInstance } from '../../client/components/core/CommonJs.js';
-import { Lampp } from '../../runtime/lampp/Lampp.js';
-import { WpService } from '../../runtime/wp/Wp.js';
+import { Lampp } from '../../runtime/lampp/lampp.js';
+import { WpService } from '../../runtime/wp/wp.js';
 import { getInstanceContext, readConfJson } from './conf.js';
 import { clearAwaitDeploy } from './runtime-status.js';
 
-import ExpressService from '../../runtime/express/Express.js';
+import ExpressService from '../../runtime/express/express.js';
 
 import Underpost from '../../index.js';
 

@@ -16,7 +16,7 @@ import { resolveEconomyRules, resolveProgressionRules } from '../../../src/api/c
 import { ObjectLayerModel } from '../../../src/api/object-layer/object-layer.model.js';
 import { CyberiaMapModel } from '../../../src/api/cyberia-map/cyberia-map.model.js';
 import { CyberiaMapService } from '../../../src/api/cyberia-map/cyberia-map.service.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { CyberiaEntityModel } from '../../../src/api/cyberia-entity/cyberia-entity.model.js';
 import { CyberiaInstanceConfModel } from '../../../src/api/cyberia-instance-conf/cyberia-instance-conf.model.js';
 import { CyberiaEconomyModel } from '../../../src/api/cyberia-economy/cyberia-economy.model.js';

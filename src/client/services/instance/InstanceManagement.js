@@ -1,0 +1,78 @@
+import { DefaultManagement } from '../default/DefaultManagement.js';
+import { UserService } from '../user/UserService.js';
+import { InstanceService } from './InstanceService.js';
+
+class InstanceManagement {
+  static instance = async ({ appStore }) => {
+    const user = appStore.Data.user.main.model.user;
+    const { role } = user;
+    let columnDefs = [
+      { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },
+      { field: 'port', headerName: 'port', editable: role === 'admin' },
+      { field: 'host', headerName: 'host', editable: role === 'admin' },
+      { field: 'path', headerName: 'path', editable: role === 'admin' },
+      { field: 'runtime', headerName: 'runtime', editable: role === 'admin' },
+      { field: 'client', headerName: 'client', editable: role === 'admin' },
+      { field: 'apis', headerName: 'apis', editable: role === 'admin' },
+      { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
+      { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
+    ];
+    switch (role) {
+      case 'admin':
+        {
+          columnDefs = columnDefs.concat([
+            {
+              field: 'userId',
+              headerName: 'User',
+              children: [
+                {
+                  headerName: 'id',
+                  field: 'userId',
+                  editable: false,
+                },
+                {
+                  headerName: 'Email',
+                  field: 'userEmail',
+                  editable: role === 'admin',
+                },
+              ],
+            },
+          ]);
+        }
+        break;
+
+      default:
+        break;
+    }
+    return await DefaultManagement.instance({
+      idModal: 'modal-instance-management',
+      serviceId: 'instance-management',
+      entity: 'instance',
+      permissions: {
+        add: role === 'admin',
+        remove: role === 'admin',
+      },
+      columnDefs,
+      customFormat: (obj) => {
+        return {
+          ...obj,
+          userId: obj.userId?._id ? obj.userId._id : undefined,
+          userEmail: obj.userId?.email ? obj.userId.email : undefined,
+        };
+      },
+      onRowValueChanged: async (...args) => {
+        const [event] = args;
+        const { data } = await UserService.get({ id: `email/${event.data.userEmail}` });
+        if (data) {
+          event.data.userId = data._id;
+          return { status: 'success', data: event.data };
+        }
+        return { status: 'error', message: 'user email not found' };
+      },
+      defaultColKeyFocus: 'host',
+      ServiceProvider: InstanceService,
+    });
+  };
+}
+
+export { InstanceManagement };

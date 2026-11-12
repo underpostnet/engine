@@ -5,7 +5,7 @@
  * @namespace AuthClient
  */
 
-import { UserMock, UserService } from '../../services/user/user.service.js';
+import { UserMock, UserService } from '../../services/user/UserService.js';
 import { Account } from './Account.js';
 import { loggerFactory } from './Logger.js';
 import { LogIn } from './LogIn.js';
@@ -15,7 +15,7 @@ import { SearchBox } from './SearchBox.js';
 import { ShellLayout } from './ShellLayout.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
-import { GuestService } from '../../services/user/guest.service.js';
+import { GuestService } from '../../services/user/GuestService.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 

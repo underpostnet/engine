@@ -9,7 +9,7 @@
  * @module src/server/domain/object-layer-resolver.js
  * @namespace ObjectLayerResolver
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { canonicalObjectLayer } from '../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { domainOrigin, domainRead, domainWrite } from './domain-client.js';
 
@@ -27,7 +27,7 @@ const localModel = (name, options) => {
  * @param {string} name - Model name.
  * @param {string} api - API the model belongs to.
  * @param {string} domain - Domain that owns the API.
- * @param {import('../../api/types.js').RouterOptions} [options]
+ * @param {import('../../api/types.js').ApiRouterContext} [options]
  * @returns {import('mongoose').Model|null}
  */
 const localSource = (name, api, domain, options) =>
@@ -36,7 +36,7 @@ const localSource = (name, api, domain, options) =>
 /**
  * The canonical Object Layer a CID names.
  * @param {string} cid - Canonical Object Layer CID.
- * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
+ * @param {import('../../api/types.js').ApiRouterContext} [options] - The API context of the calling deployment.
  * @param {{fresh?:boolean}} [read] - `fresh` reads the authority past the read cache.
  * @returns {Promise<Object|null>}
  * @memberof ObjectLayerResolver
@@ -95,7 +95,7 @@ export async function purgeObjectLayer(cid) {
 /**
  * The ItemLedger bindings of a CID, across chains and contracts.
  * @param {string} cid - Canonical Object Layer CID.
- * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
+ * @param {import('../../api/types.js').ApiRouterContext} [options] - The API context of the calling deployment.
  * @returns {Promise<Object[]>}
  * @memberof ObjectLayerResolver
  */
@@ -114,7 +114,7 @@ export async function resolveLedgerBindings(cid, options) {
  * that removes a definition. A registered CID is protected. Read from the local projection on the
  * ItemLedger host, from its API anywhere else.
  * @param {string[]} cids - Canonical Object Layer CIDs.
- * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
+ * @param {import('../../api/types.js').ApiRouterContext} [options] - The API context of the calling deployment.
  * @returns {Promise<Set<string>>}
  * @throws {Error} With status 503 when ItemLedger does not answer: the operation fails closed.
  * @memberof ObjectLayerResolver
@@ -142,7 +142,7 @@ export async function resolveRegisteredCids(cids, options) {
 /**
  * Supply and holder count of one token type, from the ownership projection.
  * @param {{chainId:number,contractAddress:string,tokenId:string}} token
- * @param {import('../../api/types.js').RouterOptions} [options] - Router options of the calling deployment.
+ * @param {import('../../api/types.js').ApiRouterContext} [options] - The API context of the calling deployment.
  * @returns {Promise<{supply:string,holders:number}|null>}
  * @memberof ObjectLayerResolver
  */

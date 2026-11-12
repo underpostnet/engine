@@ -1,13 +1,13 @@
 import { renderWave } from './Css.js';
 import { Translate } from './Translate.js';
 import { s, htmls } from './VanillaJs.js';
-import { UserService } from '../../services/user/user.service.js';
+import { UserService } from '../../services/user/UserService.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { ShellLayout } from './ShellLayout.js';
 import { getId } from './CommonJs.js';
 import { getPublicRouteParam, getViewPath, presentPublicRoute } from './Router.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
 
 class PublicProfile {
   static Data = {};

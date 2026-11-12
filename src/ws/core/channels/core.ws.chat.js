@@ -3,7 +3,7 @@
  * @module ws/core/channels/core.ws.chat
  */
 
-import { IoChannel } from '../../IoInterface.js';
+import { IoChannel } from '../../io-interface.js';
 import { CoreWsEmitter } from '../core.ws.emit.js';
 
 /**

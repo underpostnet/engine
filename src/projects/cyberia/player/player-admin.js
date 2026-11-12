@@ -12,7 +12,7 @@
  * @namespace CyberiaPlayerAdmin
  */
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { PLAYER_SCHEMA_VERSION } from '../../../api/cyberia-player/cyberia-player.model.js';
 import { restrictionOf } from '../../../api/user/user.model.js';
 

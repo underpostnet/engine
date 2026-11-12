@@ -2,7 +2,7 @@
 // No Valkey runs: every draft read and write here goes to MongoDB alone.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { connectPortals } from '../../../src/api/cyberia-instance/cyberia-portal-connector.js';
 import { CyberiaEntityTypeDefaultService } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.service.js';
 import { resolveEntityDefaultBuild } from '../../../src/api/cyberia-server-defaults/cyberia-server-defaults.js';
@@ -47,7 +47,7 @@ import {
   writeDraft,
 } from '../../../src/projects/cyberia/procedural/population/working-graph.js';
 import { sourceFromDirectionFrames } from '../../../src/client/components/objectlayer-studio/RenderSource.js';
-import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
+import { MongooseDB } from '../../../src/db/mongo/mongoose-db.js';
 import { mongodBinary } from '../../support/mongod.js';
 import { MODERATOR, host, publishItem, rejection, startEngine, stopEngine } from '../../support/procedural-engine.js';
 

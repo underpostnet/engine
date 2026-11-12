@@ -1,6 +1,6 @@
-import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { DocumentService } from '../../services/document/document.service.js';
-import { FileService } from '../../services/file/file.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
+import { DocumentService } from '../../services/document/DocumentService.js';
+import { FileService } from '../../services/file/FileService.js';
 import { AgGrid } from './AgGrid.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';

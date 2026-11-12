@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_AUDIO_BANK } from '../../../api/cyberia-server-defaults/cyberia-server-defaults.js';
 import { CyberiaAudioService } from '../../../api/cyberia-audio/cyberia-audio.service.js';
 import { CyberiaMapAudioConfService } from '../../../api/cyberia-map-audio-conf/cyberia-map-audio-conf.service.js';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 
 // The renderer lives in cyberia-audio, a sibling repository this one does not contain (see
 // .gitignore, alongside cyberia-server and cyberia-client). Named once so the runtime and the

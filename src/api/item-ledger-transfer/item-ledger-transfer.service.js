@@ -4,7 +4,7 @@
  * @module src/api/item-ledger-transfer/item-ledger-transfer.service.js
  * @namespace ItemLedgerTransferService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { normalizeAddress, normalizeTokenId } from '../item-ledger/item-ledger.model.js';
 import { ItemLedgerTransferDto } from './item-ledger-transfer.model.js';
@@ -30,7 +30,7 @@ class ItemLedgerTransferService {
    *
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

@@ -1,4 +1,4 @@
-import { connectedScatterplotChart } from '../chart/connectedScatterplotChart.js';
+import { connectedScatterplotChart } from '../chart/ConnectedScatterplotChart.js';
 
 // https://takanori-fujiwara.github.io/d3-gallery-javascript/
 

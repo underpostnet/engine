@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { resolveConfSecrets } from '../runtime/conf.js';
 import { loggerFactory } from './logger.js';
-import { MailerProvider } from '../../mailer/MailerProvider.js';
+import { MailerProvider } from '../../mailer/mailer-provider.js';
 
 /**
  * The notification contract for operational events.

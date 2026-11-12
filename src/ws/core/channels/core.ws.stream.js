@@ -3,7 +3,7 @@
  * @module ws/core/channels/core.ws.stream
  */
 
-import { IoChannel } from '../../IoInterface.js';
+import { IoChannel } from '../../io-interface.js';
 
 /**
  * @class CoreWsStreamChannel

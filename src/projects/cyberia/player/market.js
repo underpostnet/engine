@@ -12,7 +12,7 @@
  * @module src/projects/cyberia/player/market.js
  * @namespace CyberiaMarket
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import {
   MARKET_HOURS,
   MARKET_MODES,

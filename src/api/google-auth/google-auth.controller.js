@@ -13,7 +13,7 @@ class GoogleAuthController {
    * the claims to link after a log-in, or with the reason for neither.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @param {{error?: Error, identity?: object|false, info?: {link?: object, status?: string}}} outcome - What Passport decided.
    */
   static async callback(req, res, options, { error, identity, info }) {

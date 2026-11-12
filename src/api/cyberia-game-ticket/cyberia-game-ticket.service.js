@@ -7,7 +7,7 @@
  */
 
 import crypto from 'crypto';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { hashToken } from '../../server/security/auth.js';
 import { DEFAULT_INSTANCE_CODE, worldPathOf } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { worldAvailable } from '../cyberia-server-registry/cyberia-server-registry.service.js';

@@ -1,4 +1,4 @@
-import { EventSchedulerService } from '../../services/event-scheduler/event-scheduler.service.js';
+import { EventSchedulerService } from '../../services/event-scheduler/EventSchedulerService.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { isValidDate, newInstance, range, s4 } from './CommonJs.js';

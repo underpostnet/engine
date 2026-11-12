@@ -5,7 +5,7 @@
  * the catalog, and raises the economy revision in the same transaction.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { ITEM_POLICY_ROW_FIELDS, effectiveItemPolicy } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { assertItemPolicy } from '../../projects/cyberia/economy/economy-policy.js';

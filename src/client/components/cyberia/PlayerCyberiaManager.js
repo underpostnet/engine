@@ -17,8 +17,8 @@ import { ListPager } from '../core/ListPager.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { getQueryParams, setQueryParams } from '../core/Router.js';
 import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaPlayerService } from '../../services/cyberia-player/cyberia-player.service.js';
-import { CyberiaPlayerAuditService } from '../../services/cyberia-player-audit/cyberia-player-audit.service.js';
+import { CyberiaPlayerService } from '../../services/cyberia-player/CyberiaPlayerService.js';
+import { CyberiaPlayerAuditService } from '../../services/cyberia-player-audit/CyberiaPlayerAuditService.js';
 import { STUDIO_FORM_STYLE } from './StudioFormCyberia.js';
 
 /** What an operator reads of the save health of a profile, by the durability its session reports. */

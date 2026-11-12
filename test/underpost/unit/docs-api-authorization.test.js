@@ -35,7 +35,7 @@ const session = vi.hoisted(() => ({ sessionIn: vi.fn() }));
 vi.mock('../../../src/client/components/core/Auth.js', () => ({ Auth: session }));
 
 const { Docs } = await import('../../../src/client/components/core/Docs.js');
-const { GuestService } = await import('../../../src/client/services/user/guest.service.js');
+const { GuestService } = await import('../../../src/client/services/user/GuestService.js');
 
 const SCHEMES = {
   bearerAuth: { type: 'http', scheme: 'bearer' },

@@ -17,7 +17,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams, unlistenQueryParamsChange } from '../core/Router.js';
 import { Tabs } from '../core/Tabs.js';
 import { escapeHtml, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaMarketService } from '../../services/cyberia-market/cyberia-market.service.js';
+import { CyberiaMarketService } from '../../services/cyberia-market/CyberiaMarketService.js';
 import { CONTENT_CODE_PATTERN } from './SharedDefaultsCyberia.js';
 import { STUDIO_FORM_STYLE, choiceField, dirtyNotice, numberField, toggleField } from './StudioFormCyberia.js';
 import { StudioCyberia } from './StudioCyberia.js';

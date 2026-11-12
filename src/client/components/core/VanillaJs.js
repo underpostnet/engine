@@ -5,7 +5,7 @@
  */
 
 import { s4 } from './CommonJs.js';
-import { windowGetH, windowGetW } from './windowGetDimensions.js';
+import { windowGetH, windowGetW } from './WindowGetDimensions.js';
 
 /**
  * Query selector.

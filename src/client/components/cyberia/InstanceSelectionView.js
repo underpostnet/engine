@@ -4,8 +4,8 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s, htmlStrSanitize } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ListPager } from '../core/ListPager.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
+import { getApiBaseUrl } from '../../services/core/CoreService.js';
+import { CyberiaInstanceService } from '../../services/cyberia-instance/CyberiaInstanceService.js';
 import { gameServerUrl, launchWorld } from './GameLaunchCyberia.js';
 import { worldPicture } from './SharedDefaultsCyberia.js';
 

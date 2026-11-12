@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import fs from 'fs-extra';
 import mongoose from 'mongoose';
 import Underpost from '../../../src/index.js';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { shellSpawn } from '../../../src/server/runtime/process.js';
 import { objectStore } from '../../../src/server/storage/object-store.js';
 import { listBackups } from '../../../src/server/storage/backup.js';

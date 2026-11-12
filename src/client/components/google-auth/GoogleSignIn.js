@@ -1,4 +1,4 @@
-import { GoogleAuthService } from '../../services/google-auth/google-auth.service.js';
+import { GoogleAuthService } from '../../services/google-auth/GoogleAuthService.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';

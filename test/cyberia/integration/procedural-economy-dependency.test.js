@@ -1,7 +1,7 @@
 // Requires mongod (UNDERPOST_MONGOD_BIN). The content partition serves a release database, as production
 // does after a promotion: the workspace database it declares holds no economy.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { CONTENT_PARTITION } from '../../../src/projects/cyberia/content/content-release.js';
 import { compileEconomySnapshot } from '../../../src/projects/cyberia/economy/economy-policy.js';
 import { populationModels } from '../../../src/projects/cyberia/procedural/population/map-context.js';

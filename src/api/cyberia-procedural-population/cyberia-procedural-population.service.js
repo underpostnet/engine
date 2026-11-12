@@ -83,7 +83,7 @@ class CyberiaProceduralPopulationService {
    * GET `/maps` (paginated): map summaries; `filterModel` and `sortModel` apply to the summary fields.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{data:Object[],total:number,page:number,totalPages:number}>}
    */
   static maps = async (req, res, options) => {
@@ -95,7 +95,7 @@ class CyberiaProceduralPopulationService {
    * GET `/maps/:code`: the map context a population reads now. Stores nothing.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static mapContext = async (req, res, options) => await resolveMapContext(populationModels(options), req.params.code);
@@ -104,7 +104,7 @@ class CyberiaProceduralPopulationService {
    * POST `/`: creates a population, or answers the one equal inputs created.
    * @param {Object} req - Express request with body `{ mapCode, seed? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static post = async (req, res, options) =>
@@ -114,7 +114,7 @@ class CyberiaProceduralPopulationService {
    * GET `/` (paginated, newest first) or `/:id`: populations with their derived state.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {
@@ -128,7 +128,7 @@ class CyberiaProceduralPopulationService {
    * GET `/:id/impact`: where each target runs besides the map, and its impact.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object[]>}
    */
   static impact = async (req, res, options) => await populationImpact(populationModels(options), req.params.id);
@@ -138,7 +138,7 @@ class CyberiaProceduralPopulationService {
    * universes and live servers. Writes nothing.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static runtimeContext = async (req, res, options) => {
@@ -152,7 +152,7 @@ class CyberiaProceduralPopulationService {
    * document the Instance Studio edits, its state and revisions.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static instanceDraft = async (req, res, options) =>
@@ -163,7 +163,7 @@ class CyberiaProceduralPopulationService {
    * baseRevision, revision }`. The canonical instance changes only at the publication.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static saveInstanceDraft = async (req, res, options) =>
@@ -180,7 +180,7 @@ class CyberiaProceduralPopulationService {
    * DELETE `/:id/instances/:code` and `/:id/universes/:code`: discards a draft; the persisted document shows again.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{discarded:boolean}>}
    */
   static discardDocumentDraft = async (req, res, options) =>
@@ -198,7 +198,7 @@ class CyberiaProceduralPopulationService {
    * the draft value of a field both changed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static rebaseDocumentDraft = async (req, res, options) =>
@@ -217,7 +217,7 @@ class CyberiaProceduralPopulationService {
    * default `{ rowId }` the instance references.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static proposeVariant = async (req, res, options) =>
@@ -234,7 +234,7 @@ class CyberiaProceduralPopulationService {
    * PUT `/:id/instances/:code/variants/:key`: saves the fields of a variant, `{ row, revision }`.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static saveVariant = async (req, res, options) =>
@@ -252,7 +252,7 @@ class CyberiaProceduralPopulationService {
    * DELETE `/:id/instances/:code/variants/:key`: drops a variant; the instance references the row it copies again.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static dropVariant = async (req, res, options) =>
@@ -270,7 +270,7 @@ class CyberiaProceduralPopulationService {
    * each member as the Universe Studio shows it: a drafted member previews its draft world.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static universeDraft = async (req, res, options) => {
@@ -295,7 +295,7 @@ class CyberiaProceduralPopulationService {
    * baseRevision, revision }`. The canonical universe changes only at the publication.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static saveUniverseDraft = async (req, res, options) =>
@@ -313,7 +313,7 @@ class CyberiaProceduralPopulationService {
    * population drafts them. Nothing is stored.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static topology = async (req, res, options) => {
@@ -330,7 +330,7 @@ class CyberiaProceduralPopulationService {
    * GET `/:id/map-preview`: the picture of the map draft of the population.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Buffer|null>}
    */
   static mapPreview = async (req, res, options) =>
@@ -340,7 +340,7 @@ class CyberiaProceduralPopulationService {
    * GET `/:id/world-preview/:code`: the preview of the world of an instance as the working graph holds it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Buffer>}
    */
   static worldPreview = async (req, res, options) =>
@@ -351,7 +351,7 @@ class CyberiaProceduralPopulationService {
    * maps as the population drafts them. Nothing is stored.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static portalConnect = async (req, res, options) => {
@@ -367,7 +367,7 @@ class CyberiaProceduralPopulationService {
    * `ref` names. Stored defaults and confs change at the publication.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static defaultDrafts = async (req, res, options) => {
@@ -382,7 +382,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/targets`: adds a target, `{ itemId, stage?, itemType?, cid? }`, or restores a removed one.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static addTarget = async (req, res, options) =>
@@ -392,7 +392,7 @@ class CyberiaProceduralPopulationService {
    * PATCH `/:id/targets/:itemId`: changes the resolution or the configuration of a target.
    * @param {Object} req - Express request with body `{ resolution?, templateId?, palette?, variation? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static updateTarget = async (req, res, options) =>
@@ -408,7 +408,7 @@ class CyberiaProceduralPopulationService {
    * DELETE `/:id/targets/:itemId`: removes a target from the population; its runs stop and stay.
    * @param {Object} req - Express request with body `{ reason? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static removeTarget = async (req, res, options) =>
@@ -425,7 +425,7 @@ class CyberiaProceduralPopulationService {
    * what went, what stayed and what failed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static resetTarget = async (req, res, options) =>
@@ -441,7 +441,7 @@ class CyberiaProceduralPopulationService {
    * DELETE `/:id/removed/:itemId`: forgets a removed target permanently; nothing else changes.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static forgetRemoved = async (req, res, options) =>
@@ -451,7 +451,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/targets/:itemId/generate`: generates `{ count? }` new results from the configuration.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static generate = async (req, res, options) =>
@@ -468,7 +468,7 @@ class CyberiaProceduralPopulationService {
    * it keeps and the most it may keep.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{results:Object[],retained:number,limit:number}>}
    */
   static results = async (req, res, options) =>
@@ -479,7 +479,7 @@ class CyberiaProceduralPopulationService {
    * what went, what stayed and what failed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static deleteResults = async (req, res, options) =>
@@ -497,7 +497,7 @@ class CyberiaProceduralPopulationService {
    * do not show.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{data:Object[],total:number,page:number,totalPages:number}>}
    */
   static targetDefinitions = async (req, res, options) => {
@@ -509,7 +509,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/targets/:itemId/select`: uses the generated result `{ entryId, cid }` of an item.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static select = async (req, res, options) =>
@@ -525,7 +525,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/targets/:itemId/entries/:entryId/retry`: runs a failed result again under its own seed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static retryEntry = async (req, res, options) =>
@@ -541,7 +541,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/palette/preview` and `/:id/palette`: what a bulk palette change does, and applying it.
    * @param {Object} req - Express request with body `{ itemIds, source, paletteId?, overrides }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static palette = async (req, res, options) => {
@@ -553,7 +553,7 @@ class CyberiaProceduralPopulationService {
    * GET, PUT or DELETE `/:id/draft`: the placement draft, with the CID that draws each item.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static draft = async (req, res, options) => {
@@ -568,7 +568,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/draft/rebase`: moves the draft onto the map revision the moderator reviewed.
    * @param {Object} req - Express request with body `{ mapRevision, revision }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static rebase = async (req, res, options) =>
@@ -579,7 +579,7 @@ class CyberiaProceduralPopulationService {
    * entity-type defaults workspace, a row added to it, a row removed from it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static defaults = async (req, res, options) => {
@@ -594,7 +594,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/validate`: what a publication would do now, or why it would stop. Stores nothing.
    * @param {Object} req - Express request with body `{ acknowledged? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{ready:boolean,problems:string[],plan:Object|null}>}
    */
   static validate = async (req, res, options) =>
@@ -605,7 +605,7 @@ class CyberiaProceduralPopulationService {
    * which the worker runs in phases. A request repeated while it runs starts nothing new.
    * @param {Object} req - Express request with body `{ revision, acknowledged? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static publish = async (req, res, options) =>
@@ -621,7 +621,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/publication/retry`: resumes the phase of the publication that failed.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static retryPublication = async (req, res, options) =>
@@ -631,7 +631,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/publication/cancel`: cancels the publication before its commit.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static cancelPublication = async (req, res, options) =>
@@ -641,7 +641,7 @@ class CyberiaProceduralPopulationService {
    * POST `/:id/cancel`: cancels a population.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static cancel = async (req, res, options) =>
@@ -651,7 +651,7 @@ class CyberiaProceduralPopulationService {
    * DELETE `/:id`: deletes a population and the job of each target.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{jobs:number,stopped:number,candidates:number,drafts:number}>}
    */
   static delete = async (req, res, options) =>

@@ -6,7 +6,7 @@
  * takes it. A currency change that would split the wallet of a universe is refused.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import {
   assertEconomyProfile,

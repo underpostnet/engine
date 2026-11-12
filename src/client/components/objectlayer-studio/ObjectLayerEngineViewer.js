@@ -7,16 +7,16 @@ import {
   publicRoutePath,
   setDocTitle,
 } from '../core/Router.js';
-import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
-import { ItemLedgerService } from '../../services/item-ledger/item-ledger.service.js';
-import { ItemLedgerBalanceService } from '../../services/item-ledger-balance/item-ledger-balance.service.js';
-import { ItemLedgerTransferService } from '../../services/item-ledger-transfer/item-ledger-transfer.service.js';
+import { ObjectLayerService } from '../../services/object-layer/ObjectLayerService.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/AtlasSpriteSheetService.js';
+import { ItemLedgerService } from '../../services/item-ledger/ItemLedgerService.js';
+import { ItemLedgerBalanceService } from '../../services/item-ledger-balance/ItemLedgerBalanceService.js';
+import { ItemLedgerTransferService } from '../../services/item-ledger-transfer/ItemLedgerTransferService.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { append, copyData, escapeHtml, htmls, s } from '../core/VanillaJs.js';
 import { PublicRoutes, commonModeratorGuard } from '../core/CommonJs.js';
 import { Css, darkTheme, dynamicCol, ThemeEvents, Themes, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
-import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
+import { ObjectLayerManagement } from '../../services/object-layer/ObjectLayerManagement.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Translate } from '../core/Translate.js';

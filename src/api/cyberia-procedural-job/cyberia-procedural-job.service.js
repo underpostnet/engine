@@ -5,7 +5,7 @@
  * @module src/api/cyberia-procedural-job/cyberia-procedural-job.service.js
  * @namespace CyberiaProceduralJobService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaProceduralJobDto } from './cyberia-procedural-job.model.js';
 import { CyberiaProceduralJobItemDto } from '../cyberia-procedural-job-item/cyberia-procedural-job-item.model.js';
@@ -42,7 +42,7 @@ class CyberiaProceduralJobService {
    * equal spec created.
    * @param {Object} req - Express request with body `{ mode, source | itemType, template, palette, output, variation, seed }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The job.
    */
   static post = async (req, res, options) =>
@@ -52,7 +52,7 @@ class CyberiaProceduralJobService {
    * GET `/sources` (paginated): the existing items an update can target, with their art direction.
    * @param {Object} req - Express request; `filterModel` and `sortModel` apply to the item fields.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static sources = async (req, res, options) => {
@@ -67,7 +67,7 @@ class CyberiaProceduralJobService {
    * template `?templateId=` names when it fits.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{templateId:string,palettes:Object[],slots:Object}>}
    */
   static sourcePalette = async (req, res, options) =>
@@ -83,7 +83,7 @@ class CyberiaProceduralJobService {
    * `/:jobId` (one job with its persisted counts).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {
@@ -111,7 +111,7 @@ class CyberiaProceduralJobService {
    * (one candidate with its job and audit trail).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static getItems = async (req, res, options) => {
@@ -134,7 +134,7 @@ class CyberiaProceduralJobService {
    * POST `/:jobId/cancel`: stops the generation of a job.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The job.
    */
   static cancel = async (req, res, options) =>
@@ -149,7 +149,7 @@ class CyberiaProceduralJobService {
    * DELETE `/:jobId`: stops a job if it still works, then removes it and everything it left.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{stopped:number,candidates:number,drafts:number,audit:number}>}
    */
   static delete = async (req, res, options) => {
@@ -162,7 +162,7 @@ class CyberiaProceduralJobService {
    * POST `/:jobId/items/:itemId/regenerate`: queues the item for a new generation.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The item.
    */
   static regenerate = async (req, res, options) =>
@@ -178,7 +178,7 @@ class CyberiaProceduralJobService {
    * POST `/:jobId/items/:itemId/approve`: approves the revision `{ cid }` names.
    * @param {Object} req - Express request with body `{ cid, reason? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The item.
    */
   static approve = async (req, res, options) =>
@@ -195,7 +195,7 @@ class CyberiaProceduralJobService {
    * POST `/:jobId/items/:itemId/reject`: rejects the current revision.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The item.
    */
   static reject = async (req, res, options) =>
@@ -211,7 +211,7 @@ class CyberiaProceduralJobService {
    * POST `/:jobId/items/:itemId/edit`: opens the item for a visual edit in the Object Layer Studio.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The review context the Studio opens.
    */
   static edit = async (req, res, options) =>
@@ -227,7 +227,7 @@ class CyberiaProceduralJobService {
    * asks the game servers to reload their object layers without waiting for them.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The item.
    */
   static promote = async (req, res, options) => {
@@ -249,7 +249,7 @@ class CyberiaProceduralJobService {
    * their object layers once when any was promoted.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{promoted:string[],failed:Array<{targetItemId:string,message:string}>}>}
    */
   static promoteJob = async (req, res, options) => {

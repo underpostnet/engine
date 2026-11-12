@@ -15,7 +15,7 @@
  * @namespace CyberiaPlayerSession
  */
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import {
   consumeGameTicket,
   createGameTicket,

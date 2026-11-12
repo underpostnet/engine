@@ -1,4 +1,4 @@
-import { UserService } from '../../services/user/user.service.js';
+import { UserService } from '../../services/user/UserService.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';

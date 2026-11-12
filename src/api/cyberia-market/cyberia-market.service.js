@@ -7,7 +7,7 @@
  * names it.
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { MARKET_CONTRACT } from '../cyberia-server-defaults/cyberia-server-defaults.js';
 import { assertMarketProfile, marketReferences } from '../../projects/cyberia/economy/market-profile.js';

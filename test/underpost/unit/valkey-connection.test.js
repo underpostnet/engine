@@ -27,7 +27,7 @@ vi.mock('../../../src/server/runtime/runtime-status.js', () => ({
   recordConnectionSuccess: (key) => failures.cleared.push(key),
 }));
 
-const { ValkeyAPI, closeValkeyConnection, createValkeyConnection } = await import('../../../src/db/valkey/Valkey.js');
+const { ValkeyAPI, closeValkeyConnection, createValkeyConnection } = await import('../../../src/db/valkey/valkey.js');
 
 describe('valkey connection lifecycle', () => {
   it('closes the client of an instance and forgets it, so the process can exit', async () => {

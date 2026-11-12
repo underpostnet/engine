@@ -4,7 +4,7 @@
  * @module src/api/item-ledger/item-ledger.service.js
  * @namespace ItemLedgerService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { resolveObjectLayer, resolveTokenSupply } from '../../server/domain/object-layer-resolver.js';
 import { ItemLedgerDto, objectLayerTokenId } from './item-ledger.model.js';
@@ -23,7 +23,7 @@ class ItemLedgerService {
    *
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {
@@ -70,7 +70,7 @@ class ItemLedgerService {
    * POST handler: records the binding of an Object Layer registered on a contract.
    * @param {Object} req - Express request with body `{ objectLayerCid, chainId, contractAddress, itemId?, tokenId?, txHash? }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static post = async (req, res, options) => {
@@ -83,7 +83,7 @@ class ItemLedgerService {
    * DELETE handler: removes one binding by document id.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static delete = async (req, res, options) => {

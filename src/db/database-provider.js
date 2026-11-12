@@ -1,0 +1,542 @@
+import { MongooseDB } from './mongo/mongoose-db.js';
+import { loggerFactory } from '../server/ops/logger.js';
+import { getCapVariableName } from '../client/components/core/CommonJs.js';
+import { resolveHostKeyContext } from '../server/runtime/conf.js';
+import Underpost from '../index.js';
+import {
+  CONNECTION_FAILURE_TOLERANCE,
+  latchRuntimeError,
+  recordConnectionFailure,
+  recordConnectionSuccess,
+  runtimeStatusWritable,
+} from '../server/runtime/runtime-status.js';
+import { recordServedDatabases } from './served-databases.js';
+
+/**
+ * Module for managing and loading various database connections (e.g., Mongoose, MariaDB).
+ * @module src/db/database-provider.js
+ * @namespace DataBaseProviderService
+ */
+
+const logger = loggerFactory(import.meta);
+
+// Health watch defaults. `DB_HEALTH_INTERVAL_MS=0` disables the watch entirely.
+const HEALTH_INTERVAL_MS = Number(process.env.DB_HEALTH_INTERVAL_MS ?? 15000);
+const HEALTH_PING_TIMEOUT_MS = 5000;
+
+/**
+ * Bounds a liveness probe that would otherwise wait on the driver's own connection timeout.
+ * @param {Promise<boolean>} probe - Provider probe resolving to liveness.
+ * @returns {Promise<boolean>} `false` when the probe throws or outlives the bound.
+ */
+const withPingTimeout = async (probe) => {
+  let timer;
+  try {
+    return await Promise.race([
+      probe,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), HEALTH_PING_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/**
+ * Per-provider health strategies, keyed by `db.provider`.
+ *
+ * A provider with no entry here gets no health watch and no reconnect: liveness probes,
+ * rebuild semantics, and teardown differ per client, so there is nothing generic to fall
+ * back on. Adding one (MariaDB, PostgreSQL, …) means adding its case here — the rest of the
+ * service dispatches through this table and needs no change.
+ *
+ * @type {object.<string, {isAlive: Function, rebuild: Function, close: Function}>}
+ */
+/**
+ * Connects, and in a live runtime tries again with a growing pause until the connection has failed
+ * {@link CONNECTION_FAILURE_TOLERANCE} times in a row: a database still starting while the runtime
+ * boots does not fail it.
+ * @param {string} key - The connection, as `<provider>:<host><path>`.
+ * @param {() => Promise<*>} connect
+ * @returns {Promise<*>} The connection.
+ */
+const connectWithTolerance = async (key, connect) => {
+  const tolerance = runtimeStatusWritable() ? CONNECTION_FAILURE_TOLERANCE : 1;
+  for (;;) {
+    try {
+      const connection = await connect();
+      recordConnectionSuccess(key);
+      return connection;
+    } catch (error) {
+      const failures = recordConnectionFailure(key);
+      if (failures >= tolerance) throw error;
+      logger.warn('Database connection failed; trying again', { key, failures, tolerance, error: error.message });
+      await new Promise((resolve) => setTimeout(resolve, failures * 1000));
+    }
+  }
+};
+
+const PROVIDER_HEALTH = {
+  mongoose: {
+    isAlive: async (connection) => {
+      if (!connection || connection.readyState !== 1) return false;
+      return await withPingTimeout(
+        connection.db
+          .admin()
+          .command({ ping: 1 })
+          .then(() => true),
+      );
+    },
+    rebuild: async ({ apis, db, partitions }) => {
+      const connection = await MongooseDB.connect(db);
+      return { connection, models: await MongooseDB.loadModels({ conn: connection, apis, partitions }) };
+    },
+    close: async (connection) => await connection?.close(),
+  },
+};
+
+/**
+ * @class
+ * @alias DataBaseProviderService
+ * @memberof DataBaseProviderService
+ * @classdesc Service for loading, managing, and accessing multiple database connections
+ * based on application configuration (host, path, provider type).
+ */
+class DataBaseProviderService {
+  /**
+   * Internal storage for database connection instances, keyed by host+path.
+   * @type {object.<string, object>}
+   * @method
+   */
+  static #instance = {};
+
+  /**
+   * Retrieves the internal instance storage for direct access (used for backward compatibility).
+   * @returns {object.<string, object>} The internal connection instance map.
+   */
+  static get instance() {
+    return this.#instance;
+  }
+
+  /**
+   * Retrieves a loaded provider bucket for a context.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {{models: object, connection: object, close: Function, dbSignature?: string}} Provider bucket.
+   * @throws {Error} When the provider is not loaded for the context.
+   */
+  static getProvider(context = { host: '', path: '' }, provider = 'mongoose') {
+    const key = resolveHostKeyContext(context);
+    const entry = this.#instance[key]?.[provider];
+
+    if (!entry) throw new Error(`Database provider not loaded for context "${key}" (${provider})`);
+    return entry;
+  }
+
+  /**
+   * Returns the raw DB connection object for a context/provider.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Provider connection object.
+   */
+  static getConnection(context = { host: '', path: '' }, provider = 'mongoose') {
+    return this.getProvider(context, provider).connection;
+  }
+
+  /**
+   * Resolves a loaded model by name for a given context/provider.
+   * @param {string} modelName - API/model identifier.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Loaded model instance.
+   * @throws {Error} When the model is not loaded for the context.
+   */
+  static getModel(modelName, context = { host: '', path: '' }, provider = 'mongoose') {
+    const models = this.servedModels(context, provider);
+    const normalizedModelName = getCapVariableName(modelName);
+
+    // First try direct key (supports callers passing exact model names).
+    let model = models?.[modelName];
+    if (!model) {
+      model = models?.[normalizedModelName];
+    }
+
+    if (!model) {
+      // Final fallback: case-insensitive comparison without separators.
+      const target = String(modelName || '')
+        .replaceAll('-', '')
+        .replaceAll('_', '')
+        .replaceAll(' ', '')
+        .toLowerCase();
+      const resolvedModelName = Object.keys(models).find(
+        (key) => key.replaceAll('_', '').replaceAll(' ', '').toLowerCase() === target,
+      );
+      if (resolvedModelName) model = models[resolvedModelName];
+    }
+
+    if (!model) {
+      throw new Error(`Model not loaded for context "${resolveHostKeyContext(context)}": ${normalizedModelName}`);
+    }
+
+    return model;
+  }
+
+  /**
+   * The database configuration a context loaded, without credentials.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {{provider: string, host: string, name: string, partitions: Object<string,{name:string,apis:string[]}>}}
+   */
+  static configurationOf(context = { host: '', path: '' }, provider = 'mongoose') {
+    const { db } = this.getProvider(context, provider).rebuild;
+    return { provider: db.provider, host: db.host, name: db.name, partitions: this.partitionsOf(db) };
+  }
+
+  /**
+   * Builds a minimal dispatcher bound to a specific context/provider.
+   * @param {{host?: string, path?: string}|string} [context={ host: '', path: '' }] - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {import('../api/types.js').ApiDatabaseService} Bound accessor helpers.
+   */
+  static getDispatcher(context = { host: '', path: '' }, provider = 'mongoose') {
+    return Object.freeze({
+      getConnection: () => this.getConnection(context, provider),
+      getModel: (modelName) => this.getModel(modelName, context, provider),
+      configuration: () => this.configurationOf(context, provider),
+    });
+  }
+
+  /**
+   * Builds a stable signature used to detect provider configuration changes.
+   * @param {object} [db={}] - Database configuration object.
+   * @returns {string} Stringified signature for change detection.
+   */
+  static buildDbSignature(db = {}) {
+    return JSON.stringify({
+      authSource: db.authSource || '',
+      host: db.host || '',
+      name: db.name || '',
+      provider: db.provider || '',
+      replicaSet: db.replicaSet || '',
+      partitions: Object.fromEntries(
+        Object.entries(db.partitions ?? {}).map(([partition, entry]) => [partition, entry?.name || '']),
+      ),
+    });
+  }
+
+  /**
+   * The partition databases a db configuration declares, as a fresh map the bucket may rebind.
+   * @param {object} [db={}] - Database configuration object.
+   * @returns {Object<string,{name:string,apis:string[]}>}
+   */
+  static partitionsOf(db = {}) {
+    return Object.fromEntries(
+      Object.entries(db.partitions ?? {})
+        .filter(([, entry]) => entry?.name)
+        .map(([partition, entry]) => [partition, { name: entry.name, apis: [...(entry.apis ?? [])] }]),
+    );
+  }
+
+  /**
+   * The models a context reads: every partition's APIs bound to the database that partition
+   * serves. Models outside partitions, and a partition that serves its own database, read their own.
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {object} Model name → model.
+   */
+  static servedModels(context, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    return bucket.servedModels || bucket.models || {};
+  }
+
+  /**
+   * The database a partition serves for a context: the one every reader of the context reads.
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} partition - Partition name.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {string} The database name, or `''` when the context declares no such partition.
+   */
+  static servedDatabase(context, partition, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    return bucket.served?.[partition] ?? bucket.partitions?.[partition]?.name ?? '';
+  }
+
+  /**
+   * The served model bag for a map of partition → database, built whole before anyone reads it.
+   * @param {object} bucket - Provider bucket.
+   * @param {Object<string,string>} served - Partition → served database.
+   * @returns {Promise<object|null>} Null when every partition serves its own database.
+   */
+  static async #buildServedModels(bucket, served) {
+    let models = null;
+    for (const [partition, database] of Object.entries(served)) {
+      const entry = bucket.partitions?.[partition];
+      if (!entry || database === entry.name) continue;
+      models ??= { ...bucket.models };
+      const conn = bucket.connection.useDb(database, { useCache: true });
+      for (const api of entry.apis) models[getCapVariableName(api)] = await MongooseDB.bindModel(conn, api);
+    }
+    return models;
+  }
+
+  /**
+   * Makes a partition serve another database. The new model bag is built first and swapped in
+   * one assignment, so a reader sees the previous database or the new one, never a mix.
+   *
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} partition - Partition name.
+   * @param {string} database - Database the partition serves from now on.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {Promise<{previous: string, database: string}>} The served database before and after.
+   */
+  static async serveDatabase(context, partition, database, provider = 'mongoose') {
+    const bucket = this.getProvider(context, provider);
+    if (!bucket.partitions?.[partition])
+      throw new Error(`Partition "${partition}" is not declared for context "${resolveHostKeyContext(context)}"`);
+    if (!database) throw new Error(`Partition "${partition}" needs a database name`);
+    const previous = this.servedDatabase(context, partition, provider);
+    if (previous === database) return { previous, database };
+
+    const served = { ...(bucket.served ?? {}), [partition]: database };
+    const servedModels = await DataBaseProviderService.#buildServedModels(bucket, served);
+    bucket.servedModels = servedModels;
+    bucket.served = served;
+    recordServedDatabases(
+      resolveHostKeyContext(context),
+      servedModels
+        ? Object.entries(served)
+            .filter(([name, servedDatabase]) => servedDatabase !== bucket.partitions[name]?.name)
+            .map(([name, servedDatabase]) => `${name}=${servedDatabase}`)
+            .sort()
+            .join(',')
+        : '',
+    );
+    logger.info('Partition serves another database', {
+      key: resolveHostKeyContext(context),
+      partition,
+      previous,
+      database,
+    });
+    return { previous, database };
+  }
+
+  /**
+   * Timers for the per-provider health watch, keyed by `<contextKey>:<provider>`.
+   * @type {object.<string, {timer: object, attempts: number, rebuilding: boolean}>}
+   */
+  static #watchers = {};
+
+  /**
+   * Rebuilds a loaded provider in place: new connection, freshly bound models, old
+   * connection closed once the replacement is live.
+   *
+   * A reconnect is not the same as letting the driver heal itself. For mongoose: after a
+   * replica set is reconfigured the driver can hold a topology it will never accept a primary
+   * for again — it records the highest `setVersion`/`electionId` it has seen and rejects
+   * anything lower for the rest of the process — so only a new client recovers. Every consumer
+   * resolves models through this bucket on each call, so swapping the fields in place is
+   * enough; nothing has to be re-registered.
+   *
+   * Only providers present in {@link PROVIDER_HEALTH} can be rebuilt.
+   *
+   * @param {{host?: string, path?: string}|string} context - Context object or key.
+   * @param {string} [provider='mongoose'] - Provider name.
+   * @returns {Promise<boolean>} `true` when the provider was rebuilt.
+   */
+  static async reconnect(context, provider = 'mongoose') {
+    const key = resolveHostKeyContext(context);
+    const strategy = PROVIDER_HEALTH[provider];
+    if (!strategy) {
+      logger.warn('No reconnect strategy for provider', { key, provider });
+      return false;
+    }
+
+    const bucket = this.#instance[key]?.[provider];
+    if (!bucket?.rebuild) {
+      logger.warn('Cannot reconnect a provider that was never loaded', { key, provider });
+      return false;
+    }
+
+    const previousConnection = bucket.connection;
+
+    try {
+      const { connection, models } = await strategy.rebuild({ ...bucket.rebuild, partitions: bucket.partitions });
+
+      bucket.connection = connection;
+      bucket.models = models;
+      if (bucket.served) bucket.servedModels = await DataBaseProviderService.#buildServedModels(bucket, bucket.served);
+      logger.info('Database connection rebuilt', { key, provider });
+    } catch (error) {
+      logger.error('Database reconnect failed, keeping the existing connection', {
+        key,
+        provider,
+        error: error.message,
+      });
+      return false;
+    }
+
+    // Closed last and best-effort: the replacement is already serving, and a close that
+    // hangs on a dead server must not take the recovery with it.
+    try {
+      await strategy.close(previousConnection);
+    } catch (error) {
+      logger.warn('Could not close the replaced connection', { key, provider, error: error.message });
+    }
+    return true;
+  }
+
+  /**
+   * Starts the health watch for a provider: pings on an interval and rebuilds the connection
+   * on every tick that finds it down, until it answers again. A provider with no
+   * {@link PROVIDER_HEALTH} entry is left unwatched.
+   * @param {string} key - Resolved context key.
+   * @param {string} provider - Provider name.
+   */
+  static #startHealthWatch(key, provider) {
+    const strategy = PROVIDER_HEALTH[provider];
+    if (!strategy || !(HEALTH_INTERVAL_MS > 0)) return;
+    const watchKey = `${key}:${provider}`;
+    if (this.#watchers[watchKey]) return;
+
+    const state = { attempts: 0, rebuilding: false, timer: null };
+    state.timer = setInterval(async () => {
+      // A rebuild can outlast the interval (the driver's own connect timeout is longer), so
+      // ticks that land mid-attempt are skipped rather than stacking attempts.
+      if (state.rebuilding) return;
+      const bucket = this.#instance[key]?.[provider];
+      if (!bucket) return;
+
+      if (await strategy.isAlive(bucket.connection)) {
+        if (state.attempts > 0)
+          logger.info('Database connection restored', { key, provider, attempts: state.attempts });
+        state.attempts = 0;
+        return;
+      }
+
+      // Every tick retries until the connection answers again: there is no attempt budget to
+      // exhaust, because giving up leaves the runtime permanently unable to reach its database.
+      state.rebuilding = true;
+      state.attempts++;
+      logger.warn('Database connection is down, rebuilding', { key, provider, attempt: state.attempts });
+      try {
+        await this.reconnect(key, provider);
+      } finally {
+        state.rebuilding = false;
+      }
+    }, HEALTH_INTERVAL_MS);
+
+    // Never hold the event loop open on account of a health check.
+    state.timer.unref?.();
+    this.#watchers[watchKey] = state;
+  }
+
+  /**
+   * Stops the health watch for a provider.
+   * @param {string} key - Resolved context key.
+   * @param {string} provider - Provider name.
+   */
+  static #stopHealthWatch(key, provider) {
+    const watchKey = `${key}:${provider}`;
+    const state = this.#watchers[watchKey];
+    if (!state) return;
+    clearInterval(state.timer);
+    delete this.#watchers[watchKey];
+  }
+
+  /**
+   * Loads and initializes a database provider based on the configuration.
+   * If the connection is already loaded for the given host/path, it returns the existing instance.
+   *
+   * @async
+   * @param {object} [options] - Configuration for the database connection.
+   * @param {Array<string>} [options.apis=[]] - List of APIs whose models should be loaded (for Mongoose).
+   * @param {string} [options.host=''] - The host part of the application context (e.g., domain).
+   * @param {string} [options.path=''] - The path part of the application context.
+   * @param {object} [options.db={}] - The specific database configuration object.
+   * @param {string} options.db.provider - The name of the database provider ('mongoose', 'mariadb', etc.).
+   * @param {string} options.db.host - The database server host.
+   * @param {string} options.db.name - The database name.
+   * @param {Object<string,{name:string,apis:string[]}>} [options.db.partitions] - Sibling databases on the
+   *   same server, each owning the models of the APIs it names. A partition keeps one data domain
+   *   (content, runtime) apart from another under one host; {@link serveDatabase} makes one serve another database.
+   * @returns {Promise<object|undefined>} A promise that resolves to the initialized provider object
+   * or `undefined` on error or if the provider is already loaded.
+   */
+  static async load(options = { apis: [], host: '', path: '', db: {} }) {
+    try {
+      const { apis, host, path, db } = options;
+      const key = resolveHostKeyContext({ host, path });
+      const dbSignature = DataBaseProviderService.buildDbSignature(db);
+
+      if (!this.#instance[key]) this.#instance[key] = {};
+      if (!db) return undefined;
+
+      const currentProvider = this.#instance[key][db.provider];
+      if (currentProvider && currentProvider.dbSignature === dbSignature) return currentProvider;
+
+      await currentProvider?.close();
+
+      // logger.info(`Load ${db.provider} provider`, key);
+      switch (db.provider) {
+        case 'mongoose':
+          {
+            const conn = await connectWithTolerance(`${db.provider}:${key}`, () => MongooseDB.connect(db));
+            const partitions = DataBaseProviderService.partitionsOf(db);
+            recordServedDatabases(key, '');
+            const bucket = {
+              dbSignature,
+              // Kept so the connection can be rebuilt later without the caller being present.
+              rebuild: { apis, host, path, db },
+              partitions,
+              models: await MongooseDB.loadModels({ conn, apis, partitions }),
+              connection: conn,
+              // Forgets the provider before its connection closes: the next load connects again.
+              close: async () => {
+                if (this.#instance[key]?.[db.provider] === bucket) {
+                  this.#stopHealthWatch(key, db.provider);
+                  delete this.#instance[key][db.provider];
+                }
+                await bucket.connection.close();
+              },
+            };
+            this.#instance[key][db.provider] = bucket;
+          }
+          break;
+        default:
+          break;
+      }
+      // Self-guarding: only providers with a PROVIDER_HEALTH entry are actually watched, so a
+      // provider added above does not have to remember to opt in here.
+      this.#startHealthWatch(key, db.provider);
+      return this.#instance[key][db.provider];
+    } catch (error) {
+      // Sanitize options to prevent credential exposure in logs
+      const safeOptions = {
+        apis: options.apis,
+        host: options.host,
+        path: options.path,
+        db: options.db
+          ? {
+              provider: options.db.provider,
+              name: options.db.name ? '***' : undefined,
+              host: options.db.host ? '***' : undefined,
+              user: options.db.user ? '***' : undefined,
+              password: options.db.password ? '***' : undefined,
+            }
+          : {},
+      };
+      logger.error(error.message, { safeOptions });
+      latchRuntimeError();
+      return undefined;
+    }
+  }
+}
+
+export {
+  DataBaseProviderService as DataBaseProviderClass,
+  DataBaseProviderService as default,
+  DataBaseProviderService,
+};

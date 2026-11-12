@@ -4,7 +4,7 @@
  * @module src/api/item-ledger-checkpoint/item-ledger-checkpoint.service.js
  * @namespace ItemLedgerCheckpointService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { normalizeAddress } from '../item-ledger/item-ledger.model.js';
 import { ItemLedgerCheckpointDto } from './item-ledger-checkpoint.model.js';
 
@@ -13,7 +13,7 @@ class ItemLedgerCheckpointService {
    * GET `/` (every contract) or `/:chainId/:contractAddress` (one contract).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

@@ -8,7 +8,7 @@
 import { Responsive } from './Responsive.js';
 import { Translate } from './Translate.js';
 import { append, htmls, s, sa } from './VanillaJs.js';
-import { windowGetW } from './windowGetDimensions.js';
+import { windowGetW } from './WindowGetDimensions.js';
 
 /** Height of one bar row and size of one bar control, in px. */
 const SHELL_BAR_SIZE = 50;

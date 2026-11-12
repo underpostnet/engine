@@ -10,7 +10,7 @@
  * failed write.
  */
 
-import { DataBaseProviderService } from '../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../src/db/database-provider.js';
 import {
   bindItem,
   catalogModels,

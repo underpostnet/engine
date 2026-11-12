@@ -19,12 +19,12 @@ import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
-import { DefaultManagement } from '../../services/default/default.management.js';
-import { InstanceManagement } from '../../services/instance/instance.management.js';
-import { UserManagement } from '../../services/user/user.management.js';
+import { DefaultManagement } from '../../services/default/DefaultManagement.js';
+import { InstanceManagement } from '../../services/instance/InstanceManagement.js';
+import { UserManagement } from '../../services/user/UserManagement.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { getProxyPath, getPublicRouteParam } from '../core/Router.js';
-import { CronManagement } from '../../services/cron/cron.management.js';
+import { CronManagement } from '../../services/cron/CronManagement.js';
 import { Translate } from '../core/Translate.js';
 
 const cronIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">

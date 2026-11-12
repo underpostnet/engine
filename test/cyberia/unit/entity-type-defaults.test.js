@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { CyberiaEntityTypeDefaultModel } from '../../../src/api/cyberia-entity-type-default/cyberia-entity-type-default.model.js';
 import {
   applyDefaultsToEntities,
