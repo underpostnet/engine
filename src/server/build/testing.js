@@ -468,7 +468,8 @@ const TEST_PROJECTS = [
     sources: ['src/api/item-ledger/item-ledger.indexer.js'],
     description:
       'ItemLedger against a live EVM: deploy, register, mint, transfer, burn, replay and reconcile. ' +
-      'Needs CHAIN_RPC_URL and CHAIN_PRIVATE_KEY of a Besu validator or a Hardhat node; skipped without them.',
+      'Needs CHAIN_RPC_URL and CHAIN_PRIVATE_KEY of a Besu validator or a Hardhat node, and the compiled ' +
+      'contract of the cyberia-hardhat checkout; skipped without them.',
   },
   {
     name: 'underpost:e2e',
@@ -491,7 +492,7 @@ const TEST_PROJECTS = [
   },
   {
     name: 'item-ledger:contract',
-    directory: 'hardhat',
+    directory: 'cyberia-hardhat',
     groupOrder: 11,
     description: 'ObjectLayerToken ERC-1155 behaviour on the in-process EVM.',
     // Hardhat owns Solidity compilation and the EVM these run against, so they
@@ -1398,7 +1399,7 @@ const TEST_IMPACT = [
     ],
     domains: ['object-layer', 'item-ledger', 'cyberia', 'cryptokoyn', 'ecosystem'],
   },
-  { match: ['src/api/item-ledger', 'hardhat/'], domains: ['item-ledger'] },
+  { match: ['src/api/item-ledger'], domains: ['item-ledger'] },
   // The render routes every Object Layer host serves; the Cyberia Studio extends them.
   { match: ['src/api/atlas-sprite-sheet/'], domains: ['object-layer', 'cyberia', 'ecosystem'] },
   {

@@ -36,7 +36,6 @@ Comments state the live invariant in ≤1 line. The reader needs current behavio
 - `src/client/**/*.js`: use `PascalCase.js`. Name the file after its main export: `CyberiaActionService.js`, `Page404.js`.
 - Every other `.js` file: use `kebab-case.js`: `mongoose-db.js`, `io-server.js`.
 - A lowercase dot suffix names a role: `Default.index.js`, `user.service.js`, `core.ws.server.js`.
-- `hardhat/` is an isolated Web3 workspace. Do not rename files in it.
 - These rules apply to file names only. Directory names are ids: `src/client/services/<api-id>/` stays kebab-case.
 - `src/server/site/` clones a client by its PascalCase file names. A client file that breaks the rule breaks the clone.
 - `test/underpost/audit/file-naming.test.js` enforces these rules.

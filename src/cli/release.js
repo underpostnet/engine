@@ -550,8 +550,8 @@ class UnderpostRelease {
      * 1. Loads production env and pulls latest code; kills dev servers on ports 4001-4003.
      * 2. Builds and smoke-tests the pwa-microservices-template (aborts on error).
      * 3. Canonical version files: delegates to `bumpp` (driven by `bump.config.js`). Bumps
-     *    package.json, package-lock.json (root + packages['']), Hardhat's package metadata,
-     *    and every engine-private/conf/**\/package.json.
+     *    package.json, package-lock.json (root + packages['']) and every
+     *    engine-private/conf/**\/package.json.
      * 4. Auxiliary files: anchored-regex walker over VERSION_BUMP_TARGETS — covers
      *    src/index.js, README, the documentation tree, manifests (deployment + cronjobs),
      *    .github/workflows (image tags, type=raw, UNDERPOST_VERSION build-args), and
@@ -599,8 +599,6 @@ class UnderpostRelease {
       const canonicalVersionFiles = [
         'package.json',
         'package-lock.json',
-        'hardhat/package.json',
-        'hardhat/package-lock.json',
         ...walkDir('engine-private/conf', /^package\.json$/, true),
       ];
       if (dryRun) {

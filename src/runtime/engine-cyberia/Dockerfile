@@ -76,7 +76,6 @@ RUN --mount=type=secret,id=github_username \
     rm -rf /home/dd/cyberia-content; \
     CYBERIA_DEPLOYMENT_ROOT=/home/dd/cyberia-deployment node bin/cyberia release verify; \
     node bin app load --env production --args deploy-id=dd-cyberia; \
-    ( cd /home/dd/engine/hardhat && npm install --include=dev ); \
     # --- build the client bundle (assets are now in place) --------------------
     cd /home/dd/engine; \
     node bin client dd-cyberia; \
@@ -98,12 +97,9 @@ RUN --mount=type=secret,id=github_username \
            /root/.netrc /root/.ssh /root/.npm /root/.cache /root/.node-gyp; \
     # 4) The underpost global env store may hold GITHUB_TOKEN.
     rm -f "$(underpost root)/underpost/.env" 2>/dev/null || true; \
-    # 5) Build caches, temp, and build-only toolchains. hardhat is contract
-    #    build/CLI tooling (used only to build the coverage docs above); the
-    #    runtime server never imports it, so its dev node_modules is pure bloat.
+    # 5) Build caches and temp.
     npm cache clean --force 2>/dev/null || true; \
     rm -rf /home/dd/cyberia-deployment \
-           /home/dd/engine/hardhat/node_modules \
            /home/dd/engine/.npm /tmp/* /var/tmp/* /var/cache/dnf
 
 # ---------------------------------------------------------------------------

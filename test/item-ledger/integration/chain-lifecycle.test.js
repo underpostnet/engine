@@ -1,17 +1,18 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { JsonRpcProvider, Wallet, ContractFactory, Contract, getAddress } from 'ethers';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { ItemLedgerIndexer } from '../../../src/api/item-ledger/item-ledger.indexer.js';
 import { objectLayerTokenId } from '../../../src/api/item-ledger/item-ledger.model.js';
 import { ZERO_ADDRESS } from '../../../src/api/item-ledger-transfer/item-ledger-transfer.model.js';
 
 // The live chain tier. It runs against any JSON-RPC endpoint the deployment uses — a Besu
 // validator (`cyberia chain deploy`) or a Hardhat node — named by CHAIN_RPC_URL, with a funded
-// key in CHAIN_PRIVATE_KEY. Without them the tier is skipped: the gate is an external node.
+// key in CHAIN_PRIVATE_KEY, and deploys the contract the cyberia-hardhat checkout compiled.
+// Without them the tier is skipped: the gate is an external node.
 const RPC_URL = process.env.CHAIN_RPC_URL || '';
 const PRIVATE_KEY = process.env.CHAIN_PRIVATE_KEY || '';
 const vectors = JSON.parse(readFileSync(new URL('../../support/object-layer-identity-vectors.json', import.meta.url)));
-const artifact = JSON.parse(readFileSync(new URL('../../../hardhat/artifacts/contracts/ObjectLayerToken.sol/ObjectLayerToken.json', import.meta.url)));
+const ARTIFACT = new URL('../../../cyberia-hardhat/artifacts/contracts/ObjectLayerToken.sol/ObjectLayerToken.json', import.meta.url);
 
 const [HATCHET_A, HATCHET_B, GOLD_ORE] = vectors.definitions;
 const hash = (vector) => `0x${vector.contentHash}`;
@@ -57,7 +58,8 @@ const projection = () => {
   return { models, state };
 };
 
-describe.skipIf(!RPC_URL || !PRIVATE_KEY)('ItemLedger on a live chain', () => {
+describe.skipIf(!RPC_URL || !PRIVATE_KEY || !existsSync(ARTIFACT))('ItemLedger on a live chain', () => {
+  let artifact;
   let provider;
   let wallet;
   let token;
@@ -67,6 +69,7 @@ describe.skipIf(!RPC_URL || !PRIVATE_KEY)('ItemLedger on a live chain', () => {
   let bob;
 
   beforeAll(async () => {
+    artifact = JSON.parse(readFileSync(ARTIFACT));
     // `cacheTimeout: -1`: an instantly-finalizing chain answers a fresh nonce per send.
     provider = new JsonRpcProvider(RPC_URL, undefined, { cacheTimeout: -1 });
     chainId = Number((await provider.getNetwork()).chainId);

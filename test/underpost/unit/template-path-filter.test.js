@@ -42,7 +42,6 @@ describe('template path filter of the default conf', () => {
     ['.//src/client/ssr/mailer/ShopEmail.js', false],
     ['.//src/client/ssr/views/Default.js', true],
     ['.//src/client/ssr/views/Shop.js', false],
-    ['.//hardhat/contracts/Token.sol', false],
     ['.//src/client/User.index.js', true],
     ['.//src/client/Shop.index.js', false],
     ['.//src/client/offline/Shop.index.js', true],

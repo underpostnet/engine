@@ -982,7 +982,7 @@ resources:
 // ---------------------------------------------------------------------------
 
 /**
- * Generate the besu-object-layer.network.json for the hardhat/networks/ directory.
+ * Generate the besu-object-layer.network.json for the networks/ directory of the Hardhat workspace.
  * @param {ValidatorKeySet[]} validators
  * @param {Object} genesis
  * @param {GenesisOptions} [opts]
@@ -1075,7 +1075,7 @@ function buildNetworkConfigJson(validators, genesis, opts = {}) {
 /**
  * @typedef {Object} GenerateBesuManifestsOptions
  * @property {string} [outputDir='./manifests/besu'] - Where to write the manifests.
- * @property {string} [networkConfigDir='./hardhat/networks'] - Where to write the network config JSON.
+ * @property {string} [networkConfigDir] - Where to write the network config JSON; none is written without it.
  * @property {number} [validatorCount=4] - Number of IBFT2 validators.
  * @property {string} [namespace='besu'] - Kubernetes namespace.
  * @property {string} [clusterDomain='cluster.local'] - The DNS domain of the cluster.
@@ -1109,7 +1109,7 @@ function buildNetworkConfigJson(validators, genesis, opts = {}) {
 async function generateBesuManifests(opts = {}) {
   const {
     outputDir = './manifests/besu',
-    networkConfigDir = './hardhat/networks',
+    networkConfigDir,
     validatorCount = 4,
     namespace = 'besu',
     clusterDomain = DEFAULT_CLUSTER_DOMAIN,
@@ -1262,7 +1262,7 @@ async function generateBesuManifests(opts = {}) {
  * @property {boolean} [skipGenerate=false] - Skip manifest generation and use existing manifests as-is.
  * @property {boolean} [skipWait=false] - Skip waiting for validators to reach Running state.
  * @property {string} [manifestsPath='./manifests/besu'] - Path to write/read manifests.
- * @property {string} [networkConfigDir='./hardhat/networks'] - Path for Hardhat network config JSON.
+ * @property {string} [networkConfigDir] - Where to write the Hardhat network config JSON; none is written without it.
  * @property {string} [privateKeysDir='./engine-private/eth-networks/besu/validators'] - Path for validator key backups.
  * @memberof BesuGenesisGenerator
  */
@@ -1304,7 +1304,7 @@ async function deployBesu(options = {}) {
     skipGenerate = false,
     skipWait = false,
     manifestsPath: besuManifestsPath = './manifests/besu',
-    networkConfigDir = './hardhat/networks',
+    networkConfigDir,
     privateKeysDir = './engine-private/eth-networks/besu/validators',
   } = options;
 

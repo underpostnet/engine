@@ -75,6 +75,12 @@ export default {
       profile: 'source-sync',
       graph: 'docs/graphify-out',
     },
+    {
+      name: 'cyberia-hardhat',
+      repository: 'underpostnet/cyberia-hardhat',
+      profile: 'source-sync',
+      graph: 'docs/graphify-out',
+    },
     { name: 'cyberia-deployment', repository: 'underpostnet/cyberia-deployment', profile: 'source-sync' },
     {
       name: 'cyberia-server',
@@ -107,7 +113,6 @@ export default {
     '/src/runtime/cyberia-server',
     '/src/runtime/cyberia-client',
     '/src/runtime/engine-cyberia',
-    '/.github/workflows/hardhat.ci.yml',
     '/src/api/cyberia-server-defaults',
     '/.github/workflows/docker-image.cyberia-client.ci.yml',
     '/.github/workflows/docker-image.cyberia-client.dev.ci.yml',
@@ -117,7 +122,6 @@ export default {
     '/.github/workflows/cyberia-server.cd.yml',
     '/.github/workflows/coverall.cyberia.ci.yml',
     '/bin/cyberia.js',
-    '/hardhat',
     // The deploy scripts `release build` mirrors into each generated instance
     // repository. The base template drops the whole `deploy/` tree, so the product CLI only has
     // them if it packages them here.

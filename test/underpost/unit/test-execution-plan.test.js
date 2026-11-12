@@ -108,9 +108,7 @@ describe('test budgets', () => {
 });
 
 describe('execution plan', () => {
-  const inactive = [
-    { deployId: 'dd-product', templatePaths: ['/test/cyberia', '/hardhat'], missing: ['sharp'], active: false },
-  ];
+  const inactive = [{ deployId: 'dd-product', templatePaths: ['/test/cyberia'], missing: ['sharp'], active: false }];
 
   it('runs every project in its own batch, in group order', () => {
     const { batches, projects, footprint } = testExecutionPlanFactory();
@@ -185,7 +183,7 @@ describe('execution plan', () => {
 
   it('leaves a product project to its context, and records why', () => {
     const { batches, excluded } = testExecutionPlanFactory({ contexts: inactive });
-    const owned = names(TEST_PROJECTS.filter(({ directory }) => /^(test\/cyberia|hardhat)/.test(directory)));
+    const owned = names(TEST_PROJECTS.filter(({ directory }) => directory.startsWith('test/cyberia')));
     expect(excluded.map(({ name }) => name)).to.deep.equal(owned);
     for (const entry of excluded) expect(entry).to.deep.include({ deployId: 'dd-product', missing: ['sharp'] });
     for (const { projects } of batches) expect(owned).to.not.include(projects[0]);

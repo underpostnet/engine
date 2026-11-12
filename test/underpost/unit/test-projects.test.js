@@ -138,17 +138,14 @@ describe('test selection', () => {
 describe('product contexts', () => {
   // A product owns the directories its catalog lists in `templatePaths`.
   const context = (active) => [
-    { deployId: 'dd-product', templatePaths: ['/test/cyberia', '/hardhat'], missing: active ? [] : ['sharp'], active },
+    { deployId: 'dd-product', templatePaths: ['/test/cyberia'], missing: active ? [] : ['sharp'], active },
   ];
-  const owned = TEST_PROJECTS.filter(
-    ({ directory }) => directory.startsWith('test/cyberia') || directory === 'hardhat',
-  );
+  const owned = TEST_PROJECTS.filter(({ directory }) => directory.startsWith('test/cyberia'));
   const names = (projects) => projects.map(({ name }) => name);
 
   it('gives a project to the product whose catalog ships its directory', () => {
     const contexts = context(false);
     expect(productContextOf({ directory: 'test/cyberia/unit' }, contexts)).to.equal(contexts[0]);
-    expect(productContextOf({ directory: 'hardhat' }, contexts)).to.equal(contexts[0]);
     expect(productContextOf({ directory: 'test/underpost/unit' }, contexts)).to.equal(null);
     expect(productContextOf({ directory: 'test/cyberia-lab/unit' }, contexts)).to.equal(null);
   });

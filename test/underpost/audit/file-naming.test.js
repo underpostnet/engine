@@ -9,9 +9,6 @@ const ROOT = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), 
 
 const CLIENT = 'src/client/';
 
-/** The isolated Web3 workspace keeps its own names. */
-const EXEMPT = 'hardhat/';
-
 /** A PascalCase name, then optional lowercase role suffixes: `CyberiaActionService.js`, `Default.index.js`. */
 const PASCAL_CASE = /^[A-Z][A-Za-z0-9]*(\.[a-z]+)*\.js$/;
 
@@ -20,7 +17,7 @@ const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)*\.js$/;
 
 const modules = execFileSync('git', ['ls-files', '-z', '--', '*.js'], { cwd: ROOT, encoding: 'utf8' })
   .split('\0')
-  .filter((file) => file && !file.startsWith(EXEMPT));
+  .filter(Boolean);
 
 const offenders = (files, pattern) => files.filter((file) => !pattern.test(nodePath.basename(file)));
 

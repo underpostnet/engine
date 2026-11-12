@@ -1,5 +1,4 @@
 /node_modules
-/hardhat/node_modules
 /public
 /engine-private
 /conf
@@ -49,6 +48,7 @@ packer/images/*/*.iso
 /cyberia-server
 /cyberia-client
 /cyberia-audio
+/cyberia-hardhat
 /cyberia-content
 /cyberia-deployment
 *pub.json

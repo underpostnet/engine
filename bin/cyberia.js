@@ -406,8 +406,60 @@ async function closeChainDb(connection) {
   }
 }
 
+/** The product repository of the ObjectLayerToken contract and its Hardhat workspace. */
+const HARDHAT_SOURCE = 'cyberia-hardhat';
+
+/** The identity vectors the contract suite checks: the engine owns them, the workspace holds a copy at this path. */
+const IDENTITY_VECTORS = 'test/support/object-layer-identity-vectors.json';
+
 /**
- * JSON-RPC endpoint of a Hardhat network name, as `hardhat/hardhat.config.js` resolves it.
+ * The Hardhat workspace: the cyberia-hardhat checkout, or an error.
+ * @returns {string}
+ */
+const hardhatRoot = () => {
+  const root = checkoutDir(HARDHAT_SOURCE);
+  if (!fs.existsSync(nodePath.join(root, 'hardhat.config.js')))
+    throw new Error(
+      `No ${HARDHAT_SOURCE} checkout at ${root}: clone ${releaseRepository(HARDHAT_SOURCE).repository} there`,
+    );
+  return root;
+};
+
+/**
+ * Runs the Hardhat CLI in the workspace.
+ * @param {string} args
+ * @param {object} [options] - {@link shellExec} options.
+ */
+const hardhat = (args, options) => shellExec(`cd ${hardhatRoot()} && npx hardhat ${args}`, options);
+
+/**
+ * Runs a script on a Hardhat network from the workspace, then deletes it.
+ * @param {string} name - The workspace ignores `scripts/_cli_<name>_tmp.js`.
+ * @param {string} source - ES module source.
+ * @param {string} network - Hardhat network name.
+ * @param {object} [options] - {@link shellExec} options.
+ */
+function runHardhatScript(name, source, network, options) {
+  const script = `scripts/_cli_${name}_tmp.js`;
+  const file = nodePath.join(hardhatRoot(), script);
+  fs.writeFileSync(file, source, 'utf8');
+  try {
+    return hardhat(`run ${script} --network ${network}`, options);
+  } finally {
+    fs.removeSync(file);
+  }
+}
+
+/**
+ * The deployment artifact `chain deploy-contract` writes for a network.
+ * @param {string} network - Hardhat network name.
+ * @returns {string}
+ */
+const contractDeploymentPath = (network) =>
+  nodePath.join(hardhatRoot(), 'deployments', `${network}-ObjectLayerToken.json`);
+
+/**
+ * JSON-RPC endpoint of a Hardhat network name, as the workspace `hardhat.config.js` resolves it.
  * @param {string} network
  * @returns {string}
  */
@@ -450,7 +502,7 @@ async function connectDbForIndexer(options) {
  * @returns {{address:string,chainId:string,network:string}}
  */
 function readContractDeployment(network) {
-  const artifactPath = `./hardhat/deployments/${network}-ObjectLayerToken.json`;
+  const artifactPath = contractDeploymentPath(network);
   if (!fs.existsSync(artifactPath)) {
     logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
     process.exit(1);
@@ -3436,7 +3488,7 @@ try {
         skipGenerate: !!options.skipGenerate,
         skipWait: !!options.skipWait,
         manifestsPath: './manifests/besu',
-        networkConfigDir: './hardhat/networks',
+        networkConfigDir: nodePath.join(hardhatRoot(), 'networks'),
         privateKeysDir: './engine-private/eth-networks/besu/validators',
       });
       if (!result && !options.skipGenerate) {
@@ -3482,7 +3534,7 @@ try {
       try {
         const result = await generateBesuManifests({
           outputDir: options.outputDir,
-          networkConfigDir: './hardhat/networks',
+          networkConfigDir: nodePath.join(hardhatRoot(), 'networks'),
           validatorCount: parseInt(options.validators, 10),
           namespace: options.namespace,
           clusterDomain: Underpost.namespace.cluster({ options }).clusterDomain,
@@ -3519,8 +3571,8 @@ try {
     .action(async (options) => {
       const network = options.network || 'besu-k8s';
       logger.info(`Deploying ObjectLayerToken to network: ${network}`);
-      shellExec(`cd hardhat && npx hardhat run scripts/deployObjectLayerToken.js --network ${network}`);
-      logger.info('Contract deployment complete. Check hardhat/deployments/ for the artifact.');
+      hardhat(`run scripts/deployObjectLayerToken.js --network ${network}`);
+      logger.info(`Contract deployment complete: ${contractDeploymentPath(network)}`);
     });
 
   chain
@@ -3528,7 +3580,7 @@ try {
     .description('Compile Solidity contracts via Hardhat')
     .action(async () => {
       logger.info('Compiling contracts...');
-      shellExec('cd hardhat && npx hardhat compile');
+      hardhat('compile');
       logger.info('Compilation complete.');
     });
 
@@ -3537,7 +3589,7 @@ try {
     .description('Run Hardhat tests for ObjectLayerToken')
     .action(async () => {
       logger.info('Running ObjectLayerToken tests...');
-      shellExec('cd hardhat && npx hardhat test test/ObjectLayerToken.js');
+      hardhat('test test/ObjectLayerToken.js');
     });
 
   chain
@@ -3618,25 +3670,15 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_register_tmp.js';
-      fs.writeFileSync(tmpScript, registerScript, 'utf8');
-      let txHash = '';
-      try {
-        const result = shellExec(
-          `cd hardhat && npx hardhat run scripts/_cli_register_tmp.js --network ${options.network}`,
-          {
-            silent: false,
-            silentOnError: true,
-          },
-        );
-        if (result.code !== 0) {
-          logger.error('On-chain registration failed');
-          process.exit(1);
-        }
-        txHash = /Tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
-      } finally {
-        fs.removeSync(tmpScript);
+      const result = runHardhatScript('register', registerScript, options.network, {
+        silent: false,
+        silentOnError: true,
+      });
+      if (result.code !== 0) {
+        logger.error('On-chain registration failed');
+        process.exit(1);
       }
+      const txHash = /Tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
 
       await recordLedgerBinding({
         db,
@@ -3658,14 +3700,7 @@ try {
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-      const contractAddress = deployment.address;
+      const contractAddress = readContractDeployment(options.network).address;
 
       logger.info(`Minting ${options.amount} of token ID ${options.tokenId} to ${options.to}`);
 
@@ -3682,13 +3717,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_mint_tmp.js';
-      fs.writeFileSync(tmpScript, mintScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_mint_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('mint', mintScript, options.network);
     });
 
   chain
@@ -3699,8 +3728,7 @@ try {
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      const artifactPath = contractDeploymentPath(options.network);
 
       logger.info('── Besu Chain Status ──');
 
@@ -3726,7 +3754,7 @@ try {
           ${
             fs.existsSync(artifactPath)
               ? `
-          const deployment = JSON.parse(readFileSync('${nodePath.resolve(artifactPath)}', 'utf8'));
+          const deployment = JSON.parse(readFileSync('${artifactPath}', 'utf8'));
           try {
             const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
             const cryptokoynSupply = await token['totalSupply(uint256)'](0);
@@ -3746,13 +3774,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_status_tmp.js';
-      fs.writeFileSync(tmpScript, statusScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_status_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('status', statusScript, options.network);
     });
 
   chain
@@ -3760,13 +3782,7 @@ try {
     .description('Pause all token transfers on the ObjectLayerToken contract (emergency governance)')
     .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .action(async (options) => {
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const deployment = readContractDeployment(options.network);
 
       const pauseScript = `
         import hre from 'hardhat';
@@ -3779,13 +3795,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_pause_tmp.js';
-      fs.writeFileSync(tmpScript, pauseScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_pause_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('pause', pauseScript, options.network);
     });
 
   chain
@@ -3793,13 +3803,7 @@ try {
     .description('Unpause token transfers on the ObjectLayerToken contract')
     .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .action(async (options) => {
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const deployment = readContractDeployment(options.network);
 
       const unpauseScript = `
         import hre from 'hardhat';
@@ -3812,13 +3816,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_unpause_tmp.js';
-      fs.writeFileSync(tmpScript, unpauseScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_unpause_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('unpause', unpauseScript, options.network);
     });
 
   // ── key-gen: Generate Ethereum secp256k1 key pair ───────────────────────
@@ -3827,7 +3825,7 @@ try {
     .description('Generate a new Ethereum secp256k1 key pair for player identity or deployer accounts')
     .option(
       '--save',
-      'Persist key files to default paths (private → ./engine-private/, public → ./hardhat/deployments/)',
+      `Persist key files to default paths (private → ./engine-private/, public → ./${HARDHAT_SOURCE}/deployments/)`,
     )
     .option('--private-path <path>', 'Custom path for the private key JSON file (overrides default)')
     .option('--public-path <path>', 'Custom path for the public key JSON file (overrides default)')
@@ -3860,7 +3858,8 @@ try {
 
       if (shouldSave) {
         const privatePath = options.privatePath || `./engine-private/eth-networks/besu/${addressLower}.key.json`;
-        const publicPath = options.publicPath || `./hardhat/deployments/${addressLower}.pub.json`;
+        const publicPath =
+          options.publicPath || nodePath.join(hardhatRoot(), 'deployments', `${addressLower}.pub.json`);
 
         fs.ensureDirSync(nodePath.dirname(privatePath));
         fs.writeJsonSync(privatePath, privateData, { spaces: 2 });
@@ -3971,44 +3970,35 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_balance_tmp.js';
-      fs.writeFileSync(tmpScript, balanceScript, 'utf8');
-      try {
-        const result = shellExec(
-          `cd hardhat && npx hardhat run scripts/_cli_balance_tmp.js --network ${options.network}`,
-          {
-            silent: true,
-            silentOnError: true,
-          },
-        );
-        if (result.code !== 0) {
-          logger.error(`Balance read failed: ${result.stderr || result.stdout}`);
-          process.exit(1);
-        }
-        const read = JSON.parse((result.stdout || '').trim().split('\n').pop());
-        const ownership = ownershipRecord({
-          chainId: deployment.chainId,
-          contractAddress,
-          tokenId: options.tokenId,
-          ownerAddress: options.address,
-          balance: read.balance,
-        });
-        console.log(
-          JSON.stringify(
-            {
-              ...ownership,
-              objectLayerCid: read.objectLayerCid || (ownership.tokenId === '0' ? '(cryptokoyn)' : '(unregistered)'),
-              formattedBalance:
-                ownership.tokenId === '0' ? `${Number(read.balance) / 1e18} CKY` : `${read.balance} units`,
-              totalSupply: read.totalSupply,
-            },
-            null,
-            2,
-          ),
-        );
-      } finally {
-        fs.removeSync(tmpScript);
+      const result = runHardhatScript('balance', balanceScript, options.network, {
+        silent: true,
+        silentOnError: true,
+      });
+      if (result.code !== 0) {
+        logger.error(`Balance read failed: ${result.stderr || result.stdout}`);
+        process.exit(1);
       }
+      const read = JSON.parse((result.stdout || '').trim().split('\n').pop());
+      const ownership = ownershipRecord({
+        chainId: deployment.chainId,
+        contractAddress,
+        tokenId: options.tokenId,
+        ownerAddress: options.address,
+        balance: read.balance,
+      });
+      console.log(
+        JSON.stringify(
+          {
+            ...ownership,
+            objectLayerCid: read.objectLayerCid || (ownership.tokenId === '0' ? '(cryptokoyn)' : '(unregistered)'),
+            formattedBalance:
+              ownership.tokenId === '0' ? `${Number(read.balance) / 1e18} CKY` : `${read.balance} units`,
+            totalSupply: read.totalSupply,
+          },
+          null,
+          2,
+        ),
+      );
     });
 
   chain
@@ -4023,14 +4013,7 @@ try {
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-      const contractAddress = deployment.address;
+      const contractAddress = readContractDeployment(options.network).address;
 
       logger.info(
         `Transferring ${options.amount} of token ID ${options.tokenId} from ${options.from} to ${options.to}`,
@@ -4058,13 +4041,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_transfer_tmp.js';
-      fs.writeFileSync(tmpScript, transferScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_transfer_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('transfer', transferScript, options.network);
     });
 
   // ── burn: Burn ERC-1155 tokens ──────────────────────────────────────────
@@ -4081,14 +4058,7 @@ try {
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-      const deploymentsDir = './hardhat/deployments';
-      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
-      if (!fs.existsSync(artifactPath)) {
-        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
-        process.exit(1);
-      }
-      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-      const contractAddress = deployment.address;
+      const contractAddress = readContractDeployment(options.network).address;
 
       logger.info(`Burning ${options.amount} of token ID ${options.tokenId} from ${options.address}`);
 
@@ -4108,13 +4078,7 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_burn_tmp.js';
-      fs.writeFileSync(tmpScript, burnScript, 'utf8');
-      try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_burn_tmp.js --network ${options.network}`);
-      } finally {
-        fs.removeSync(tmpScript);
-      }
+      runHardhatScript('burn', burnScript, options.network);
     });
 
   // ── batch-register: Register multiple Object Layer items in one tx ──────
@@ -4212,22 +4176,15 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_batch_register_tmp.js';
-      fs.writeFileSync(tmpScript, batchScript, 'utf8');
-      let txHash = '';
-      try {
-        const result = shellExec(
-          `cd hardhat && npx hardhat run scripts/_cli_batch_register_tmp.js --network ${options.network}`,
-          { silent: false, silentOnError: true },
-        );
-        if (result.code !== 0) {
-          logger.error('On-chain batch registration failed');
-          process.exit(1);
-        }
-        txHash = /tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
-      } finally {
-        fs.removeSync(tmpScript);
+      const result = runHardhatScript('batch_register', batchScript, options.network, {
+        silent: false,
+        silentOnError: true,
+      });
+      if (result.code !== 0) {
+        logger.error('On-chain batch registration failed');
+        process.exit(1);
       }
+      const txHash = /tx hash: (0x[0-9a-fA-F]+)/.exec(result.stdout || '')?.[1] || '';
 
       for (const item of items) {
         await recordLedgerBinding({
@@ -4274,27 +4231,15 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_bind_tmp.js';
-      fs.writeFileSync(tmpScript, readScript, 'utf8');
-      try {
-        const result = shellExec(
-          `cd hardhat && npx hardhat run scripts/_cli_bind_tmp.js --network ${options.network}`,
-          {
-            silent: true,
-            silentOnError: true,
-          },
-        );
-        if (result.code !== 0) {
-          logger.error(`Contract read failed: ${result.stderr || result.stdout}`);
-          process.exit(1);
-        }
-        const { cid } = JSON.parse((result.stdout || '').trim().split('\n').pop());
-        if (cid !== options.cid) {
-          logger.error(`Token id ${tokenId} is not registered for ${options.cid} on ${deployment.address}`);
-          process.exit(1);
-        }
-      } finally {
-        fs.removeSync(tmpScript);
+      const result = runHardhatScript('bind', readScript, options.network, { silent: true, silentOnError: true });
+      if (result.code !== 0) {
+        logger.error(`Contract read failed: ${result.stderr || result.stdout}`);
+        process.exit(1);
+      }
+      const { cid } = JSON.parse((result.stdout || '').trim().split('\n').pop());
+      if (cid !== options.cid) {
+        logger.error(`Token id ${tokenId} is not registered for ${options.cid} on ${deployment.address}`);
+        process.exit(1);
       }
 
       await recordLedgerBinding({
@@ -7510,6 +7455,10 @@ node bin test cyberia --grep 'Cyberia load'`);
     },
     [CONTENT_SOURCE]: {
       build: () => shellExec(`cd ${contentRoot()} && node bin/cyberia-content.js pack`),
+    },
+    [HARDHAT_SOURCE]: {
+      build: () => fs.copySync(IDENTITY_VECTORS, nodePath.join(hardhatRoot(), IDENTITY_VECTORS)),
+      message: () => 'Update the identity vectors',
     },
     [DEPLOYMENT_SOURCE]: {
       build: buildDeploymentCheckout,

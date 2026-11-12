@@ -218,7 +218,6 @@ describe('release pipeline commands', () => {
     it('lists the manifests whose canonical version would move', async () => {
       const manifests = new Map([
         ['package.json', JSON.stringify(PACKAGE)],
-        ['hardhat/package.json', JSON.stringify({ version: '3.2.9' })],
         ['package-lock.json', JSON.stringify({ version: '3.3.0' })],
       ]);
       vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
@@ -280,7 +279,7 @@ describe('release pipeline commands', () => {
       });
 
       expect(result).to.include({ from: '3.2.9', to: '3.3.0', dryRun: false });
-      expect(bumpped[0].files).to.include('package.json').and.to.include('hardhat/package-lock.json');
+      expect(bumpped[0].files).to.deep.equal(['package.json', 'package-lock.json']);
       expect(bumpped[0]).to.include({ release: '3.3.0', commit: false, tag: false, push: false, confirm: false });
 
       const templateEnv = writes.get('../pwa-microservices-template/.env.example');

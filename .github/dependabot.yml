@@ -99,37 +99,6 @@ updates:
     commit-message:
       prefix: 'deps(engine)'
 
-  # ── Hardhat (npm) ────────────────────────────────────────────────────────
-  - package-ecosystem: 'npm'
-    directory: '/hardhat'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '08:00'
-      timezone: 'UTC'
-    open-pull-requests-limit: 10
-    reviewers:
-      - 'underpostnet'
-    labels:
-      - 'dependencies'
-      - 'hardhat'
-    # Group minor/patch updates into a single PR to reduce noise
-    groups:
-      hardhat-toolchain:
-        patterns:
-          - 'hardhat'
-          - '@nomicfoundation/*'
-      openzeppelin:
-        patterns:
-          - '@openzeppelin/*'
-      hardhat-utilities:
-        patterns:
-          - 'dotenv'
-          - 'fs-extra'
-    # hardhat/package.json already uses Hardhat 3 — no ignore blocks needed
-    commit-message:
-      prefix: 'deps(hardhat)'
-
   # ── GitHub Actions ───────────────────────────────────────────────────────
   - package-ecosystem: 'github-actions'
     directory: '/'

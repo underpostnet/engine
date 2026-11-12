@@ -10,6 +10,7 @@ describe('the Cyberia release repositories', () => {
     expect(profiles).toEqual({
       'cyberia-content': 'data-release',
       'cyberia-audio': 'source-sync',
+      'cyberia-hardhat': 'source-sync',
       'cyberia-deployment': 'source-sync',
       'cyberia-server': 'container-release',
       'cyberia-client': 'container-release',
@@ -33,6 +34,7 @@ describe('the Cyberia release repositories', () => {
     ).toEqual({
       'cyberia-content': 'docs/graphify-out',
       'cyberia-audio': 'docs/graphify-out',
+      'cyberia-hardhat': 'docs/graphify-out',
       'cyberia-server': 'docs/graphify-out',
       'cyberia-client': 'docs/graphify-out',
     });

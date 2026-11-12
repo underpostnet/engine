@@ -68,7 +68,9 @@ describe('coverage report declaration', () => {
 
   it('names the command that produces each kind of report', () => {
     expect(coverageReportCommand({ suite: 'underpost,ecosystem' })).to.equal('node bin test underpost,ecosystem');
-    expect(coverageReportCommand({ path: './hardhat/' })).to.equal('npm run coverage --prefix ./hardhat');
+    expect(coverageReportCommand({ path: './cyberia-hardhat/' })).to.equal(
+      'npm run coverage --prefix ./cyberia-hardhat',
+    );
   });
 });
 

@@ -24,6 +24,7 @@
 /cyberia-client
 /cyberia-content
 /cyberia-audio
+/cyberia-hardhat
 /cyberia-deployment
 # Local tool state.
 .claude
