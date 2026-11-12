@@ -8,10 +8,10 @@
  * @module src/api/wallet-account/wallet-account.service.js
  * @namespace WalletAccountService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { ValkeyAPI, isValkeyEnable } from '../../db/valkey/Valkey.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
+import { ValkeyAPI, isValkeyEnable } from '../../db/valkey/valkey.js';
 import { loggerFactory } from '../../server/ops/logger.js';
-import { createSessionAndUserToken, hashJWT } from '../../server/security/auth.js';
+import { signSessionToken } from '../../server/security/auth.js';
 import { SIWE_NONCE_TTL_MS, buildSiweMessage, createNonce, verifySiweMessage } from '../../server/security/siwe.js';
 import { WalletAccountDto, caip10, normalizeAddress } from './wallet-account.model.js';
 
@@ -51,7 +51,7 @@ class WalletAccountService {
    *
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static post = async (req, res, options) => {
@@ -91,15 +91,9 @@ class WalletAccountService {
         logger.info(`SIWE sign-in for an unbound account: ${account.accountId}`);
         return { account, session: null };
       }
-      const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
+      const token = await signSessionToken(user, User, req, res, options);
       await WalletAccount.updateOne({ accountId: account.accountId }, { $set: { userId: user._id } });
-      return {
-        account,
-        session: {
-          token: hashJWT({ _id: user._id.toString(), jwtid }, options),
-          user: { _id: user._id, role: user.role },
-        },
-      };
+      return { account, session: { token, user: { _id: user._id, role: user.role } } };
     }
 
     throw new Error('Unknown wallet-account operation');
@@ -109,7 +103,7 @@ class WalletAccountService {
    * GET `/:accountId` (one account) or `/` (the accounts of the session user).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

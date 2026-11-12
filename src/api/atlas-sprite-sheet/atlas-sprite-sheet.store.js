@@ -20,7 +20,7 @@
 import crypto from 'crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { FileFactory } from '../file/file.service.js';
 import { deleteOwnedFiles, documentFileIds, fileRefFields } from '../file/file.ref.js';
@@ -109,7 +109,7 @@ const rendersShared = (AtlasSpriteSheet, File) => AtlasSpriteSheet.db?.name !== 
 
 /**
  * Deletes the File documents an atlas no longer points at, unless another atlas still does.
- * Renders shared across content releases are left for `cyberia content-release prune`.
+ * Renders shared across content releases are left for `cyberia content release prune`.
  *
  * @param {Object} AtlasSpriteSheet - Mongoose AtlasSpriteSheet model.
  * @param {Object} File - Mongoose File model.
@@ -152,7 +152,7 @@ export class AtlasSpriteSheetStore {
    * @param {Object} params.objectLayerRenderFrames - Render frames, document or plain object.
    * @param {number} [params.upscaleFactor=DEFAULT_ATLAS_UPSCALE_FACTOR] - Pixels per cell of the upscaled render.
    * @param {number} [params.maxAtlasDim=null] - Maximum atlas dimension, auto-calculated when null.
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @returns {Promise<{render: {cid: string, metadataCid: string}, atlas: AtlasMaterialization}>}
    * @memberof CyberiaAtlasSpriteSheetStore
    */
@@ -181,7 +181,7 @@ export class AtlasSpriteSheetStore {
    * @param {string} params.itemKey - Object layer item label.
    * @param {Buffer} params.primary - PNG bytes of the primary render.
    * @param {Object} params.metadata - Layout of the primary render.
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @returns {Promise<{render: {cid: string, metadataCid: string}, atlas: AtlasMaterialization}>}
    * @memberof CyberiaAtlasSpriteSheetStore
    */
@@ -202,7 +202,7 @@ export class AtlasSpriteSheetStore {
    * @param {Object} params
    * @param {string} params.objectLayerCid - Canonical CID of the definition whose render `atlas` is.
    * @param {AtlasMaterialization} params.atlas
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @returns {Promise<Object>} The stored atlas, lean.
    * @memberof CyberiaAtlasSpriteSheetStore
    */
@@ -239,7 +239,7 @@ export class AtlasSpriteSheetStore {
    * release shares them with every other release.
    *
    * @static
-   * @param {Object} options - Router options ({ host, path }) for model lookup.
+   * @param {Object} options - The host path ({ host, path }) for model lookup.
    * @returns {boolean}
    * @memberof CyberiaAtlasSpriteSheetStore
    */
@@ -254,14 +254,14 @@ export class AtlasSpriteSheetStore {
    * Removes the atlases of definitions and every File render they own that no other atlas holds.
    *
    * The one place a caller deletes an atlas: an atlas owns its document and every render File it
-   * points at. A shared store leaves the Files to `cyberia content-release prune`. Rerunnable — a
+   * points at. A shared store leaves the Files to `cyberia content release prune`. Rerunnable — a
    * second call finds nothing and reports zeros.
    *
    * @static
    * @param {Object} params
    * @param {string[]} [params.objectLayerCids] - Canonical CIDs of the definitions whose atlases go.
    * @param {boolean} [params.all=false] - Purge the whole collection, ignoring `objectLayerCids`.
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @returns {Promise<{atlases: number, files: number}>} What was removed.
    * @memberof CyberiaAtlasSpriteSheetStore
    */
@@ -300,7 +300,7 @@ export class AtlasSpriteSheetStore {
    *
    * @static
    * @param {Object} params
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @param {import('mongoose').Model[]} [params.owners] - Every atlas collection whose references hold.
    * @returns {Promise<number>} How many orphaned renders were removed.
    * @memberof CyberiaAtlasSpriteSheetStore
@@ -309,7 +309,7 @@ export class AtlasSpriteSheetStore {
     const AtlasSpriteSheet = DataBaseProviderService.getModel('AtlasSpriteSheet', options);
     const File = DataBaseProviderService.getModel('File', options);
     if (!owners && rendersShared(AtlasSpriteSheet, File)) {
-      logger.info('Atlas renders are shared across content releases; `cyberia content-release prune` removes orphans');
+      logger.info('Atlas renders are shared across content releases; `cyberia content release prune` removes orphans');
       return 0;
     }
 
@@ -334,7 +334,7 @@ export class AtlasSpriteSheetStore {
    * @static
    * @param {Object} params
    * @param {string} params.objectLayerCid - Canonical CID of the definition.
-   * @param {Object} [params.options] - Router options ({ host, path }) for model lookup.
+   * @param {Object} [params.options] - The host path ({ host, path }) for model lookup.
    * @returns {Promise<{ status: 'updated'|'unchanged'|'missing' }>}
    * @memberof CyberiaAtlasSpriteSheetStore
    */

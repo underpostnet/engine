@@ -1,4 +1,4 @@
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { IpfsClient } from './ipfs.client.js';
@@ -12,7 +12,7 @@ const logger = loggerFactory(import.meta);
  * @param {string} opts.cid          - IPFS Content Identifier.
  * @param {string} opts.resourceType - One of `IPFS_RESOURCE_TYPES`.
  * @param {number} [opts.size=0]     - DAG size the node reported.
- * @param {object} opts.options      - Router options ({ host, path }) for DB lookup.
+ * @param {object} opts.options      - The host path ({ host, path }) for DB lookup.
  * @returns {Promise<import('mongoose').Document>}
  */
 const createPinRecord = async ({ cid, resourceType, size = 0, options }) => {
@@ -30,7 +30,7 @@ const createPinRecord = async ({ cid, resourceType, size = 0, options }) => {
  * Always deletes DB records first so the registry stays clean even if the node is down.
  *
  * @param {string} cid     - IPFS Content Identifier to remove.
- * @param {object} options - Router options ({ host, path }) for DB lookup.
+ * @param {object} options - The host path ({ host, path }) for DB lookup.
  * @returns {Promise<void>}
  */
 const removePinRecordsAndUnpin = async (cid, options) => {

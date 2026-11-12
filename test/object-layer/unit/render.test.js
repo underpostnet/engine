@@ -7,7 +7,7 @@ import { cyberiaContext } from '../../support/product-context.js';
 const models = {};
 const ipfs = new Map();
 const ipfsReads = [];
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.client.js', () => ({

@@ -8,7 +8,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { PNG } from 'pngjs';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { isObjectLayerAuthority, pinCanonical } from '../../../api/object-layer/object-layer.publication.js';
 import { parseIdentityJson } from '../../../api/object-layer/object-layer.identity.js';
 import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
@@ -84,7 +84,7 @@ const DEFAULT_FRAME_DURATION_MS = 250;
  * @property {boolean} [generateAtlas=true] - Whether to generate the atlas sprite sheet.
  * @property {boolean} [draft=false] - Store the definition as a draft: no publication.
  * @property {number} [upscaleFactor] - Pixels per cell of the upscaled render.
- * @property {Object} [options] - Router options ({ host, path }) for model lookup.
+ * @property {Object} [options] - The host path ({ host, path }) for model lookup.
  * @memberof CyberiaObjectLayer
  */
 
@@ -248,7 +248,7 @@ export class ObjectLayerEngine {
    * {@link ObjectLayerRenderFramesData} and {@link ObjectLayerData} from the directory contents
    * and an optional `metadata.json` file.
    *
-   * The asset-tree source of `cyberia ol --import --client-public` and `--import-types`.
+   * The asset-tree source of `cyberia content object-layer --import --client-public` and `--import-types`.
    *
    * @static
    * @param {Object} params - Parameters.
@@ -325,7 +325,7 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * The asset trees `cyberia ol --client-public` keeps: the source tree and the host's built tree.
+   * The asset trees `cyberia content object-layer --client-public` keeps: the source tree and the host's built tree.
    * @param {{host: string, path: string}} options
    * @returns {string[]}
    * @memberof CyberiaObjectLayer
@@ -336,7 +336,7 @@ export class ObjectLayerEngine {
 
   /**
    * Replaces the folder of an item in one or more asset trees with its frame PNGs and an optional
-   * metadata.json: how `cyberia ol --client-public` keeps the asset tree consistent with each
+   * metadata.json: how `cyberia content object-layer --client-public` keeps the asset tree consistent with each
    * operation.
    *
    * For each base path the layout produced is:
@@ -489,7 +489,7 @@ export class ObjectLayerEngine {
    * @param {number|null} [params.maxAtlasDim=null] - Atlas dimension cap.
    * @param {(payload:{data:Object})=>void} [params.revise] - Changes the payload in place.
    * @param {boolean} [params.exact=false] - Publish the payload alone.
-   * @param {Object} [params.options] - Router options ({ host, path }).
+   * @param {Object} [params.options] - The host path ({ host, path }).
    * @returns {Promise<{definition:Object,atlas:Object}|null>} Null when the definition has no render frames.
    * @memberof CyberiaObjectLayer
    */

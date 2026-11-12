@@ -26,6 +26,16 @@ const VIEWS = Object.freeze([
     description: 'Browse every item: its render, stats, identity and sagas',
   },
   {
+    route: 'cyberia-saga-engine',
+    icon: 'lore.png',
+    description: 'Compose a saga from a narrative idea, review its package, and see what it still needs and where',
+  },
+  {
+    route: 'cyberia-content-lifecycle',
+    icon: 'update.png',
+    description: 'Follow a content cycle from the backup to the live servers: each stage, its host and its journal',
+  },
+  {
     route: 'cyberia-procedural-engine',
     icon: 'reload.png',
     description: 'Generate batches of item variants in the background, then review, edit and approve each one',

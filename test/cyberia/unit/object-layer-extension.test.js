@@ -27,7 +27,7 @@ vi.mock('../../../src/projects/cyberia/catalog/object-layer-catalog.js', () => (
   findBoundDefinition: async () => (store.boundCid ? { cid: store.boundCid } : null),
   publishItemDefinition: async (write) => (persisted.push(write), { _id: 'new' }),
 }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: () => ({
       findOne: () => ({ lean: async () => store.stored }),
@@ -46,7 +46,7 @@ mount(
       (route, ...handlers) => (routes[`${method} ${route}`] = handlers.at(-1)),
     ]),
   ),
-  { authMiddleware: () => {}, host: 'h', path: '/' },
+  { host: 'h', path: '/', services: { auth: { authenticate: () => {}, requireModerator: [() => {}] } } },
 );
 const call = async (route, req) => {
   const res = { status: (code) => ((res.code = code), res), json: (body) => ((res.body = body), res) };

@@ -32,3 +32,16 @@ describe('DataQuery filter models', () => {
     expect(query).toEqual({ $and: [{ code: 'cave' }, { code: { $in: ['cave', 'ruin'] } }] });
   });
 });
+
+describe('DataQuery sort', () => {
+  it('takes the direction of a sort field from asc, else from order, else descending', () => {
+    expect(DataQuery.parse({ sort: 'createdAt', order: 'asc' }).sort).toEqual({ createdAt: 1 });
+    expect(DataQuery.parse({ sort: 'createdAt', order: 'desc' }).sort).toEqual({ createdAt: -1 });
+    expect(DataQuery.parse({ sort: 'createdAt', asc: 'true', order: 'desc' }).sort).toEqual({ createdAt: 1 });
+    expect(DataQuery.parse({ sort: 'createdAt' }).sort).toEqual({ createdAt: -1 });
+  });
+
+  it('reads an order list when no sort field is given', () => {
+    expect(DataQuery.parse({ order: 'code:asc,createdAt:desc' }).sort).toEqual({ code: 1, createdAt: -1 });
+  });
+});

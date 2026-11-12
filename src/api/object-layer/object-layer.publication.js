@@ -22,7 +22,7 @@ const logger = loggerFactory(import.meta);
 /**
  * The cache of the definitions a host serves: every list, every key, and the render File an item
  * label resolves to. Every write to the host's ObjectLayer collection or its atlases invalidates it.
- * @param {{host?:string,path?:string}} [options] - Router options.
+ * @param {{host?:string,path?:string}} [options] - The API context.
  * @returns {import('../../server/storage/cache.js').CacheNamespace}
  * @memberof ObjectLayerPublication
  */
@@ -45,9 +45,9 @@ export class PublicationError extends Error {
 }
 
 /**
- * Router options that keep every definition a write stores as a draft: an import into a content
+ * The API context that keeps every definition a write stores as a draft: an import into a content
  * release stores its content first, and its publication stage makes each definition canonical.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Object}
  * @memberof ObjectLayerPublication
  */
@@ -55,7 +55,7 @@ export const deferPublication = (options) => ({ ...options, publication: 'deferr
 
 /**
  * Whether a host is the Object Layer authority: it serves the API and consumes it from nobody.
- * @param {{host?:string,path?:string,consumes?:Object<string,string>}} [options] - Router options.
+ * @param {{host?:string,path?:string,consumes?:Object<string,string>}} [options] - The API context.
  * @returns {boolean}
  * @memberof ObjectLayerPublication
  */
@@ -68,7 +68,7 @@ export const isObjectLayerAuthority = (options) => !consumesOf(options)['object-
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model.
  * @param {Object} params.definition - Canonical definition (document or payload).
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<boolean>} True when the node holds the pin.
  * @memberof ObjectLayerPublication
  */
@@ -97,7 +97,7 @@ export async function pinCanonical({ ObjectLayer, definition, options }) {
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
  * @param {Object} params.payload - `{ profile, data, createdBy?, _id? }`.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<Object>} The stored document.
  * @memberof ObjectLayerPublication
  */
@@ -115,7 +115,7 @@ export async function storeDraft({ ObjectLayer, payload, options }) {
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
  * @param {Object} params.payload - `{ profile, data, createdBy?, _id? }`.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @param {(definition:Object)=>Promise<{cid:string}>} [params.publish] - Authority write; defaults to the domain client.
  * @returns {Promise<Object>} The stored document, `canonical` or `cache`.
  * @throws {PublicationError} When a consumer cannot get the content stored at the authority.
@@ -151,7 +151,7 @@ export async function publishDefinition({ ObjectLayer, payload, options, publish
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
  * @param {Object} params.definition - Stored definition (document or lean).
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @param {(definition:Object)=>Promise<{cid:string}>} [params.publish] - Authority write; defaults to the domain client.
  * @returns {Promise<boolean>} True when the canonical bytes are pinned.
  * @throws {Error} When the authority stores the content under another identity.
@@ -170,7 +170,7 @@ export async function repinCanonical({ ObjectLayer, definition, options, publish
  * Idempotent; a no-op on the authority.
  * @param {Object} params
  * @param {import('mongoose').Model} params.Ipfs - Bound Ipfs registry model of this host.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<number>} Records removed.
  * @memberof ObjectLayerPublication
  */
@@ -186,7 +186,7 @@ export async function dropConsumerCanonicalPins({ Ipfs, options }) {
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model of this host.
  * @param {string} params.cid - The cid asked for.
  * @param {Object} params.definition - The authority's answer.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<Object>} The `cache` document.
  * @memberof ObjectLayerPublication
  */

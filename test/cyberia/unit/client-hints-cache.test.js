@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 // An in-memory Valkey with the commands the cache uses.
 const store = new Map();
-vi.mock('../../../src/db/valkey/Valkey.js', () => ({
+vi.mock('../../../src/db/valkey/valkey.js', () => ({
   ValkeyAPI: {
     isConnected: () => true,
     get: async (_options, key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
@@ -21,7 +21,7 @@ const models = vi.hoisted(() => {
     },
   };
 });
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 

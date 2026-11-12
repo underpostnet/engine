@@ -9,7 +9,7 @@
  * @module src/projects/cyberia/catalog/object-layer-catalog.js
  * @namespace CyberiaObjectLayerCatalog
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { profileRef } from '../../../client/components/objectlayer-studio/ObjectLayerProtocol.js';
 import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import {
@@ -52,7 +52,7 @@ export const ITEM_DEFINITION_APIS = Object.freeze([
 
 /**
  * The catalog models of a deployment context.
- * @param {{host:string,path:string}} options - Router options.
+ * @param {{host:string,path:string}} options - The API context.
  * @returns {CatalogModels}
  * @memberof CyberiaObjectLayerCatalog
  */
@@ -78,7 +78,7 @@ export const renderedCids = async ({ ObjectLayerRenderFrames }, cids) => {
 /**
  * Whether the deployment context serves the Cyberia item catalog. A host without it names
  * definitions by cid only.
- * @param {{host:string,path:string}} options - Router options.
+ * @param {{host:string,path:string}} options - The API context.
  * @returns {boolean}
  * @memberof CyberiaObjectLayerCatalog
  */
@@ -337,7 +337,7 @@ async function assertRunnable({ ObjectLayer }, cid, options) {
  * @param {string} [params.by=''] - The actor.
  * @param {Object} [params.provenance] - Where an imported definition came from.
  * @param {import('mongoose').ClientSession} [params.session] - The transaction the binding joins.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<Object>} The catalog entry.
  * @throws {Error} 400 when the definition cannot run; 409 when the item runs another definition.
  * @memberof CyberiaObjectLayerCatalog
@@ -375,7 +375,7 @@ export async function bindItem({
  * @param {Object|null} params.bound - The definition the label was bound to before the write.
  * @param {Object} [params.renderFrames] - Editor source: a render source (`RenderSource.js`).
  * @param {{render: Object, atlas: Object}} [params.rendered] - Output of {@link AtlasSpriteSheetStore.build}.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<void>}
  */
 async function materializeDefinition({ definition, bound, renderFrames, rendered, options }) {
@@ -445,7 +445,7 @@ export const exactDefinitionCid = (definition) =>
  * @param {Object} [params.renderFrames] - Editor source of the written definition.
  * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it: it sets `data.render`.
  * @param {boolean} [params.exact=false] - Compose the payload alone, never over the bound definition.
- * @param {Object} [params.options] - Router options of this host; they say whether it is the Object Layer authority.
+ * @param {Object} [params.options] - The API context of this host; they say whether it is the Object Layer authority.
  * @returns {Promise<Object>} The published document.
  * @throws {import('../../../api/object-layer/object-layer.publication.js').PublicationError} When the authority did not store it.
  * @memberof CyberiaObjectLayerCatalog
@@ -488,7 +488,7 @@ export async function publishItemDefinition({
  * @param {Object} params.payload - `{ data, createdBy? }`; `data.item.id` required.
  * @param {Object} [params.renderFrames] - Editor source of the written definition.
  * @param {{render: Object, atlas: Object}} [params.rendered] - Render built for it: it sets `data.render`.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<Object>} The stored document.
  * @memberof CyberiaObjectLayerCatalog
  */
@@ -512,7 +512,7 @@ export async function writeDraftDefinition({ models, payload, renderFrames, rend
  * @param {CatalogModels} params.models
  * @param {string} params.itemId - The label.
  * @param {(payload:{data:Object})=>void} [params.revise] - Changes the payload in place.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @returns {Promise<{definition:Object|null,written:boolean}>} The definition the label runs on
  *   now; null when the label is unbound.
  * @memberof CyberiaObjectLayerCatalog
@@ -535,7 +535,7 @@ export async function reviseItemDefinition({ models, itemId, revise = () => {}, 
  * authority no longer offers (archived, a draft, or unknown) is unbound. Idempotent. An
  * authority that does not answer fails the run and changes nothing.
  * @param {CatalogModels} models
- * @param {Object} [options] - Router options of this host; they say where the authority is.
+ * @param {Object} [options] - The API context of this host; they say where the authority is.
  * @returns {Promise<{checked:number,unbound:Array<{itemId:string,objectLayerCid:string,reason:string}>}>}
  * @memberof CyberiaObjectLayerCatalog
  */

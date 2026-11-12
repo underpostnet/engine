@@ -12,7 +12,7 @@ const atlasPurge = vi.fn(async ({ objectLayerCids }) => ({
 const prunedOrphans = vi.fn(async () => 2);
 const store = { shared: false };
 
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js', () => ({

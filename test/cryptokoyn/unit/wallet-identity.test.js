@@ -645,7 +645,7 @@ describe('key safety', () => {
     const secretField = /\b(mnemonic|privateKey|passphrase|seed|recoveryPhrase)\b\s*[:=]/;
 
     for (const path of [
-      'src/client/services/wallet-account/wallet-account.service.js',
+      'src/client/services/wallet-account/WalletAccountService.js',
       'src/api/wallet-account/wallet-account.service.js',
       'src/api/wallet-account/wallet-account.model.js',
       'src/server/security/siwe.js',

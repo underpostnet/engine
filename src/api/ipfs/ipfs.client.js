@@ -110,27 +110,27 @@ const isMissingMfsPath = ({ status, body }) => status === 500 && /file does not 
 // ─────────────────────────────────────────────────────────
 //  URL helpers
 // ─────────────────────────────────────────────────────────
+/** The IPFS Cluster host of this process: loopback in development outside a container, else its Service. */
+const ipfsHost = () =>
+  process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer()
+    ? 'localhost'
+    : Underpost.namespace.serviceHost({ resource: 'ipfs' });
+
 /**
  * Base URL of the Kubo RPC API (port 5001).
  * @returns {string}
  */
-const getIpfsApiUrl = () =>
-  process.env.IPFS_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:5001`;
+const getIpfsApiUrl = () => process.env.IPFS_API_URL || `http://${ipfsHost()}:5001`;
 /**
  * Base URL of the IPFS Cluster REST API (port 9094).
  * @returns {string}
  */
-const getClusterApiUrl = () =>
-  process.env.IPFS_CLUSTER_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:9094`;
+const getClusterApiUrl = () => process.env.IPFS_CLUSTER_API_URL || `http://${ipfsHost()}:9094`;
 /**
  * Base URL of the IPFS HTTP Gateway (port 8080).
  * @returns {string}
  */
-const getGatewayUrl = () =>
-  process.env.IPFS_GATEWAY_URL ||
-  `http://${process.env.NODE_ENV === 'development' && !Underpost.state.isInsideContainer() ? 'localhost' : 'ipfs-cluster'}:8080`;
+const getGatewayUrl = () => process.env.IPFS_GATEWAY_URL || `http://${ipfsHost()}:8080`;
 // ─────────────────────────────────────────────────────────
 //  Cluster pins
 // ─────────────────────────────────────────────────────────

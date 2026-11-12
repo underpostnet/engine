@@ -9,7 +9,7 @@ vi.mock('../../../src/server/domain/consumed-api.js', async (importOriginal) => 
   ...(await importOriginal()),
   deployConfServer: () => deploy.conf,
 }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) => {
       if (!models[name]) throw new Error(`model ${name} not loaded`);
@@ -36,6 +36,7 @@ const { cacheCanonical, isObjectLayerAuthority, publishDefinition } = await obje
 );
 const { ObjectLayerService } = await objectLayerModule('../../../src/api/object-layer/object-layer.service.js');
 const { ownRoutesOf } = await import('../../../src/server/domain/api-document.js');
+const { testApiContext } = await import('../../support/api-module.js');
 const { objectLayerIdentity } = await objectLayerModule('../../../src/api/object-layer/object-layer.identity.js');
 
 const definition = {
@@ -43,7 +44,7 @@ const definition = {
   data: { item: { id: 'hatchet', type: 'weapon' }, stats: {} },
 };
 const { cid } = objectLayerDomain ? objectLayerIdentity(definition) : {};
-const consumer = { host: 'www.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
+const consumer = { host: 'services.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
 
 let calls = [];
 const respond = (status, body) => ({ ok: status < 400, status, json: async () => body });
@@ -160,16 +161,16 @@ describe('cross-domain credentials', () => {
 
   it('acts as a moderator of the receiving host, never as a user', () => {
     const principal = servicePrincipal(
-      { headers: { 'x-domain-origin': 'www.cyberiaonline.com<script>' } },
+      { headers: { 'x-domain-origin': 'services.cyberiaonline.com<script>' } },
       {
         host: 'objectlayer.org',
         path: '/',
       },
     );
     expect(principal).toEqual({
-      _id: 'service:www.cyberiaonline.comscript',
+      _id: 'service:services.cyberiaonline.comscript',
       role: 'moderator',
-      username: 'www.cyberiaonline.comscript',
+      username: 'services.cyberiaonline.comscript',
       host: 'objectlayer.org',
       path: '/',
       service: true,
@@ -182,11 +183,19 @@ describe('documentation ownership', () => {
     'documents a consumed API at its owner, and only its extension at the consumer',
     async () => {
       const extension = await loadApiExtension('object-layer', { 'object-layer': 'cyberia' });
-      const { ApiRouter } = await import('../../../src/api/object-layer/object-layer.router.js');
-      const authMiddleware = (req, res, next) => next();
+      const { ApiModule } = await import('../../../src/api/object-layer/object-layer.router.js');
+      const authenticate = (req, res, next) => next();
       const documented = (consumes) => {
-        const options = { host: 'www.cyberiaonline.com', path: '/', authMiddleware, consumes, extension };
-        return ownRoutesOf('object-layer', ApiRouter(options), options).map(({ method, path }) => `${method} ${path}`);
+        const context = testApiContext(ApiModule, {
+          host: 'services.cyberiaonline.com',
+          authenticate,
+          consumes,
+          extension,
+          services: { database: { getModel: (name) => models[name] } },
+        });
+        return ownRoutesOf('object-layer', ApiModule.createRouter(context), context).map(
+          ({ method, path }) => `${method} ${path}`,
+        );
       };
 
       const consumer = documented({ 'object-layer': 'object-layer' });
@@ -293,7 +302,7 @@ describe.skipIf(!objectLayerDomain)('one canonical writer', () => {
       ...content,
       ...objectLayerIdentity(content),
       origin: 'canonical',
-      createdBy: 'service:www.cyberiaonline.com',
+      createdBy: 'service:services.cyberiaonline.com',
       createdAt: '2026-10-27T00:00:00.000Z',
     };
     /** The fields of `stored` an inclusion projection keeps. */
@@ -385,7 +394,7 @@ describe('local domain addresses', () => {
     'www.underpost.net': { '/': { apis: ['core'] } },
     'objectlayer.org': { '/': { apis: ['object-layer'] }, '/docs': { apis: [], singleReplica: true } },
     'itemledger.com': { '/': { apis: ['item-ledger'] } },
-    'www.cyberiaonline.com': {
+    'services.cyberiaonline.com': {
       '/': { apis: ['object-layer', 'cyberia-instance'], consumes: { 'object-layer': 'object-layer' }, peer: true },
     },
   };
@@ -408,10 +417,10 @@ describe('local domain addresses', () => {
     process.env.PORT = '4000';
     deploy.conf = conf;
     const ports = hostPortsFactory(conf);
-    expect(domainOrigin('cyberia-instance')).toBe(`http://127.0.0.1:${ports['www.cyberiaonline.com/']}`);
-    expect(domainHost('cyberia-instance')).toBe('www.cyberiaonline.com');
-    vi.stubEnv('CYBERIA_INSTANCE_API_ORIGIN', 'https://www.cyberiaonline.com');
-    expect(domainOrigin('cyberia-instance')).toBe('https://www.cyberiaonline.com');
+    expect(domainOrigin('cyberia-instance')).toBe(`http://127.0.0.1:${ports['services.cyberiaonline.com/']}`);
+    expect(domainHost('cyberia-instance')).toBe('services.cyberiaonline.com');
+    vi.stubEnv('CYBERIA_INSTANCE_API_ORIGIN', 'https://services.cyberiaonline.com');
+    expect(domainOrigin('cyberia-instance')).toBe('https://services.cyberiaonline.com');
     expect(domainOrigin('cyberia')).toBe('');
   });
 
@@ -438,8 +447,8 @@ describe('local domain addresses', () => {
     process.env.PORT = '4000';
     const ports = hostPortsFactory(conf);
     expect(localHostAddress(conf, 'objectlayer.org')).toBe(`localhost:${ports['objectlayer.org/']}`);
-    expect(localHostAddress(conf, 'www.cyberiaonline.com', '/peer')).toBe(
-      `localhost:${ports['www.cyberiaonline.com/peer']}`,
+    expect(localHostAddress(conf, 'services.cyberiaonline.com', '/peer')).toBe(
+      `localhost:${ports['services.cyberiaonline.com/peer']}`,
     );
     expect(localHostAddress(conf, 'objectlayer.org', '/docs')).toBe('');
     expect(localHostAddress(conf, 'cryptokoyn.net')).toBe('');

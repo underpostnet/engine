@@ -14,7 +14,7 @@
  * @module src/api/object-layer/object-layer.ipfs.js
  * @namespace ObjectLayerIpfs
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { IpfsClient } from '../ipfs/ipfs.client.js';
 import { createPinRecord } from '../ipfs/ipfs.service.js';
@@ -63,7 +63,7 @@ export const objectLayerMfsPaths = (objectLayerCid) => {
  * @param {string} params.cid - The CID the content contract names for the bytes.
  * @param {string} params.resourceType - One of `IPFS_RESOURCE_TYPES`.
  * @param {string} params.mfsPath
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<{cid:string,path:string,pinned:boolean,listed:boolean}>}
  * @throws {Error} When IPFS assigns another CID than the contract names.
  * @memberof ObjectLayerIpfs
@@ -113,7 +113,7 @@ async function bundleContent({ definition, canonical, options }) {
  * @param {Object} params
  * @param {Object} params.definition - A stored definition, document or lean.
  * @param {boolean} [params.canonical=false] - This host pins the canonical bytes: it is the Object Layer authority.
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<{objectLayerCid:string,root:string,resources:Array<{name:string,cid:string,path:string,pinned:boolean,listed:boolean}>}>}
  * @memberof ObjectLayerIpfs
  */
@@ -173,7 +173,7 @@ export const removeObjectLayerBundle = (objectLayerCid) =>
  * lists while MFS is on. `null` is a state the node did not answer.
  * @param {Object} params
  * @param {Object} params.definition - A stored definition, lean.
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<Array<{name:string,cid:string,path:string,registered:boolean,pinned:boolean,cluster:boolean|null,
  *   replication:Object|null,mfs:boolean,listedCid:string|null}>>}
  * @memberof ObjectLayerIpfs
@@ -264,7 +264,7 @@ export async function pruneUnreferencedContent({ stores, owned = [] }) {
  * @param {import('mongoose').Model} params.Ipfs
  * @param {boolean} [params.canonical=false] - This host pins the canonical bytes: it is the Object Layer authority.
  * @param {boolean} [params.apply=false]
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<{applied:boolean,mfs:boolean,registry:{records:number,duplicates:number},definitions:number,stored:number,failed:Array<{cid:string,message:string}>,legacy:string[]}>}
  *   With MFS off (`IPFS_MFS_ENABLED`) a definition counts as stored once every file is pinned.
  * @memberof ObjectLayerIpfs

@@ -23,7 +23,7 @@
  * @module src/projects/cyberia/catalog/object-layer-import.js
  * @namespace CyberiaObjectLayerImport
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import {
   isObjectLayerCid,
   objectLayerIdentity,
@@ -260,7 +260,7 @@ const previewOf = (frames) => {
  * @param {Object} models - {@link catalogModels}.
  * @param {{cid?:string,document?:string,definition?:Object,render?:Object,itemId?:string}} request -
  *   One of a CID, a document as JSON text, or a definition given whole with its render.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  */
 async function inspect(models, { cid: named, document, definition: whole, render: rendered, itemId }, options) {
   if ([named, document, whole].filter((source) => source !== undefined).length > 1)
@@ -298,7 +298,7 @@ async function inspect(models, { cid: named, document, definition: whole, render
  * item id it would take. Stores nothing.
  * @param {Object} models - {@link catalogModels}.
  * @param {{cid?:string,document?:string,itemId?:string}} request - `itemId` defaults to the item id of the definition.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<Object>}
  * @throws {Error} 400 for a request with a defect; 404 when the authority holds no such definition;
  *   503 when the authority does not answer.
@@ -371,7 +371,7 @@ async function storeDefinition(models, cid, definition, at, options) {
  * @param {boolean} [request.replace] - With `bind`: whether the moderator decided to replace another binding.
  * @param {boolean} [request.acknowledged] - Whether the moderator confirmed the warnings.
  * @param {string} request.actor
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {(options:Object)=>Promise<*>} [reload] - Reloads the game servers.
  * @returns {Promise<{cid:string,itemId:string,binding:string,stored:Object,global:boolean,entry:Object|null}>}
  *   `binding` is `bound`, `replaced`, `unchanged` (the item runs it already) or `none`; `stored` says

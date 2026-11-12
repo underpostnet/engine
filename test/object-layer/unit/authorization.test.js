@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 // Object-level authorization of the Object Layer API over a stubbed store: who may delete a
 // copy, who may purge a definition, who may change a lifecycle, and where a lifecycle is changed.
 const models = {};
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/server/domain/object-layer-resolver.js', () => ({
@@ -27,15 +27,15 @@ const { ObjectLayerService } = await import('../../../src/api/object-layer/objec
 const owner = new Types.ObjectId();
 const admin = { _id: String(new Types.ObjectId()), role: 'admin' };
 const other = { _id: String(new Types.ObjectId()), role: 'moderator' };
-const service = { _id: 'service:www.cyberiaonline.com', role: 'moderator', service: true };
+const service = { _id: 'service:services.cyberiaonline.com', role: 'moderator', service: true };
 const authority = { host: 'objectlayer.org', path: '/', consumes: {} };
-const consumer = { host: 'www.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
+const consumer = { host: 'services.cyberiaonline.com', path: '/', consumes: { 'object-layer': 'object-layer' } };
 
 describe('owner or admin', () => {
   it('lets the owner and an admin act, as a user id or as a domain principal', () => {
     expect(() => assertOwnerOrAdmin({ _id: String(owner), role: 'user' }, owner)).not.toThrow();
     expect(() => assertOwnerOrAdmin(admin, owner)).not.toThrow();
-    expect(() => assertOwnerOrAdmin(service, 'service:www.cyberiaonline.com')).not.toThrow();
+    expect(() => assertOwnerOrAdmin(service, 'service:services.cyberiaonline.com')).not.toThrow();
   });
 
   it('refuses everyone else with 403, and a resource with no owner to all but an admin', () => {

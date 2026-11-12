@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // The materializations a write stores, by definition cid.
 const materializations = vi.hoisted(() => ({ ObjectLayerRenderFrames: new Map(), AtlasSpriteSheet: new Map() }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) => {
       const stored = materializations[name];

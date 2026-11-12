@@ -14,7 +14,7 @@ const node = vi.hoisted(() => ({
 }));
 const records = vi.hoisted(() => []);
 
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.service.js', () => ({

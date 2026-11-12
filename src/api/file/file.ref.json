@@ -34,6 +34,13 @@
     }
   },
   {
+    "api": "cyberia-procedural-population",
+    "model": {
+      "instanceDrafts.document.thumbnail": true,
+      "instanceDrafts.base.document.thumbnail": true
+    }
+  },
+  {
     "api": "document",
     "model": {
       "fileId": true,

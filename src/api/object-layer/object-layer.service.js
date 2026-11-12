@@ -10,7 +10,7 @@
  * @namespace ObjectLayerServiceModule
  */
 
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
 import { toWire } from '../../client/components/objectlayer-studio/RenderSource.js';
@@ -33,7 +33,7 @@ const logger = loggerFactory(import.meta);
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model.
  * @param {string} params.key
- * @param {Object} [params.options] - Router options; `options.extension.resolveKey` extends the lookup.
+ * @param {Object} [params.options] - The API context; `options.extension.resolveKey` extends the lookup.
  * @param {Object} [params.select] - Projection.
  * @returns {Promise<Object|null>} A mongoose document.
  * @memberof ObjectLayerServiceModule
@@ -60,7 +60,7 @@ class ObjectLayerService {
    * identity.
    * @param {Object} req - Express request with body `{ schemaVersion?, profile, data }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{cid:string,contentHash:string,created:boolean}>}
    */
   static post = async (req, res, options) => {
@@ -87,7 +87,7 @@ class ObjectLayerService {
    * definition stays stored under its cid either way.
    * @param {Object} req - Express request with body `{ archived: boolean }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The definition.
    */
   static lifecycle = async (req, res, options) => {
@@ -215,7 +215,7 @@ class ObjectLayerService {
    * cid the key resolves to, so a stale row can never destroy another definition.
    * @param {Object} req - Express request with body `{ cid }`.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<import('./object-layer.purge.js').PurgeReport>}
    */
   static purge = async (req, res, options) => {
@@ -240,7 +240,7 @@ class ObjectLayerService {
    * Nothing here touches IPFS: pins belong to publication.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static delete = async (req, res, options) => {

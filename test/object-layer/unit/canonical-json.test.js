@@ -90,10 +90,14 @@ describe('identity JSON input', () => {
   });
 
   it('refuses an Object Layer request body that repeats a property name', async () => {
-    const { ObjectLayerRouter } = await import('../../../src/api/object-layer/object-layer.router.js');
+    const { ApiModule } = await import('../../../src/api/object-layer/object-layer.router.js');
+    const { testApiContext } = await import('../../support/api-module.js');
     const app = express();
     app.use(express.json({ verify: keepRawBody }));
-    app.use('/object-layer', ObjectLayerRouter.router({ authMiddleware: (req, res, next) => next() }));
+    app.use(
+      '/object-layer',
+      ApiModule.createRouter(testApiContext(ApiModule, { authenticate: (req, res, next) => next() })),
+    );
     const server = app.listen(0);
     try {
       const response = await fetch(`http://127.0.0.1:${server.address().port}/object-layer/canonical`, {

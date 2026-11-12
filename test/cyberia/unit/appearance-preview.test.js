@@ -3,7 +3,7 @@ import sharp from 'sharp';
 
 // An in-memory Valkey, so the render cache keeps what it stores.
 const valkey = new Map();
-vi.mock('../../../src/db/valkey/Valkey.js', () => ({
+vi.mock('../../../src/db/valkey/valkey.js', () => ({
   ValkeyAPI: {
     isConnected: () => true,
     get: async (_options, key) => (valkey.has(key) ? JSON.parse(valkey.get(key)) : null),
@@ -13,7 +13,7 @@ vi.mock('../../../src/db/valkey/Valkey.js', () => ({
 
 // The definitions, atlases and idle preview Files of a host; `reads` counts the Files a drawing reads.
 const host = vi.hoisted(() => ({ types: new Map(), stills: new Map(), files: new Map(), reads: 0, failing: false }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) =>
       ({

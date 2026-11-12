@@ -7,8 +7,7 @@
  * @module src/projects/cyberia/atlas-sprite-sheet.extension.js
  * @namespace CyberiaAtlasStudio
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { moderatorGuard } from '../../server/security/auth.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
 import { purgeAtlasDoc } from '../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { ObjectLayerEngine } from './object-layer/object-layer.js';
@@ -24,7 +23,7 @@ class AtlasStudioService {
    * publishes the definition that names it.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../../api/types.js').RouterOptions} options - Router options.
+   * @param {import('../../api/types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>} The definition that names the render.
    */
   static generate = async (req, res, options) => {
@@ -41,7 +40,7 @@ class AtlasStudioService {
    * naming its render: the render is content.
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../../api/types.js').RouterOptions} options - Router options.
+   * @param {import('../../api/types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{success:boolean}>}
    */
   static deleteByObjectLayerId = async (req, res, options) => {
@@ -74,21 +73,24 @@ const AtlasStudioController = {
  * The definition an item label runs on: the one the catalog binds it to. The atlas API reads its
  * atlas for every label route: `/blob/:itemKey`, `/metadata/:itemKey`, `/idle-preview/:itemKey`.
  * @param {string} key - Item label.
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} options
  * @returns {Promise<string|null>} Canonical Object Layer CID.
  * @memberof CyberiaAtlasStudio
  */
 export const resolveKey = async (key, options) =>
   catalogMounted(options) ? await findBoundCid(catalogModels(options), key) : null;
 
+/** The API this module extends. */
+export const api = 'atlas-sprite-sheet';
+
 /**
  * Adds the Studio routes to the atlas router.
  * @param {import('express').Router} router
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} context
  * @memberof CyberiaAtlasStudio
  */
-export function mount(router, options) {
-  router.post(`/generate/:id`, options.authMiddleware, moderatorGuard, (req, res) => {
+export function mount(router, context) {
+  router.post(`/generate/:id`, context.services.auth.requireModerator, (req, res) => {
     /*
       #swagger.summary = 'Regenerate the render of a definition'
       #swagger.description = 'Regenerates the render of the definition `id` names from its render frames, and publishes the definition that names the render through the Object Layer authority.'
@@ -98,9 +100,9 @@ export function mount(router, options) {
         { name: 'id', in: 'path', description: 'Object Layer document id', required: true, schema: { type: 'string' } },
       ]
     */
-    return AtlasStudioController.generate(req, res, options);
+    return AtlasStudioController.generate(req, res, context);
   });
-  router.delete(`/object-layer/:id`, options.authMiddleware, moderatorGuard, (req, res) => {
+  router.delete(`/object-layer/:id`, context.services.auth.requireModerator, (req, res) => {
     /*
       #swagger.summary = 'Remove the atlas of a definition'
       #swagger.description = 'Removes the atlas of this host for the definition `id` names. The definition keeps naming its render, and the item keeps its binding.'
@@ -110,6 +112,6 @@ export function mount(router, options) {
         { name: 'id', in: 'path', description: 'Object Layer document id', required: true, schema: { type: 'string' } },
       ]
     */
-    return AtlasStudioController.deleteByObjectLayerId(req, res, options);
+    return AtlasStudioController.deleteByObjectLayerId(req, res, context);
   });
 }

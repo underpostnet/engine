@@ -6,7 +6,7 @@ import { renderContractOf } from '../../../src/api/object-layer/object-layer.ide
 const models = {};
 const ipfs = vi.hoisted(() => ({ addToIpfs: async () => null }));
 
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: { getModel: (name) => models[name] },
 }));
 vi.mock('../../../src/api/ipfs/ipfs.service.js', () => ({ createPinRecord: async () => ({}) }));

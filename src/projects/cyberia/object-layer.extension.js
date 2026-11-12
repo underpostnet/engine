@@ -3,7 +3,7 @@
  *
  * It builds definitions from the editor's render source under the Cyberia profile and publishes
  * them through the Object Layer authority. A save never binds: the item runs a definition only
- * once a moderator binds it in the Cyberia item catalog. MongoDB holds every frame; the asset tree changes only through `cyberia ol --client-public`. It also
+ * once a moderator binds it in the Cyberia item catalog. MongoDB holds every frame; the asset tree changes only through `cyberia content object-layer --client-public`. It also
  * lets a Cyberia item label name a definition. The host declares it in `conf.server.json` as
  * `apiExtensions: { "object-layer": "cyberia" }`; a host without it serves the canonical API only.
  *
@@ -11,8 +11,7 @@
  * @namespace CyberiaObjectLayerStudio
  */
 import fs from 'fs-extra';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { moderatorGuard } from '../../server/security/auth.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { serviceHandler } from '../../server/network/middlewares.js';
 import { ObjectLayerEngine } from './object-layer/object-layer.js';
 import {
@@ -254,7 +253,7 @@ const ObjectLayerStudioController = {
 /**
  * The document id a Cyberia item label names: the definition the catalog binds it to.
  * @param {string} key
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} options
  * @returns {Promise<Object|null>}
  * @memberof CyberiaObjectLayerStudio
  */
@@ -265,7 +264,7 @@ export const resolveKey = async (key, options) =>
  * The list parameters of an Object Layer table with its saga filter moved onto the item labels of
  * the sagas it names.
  * @param {Object} params - Request query.
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} options
  * @returns {Promise<Object>}
  * @memberof CyberiaObjectLayerStudio
  */
@@ -274,10 +273,10 @@ export const listParams = (params, options) =>
 
 /**
  * Removes what the Studio keeps for a definition that is deleted: the labels bound to it and, with
- * `assets` (`cyberia ol --drop --client-public`), its frames in the asset tree when no other
+ * `assets` (`cyberia content object-layer --drop --client-public`), its frames in the asset tree when no other
  * definition carries the label.
  * @param {Object} objectLayer - The definition being deleted.
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} options
  * @param {Object} [scope]
  * @param {boolean} [scope.assets=false] - Also remove the item's folder from the asset tree.
  * @returns {Promise<void>}
@@ -294,13 +293,16 @@ export const beforeDelete = async (objectLayer, options, { assets = false } = {}
     await fs.remove(`${basePath}/assets/${itemType}/${itemId}`);
 };
 
+/** The API this module extends. */
+export const api = 'object-layer';
+
 /**
  * Adds the Studio routes to the Object Layer router.
  * @param {import('express').Router} router
- * @param {import('../../api/types.js').RouterOptions} options
+ * @param {import('../../api/types.js').ApiRouterContext} context
  * @memberof CyberiaObjectLayerStudio
  */
-export function mount(router, options) {
+export function mount(router, context) {
   router.get(`/context/:id`, async (req, res) => {
     /*
       #swagger.summary = 'Foundation context of an item'
@@ -311,18 +313,44 @@ export function mount(router, options) {
         { name: 'id', in: 'path', description: 'cid, document id or item label', required: true, schema: { type: 'string' } },
       ]
     */
-    return await ObjectLayerStudioController.context(req, res, options);
+    return await ObjectLayerStudioController.context(req, res, context);
   });
-  router.post(`/import-frames`, options.authMiddleware, moderatorGuard, async (req, res) => {
+  router.post(`/import-frames`, context.services.auth.requireModerator, async (req, res) => {
     /*
       #swagger.summary = 'Frames of a definition in a palette'
-      #swagger.description = 'Body { id, palette, mutate, mutationFactor, seed, target }. Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette of the item `target` and with a seeded contour mutation. `palette` is { paletteId?, slots? }: a palette of the library, else the foundation palettes of `target`, else the first palette of the library, under the slot colors set. Stores nothing.'
+      #swagger.description = 'Answers the frames of the definition `id` names, as stored or, with `mutate`, remapped to the palette of the item `target` and with a seeded contour mutation. The palette is a palette of the library, else the foundation palettes of `target`, else the first palette of the library, under the slot colors set. Stores nothing.'
       #swagger.path = '/object-layer/import-frames'
       #swagger.method = 'post'
+      #swagger.requestBody = {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['id'],
+              properties: {
+                id: { type: 'string', description: 'A cid, document id or item id of the source definition.' },
+                palette: {
+                  type: 'object',
+                  properties: {
+                    paletteId: { type: 'string', description: 'A palette of the library.' },
+                    slots: { type: 'object', additionalProperties: { type: 'string' }, description: 'Slot colors set over the palette.' },
+                  },
+                },
+                mutate: { type: 'boolean', default: false, description: 'Remap to the palette of target and mutate the contour.' },
+                mutationFactor: { type: 'number', default: 0 },
+                seed: { type: 'integer', default: 0 },
+                target: { type: 'string', default: '', description: 'The item id whose palette a mutation takes.' },
+              },
+            },
+            examples: { asStored: { summary: 'Frames as stored', value: { id: '<item-id>' } } },
+          },
+        },
+      }
     */
-    return await ObjectLayerStudioController.importFrames(req, res, options);
+    return await ObjectLayerStudioController.importFrames(req, res, context);
   });
-  router.post(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
+  router.post(`/:id`, context.services.auth.requireModerator, async (req, res) => {
     /*
         #swagger.summary = 'Create object layer by ID'
         #swagger.description = 'This endpoint creates a new object layer entry with a specific ID'
@@ -352,9 +380,9 @@ export function mount(router, options) {
           }
         }
       */
-    return await ObjectLayerStudioController.post(req, res, options);
+    return await ObjectLayerStudioController.post(req, res, context);
   });
-  router.post(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
+  router.post(`/`, context.services.auth.requireModerator, async (req, res) => {
     /*
         #swagger.summary = 'Create object layer'
         #swagger.description = 'This endpoint creates a new object layer entry'
@@ -381,9 +409,9 @@ export function mount(router, options) {
           }
         }
       */
-    return await ObjectLayerStudioController.post(req, res, options);
+    return await ObjectLayerStudioController.post(req, res, context);
   });
-  router.put(`/:id`, options.authMiddleware, moderatorGuard, async (req, res) => {
+  router.put(`/:id`, context.services.auth.requireModerator, async (req, res) => {
     /*
         #swagger.summary = 'Update object layer by ID'
         #swagger.description = 'This endpoint updates an object layer entry by ID'
@@ -413,9 +441,9 @@ export function mount(router, options) {
           }
         }
       */
-    return await ObjectLayerStudioController.put(req, res, options);
+    return await ObjectLayerStudioController.put(req, res, context);
   });
-  router.put(`/`, options.authMiddleware, moderatorGuard, async (req, res) => {
-    return await ObjectLayerStudioController.put(req, res, options);
+  router.put(`/`, context.services.auth.requireModerator, async (req, res) => {
+    return await ObjectLayerStudioController.put(req, res, context);
   });
 }

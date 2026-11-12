@@ -56,7 +56,7 @@ class DataQuery {
    * @param {number|string} [params.limit=10] - Items per page for pagination
    * @param {string} [params.sort] - Simple sort field (legacy)
    * @param {string|boolean} [params.asc] - Simple sort direction (legacy, '1'/'true' for asc)
-   * @param {string} [params.order] - Simple order string, e.g. "field1:asc,field2:desc" (legacy)
+   * @param {string} [params.order] - With `sort`, its direction ("asc" or "desc"); alone, "field1:asc,field2:desc"
    * @param {Object} [params.query] - Default query object to merge with filters
    * @memberof DataQuery
    * @returns {Object} { query, sort, skip, limit, page }
@@ -113,7 +113,11 @@ class DataQuery {
 
     // Simple sort params (legacy support)
     if (sortParam && typeof sortParam === 'string') {
-      const direction = asc === '1' || asc === 'true' || asc === true ? 1 : -1;
+      const ascending =
+        asc === undefined
+          ? `${order || ''}`.trim().toLowerCase() === 'asc'
+          : asc === '1' || asc === 'true' || asc === true;
+      const direction = ascending ? 1 : -1;
       sort[sortParam] = direction;
       return sort;
     }

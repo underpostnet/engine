@@ -49,7 +49,7 @@ and the labels a remaining definition still names. The render frames and the atl
 definition are its own, so they go with it; a render File another atlas still holds stays.
 
 `src/api/object-layer/object-layer.purge.js` is the one implementation: the purge route, the
-Object Layer management view's purge action, `cyberia ol --drop` and `cyberia instance --drop` all
+Object Layer management view's purge action, `cyberia content object-layer --drop` and `cyberia instance --drop` all
 call it. The route takes the owner of the definition or an admin. At the authority the owner of a
 published definition is the domain that published it, so a consumer can purge what it published,
 for example the leftovers of a deleted procedural job. It is rerunnable, and it reports what it removed. A purge selects definitions by an
@@ -57,7 +57,7 @@ explicit filter: a label shared with another definition is never a reason to rem
 
 A Cyberia content release shares the File store and the IPFS node with every other release. A
 purge there removes the release's own documents and pin records only: the render Files, the pins
-and the MFS paths stay for the other releases, and `cyberia content-release prune` removes the
+and the MFS paths stay for the other releases, and `cyberia content release prune` removes the
 renders and the IPFS content no kept release holds.
 
 A definition ItemLedger registers is never purged: a token type names content that must stay
@@ -68,7 +68,7 @@ imports and the runtime never need ItemLedger: without it, a definition shows as
 its ledger state as unavailable.
 
 Each host purges what it stores, and no purge reaches another host: a consumer that cached the
-definition unbinds it on its next reconciliation (`cyberia catalog reconcile`).
+definition unbinds it on its next reconciliation (`cyberia content catalog reconcile`).
 
 ## Cache
 

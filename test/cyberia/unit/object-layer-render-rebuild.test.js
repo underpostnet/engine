@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // A rebuild reads the stored render frames of the definition, builds the render and publishes.
 const store = vi.hoisted(() => ({ renderFrames: new Map() }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: () => ({
       findOne: ({ objectLayerCid }) => ({ lean: async () => store.renderFrames.get(objectLayerCid) ?? null }),

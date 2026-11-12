@@ -1,4 +1,4 @@
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
@@ -39,7 +39,7 @@ const noRender = (cid) => Object.assign(failure(404, `Object layer ${cid} names 
  *
  * @param {Object} params
  * @param {Object} params.atlasDoc - The AtlasSpriteSheet document.
- * @param {Object} params.options - Router options ({ host, path }).
+ * @param {Object} params.options - The host path ({ host, path }).
  * @param {{cid: string, metadataCid: string}} [params.render] - Render contract whose pins and MFS
  *   entries go too.
  * @returns {Promise<void>}
@@ -73,7 +73,7 @@ const storedBytes = async (fileId, options) => {
 /**
  * The bytes of a render File. Its id is derived from its bytes, so they are kept for good.
  * @param {string} fileId - Render File id.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<Buffer|null>}
  */
 export const renderFileBytes = (fileId, options) =>
@@ -87,7 +87,7 @@ export const renderFileBytes = (fileId, options) =>
  * The definition an item label runs on. A label is no identity: the host that binds labels to
  * definitions resolves it (`options.extension.resolveKey`) to the cid of the definition it binds.
  * @param {string} itemKey - Item label.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<string>} Canonical Object Layer CID.
  * @throws {Error} `status` 404 when no definition is bound to the label.
  */
@@ -104,7 +104,7 @@ class AtlasSpriteSheetService {
    * is the ETag, so a client revalidates its copy without a download.
    * @param {{itemKey: string, field: string, role: string}} params - `role` names the render: `primary`, `idle`.
    * @param {import('express').Response} res
-   * @param {Object} options - Router options.
+   * @param {Object} options - The API context.
    * @returns {Promise<{buffer: Buffer, mimetype: string, name: string, etag: string}>}
    * @throws {Error} `status` 404 when the label runs on no such render.
    */
@@ -150,7 +150,7 @@ class AtlasSpriteSheetService {
    * valid content. The definition comes from this host's cache, else from the Object Layer
    * authority, so a definition no served release holds keeps its render.
    * @param {string} cid - Canonical Object Layer cid.
-   * @param {Object} options - Router options.
+   * @param {Object} options - The API context.
    * @returns {Promise<{renderCid: string, metadataCid: string}|null>}
    * @throws {Error} `status` 404 for an unknown definition.
    */
@@ -170,7 +170,7 @@ class AtlasSpriteSheetService {
    * bytes must hash to the cids too, so every host that holds the definition can serve it. Both
    * are kept for good by cid.
    * @param {string} cid - Canonical Object Layer cid.
-   * @param {Object} options - Router options.
+   * @param {Object} options - The API context.
    * @param {{png?: boolean}} [read] - `png: false` reads the layout only.
    * @returns {Promise<{renderCid: string, metadataCid: string, png: Buffer|null, layout: Object}|null>} Null when the
    *   definition names no render yet.
@@ -216,7 +216,7 @@ class AtlasSpriteSheetService {
   /**
    * One image derived from a definition's render, kept under the render's cid once produced.
    * @param {string} cid - Canonical Object Layer cid.
-   * @param {Object} options - Router options.
+   * @param {Object} options - The API context.
    * @param {string} kind - What is derived: `idle-fill-<size>`, `upscaled`, `animation:<direction>`.
    * @param {(render: {renderCid: string, png: Buffer, layout: Object}) => Promise<Buffer|null>} produce
    * @returns {Promise<Buffer|null>} Null when the render has nothing to derive.
@@ -235,7 +235,7 @@ class AtlasSpriteSheetService {
   /**
    * The idle preview of the definition a cid names: a pure function of its render, kept for good.
    * @param {string} cid - Canonical Object Layer cid.
-   * @param {Object} options - Router options.
+   * @param {Object} options - The API context.
    * @returns {Promise<{buffer: Buffer, mimetype: string, name: string}>}
    */
   static definitionIdlePreview = async (cid, options) => {

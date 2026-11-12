@@ -21,7 +21,7 @@ No read depends on an MFS path: the gateway and every runtime read address conte
 announces every block it stores (its default reprovider strategy), so nothing provides through MFS
 either. MFS is off unless `IPFS_MFS_ENABLED=true`. With MFS off, no listing is created, read or
 removed; adding, pinning, reading and unpinning work as before; a diagnostic reports `MFS off`, and
-`cyberia catalog check --ipfs` reports no MFS finding. Turn it on where a person browses the IPFS Web
+`cyberia content catalog check --ipfs` reports no MFS finding. Turn it on where a person browses the IPFS Web
 UI "Files" view.
 
 ## Layout
@@ -60,7 +60,7 @@ A purge removes the directory of each definition it removes, and unpins what no 
 definition of the host names. A content release shares the node with every other release, so a
 purge there removes its own records only.
 
-`cyberia content-release prune` collects by reachability: a render CID stays pinned while any kept
+`cyberia content release prune` collects by reachability: a render CID stays pinned while any kept
 store, the workspace or a kept release, holds a definition that names it. A directory loses its
 render files once no kept store holds its definition. The canonical bytes are the authority's:
 they stay. An item id that stops running a CID is never a reason to unpin it.
@@ -70,7 +70,7 @@ they stay. An item id that stops running a CID is never a reason to unpin it.
 `GET /api/v1/cyberia-item-catalog/:itemId/diagnostics?cid=` answers, for each file of a definition,
 its CID, its path, whether the registry records it, whether Kubo pins it, whether the Cluster pins it
 on as many peers as the pin's `replication_factor_min` asks (with the pinned, required and pending
-peers), and which CID the path lists while MFS is on. `cyberia catalog check --ipfs` checks every bound definition and reports each
+peers), and which CID the path lists while MFS is on. `cyberia content catalog check --ipfs` checks every bound definition and reports each
 finding in its own category: binding, content, MFS or pin.
 
 ## Migration

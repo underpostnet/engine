@@ -11,7 +11,7 @@
 import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { CACHE_POLICY, CacheService } from '../../../server/storage/cache.js';
 import { apiPathOf } from '../../../server/domain/api-contract.js';
 import { renderFileBytes } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
@@ -53,7 +53,7 @@ export const appearanceReference = (cids) =>
  * The layers of an appearance that draw, in draw order: each with its draw priority and the File of
  * its stored idle preview. A layer whose atlas holds no idle preview on this host draws nothing.
  * @param {string[]} cids - Object Layer CIDs, in layer order.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<Array<{cid: string, priority: number, still: string}>>}
  * @memberof CyberiaAppearancePreview
  */
@@ -159,7 +159,7 @@ const drawing = previewQueue();
  * The preview a reference names. A preview the cache holds is served as is; concurrent requests of
  * one fingerprint share one drawing; a failed drawing is never cached, so the next request draws again.
  * @param {string[]} cids - Object Layer CIDs, in layer order.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<{fingerprint: string, png: Buffer}>}
  * @throws {Error} `status` 404 when no layer draws, 503 while an idle preview cannot be read.
  * @memberof CyberiaAppearancePreview
@@ -186,7 +186,7 @@ export async function appearancePreview(cids, options) {
  * stack on the definition the served catalog binds to its label. An account without a profile, or
  * with no visual layer, has none.
  * @param {Array<string|import('mongoose').Types.ObjectId>} accounts - Account IDs.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<Map<string, string>>} Account ID → reference.
  * @memberof CyberiaAppearancePreview
  */

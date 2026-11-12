@@ -134,7 +134,8 @@ describe('a batch', () => {
   });
 });
 
-describe('skin variant generation', () => {
+// Each test generates whole variants: CPU-bound, and slower under coverage on a loaded host.
+describe('skin variant generation', { timeout: 30_000 }, () => {
   it('gives the same render, metrics, diversity and seed for the same input', () => {
     const [first, second] = [run(render), run(render)];
     expect(toWire(first.renderSource)).toEqual(toWire(second.renderSource));
@@ -148,8 +149,9 @@ describe('skin variant generation', () => {
       [1, 2, 3, 4, 5, 6].map((seed) => JSON.stringify(toWire(run(render, { seed }).renderSource))),
     );
     expect(renders.size).toBeGreaterThan(1);
-    expect(run(render).diversity.score).toBeGreaterThanOrEqual(parameters.minDiversity);
-    expect(run(render).diversity.nearest).toBe('source');
+    const { diversity } = run(render);
+    expect(diversity.score).toBeGreaterThanOrEqual(parameters.minDiversity);
+    expect(diversity.nearest).toBe('source');
   });
 
   it('keeps the directions, the frame counts, the canvas and the frame duration of the source', () => {

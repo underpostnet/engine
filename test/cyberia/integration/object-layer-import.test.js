@@ -1,7 +1,7 @@
 // Requires mongod (UNDERPOST_MONGOD_BIN). A stub Object Layer authority and a stub IPFS gateway answer over HTTP.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import {
   canonicalJsonBytes,
   canonicalRender,
@@ -13,7 +13,8 @@ import { ObjectLayerService } from '../../../src/api/object-layer/object-layer.s
 import { AtlasSpriteSheetGenerator } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.generator.js';
 import { AtlasSpriteSheetStore } from '../../../src/api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { CyberiaItemCatalogService } from '../../../src/api/cyberia-item-catalog/cyberia-item-catalog.service.js';
-import { ApiRouter as CatalogRouter } from '../../../src/api/cyberia-item-catalog/cyberia-item-catalog.router.js';
+import { ApiModule as CatalogModule } from '../../../src/api/cyberia-item-catalog/cyberia-item-catalog.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { catalogModels, itemBindingHistory } from '../../../src/projects/cyberia/catalog/object-layer-catalog.js';
 import {
   importDefinition,
@@ -573,12 +574,12 @@ describe.skipIf(!mongodBinary)('an import from the Object Layer authority', () =
   it('refuses every import route to a role below moderator, on the server', async () => {
     const app = express();
     app.use(express.json());
-    const authMiddleware = (req, res, next) => {
+    const authenticate = (req, res, next) => {
       if (!req.headers['x-role']) return res.status(401).json({ status: 'error', message: 'unauthorized' });
       req.auth = { user: { _id: MODERATOR, role: req.headers['x-role'] } };
       next();
     };
-    app.use('/catalog', CatalogRouter({ ...host, authMiddleware }));
+    app.use('/catalog', CatalogModule.createRouter(testApiContext(CatalogModule, { ...host, authenticate })));
     const listener = await listen(app);
     const base = `http://127.0.0.1:${listener.address().port}/catalog`;
     const call = (path, role, method = 'GET', body) =>

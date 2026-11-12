@@ -15,7 +15,7 @@
  * @module src/api/object-layer/object-layer.purge.js
  * @namespace ObjectLayerPurge
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { CacheService } from '../../server/storage/cache.js';
 import { AtlasSpriteSheetStore } from '../atlas-sprite-sheet/atlas-sprite-sheet.store.js';
@@ -62,7 +62,7 @@ const PURGE_PROJECTION = { cid: 1, 'data.item': 1, 'data.render': 1 };
  * reported instead, never removed.
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - Bound ObjectLayer model.
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @param {Object} [filter={}] - ObjectLayer selector.
  * @returns {Promise<{purgeable:Object[],kept:Array<{cid:string,itemId:string}>}>}
  * @memberof ObjectLayerPurge
@@ -87,7 +87,7 @@ export async function findPurgeableDefinitions({ ObjectLayer, options }, filter 
  * nothing and reports zeros.
  *
  * @param {Object} params
- * @param {Object} params.options - Router options of this host; `options.extension.beforeDelete`
+ * @param {Object} params.options - The API context of this host; `options.extension.beforeDelete`
  *   removes what the host's Studio keeps for a definition.
  * @param {Object} [params.filter={}] - ObjectLayer selector. `{}` purges every definition.
  * @param {boolean} [params.pruneOrphans=false] - Also remove atlas renders no atlas points at.
