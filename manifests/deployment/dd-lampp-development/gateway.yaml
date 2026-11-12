@@ -4,7 +4,10 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: dd-lampp-development
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
 spec:
   gatewayClassName: eg
   listeners:
@@ -15,10 +18,36 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-ayleenbertini-com-6a7a6c8a
+      hostname: "ayleenbertini.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: ayleenbertini.com
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-giancarlobertini-com-66c66e08
       hostname: "giancarlobertini.com"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-giancarlobertini-com-66c66e08
+      hostname: "giancarlobertini.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: giancarlobertini.com
       allowedRoutes:
         namespaces:
           from: Same
@@ -29,6 +58,19 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-www-ayleenbertini-com-8f548ab5
+      hostname: "www.ayleenbertini.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.ayleenbertini.com
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-www-giancarlobertini-com-bf64ad20
       hostname: "www.giancarlobertini.com"
       protocol: HTTP
@@ -36,3 +78,45 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-www-giancarlobertini-com-bf64ad20
+      hostname: "www.giancarlobertini.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.giancarlobertini.com
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: dd-lampp-development-http3
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-lampp-development
+      sectionName: https-ayleenbertini-com-6a7a6c8a
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-lampp-development
+      sectionName: https-giancarlobertini-com-66c66e08
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-lampp-development
+      sectionName: https-www-ayleenbertini-com-8f548ab5
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-lampp-development
+      sectionName: https-www-giancarlobertini-com-bf64ad20
+  http3: {}

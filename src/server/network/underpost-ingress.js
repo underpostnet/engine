@@ -25,6 +25,8 @@
  */
 
 import { compressionConfFactory, compressionModulesConfFactory, nginxImageFactory } from './underpost-compression.js';
+import { serviceDnsName } from './service-dns.js';
+import { podSchedulingYaml } from '../runtime/pod-scheduling.js';
 
 /**
  * @constant UNDERPOST_INGRESS
@@ -42,26 +44,22 @@ const UNDERPOST_INGRESS = {
   healthPath: '/healthz',
   // kube-dns's conventional ClusterIP; overridden from the live Service.
   resolver: '10.96.0.10',
-  backends: {
-    contour: { http: 'envoy.projectcontour.svc.cluster.local:80', tls: 'envoy.projectcontour.svc.cluster.local:443' },
-  },
 };
 
 /**
- * @method gatewayBackendFactory
- * @description Upstreams for the Gateway API data plane.
- *
- * Envoy Gateway provisions and names its own Service (`envoy-<class>-<hash>`),
- * so unlike Contour's fixed name this one is discovered from the cluster and
- * passed in.
- * @param {string} service - Provisioned Service name.
- * @param {string} [namespace] - Namespace holding it.
+ * @method ingressBackendFactory
+ * @description The upstreams of a data plane: its Service on 80 and 443, by its fully qualified
+ * name, because nginx resolves an upstream without a search domain.
+ * @param {object} params
+ * @param {string[]} params.services - The Services of the data plane; the first one serves.
+ * @param {string} params.namespace - Its namespace.
+ * @param {string} [params.clusterDomain] - The DNS domain of the cluster.
  * @returns {{http: string, tls: string}} Qualified upstreams.
  * @memberof UnderpostIngress
  */
-const gatewayBackendFactory = (service, namespace = 'envoy-gateway-system') => ({
-  http: `${service}.${namespace}.svc.cluster.local:80`,
-  tls: `${service}.${namespace}.svc.cluster.local:443`,
+const ingressBackendFactory = ({ services: [service], namespace, clusterDomain }) => ({
+  http: serviceDnsName({ service, namespace, clusterDomain, port: 80 }),
+  tls: serviceDnsName({ service, namespace, clusterDomain, port: 443 }),
 });
 
 /**
@@ -73,23 +71,38 @@ const gatewayBackendFactory = (service, namespace = 'envoy-gateway-system') => (
  * are always generated, so the objects that actually exist in the cluster are
  * what says who serves what.
  *
- * A hostname described by both is a leftover from switching stacks, not a valid
- * state — both would answer, and which one won would depend on ordering here. It
- * resolves to `preferred` and is reported separately so the duplicate can be
- * removed rather than silently tolerated.
+ * A hostname described by both is a provider transition in progress. It moves to
+ * `preferred`, the stack of the configured provider, only once that stack serves
+ * it (`ready`); until then the other stack keeps it. It is reported separately so
+ * the old route is removed once the new one serves.
  * @param {Array<string>} [contourHosts] - Hostnames with an HTTPProxy.
  * @param {Array<string>} [gatewayHosts] - Hostnames with an HTTPRoute.
- * @param {string} [preferred] - Backend that wins a hostname described by both.
+ * @param {string} [preferred] - Backend of the configured provider.
+ * @param {Iterable<string>} [ready] - Hostnames the preferred stack serves.
  * @returns {{entries: Array<{host: string, backend: string}>, conflicts: Array<string>}} Routing table and duplicates.
  * @memberof UnderpostIngress
  */
-const underpostIngressHostMapFactory = ({ contourHosts = [], gatewayHosts = [], preferred = 'gateway' } = {}) => {
+const underpostIngressHostMapFactory = ({
+  contourHosts = [],
+  gatewayHosts = [],
+  preferred = 'gateway',
+  ready = [],
+} = {}) => {
   const contour = new Set(contourHosts.filter(Boolean));
   const gateway = new Set(gatewayHosts.filter(Boolean));
+  const serving = new Set(ready);
+  const other = preferred === 'gateway' ? 'contour' : 'gateway';
   const conflicts = [...contour].filter((host) => gateway.has(host)).sort();
   const entries = [...new Set([...contour, ...gateway])].sort().map((host) => ({
     host,
-    backend: contour.has(host) && gateway.has(host) ? preferred : contour.has(host) ? 'contour' : 'gateway',
+    backend:
+      contour.has(host) && gateway.has(host)
+        ? serving.has(host)
+          ? preferred
+          : other
+        : contour.has(host)
+          ? 'contour'
+          : 'gateway',
   }));
   return { entries, conflicts };
 };
@@ -255,11 +268,11 @@ ${
  * the claim it installs is what made the two stacks exclusive in the first place.
  * @param {string} [namespace] - Namespace to deploy into.
  * @param {string} conf - Rendered nginx.conf.
- * @param {string} [nodeName] - Node to pin the underpost ingress to; empty schedules freely.
+ * @param {{affinity?:Object, tolerations?:Object[]}} [scheduling] - The node of the listener; empty schedules freely.
  * @returns {string} Multi-document YAML.
  * @memberof UnderpostIngress
  */
-const underpostIngressManifestsFactory = ({ namespace = 'default', conf, nodeName = '' } = {}) => {
+const underpostIngressManifestsFactory = ({ namespace = 'default', conf, scheduling = {} } = {}) => {
   return `
 ---
 apiVersion: v1
@@ -298,14 +311,8 @@ spec:
         app: ${UNDERPOST_INGRESS.name}
     spec:
       hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet${
-        nodeName
-          ? `
-      nodeSelector:
-        kubernetes.io/hostname: ${nodeName}`
-          : ''
-      }
-      containers:
+      dnsPolicy: ClusterFirstWithHostNet
+${podSchedulingYaml(scheduling, 6)}      containers:
         - name: nginx
           image: ${UNDERPOST_INGRESS.image}
           # The latest tag otherwise implies Always. Production edge nodes are often
@@ -373,7 +380,7 @@ spec:
 
 export {
   UNDERPOST_INGRESS,
-  gatewayBackendFactory,
+  ingressBackendFactory,
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,

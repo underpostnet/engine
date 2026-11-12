@@ -4,13 +4,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: healthcare.nexodev.org
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-prototype-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - healthcare.nexodev.org
   rules:
@@ -31,6 +34,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -50,6 +54,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -64,7 +69,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4026
+          port: 4023
           weight: 100
     - matches:
         - path:
@@ -78,6 +83,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -92,7 +98,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4027
+          port: 4024
           weight: 100
 
 ---
@@ -100,13 +106,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: www.bymyelectrics.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-prototype-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - www.bymyelectrics.com
   rules:
@@ -127,6 +136,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -146,6 +156,142 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-prototype-development-traffic-service
+          port: 4025
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          namespace: underpost-platform
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /peer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-prototype-development-traffic-service
+          port: 4026
+          weight: 100
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bymyelectrics.com
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-prototype-development
+      namespace: underpost-workloads
+  hostnames:
+    - bymyelectrics.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: dd-prototype-development-traffic-service
+          port: 4027
+          weight: 100
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vitaintegral.nexodev.org
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-prototype-development
+      namespace: underpost-workloads
+  hostnames:
+    - vitaintegral.nexodev.org
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /offline
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /vitaintegral.nexodev.org/root/offline
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          namespace: underpost-platform
+          port: 80
+          weight: 100
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /maintenance
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /vitaintegral.nexodev.org/root/maintenance
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Alt-Svc
+                value: 'h3=":443"; ma=86400'
+      backendRefs:
+        - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -174,6 +320,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -195,140 +342,17 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: bymyelectrics.com
-  namespace: default
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: dd-prototype-development
-      namespace: default
-  hostnames:
-    - bymyelectrics.com
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: dd-prototype-development-traffic-service
-          port: 4030
-          weight: 100
-
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: vitaintegral.nexodev.org
-  namespace: default
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: dd-prototype-development
-      namespace: default
-  hostnames:
-    - vitaintegral.nexodev.org
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /offline
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /vitaintegral.nexodev.org/root/offline
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: underpost-gateway-service
-          port: 80
-          weight: 100
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /maintenance
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /vitaintegral.nexodev.org/root/maintenance
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: underpost-gateway-service
-          port: 80
-          weight: 100
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/v1
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: dd-prototype-development-traffic-service
-          port: 4031
-          weight: 100
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: underpost-gateway-service
-          port: 80
-          weight: 100
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /peer
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Alt-Svc
-                value: 'h3=":443"; ma=86400'
-      backendRefs:
-        - name: dd-prototype-development-traffic-service
-          port: 4032
-          weight: 100
-
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
   name: www.cecinasmarcelina.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-prototype-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - www.cecinasmarcelina.com
   rules:
@@ -349,6 +373,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -368,6 +393,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -382,7 +408,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4033
+          port: 4030
           weight: 100
     - matches:
         - path:
@@ -396,6 +422,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: underpost-gateway-service
+          namespace: underpost-platform
           port: 80
           weight: 100
     - matches:
@@ -410,7 +437,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4034
+          port: 4031
           weight: 100
 
 ---
@@ -418,13 +445,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: cecinasmarcelina.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-prototype-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-prototype-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - cecinasmarcelina.com
   rules:
@@ -440,5 +470,5 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-prototype-development-traffic-service
-          port: 4035
+          port: 4032
           weight: 100

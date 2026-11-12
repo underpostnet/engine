@@ -23,6 +23,7 @@ import { shellHarness } from '../../../support/shell-harness.js';
 
 const HOST_ROOT = '/underpost/gateway';
 const CONF_DIR = '/tmp/gateway-conf-fixture';
+const STAGING = '/tmp/underpost-gateway-fixture';
 
 // The gateway root is a root-owned node directory and every install talks to a
 // running Nginx in the cluster. Both are replaced so the assertions are over the
@@ -52,6 +53,7 @@ const gatewayFixture = (files = {}) => {
   };
   vi.spyOn(fs, 'writeFileSync').mockImplementation(write);
   vi.spyOn(fs, 'mkdirpSync').mockImplementation(() => undefined);
+  vi.spyOn(fs, 'mkdtempSync').mockReturnValue(STAGING);
   vi.spyOn(fs, 'removeSync').mockImplementation((filePath) => {
     written.delete(`${filePath}`);
     removed.push(`${filePath}`);
@@ -90,7 +92,9 @@ describe('gateway static assets', () => {
           sourcePath: './project/public/404/index.html',
         }),
       ).to.equal(true);
-      expect(harness.ran(`sudo cp -f ./project/public/404/index.html ${HOST_ROOT}/app.test`)).to.equal(true);
+      expect(
+        harness.ran(/install -D -m 0644 .*\.\/project\/public\/404\/index\.html.* .*\/underpost\/gateway\/app\.test/),
+      ).to.equal(true);
     });
 
     // A half-finished copy leaves an empty file behind, and serving it would
@@ -102,7 +106,7 @@ describe('gateway static assets', () => {
       ).to.equal(false);
       expect(writeStaticAsset({ hostRoot: HOST_ROOT, assetPath: 'a', sourcePath: './absent.html' })).to.equal(false);
       expect(writeStaticAsset({ hostRoot: HOST_ROOT, assetPath: 'a' })).to.equal(false);
-      expect(harness.ran('sudo cp')).to.equal(false);
+      expect(harness.ran('install -D')).to.equal(false);
     });
 
     it('treats an empty document under the gateway root as absent', () => {
@@ -118,7 +122,7 @@ describe('gateway static assets', () => {
       const { write } = gatewayFixture();
       harness.route({
         match: (command) => {
-          const staged = /kubectl cp \S+ (\/tmp\/underpost-gateway-\S+)/.exec(command)?.[1];
+          const staged = /kubectl cp \S+ (\/tmp\/underpost-gateway-fixture\/\S+)/.exec(command)?.[1];
           if (staged) write(staged, '<!doctype html>from pod\n');
           return false;
         },
@@ -135,7 +139,7 @@ describe('gateway static assets', () => {
       ).to.equal(true);
       expect(harness.ran('kubectl cp ops/app-pod:/app/public/404/index.html')).to.equal(true);
       expect(harness.ran('-c app')).to.equal(true);
-      expect(harness.ran(`sudo cp -f /tmp/underpost-gateway-`)).to.equal(true);
+      expect(harness.ran(/install -D -m 0644 .*\/tmp\/underpost-gateway-fixture\/asset/)).to.equal(true);
     });
 
     it('reports nothing placed when the workload has no such document', () => {
@@ -148,7 +152,7 @@ describe('gateway static assets', () => {
           assetPath: 'a',
         }),
       ).to.equal(false);
-      expect(harness.ran('sudo cp -f')).to.equal(false);
+      expect(harness.ran('install -D')).to.equal(false);
     });
 
     // A missing document is invisible at deploy time and only surfaces later as
@@ -253,16 +257,16 @@ describe('gateway static assets', () => {
       expect(() => installGatewayConf({ hostRoot: HOST_ROOT, confSourceDir: CONF_DIR })).to.throw(
         'Gateway config rejected',
       );
-      expect(harness.ran('underpost-gateway-restore-app.test.conf')).to.equal(true);
+      expect(harness.ran(/install -D -m 0644 .*underpost-gateway-fixture\/content.*app\.test\.conf/)).to.equal(true);
+      expect(written.get(`${STAGING}/content`)).to.equal('server { listen 8080; }\n');
       expect(harness.ran('nginx -s reload')).to.equal(false);
-      expect([...written.keys()].every((path) => !path.includes('restore'))).to.equal(true);
     });
 
     it('removes a block that was not there before the failed candidate', () => {
       installFixture();
       harness.route({ match: 'nginx -t', code: 1, stdout: 'nginx: [emerg]\n' });
       expect(() => installGatewayConf({ hostRoot: HOST_ROOT, confSourceDir: CONF_DIR })).to.throw();
-      expect(harness.ran(`sudo rm -f ${HOST_ROOT}/${UNDERPOST_GATEWAY.confDir}/app.test.conf`)).to.equal(true);
+      expect(harness.ran(/rm -rf -- .*\/underpost\/gateway\/conf\.d\/app\.test\.conf/)).to.equal(true);
     });
 
     // The running master normally retains its old config when a reload fails, so
@@ -297,17 +301,17 @@ describe('gateway static assets', () => {
 
   describe('default status page', () => {
     it('creates the include directory and writes the shared fallback', () => {
-      gatewayFixture();
+      const { written } = gatewayFixture();
       expect(seedDefaultStatusPage(HOST_ROOT)).to.equal(true);
-      expect(harness.ran(`sudo mkdir -p ${HOST_ROOT}/${UNDERPOST_GATEWAY.confDir}`)).to.equal(true);
-      expect(harness.ran('404 Not Found')).to.equal(true);
+      expect(harness.ran(/install -d .*\/underpost\/gateway\/conf\.d/)).to.equal(true);
+      expect(written.get(`${STAGING}/content`)).to.include('404 Not Found');
     });
 
     // An operator may have replaced it.
     it('never overwrites an existing document', () => {
       gatewayFixture({ [`${HOST_ROOT}/${UNDERPOST_GATEWAY.defaultHostDir}/status-pages/404/index.html`]: 'custom' });
       expect(seedDefaultStatusPage(HOST_ROOT)).to.equal(false);
-      expect(harness.ran('sudo tee')).to.equal(false);
+      expect(harness.ran('install -D')).to.equal(false);
     });
   });
 

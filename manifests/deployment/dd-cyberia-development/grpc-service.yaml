@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: dd-cyberia-grpc-service-development
-  namespace: default
+  namespace: underpost-workloads
   labels:
     app: dd-cyberia-grpc-service-development
 spec:

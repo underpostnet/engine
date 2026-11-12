@@ -4,13 +4,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: www.giancarlobertini.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-lampp-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - www.giancarlobertini.com
   rules:
@@ -26,7 +29,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-lampp-development-traffic-service
-          port: 4001
+          port: 4033
           weight: 100
 
 ---
@@ -34,13 +37,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: giancarlobertini.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-lampp-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - giancarlobertini.com
   rules:
@@ -56,7 +62,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-lampp-development-traffic-service
-          port: 4002
+          port: 4034
           weight: 100
 
 ---
@@ -64,13 +70,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: www.ayleenbertini.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-lampp-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - www.ayleenbertini.com
   rules:
@@ -86,7 +95,7 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-lampp-development-traffic-service
-          port: 4003
+          port: 4035
           weight: 100
 
 ---
@@ -94,13 +103,16 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: ayleenbertini.com
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-lampp-development
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: dd-lampp-development
-      namespace: default
+      namespace: underpost-workloads
   hostnames:
     - ayleenbertini.com
   rules:
@@ -116,5 +128,5 @@ spec:
                 value: 'h3=":443"; ma=86400'
       backendRefs:
         - name: dd-lampp-development-traffic-service
-          port: 4004
+          port: 4036
           weight: 100

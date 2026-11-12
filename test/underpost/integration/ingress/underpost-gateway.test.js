@@ -380,7 +380,10 @@ describe('underpost gateway edge tier', () => {
   // on a running gateway to validate against, and cannot mutate the host either.
   // Installing and reloading is the apply path's job.
   describe('build/apply separation', () => {
-    const source = fs.readFileSync(new URL('../../../../src/server/network/underpost-gateway.js', import.meta.url), 'utf8');
+    const source = fs.readFileSync(
+      new URL('../../../../src/server/network/underpost-gateway.js', import.meta.url),
+      'utf8',
+    );
     const bodyOf = (name) => {
       const start = source.indexOf(`const ${name} = `);
       const next = source.slice(start + 1).search(/\nconst \w+ = |\nexport \{/);
@@ -455,7 +458,7 @@ describe('underpost gateway edge tier', () => {
     const deploySource = fs.readFileSync(new URL('../../../../src/cli/deploy.js', import.meta.url), 'utf8');
     const switchTraffic = deploySource.slice(
       deploySource.indexOf('    switchTraffic('),
-      deploySource.indexOf('    resolveDeployNode(', deploySource.indexOf('    switchTraffic(')),
+      deploySource.indexOf('    resolveDeployNodes(', deploySource.indexOf('    switchTraffic(')),
     );
 
     it('loads the rebuilt gateway host blocks before applying HTTPRoutes', () => {
@@ -466,8 +469,10 @@ describe('underpost gateway edge tier', () => {
     });
 
     it('refreshes the shared ingress host table after publishing routes', () => {
-      const apply = switchTraffic.indexOf('shellExec(`sudo kubectl apply -f ${buildPath}/${file}');
-      const refresh = switchTraffic.indexOf('Underpost.cluster.refreshUnderpostIngress({ namespace, options });');
+      const apply = switchTraffic.indexOf('shellExec(`kubectl apply -f ${buildPath}/${file}');
+      const refresh = switchTraffic.indexOf(
+        'Underpost.cluster.refreshUnderpostIngress({ namespace: platform, options });',
+      );
       expect(apply).to.be.greaterThan(-1);
       expect(refresh).to.be.greaterThan(apply);
     });
@@ -476,7 +481,7 @@ describe('underpost gateway edge tier', () => {
       const ready = switchTraffic.indexOf('!Underpost.deploy.awaitServiceEndpoints({');
       const bootstrap = switchTraffic.indexOf('Underpost.deploy.applyTrafficService({', ready);
       const apply = switchTraffic.indexOf("for (const file of options.gatewayApi ? ['gateway.yaml', 'httproute.yaml']");
-      const removeOldRoute = switchTraffic.indexOf('Underpost.deploy.removeInactiveHostRoutes({', apply);
+      const removeOldRoute = switchTraffic.indexOf('Underpost.ingress.removeInactiveHostRoutes({', apply);
       const targetSelector = switchTraffic.indexOf('if (targetTraffic !== bootstrapTraffic)', removeOldRoute);
       expect(ready).to.be.greaterThan(-1);
       expect(bootstrap).to.be.greaterThan(ready);
@@ -487,14 +492,14 @@ describe('underpost gateway edge tier', () => {
   });
 
   describe('merged Gateway listener isolation', () => {
-    const deploySource = fs.readFileSync(new URL('../../../../src/cli/deploy.js', import.meta.url), 'utf8');
-    const gatewayFactory = deploySource.slice(
-      deploySource.indexOf('    gatewayYamlFactory('),
-      deploySource.indexOf('    gatewayNameFactory(', deploySource.indexOf('    gatewayYamlFactory(')),
+    const ingressSource = fs.readFileSync(new URL('../../../../src/cli/ingress.js', import.meta.url), 'utf8');
+    const gatewayFactory = ingressSource.slice(
+      ingressSource.indexOf('    gatewayYamlFactory('),
+      ingressSource.indexOf('    gatewayNameFactory(', ingressSource.indexOf('    gatewayYamlFactory(')),
     );
-    const policyFactory = deploySource.slice(
-      deploySource.indexOf('    clientTrafficPolicyYamlFactory('),
-      deploySource.indexOf('    httpRouteRuleFactory(', deploySource.indexOf('    clientTrafficPolicyYamlFactory(')),
+    const policyFactory = ingressSource.slice(
+      ingressSource.indexOf('    clientTrafficPolicyYamlFactory('),
+      ingressSource.indexOf('    httpRouteRuleFactory(', ingressSource.indexOf('    clientTrafficPolicyYamlFactory(')),
     );
 
     it('gives every merged HTTP and HTTPS listener an explicit hostname', () => {

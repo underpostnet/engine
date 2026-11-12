@@ -30,12 +30,15 @@
 import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
+import os from 'node:os';
 import { timer } from '../../client/components/core/CommonJs.js';
 import { instanceStatusPageEntriesFactory, loadConfServerJson, loadReplicas } from '../runtime/conf.js';
 import { compressionConfFactory, compressionModulesConfFactory, nginxImageFactory } from './underpost-compression.js';
+import { serviceDnsName } from './service-dns.js';
+import { podSchedulingYaml } from '../runtime/pod-scheduling.js';
 import Underpost from '../../index.js';
 import { loggerFactory } from '../ops/logger.js';
-import { shellExec } from '../runtime/process.js';
+import { removeHostPath, shellArgumentFactory, shellExec } from '../runtime/process.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -89,17 +92,18 @@ const staticPathSegmentFactory = (path = '/') => {
  * Already-qualified hosts and IP literals are kept as supplied.
  * @param {string} upstream - `host:port`.
  * @param {string} [namespace] - Kubernetes namespace containing the Service.
+ * @param {string} [clusterDomain] - DNS domain of the cluster.
  * @returns {string} Runtime-resolvable upstream.
  * @memberof UnderpostGateway
  */
-const kubernetesUpstreamFactory = (upstream, namespace = 'default') => {
+const kubernetesUpstreamFactory = (upstream, namespace = 'default', clusterDomain) => {
   const value = `${upstream || ''}`.trim();
   const separator = value.lastIndexOf(':');
   if (separator < 1) return value;
   const host = value.slice(0, separator);
   const port = value.slice(separator + 1);
   if (host.includes('.') || host === 'localhost' || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return value;
-  return `${host}.${namespace}.svc.cluster.local:${port}`;
+  return serviceDnsName({ service: host, namespace, clusterDomain, port });
 };
 
 /**
@@ -314,10 +318,12 @@ const statusPageLocationsFactory = ({ host, path = '/', statuses }) => {
  * @param {Array<object>} routes - `{ path, upstream, statuses, stripPrefix }` per proxied
  *   sub-path; `statuses` maps a status code to the context directory holding its
  *   document, and `stripPrefix` drops the sub-path before dialling the upstream.
+ * @param {string} [namespace] - Namespace of the upstream Services.
+ * @param {string} [clusterDomain] - DNS domain of the cluster.
  * @returns {string} nginx server block, or an empty string when the host proxies nothing.
  * @memberof UnderpostGateway
  */
-const hostServerConfFactory = ({ host, routes = [], namespace = 'default' }) => {
+const hostServerConfFactory = ({ host, routes = [], namespace = 'default', clusterDomain }) => {
   const proxied = routes.filter((route) => route.upstream);
   if (proxied.length === 0) return '';
   // Longest sub-path first: nginx prefix locations are longest-match, but the
@@ -337,7 +343,7 @@ const hostServerConfFactory = ({ host, routes = [], namespace = 'default' }) => 
     const rewrite = route.stripPrefix && path !== '/' ? `    rewrite ^${path}/?(.*)$ /$1 break;\n` : '';
     return {
       path,
-      upstream: kubernetesUpstreamFactory(route.upstream, namespace),
+      upstream: kubernetesUpstreamFactory(route.upstream, namespace, clusterDomain),
       intercept,
       locations,
       rewrite,
@@ -395,6 +401,7 @@ ${blocks
  * @param {string} [namespace] - Kubernetes namespace.
  * @param {string} hostPath - Node directory backing the static root.
  * @param {string} [nodeName] - Node the hostPath volume is pinned to.
+ * @param {Object[]} [tolerations] - The taints of that node the pod tolerates.
  * @param {string} [storage] - Volume size.
  * @param {object} [compression] - Overrides for the compression policy.
  * @returns {string} Multi-document YAML.
@@ -404,6 +411,7 @@ const underpostGatewayManifestsFactory = ({
   namespace = 'default',
   hostPath,
   nodeName = '',
+  tolerations,
   storage = '1Gi',
   resolver,
   compression = {},
@@ -496,7 +504,7 @@ spec:
       annotations:
         underpost.net/nginx-conf-hash: '${configHash}'
     spec:
-      containers:
+${podSchedulingYaml({ tolerations }, 6)}      containers:
         - name: nginx
           image: ${UNDERPOST_GATEWAY.image}
           ports:
@@ -568,11 +576,29 @@ spec:
  */
 const writeStaticAsset = ({ hostRoot, assetPath, sourcePath }) => {
   if (!sourcePath || !fs.existsSync(sourcePath) || fs.statSync(sourcePath).size === 0) return false;
-  const target = nodePath.join(hostRoot, assetPath);
-  // sudo: the node directory is root-owned, and the deploy may run unprivileged.
-  shellExec(`sudo mkdir -p ${nodePath.dirname(target)}`, { silent: true });
-  shellExec(`sudo cp -f ${sourcePath} ${target}`, { silent: true });
+  placeInVolume(sourcePath, nodePath.join(hostRoot, assetPath));
   return true;
+};
+
+/** Why the gateway writes its node volume as root: the directory is root-owned, and a deploy may run unprivileged. */
+const NODE_VOLUME = 'writes the root-owned node volume of the gateway';
+
+/** Places a file in the node volume of the gateway, with the directories it needs. */
+const placeInVolume = (source, target) =>
+  shellExec(`install -D -m 0644 ${shellArgumentFactory(source)} ${shellArgumentFactory(target)}`, {
+    silent: true,
+    privileged: NODE_VOLUME,
+  });
+
+/** Writes contents to a file of the node volume of the gateway, through a private staging directory. */
+const writeToVolume = (target, content) => {
+  const scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-gateway-'));
+  try {
+    fs.writeFileSync(nodePath.join(scratch, 'content'), content, 'utf8');
+    placeInVolume(nodePath.join(scratch, 'content'), target);
+  } finally {
+    fs.removeSync(scratch);
+  }
 };
 
 /**
@@ -595,29 +621,20 @@ const writeStaticAsset = ({ hostRoot, assetPath, sourcePath }) => {
  * @memberof UnderpostGateway
  */
 const syncStaticAssetFromPod = ({ podName, namespace = 'default', container, sourcePath, hostRoot, assetPath }) => {
-  const target = nodePath.join(hostRoot, assetPath);
   const containerFlag = container ? ` -c ${container}` : '';
-  // Keyed by destination, not by basename: every document in the layout is an
-  // `index.html`, so a shared staging name lets one asset's copy be mistaken
-  // for another's.
-  const staged = nodePath.join(
-    '/tmp',
-    `underpost-gateway-${crypto.createHash('sha256').update(assetPath).digest('hex').slice(0, 12)}-${process.pid}`,
-  );
-  // Staged through /tmp because `kubectl cp` runs unprivileged while the node
-  // directory is root-owned; the move is the only step that needs sudo.
-  fs.removeSync(staged);
-  shellExec(`kubectl cp ${namespace}/${podName}:${sourcePath} ${staged}${containerFlag} 2>/dev/null || true`, {
-    silent: true,
-    silentOnError: true,
-  });
-  if (!fs.existsSync(staged) || fs.statSync(staged).size === 0) {
-    fs.removeSync(staged);
-    return false;
+  // Staged privately because `kubectl cp` runs unprivileged while the node directory is root-owned.
+  const scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-gateway-'));
+  const staged = nodePath.join(scratch, 'asset');
+  try {
+    shellExec(`kubectl cp ${namespace}/${podName}:${sourcePath} ${staged}${containerFlag} 2>/dev/null || true`, {
+      silent: true,
+      silentOnError: true,
+    });
+    if (!fs.existsSync(staged) || fs.statSync(staged).size === 0) return false;
+    placeInVolume(staged, nodePath.join(hostRoot, assetPath));
+  } finally {
+    fs.removeSync(scratch);
   }
-  shellExec(`sudo mkdir -p ${nodePath.dirname(target)}`, { silent: true });
-  shellExec(`sudo cp -f ${staged} ${target}`, { silent: true });
-  fs.removeSync(staged);
   logger.info('Static asset synced from workload', { podName, sourcePath, assetPath });
   return true;
 };
@@ -735,8 +752,6 @@ const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) 
   const blocks = fs.readdirSync(confSourceDir).filter((name) => name.endsWith('.conf'));
   if (blocks.length === 0) return false;
   const confDir = nodePath.join(hostRoot, UNDERPOST_GATEWAY.confDir);
-  // sudo: the node directory is root-owned, and the deploy may run unprivileged.
-  shellExec(`sudo mkdir -p ${confDir}`, { silent: true });
   const previous = Object.fromEntries(
     blocks.map((name) => {
       const target = nodePath.join(confDir, name);
@@ -746,17 +761,11 @@ const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) 
   const restorePrevious = () => {
     for (const [name, content] of Object.entries(previous)) {
       const target = nodePath.join(confDir, name);
-      if (content === null) shellExec(`sudo rm -f ${target}`, { silent: true });
-      else {
-        const staged = nodePath.join('/tmp', `underpost-gateway-restore-${name}-${process.pid}`);
-        fs.writeFileSync(staged, content, 'utf8');
-        shellExec(`sudo cp -f ${staged} ${target}`, { silent: true });
-        fs.removeSync(staged);
-      }
+      if (content === null) removeHostPath(target, { reason: NODE_VOLUME });
+      else writeToVolume(target, content);
     }
   };
-  for (const name of blocks)
-    shellExec(`sudo cp -f ${nodePath.join(confSourceDir, name)} ${nodePath.join(confDir, name)}`, { silent: true });
+  for (const name of blocks) placeInVolume(nodePath.join(confSourceDir, name), nodePath.join(confDir, name));
   const test = shellExec(`kubectl exec -n ${namespace} deploy/${UNDERPOST_GATEWAY.name} -- nginx -t 2>&1`, {
     stdout: true,
     silent: true,
@@ -804,7 +813,10 @@ const installGatewayConf = ({ hostRoot, confSourceDir, namespace = 'default' }) 
 const seedDefaultStatusPage = (hostRoot) => {
   // The base config includes `<confDir>/*.conf`; the directory has to exist
   // before any deploy contributes a block to it.
-  shellExec(`sudo mkdir -p ${nodePath.join(hostRoot, UNDERPOST_GATEWAY.confDir)}`, { silent: true });
+  shellExec(`install -d ${shellArgumentFactory(nodePath.join(hostRoot, UNDERPOST_GATEWAY.confDir))}`, {
+    silent: true,
+    privileged: NODE_VOLUME,
+  });
   const target = nodePath.join(hostRoot, defaultStatusPagePath(404));
   if (fs.existsSync(target)) return false;
   const document = `<!doctype html>
@@ -820,8 +832,7 @@ const seedDefaultStatusPage = (hostRoot) => {
   </body>
 </html>
 `;
-  shellExec(`sudo mkdir -p ${nodePath.dirname(target)}`, { silent: true });
-  shellExec(`sudo tee ${target} > /dev/null <<'EOF'\n${document}EOF\n`, { silent: true });
+  writeToVolume(target, document);
   return true;
 };
 
@@ -1083,10 +1094,10 @@ const gatewayFetch = ({ namespace, host, path = '/' }) => {
  */
 const gatewayFallbackProbeRunner = async ({ checks, options, label, gatewayStatusRunner }) => {
   if (!options.gatewayApi || checks.length === 0) return [];
-  const namespace = options.namespace || 'default';
+  const namespace = Underpost.namespace.of('platform', { options });
   shellExec(`kubectl rollout status deployment/${UNDERPOST_GATEWAY.name} -n ${namespace} --timeout=5m`);
   const hosts = [...new Set(checks.map((check) => check.host))];
-  const gatewayStatus = await gatewayStatusRunner(hosts.join(','), { ...options, namespace });
+  const gatewayStatus = await gatewayStatusRunner(hosts.join(','), options);
   if (!gatewayStatus.programmed || (options.dev && !gatewayStatus.servesHttps))
     throw new Error(`[${label}] Gateway is not operational before application deployment`);
 

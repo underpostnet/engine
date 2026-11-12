@@ -4,10 +4,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.giancarlobertini.com
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: www.giancarlobertini.com
+    tls:
+      secretName: www.giancarlobertini.com
   routes:
     - conditions:
         - prefix: /
@@ -15,7 +17,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-lampp-development-traffic-service
-          port: 4001
+          port: 4033
           weight: 100
     
 ---
@@ -23,10 +25,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: giancarlobertini.com
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: giancarlobertini.com
+    tls:
+      secretName: giancarlobertini.com
   routes:
     - conditions:
         - prefix: /
@@ -34,7 +38,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-lampp-development-traffic-service
-          port: 4002
+          port: 4034
           weight: 100
     
 ---
@@ -42,10 +46,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.ayleenbertini.com
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: www.ayleenbertini.com
+    tls:
+      secretName: www.ayleenbertini.com
   routes:
     - conditions:
         - prefix: /
@@ -53,7 +59,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-lampp-development-traffic-service
-          port: 4003
+          port: 4035
           weight: 100
     
 ---
@@ -61,10 +67,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: ayleenbertini.com
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: ayleenbertini.com
+    tls:
+      secretName: ayleenbertini.com
   routes:
     - conditions:
         - prefix: /
@@ -72,6 +80,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-lampp-development-traffic-service
-          port: 4004
+          port: 4036
           weight: 100
     

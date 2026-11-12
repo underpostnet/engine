@@ -4,16 +4,17 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 // Named import: js-yaml's ESM build exports no default.
 import { loadAll } from 'js-yaml';
+import { podSchedulingFactory } from '../../../../src/server/runtime/pod-scheduling.js';
 import {
   UNDERPOST_INGRESS,
-  gatewayBackendFactory,
+  ingressBackendFactory,
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,
 } from '../../../../src/server/network/underpost-ingress.js';
 
-const CONTOUR = UNDERPOST_INGRESS.backends.contour;
-const GATEWAY = gatewayBackendFactory('envoy-eg-d8c59e83');
+const CONTOUR = ingressBackendFactory({ services: ['envoy'], namespace: 'projectcontour' });
+const GATEWAY = ingressBackendFactory({ services: ['envoy-eg-d8c59e83'], namespace: 'envoy-gateway-system' });
 const BOTH = { contour: CONTOUR, gateway: GATEWAY };
 
 describe('shared ingress front', () => {
@@ -29,25 +30,26 @@ describe('shared ingress front', () => {
       ]);
     });
 
-    // Both objects existing for one hostname is what switching stacks leaves
-    // behind. Only one can win, so the choice is fixed rather than left to
-    // whichever happened to be listed first.
-    it('reports a hostname described by both, and resolves it to the preferred stack', () => {
-      const { entries, conflicts } = underpostIngressHostMapFactory({
-        contourHosts: ['shared.test'],
-        gatewayHosts: ['shared.test'],
-      });
+    // Both objects for one hostname is a provider transition: the host moves to
+    // the stack of the configured provider only once that stack serves it.
+    it('reports a hostname described by both, and keeps it on the old stack until the new one serves it', () => {
+      const moving = { contourHosts: ['shared.test'], gatewayHosts: ['shared.test'] };
+      const { entries, conflicts } = underpostIngressHostMapFactory(moving);
       expect(conflicts).to.deep.equal(['shared.test']);
-      expect(entries).to.deep.equal([{ host: 'shared.test', backend: 'gateway' }]);
+      expect(entries).to.deep.equal([{ host: 'shared.test', backend: 'contour' }]);
+      expect(underpostIngressHostMapFactory({ ...moving, ready: ['shared.test'] }).entries).to.deep.equal([
+        { host: 'shared.test', backend: 'gateway' },
+      ]);
     });
 
-    it('honours an explicit preference for the conflicted hostname', () => {
-      const { entries } = underpostIngressHostMapFactory({
-        contourHosts: ['shared.test'],
-        gatewayHosts: ['shared.test'],
-        preferred: 'contour',
-      });
-      expect(entries).to.deep.equal([{ host: 'shared.test', backend: 'contour' }]);
+    it('moves a conflicted hostname to Contour the same way', () => {
+      const moving = { contourHosts: ['shared.test'], gatewayHosts: ['shared.test'], preferred: 'contour' };
+      expect(underpostIngressHostMapFactory(moving).entries).to.deep.equal([
+        { host: 'shared.test', backend: 'gateway' },
+      ]);
+      expect(underpostIngressHostMapFactory({ ...moving, ready: new Set(['shared.test']) }).entries).to.deep.equal([
+        { host: 'shared.test', backend: 'contour' },
+      ]);
     });
 
     it('deduplicates and drops empty hostnames', () => {
@@ -221,11 +223,11 @@ describe('shared ingress front', () => {
       expect(underpostIngressManifestsFactory({ conf: 'x' })).to.include('type: Recreate');
     });
 
-    it('pins to a node only when one is given', () => {
-      expect(underpostIngressManifestsFactory({ conf: 'x', nodeName: 'node-1' })).to.include(
-        'kubernetes.io/hostname: node-1',
-      );
-      expect(underpostIngressManifestsFactory({ conf: 'x' })).to.not.include('nodeSelector');
+    it('pins to a node only when its scheduling names one', () => {
+      expect(
+        underpostIngressManifestsFactory({ conf: 'x', scheduling: podSchedulingFactory({ hostnames: ['node-1'] }) }),
+      ).to.match(/- key: kubernetes\.io\/hostname\n\s+operator: In\n\s+values:\n\s+- node-1\n/);
+      expect(underpostIngressManifestsFactory({ conf: 'x' })).to.not.include('affinity');
     });
 
     // The manifest is assembled by string templating, and the config is embedded
@@ -237,7 +239,12 @@ describe('shared ingress front', () => {
         entries: [{ host: 'legacy.test', backend: 'contour' }],
         backends: BOTH,
       });
-      const documents = loadAll(underpostIngressManifestsFactory({ conf, nodeName: 'node-1' })).filter(Boolean);
+      const documents = loadAll(
+        underpostIngressManifestsFactory({
+          conf,
+          scheduling: podSchedulingFactory({ hostnames: ['node-1'] }),
+        }),
+      ).filter(Boolean);
       expect(documents.map((document) => document.kind)).to.deep.equal(['ConfigMap', 'Deployment']);
 
       const deployment = documents.find((document) => document.kind === 'Deployment');
@@ -275,9 +282,11 @@ describe('shared ingress front', () => {
         clusterSource.indexOf('    installUnderpostIngress('),
         clusterSource.indexOf('    pruneEndpointlessService(', clusterSource.indexOf('    installUnderpostIngress(')),
       );
-      expect(install).to.include("const requestedNode = options.ingressNode || '';");
-      expect(install).to.not.include('const requestedNode = options.nodeName || options.node;');
-      expect(install).to.include('requestedNode ||\n        liveNode ||');
+      expect(install).to.include(
+        "Underpost.namespace.schedule({ resource: 'platform', options, node: options.ingressNode }).nodes,",
+      );
+      expect(install).to.not.match(/node: options\.node(Name)?\b/);
+      expect(install).to.include('scheduled ||\n        liveNode ||');
     });
 
     it('waits for an explicit ingress-node replacement before reporting refresh success', () => {

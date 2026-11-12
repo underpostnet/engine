@@ -3,14 +3,14 @@
 import { expect } from 'chai';
 import axios from 'axios';
 import fs from 'fs-extra';
+import dns from 'node:dns';
 import os from 'node:os';
 import { Dns, UnderpostDns, getLocalIPv4Address, isInternetConnection } from '../../../../src/server/network/dns.js';
 import UnderpostHost from '../../../../src/cli/host.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
-// Every nftables static shells out and every DDNS provider talks HTTP, so the
-// suite replaces exactly those two boundaries: what is asserted is the command
-// vector and the branch that produced it, never the host's real firewall.
+// The suite replaces the shell, HTTP and DNS resolver boundaries: it asserts the
+// command vector and the branch that produced it, never the host's real network.
 const IFACE = 'eth-fixture';
 const ROUTE_ROUTE = { match: 'ip route', stdout: `${IFACE}\n` };
 
@@ -92,8 +92,19 @@ describe('dns edge firewall and dynamic DNS', () => {
     });
 
     it('reports connectivity from a DNS lookup', async () => {
-      expect(await Dns.isInternetConnection('localhost')).to.equal(true);
-      expect(await isInternetConnection('invalid.host.that.does.not.resolve.fixture')).to.equal(false);
+      const lookup = vi
+        .spyOn(dns, 'lookup')
+        .mockImplementation((domain, options, done) =>
+          done(domain === 'resolves.fixture' ? null : new Error('ENOTFOUND')),
+        );
+      expect(await Dns.isInternetConnection('resolves.fixture')).to.equal(true);
+      expect(await isInternetConnection('missing.fixture')).to.equal(false);
+      expect(await Dns.isInternetConnection()).to.equal(false);
+      expect(lookup.mock.calls.map(([domain]) => domain)).to.deep.equal([
+        'resolves.fixture',
+        'missing.fixture',
+        'google.com',
+      ]);
     });
   });
 

@@ -4,7 +4,10 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: dd-cyberia-development
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-cyberia-development
 spec:
   gatewayClassName: eg
   listeners:
@@ -15,10 +18,36 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-client-cyberiaonline-com-7ace62a4
+      hostname: "client.cyberiaonline.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: client.cyberiaonline.com
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-cryptokoyn-net-b6255398
       hostname: "cryptokoyn.net"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-cryptokoyn-net-b6255398
+      hostname: "cryptokoyn.net"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: cryptokoyn.net
       allowedRoutes:
         namespaces:
           from: Same
@@ -29,10 +58,36 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-cyberiaonline-com-f2d45c71
+      hostname: "cyberiaonline.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: cyberiaonline.com
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-itemledger-com-1d06867c
       hostname: "itemledger.com"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-itemledger-com-1d06867c
+      hostname: "itemledger.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: itemledger.com
       allowedRoutes:
         namespaces:
           from: Same
@@ -43,10 +98,56 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-objectlayer-org-167eaf0c
+      hostname: "objectlayer.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: objectlayer.org
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-server-cyberiaonline-com-611c12b2
       hostname: "server.cyberiaonline.com"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-server-cyberiaonline-com-611c12b2
+      hostname: "server.cyberiaonline.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: server.cyberiaonline.com
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http-services-cyberiaonline-com-faf19a70
+      hostname: "services.cyberiaonline.com"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-services-cyberiaonline-com-faf19a70
+      hostname: "services.cyberiaonline.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: services.cyberiaonline.com
       allowedRoutes:
         namespaces:
           from: Same
@@ -57,10 +158,36 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-underpost-net-1db3dba9
+      hostname: "underpost.net"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: underpost.net
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-www-cryptokoyn-net-85b23136
       hostname: "www.cryptokoyn.net"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-www-cryptokoyn-net-85b23136
+      hostname: "www.cryptokoyn.net"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.cryptokoyn.net
       allowedRoutes:
         namespaces:
           from: Same
@@ -71,10 +198,36 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-www-cyberiaonline-com-480af86f
+      hostname: "www.cyberiaonline.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.cyberiaonline.com
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-www-itemledger-com-8395cfad
       hostname: "www.itemledger.com"
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https-www-itemledger-com-8395cfad
+      hostname: "www.itemledger.com"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.itemledger.com
       allowedRoutes:
         namespaces:
           from: Same
@@ -85,6 +238,19 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-www-objectlayer-org-380ed37a
+      hostname: "www.objectlayer.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.objectlayer.org
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-www-underpost-net-e111e04e
       hostname: "www.underpost.net"
       protocol: HTTP
@@ -92,3 +258,81 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-www-underpost-net-e111e04e
+      hostname: "www.underpost.net"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: www.underpost.net
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: dd-cyberia-development-http3
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-cyberia-development
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-client-cyberiaonline-com-7ace62a4
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-cryptokoyn-net-b6255398
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-cyberiaonline-com-f2d45c71
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-itemledger-com-1d06867c
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-objectlayer-org-167eaf0c
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-server-cyberiaonline-com-611c12b2
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-services-cyberiaonline-com-faf19a70
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-underpost-net-1db3dba9
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-www-cryptokoyn-net-85b23136
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-www-cyberiaonline-com-480af86f
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-www-itemledger-com-8395cfad
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-www-objectlayer-org-380ed37a
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-cyberia-development
+      sectionName: https-www-underpost-net-e111e04e
+  http3: {}

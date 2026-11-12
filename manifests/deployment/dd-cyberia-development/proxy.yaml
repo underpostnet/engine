@@ -4,10 +4,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: underpost.net
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: underpost.net
+    tls:
+      secretName: underpost.net
   routes:
     - conditions:
         - prefix: /
@@ -15,11 +17,83 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-traffic-service
-          port: 4005
+          port: 4001
           weight: 100
     
     - conditions:
         - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-traffic-service
+          port: 4002
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.underpost.net
+  namespace: underpost-workloads
+spec:
+  virtualhost:
+    fqdn: www.underpost.net
+    tls:
+      secretName: www.underpost.net
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-traffic-service
+          port: 4003
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: services.cyberiaonline.com
+  namespace: underpost-workloads
+spec:
+  virtualhost:
+    fqdn: services.cyberiaonline.com
+    tls:
+      secretName: services.cyberiaonline.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-traffic-service
+          port: 4004
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-traffic-service
+          port: 4005
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cyberiaonline.com
+  namespace: underpost-workloads
+spec:
+  virtualhost:
+    fqdn: www.cyberiaonline.com
+    tls:
+      secretName: www.cyberiaonline.com
+  routes:
+    - conditions:
+        - prefix: /
       
       enableWebsockets: true
       services:
@@ -31,11 +105,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.underpost.net
-  namespace: default
+  name: cyberiaonline.com
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: www.underpost.net
+    fqdn: cyberiaonline.com
+    tls:
+      secretName: cyberiaonline.com
   routes:
     - conditions:
         - prefix: /
@@ -50,11 +126,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.cyberiaonline.com
-  namespace: default
+  name: cryptokoyn.net
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: www.cyberiaonline.com
+    fqdn: cryptokoyn.net
+    tls:
+      secretName: cryptokoyn.net
   routes:
     - conditions:
         - prefix: /
@@ -78,11 +156,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: cyberiaonline.com
-  namespace: default
+  name: www.cryptokoyn.net
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: cyberiaonline.com
+    fqdn: www.cryptokoyn.net
+    tls:
+      secretName: www.cryptokoyn.net
   routes:
     - conditions:
         - prefix: /
@@ -97,11 +177,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: cryptokoyn.net
-  namespace: default
+  name: itemledger.com
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: cryptokoyn.net
+    fqdn: itemledger.com
+    tls:
+      secretName: itemledger.com
   routes:
     - conditions:
         - prefix: /
@@ -125,11 +207,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.cryptokoyn.net
-  namespace: default
+  name: www.itemledger.com
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: www.cryptokoyn.net
+    fqdn: www.itemledger.com
+    tls:
+      secretName: www.itemledger.com
   routes:
     - conditions:
         - prefix: /
@@ -144,11 +228,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: itemledger.com
-  namespace: default
+  name: objectlayer.org
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: itemledger.com
+    fqdn: objectlayer.org
+    tls:
+      secretName: objectlayer.org
   routes:
     - conditions:
         - prefix: /
@@ -172,11 +258,13 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.itemledger.com
-  namespace: default
+  name: www.objectlayer.org
+  namespace: underpost-workloads
 spec:
   virtualhost:
-    fqdn: www.itemledger.com
+    fqdn: www.objectlayer.org
+    tls:
+      secretName: www.objectlayer.org
   routes:
     - conditions:
         - prefix: /
@@ -185,52 +273,5 @@ spec:
       services:
         - name: dd-cyberia-development-traffic-service
           port: 4016
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: objectlayer.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: objectlayer.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-traffic-service
-          port: 4017
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-traffic-service
-          port: 4018
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.objectlayer.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: www.objectlayer.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-traffic-service
-          port: 4019
           weight: 100
     

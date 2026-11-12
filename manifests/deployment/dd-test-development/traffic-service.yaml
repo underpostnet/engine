@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: dd-test-development-traffic-service
-  namespace: default
+  namespace: underpost-workloads
   labels:
     underpost.net/traffic-service: "true"
     underpost.net/deploy-id: dd-test-development
@@ -12,15 +12,6 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
-    - name: 'tcp-4036'
-      protocol: TCP
-      port: 4036
-      targetPort: 4036
-    - name: 'udp-4036'
-      protocol: UDP
-      port: 4036
-      targetPort: 4036
-
     - name: 'tcp-4037'
       protocol: TCP
       port: 4037

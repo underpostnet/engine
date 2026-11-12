@@ -4,7 +4,10 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: dd-test-development
-  namespace: default
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-test-development
 spec:
   gatewayClassName: eg
   listeners:
@@ -15,6 +18,19 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-stagging-nexodev-org-14bce29d
+      hostname: "stagging.nexodev.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: stagging.nexodev.org
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: http-test-nexodev-org-dc058d24
       hostname: "test.nexodev.org"
       protocol: HTTP
@@ -22,3 +38,37 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    - name: https-test-nexodev-org-dc058d24
+      hostname: "test.nexodev.org"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: test.nexodev.org
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: dd-test-development-http3
+  namespace: underpost-workloads
+  labels:
+    app.kubernetes.io/managed-by: underpost
+    deploy-id: dd-test-development
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-test-development
+      sectionName: https-stagging-nexodev-org-14bce29d
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: dd-test-development
+      sectionName: https-test-nexodev-org-dc058d24
+  http3: {}

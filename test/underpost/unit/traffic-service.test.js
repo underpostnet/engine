@@ -26,3 +26,34 @@ describe('traffic Service', () => {
     expect(ports).to.deep.equal(['3005/TCP', '3005/UDP', '3006/TCP', '3006/UDP']);
   });
 });
+
+describe('colour rollout', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Answers the Deployment read with `state`, as kubectl prints the jsonpath. */
+  const deployment = (state) => {
+    const commands = [];
+    vi.spyOn(shell, 'exec').mockImplementation((command) => {
+      commands.push(command);
+      const stdout = command.startsWith('kubectl get deployment') ? state : '';
+      return { code: 0, stdout, stderr: '', toString: () => stdout };
+    });
+    return commands;
+  };
+
+  it.each([
+    ['2|2|1|1|1|1|NewReplicaSetAvailable', 'ready'],
+    ['2|2|1|1|||ReplicaSetUpdated', 'progressing'],
+    ['2|2|1|1|||ProgressDeadlineExceeded', 'stalled'],
+    ['', 'progressing'],
+  ])('reads %j as %s', (state, rollout) => {
+    deployment(state);
+    expect(Underpost.deploy.deploymentRollout({ deployment: 'dd-x-production-blue' })).to.equal(rollout);
+  });
+
+  it('stops waiting on a stalled rollout instead of running out its timeout', () => {
+    const commands = deployment('2|2|1|1|||ProgressDeadlineExceeded');
+    expect(Underpost.deploy.awaitDeploymentReady({ deployment: 'dd-x-production-blue' })).to.equal(false);
+    expect(commands.filter((command) => command.includes('sleep'))).to.have.length(0);
+  });
+});

@@ -1,7 +1,7 @@
 /**
  * Transport Layer Security (TLS) / SSL utilities and HTTPS server creation and management.
  * @module src/server/network/tls.js
- * @namespace UnderpostTLS
+ * @namespace UnderpostTlsServer
  */
 
 import fs from 'fs-extra';
@@ -52,7 +52,7 @@ class TLS {
    * @param {string} host
    * @param {string} [root] - Certificate root directory.
    * @returns {{key?:string, cert?:string, fullchain?:string, ca?:string, dir:string}}
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static locateSslFiles(host = DEFAULT_HOST, root = SSL_ROOT) {
     const dir = SSL_BASE(host, root);
@@ -113,7 +113,7 @@ class TLS {
    * @param {string} host
    * @param {string} [root] - Certificate root directory.
    * @returns {boolean}
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static validateSecureContext(host = DEFAULT_HOST, root = SSL_ROOT) {
     const files = TLS.locateSslFiles(host, root);
@@ -126,7 +126,7 @@ class TLS {
    * @param {string} [root] - Certificate root directory.
    * @param {number} [now] - Current time in milliseconds.
    * @returns {boolean}
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static certificateValidFor(host, root = SSL_ROOT, now = Date.now()) {
     const files = TLS.locateSslFiles(host, root);
@@ -143,11 +143,12 @@ class TLS {
    * Issues a certificate for a host into the local root, unless a valid one is there already.
    * The local root holds only certificates this machine issued, so a stale one is replaced whole.
    * @param {string} host
+   * @param {{renew?:boolean}} [options] - `renew` replaces a valid certificate too.
    * @returns {boolean} True when a certificate was issued.
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
-  static ensureLocalCertificate(host) {
-    if (TLS.certificateValidFor(host, LOCAL_SSL_ROOT)) return false;
+  static ensureLocalCertificate(host, { renew = false } = {}) {
+    if (!renew && TLS.certificateValidFor(host, LOCAL_SSL_ROOT)) return false;
     fs.removeSync(SSL_BASE(host, LOCAL_SSL_ROOT));
     TLS.issueCertificate(host, LOCAL_SSL_ROOT);
     return true;
@@ -157,7 +158,7 @@ class TLS {
    * Issues a locally trusted certificate that covers the host and the loopback names.
    * @param {string} [host]
    * @param {string} [root] - Certificate root directory.
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static issueCertificate(host = DEFAULT_HOST, root = SSL_ROOT) {
     const names = [...new Set([...LOOPBACK_NAMES, host])].join(' ');
@@ -173,7 +174,7 @@ class TLS {
    * @param {string} host
    * @param {string} [root] - Certificate root directory.
    * @returns {{key:string, cert:string, ca?:string}} options
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static buildSecureContext(host = DEFAULT_HOST, root = SSL_ROOT) {
     const files = TLS.locateSslFiles(host, root);
@@ -200,7 +201,7 @@ class TLS {
    * @param {string} host
    * @param {string} [root] - Certificate root directory.
    * @returns {boolean} true if at least key+cert exist after operation
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static async buildLocalSSL(host = DEFAULT_HOST, root = SSL_ROOT) {
     const dir = SSL_BASE(host, root);
@@ -236,7 +237,7 @@ class TLS {
    * @param {Object<string, any>} hosts
    * @param {{root?: string}} [options] - Certificate root directory.
    * @returns {{ServerSSL?: https.Server}}
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }, { root = SSL_ROOT } = {}) {
     let server;
@@ -274,7 +275,7 @@ class TLS {
    * @param {number} port
    * @param {Object<string, any>} proxyRouter
    * @returns {import('express').RequestHandler}
-   * @memberof UnderpostTLS
+   * @memberof UnderpostTlsServer
    */
   static sslRedirectMiddleware(req, res, port = 80, proxyRouter = {}) {
     const sslRedirectUrl = `https://${req.headers.host}${req.url}`;
@@ -294,27 +295,4 @@ class TLS {
   }
 }
 
-/**
- * @class UnderpostTLS
- * @description TLS/SSL utilities for Underpost.
- * @memberof UnderpostTLS
- */
-class UnderpostTLS {
-  static API = {
-    TLS,
-    SSL_BASE,
-    LOCAL_SSL_ROOT,
-    locateSslFiles: TLS.locateSslFiles,
-    validateSecureContext: TLS.validateSecureContext,
-    certificateValidFor: TLS.certificateValidFor,
-    ensureLocalCertificate: TLS.ensureLocalCertificate,
-    issueCertificate: TLS.issueCertificate,
-    buildSecureContext: TLS.buildSecureContext,
-    buildLocalSSL: TLS.buildLocalSSL,
-    createSslServer: TLS.createSslServer,
-    sslRedirectMiddleware: TLS.sslRedirectMiddleware,
-  };
-}
-
-export { LOCAL_SSL_ROOT, SSL_BASE, TLS, UnderpostTLS };
-export default UnderpostTLS;
+export { LOCAL_SSL_ROOT, SSL_BASE, SSL_RENEW_MS, TLS };

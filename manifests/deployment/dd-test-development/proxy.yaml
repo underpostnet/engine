@@ -4,20 +4,13 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: test.nexodev.org
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: test.nexodev.org
+    tls:
+      secretName: test.nexodev.org
   routes:
-    - conditions:
-        - prefix: /wp
-      
-      enableWebsockets: true
-      services:
-        - name: dd-test-development-traffic-service
-          port: 4036
-          weight: 100
-    
     - conditions:
         - prefix: /
       
@@ -77,10 +70,12 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: stagging.nexodev.org
-  namespace: default
+  namespace: underpost-workloads
 spec:
   virtualhost:
     fqdn: stagging.nexodev.org
+    tls:
+      secretName: stagging.nexodev.org
   routes:
     - conditions:
         - prefix: /

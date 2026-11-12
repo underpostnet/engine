@@ -377,20 +377,17 @@ describe('blue/green traffic plan', () => {
       ]);
     });
 
-    // 3 + 4 — instance ids add their whole family alongside the PWA workload.
-    it('adds every variant of each instance family', () => {
+    // 3 + 4 — instance ids select only their whole family, never the PWA workload.
+    it('selects every variant of each instance family and not the PWA workload', () => {
       expect(names({ deployId: 'dd-cyberia', instanceId: 'mmo-client,mmo-server' })).to.deep.equal([
-        'dd-cyberia-development-green',
         'dd-cyberia-mmo-client-development-green',
         'dd-cyberia-mmo-server-development-green',
         'dd-cyberia-mmo-server-forest-development-green',
       ]);
     });
 
-    it('applies explicit colours to the PWA workload and every instance alike', () => {
+    it('applies explicit colours to every selected instance alike', () => {
       expect(names({ deployId: 'dd-cyberia', instanceId: 'mmo-client', traffic: 'blue,green' })).to.deep.equal([
-        'dd-cyberia-development-blue',
-        'dd-cyberia-development-green',
         'dd-cyberia-mmo-client-development-blue',
         'dd-cyberia-mmo-client-development-green',
       ]);
@@ -403,7 +400,6 @@ describe('blue/green traffic plan', () => {
         liveTrafficOf: (target) => (target.id === 'dd-cyberia-mmo-server' ? 'green' : 'blue'),
       }).deployments;
       expect(deployments.map((target) => target.deployment)).to.deep.equal([
-        'dd-cyberia-development-green',
         'dd-cyberia-mmo-server-development-blue',
         'dd-cyberia-mmo-server-forest-development-green',
       ]);
@@ -411,10 +407,15 @@ describe('blue/green traffic plan', () => {
 
     it('never plans the same deployment twice', () => {
       expect(names({ deployId: 'dd-cyberia', instanceId: 'mmo-server,mmo-server' })).to.deep.equal([
-        'dd-cyberia-development-green',
         'dd-cyberia-mmo-server-development-green',
         'dd-cyberia-mmo-server-forest-development-green',
       ]);
+    });
+
+    it('refuses an instance id that matches no instance', () => {
+      const result = plan({ deployId: 'dd-cyberia', instanceId: 'mmo-client,mmo-sever' });
+      expect(result.error).to.match(/--instance-id matches no instance of dd-cyberia: mmo-sever/);
+      expect(result.deployments).to.deep.equal([]);
     });
 
     // 5 — an instance id is only unique inside a deploy.
@@ -438,10 +439,7 @@ describe('blue/green traffic plan', () => {
           return 'blue';
         },
       });
-      expect(asked).to.deep.equal([
-        ['dd-cyberia', '', 'pwa'],
-        ['dd-cyberia-mmo-client', 'client.fixture.test', 'instance'],
-      ]);
+      expect(asked).to.deep.equal([['dd-cyberia-mmo-client', 'client.fixture.test', 'instance']]);
     });
   });
 
