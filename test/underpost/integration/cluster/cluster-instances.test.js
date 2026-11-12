@@ -8,7 +8,6 @@ import {
   clusterTypeFactory,
   deployHostsFactory,
   etcHostFactory,
-  gatewayApiEnabledFactory,
   instanceInterceptStatusesFactory,
   instanceProjectPathFactory,
   instanceStatusPageEntriesFactory,
@@ -365,23 +364,6 @@ describe('cluster custom instances', () => {
 
     it('marks cluster-invoked instances so they do not repeat the gateway probe', () => {
       expect(clusterRunner.indexOf('gatewayBootstrapComplete: true')).to.be.greaterThan(-1);
-    });
-  });
-
-  // The Gateway API with QUIC/HTTP3 is the platform's stack; HTTPProxy is what a
-  // caller opts into. Every runner resolves it from one place, so none of them
-  // can default to a different stack than the one that deployed the routes.
-  describe('routing stack default', () => {
-    it('is on unless explicitly disabled', () => {
-      expect(gatewayApiEnabledFactory({})).to.equal(true);
-      expect(gatewayApiEnabledFactory({ dev: true })).to.equal(true);
-      expect(gatewayApiEnabledFactory({ gatewayApi: true })).to.equal(true);
-      expect(gatewayApiEnabledFactory({ disableGatewayApi: true })).to.equal(false);
-    });
-
-    // An explicit request is never second-guessed.
-    it('lets an explicit --gateway-api win over the opt-out', () => {
-      expect(gatewayApiEnabledFactory({ gatewayApi: true, disableGatewayApi: true })).to.equal(true);
     });
   });
 

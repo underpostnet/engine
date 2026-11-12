@@ -49,6 +49,7 @@ import fs from 'fs-extra';
 import net from 'node:net';
 import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
 import { cli } from '../server/build/execution.js';
+import { deployEnvFactory } from '../server/runtime/environment.js';
 import { domainContextFactory } from './domains.js';
 import Underpost from '../index.js';
 
@@ -60,6 +61,9 @@ const logger = loggerFactory(import.meta);
 // survives. An image too old to carry `state` answers nothing here, which the caller reports as
 // an unreadable pod rather than as a status — a wrong status is worse than a missing one.
 const CONTAINER_STATUS_READ = `'underpost state get container-status --plain 2>/dev/null || true'`;
+
+// Kubelet retries a pod sandbox about every 10 to 15 seconds; six failures outlast a CNI restart.
+const SANDBOX_FAILURE_LIMIT = 6;
 
 const grafanaAdminSyncState = new WeakMap();
 
@@ -87,7 +91,7 @@ class UnderpostMonitor {
      * @param {string} [options.type=''] - Type of deployment (e.g., 'blue-green', 'remote').
      * @param {string} [options.replicas='1'] - Number of replicas for the deployment. Defaults to 1.
      * @param {boolean} [options.sync=false] - Synchronize traffic switching with the deployment.
-     * @param {string} [options.namespace='default'] - Kubernetes namespace for the deployment. Defaults to 'default'.
+     * @param {string} [options.namespace] - The legacy namespace override; conf.cluster.json places each resource without it.
      * @param {string} [options.timeoutResponse=''] - Timeout for server response checks.
      * @param {string} [options.timeoutIdle=''] - Timeout for idle connections.
      * @param {string} [options.retryCount=''] - Number of retry attempts for health checks.
@@ -124,7 +128,7 @@ class UnderpostMonitor {
         type: '',
         replicas: '1',
         sync: false,
-        namespace: 'default',
+        namespace: '',
         timeoutResponse: '',
         timeoutIdle: '',
         retryCount: '',
@@ -152,7 +156,8 @@ class UnderpostMonitor {
       auxRouter,
     ) {
       loadCronDeployEnv();
-      if (!options.namespace) options.namespace = 'default';
+      options = { ...options, env };
+      const namespace = Underpost.namespace.of('workloads', { options: { ...options, deployId } });
       if (!options.replicas) options.replicas = '1';
 
       // Host- and cluster-scoped operations: none of them act on one deploy, so
@@ -184,9 +189,9 @@ class UnderpostMonitor {
       if (options.readyDeployment) {
         await Promise.all(
           options.versions.split(',').map(async (version) => {
-            await Underpost.monitor.monitorReadyRunner(deployId, env, version, [], options.namespace);
+            await Underpost.monitor.monitorReadyRunner(deployId, env, version, [], namespace);
             if (options.promote)
-              Underpost.deploy.switchTraffic(deployId, env, version, options.replicas, options.namespace, options);
+              Underpost.deploy.switchTraffic(deployId, env, version, options.replicas, namespace, options);
           }),
         );
         return;
@@ -203,7 +208,10 @@ class UnderpostMonitor {
 
       let errorPayloads = [];
       if (options.sync === true) {
-        const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace, env });
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, {
+          ...Underpost.namespace.overrides(options),
+          env,
+        });
         if (currentTraffic) Underpost.host.store.set(`${deployId}-${env}-traffic`, currentTraffic);
       }
       let traffic = Underpost.host.store.get(`${deployId}-${env}-traffic`) ?? 'blue';
@@ -224,7 +232,7 @@ class UnderpostMonitor {
       const switchTraffic = (targetTraffic) => {
         const nextTraffic = targetTraffic ?? (traffic === 'blue' ? 'green' : 'blue');
         // Delegate traffic switching to deploy implementation so behavior is consistent
-        Underpost.deploy.switchTraffic(deployId, env, nextTraffic, options.replicas, options.namespace, options);
+        Underpost.deploy.switchTraffic(deployId, env, nextTraffic, options.replicas, namespace, options);
         // Keep local traffic in sync with the environment
         traffic = nextTraffic;
       };
@@ -266,15 +274,12 @@ class UnderpostMonitor {
                     default: {
                       const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
 
-                      const namespace = options.namespace;
-                      Underpost.host.apply(domainContextFactory({ env, namespace }));
+                      Underpost.host.apply(domainContextFactory({ env, ...Underpost.namespace.overrides(options) }));
 
                       for (const host of Object.keys(confServer)) {
-                        shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
+                        shellExec(`kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
                       }
-                      shellExec(
-                        `sudo kubectl rollout restart deployment/${deployId}-${env}-${traffic} -n ${namespace}`,
-                      );
+                      shellExec(`kubectl rollout restart deployment/${deployId}-${env}-${traffic} -n ${namespace}`);
 
                       switchTraffic();
                     }
@@ -321,7 +326,7 @@ class UnderpostMonitor {
                       env,
                       traffic,
                       [],
-                      options.namespace,
+                      namespace,
                     );
                     if (ready) {
                       monitorPodName = readyPods[0].NAME;
@@ -394,7 +399,7 @@ class UnderpostMonitor {
      * @param {object} [options]
      * @param {string} [options.deployId='dd'] - Deploy id, comma-separated list, or `dd` for the whole router.
      * @param {string} [options.events=''] - Comma-separated event ids; empty selects every registered event.
-     * @param {string} [options.namespace='default'] - Namespace holding the stack.
+     * @param {string} [options.namespace] - The legacy namespace override; conf.cluster.json places each resource without it.
      * @param {string} [options.webhookUrl=''] - Explicit dispatcher URL; resolved from the node otherwise.
      * @param {string} [options.extraTargets=''] - Comma-separated additional `host:port` scrape targets.
      * @param {string} [options.hosts=''] - Comma-separated hostnames scraped at `/metrics` alongside the configured ones.
@@ -403,7 +408,7 @@ class UnderpostMonitor {
      * @memberof UnderpostMonitor
      */
     observabilityContextFactory(options = {}) {
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('observability', { options });
       const deployIds = Underpost.monitor.observabilityDeployListFactory(options.deployId);
       const scheme = options.dev ? 'http' : 'https';
 
@@ -508,34 +513,32 @@ class UnderpostMonitor {
     /** Reads a live Grafana admin Secret without emitting its data. */
     grafanaAdminSecretState(namespace = 'default') {
       const { adminSecretName, adminUserKey, adminPasswordKey } = UNDERPOST_MONITORING.grafana;
-      const source = shellExec(`kubectl get secret ${adminSecretName} -n ${namespace} --ignore-not-found -o json`, {
-        stdout: true,
-        silent: true,
-        silentOnError: true,
-        disableLog: true,
-      });
-      if (!`${source || ''}`.trim()) return null;
-      const secret = JSON.parse(source);
-      const decode = (key) => Buffer.from(`${secret.data?.[key] || ''}`, 'base64').toString('utf8');
-      return {
-        username: decode(adminUserKey),
-        password: decode(adminPasswordKey),
-        resourceVersion: `${secret.metadata?.resourceVersion || ''}`,
-      };
+      const live = Underpost.secret.liveData(adminSecretName, namespace);
+      return (
+        live && {
+          username: live.data[adminUserKey] ?? '',
+          password: live.data[adminPasswordKey] ?? '',
+          resourceVersion: live.resourceVersion,
+        }
+      );
     },
 
-    /** Resolves and applies the dedicated Grafana admin Secret. */
+    /**
+     * Resolves and applies the Grafana admin Secret from the source the environment declares for the monitoring
+     * stack: the store, the host environment (`seed`), or the live Secret (`unmanaged`).
+     */
     syncGrafanaAdminSecret(options = {}) {
-      const namespace = options.namespace || 'default';
+      const { namespace, environment } = Underpost.namespace.resolve({ resource: 'observability', options });
       const { grafana } = UNDERPOST_MONITORING;
+      const source = Underpost.namespace.secretSource({ resource: 'observability', environment });
+      const stored = ['sops', 'shared'].includes(source);
       const envCredentials = Underpost.host.grafanaAdmin({ ...options, required: false });
-      const stored = Underpost.secret.has(grafana.adminSecretName, namespace);
+      const previous = Underpost.monitor.grafanaAdminSecretState(namespace);
       const data = stored
-        ? Underpost.secret.readData(grafana.adminSecretName, namespace)
-        : {
-            [grafana.adminUserKey]: envCredentials.username,
-            [grafana.adminPasswordKey]: envCredentials.password,
-          };
+        ? Underpost.secret.readData(Underpost.secret.reference('observability/grafana-admin'), environment)
+        : source === 'seed'
+          ? { [grafana.adminUserKey]: envCredentials.username, [grafana.adminPasswordKey]: envCredentials.password }
+          : { [grafana.adminUserKey]: previous?.username, [grafana.adminPasswordKey]: previous?.password };
       const desired = {
         username: `${data[grafana.adminUserKey] || ''}`.trim(),
         password: `${data[grafana.adminPasswordKey] || ''}`,
@@ -543,11 +546,10 @@ class UnderpostMonitor {
       };
       if (!desired.username || !desired.password)
         throw new Error(
-          `[grafana] ${stored ? grafana.adminSecretName : envCredentials.envPath} must define ` +
-            `${grafana.adminUserKey} and ${grafana.adminPasswordKey}`,
+          `[grafana] the ${source} source of ${environment} (${source === 'seed' ? envCredentials.envPath : `secret/${grafana.adminSecretName}`}) ` +
+            `must define ${grafana.adminUserKey} and ${grafana.adminPasswordKey}`,
         );
 
-      const previous = Underpost.monitor.grafanaAdminSecretState(namespace);
       const deploymentSource = shellExec(`kubectl get deployment ${grafana.name} -n ${namespace} -o json`, {
         stdout: true,
         silent: true,
@@ -571,8 +573,8 @@ EOF
           { silent: true, disableLog: true },
         );
 
-      if (stored) Underpost.secret.applyIfPresent(grafana.adminSecretName, namespace, { quiet: true });
-      else
+      if (stored) Underpost.secret.provide({ resource: 'observability', namespace, options });
+      else if (source === 'seed')
         shellExec(
           `kubectl apply -f - <<'EOF'
 ${grafanaAdminSecretFactory({ ...desired, namespace })}
@@ -586,7 +588,7 @@ EOF
         throw new Error(`[grafana] secret/${grafana.adminSecretName} is missing its credential keys`);
       logger.info('Grafana admin Secret synchronized', {
         namespace,
-        source: stored ? 'sops' : 'cron-env',
+        source,
         changed: previous?.username !== current.username || previous?.password !== current.password,
         resourceVersion: current.resourceVersion,
         deploymentExists: Boolean(deployment),
@@ -720,7 +722,7 @@ EOF
      * provisions the ones this CLI owns.
      *
      * Cluster DNS is verified rather than installed: the Envoy job and every
-     * component address is a `.svc.cluster.local` name, so without CoreDNS the
+     * component address is a cluster DNS name, so without CoreDNS the
      * stack comes up green and scrapes nothing. It belongs to the cluster
      * runtime (kubeadm, K3s, Kind), so a missing one is reported, not patched
      * over. The Gateway API control plane is installed when absent, because
@@ -738,7 +740,7 @@ EOF
       const clusterDns = exists(`kubectl get deployment -n kube-system -l k8s-app=kube-dns -o name`);
       if (!clusterDns) {
         logger.error('Cluster DNS (CoreDNS/kube-dns) is not present', {
-          hint: 'the stack addresses every component by svc.cluster.local name; initialize the cluster first',
+          hint: 'the stack addresses every component by its cluster DNS name; initialize the cluster first',
         });
         return false;
       }
@@ -746,7 +748,7 @@ EOF
         silentOnError: true,
       });
 
-      const { namespace: envoyNamespace } = UNDERPOST_MONITORING.envoy;
+      const envoyNamespace = Underpost.namespace.of('envoyGateway', { options });
       if (!exists(`kubectl get deployment envoy-gateway -n ${envoyNamespace} -o name`)) {
         logger.info('Envoy Gateway is absent; installing the Gateway API control plane', { envoyNamespace });
         shellExec(`${cli('underpost', { local: true })} cluster${options.dev ? ' --dev' : ''} --gateway-api`);
@@ -794,6 +796,8 @@ EOF
           hostTargets,
           nodeRoles: Underpost.event.clusterNodes(),
           namespace,
+          envoyNamespace: Underpost.namespace.of('envoyGateway', { options }),
+          clusterDomain: Underpost.namespace.cluster({ options }).clusterDomain,
         }),
       );
       const alertmanagerConf = stamp(alertmanagerConfFactory({ webhookUrl, events }));
@@ -811,6 +815,7 @@ EOF
       shellExec(`kubectl apply -f - <<'EOF'
 ${monitoringConfigFactory({
   namespace,
+  clusterDomain: Underpost.namespace.cluster({ options }).clusterDomain,
   prometheusConf,
   alertRules: alertRulesFactory(events),
   alertmanagerConf,
@@ -849,11 +854,7 @@ EOF
           rootUrl: env.GF_SERVER_ROOT_URL || grafanaExposureFactory({}).rootUrl,
           subPath: env.GF_SERVER_SERVE_FROM_SUB_PATH === 'true',
         };
-        const patch = grafanaDeploymentPatchFactory({
-          exposure,
-          nodeName: grafanaAdmin.deployment.spec.template.spec.nodeSelector?.['kubernetes.io/hostname'] || '',
-          adminSecretVersion: grafanaAdmin.resourceVersion,
-        });
+        const patch = grafanaDeploymentPatchFactory({ exposure, adminSecretVersion: grafanaAdmin.resourceVersion });
         shellExec(`kubectl patch deployment ${UNDERPOST_MONITORING.grafana.name} -n ${namespace} --type strategic --patch-file=/dev/stdin <<'EOF'
 ${JSON.stringify(patch)}
 EOF
@@ -884,14 +885,14 @@ EOF
      * exactly the probes the private configuration renders, so a stale reload deletes nothing.
      * The delete runs through the admin API that the Prometheus manifest enables.
      * @param {object} [options]
-     * @param {string} [options.namespace='default'] - Namespace holding the stack.
+     * @param {string} [options.namespace] - The legacy namespace override; conf.cluster.json places each resource without it.
      * @param {boolean} [options.dryRun=false] - List the retired series without deleting them.
      * @param {number} [options.timeoutMs=60000] - Wait for Prometheus to run the rendered probes.
      * @returns {Promise<{matchers: string[], series: Array<object>}>} Selectors and the series they matched.
      * @memberof UnderpostMonitor
      */
     async pruneStaleSeries(options = {}) {
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('observability', { options });
       const { prometheus } = UNDERPOST_MONITORING;
       const state = Underpost.event.deployedEventState({ namespace });
       if (!state.readable)
@@ -1098,18 +1099,20 @@ EOF
      * @memberof UnderpostMonitor
      */
     async deployObservability(options = {}) {
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('observability', { options });
       const manifestsRoot = Underpost.monitor.observabilityManifestsRoot();
       const { grafana } = UNDERPOST_MONITORING;
-      const pinnable = [
+      const components = [
         UNDERPOST_MONITORING.prometheus.name,
         UNDERPOST_MONITORING.alertmanager.name,
         UNDERPOST_MONITORING.blackbox.name,
       ];
 
       if (!Underpost.monitor.ensureObservabilityPrerequisites(options)) return undefined;
-      const nodeName = Underpost.monitor.resolveObservabilityNode(options.nodeName);
-      Underpost.monitor.resetGrafanaForNode({ namespace, nodeName });
+      await Underpost.namespace.ensure({ resource: 'observability', options });
+      const scheduling = Underpost.monitor.observabilityScheduling(options);
+      const grafanaNode = Underpost.namespace.soleNode(scheduling.nodes, 'Grafana');
+      Underpost.monitor.resetGrafanaForNode({ namespace, nodeName: grafanaNode });
 
       // Configuration first: every workload below mounts a ConfigMap, and a pod
       // admitted before its ConfigMap exists stays pending until kubelet
@@ -1122,25 +1125,28 @@ EOF
       const grafanaAdmin = grafanaAdminSyncState.get(context);
 
       for (const manifest of ['prometheus', 'alertmanager', 'blackbox-exporter'])
-        shellExec(`kubectl apply -f ${manifestsRoot}/${manifest}/deployment.yaml -n ${namespace}`);
+        Underpost.kubectl.applyScheduled({
+          path: `${manifestsRoot}/${manifest}/deployment.yaml`,
+          namespace,
+          scheduling,
+        });
 
-      Underpost.monitor.pinWorkloads({ names: pinnable, namespace, nodeName });
       Underpost.monitor.applyGrafanaResources({ manifestsRoot, namespace });
       const exposure = Underpost.monitor.exposeGrafana({
         ...options,
         namespace,
-        nodeName,
+        scheduling,
         patchDeployment: false,
       });
       Underpost.monitor.applyGrafanaDeployment({
         manifestsRoot,
         namespace,
-        nodeName,
+        scheduling,
         exposure,
         adminSecretVersion: grafanaAdmin.resourceVersion,
       });
 
-      for (const name of [...pinnable, grafana.name])
+      for (const name of [...components, grafana.name])
         Underpost.monitor.waitForObservabilityDeployment({ name, namespace });
       await Underpost.monitor.reconcileGrafanaAdmin({ namespace, ...grafanaAdmin });
       grafanaAdminSyncState.delete(context);
@@ -1149,22 +1155,26 @@ EOF
         grafanaUrl: exposure.url,
         namespace,
         clusterType: clusterTypeFactory(options, options.dev ? 'kind' : 'kubeadm'),
-        nodeName: nodeName || '(scheduler)',
-        grafana: `http://${UNDERPOST_MONITORING.grafana.name}.${namespace}.svc.cluster.local:${UNDERPOST_MONITORING.grafana.port}`,
-        prometheus: `http://${UNDERPOST_MONITORING.prometheus.name}.${namespace}.svc.cluster.local:${UNDERPOST_MONITORING.prometheus.port}`,
+        nodeName: grafanaNode || '(scheduler)',
+        grafana: `http://${Underpost.namespace.serviceFqdn({ service: UNDERPOST_MONITORING.grafana.name, namespace, options })}:${UNDERPOST_MONITORING.grafana.port}`,
+        prometheus: `http://${Underpost.namespace.serviceFqdn({ service: UNDERPOST_MONITORING.prometheus.name, namespace, options })}:${UNDERPOST_MONITORING.prometheus.port}`,
         events: context.events.map((event) => event.id),
       });
       return context;
     },
 
-    /** Resolves and validates an explicit observability workload node. */
-    resolveObservabilityNode(nodeName = '') {
-      nodeName = `${nodeName || ''}`.trim();
-      if (!nodeName) return '';
-      const { node, corrected } = Underpost.deploy.resolveSchedulableNode({ node: nodeName });
-      if (corrected)
-        throw new Error(`[monitor] --node-name ${nodeName} is not a node in this cluster (schedulable: ${node})`);
-      return node;
+    /** The pod scheduling of the monitoring workloads: `--node-name`, else conf.cluster.json; a node the cluster lacks refuses. */
+    observabilityScheduling(options = {}) {
+      const scheduling = Underpost.namespace.podScheduling({
+        resource: 'observability',
+        options,
+        node: options.nodeName,
+      });
+      for (const name of scheduling.nodes) {
+        const { node, corrected } = Underpost.deploy.resolveSchedulableNode({ node: name });
+        if (corrected) throw new Error(`[monitor] ${name} is not a node in this cluster (schedulable: ${node})`);
+      }
+      return scheduling;
     },
 
     /** Returns Grafana's bound volume and its node affinity. */
@@ -1218,7 +1228,13 @@ EOF
     },
 
     /** Applies Grafana with placement and URL settings in its initial pod template. */
-    applyGrafanaDeployment({ manifestsRoot, namespace = 'default', nodeName = '', exposure, adminSecretVersion = '' }) {
+    applyGrafanaDeployment({
+      manifestsRoot,
+      namespace = 'default',
+      scheduling = {},
+      exposure,
+      adminSecretVersion = '',
+    }) {
       const source = shellExec(`kubectl create --dry-run=client -f ${manifestsRoot}/grafana/deployment.yaml -o json`, {
         stdout: true,
         silent: true,
@@ -1228,7 +1244,7 @@ EOF
         deployment: JSON.parse(source),
         exposure,
         namespace,
-        nodeName,
+        scheduling,
         adminSecretVersion,
       });
       shellExec(
@@ -1262,27 +1278,18 @@ EOF
     },
 
     /**
-     * @method pinWorkloads
-     * @description Pins Deployments to one node, refusing a name no node carries.
-     *
-     * A workload pinned to a non-existent node does not degrade — it stays
-     * Pending and every rollout wait times out with nothing naming the cause —
-     * so the name is checked against the live node list before anything is
-     * patched. Kind, kubeadm and K3s name their nodes differently
-     * (`kind-worker`, the machine hostname, `node-01`), which is exactly why the
-     * check is against the cluster rather than a per-runtime guess.
+     * @method placeWorkloads
+     * @description Patches Deployments with a pod scheduling whose nodes the cluster has.
      * @param {object} params
      * @param {string[]} params.names - Deployment names.
      * @param {string} params.namespace - Namespace holding them.
-     * @param {string} params.nodeName - Requested node; empty leaves placement to the scheduler.
+     * @param {{affinity?:Object}} params.scheduling - {@link UnderpostMonitor.observabilityScheduling}; no affinity leaves placement to the scheduler.
      * @returns {boolean} True when the workloads were pinned.
-     * @throws {Error} When `nodeName` is not a node in this cluster.
      * @memberof UnderpostMonitor
      */
-    pinWorkloads({ names = [], namespace = 'default', nodeName = '' }) {
-      if (!nodeName) return false;
-      const node = Underpost.monitor.resolveObservabilityNode(nodeName);
-      for (const name of names) Underpost.cluster.pinToNode({ kind: 'deployment', name, namespace, node });
+    placeWorkloads({ names = [], namespace = 'default', scheduling = {} }) {
+      if (!scheduling.affinity) return false;
+      for (const name of names) Underpost.cluster.placeWorkload({ kind: 'deployment', name, namespace, scheduling });
       return true;
     },
 
@@ -1313,14 +1320,14 @@ EOF
      * Two independent exposures, either or both:
      *
      *   - `--grafana-host <host>` attaches it at `/grafana` on a hostname the
-     *     edge already serves, so it inherits that host's certificate and is
-     *     reachable publicly. The route carries no rewrite: with
+     *     edge already serves ({@link UnderpostIngress.publishPath}), so it inherits
+     *     that host's certificate and is reachable publicly. The route carries no rewrite: with
      *     `serve_from_sub_path` Grafana expects to receive the prefix, and
      *     stripping it would break every asset URL it then generates.
      *   - `--node-port` publishes it on the node's LAN address, for an operator
      *     on the same network with no DNS or certificate involved.
      *
-     * The `GF_SERVER_*` pair and the node pin are applied as one pod-template
+     * The `GF_SERVER_*` pair and the placement are applied as one pod-template
      * patch rather than separate `set env` and `patch` calls. Each template
      * mutation starts a new ReplicaSet, and Grafana rolls with `Recreate`
      * because its data directory is a ReadWriteOnce volume — so two mutations in
@@ -1329,17 +1336,19 @@ EOF
      * @param {string} [options.grafanaHost=''] - Hostname to attach the sub-path route to.
      * @param {boolean} [options.nodePort=false] - Publish the LAN NodePort.
      * @param {string} [options.nodeName=''] - Grafana node and NodePort address.
-     * @param {string} [options.namespace='default'] - Namespace holding Grafana.
+     * @param {Object} [options.scheduling] - The scheduling the install resolved; else `--node-name`, else conf.cluster.json.
+     * @param {string} [options.namespace] - The legacy namespace override; conf.cluster.json places each resource without it.
      * @param {string} [options.env] - Environment whose Gateway the route attaches to.
      * @param {boolean} [options.patchDeployment=true] - Apply the runtime settings to an existing Deployment.
      * @returns {object} The resolved exposure.
      * @memberof UnderpostMonitor
      */
     exposeGrafana(options = {}) {
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('observability', { options });
       const { grafana } = UNDERPOST_MONITORING;
       const host = `${options.grafanaHost || ''}`.trim();
-      const nodeName = Underpost.monitor.resolveObservabilityNode(`${options.nodeName || ''}`.trim());
+      const scheduling = options.scheduling ?? Underpost.monitor.observabilityScheduling(options);
+      const nodeName = Underpost.namespace.soleNode(scheduling.nodes, 'Grafana');
       const reset = options.patchDeployment !== false && Underpost.monitor.resetGrafanaForNode({ namespace, nodeName });
       const manifestsRoot = reset ? Underpost.monitor.observabilityManifestsRoot() : '';
       if (reset) {
@@ -1355,36 +1364,23 @@ ${grafanaNodePortFactory({ namespace, nodePort: grafana.nodePort })}
 EOF
 `);
 
-      if (host) {
-        // The deploy's Gateway already terminates TLS for this hostname, so the
-        // route attaches to it rather than provisioning a second listener.
-        const parentName = Underpost.deploy.gatewayNameFactory({
-          deployId: Underpost.monitor.grafanaRouteDeployId(host, options),
-          env: options.env || (options.dev ? 'development' : 'production'),
-        });
-        const routeYaml = Underpost.deploy.httpRouteYamlFactory({
+      const route = { name: grafana.routeName, environment: deployEnvFactory(options), options };
+      if (host)
+        Underpost.ingress.publishPath({
+          ...route,
           host,
-          name: grafana.routeName,
-          parentName,
-          options: { namespace },
-          rules: Underpost.deploy.httpRouteRuleFactory({
-            path: grafana.subPath,
-            matchType: 'PathPrefix',
-            serviceId: grafana.name,
-            port: grafana.port,
-          }),
+          path: grafana.subPath,
+          service: grafana.name,
+          serviceNamespace: namespace,
+          port: grafana.port,
         });
-        shellExec(`kubectl apply -f - <<'EOF'
-${routeYaml}
-EOF
-`);
-      } else shellExec(`kubectl delete httproute ${grafana.routeName} -n ${namespace} --ignore-not-found`);
+      else Underpost.ingress.retractPath(route);
 
       const exposure = grafanaExposureFactory({ host, nodeIp, nodePort: grafana.nodePort });
       if (options.patchDeployment !== false) {
-        if (reset) Underpost.monitor.applyGrafanaDeployment({ manifestsRoot, namespace, nodeName, exposure });
+        if (reset) Underpost.monitor.applyGrafanaDeployment({ manifestsRoot, namespace, scheduling, exposure });
         else {
-          const patch = JSON.stringify(grafanaDeploymentPatchFactory({ exposure, nodeName }));
+          const patch = JSON.stringify(grafanaDeploymentPatchFactory({ exposure, scheduling }));
           shellExec(`kubectl patch deployment ${grafana.name} -n ${namespace} -p '${patch}'`);
         }
         Underpost.monitor.waitForObservabilityDeployment({ name: grafana.name, namespace });
@@ -1419,41 +1415,6 @@ EOF
       return `${shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }) || ''}`
         .trim()
         .split(/\s+/)[0];
-    },
-
-    /**
-     * @method grafanaRouteDeployId
-     * @description The deploy whose Gateway terminates a hostname.
-     *
-     * Resolved from the live Gateways rather than guessed, because the Gateway
-     * is named after the deploy that owns the host and a route attached to a
-     * Gateway that does not list the hostname is accepted and then never
-     * matched — a 404 with nothing logged.
-     * @param {string} host - Hostname to publish under.
-     * @param {object} [options] - Namespace and environment.
-     * @returns {string} Owning deploy id.
-     * @throws {Error} When no Gateway in the cluster serves the hostname.
-     * @memberof UnderpostMonitor
-     */
-    grafanaRouteDeployId(host, options = {}) {
-      const namespace = options.namespace || 'default';
-      const env = options.env || (options.dev ? 'development' : 'production');
-      const gateways = `${
-        shellExec(
-          `kubectl get gateway -n ${namespace} -o jsonpath='{range .items[*]}{.metadata.name}={range .spec.listeners[*]}{.hostname},{end}{"\\n"}{end}'`,
-          { stdout: true, silent: true, silentOnError: true, disableLog: true },
-        ) || ''
-      }`.trim();
-
-      for (const line of gateways.split('\n')) {
-        const [name, hostnames = ''] = line.split('=');
-        if (!name || !hostnames.split(',').includes(host)) continue;
-        const suffix = `-${env}`;
-        if (name.endsWith(suffix)) return name.slice(0, -suffix.length);
-      }
-      throw new Error(
-        `[observability] no ${env} Gateway serves '${host}'; deploy that host first, or use --node-port instead`,
-      );
     },
 
     /**
@@ -1502,7 +1463,11 @@ EOF
         );
 
       shellExec(`kubectl scale deployment metrics-server -n ${namespace} --replicas=1`);
-      Underpost.monitor.pinWorkloads({ names: ['metrics-server'], namespace, nodeName: options.nodeName });
+      Underpost.monitor.placeWorkloads({
+        names: ['metrics-server'],
+        namespace,
+        scheduling: options.nodeName ? Underpost.monitor.observabilityScheduling(options) : {},
+      });
       shellExec(`kubectl rollout status deployment/metrics-server -n ${namespace} --timeout=5m`, {
         silentOnError: true,
       });
@@ -1582,6 +1547,34 @@ EOF
     },
 
     /**
+     * How often kubelet failed to create the sandbox of a pod, and its last reason. The sandbox holds
+     * the pod network, so a node whose CNI is down fails it on every retry.
+     * @param {string} pod - Pod name.
+     * @param {string} [namespace='default'] - Pod namespace.
+     * @returns {{count:number, message:string}}
+     * @memberof UnderpostMonitor
+     */
+    sandboxFailure(pod, namespace = 'default') {
+      const raw = shellExec(
+        `kubectl get events -n ${shellArgumentFactory(namespace)} --field-selector ${shellArgumentFactory(
+          `involvedObject.name=${pod},reason=FailedCreatePodSandBox`,
+        )} -o json`,
+        { stdout: true, silent: true, disableLog: true, silentOnError: true },
+      );
+      let events = [];
+      try {
+        events = JSON.parse(raw).items ?? [];
+      } catch {
+        // No event list: kubelet has reported no sandbox failure.
+      }
+      const last = events.toSorted((a, b) => `${a.lastTimestamp}`.localeCompare(`${b.lastTimestamp}`)).at(-1);
+      return {
+        count: events.reduce((total, event) => total + (event.count ?? event.series?.count ?? 1), 0),
+        message: last?.message ?? '',
+      };
+    },
+
+    /**
      * Checks the status of a deployment.
      * @param {string} deployId - Deployment ID for which the status is being checked.
      * @param {string} env - Environment for which the status is being checked.
@@ -1609,7 +1602,7 @@ EOF
           // Pod may not exist yet (between deployment apply and pod
           // scheduling). silentOnError lets the monitor loop continue
           // instead of aborting on the transient NotFound exit.
-          const raw = shellExec(`sudo kubectl get pod ${NAME} -n ${namespace} -o json`, {
+          const raw = shellExec(`kubectl get pod ${NAME} -n ${namespace} -o json`, {
             silent: true,
             disableLog: true,
             stdout: true,
@@ -1624,6 +1617,8 @@ EOF
         const k8sReady = readyCondition?.status === 'True';
 
         pod.out = JSON.stringify({ k8sReady, condition: readyCondition ?? null });
+        pod.NODE = podJson?.spec?.nodeName ?? '';
+        pod.sandboxPending = conditions.some((c) => c.type === 'PodReadyToStartContainers' && c.status === 'False');
 
         if (k8sReady) readyPods.push(pod);
         else notReadyPods.push(pod);
@@ -1858,7 +1853,7 @@ EOF
       const fetchScript = `fetch('http://127.0.0.1:${internalPort}${INTERNAL_TELEMETRY_PATH}').then(r=>r.text()).then(t=>process.stdout.write(t)).catch(()=>{})`;
       try {
         const result = shellExec(
-          `sudo kubectl exec ${podName} -n ${namespace} -- node -e ${shellArgumentFactory(fetchScript)}`,
+          `kubectl exec ${podName} -n ${namespace} -- node -e ${shellArgumentFactory(fetchScript)}`,
           { silent: true, disableLog: true, stdout: true, silentOnError: true },
         );
         const raw = `${result ?? ''}`.trim();
@@ -1875,7 +1870,7 @@ EOF
     },
     readRuntimeStatusViaExec(podName, namespace) {
       try {
-        const result = shellExec(`sudo kubectl exec ${podName} -n ${namespace} -- sh -c ${CONTAINER_STATUS_READ}`, {
+        const result = shellExec(`kubectl exec ${podName} -n ${namespace} -- sh -c ${CONTAINER_STATUS_READ}`, {
           silent: true,
           disableLog: true,
           stdout: true,
@@ -1912,12 +1907,12 @@ EOF
       const url = `http://127.0.0.1:${localPort}${INTERNAL_STATUS_PATH}`;
       let portForward;
       try {
-        // `exec` makes the tracked child the sudo/kubectl process (so kill
+        // `exec` makes the tracked child the kubectl process (so kill
         // reaches it); stdio is redirected to /dev/null so the tunnel never
         // inherits — and therefore never holds open — a CI/SSH session's pipes,
         // which would hang the job after a successful deploy.
         portForward = shellExec(
-          `exec sudo kubectl port-forward pod/${podName} ${localPort}:${internalPort} -n ${namespace} </dev/null >/dev/null 2>&1`,
+          `exec kubectl port-forward pod/${podName} ${localPort}:${internalPort} -n ${namespace} </dev/null >/dev/null 2>&1`,
           { async: true, silent: true, disableLog: true, silentOnError: true },
         );
       } catch (_) {
@@ -2053,6 +2048,12 @@ EOF
           const podStatus = (pod.STATUS || '').toLowerCase().trim();
           if (podErrorStates.find((s) => podStatus.includes(s)))
             throw new Error(`Pod ${pod.NAME} has error pod status: ${pod.STATUS}`);
+          if (!pod.sandboxPending) continue;
+          const sandbox = Underpost.monitor.sandboxFailure(pod.NAME, namespace);
+          if (sandbox.count >= SANDBOX_FAILURE_LIMIT)
+            throw new Error(
+              `Pod ${pod.NAME} cannot start on node ${pod.NODE}: ${sandbox.count} sandbox failures, last: ${sandbox.message}`,
+            );
         }
 
         const allPodsK8sReady = result.notReadyPods.length === 0;

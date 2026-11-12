@@ -94,12 +94,12 @@ node bin image [options]
 
 ### Additional Options
 
-| Option               | Description                               | Example                  |
-| -------------------- | ----------------------------------------- | ------------------------ |
-| `--namespace <name>` | Kubernetes namespace (default: "default") | `--namespace production` |
-| `--node-name`        | Node name for kubeadm/k3s operations      | `--node-name worker-1`   |
-| `--spec`             | Show detailed image specifications        | `--spec`                 |
-| `--dev`              | Use development mode                      | `--dev`                  |
+| Option               | Description                                  | Example                     |
+| -------------------- | -------------------------------------------- | --------------------------- |
+| `--namespace <name>` | Kubernetes namespace (default: "default")    | `--namespace production`    |
+| `--nodes <names>`    | Kubernetes nodes to act on, by node identity | `--nodes worker-1,worker-2` |
+| `--spec`             | Show detailed image specifications           | `--spec`                    |
+| `--dev`              | Use development mode                         | `--dev`                     |
 
 ---
 
@@ -249,13 +249,33 @@ Show detailed image information:
 node bin image --ls --kind --spec
 ```
 
-### List from Specific Node
+### Act on Specific Nodes
 
-For Kubeadm or K3s clusters, specify the node:
+`--nodes` names the Kubernetes nodes that `--ls`, `--rm`, `--pull-dockerhub`, `--digest`, `--release` and
+`--import-tar` act on. Each node is reached through its node identity in `engine-private/deploy/nodes`:
+its WireGuard peer over SSH, or this host when the peer is this machine. Without `--nodes`, the command
+acts on this host, or on `kind-worker` with `--kind`.
 
 ```bash
-node bin image --ls --kubeadm --node-name worker-1
+# The images of a worker, as its own runtime reports them
+node bin image --ls --kubeadm --nodes hp-envy-iso-ram-rocky9
+
+# Several nodes at once; each row carries its NODE
+node bin image --ls --kubeadm --nodes localhost.localdomain,hp-envy-iso-ram-rocky9
+
+# Remove an image from one worker
+node bin image --rm my-app:1.0 --kubeadm --nodes hp-envy-iso-ram-rocky9
 ```
+
+`--ssh-key-path` replaces the registered key of each peer. A deploy uses it to resolve the digest of its
+image on the workload nodes, so the image lands where the pods run:
+
+```bash
+node bin image --digest underpost/engine-cyberia:v4.0.0 --nodes hp-envy-iso-ram-rocky9 --ssh-key-path <key>
+```
+
+A node that no record names as its `kubernetesNodeName` is refused with the command that links it:
+`node bin namespace nodes identify <node record> --kubernetes-node <node>`.
 
 ### List in Custom Namespace
 
@@ -300,7 +320,7 @@ node bin image --ls --kind
 node bin image --rm my-app:1.0 --kind
 ```
 
-**How it works:** Images are loaded into both `kind-control-plane` and `kind-worker` nodes using `kind load image-archive`.
+**How it works:** A build is loaded into every kind node with `kind load image-archive`. `--ls`, `--rm` and `--pull-dockerhub` run `crictl` inside `kind-worker`, or inside each node `--nodes` names.
 
 ### Kubeadm Cluster
 
@@ -320,7 +340,7 @@ node bin image --ls --kubeadm
 node bin image --rm my-app:1.0 --kubeadm
 ```
 
-**How it works:** Images are imported using `ctr -n k8s.io images import` and removed with `crictl rmi`.
+**How it works:** Images are imported into CRI-O through root Podman's storage, or into containerd with `ctr -n k8s.io images import`, and removed with `crictl rmi`. With `--nodes`, each command runs on the runtime of that node.
 
 ### K3s Cluster
 
@@ -340,7 +360,7 @@ node bin image --ls --k3s
 node bin image --rm my-app:1.0 --k3s
 ```
 
-**How it works:** Images are imported using `k3s ctr images import` and removed with `k3s ctr images rm`.
+**How it works:** Images are imported using `k3s ctr images import` and removed with `crictl rmi` against the K3s runtime.
 
 ---
 
@@ -484,13 +504,14 @@ pwd
 
 **Solutions:**
 
-```bash
-# Run with sudo if needed (operations already use sudo internally)
-# Ensure your user is in docker group (for Kind)
-sudo usermod -aG docker $USER
+- Run the command on a terminal, so `sudo` can ask for your password, or run it as root. The image store
+  of the cluster belongs to root, and Docker runs as root.
+- In CI or over SSH without a terminal, grant the user `sudo` without a password for the commands it runs.
+- Do not add the user to the `docker` group: the group grants root-equivalent access to the host.
+- A Kubernetes error such as `forbidden` comes from RBAC, not from Linux permissions. Check the context and
+  the credentials of the kubeconfig instead.
 
-# Log out and back in for group changes to take effect
-```
+See [Privileges](../reference/cluster-lifecycle.md#privileges).
 
 #### 5. "No space left on device"
 
@@ -498,9 +519,13 @@ sudo usermod -aG docker $USER
 
 **Solutions:**
 
+On a Kubernetes node, never run `podman system prune` or `podman network prune`. Podman reads the CNI
+configuration in `/etc/cni/net.d` as its own networks and deletes it, and the node then creates no pod
+sandbox. Prune containers, images and volumes one by one:
+
 ```bash
 # Clean up Podman images
-podman system prune -a
+podman container prune -f && podman image prune -a -f && podman volume prune -f
 
 # Remove unused Docker images (for Kind)
 docker image prune -a

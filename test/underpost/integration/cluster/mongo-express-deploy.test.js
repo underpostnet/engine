@@ -3,7 +3,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 // Named import: js-yaml's ESM build exports no default.
-import { load } from 'js-yaml';
+import { dump, load } from 'js-yaml';
 import shell from 'shelljs';
 import { vi } from 'vitest';
 import Underpost from '../../../../src/index.js';
@@ -19,7 +19,7 @@ import MongoExpress, {
   mongoExpressManifestPathFactory,
   mongoExpressNodePortManifestFactory,
   parseMongodArgs,
-} from '../../../../src/db/mongo/MongoExpress.js';
+} from '../../../../src/db/mongo/mongo-express.js';
 
 const MONGODB_AUTH_ARGS = load(fs.readFileSync('./manifests/mongodb/statefulset.yaml', 'utf8')).spec.template.spec
   .containers[0].args;
@@ -161,52 +161,54 @@ describe('mongo-express cluster wiring', () => {
 describe('mongo-express rollout', () => {
   let commands;
 
-  const cluster = ({ args = '', ready = true, stored = true } = {}) => {
+  const cluster = ({ args = '', ready = true } = {}) => {
     commands = [];
     vi.spyOn(shell, 'exec').mockImplementation((command) => {
       commands.push(command);
-      return { code: 0, stdout: command.startsWith('kubectl get statefulset') ? args : '', stderr: '' };
+      const stdout = command.startsWith('kubectl get statefulset')
+        ? args
+        : command.startsWith('kubectl kustomize')
+          ? dump({ kind: 'Deployment', metadata: { name: MONGO_EXPRESS_NAME }, spec: { template: { spec: {} } } })
+          : '';
+      return { code: 0, stdout, stderr: '' };
     });
-    vi.spyOn(Underpost.secret, 'applyIfPresent').mockReturnValue(stored);
-    const seed = vi.spyOn(Underpost.secret, 'applyFromOriginSeed').mockReturnValue(true);
+    const provide = vi.spyOn(Underpost.secret, 'provide').mockReturnValue({});
     const pull = vi.spyOn(Underpost.cluster, 'pullImage').mockReturnValue(undefined);
-    const pin = vi.spyOn(Underpost.cluster, 'pinToNode').mockReturnValue(undefined);
     vi.spyOn(Underpost.test, 'statusMonitor').mockResolvedValue(ready);
-    return { seed, pull, pin };
+    return { provide, pull };
   };
+  /** The pod spec of the scheduled apply. */
+  const applied = () =>
+    JSON.parse(/<<'EOF'\n([\s\S]*)\nEOF/.exec(commands.find((command) => command.startsWith('kubectl apply -n ')))[1])
+      .items[0].spec.template.spec;
+  const nodePort = mongoExpressNodePortManifestFactory({ underpostRoot: '.' });
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('applies the stored secret, the auth kustomization of the deployed mongod and the exposure asked for', async () => {
-    const { seed, pull, pin } = cluster({ args: 'mongodb|--auth|--bind_ip_all|' });
-    const ready = await MongoExpress.deploy({
-      namespace: 'ns',
-      options: { pullImage: true, nodePort: true, nodeName: 'n1' },
-    });
+  it('provides the MongoDB Secrets, the auth kustomization of the deployed mongod and the exposure asked for', async () => {
+    const { provide, pull } = cluster({ args: 'mongodb|--auth|--bind_ip_all|' });
+    const options = { pullImage: true, nodePort: true, nodeName: 'n1' };
+    const ready = await MongoExpress.deploy({ namespace: 'ns', options });
     expect(ready).to.equal(true);
-    expect(seed).not.toHaveBeenCalled();
+    expect(provide).toHaveBeenCalledWith({ resource: 'mongodb', namespace: 'ns', options });
     expect(pull).toHaveBeenCalledWith(MONGO_EXPRESS_IMAGE, expect.objectContaining({ pullImage: true }));
-    expect(commands).to.include(`kubectl apply -k ${mongoExpressManifestPathFactory({ authEnabled: true })} -n ns`);
-    expect(commands).to.include(
-      `kubectl apply -f ${mongoExpressNodePortManifestFactory({ underpostRoot: '.' })} -n ns`,
-    );
-    expect(pin).toHaveBeenCalledWith({ kind: 'deployment', name: MONGO_EXPRESS_NAME, namespace: 'ns', node: 'n1' });
+    expect(commands).to.include(`kubectl kustomize '${mongoExpressManifestPathFactory({ authEnabled: true })}'`);
+    expect(applied().affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution).to.deep.equal({
+      nodeSelectorTerms: [{ matchExpressions: [{ key: 'kubernetes.io/hostname', operator: 'In', values: ['n1'] }] }],
+    });
+    expect(commands).to.include(`kubectl apply -f ${nodePort} -n ns`);
   });
 
-  it('seeds the secret from its origin and follows the flags when no mongod is deployed', async () => {
-    const { seed, pin } = cluster({ args: '', stored: false });
+  it('follows the flags when no mongod is deployed', async () => {
+    cluster({ args: '' });
     expect(await MongoExpress.deploy({ options: { mongodb4: true } })).to.equal(true);
-    expect(seed).toHaveBeenCalledWith(MONGO_EXPRESS_SECRET_NAME, 'default');
-    expect(commands).to.include(
-      `kubectl apply -k ${mongoExpressManifestPathFactory({ authEnabled: false })} -n default`,
-    );
-    expect(commands.some((command) => command.includes('-f '))).to.equal(false);
-    expect(pin).not.toHaveBeenCalled();
+    expect(commands).to.include(`kubectl kustomize '${mongoExpressManifestPathFactory({ authEnabled: false })}'`);
+    expect(commands.some((command) => command.includes(nodePort))).to.equal(false);
   });
 
   it('reports a deployment that never ran and skips the exposure', async () => {
     cluster({ args: 'mongodb|', ready: false });
     expect(await MongoExpress.deploy({ options: { nodePort: true } })).to.equal(false);
-    expect(commands.some((command) => command.includes('-f '))).to.equal(false);
+    expect(commands.some((command) => command.includes(nodePort))).to.equal(false);
   });
 });

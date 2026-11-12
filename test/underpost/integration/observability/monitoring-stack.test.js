@@ -36,6 +36,7 @@ import {
   webhookSecretFactory,
 } from '../../../../src/server/ops/monitoring.js';
 import { hubTunnelAddressFactory } from '../../../../src/cli/wireguard.js';
+import { podSchedulingFactory } from '../../../../src/server/runtime/pod-scheduling.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
 // A deploy that mixes every runtime shape the router can carry: two scrapeable
@@ -169,6 +170,7 @@ describe('prometheusConfFactory', () => {
     extraTargets: ['127.0.0.1:9100'],
     probes: PROBES,
     namespace: 'obs',
+    envoyNamespace: 'gateway-system',
   });
 
   it('gives each distinct metrics path its own job', () => {
@@ -179,7 +181,7 @@ describe('prometheusConfFactory', () => {
 
   it('discovers the Envoy data plane instead of naming its generated Deployment', () => {
     expect(conf).to.include('kubernetes_sd_configs');
-    expect(conf).to.include(`names: ['${UNDERPOST_MONITORING.envoy.namespace}']`);
+    expect(conf).to.include(`names: ['gateway-system']`);
     expect(conf).to.include(`replacement: '$1:${UNDERPOST_MONITORING.envoy.metricsPort}'`);
     expect(conf).to.include(`metrics_path: ${UNDERPOST_MONITORING.envoy.metricsPath}`);
   });
@@ -438,6 +440,7 @@ describe('grafana rollout constraints', () => {
 
 describe('grafanaDeploymentFactory', () => {
   const deployment = {
+    kind: 'Deployment',
     metadata: { name: 'grafana' },
     spec: {
       template: {
@@ -454,11 +457,14 @@ describe('grafanaDeploymentFactory', () => {
       deployment,
       exposure,
       namespace: 'obs',
-      nodeName: 'node-a',
+      scheduling: podSchedulingFactory({ hostnames: ['node-a'] }),
       adminSecretVersion: '42',
     });
     expect(rendered.metadata.namespace).to.equal('obs');
-    expect(rendered.spec.template.spec.nodeSelector).to.deep.equal({ 'kubernetes.io/hostname': 'node-a' });
+    expect(rendered.spec.template.spec.affinity).to.deep.equal(
+      podSchedulingFactory({ hostnames: ['node-a'] }).affinity,
+    );
+    expect(rendered.spec.template.spec).to.not.have.property('tolerations');
     expect(rendered.spec.template.spec.containers[0].env).to.deep.equal([
       {
         name: 'GF_SECURITY_ADMIN_USER',
@@ -480,9 +486,9 @@ describe('grafanaDeploymentFactory', () => {
     expect(deployment.metadata).to.not.have.property('namespace');
   });
 
-  it('uses the same runtime fields when republishing an existing Deployment', () => {
-    const patch = grafanaDeploymentPatchFactory({ exposure, nodeName: 'node-a' });
-    expect(patch.spec.template.spec.nodeSelector).to.deep.equal({ 'kubernetes.io/hostname': 'node-a' });
+  it('uses the same runtime fields when republishing an existing Deployment, and keeps the live node', () => {
+    const patch = grafanaDeploymentPatchFactory({ exposure });
+    expect(patch.spec.template.spec).to.not.have.any.keys('affinity', 'nodeSelector', 'tolerations');
     expect(patch.spec.template.spec.containers[0].env).to.deep.equal([
       { name: 'GF_SERVER_ROOT_URL', value: exposure.rootUrl },
       { name: 'GF_SERVER_SERVE_FROM_SUB_PATH', value: 'false' },

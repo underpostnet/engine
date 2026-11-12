@@ -17,6 +17,8 @@
  * @namespace UnderpostMonitoring
  */
 
+import { serviceDnsName } from '../network/service-dns.js';
+import { HOSTNAME_LABEL, schedulePodTemplate } from '../runtime/pod-scheduling.js';
 import { containerStorageCommandsFactory } from '../security/container-storage.js';
 import { systemdServiceCommandsFactory, systemdUnitFactory } from './systemd.js';
 
@@ -70,7 +72,6 @@ const UNDERPOST_MONITORING = {
   // Envoy Gateway publishes the data plane's admin metrics on this port; the
   // path is Envoy's own, not a Kubernetes convention.
   envoy: {
-    namespace: 'envoy-gateway-system',
     metricsPort: 19001,
     metricsPath: '/stats/prometheus',
   },
@@ -113,10 +114,12 @@ const UNDERPOST_MONITORING = {
  * @param {string} name - Service name.
  * @param {number} port - Service port.
  * @param {string} [namespace] - Namespace holding the Service.
- * @returns {string} `<name>.<namespace>.svc.cluster.local:<port>`.
+ * @param {string} [clusterDomain] - DNS domain of the cluster.
+ * @returns {string} `<name>.<namespace>.svc.<cluster domain>:<port>`.
  * @memberof UnderpostMonitoring
  */
-const serviceDnsFactory = (name, port, namespace = 'default') => `${name}.${namespace}.svc.cluster.local:${port}`;
+const serviceDnsFactory = (name, port, namespace = 'default', clusterDomain) =>
+  serviceDnsName({ service: name, namespace, clusterDomain, port });
 
 /**
  * @method metricsPathFactory
@@ -296,6 +299,8 @@ const staleSeriesMatchersFactory = (activeTargets = []) => {
  * @param {Array<{nodeName: string, role: string}>} [params.nodeRoles] - Registered cluster
  * nodes, relabelled onto their discovered series as `underpost_role`.
  * @param {string} [params.namespace] - Namespace holding the stack.
+ * @param {string} params.envoyNamespace - Namespace of the Envoy Gateway data plane.
+ * @param {string} [params.clusterDomain] - DNS domain of the cluster.
  * @param {string} [params.scrapeInterval] - Global scrape/evaluation interval.
  * @returns {string} `prometheus.yml` contents.
  * @memberof UnderpostMonitoring
@@ -307,6 +312,8 @@ const prometheusConfFactory = ({
   hostTargets = [],
   nodeRoles = [],
   namespace = 'default',
+  envoyNamespace,
+  clusterDomain,
   scrapeInterval = UNDERPOST_MONITORING.scrapeInterval,
 } = {}) => {
   const { prometheus, alertmanager, blackbox, envoy, nodeExporter } = UNDERPOST_MONITORING;
@@ -401,7 +408,7 @@ ${Object.entries(group.labels)
       - source_labels: [__param_target]
         target_label: instance
       - target_label: __address__
-        replacement: '${serviceDnsFactory(blackbox.name, blackbox.port, namespace)}'`,
+        replacement: '${serviceDnsFactory(blackbox.name, blackbox.port, namespace, clusterDomain)}'`,
   );
 
   return `global:
@@ -414,7 +421,7 @@ rule_files:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['${serviceDnsFactory(alertmanager.name, alertmanager.port, namespace)}']
+        - targets: ['${serviceDnsFactory(alertmanager.name, alertmanager.port, namespace, clusterDomain)}']
 
 scrape_configs:
   - job_name: '${prometheus.name}'
@@ -426,7 +433,7 @@ scrape_configs:
     kubernetes_sd_configs:
       - role: pod
         namespaces:
-          names: ['${envoy.namespace}']
+          names: ['${envoyNamespace}']
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
         regex: envoy
@@ -602,10 +609,11 @@ const blackboxConfFactory = () => `modules:
  * @description Renders the provisioned Prometheus datasource.
  * @param {object} [params]
  * @param {string} [params.namespace] - Namespace holding Prometheus.
+ * @param {string} [params.clusterDomain] - DNS domain of the cluster.
  * @returns {string} Datasource provisioning file contents.
  * @memberof UnderpostMonitoring
  */
-const grafanaDatasourcesFactory = ({ namespace = 'default' } = {}) => {
+const grafanaDatasourcesFactory = ({ namespace = 'default', clusterDomain } = {}) => {
   const { prometheus } = UNDERPOST_MONITORING;
   return `apiVersion: 1
 datasources:
@@ -613,7 +621,7 @@ datasources:
     uid: underpost-prometheus
     type: prometheus
     access: proxy
-    url: 'http://${serviceDnsFactory(prometheus.name, prometheus.port, namespace)}'
+    url: 'http://${serviceDnsFactory(prometheus.name, prometheus.port, namespace, clusterDomain)}'
     isDefault: true
     editable: false
     jsonData:
@@ -786,11 +794,11 @@ RELEASE=node_exporter-$VERSION.linux-$ARCH
 # The collector's textfile directory is written by CronJob pods, so it needs the shared container
 # label; the /var/lib default leaves it readable but not writable by container_t. Non-fatal: a
 # host without the SELinux userspace still gets a working collector, just unlabeled.
-# A subshell, not a brace group: the generated mapping command calls exit 1 when semanage is
-# missing, which in a brace group would terminate this installer rather than just this check.
-if ! ( ${containerStorageCommandsFactory(nodeExporter.textfileDirectory)
-    .map((command) => `{ ${command}; }`)
-    .join(' && ')} ); then
+# A child shell: the generated mapping command calls exit 1 when semanage is missing, which here
+# would terminate this installer rather than just this check.
+if ! sudo sh <<'LABEL'; then
+${containerStorageCommandsFactory(nodeExporter.textfileDirectory).join(' && ')}
+LABEL
   echo "WARN: could not label ${nodeExporter.textfileDirectory} for container access" >&2
 fi
 if ! ${nodeExporter.binaryPath} --version 2>/dev/null | grep -q "version $VERSION"; then
@@ -1333,12 +1341,12 @@ const grafanaManagedEnvFactory = (exposure) => [...grafanaAdminEnvFactory(), ...
  * @description Renders the runtime fields used when republishing an existing Grafana Deployment.
  * @param {object} params
  * @param {object} params.exposure - Result of {@link grafanaExposureFactory}.
- * @param {string} [params.nodeName] - Kubernetes node to pin Grafana to.
+ * @param {{affinity?:Object, tolerations?:Object[]}} [params.scheduling] - The node of Grafana; none keeps the live one.
  * @param {string} [params.adminSecretVersion] - Secret resource version used to roll Grafana.
- * @returns {object} Kubernetes Deployment merge patch.
+ * @returns {object} Kubernetes Deployment strategic merge patch.
  * @memberof UnderpostMonitoring
  */
-const grafanaDeploymentPatchFactory = ({ exposure, nodeName = '', adminSecretVersion = '' } = {}) => ({
+const grafanaDeploymentPatchFactory = ({ exposure, scheduling = {}, adminSecretVersion = '' } = {}) => ({
   spec: {
     template: {
       ...(adminSecretVersion
@@ -1351,7 +1359,13 @@ const grafanaDeploymentPatchFactory = ({ exposure, nodeName = '', adminSecretVer
           }
         : {}),
       spec: {
-        ...(nodeName ? { nodeSelector: { 'kubernetes.io/hostname': nodeName } } : {}),
+        ...(scheduling.affinity
+          ? {
+              affinity: { nodeAffinity: scheduling.affinity.nodeAffinity },
+              nodeSelector: { [HOSTNAME_LABEL]: null },
+              ...(scheduling.tolerations ? { tolerations: scheduling.tolerations } : {}),
+            }
+          : {}),
         containers: [
           {
             name: UNDERPOST_MONITORING.grafana.name,
@@ -1370,7 +1384,7 @@ const grafanaDeploymentPatchFactory = ({ exposure, nodeName = '', adminSecretVer
  * @param {object} params.deployment - Parsed base Deployment manifest.
  * @param {object} params.exposure - Result of {@link grafanaExposureFactory}.
  * @param {string} [params.namespace='default'] - Namespace holding Grafana.
- * @param {string} [params.nodeName] - Kubernetes node to pin Grafana to.
+ * @param {{affinity?:Object, tolerations?:Object[]}} [params.scheduling] - The node of Grafana.
  * @param {string} [params.adminSecretVersion] - Secret resource version used to roll Grafana.
  * @returns {object} Deployment ready to apply.
  * @memberof UnderpostMonitoring
@@ -1379,10 +1393,10 @@ const grafanaDeploymentFactory = ({
   deployment,
   exposure,
   namespace = 'default',
-  nodeName = '',
+  scheduling = {},
   adminSecretVersion = '',
 } = {}) => {
-  const rendered = structuredClone(deployment);
+  const rendered = schedulePodTemplate(structuredClone(deployment), scheduling);
   rendered.metadata.namespace = namespace;
   if (adminSecretVersion) {
     rendered.spec.template.metadata ||= {};
@@ -1392,8 +1406,6 @@ const grafanaDeploymentFactory = ({
     };
   }
   const podSpec = rendered.spec.template.spec;
-  podSpec.nodeSelector = nodeName ? { 'kubernetes.io/hostname': nodeName } : {};
-
   const container = podSpec.containers.find(({ name }) => name === UNDERPOST_MONITORING.grafana.name);
   if (!container) throw new Error('Grafana Deployment manifest has no grafana container');
   const managedNames = new Set(grafanaManagedEnvFactory(exposure).map(({ name }) => name));
@@ -1579,6 +1591,7 @@ const nodeMetricsDashboardFactory = () => {
  * reach.
  * @param {object} params
  * @param {string} [params.namespace] - Namespace to render into.
+ * @param {string} [params.clusterDomain] - DNS domain of the cluster.
  * @param {string} params.prometheusConf - Rendered `prometheus.yml`.
  * @param {string} params.alertRules - Rendered rules file.
  * @param {string} params.alertmanagerConf - Rendered `alertmanager.yml`.
@@ -1588,6 +1601,7 @@ const nodeMetricsDashboardFactory = () => {
  */
 const monitoringConfigFactory = ({
   namespace = 'default',
+  clusterDomain,
   prometheusConf,
   alertRules,
   alertmanagerConf,
@@ -1685,7 +1699,7 @@ metadata:
     app: ${grafana.name}
 data:
   underpost.yaml: |
-${indentBlock(grafanaDatasourcesFactory({ namespace }), 4)}
+${indentBlock(grafanaDatasourcesFactory({ namespace, clusterDomain }), 4)}
 ---
 apiVersion: v1
 kind: ConfigMap

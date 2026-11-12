@@ -7,7 +7,14 @@
 import dotenv from 'dotenv';
 import { execFileSync } from 'node:child_process';
 import { commitData } from '../client/components/core/CommonJs.js';
-import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
+import {
+  chownHostPath,
+  hostOwner,
+  pbcopy,
+  shellArgumentFactory,
+  shellCd,
+  shellExec,
+} from '../server/runtime/process.js';
 import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -15,6 +22,7 @@ import {
   addWsConf,
   buildApiSrc,
   buildWsSrc,
+  CLUSTER_CONF_PATH,
   Config,
   confManifestPath,
   readConfJson,
@@ -29,9 +37,12 @@ import {
   sitePathFactory,
 } from '../server/site/site-conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/network/router.js';
+import { assertSourceChannel } from '../server/release/source-release.js';
 import { environmentValueFactory, getUnderpostRootPath } from '../server/runtime/environment.js';
 import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/storage/repository.js';
-import { DefaultConf } from '../../underpost.config.js';
+import underpostConfig from '../../underpost.config.js';
+import clusterConfig from '../../underpost.cluster.config.js';
+import { readClusterConf } from './namespace.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -541,21 +552,28 @@ class UnderpostRepository {
     },
 
     /**
-     * Initializes the base cluster deploy folder `engine-private/deploy` from `./underpost.config.js` (DefaultConf).
+     * Initializes the base cluster deploy folder `engine-private/deploy` from `./underpost.cluster.config.js`.
      *
-     * Writes the minimum set required by the cluster runtime:
-     * `conf.event.json`, `conf.users.json`, `conf.wireguard.json`, `dd.cron`, `dd.routes`, `id_rsa`, `id_rsa.pub`.
+     * Writes the minimum set required by the cluster runtime: `conf.event.json`, `conf.users.json`,
+     * `conf.wireguard.json`, `conf.cluster.json` (a reference to a profile, no context), `dd.cron`, the
+     * `conf.cron.json` of the cron deployment `dd.cron` names, `dd.routes`, `id_rsa`, `id_rsa.pub`.
      *
-     * When a deploy ID is explicitly provided, it also generates the deploy CI/CD workflows and its default conf.
+     * When a deploy ID is explicitly provided, it also writes the CI and CD workflows of the deploy from those of
+     * `dd-test`, and regenerates its conf manifest ({@link UnderpostRepository.writeConfManifest}).
      *
      * Idempotent: existing files are never overwritten, so it is safe to rerun over a provisioned cluster.
+     * An existing `conf.cluster.json` is validated first, and an invalid one stops the run before it writes a file.
      * @param {string} [deployId=''] - Deploy ID registered in the route table and used as default cron deploy ID (defaults to `dd-default`, `dd-` prefix is normalized).
-     * @returns {{ deployPath: string, created: string[] }} The deploy folder and the files created by this run.
+     * @param {'recommended'|'legacy'} [placement='recommended'] - The placement profile of a new `conf.cluster.json`.
+     * @returns {{ deployPath: string, created: string[], kept: string[] }} The deploy folder, the files
+     *   created by this run and the configuration and workflow files it kept.
      * @memberof UnderpostRepository
      */
-    clusterDeployFactory(deployId = '') {
+    clusterDeployFactory(deployId = '', placement = 'recommended') {
       const deployPath = './engine-private/deploy';
       const created = [];
+      const kept = [];
+      readClusterConf();
 
       const hasDeployId = `${deployId || ''}`.trim().length > 0;
       deployId = `${deployId || ''}`.trim() || 'dd-default';
@@ -563,23 +581,28 @@ class UnderpostRepository {
 
       fs.mkdirSync(deployPath, { recursive: true });
 
-      const confFiles = {
-        'conf.event.json': DefaultConf.event,
-        'conf.users.json': DefaultConf.users,
-        'conf.wireguard.json': DefaultConf.wireguard,
-      };
-
-      for (const [fileName, conf] of Object.entries(confFiles)) {
-        const confPath = `${deployPath}/${fileName}`;
-        if (fs.existsSync(confPath)) continue;
-        fs.writeFileSync(confPath, JSON.stringify(conf, null, 4), 'utf8');
-        created.push(confPath);
-      }
-
       const cronPath = `${deployPath}/dd.cron`;
       if (!fs.existsSync(cronPath)) {
         fs.writeFileSync(cronPath, deployId, 'utf8');
         created.push(cronPath);
+      }
+      const cronDeployId = fs.readFileSync(cronPath, 'utf8').trim();
+
+      const confFiles = {
+        [`${deployPath}/conf.event.json`]: clusterConfig.event,
+        [`${deployPath}/conf.users.json`]: clusterConfig.users,
+        [`${deployPath}/conf.wireguard.json`]: clusterConfig.wireguard,
+        [CLUSTER_CONF_PATH]: Underpost.namespace.template(placement),
+        [`./engine-private/conf/${cronDeployId}/conf.cron.json`]: clusterConfig.cron,
+      };
+
+      for (const [confPath, conf] of Object.entries(confFiles)) {
+        if (fs.existsSync(confPath)) {
+          kept.push(confPath);
+          continue;
+        }
+        fs.outputFileSync(confPath, JSON.stringify(conf, null, 4), 'utf8');
+        created.push(confPath);
       }
 
       const routesPath = `${deployPath}/dd.routes`;
@@ -600,27 +623,24 @@ class UnderpostRepository {
       }
 
       if (hasDeployId) {
-        const repoName = `engine-${deployId.split('dd-')[1]}`;
-        fs.writeFileSync(
-          `./.github/workflows/${repoName}.cd.yml`,
-          fs
-            .readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8')
-            .replaceAll('test', deployId.split('dd-')[1]),
-          'utf8',
-        );
-        fs.writeFileSync(
-          `./.github/workflows/${repoName}.ci.yml`,
-          fs
-            .readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8')
-            .replaceAll('test', deployId.split('dd-')[1]),
-          'utf8',
-        );
-        shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
+        const confId = deployId.slice('dd-'.length);
+        for (const kind of ['cd', 'ci']) {
+          const workflowPath = `./.github/workflows/engine-${confId}.${kind}.yml`;
+          if (fs.existsSync(workflowPath)) {
+            kept.push(workflowPath);
+            continue;
+          }
+          // The word `test` in the dd-test workflow is its conf id.
+          const template = fs.readFileSync(`./.github/workflows/engine-test.${kind}.yml`, 'utf8');
+          fs.writeFileSync(workflowPath, template.replace(/\btest\b/g, confId), 'utf8');
+          created.push(workflowPath);
+        }
+        UnderpostRepository.API.writeConfManifest({ deployId });
       }
 
-      logger.info('Cluster deploy base', { deployPath, created });
+      logger.info('Cluster deploy base', { deployPath, created, kept });
 
-      return { deployPath, created };
+      return { deployPath, created, kept };
     },
 
     /**
@@ -629,14 +649,15 @@ class UnderpostRepository {
      * @param {object} [options] - Initialization options.
      * @param {string} [options.deployId=''] - The deployment ID to set up.
      * @param {string} [options.subConf=''] - The sub-configuration to create.
-     * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./underpost.config.js` and returns; no project or deploy ID scaffolding runs.
+     * @param {boolean} [options.cluster=false] - If true, initializes only the base cluster deploy folder (`engine-private/deploy`) from `./underpost.cluster.config.js` and returns; no project or deploy ID scaffolding runs.
+     * @param {'recommended'|'legacy'} [options.placement='recommended'] - With `cluster`: the placement profile of a new `conf.cluster.json`.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
      * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private).
      * @param {boolean} [options.purge=false] - If true, removes the deploy ID conf and all related repositories (requires deployId).
      * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
      * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
      * @param {boolean} [options.syncConf=false] - If true, syncs configuration to private repositories (requires deployId).
-     * @param {boolean} [options.defaultConf=false] - If true, updates the default configuration file (requires deployId).
+     * @param {boolean} [options.defaultConf=false] - If true, writes the conf manifest of `deployId` or `confWorkflowId` ({@link UnderpostRepository.writeConfManifest}).
      * @param {string} [options.confWorkflowId=''] - If provided, uses this configuration workflow ID.
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
@@ -664,7 +685,7 @@ class UnderpostRepository {
 
           // Handle cluster deploy base operation (standalone: never scaffolds a project)
           if (options.cluster === true) {
-            UnderpostRepository.API.clusterDeployFactory(options.deployId || projectName);
+            UnderpostRepository.API.clusterDeployFactory(options.deployId || projectName, options.placement);
             return resolve(true);
           }
 
@@ -679,9 +700,8 @@ class UnderpostRepository {
             return resolve(true);
           }
 
-          // Handle defaultConf operation
           if (options.defaultConf) {
-            Underpost.repo.updateDefaultConf(options);
+            Underpost.repo.writeConfManifest(options);
             return resolve(true);
           }
 
@@ -983,66 +1003,55 @@ Prevent build private config repo.`,
         });
     },
     /**
-     * Updates the default configuration file based on the provided options.
-     * @param {object} [options={ deployId: '' }] - The options for updating the configuration.
-     * @param {string} [options.deployId=''] - The deployment ID to use for configuration.
-     * @param {string} [options.confWorkflowId=''] - The configuration workflow ID to use.
+     * Writes a conf manifest: `underpost.config.<deploy-id>.js` from the conf files of a deploy id, or
+     * `underpost.config.js` for a conf workflow (`dd-github-pages`, `template`). The text around the `/**\/`
+     * markers of `underpost.config.js` stays, and `env:` references stay strings that `resolveConfSecrets`
+     * resolves at runtime. The imported configuration is never changed.
+     * @param {object} [options]
+     * @param {string} [options.deployId=''] - The deploy id whose conf files the manifest holds.
+     * @param {string} [options.confWorkflowId=''] - The conf workflow of the engine manifest.
      * @memberof UnderpostRepository
      */
-    updateDefaultConf(options = { deployId: '', confWorkflowId: '' }) {
-      const defaultServer = DefaultConf.server['default.net']['/'];
-      let { deployId, confWorkflowId } = options;
-      let defaultConf = false;
-
-      // Custom workflow configurations
-      if (confWorkflowId)
-        switch (confWorkflowId) {
-          case 'dd-github-pages': {
-            const host = `${process.env.GITHUB_USERNAME ? process.env.GITHUB_USERNAME : 'underpostnet'}.github.io`;
-            const path = '/pwa-microservices-template-ghpkg';
-            DefaultConf.server = {
-              [host]: { [path]: defaultServer },
-            };
-            DefaultConf.server[host][path].apiBaseProxyPath = '/';
-            DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
-            defaultConf = true;
-            break;
-          }
-          case 'template': {
-            const host = 'default.net';
-            const path = '/';
-            DefaultConf.server[host][path].valkey = {
-              port: 'env:VALKEY_PORT:int:6379',
-              host: 'env:VALKEY_HOST:127.0.0.1',
-            };
-            DefaultConf.server[host][path].db.host = 'env:DB_HOST:mongodb://127.0.0.1:27017';
-            DefaultConf.server[host][path].db.replicaSet = 'env:DB_REPLICA_SET:rs0';
-            DefaultConf.server[host][path].db.authSource = 'env:DB_AUTH_SOURCE:admin';
-            DefaultConf.server[host][path].db.user = 'env:DB_USER:';
-            DefaultConf.server[host][path].db.password = 'env:DB_PASSWORD:';
-            defaultConf = true;
-            break;
-          }
-          default:
-            logger.error(`Unknown confWorkflowId: ${confWorkflowId}.`);
-            return;
+    writeConfManifest({ deployId = '', confWorkflowId = '' } = {}) {
+      const manifest = structuredClone(underpostConfig);
+      const defaultServer = manifest.server['default.net']['/'];
+      switch (confWorkflowId) {
+        case '':
+          break;
+        case 'dd-github-pages': {
+          const host = `${process.env.GITHUB_USERNAME ? process.env.GITHUB_USERNAME : 'underpostnet'}.github.io`;
+          const path = '/pwa-microservices-template-ghpkg';
+          manifest.server = {
+            [host]: { [path]: { ...defaultServer, apiBaseProxyPath: '/', apiBaseHost: 'www.nexodev.org' } },
+          };
+          break;
         }
-      else if (deployId && fs.existsSync(`./engine-private/conf/${deployId}`)) {
-        DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.client.json`, 'utf8'));
-        DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
-        DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.ssr.json`, 'utf8'));
-      } else
+        case 'template':
+          defaultServer.valkey = { port: 'env:VALKEY_PORT:int:6379', host: 'env:VALKEY_HOST:127.0.0.1' };
+          Object.assign(defaultServer.db, {
+            host: 'env:DB_HOST:mongodb://127.0.0.1:27017',
+            replicaSet: 'env:DB_REPLICA_SET:rs0',
+            authSource: 'env:DB_AUTH_SOURCE:admin',
+            user: 'env:DB_USER:',
+            password: 'env:DB_PASSWORD:',
+          });
+          break;
+        default:
+          logger.error(`Unknown confWorkflowId: ${confWorkflowId}.`);
+          return;
+      }
+      if (!confWorkflowId && deployId && fs.existsSync(`./engine-private/conf/${deployId}`))
+        for (const type of ['client', 'server', 'ssr'])
+          manifest[type] = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.${type}.json`, 'utf8'));
+      else if (!confWorkflowId)
         logger.warn(
           `Deploy ID configuration not found: ./engine-private/conf/${deployId}, using default configuration.`,
         );
 
-      // Serialize the configuration into the underpost.config.*.js manifest file.
-      // env: references from JSON configs are preserved as 'env:KEY' strings.
-      // At runtime, resolveConfSecrets() in src/server/runtime/conf.js resolves them via process.env.
       const sepRender = '/**/';
       const confRawPaths = fs.readFileSync(confManifestPath(), 'utf8').split(sepRender);
-      confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
-      const targetConfPath = confManifestPath(defaultConf ? '' : deployId);
+      confRawPaths[1] = `${JSON.stringify(manifest)};`;
+      const targetConfPath = confManifestPath(confWorkflowId ? '' : deployId);
       fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
       // A host tool, not a dependency: without it the manifest stays valid, only unformatted.
       if (
@@ -1384,6 +1393,20 @@ Prevent build private config repo.`,
     },
 
     /**
+     * Names the engine source repository of a reference on a source channel: `engine-<id>` on
+     * `public`, its private mirror `engine-test-<id>` on `private`. The JS twin of the
+     * `engine_source_repo` shell function.
+     * @param {string} reference - Deploy id or repository reference.
+     * @param {string} [channel='public'] - `public` or `private`.
+     * @returns {string} Repository name, without owner.
+     * @throws {Error} When the channel is unknown.
+     * @memberof UnderpostRepository
+     */
+    engineSourceRepoFactory(reference = '', channel = 'public') {
+      return Underpost.repo.engineRepoFactory(reference, { test: assertSourceChannel(channel) === 'private' });
+    },
+
+    /**
      * Names the repository a source channel fetches a product repository from: itself on
      * `public`, its private mirror `<name>-private` on `private`.
      * @param {string} repository - The public repository, as `owner/repo`.
@@ -1511,21 +1534,20 @@ Prevent build private config repo.`,
      */
     gitAuthFactory(url) {
       const normalized = Underpost.repo.repoUrlFactory(url).replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/i, '$1');
-      const env = {
-        ...process.env,
+      const gitEnv = {
         GIT_TERMINAL_PROMPT: '0',
         GIT_CONFIG_COUNT: '1',
         GIT_CONFIG_KEY_0: 'credential.helper',
         GIT_CONFIG_VALUE_0: '',
       };
       if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
-        env.GIT_CONFIG_COUNT = '2';
-        env.GIT_CONFIG_KEY_1 = 'http.https://github.com/.extraheader';
-        env.GIT_CONFIG_VALUE_1 = `AUTHORIZATION: basic ${Buffer.from(
+        gitEnv.GIT_CONFIG_COUNT = '2';
+        gitEnv.GIT_CONFIG_KEY_1 = 'http.https://github.com/.extraheader';
+        gitEnv.GIT_CONFIG_VALUE_1 = `AUTHORIZATION: basic ${Buffer.from(
           `x-access-token:${process.env.GITHUB_TOKEN}`,
         ).toString('base64')}`;
       }
-      return { url: normalized, env };
+      return { url: normalized, gitEnv, env: { ...process.env, ...gitEnv } };
     },
     /**
      * Checks whether a remote Git repository URL is reachable.
@@ -1549,6 +1571,28 @@ Prevent build private config repo.`,
       const accessible = !!refLine;
       logger.info('isRemoteRepo', { url, accessible, ref: refLine || (raw || '').trim().split('\n').pop() });
       return accessible;
+    },
+
+    /**
+     * The commit a branch of the remote of a checkout points at, read from the remote itself, so a
+     * push to a URL that left no remote-tracking ref still counts.
+     * @param {object} opts
+     * @param {string} [opts.path='.'] - Path to the git repository.
+     * @param {string} opts.branch - Branch name.
+     * @param {string} [opts.remote='origin'] - Remote name.
+     * @returns {string} The commit id, or '' when the remote is unreachable or has no such branch.
+     * @memberof UnderpostRepository
+     */
+    remoteBranchCommit({ path: repoPath = '.', branch, remote = 'origin' }) {
+      const { env } = Underpost.repo.gitAuthFactory(Underpost.repo.getRemoteUrl({ path: repoPath, remote }));
+      const raw = shellExec(`git -C "${repoPath}" ls-remote ${remote} "refs/heads/${branch}"`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+        silentOnError: true,
+        env,
+      });
+      return (typeof raw === 'string' && raw.match(/^([0-9a-f]{40})\t/m)?.[1]) || '';
     },
 
     /**
@@ -1612,15 +1656,35 @@ Prevent build private config repo.`,
       if (!fs.existsSync(`${repoPath}/.git`)) throw new Error(`switchRemote: not a git repository: ${repoPath}`);
       const targetBranch = branch || Underpost.repo.getDefaultBranch(url);
       const auth = Underpost.repo.gitAuthFactory(url);
-      const current = Underpost.repo.getRemoteUrl({ path: repoPath, remote });
-      if (!current) shellExec(`cd "${repoPath}" && git remote add ${remote} "${auth.url}"`);
-      else shellExec(`cd "${repoPath}" && git remote set-url ${remote} "${auth.url}"`);
       logger.info('switchRemote', { path: repoPath, remote, branch: targetBranch, url: auth.url });
-      shellExec(`cd "${repoPath}" && git fetch --force "${auth.url}" ${targetBranch}`, { env: auth.env });
-      // reset --hard first clears the worktree so the checkout cannot be blocked
-      // by conflicting local changes; -B points the target branch at the fetched tip.
-      shellExec(`cd "${repoPath}" && git reset --hard FETCH_HEAD`);
-      shellExec(`cd "${repoPath}" && git checkout -B ${targetBranch} FETCH_HEAD`);
+      for (const command of Underpost.repo.switchRemoteCommands({ url, path: repoPath, branch: targetBranch, remote }))
+        shellExec(command, { env: auth.env });
+    },
+
+    /**
+     * The git commands that point a checkout at a repository and replace its working tree with the tip of a
+     * branch. {@link UnderpostRepository.switchRemote} runs them here, and the fleet sync runs them on a
+     * node, where they depend on no Underpost version. The fetch takes its credential from the environment
+     * of {@link UnderpostRepository.gitAuthFactory}.
+     * @param {object} params
+     * @param {string} params.url - Repository slug or URL.
+     * @param {string} params.path - Checkout path.
+     * @param {string} params.branch - Branch to land on.
+     * @param {string} [params.remote='origin']
+     * @returns {string[]} Commands in order; each one can run again.
+     * @memberof UnderpostRepository
+     */
+    switchRemoteCommands({ url, path: repoPath, branch, remote = 'origin' }) {
+      const target = shellArgumentFactory(Underpost.repo.gitAuthFactory(url).url);
+      const git = `git -C ${shellArgumentFactory(repoPath)}`;
+      return [
+        `{ ${git} remote set-url ${remote} ${target} || ${git} remote add ${remote} ${target}; }`,
+        // reset --hard first clears the worktree so the checkout cannot be blocked by conflicting local
+        // changes; -B points the target branch at the fetched tip.
+        `${git} fetch --force ${target} ${branch}`,
+        `${git} reset --hard FETCH_HEAD`,
+        `${git} checkout -B ${branch} FETCH_HEAD`,
+      ];
     },
 
     /**
@@ -1654,8 +1718,8 @@ Prevent build private config repo.`,
 
       if (!fs.existsSync(checkoutPath)) {
         fs.mkdirSync(parent, { recursive: true });
-        shellExec(`cd ${parent} && underpost clone ${slug}`, { silent: true });
-        if (`${parent}/${repoName}` !== checkoutPath) shellExec(`sudo mv ${parent}/${repoName} ${checkoutPath}`);
+        shellExec(`underpost clone ${slug}`, { cwd: parent, silent: true });
+        if (`${parent}/${repoName}` !== checkoutPath) fs.moveSync(`${parent}/${repoName}`, checkoutPath);
         return 'cloned';
       }
 
@@ -1933,7 +1997,8 @@ Prevent build private config repo.`,
       Underpost.repo.declareSafeDirectory(repoPath);
 
       if (!fs.existsSync(`${repoPath}/.git`)) {
-        shellExec(`mkdir -p "${repoPath}" && git init "${repoPath}"`);
+        fs.mkdirSync(repoPath, { recursive: true });
+        shellExec(`git init ${shellArgumentFactory(repoPath)}`);
       }
 
       for (const command of Underpost.repo.gitIdentityCommands()) shellExec(`cd "${repoPath}" && ${command}`);
@@ -2038,18 +2103,21 @@ Prevent build private config repo.`,
 
       logger.info(`${host}: cloning ${reference} → ${siteRoot}`);
       const tmp = `${siteRoot}.tmp`;
-      if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
+      fs.removeSync(tmp);
       fs.mkdirSync(path.dirname(siteRoot), { recursive: true });
       const auth = Underpost.repo.gitAuthFactory(reference);
       shellExec(`git clone "${auth.url}" "${tmp}"`, { env: auth.env });
       // Copied into a directory that already exists rather than renamed over it: that directory
       // can be image-provided or a mount point, and a rename onto one fails where a copy works.
       if (populateInPlace) {
-        shellExec(`sudo cp -a "${tmp}/." "${siteRoot}/"`);
-        shellExec(`sudo rm -rf "${tmp}"`);
-      } else shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
-      shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-      shellExec(`sudo chown -R ${owner} "${siteRoot}"`);
+        fs.copySync(tmp, siteRoot, { overwrite: true, preserveTimestamps: true });
+        fs.removeSync(tmp);
+      } else fs.moveSync(tmp, siteRoot);
+      chownHostPath(siteRoot, {
+        owner: hostOwner(owner),
+        modes: { directory: '0755', file: '0755' },
+        reason: 'gives the document root to the web server user',
+      });
       return { accessible: true, cloned: true };
     },
 
@@ -2260,7 +2328,7 @@ Prevent build private config repo.`,
       if (!fs.existsSync(`./${repoName}`)) {
         throw new Error(`privateEngineRepoFactory: clone failed for ${username}/${repoName}`);
       }
-      if (repoName !== 'engine-private') shellExec(`mv ./${repoName} ./engine-private`);
+      if (repoName !== 'engine-private') fs.moveSync(`./${repoName}`, './engine-private');
     },
 
     /**

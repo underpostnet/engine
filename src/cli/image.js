@@ -11,8 +11,10 @@ import crypto from 'crypto';
 import { loggerFactory } from '../server/ops/logger.js';
 import Underpost from '../index.js';
 import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
-import { CRI_SOCKETS, crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
+import { CRI_SOCKETS, CRICTL_PRIVILEGE, crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
 import { assertSourceRevision } from '../server/release/source-release.js';
+import { stageCliPackage } from '../server/build/package.js';
+import { parseList } from '../server/ops/cron.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -38,25 +40,180 @@ const dockerfileBaseImages = (dockerfile) => {
   return [...images];
 };
 
+/** Why a host-built image is copied into a node runtime with root. */
+const IMAGE_LOAD_PRIVILEGE = 'copies an image archive into the store of a node runtime';
+
+/** The node an image operation on a kind cluster acts on when none is named. */
+const DEFAULT_KIND_NODE = 'kind-worker';
+
+/**
+ * The command that imports an image archive into the store a CRI reads; `-` reads it from stdin. CRI-O
+ * reads root Podman's storage, and containerd keeps the digests of the archive.
+ * @param {string} criSocket - One of {@link CRI_SOCKETS}.
+ * @param {string} [archive='-']
+ * @returns {string}
+ */
+const imageImportCommandFactory = (criSocket, archive = '-') => {
+  const source = archive === '-' ? '-' : shellArgumentFactory(archive);
+  if (criSocket === CRI_SOCKETS.crio) return archive === '-' ? 'podman load' : `podman load -i ${source}`;
+  if (criSocket === CRI_SOCKETS.k3s) return `k3s ctr images import ${source}`;
+  return `ctr -n k8s.io images import --digests ${source}`;
+};
+
+/**
+ * Loads an image archive into a kubeadm node's runtime.
+ * @param {string} tarFile
+ */
+const kubeadmImport = (tarFile) => shellExec(`sudo ${imageImportCommandFactory(resolveCriSocket(), tarFile)}`);
+
+/**
+ * The last path segment of an image repository: `localhost/cyberia-server:tag` gives `cyberia-server`.
+ * @param {string} reference
+ * @returns {string}
+ */
+const repositoryNameFactory = (reference) =>
+  `${reference || ''}`
+    .replace(/@sha256:[0-9a-f]+$/, '')
+    .replace(/:[^/:]+$/, '')
+    .split('/')
+    .pop();
+
+/**
+ * The container runtime of this host: it reads the store a build here writes.
+ * @param {{k3s?:boolean}} [cluster]
+ * @returns {{node:string, local:boolean, run:(command:string)=>string, criSocket:string}}
+ */
+const hostRuntimeFactory = ({ k3s = false } = {}) => ({
+  node: os.hostname(),
+  local: true,
+  run: (command) => command,
+  criSocket: resolveCriSocket({ k3s }),
+});
+
+/**
+ * How this host drives the container runtime of a Kubernetes node: in a kind node container, or through
+ * the node identity of `deploy/nodes`, here or on its peer over SSH.
+ * @param {string} node - A Kubernetes node name.
+ * @param {{kind?:boolean, k3s?:boolean, sshKeyPath?:string}} [cluster] - `sshKeyPath` replaces the key of the peer.
+ * @returns {{node:string, local:boolean, run:(command:string)=>string, criSocket:string}}
+ */
+const nodeRuntimeFactory = (node, { kind = false, k3s = false, sshKeyPath = '' } = {}) => {
+  if (kind)
+    return {
+      node,
+      local: false,
+      run: (command) => `docker exec -i ${shellArgumentFactory(node)} sh -c ${shellArgumentFactory(command)}`,
+      criSocket: CRI_SOCKETS.containerd,
+    };
+  const target = Underpost.event.kubernetesNodeTarget(node);
+  if (target.via === 'local') return { ...hostRuntimeFactory({ k3s }), node };
+  const run = (command) =>
+    Underpost.ssh.rootSshCommandFactory({ ...target, keyPath: sshKeyPath || target.keyPath }, command);
+  return { node, local: false, run, criSocket: resolveCriSocket({ k3s, run }) };
+};
+
+/**
+ * The node runtimes an image operation acts on: those of `nodes`, else the default node of the cluster,
+ * {@link DEFAULT_KIND_NODE} for kind and this host otherwise.
+ * @param {{nodes?:string|string[], kind?:boolean, k3s?:boolean, sshKeyPath?:string}} [selection]
+ * @returns {Array<ReturnType<typeof nodeRuntimeFactory>>}
+ */
+const nodeRuntimesFactory = ({ nodes, kind = false, k3s = false, sshKeyPath = '' } = {}) => {
+  const names = parseList(nodes);
+  if (names.length) return names.map((node) => nodeRuntimeFactory(node, { kind, k3s, sshKeyPath }));
+  return [kind ? nodeRuntimeFactory(DEFAULT_KIND_NODE, { kind }) : hostRuntimeFactory({ k3s })];
+};
+
+/**
+ * Runs `crictl` against the CRI of a node runtime.
+ * @param {{run:(command:string)=>string, criSocket:string}} runtime
+ * @param {string} args
+ * @param {object} [options] - Forwarded to `shellExec`.
+ * @returns {*} The `shellExec` result.
+ */
+const crictl = ({ run, criSocket }, args, options = {}) =>
+  shellExec(run(crictlCommandFactory(args, { criSocket })), { privileged: CRICTL_PRIVILEGE, ...options });
+
+/**
+ * The status a node runtime reports for an image reference.
+ * @param {{run:(command:string)=>string, criSocket:string}} runtime
+ * @param {string} reference
+ * @returns {object|null} `null` when the runtime holds no such image.
+ */
+const inspectImage = (runtime, reference) => {
+  const result = crictl(runtime, `inspecti -o json ${shellArgumentFactory(reference)}`, {
+    silent: true,
+    disableLog: true,
+    silentOnError: true,
+  });
+  return result.code === 0 ? JSON.parse(result.stdout).status : null;
+};
+
+/**
+ * The digest of an image reference that every node runtime resolves. One archive gives the same digest in
+ * every store that loads it, and no load keeps the digest of the build.
+ * @param {Array<{node:string, run:(command:string)=>string, criSocket:string}>} runtimes
+ * @param {string} reference
+ * @returns {string} `<repository>@sha256:<digest>`.
+ * @throws {Error} When the runtimes share no digest.
+ */
+const sharedDigest = (runtimes, reference) => {
+  const name = repositoryNameFactory(reference);
+  const [digest] = runtimes
+    .map((runtime) =>
+      (inspectImage(runtime, reference)?.repoDigests ?? []).filter((entry) => entry.includes(`${name}@sha256:`)),
+    )
+    .reduce((shared, digests) => shared.filter((entry) => digests.includes(entry)));
+  if (!digest)
+    throw new Error(`No digest of ${reference} resolves on every node: ${runtimes.map(({ node }) => node).join(', ')}`);
+  console.log(digest);
+  return digest;
+};
+
+/**
+ * Pulls an image reference into each node runtime.
+ * @param {Array<{run:(command:string)=>string, criSocket:string}>} runtimes
+ * @param {string} reference
+ */
+const pullImage = (runtimes, reference) => {
+  for (const runtime of runtimes) crictl(runtime, `pull ${shellArgumentFactory(reference)}`);
+};
+
+/**
+ * Streams one image archive into each node runtime.
+ * @param {Array<{node:string, run:(command:string)=>string, criSocket:string}>} runtimes
+ * @param {string} source - A command that writes the archive to stdout.
+ */
+const loadImage = (runtimes, source) => {
+  for (const runtime of runtimes) {
+    logger.info('Loading the image into its node', { source, node: runtime.node });
+    shellExec(`${source} | ${runtime.run(imageImportCommandFactory(runtime.criSocket))}`, {
+      privileged: IMAGE_LOAD_PRIVILEGE,
+    });
+  }
+};
+
+/**
+ * Parses the table `crictl images` prints into one object per row, keyed by its column heads.
+ * @param {string} raw
+ * @returns {Array<object>}
+ */
+const crictlTableFactory = (raw) => {
+  const [head = '', ...rows] = `${raw}`.split('\n');
+  // The `IMAGE ID` head splits into a second `IMAGE`, which names no column of its own.
+  const heads = [...new Set(head.split(' ').filter((cell) => cell.trim()))];
+  return rows
+    .map((row) => row.split(' ').filter((cell) => cell.trim()))
+    .filter((cells) => cells.length > 0)
+    .map((cells) => Object.fromEntries(heads.map((name, index) => [name, cells[index]])));
+};
+
 /**
  * @class UnderpostImage
  * @description Manages Docker image operations, including pulling, building, and loading images into Kubernetes clusters.
- * This class provides a set of static methods to handle image operations, including pulling base images,
- * building custom images, and loading them into specified Kubernetes clusters (Kind, Kubeadm, or K3s).
+ * Each operation on a node runtime acts on the nodes `--nodes` names, reached through their node identity.
  * @memberof UnderpostImage
  */
-/**
- * Loads an image archive into a kubeadm node's runtime. CRI-O reads root Podman's storage, so the
- * archive goes there; containerd imports it with its digests, so a digest reference resolves.
- * @param {string} tarFile
- */
-const kubeadmImport = (tarFile) =>
-  shellExec(
-    resolveCriSocket() === CRI_SOCKETS.crio
-      ? `sudo podman load -i ${shellArgumentFactory(tarFile)}`
-      : `sudo ctr -n k8s.io images import --digests ${shellArgumentFactory(tarFile)}`,
-  );
-
 class UnderpostImage {
   static API = {
     /**
@@ -221,7 +378,7 @@ class UnderpostImage {
       }
       if (kind === true) shellExec(`sudo kind load image-archive ${shellArgumentFactory(tarFile)}`);
       else if (kubeadm === true && !crio) kubeadmImport(tarFile);
-      else if (k3s === true) shellExec(`sudo k3s ctr images import ${shellArgumentFactory(tarFile)}`);
+      else if (k3s === true) shellExec(`sudo ${imageImportCommandFactory(CRI_SOCKETS.k3s, tarFile)}`);
       // Independent of any cluster target: make the local image available to the
       // Docker daemon so `docker compose` can resolve it (e.g. ENGINE_CYBERIA_IMAGE).
       if (dockerCompose === true) shellExec(`sudo docker load -i ${shellArgumentFactory(tarFile)}`);
@@ -229,277 +386,160 @@ class UnderpostImage {
     /**
      * @method release
      * @description The image a container release deploys, by digest. The public channel pulls the
-     * `latest` image CI pushed (`<repository>:latest`); the private channel builds the checkout at
-     * the exact revision on this host. Either way the node runtime then holds it,
-     * and the digest it reports names it.
-     * @param {object} options
+     * `latest` image CI pushed (`<repository>:latest`) into each node runtime; the private channel builds
+     * the checkout at the exact revision on this host, with this engine staged as the CLI package like CI
+     * does. A build serves this host's runtime as it is, and is streamed into the runtime of every other
+     * node. The digest every node resolves names it.
+     * @param {object} options - Also the node selection of {@link nodeRuntimesFactory}.
      * @param {string} options.imageName - The registry repository, e.g. `underpost/cyberia-server`.
      * @param {string} options.revision - The exact source revision.
      * @param {string} [options.path] - The checkout to build from, for the private channel.
-     * @param {boolean} [options.k3s] - The node runtime is K3s' embedded containerd.
      * @returns {string} `<repository>@sha256:<digest>`.
      * @memberof UnderpostImage
      */
-    release({ imageName, revision, path = '', k3s = false }) {
+    release({ imageName, revision, path = '', ...selection }) {
       const exact = assertSourceRevision(revision);
       const repository = `${imageName || ''}`.replace(/[:@].*$/, '');
       if (!repository) throw new Error('image --release needs --image-name <repository>');
-      const name = repository.split('/').pop();
-      if (path) UnderpostImage.API.build({ path, imageName: `${name}:${exact}`, kubeadm: !k3s, k3s });
-      return UnderpostImage.API.digest({
-        reference: path ? `localhost/${name}:${exact}` : `${repository}:latest`,
-        k3s,
-        pull: !path,
-      });
+      const runtimes = nodeRuntimesFactory(selection);
+      if (!path) {
+        pullImage(runtimes, `${repository}:latest`);
+        return sharedDigest(runtimes, `${repository}:latest`);
+      }
+      const name = repositoryNameFactory(repository);
+      const reference = `localhost/${name}:${exact}`;
+      const shipped = runtimes.some(({ local }) => !local);
+      const cliPackage = stageCliPackage(path);
+      try {
+        UnderpostImage.API.build({
+          path,
+          imageName: `${name}:${exact}`,
+          ...(shipped ? {} : { kubeadm: !selection.k3s, k3s: !!selection.k3s }),
+        });
+      } finally {
+        fs.removeSync(cliPackage);
+      }
+      if (shipped) loadImage(runtimes, `podman save ${shellArgumentFactory(reference)}`);
+      return sharedDigest(runtimes, reference);
     },
     /**
      * @method digest
-     * @description The immutable identity of an image reference: the node runtime pulls it from its
-     * registry, so a tag resolves to what the registry holds now, and reports its digest.
-     * @param {object} options
+     * @description The immutable identity of an image reference: each node runtime pulls it from its
+     * registry, so a tag resolves to what the registry holds now, and the digest they share names it.
+     * @param {object} options - Also the node selection of {@link nodeRuntimesFactory}.
      * @param {string} options.reference - A tag or digest reference, e.g. `underpost/engine-cyberia:v3.5.0`.
-     * @param {boolean} [options.k3s] - The node runtime is K3s' embedded containerd.
      * @param {boolean} [options.pull=true] - Pull first; a locally built image is already in the runtime.
      * @returns {string} `<repository>@sha256:<digest>`.
      * @memberof UnderpostImage
      */
-    digest({ reference, k3s = false, pull = true }) {
-      const name = `${reference || ''}`
-        .replace(/@sha256:[0-9a-f]+$/, '')
-        .replace(/:[^/:]+$/, '')
-        .split('/')
-        .pop();
-      if (!name) throw new Error('image --digest needs an image reference');
-      if (pull) shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(reference)}`, { k3s }));
-      const status = JSON.parse(
-        shellExec(crictlCommandFactory(`inspecti -o json ${shellArgumentFactory(reference)}`, { k3s }), {
-          stdout: true,
-          silent: true,
-          disableLog: true,
-        }),
-      );
-      const digest = (status?.status?.repoDigests ?? []).find((entry) => entry.includes(`${name}@sha256:`));
-      if (!digest) throw new Error(`The node runtime reports no digest for ${reference}`);
-      console.log(digest);
-      return digest;
+    digest({ reference, pull = true, ...selection }) {
+      if (!repositoryNameFactory(reference)) throw new Error('image --digest needs an image reference');
+      const runtimes = nodeRuntimesFactory(selection);
+      if (pull) pullImage(runtimes, reference);
+      return sharedDigest(runtimes, reference);
     },
     /**
      * @method importTar
-     * @description Loads a pre-built image tar archive into each enabled target
-     * without building anything. Mirrors the load step of {@link build}, but
-     * the archive is supplied directly via `--import-tar <tar-path>` and every
-     * enabled target flag is honored (the same archive is loaded into each), so
-     * `--kind --docker-compose` loads it into both.
-     * @param {object} options - CLI options.
+     * @description Loads a pre-built image tar archive without building anything: into the node runtimes
+     * of the cluster that `--kind`, `--kubeadm`, `--k3s` or `--nodes` selects, and into the local Docker
+     * daemon with `--docker-compose`.
+     * @param {object} options - CLI options; also the node selection of {@link nodeRuntimesFactory}.
      * @param {string} options.importTar - Path to the image tar archive (e.g. `./image-v1.0.0.tar`).
-     * @param {boolean} [options.kind] - Load into the Kind cluster (`kind load image-archive`).
      * @param {boolean} [options.kubeadm] - Load into the kubeadm node runtime (CRI-O or containerd).
-     * @param {boolean} [options.k3s] - Import into k3s containerd (`k3s ctr images import`).
      * @param {boolean} [options.dockerCompose] - Load into the local Docker daemon (`docker load`) for Docker Compose.
      * @returns {void}
      * @memberof UnderpostImage
      */
-    importTar(options = { importTar: '', kind: false, kubeadm: false, k3s: false, dockerCompose: false }) {
-      const { importTar, kind, kubeadm, k3s, dockerCompose } = options;
+    importTar({ importTar, kubeadm = false, dockerCompose = false, ...selection }) {
       if (!importTar || typeof importTar !== 'string' || !fs.existsSync(importTar)) {
         logger.error('image --import-tar: archive not found', { importTar });
         return;
       }
-      const targets = [];
-      if (kind === true) {
-        shellExec(`sudo kind load image-archive ${shellArgumentFactory(importTar)}`);
-        targets.push('kind');
-      }
-      if (kubeadm === true) {
-        kubeadmImport(importTar);
-        targets.push('kubeadm');
-      }
-      if (k3s === true) {
-        shellExec(`sudo k3s ctr images import ${shellArgumentFactory(importTar)}`);
-        targets.push('k3s');
-      }
-      if (dockerCompose === true) {
-        shellExec(`sudo docker load -i ${shellArgumentFactory(importTar)}`);
-        targets.push('docker-compose');
-      }
-      if (targets.length === 0)
+      const cluster = kubeadm || selection.kind || selection.k3s || parseList(selection.nodes).length > 0;
+      if (!cluster && !dockerCompose) {
         logger.warn(
-          'image --import-tar: no target enabled; combine with --kind, --kubeadm, --k3s and/or --docker-compose',
+          'image --import-tar: no target; combine with --kind, --kubeadm, --k3s, --nodes or --docker-compose',
         );
-      else logger.info('image --import-tar: archive loaded', { importTar, targets });
-    },
-    /**
-     * @method getCurrentLoaded
-     * @description Retrieves the currently loaded images in the Kubernetes cluster.
-     * @param {string} [node='kind-worker'] - Node name to check for loaded images.
-     * @param {object} options - Options for the image retrieval.
-     * @param {boolean} options.spec - Whether to retrieve images from the pod specifications.
-     * @param {string} options.namespace - Kubernetes namespace to filter pods.
-     * @param {boolean} [options.k3s] - Resolve the CRI endpoint as K3s' embedded containerd.
-     * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
-     * @memberof UnderpostImage
-     */
-    getCurrentLoaded(node = 'kind-worker', options = { spec: false, namespace: '' }) {
-      if (options.spec) {
-        const raw = shellExec(
-          `kubectl get pods ${options.namespace ? `--namespace ${shellArgumentFactory(options.namespace)}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
-          {
-            stdout: true,
-            silent: true,
-          },
-        );
-        return raw
-          .split(`\n`)
-          .map((lines) => ({
-            pod: lines.split('\t')[0].replaceAll(':', '').trim(),
-            image: lines.split('\t')[1] ? lines.split('\t')[1].replaceAll(',', '').trim() : null,
-          }))
-          .filter((o) => o.image);
+        return;
       }
-      // Outside kind, target the live CRI endpoint explicitly: /etc/crictl.yaml
-      // may still point at a CRI-O socket the host no longer runs.
-      const raw = shellExec(
-        node === 'kind-worker'
-          ? `docker exec -i ${shellArgumentFactory(node)} crictl images`
-          : crictlCommandFactory('images', options || {}),
-        {
-          stdout: true,
-          silent: true,
-        },
-      );
-
-      const heads = raw
-        .split(`\n`)[0]
-        .split(' ')
-        .filter((_r) => _r.trim());
-
-      const pods = raw
-        .split(`\n`)
-        .filter((r) => !r.match('IMAGE'))
-        .map((r) => r.split(' ').filter((_r) => _r.trim()));
-
-      const result = [];
-
-      for (const row of pods) {
-        if (row.length === 0) continue;
-        const pod = {};
-        let index = -1;
-        for (const head of heads) {
-          if (head in pod) continue;
-          index++;
-          pod[head] = row[index];
-        }
-        result.push(pod);
-      }
-      return result;
+      const archive = shellArgumentFactory(importTar);
+      const runtimes = cluster ? nodeRuntimesFactory(selection) : [];
+      loadImage(runtimes, `cat ${archive}`);
+      if (dockerCompose) shellExec(`sudo docker load -i ${archive}`);
+      logger.info('image --import-tar: archive loaded', {
+        importTar,
+        nodes: runtimes.map(({ node }) => node),
+        dockerCompose,
+      });
     },
     /**
      * @method list
-     * @description Lists currently loaded Docker images in the specified Kubernetes cluster node.
-     * @param {object} options - Options for listing loaded images.
-     * @param {string} [options.nodeName='kind-worker'] - The name of the node to query.
-     * @param {string} [options.namespace=''] - The namespace to filter images (if applicable).
-     * @param {boolean} [options.spec=false] - If true, include detailed specifications of each image.
-     * @param {boolean} [options.log=false] - If true, log the list of images to the console.
-     * @param {boolean} [options.k3s=false] - If true, list images from a K3s cluster.
-     * @param {boolean} [options.kubeadm=false] - If true, list images from a Kubeadm cluster.
-     * @param {boolean} [options.kind=false] - If true, list images from a Kind cluster.
-     * @returns {Array} - An array of loaded images information.
+     * @description Lists the images each node runtime holds, one row per image with its `NODE`. With
+     * `spec`, lists the images the pod specifications name instead.
+     * @param {object} [options] - Also the node selection of {@link nodeRuntimesFactory}.
+     * @param {boolean} [options.spec=false] - List the images of the pod specifications.
+     * @param {string} [options.namespace=''] - The namespace of the pods `spec` reads; all when empty.
+     * @param {boolean} [options.log=false] - Print the rows as a table.
+     * @returns {Array<object>}
      * @memberof UnderpostImage
      */
-    list(options = { nodeName: '', namespace: '', spec: false, log: false, k3s: false, kubeadm: false, kind: false }) {
-      if ((options.kubeadm === true || options.k3s === true) && !options.nodeName)
-        options.nodeName = shellExec('echo $HOSTNAME', { stdout: true, silent: true }).trim();
-      const list = Underpost.image.getCurrentLoaded(options.nodeName ? options.nodeName : 'kind-worker', options);
-      if (options.log) console.table(list);
-      return list;
+    list({ spec = false, namespace = '', log = false, ...selection } = {}) {
+      const rows = spec
+        ? shellExec(
+            `kubectl get pods ${namespace ? `--namespace ${shellArgumentFactory(namespace)}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+            { stdout: true, silent: true },
+          )
+            .split('\n')
+            .map((line) => ({
+              pod: line.split('\t')[0].replaceAll(':', '').trim(),
+              image: line.split('\t')[1] ? line.split('\t')[1].replaceAll(',', '').trim() : null,
+            }))
+            .filter(({ image }) => image)
+        : nodeRuntimesFactory(selection).flatMap((runtime) =>
+            crictlTableFactory(crictl(runtime, 'images', { stdout: true, silent: true })).map((row) => ({
+              NODE: runtime.node,
+              ...row,
+            })),
+          );
+      if (log) console.table(rows);
+      return rows;
     },
     /**
      * @method rm
-     * @description Removes a specified Docker image from the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
-     * @param {object} options - Options for removing the image.
-     * @param {string} [options.imageName=''] - The name and tag of the image to be removed.
-     * @param {boolean} [options.k3s=false] - If true, remove the image from a K3s cluster.
-     * @param {boolean} [options.kubeadm=false] - If true, remove the image from a Kubeadm cluster.
-     * @param {boolean} [options.kind=false] - If true, remove the image from a Kind cluster.
+     * @description Removes an image from each node runtime.
+     * @param {object} options - Also the node selection of {@link nodeRuntimesFactory}.
+     * @param {string} options.imageName - The image reference or id to remove.
      * @memberof UnderpostImage
      */
-    rm(options = { imageName: '', k3s: false, kubeadm: false, kind: false }) {
-      let { imageName, k3s, kubeadm, kind } = options;
-      if (kind === true) {
-        shellExec(`docker exec -i kind-control-plane crictl rmi ${shellArgumentFactory(imageName)}`);
-        shellExec(`docker exec -i kind-worker crictl rmi ${shellArgumentFactory(imageName)}`);
-      } else if (kubeadm === true) {
-        shellExec(crictlCommandFactory(`rmi ${shellArgumentFactory(imageName)}`));
-      } else if (k3s === true) {
-        shellExec(`sudo k3s ctr images rm ${shellArgumentFactory(imageName)}`);
-      }
+    rm({ imageName, ...selection }) {
+      for (const runtime of nodeRuntimesFactory(selection)) crictl(runtime, `rmi ${shellArgumentFactory(imageName)}`);
     },
     /**
      * @method pullDockerHubImage
-     * @description Pulls a Docker image from Docker Hub and loads it into the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
-     * @param {object} options - Options for pulling and loading the image.
-     * @param {boolean} [options.k3s=false] - If true, load the image into a K3s cluster.
-     * @param {boolean} [options.kubeadm=false] - If true, load the image into a Kubeadm cluster.
-     * @param {boolean} [options.kind=false] - If true, load the image into a Kind cluster.
-     * @param {string} [options.dockerhubImage=''] - The name of the Docker Hub image to be pulled.
-     * @param {string} [options.version=''] - The version tag of the image to be pulled.
+     * @description Pulls a Docker Hub image into each node runtime that does not hold it yet.
+     * @param {object} options - Also the node selection of {@link nodeRuntimesFactory}.
+     * @param {string} options.dockerhubImage - The image; `underpost` names the engine image of this version.
+     * @param {string} [options.version=''] - The tag when the image names none; `latest` when empty.
      * @memberof UnderpostImage
      */
-    pullDockerHubImage(options = { k3s: false, kubeadm: false, kind: false, dockerhubImage: '', version: '' }) {
-      if (options.dockerhubImage && options.dockerhubImage.startsWith('localhost')) {
-        logger.warn(`[image] pullDockerHubImage skipped — local image cannot be pulled from Docker Hub`, {
-          dockerhubImage: options.dockerhubImage,
+    pullDockerHubImage({ dockerhubImage = '', version = '', ...selection }) {
+      if (dockerhubImage.startsWith('localhost')) {
+        logger.warn('[image] pullDockerHubImage skipped — local image cannot be pulled from Docker Hub', {
+          dockerhubImage,
         });
         return;
       }
-      if (options.dockerhubImage === 'underpost') {
-        options.dockerhubImage = 'underpost/underpost-engine';
-        if (!options.version) options.version = Underpost.version;
+      if (dockerhubImage === 'underpost') {
+        dockerhubImage = 'underpost/underpost-engine';
+        version ||= Underpost.version;
       }
-      if (!options.version) options.version = 'latest';
-      const version = options.dockerhubImage && options.dockerhubImage.match(':') ? '' : `:${options.version}`;
-      const image = `${options.dockerhubImage}${version}`;
-      const targetKind = options.kind === true;
-      const targetK3s = options.k3s === true;
-      const targetKubeadm = options.kubeadm === true || (!targetKind && !targetK3s);
-
-      const requestedRepo = image.replace(/:[^/]+$/, '');
-      const requestedTag = image.match(/:([^/]+)$/)?.[1] || 'latest';
-      const normalizeRepo = (repo = '') =>
-        repo
-          .trim()
-          .replace(/^localhost\//, '')
-          .replace(/^docker\.io\//, '')
-          .replace(/^library\//, '');
-
-      const currentImages = UnderpostImage.API.list({
-        kind: targetKind,
-        kubeadm: targetKubeadm,
-        k3s: targetK3s,
-        log: false,
-      });
-
-      const existsInCluster = currentImages.some((row) => {
-        const rowImageRaw = String(row.IMAGE || row.image || '').trim();
-        if (!rowImageRaw) return false;
-        const rowImage = rowImageRaw.replace(/:[^/]+$/, '');
-        const rowTag = String(row.TAG || rowImageRaw.match(/:([^/]+)$/)?.[1] || '').trim();
-        return normalizeRepo(rowImage) === normalizeRepo(requestedRepo) && rowTag === requestedTag;
-      });
-
-      if (existsInCluster) {
-        logger.info(`[image] pull skipped. Image already loaded`, {
-          image,
-          clusterType: targetKind ? 'kind' : targetK3s ? 'k3s' : 'kubeadm',
-        });
-        return;
-      }
-      if (targetKind) {
-        shellExec(`docker pull ${shellArgumentFactory(image)}`);
-        shellExec(`sudo kind load docker-image ${shellArgumentFactory(image)}`);
-      } else {
-        shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, { k3s: targetK3s }));
+      const image = dockerhubImage.includes(':') ? dockerhubImage : `${dockerhubImage}:${version || 'latest'}`;
+      for (const runtime of nodeRuntimesFactory(selection)) {
+        if (inspectImage(runtime, image)) {
+          logger.info('[image] pull skipped. Image already loaded', { image, node: runtime.node });
+          continue;
+        }
+        pullImage([runtime], image);
       }
     },
   };

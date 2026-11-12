@@ -4,11 +4,29 @@
  * @namespace UnderpostCluster
  */
 
-import { clusterTypeFactory, gatewayApiEnabledFactory, resolveReplicaCount } from '../server/runtime/conf.js';
-import { getNpmRootPath, HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
+import { clusterTypeFactory, resolveReplicaCount } from '../server/runtime/conf.js';
+import { deployEnvFactory, getNpmRootPath, HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
+import { HOSTNAME_LABEL } from '../server/runtime/pod-scheduling.js';
 import { loggerFactory } from '../server/ops/logger.js';
-import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
-import { crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
+import {
+  invokingUser,
+  makeHostDirectory,
+  removeHostPath,
+  runCommand,
+  shellArgumentFactory,
+  shellExec,
+  writeHostFile,
+} from '../server/runtime/process.js';
+import { CRICTL_PRIVILEGE, crictlCommandFactory, resolveCriSocket } from '../server/ops/cri.js';
+import {
+  controlHostService,
+  DOCKER_PRIVILEGE,
+  hostServiceExists,
+  hostToolsFor,
+  installHostTool,
+  uninstallHostTool,
+  updateHostPackages,
+} from '../server/ops/host-tooling.js';
 import {
   runSELinuxCommands,
   selinuxEnforcingCommandsFactory,
@@ -24,24 +42,35 @@ import ContainerStorageService, {
 import { UNDERPOST_GATEWAY, seedDefaultStatusPage } from '../server/network/underpost-gateway.js';
 import {
   UNDERPOST_INGRESS,
-  gatewayBackendFactory,
+  ingressBackendFactory,
   underpostIngressConfFactory,
   underpostIngressHostMapFactory,
   underpostIngressManifestsFactory,
 } from '../server/network/underpost-ingress.js';
-import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/MongooseDB.js';
-import { MongoBootstrap } from '../db/mongo/MongoBootstrap.js';
-import { MongoExpress } from '../db/mongo/MongoExpress.js';
+import { MONGODB_DEFAULT_REPLICA_COUNT } from '../db/mongo/mongoose-db.js';
+import { MongoBootstrap } from '../db/mongo/mongo-bootstrap.js';
+import { MongoExpress } from '../db/mongo/mongo-express.js';
 import os from 'os';
+import path from 'node:path';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 
 /**
- * @constant CERT_MANAGER_VERSION
- * @description Pinned cert-manager chart version.
+ * @constant CERT_MANAGER_RELEASES
+ * @description The cert-manager compatibility policy. `installed` is the release `cluster --cert-manager`
+ * installs. `minimum` is the first release whose controller configuration enables the Gateway API solver
+ * (`enableGatewayAPI`). `supported` holds the minor lines upstream supports (https://cert-manager.io/docs/releases,
+ * read 2026-11-10). `tested` holds the releases Underpost has evidence for. `solvers` holds the routing providers
+ * whose ACME issuance and renewal passed against the Let's Encrypt staging server on a real cluster.
  * @memberof UnderpostCluster
  */
-const CERT_MANAGER_VERSION = 'v1.17.0';
+export const CERT_MANAGER_RELEASES = Object.freeze({
+  installed: 'v1.17.0',
+  minimum: 'v1.15.0',
+  supported: Object.freeze(['1.20', '1.21']),
+  tested: Object.freeze(['v1.17.0']),
+  solvers: Object.freeze([]),
+});
 
 const logger = loggerFactory(import.meta);
 
@@ -52,14 +81,12 @@ const KIND_NODE_IMAGE = 'kindest/node:v1.33.1@sha256:050072256b9a903bd914c0b2866
 const KIND_NODE_REPOSITORY = KIND_NODE_IMAGE.split(':')[0];
 
 const GATEWAY_API_RELEASE = 'v1.5.1';
+/** The kubeconfig each cluster type writes for its administrator. */
+const KUBECONFIG_SOURCES = Object.freeze({ kubeadm: '/etc/kubernetes/admin.conf', k3s: '/etc/rancher/k3s/k3s.yaml' });
 const ENVOY_GATEWAY_VERSION = 'v1.8.3';
-const CONTOUR_NAMESPACE = 'projectcontour';
-const NVIDIA_CONTAINER_TOOLKIT_VERSION = '1.17.8-1';
 const GPU_OPERATOR_VERSION = 'v25.3.1';
 const SPARK_IMAGE = 'spark:3.5.5';
 const KAFKA_IMAGE = 'doughgle/kafka-kraft';
-/** The Kafka manifest names its peers in this namespace. */
-const KAFKA_NAMESPACE = 'kafka';
 const LOCAL_PATH_PROVISIONER_MANIFEST =
   'https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml';
 const K3S_SELINUX_PATHS = [
@@ -76,12 +103,43 @@ const K3S_SELINUX_PATHS = [
 const ensureSELinuxTooling = () =>
   shellExec(
     `if [ -f /etc/redhat-release ] && command -v dnf >/dev/null 2>&1 && { ! command -v restorecon >/dev/null 2>&1 || ! command -v semanage >/dev/null 2>&1; }; then ${selinuxPackagesCommandFactory()}; fi`,
+    { privileged: 'installs the SELinux userspace' },
   );
 
 const enforceSELinux = (paths = []) => {
   ensureSELinuxTooling();
-  const commands = selinuxEnforcingCommandsFactory({ restorePaths: paths });
-  runSELinuxCommands(commands, { execute: shellExec });
+  runSELinuxCommands(selinuxEnforcingCommandsFactory({ restorePaths: paths }), { execute: shellExec });
+};
+
+/** The nodes of the Kind cluster: names of Docker containers. */
+const kindNodes = () =>
+  shellExec('kind get nodes', { stdout: true, silent: true, silentOnError: true, privileged: DOCKER_PRIVILEGE })
+    .split('\n')
+    .map((node) => node.trim())
+    .filter(Boolean);
+
+/** Turns swap off now and at boot, as Kubernetes requires. */
+const disableSwap = () => {
+  shellExec('swapoff -a', { privileged: 'turns the swap of the host off' });
+  writeHostFile({
+    target: '/etc/fstab',
+    content: fs
+      .readFileSync('/etc/fstab', 'utf8')
+      .split('\n')
+      .filter((line) => !line.includes('swap'))
+      .join('\n'),
+  });
+};
+
+/** Deletes a network interface of this host when it exists. */
+const deleteHostLink = (name) => {
+  if (shellExec(`ip link show ${shellArgumentFactory(name)}`, { silent: true, silentOnError: true }).code === 0)
+    shellExec(`ip link del ${shellArgumentFactory(name)}`, { privileged: `deletes the ${name} network interface` });
+};
+
+/** Stops a service of this host when the host has it. */
+const stopHostService = (unit) => {
+  if (hostServiceExists(unit)) controlHostService('stop', unit);
 };
 
 /**
@@ -95,13 +153,25 @@ const enforceSELinux = (paths = []) => {
 const INOTIFY_SYSCTL_PATH = '/etc/sysctl.d/99-underpost-inotify.conf';
 
 export const ensureInotifyLimits = () => {
-  shellExec(
-    `echo 'fs.inotify.max_user_instances = 1024
-fs.inotify.max_user_watches = 1048576
-fs.inotify.max_queued_events = 65536' | sudo tee ${INOTIFY_SYSCTL_PATH} > /dev/null`,
-  );
-  shellExec(`sudo sysctl -q -p ${INOTIFY_SYSCTL_PATH}`);
+  writeHostFile({
+    target: INOTIFY_SYSCTL_PATH,
+    content:
+      'fs.inotify.max_user_instances = 1024\nfs.inotify.max_user_watches = 1048576\nfs.inotify.max_queued_events = 65536\n',
+  });
+  shellExec(`sysctl -q -p ${INOTIFY_SYSCTL_PATH}`, { privileged: 'applies the inotify limits of the host' });
 };
+
+/** The sysctl file of a K3s host. */
+const K3S_SYSCTL_PATH = '/etc/sysctl.d/99-k3s.conf';
+
+/** The host configuration files of the cluster runtimes, which `--uninstall-host` removes. */
+const HOST_CONFIGURATION_PATHS = Object.freeze([
+  '/etc/kubernetes/pki',
+  '/etc/containerd/config.toml',
+  '/etc/sysctl.d/99-kubernetes.conf',
+  K3S_SYSCTL_PATH,
+  INOTIFY_SYSCTL_PATH,
+]);
 
 /**
  * @class UnderpostCluster
@@ -137,8 +207,7 @@ class UnderpostCluster {
      * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
      * @param {boolean} [options.resetMongodb=false] - Perform a targeted reset of MongoDB components without restarting the entire cluster. Combined with `--mongodb` it instead wipes the retained volumes as part of that deploy.
      * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
-     * @param {string} [options.nsUse=''] - Set the current kubectl namespace (creates namespace if it doesn't exist).
-     * @param {string} [options.namespace='default'] - Kubernetes namespace for cluster operations.
+     * @param {string} [options.namespace] - The legacy namespace override of the workloads and datastores; conf.cluster.json places each one without it.
      * @param {boolean} [options.infoCapacity=false] - Display resource capacity information for the cluster.
      * @param {boolean} [options.infoCapacityPod=false] - Display resource capacity information for pods.
      * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
@@ -159,10 +228,8 @@ class UnderpostCluster {
      * @param {boolean} [options.nodePort=false] - Expose enabled ready services (e.g. MongoDB 4.4, Valkey)
      *   to the host/public network via their NodePort Service manifest. The node port value lives directly
      *   in each manifest (mongodb-4.4/mongodb-nodeport.yaml, valkey/valkey-nodeport.yaml).
-     * @param {string} [options.nodeName=''] - Pin the just-deployed StatefulSet (MongoDB 4.4 / Valkey)
-     *   and the observability workloads to a specific Kubernetes node by name (e.g.
-     *   'localhost.localdomain'). Applied via a `kubernetes.io/hostname` nodeSelector patch once
-     *   the workload reports Ready.
+     * @param {string} [options.nodeName=''] - The Kubernetes node of every resource this run installs;
+     *   overrides the scheduling of conf.cluster.json.
      * @memberof UnderpostCluster
      */
     async init(
@@ -184,8 +251,7 @@ class UnderpostCluster {
         reset: false,
         resetMongodb: false,
         dev: false,
-        nsUse: '',
-        namespace: 'default',
+        namespace: '',
         infoCapacity: false,
         infoCapacityPod: false,
         pullImage: false,
@@ -207,43 +273,31 @@ class UnderpostCluster {
         nodeName: '',
       },
     ) {
-      if (options.initHost) return Underpost.cluster.initHost();
+      const npmRoot = getNpmRootPath();
+      const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
+
+      if (options.initHost)
+        return Underpost.cluster.initHost({ underpostRoot, runtime: clusterTypeFactory(options, '') });
 
       if (options.uninstallHost) return Underpost.cluster.uninstallHost();
 
       if (options.config) return options.k3s ? Underpost.cluster.configMinimalK3s() : Underpost.cluster.config();
 
-      if (options.chown) return Underpost.cluster.chown(clusterTypeFactory(options));
-
-      const npmRoot = getNpmRootPath();
-      const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
+      if (options.chown) return await Underpost.cluster.chown(clusterTypeFactory(options));
       const serviceHostInput = `${options.serviceHost || ''}`.trim();
       const serviceHost = Underpost.cluster.resolveServiceHost(options);
 
       if (options.listPods) return console.table(Underpost.kubectl.get(podName ?? undefined));
-      // Set default namespace if not specified
-      if (!options.namespace) options.namespace = 'default';
-
-      if (options.nsUse) {
-        // Verify if namespace exists, create if not
-        const namespaceExists = shellExec(`kubectl get namespace ${options.nsUse} --ignore-not-found -o name`, {
-          stdout: true,
-          silent: true,
-          silentOnError: true,
-        }).trim();
-
-        if (!namespaceExists) {
-          logger.info(`Namespace '${options.nsUse}' does not exist. Creating it...`);
-          shellExec(`kubectl create namespace ${options.nsUse}`);
-          logger.info(`Namespace '${options.nsUse}' created successfully.`);
-        } else {
-          logger.info(`Namespace '${options.nsUse}' already exists.`);
-        }
-
-        shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
-        logger.info(`Context switched to namespace: ${options.nsUse}`);
-        return;
-      }
+      const ns = (resource) => Underpost.namespace.of(resource, { options });
+      // A resource deploys into its namespace, which the deploy creates when it is missing.
+      const placed = (resource) => Underpost.namespace.ensure({ resource, options });
+      const scheduling = (resource) => Underpost.namespace.podScheduling({ resource, options, node: options.nodeName });
+      const applyScheduled = (resource, path, namespace) =>
+        Underpost.kubectl.applyScheduled({
+          path: `${underpostRoot}/${path}`,
+          namespace,
+          scheduling: scheduling(resource),
+        });
 
       // Route reset to the per-type method. Each only touches what its runtime owns.
       if (options.reset) {
@@ -268,7 +322,7 @@ class UnderpostCluster {
       if (options.resetMongodb && !options.mongodb) {
         const clusterType = clusterTypeFactory(options);
         return await MongoBootstrap.reset({
-          namespace: options.namespace,
+          namespace: ns('mongodb'),
           clusterType,
           underpostRoot,
         });
@@ -307,16 +361,28 @@ class UnderpostCluster {
           // balancer. The platform exposes services explicitly via Project
           // Contour / Envoy and NodePort services (see --node-port); leaving the
           // K3s built-ins enabled would bind the same host ports and conflict.
-          shellExec(
-            `curl -sfL https://get.k3s.io | sh -s - $(if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then printf '%s' '--selinux'; fi) --disable=traefik --disable=servicelb`,
-          );
+          const installer = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-k3s-')), 'install.sh');
+          try {
+            shellExec(`curl -sfL -o ${shellArgumentFactory(installer)} https://get.k3s.io`);
+            shellExec(
+              `sh ${shellArgumentFactory(installer)} $(if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then printf '%s' '--selinux'; fi) --disable=traefik --disable=servicelb`,
+              { privileged: 'installs K3s' },
+            );
+          } finally {
+            fs.removeSync(path.dirname(installer));
+          }
           logger.info('K3s installation completed.');
           runSELinuxCommands([selinuxRestoreconCommandFactory(K3S_SELINUX_PATHS)], { execute: shellExec });
 
-          Underpost.cluster.chown('k3s');
+          Underpost.namespace.pin({
+            options,
+            context: (await Underpost.cluster.chown('k3s')).context,
+            source: 'the new cluster',
+            runtime: 'k3s',
+          });
 
           logger.info('Waiting for K3s to be ready...');
-          shellExec(`sudo systemctl is-active --wait k3s || sudo systemctl wait --for=active k3s.service`);
+          shellExec(`systemctl is-active --wait k3s || systemctl wait --for=active k3s.service`);
           logger.info('K3s service is active.');
           // K3s manages its own CNI (flannel) and iptables rules. nat-iptables.sh
           // is neither needed nor desirable for a single K3s node in a VM.
@@ -333,20 +399,26 @@ class UnderpostCluster {
           // host actually exposes.
           const criSocket = resolveCriSocket(options);
           shellExec(
-            `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}" --cri-socket=${criSocket}`,
+            `kubeadm init --pod-network-cidr=${shellArgumentFactory(podNetworkCidr)} --control-plane-endpoint=${shellArgumentFactory(controlPlaneEndpoint)} --cri-socket=${shellArgumentFactory(criSocket)}`,
+            { privileged: 'initializes the kubeadm control plane' },
           );
-          // Configure kubectl for the current user
-          Underpost.cluster.chown('kubeadm'); // Pass 'kubeadm' to chown
+          // The rest of this command acts on the new cluster; the current context of the user stays.
+          Underpost.namespace.pin({
+            options,
+            context: (await Underpost.cluster.chown('kubeadm')).context,
+            source: 'the new cluster',
+            runtime: 'kubeadm',
+          });
 
           // Install Calico CNI
           logger.info('Installing Calico CNI...');
           shellExec(
-            `sudo kubectl create -f https://cdn.jsdelivr.net/gh/projectcalico/calico@v3.29.3/manifests/tigera-operator.yaml`,
+            `kubectl create -f https://cdn.jsdelivr.net/gh/projectcalico/calico@v3.29.3/manifests/tigera-operator.yaml`,
           );
           shellExec(
             `kubectl create -f https://cdn.jsdelivr.net/gh/projectcalico/calico@v3.29.3/manifests/custom-resources.yaml`,
           );
-          shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
 
           // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
@@ -359,52 +431,7 @@ class UnderpostCluster {
           shellExec(`kubectl wait --for=condition=Ready node --all --timeout=300s`);
           Underpost.cluster.ensureLocalPathProvisioner();
         } else {
-          Underpost.cluster.config();
-          Underpost.cluster.natSetup({ underpostRoot });
-          // Kind cluster initialization (default for development)
-          logger.info('Initializing Kind cluster...');
-          const devReplicaCount = resolveReplicaCount(options.replicas, MONGODB_DEFAULT_REPLICA_COUNT);
-          shellExec(`sudo mkdir -p /data/mongodb`);
-          for (let index = 0; index < devReplicaCount; index++) {
-            shellExec(`sudo mkdir -p /data/mongodb/v${index}`);
-          }
-          const nodeImage = shellArgumentFactory(KIND_NODE_IMAGE);
-          if (shellExec(`sudo docker image inspect ${nodeImage}`, { silent: true, silentOnError: true }).code !== 0) {
-            // Without a terminal, docker prints a layer only when it completes.
-            logger.info('Pulling the Kind node image. On a slow link this takes minutes.', {
-              image: KIND_NODE_IMAGE,
-            });
-            shellExec(`sudo docker pull ${nodeImage}`);
-          }
-          const kindCreateCmd = `cd ${underpostRoot}/manifests && kind create cluster --config kind-config-dev.yaml --image ${nodeImage}`;
-          try {
-            shellExec(kindCreateCmd);
-          } catch (error) {
-            const kindCreateErrText = `${error?.message || ''}\n${error?.stderr || ''}`;
-            if (kindCreateErrText.includes('all predefined address pools have been fully subnetted')) {
-              logger.warn(
-                'Docker address pool exhausted while creating Kind cluster. Running cleanup and retrying once...',
-              );
-              Underpost.cluster.recoverKindDockerNetworks();
-              try {
-                shellExec(kindCreateCmd);
-              } catch (retryError) {
-                const retryErrText = `${retryError?.message || ''}\n${retryError?.stderr || ''}`;
-                if (retryErrText.includes('all predefined address pools have been fully subnetted')) {
-                  logger.warn(
-                    'Kind retry still failed from pool exhaustion. Applying Docker daemon address-pool config and retrying once more...',
-                  );
-                  Underpost.cluster.ensureDockerDefaultAddressPools();
-                  shellExec(kindCreateCmd);
-                } else {
-                  throw retryError;
-                }
-              }
-            } else {
-              throw error;
-            }
-          }
-          Underpost.cluster.chown('kind'); // Pass 'kind' to chown
+          await Underpost.cluster.createKind({ underpostRoot, replicas: options.replicas });
         }
       }
 
@@ -424,7 +451,7 @@ class UnderpostCluster {
       // that configuration does not name.
       if (options.grafana || options.prom) {
         await Underpost.monitor.deployObservability({
-          namespace: options.namespace,
+          ...Underpost.namespace.overrides(options),
           dev: options.dev,
           nodeName: options.nodeName,
           hosts: typeof options.prom === 'string' ? options.prom : options.hosts,
@@ -432,20 +459,15 @@ class UnderpostCluster {
       }
 
       if (options.valkey) {
+        const namespace = await placed('valkey');
         if (options.pullImage) Underpost.cluster.pullImage('valkey/valkey:latest', options);
-        shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
+        shellExec(`kubectl delete statefulset valkey-service -n ${namespace} --ignore-not-found`);
+        applyScheduled('valkey', 'manifests/valkey', namespace);
         const valkeyReady = await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
         // Expose valkey to the host/public network only once the pod is ready.
         // The node port (32079) is set directly in the manifest.
         if (valkeyReady && options.nodePort)
-          shellExec(`kubectl apply -f ${underpostRoot}/manifests/valkey/valkey-nodeport.yaml -n ${options.namespace}`);
-        if (valkeyReady && options.nodeName)
-          Underpost.cluster.pinToNode({
-            name: 'valkey-service',
-            namespace: options.namespace,
-            node: options.nodeName,
-          });
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/valkey/valkey-nodeport.yaml -n ${namespace}`);
         if (valkeyReady && serviceHost)
           Underpost.cluster.syncServiceConnectionEnv({
             serviceHost,
@@ -453,49 +475,44 @@ class UnderpostCluster {
             options,
           });
       }
-      if (options.ipfs) {
-        await Underpost.ipfs.deploy(options, underpostRoot);
-      }
+      if (options.ipfs) await Underpost.ipfs.deploy({ ...options, namespace: await placed('ipfs') }, underpostRoot);
       if (options.mariadb) {
+        const namespace = await placed('mariadb');
         // Secrets before workloads: the StatefulSet's secretKeyRef must resolve at pod admission.
-        // Encrypted store first; when no manifest exists the secret is seeded from its origin
-        // seed path below. A manifest that exists but fails validation raises rather than
-        // silently seeding stale credentials.
-        if (!Underpost.secret.applyIfPresent('mariadb-secret', options.namespace))
-          Underpost.secret.applyFromOriginSeed('mariadb-secret', options.namespace);
-        shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
+        Underpost.secret.provide({ resource: 'mariadb', namespace, options });
+        shellExec(`kubectl delete statefulset mariadb-statefulset -n ${namespace} --ignore-not-found`);
 
         if (options.pullImage) Underpost.cluster.pullImage('mariadb:latest', options);
         // The StatefulSet's volumeClaimTemplate is dynamically provisioned, so the data lands in
         // a subdirectory of the local-path root and inherits that root's label.
         Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/mariadb'] });
-        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${options.namespace}`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
+        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${namespace}`);
+        applyScheduled('mariadb', 'manifests/mariadb', namespace);
       }
       if (options.mysql) {
-        if (!Underpost.secret.applyIfPresent('mysql-secret', options.namespace))
-          Underpost.secret.applyFromOriginSeed('mysql-secret', options.namespace);
+        const namespace = await placed('mysql');
+        Underpost.secret.provide({ resource: 'mysql', namespace, options });
         // The data directory is prepared, not opened up: a world-writable host path plus the
         // operator's ownership was standing in for the SELinux label the container actually
         // needed. `container_file_t` is what lets mysqld write here; 0755 root-owned is enough,
         // because the image's entrypoint chowns the tree to its own uid on first start.
         Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/mysql'] });
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
+        applyScheduled('mysql', 'manifests/mysql', namespace);
       }
       if (options.postgresql) {
+        const namespace = await placed('postgresql');
         if (options.pullImage) Underpost.cluster.pullImage('postgres:latest', options);
-        if (!Underpost.secret.applyIfPresent('postgres-secret', options.namespace))
-          Underpost.secret.applyFromOriginSeed('postgres-secret', options.namespace);
+        Underpost.secret.provide({ resource: 'postgresql', namespace, options });
         Underpost.cluster.ensureContainerStorageContexts({ extraPaths: ['/data/postgresql'] });
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
+        applyScheduled('postgresql', 'manifests/postgresql', namespace);
       }
-      if (options.kafka) Underpost.cluster.deployKafka({ underpostRoot, options });
+      if (options.kafka) await Underpost.cluster.deployKafka({ underpostRoot, options });
       if (options.mongodb4) {
+        const namespace = await placed('mongodb');
         if (options.pullImage) Underpost.cluster.pullImage('mongo:4.4', options);
-        shellExec(`kubectl delete statefulset mongodb -n ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4 -n ${options.namespace}`);
+        shellExec(`kubectl delete statefulset mongodb -n ${namespace} --ignore-not-found`);
+        applyScheduled('mongodb', 'manifests/mongodb-4.4', namespace);
 
-        const statefulSetName = 'mongodb';
         const podName = 'mongodb-0';
 
         const successInstance = await Underpost.test.statusMonitor(podName);
@@ -522,21 +539,13 @@ class UnderpostCluster {
             .filter(Boolean)
             .join(' ');
 
-          shellExec(`sudo kubectl exec -i ${podName} -n ${options.namespace} -- mongo --quiet --eval '${initEval}'`);
+          shellExec(`kubectl exec -i ${podName} -n ${namespace} -- mongo --quiet --eval '${initEval}'`);
 
           // Only expose mongos to the host/public network once the instance is
           // confirmed ready and the replica set is initiated. The node port (32017)
           // is set directly in the manifest.
           if (options.nodePort)
-            shellExec(
-              `kubectl apply -f ${underpostRoot}/manifests/mongodb-4.4/mongodb-nodeport.yaml -n ${options.namespace}`,
-            );
-          if (options.nodeName)
-            Underpost.cluster.pinToNode({
-              name: statefulSetName,
-              namespace: options.namespace,
-              node: options.nodeName,
-            });
+            shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb-4.4/mongodb-nodeport.yaml -n ${namespace}`);
           if (serviceHost)
             Underpost.cluster.syncServiceConnectionEnv({
               serviceHost,
@@ -545,15 +554,19 @@ class UnderpostCluster {
             });
         }
       } else if (options.mongodb) {
+        const namespace = await placed('mongodb');
         const clusterType = clusterTypeFactory(options);
         await MongoBootstrap.initReplicaSet({
-          namespace: options.namespace,
+          namespace,
+          environment: Underpost.namespace.resolve({ resource: 'mongodb', options }).environment,
+          serviceDomain: Underpost.namespace.serviceHost({ resource: 'mongodb', options }),
           replicaCount: resolveReplicaCount(options.replicas, MONGODB_DEFAULT_REPLICA_COUNT),
           hostList: serviceHostInput,
           pullImage: options.pullImage,
           reset: options.resetMongodb === true,
           clusterType,
           underpostRoot,
+          scheduling: scheduling('mongodb'),
         });
         if (serviceHost)
           Underpost.cluster.syncServiceConnectionEnv({
@@ -565,7 +578,8 @@ class UnderpostCluster {
 
       // After both StatefulSet branches, so one invocation can bring up MongoDB and its inspector
       // and the client reads the auth mode from the set this run just applied.
-      if (options.mongoExpress) await MongoExpress.deploy({ namespace: options.namespace, underpostRoot, options });
+      if (options.mongoExpress)
+        await MongoExpress.deploy({ namespace: await placed('mongodb'), underpostRoot, options });
 
       // Installing one stack must never break the other. Whichever is already
       // present decides whether this install takes the node's 80/443 for itself
@@ -584,16 +598,20 @@ class UnderpostCluster {
         // EVERY connection to its ports with an ICMP port-unreachable REJECT —
         // including 443 on every local address, which silently breaks whatever
         // else serves HTTPS on the node.
-        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
+        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: ns('workloads') });
         // Contour's render always claims hostPort 80/443. Left in place beside a
         // Gateway API data plane it would DNAT every packet away from it, so the
         // claim is released and both are reached through the underpost ingress instead.
         if (sharedIngress)
-          Underpost.cluster.releaseHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
+          Underpost.cluster.releaseHostPortClaim({
+            name: 'envoy',
+            namespace: Underpost.namespace.of('contour'),
+            ports: [80, 443],
+          });
         if (options.kubeadm) {
           // Envoy service might need NodePort for kubeadm
           shellExec(
-            `sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${CONTOUR_NAMESPACE}`,
+            `kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${Underpost.namespace.of('contour')}`,
           );
         }
         // K3s has a built-in LoadBalancer (Klipper-lb) that can expose services,
@@ -613,24 +631,33 @@ class UnderpostCluster {
         // the same ports without endpoints would have kube-proxy reject 80/443
         // out from under it, and any DaemonSet holding hostPort 80/443 would
         // swallow the traffic before the data plane's listener sees it.
-        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: options.namespace });
+        Underpost.cluster.pruneEndpointlessService({ name: 'envoy', namespace: ns('workloads') });
         // Contour keeps serving beside this stack when it is already installed —
         // it only gives up the node's ports, which the underpost ingress takes over.
         // With no Contour present the claim is removed outright, since a leftover
         // DaemonSet from an uninstalled stack has nothing left to serve.
         if (sharedIngress)
-          Underpost.cluster.releaseHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
-        else Underpost.cluster.pruneHostPortClaim({ name: 'envoy', namespace: CONTOUR_NAMESPACE, ports: [80, 443] });
+          Underpost.cluster.releaseHostPortClaim({
+            name: 'envoy',
+            namespace: Underpost.namespace.of('contour'),
+            ports: [80, 443],
+          });
+        else
+          Underpost.cluster.pruneHostPortClaim({
+            name: 'envoy',
+            namespace: Underpost.namespace.of('contour'),
+            ports: [80, 443],
+          });
         shellExec(
           `kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_RELEASE}/standard-install.yaml`,
         );
         shellExec(
           `helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version ${ENVOY_GATEWAY_VERSION} ` +
-            `--namespace envoy-gateway-system --create-namespace`,
+            `--namespace ${ns('envoyGateway')} --create-namespace`,
         );
         // The GatewayClass is rejected while the webhook is still coming up.
         shellExec(
-          `kubectl wait --namespace envoy-gateway-system --for=condition=Available --timeout=5m deployment/envoy-gateway`,
+          `kubectl wait --namespace ${ns('envoyGateway')} --for=condition=Available --timeout=5m deployment/envoy-gateway`,
           { silentOnError: true },
         );
         // Validate against the live CRD schema before creating anything. These
@@ -638,7 +665,7 @@ class UnderpostCluster {
         // kubectl applies documents independently: without the pre-flight, a
         // field the installed Envoy Gateway does not know leaves a GatewayClass
         // pointing at an EnvoyProxy that never applied.
-        const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({
+        const gatewayClassYaml = Underpost.ingress.gatewayClassYamlFactory({
           env,
           options: { ...options, sharedIngress },
         });
@@ -662,7 +689,13 @@ EOF
         // `try_files` that matches nothing and answers every host's status page
         // with the shared default.
         const underpostGatewayYaml = Underpost.deploy.underpostGatewayYamlFactory(options);
-        shellExec(`kubectl apply -f - -n ${options.namespace} <<'EOF'
+        const platform = await placed('platform');
+        Underpost.kubectl.claimVolume({
+          volume: UNDERPOST_GATEWAY.volumeName,
+          namespace: platform,
+          claim: UNDERPOST_GATEWAY.claimName,
+        });
+        shellExec(`kubectl apply -f - -n ${platform} <<'EOF'
 ${underpostGatewayYaml}
 EOF
 `);
@@ -676,7 +709,7 @@ EOF
         logger.info('Gateway API control plane installed', {
           gatewayApiRelease: GATEWAY_API_RELEASE,
           envoyGateway: ENVOY_GATEWAY_VERSION,
-          gatewayClass: Underpost.deploy.gatewayApiConfigFactory(options).gatewayClassName,
+          gatewayClass: Underpost.ingress.gatewayApiConfigFactory(options).gatewayClassName,
           env,
         });
       }
@@ -690,7 +723,7 @@ EOF
           // `--contour` against a cluster that already runs Envoy Gateway: its
           // data plane is still on the host network from a single-stack install,
           // so the EnvoyProxy is re-applied to move it behind the underpost ingress.
-          const gatewayClassYaml = Underpost.deploy.gatewayClassYamlFactory({
+          const gatewayClassYaml = Underpost.ingress.gatewayClassYamlFactory({
             env: options.dev ? 'development' : 'production',
             options: { ...options, sharedIngress: true },
           });
@@ -698,7 +731,7 @@ EOF
 ${gatewayClassYaml}
 EOF
 `);
-          shellExec(`kubectl rollout status deployment/envoy-gateway -n envoy-gateway-system --timeout=5m`, {
+          shellExec(`kubectl rollout status deployment/envoy-gateway -n ${ns('envoyGateway')} --timeout=5m`, {
             silentOnError: true,
           });
         }
@@ -709,11 +742,11 @@ EOF
             hint: 'resolve the holder above, then re-run this command',
           });
         } else {
-          Underpost.cluster.installUnderpostIngress({ namespace: options.namespace, options });
-          shellExec(
-            `kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${options.namespace} --timeout=3m`,
-            { silentOnError: true },
-          );
+          const platform = await placed('platform');
+          Underpost.cluster.installUnderpostIngress({ namespace: platform, options });
+          shellExec(`kubectl rollout status deployment/${UNDERPOST_INGRESS.name} -n ${platform} --timeout=3m`, {
+            silentOnError: true,
+          });
           logger.info('Both ingress stacks are live behind the underpost ingress', {
             ingress: UNDERPOST_INGRESS.name,
             note: 'HTTP/3 is served only by the Gateway API data plane; see the underpost-ingress module',
@@ -721,12 +754,7 @@ EOF
         }
       }
 
-      if (options.certManager)
-        Underpost.cluster.installCertManager({
-          namespace: options.namespace,
-          env: options.dev ? 'development' : 'production',
-          solver: Underpost.cluster.acmeSolverFactory({ options, presence: Underpost.cluster.ingressStackPresence() }),
-        });
+      if (options.certManager) await Underpost.cluster.installCertManager({ env: deployEnvFactory(options) });
     },
 
     /**
@@ -858,23 +886,28 @@ EOF
     },
 
     /**
-     * @method pinToNode
-     * @description Pins a workload to a specific Kubernetes node by patching its
-     * pod template with a `kubernetes.io/hostname` nodeSelector. General-purpose;
-     * currently used to place the MongoDB 4.4 / Valkey StatefulSets and the
-     * observability Deployments on a chosen node (`--node-name`). The patch
-     * triggers a rolling reschedule onto the target node.
+     * @method placeWorkload
+     * @description Patches the pod template of a live workload with a pod scheduling: its node affinity
+     * and tolerations, without a hostname node selector. The patch reschedules its pods onto those nodes.
      * @param {object} params
      * @param {string} [params.kind='statefulset'] - Workload kind to patch.
      * @param {string} params.name - Workload name.
      * @param {string} params.namespace - Target namespace.
-     * @param {string} params.node - Target node name (matches `kubernetes.io/hostname`).
+     * @param {{nodes:string[], affinity:Object, tolerations?:Object[]}} params.scheduling - {@link UnderpostNamespace.podScheduling}.
      * @memberof UnderpostCluster
      */
-    pinToNode({ kind = 'statefulset', name, namespace, node }) {
-      logger.info(`Pinning ${kind}/${name} to node '${node}' (namespace: ${namespace}).`);
+    placeWorkload({ kind = 'statefulset', name, namespace, scheduling: { nodes, affinity, tolerations } }) {
+      logger.info(`Placing ${kind}/${name} on ${nodes.join(', ')} (namespace: ${namespace}).`);
       const patch = JSON.stringify({
-        spec: { template: { spec: { nodeSelector: { 'kubernetes.io/hostname': node } } } },
+        spec: {
+          template: {
+            spec: {
+              affinity,
+              nodeSelector: { [HOSTNAME_LABEL]: null },
+              ...(tolerations ? { tolerations } : {}),
+            },
+          },
+        },
       });
       shellExec(`kubectl patch ${kind} ${name} -n ${namespace} --type merge -p '${patch}'`);
     },
@@ -962,16 +995,17 @@ EOF
      */
     pullImage(image, options = { kubeadm: false, k3s: false }) {
       if (!options.kubeadm && !options.k3s) {
-        const tarPath = `/tmp/kind-image-${image.replace(/[\/:]/g, '-')}.tar`;
-        shellExec(`docker pull ${image}`);
-        shellExec(`docker save ${image} -o ${tarPath}`);
-        shellExec(
-          `for node in $(kind get nodes); do cat ${tarPath} | docker exec -i $node ctr --namespace=k8s.io images import -; done`,
-        );
-        shellExec(`rm -f ${tarPath}`);
+        shellExec(`docker pull ${shellArgumentFactory(image)}`, { privileged: DOCKER_PRIVILEGE });
+        for (const node of kindNodes())
+          shellExec(
+            `docker save ${shellArgumentFactory(image)} | docker exec -i ${shellArgumentFactory(node)} ctr --namespace=k8s.io images import -`,
+            { privileged: DOCKER_PRIVILEGE },
+          );
       } else {
         // Kubeadm / K3s: pull directly into the active CRI runtime.
-        shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, options));
+        shellExec(crictlCommandFactory(`pull ${shellArgumentFactory(image)}`, options), {
+          privileged: CRICTL_PRIVILEGE,
+        });
       }
     },
 
@@ -983,19 +1017,7 @@ EOF
      */
     installGpuOperator() {
       const namespace = 'gpu-operator';
-      shellExec(
-        `curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo`,
-      );
-      shellExec(
-        `sudo dnf install -y ${[
-          'nvidia-container-toolkit',
-          'nvidia-container-toolkit-base',
-          'libnvidia-container-tools',
-          'libnvidia-container1',
-        ]
-          .map((pkg) => `${pkg}-${NVIDIA_CONTAINER_TOOLKIT_VERSION}`)
-          .join(' ')}`,
-      );
+      installHostTool('nvidia-container-toolkit', { arch: Underpost.baremetal.getHostArch().alias });
       shellExec(`kubectl create ns ${namespace} --dry-run=client -o yaml | kubectl apply -f -`);
       shellExec(`kubectl label --overwrite ns ${namespace} pod-security.kubernetes.io/enforce=privileged`);
       shellExec(`helm repo add nvidia https://helm.ngc.nvidia.com/nvidia --force-update && helm repo update`);
@@ -1039,7 +1061,7 @@ EOF
       );
       if (options.pullImage) Underpost.cluster.pullImage(SPARK_IMAGE, options);
       shellExec(
-        `kubectl apply -f ${underpostRoot}/manifests/deployment/spark/spark-pi-py.yaml -n ${options.namespace}`,
+        `kubectl apply -f ${underpostRoot}/manifests/deployment/spark/spark-pi-py.yaml -n ${Underpost.namespace.of('workloads', { options })}`,
       );
     },
 
@@ -1051,10 +1073,14 @@ EOF
      * @param {object} params.options - Cluster options: cluster type and `pullImage`.
      * @memberof UnderpostCluster
      */
-    deployKafka({ underpostRoot, options }) {
+    async deployKafka({ underpostRoot, options }) {
       if (options.pullImage) Underpost.cluster.pullImage(KAFKA_IMAGE, options);
-      shellExec(`kubectl create namespace ${KAFKA_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -`);
-      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/kafka/deployment.yaml -n ${KAFKA_NAMESPACE}`);
+      const namespace = await Underpost.namespace.ensure({ resource: 'kafka', options });
+      Underpost.kubectl.applyScheduled({
+        path: `${underpostRoot}/manifests/deployment/kafka/deployment.yaml`,
+        namespace,
+        scheduling: Underpost.namespace.podScheduling({ resource: 'kafka', options, node: options.nodeName }),
+      });
     },
 
     /**
@@ -1179,7 +1205,11 @@ EOF
      * @returns {boolean} True once nothing claims them.
      * @memberof UnderpostCluster
      */
-    awaitHostPortsFree({ ports = [80, 443], contourNamespace = CONTOUR_NAMESPACE, timeoutMs = 3 * 60 * 1000 } = {}) {
+    awaitHostPortsFree({
+      ports = [80, 443],
+      contourNamespace = Underpost.namespace.of('contour'),
+      timeoutMs = 3 * 60 * 1000,
+    } = {}) {
       const deadline = Date.now() + timeoutMs;
       const holders = () => {
         const found = [];
@@ -1198,12 +1228,12 @@ EOF
         // rather than a hostPort, so its claim is the network mode itself.
         const gatewayHostNetwork = `${
           shellExec(
-            `kubectl get deployment -n envoy-gateway-system -l app.kubernetes.io/name=envoy ` +
+            `kubectl get deployment -n ${Underpost.namespace.of('envoyGateway')} -l app.kubernetes.io/name=envoy ` +
               `-o jsonpath='{.items[*].spec.template.spec.hostNetwork}'`,
             { stdout: true, silent: true, silentOnError: true },
           ) || ''
         }`.trim();
-        if (gatewayHostNetwork.includes('true')) found.push('envoy-gateway-system data plane hostNetwork');
+        if (gatewayHostNetwork.includes('true')) found.push('Envoy Gateway data plane hostNetwork');
         return found;
       };
 
@@ -1224,29 +1254,10 @@ EOF
     },
 
     /**
-     * @method acmeSolverFactory
-     * @description Which ingress stack answers the HTTP-01 challenge.
-     *
-     * Read from the cluster, like {@link UnderpostCluster.ingressStackPresence}: the
-     * `cluster` runner installs the issuer in a separate invocation that carries no stack
-     * flag, so the flags alone would always name the Contour solver. `--contour` is the
-     * only explicit override; a cluster with the Gateway API data plane installed routes
-     * every hostname through it, so an Ingress solver there is unreachable.
-     * @param {object} params
-     * @param {object} [params.options] - Cluster init options.
-     * @param {{contour: boolean, gateway: boolean}} params.presence - Installed stacks.
-     * @returns {'gateway'|'ingress'} Solver kind.
-     * @memberof UnderpostCluster
-     */
-    acmeSolverFactory({ options = {}, presence }) {
-      if (options.contour === true && options.gatewayApi !== true) return 'ingress';
-      return options.gatewayApi === true || presence.gateway ? 'gateway' : 'ingress';
-    },
-
-    /**
      * @method installCertManager
-     * @description Installs or upgrades cert-manager and applies the Let's Encrypt
-     * ClusterIssuer for the stack in use.
+     * @description Installs or upgrades cert-manager, with its Gateway API support when the routing provider of
+     * the environment is `gateway-api`, then reconciles the ClusterIssuer of its TLS policy through
+     * {@link UnderpostTls.issuer}. An environment that issues no ACME certificate gets no issuer.
      *
      * `upgrade --install` rather than a one-time install: the Gateway API solver is
      * ignored by a controller that was not started with `enableGatewayAPI`, so a cluster
@@ -1254,24 +1265,27 @@ EOF
      * skipped because a pod is Running. The version is pinned, so on a cluster already at
      * it the upgrade is a no-op.
      * @param {object} params
-     * @param {string} [params.namespace] - Namespace the deploys' Gateways live in.
-     * @param {string} [params.env] - Environment the routed deploys publish under.
-     * @param {'gateway'|'ingress'} params.solver - Which stack answers the challenge.
-     * @returns {{solver: string, parentRefs: Array<{name: string, namespace: string}>}} What was applied.
+     * @param {string} [params.env] - Environment the cluster serves.
+     * @returns {Promise<object|null>} The issuer report; null without the cert-manager mode.
      * @memberof UnderpostCluster
      */
-    installCertManager({ namespace = 'default', env = 'production', solver }) {
+    async installCertManager({ env = 'production' }) {
       const gatewayValues =
-        solver === 'gateway'
+        Underpost.ingress.provider({ environment: env }) === 'gateway-api'
           ? ' --set config.apiVersion=controller.config.cert-manager.io/v1alpha1' +
             ' --set config.kind=ControllerConfiguration --set config.enableGatewayAPI=true'
           : '';
       shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
       shellExec(
-        `helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace` +
-          ` --version ${CERT_MANAGER_VERSION} --set crds.enabled=true${gatewayValues} --wait --timeout 5m`,
+        `helm upgrade --install cert-manager jetstack/cert-manager --namespace ${Underpost.namespace.of('certManager', { environment: env })} --create-namespace` +
+          ` --version ${CERT_MANAGER_RELEASES.installed} --set crds.enabled=true${gatewayValues} --wait --timeout 5m`,
       );
-      return Underpost.deploy.applyLetsEncryptIssuer({ solver, namespace, env });
+      const { mode } = Underpost.tls.policy({ environment: env });
+      if (mode !== 'cert-manager') {
+        logger.info(`cert-manager is installed; ${env} issues no ACME certificate (TLS mode ${mode})`);
+        return null;
+      }
+      return Underpost.tls.issuer('reconcile', { apply: true, options: { env } });
     },
 
     /**
@@ -1286,12 +1300,12 @@ EOF
      * @returns {{contour: boolean, gateway: boolean}} Presence of each stack.
      * @memberof UnderpostCluster
      */
-    ingressStackPresence(contourNamespace = CONTOUR_NAMESPACE) {
+    ingressStackPresence(contourNamespace = Underpost.namespace.of('contour')) {
       const exists = (cmd) =>
         `${shellExec(cmd, { stdout: true, silent: true, silentOnError: true }) || ''}`.trim().length > 0;
       return {
         contour: exists(`kubectl get daemonset envoy -n ${contourNamespace} -o name`),
-        gateway: exists(`kubectl get deployment envoy-gateway -n envoy-gateway-system -o name`),
+        gateway: exists(`kubectl get deployment envoy-gateway -n ${Underpost.namespace.of('envoyGateway')} -o name`),
       };
     },
 
@@ -1311,8 +1325,8 @@ EOF
      * host to stack, not host to colour — so an ordinary deploy re-applies the
      * same bytes and nothing restarts.
      * @param {string} [namespace] - Namespace holding the ingress.
-     * @param {object} [options] - Cluster options. `ingressNode` is the only
-     * placement override; application `node` / `nodeName` flags are ignored.
+     * @param {object} [options] - Cluster options. `ingressNode` overrides the platform scheduling;
+     * application `node` / `nodeName` flags are ignored.
      * @returns {boolean} True when the table was rebuilt.
      * @memberof UnderpostCluster
      */
@@ -1361,17 +1375,22 @@ EOF
           .filter(Boolean);
 
       const backends = {};
-      if (presence.contour) backends.contour = UNDERPOST_INGRESS.backends.contour;
+      if (presence.contour)
+        backends.contour = ingressBackendFactory(Underpost.namespace.resolve({ resource: 'contour', options }));
       if (presence.gateway) {
         // Envoy Gateway names its own data plane Service, so it is discovered
         // rather than assumed; without it the underpost ingress would proxy to nothing.
         const service = `${
           shellExec(
-            `kubectl get svc -n envoy-gateway-system -l app.kubernetes.io/name=envoy -o jsonpath='{.items[0].metadata.name}'`,
+            `kubectl get svc -n ${Underpost.namespace.of('envoyGateway', { options })} -l app.kubernetes.io/name=envoy -o jsonpath='{.items[0].metadata.name}'`,
             { stdout: true, silent: true, silentOnError: true },
           ) || ''
         }`.trim();
-        if (service) backends.gateway = gatewayBackendFactory(service);
+        if (service)
+          backends.gateway = ingressBackendFactory({
+            ...Underpost.namespace.resolve({ resource: 'envoyGateway', options }),
+            services: [service],
+          });
         else logger.warn('Envoy Gateway is installed but has provisioned no data plane Service yet');
       }
       if (Object.keys(backends).length === 0) {
@@ -1379,19 +1398,21 @@ EOF
         return false;
       }
 
+      const provider = Underpost.ingress.provider({ options });
+      const destination = provider === 'gateway-api' ? 'gateway' : 'contour';
+      const contourHosts = presence.contour ? hostsOf('httpproxy') : [];
+      const gatewayHosts = presence.gateway ? hostsOf('httproute') : [];
+      const moving = contourHosts.some((host) => gatewayHosts.includes(host));
       const { entries, conflicts } = underpostIngressHostMapFactory({
-        contourHosts: presence.contour ? hostsOf('httpproxy') : [],
-        gatewayHosts: presence.gateway ? hostsOf('httproute') : [],
-        // During migration both route kinds deliberately coexist. Point the
-        // host at the destination stack before the old object is deleted; a
-        // fixed Gateway preference would create a 404 window when migrating in
-        // the opposite direction (Gateway API -> Contour).
-        preferred: gatewayApiEnabledFactory(options) ? 'gateway' : 'contour',
+        contourHosts,
+        gatewayHosts,
+        preferred: destination,
+        ready: moving ? Underpost.ingress.servedHosts(provider) : [],
       });
       if (conflicts.length > 0)
-        logger.warn('Hosts described by both stacks; the destination stack wins until the old route is removed', {
+        logger.warn('Hosts described by both stacks: each moves to the destination stack once its route serves', {
           conflicts,
-          destination: gatewayApiEnabledFactory(options) ? 'gateway' : 'contour',
+          destination,
         });
 
       const conf = underpostIngressConfFactory({
@@ -1402,38 +1423,33 @@ EOF
       });
       const liveNode = `${
         shellExec(
-          `kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} ` +
-            `-o jsonpath='{.spec.template.spec.nodeSelector.kubernetes\\.io/hostname}'`,
+          `kubectl get deployment ${UNDERPOST_INGRESS.name} -n ${namespace} -o jsonpath='{.spec.template.spec` +
+            `.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0]` +
+            `.matchExpressions[0].values[0]}'`,
           { stdout: true, silent: true, silentOnError: true },
         ) || ''
       }`.trim();
-      // `node` and `nodeName` place application workloads. Reusing either here
-      // relocates the public listener during an ordinary deploy; with Recreate
-      // that first deletes the healthy edge and can leave the whole site on
-      // connection-refused if the destination cannot pull Nginx. Only the
-      // dedicated ingressNode option may move this workload. Every route-table
-      // refresh otherwise preserves the established edge node.
-      const requestedNode = options.ingressNode || '';
+      // Application `node` and `nodeName` flags never move the public listener: with Recreate, a move
+      // deletes the healthy edge first. `--ingress-node`, then the platform scheduling, then the live
+      // node, then the cluster-type default place it.
+      const scheduled = Underpost.namespace.soleNode(
+        Underpost.namespace.schedule({ resource: 'platform', options, node: options.ingressNode }).nodes,
+        'The Underpost ingress',
+      );
       const chosenNode =
-        requestedNode ||
+        scheduled ||
         liveNode ||
-        Underpost.deploy.resolveDeployNode({
-          node: '',
+        Underpost.deploy.resolveDeployNodes({
+          resource: 'platform',
           kind: options.kind,
           kubeadm: options.kubeadm,
           k3s: options.k3s,
           env: options.dev ? 'development' : 'production',
-        });
-      // The chosen name is a guess unless it came from `--ingress-node`: the
-      // cluster-type default reads `--dev` as kind, and `liveNode` re-reads
-      // whatever a previous run wrote. This workload is pinned by `nodeSelector`
-      // with `hostNetwork`, so a name no node carries does not degrade — the pod
-      // stays Pending and every rollout wait times out.
+        })[0];
+      // A host-network listener pinned to a name no node carries stays Pending: only a guess may be corrected.
       const { node: ingressNode, corrected } = Underpost.deploy.resolveSchedulableNode({ node: chosenNode });
-      if (corrected && requestedNode)
-        throw new Error(
-          `[underpost-ingress] --ingress-node ${requestedNode} is not a node in this cluster (schedulable: ${ingressNode})`,
-        );
+      if (corrected && scheduled)
+        throw new Error(`[underpost-ingress] ${scheduled} is not a node in this cluster (schedulable: ${ingressNode})`);
       if (corrected)
         logger.warn('Ingress node does not exist in this cluster; using a schedulable node instead', {
           chosen: chosenNode,
@@ -1541,7 +1557,7 @@ EOF
 ${underpostIngressManifestsFactory({
   namespace,
   conf,
-  nodeName: ingressNode,
+  scheduling: Underpost.namespace.podScheduling({ resource: 'platform', options, node: ingressNode }),
 })}
 EOF
 `,
@@ -1668,27 +1684,23 @@ EOF
       Underpost.cluster.ensureContainerStorageContexts();
       enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
-      // Enable and start Docker and Kubelet services
-      shellExec(`sudo systemctl enable --now docker`); // Docker might not be needed for K3s
-      shellExec(`sudo systemctl enable --now kubelet`); // Kubelet might not be needed for K3s (K3s uses its own agent)
+      controlHostService('enable --now', 'docker');
+      controlHostService('enable --now', 'kubelet');
 
-      // Configure containerd for systemd cgroups and SELinux labeling.
-      shellExec(`containerd config default | sudo tee /etc/containerd/config.toml > /dev/null`);
-      shellExec(`sudo sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-      shellExec(`sudo sed -i -e "s/enable_selinux = false/enable_selinux = true/g" /etc/containerd/config.toml`);
+      // containerd uses the systemd cgroup driver and labels its containers.
+      writeHostFile({
+        target: '/etc/containerd/config.toml',
+        content: shellExec('containerd config default', { stdout: true, silent: true })
+          .replaceAll('SystemdCgroup = false', 'SystemdCgroup = true')
+          .replaceAll('enable_selinux = false', 'enable_selinux = true'),
+      });
       runSELinuxCommands([selinuxRestoreconCommandFactory('/etc/containerd')], { execute: shellExec });
-      // Restart docker after containerd config changes. Rocky 9 uses systemctl,
-      // not the legacy service command.
-      shellExec(`sudo systemctl restart docker || sudo service docker restart || true`);
-      shellExec(`sudo systemctl enable --now containerd.service`);
-      shellExec(`sudo systemctl restart containerd`); // Restart containerd to apply changes
+      controlHostService('restart', 'docker');
+      controlHostService('enable --now', 'containerd');
+      controlHostService('restart', 'containerd');
 
-      // Disable swap (required by Kubernetes)
-      shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
-
-      // Reload systemd daemon to pick up new unit files/changes
-      shellExec(`sudo systemctl daemon-reload`);
-
+      disableSwap();
+      controlHostService('daemon-reload');
       ensureInotifyLimits();
     },
 
@@ -1717,7 +1729,8 @@ EOF
       // closes 6443/tcp (supervisor + API) and 8472/udp (flannel VXLAN) by
       // default on RHEL/Rocky, which makes k3s-agent hang on `systemctl start`
       // forever (the upstream unit ships TimeoutStartSec=0).
-      shellExec(`if systemctl is-active --quiet firewalld; then sudo systemctl disable --now firewalld; fi`);
+      if (shellExec('systemctl is-active --quiet firewalld', { silent: true, silentOnError: true }).code === 0)
+        controlHostService('disable --now', 'firewalld');
 
       // Storage labeling precedes the Enforcing flip, so the mode is never activated over trees
       // that still carry the policy default.
@@ -1725,22 +1738,18 @@ EOF
       Underpost.cluster.ensureContainerStorageContexts();
       enforceSELinux(K3S_SELINUX_PATHS);
 
-      // Disable swap. `swapoff -a` is a no-op without swap; the sed only edits
-      // fstab when a swap line is present.
-      shellExec(`sudo swapoff -a`);
-      shellExec(`sudo sed -i '/swap/d' /etc/fstab`);
+      disableSwap();
 
-      // Pod networking: ensure br_netfilter is loaded and the bridge/forward
-      // sysctls are set. K3s + flannel depend on these.
-      shellExec(
-        `if command -v lsmod >/dev/null 2>&1 && command -v modprobe >/dev/null 2>&1; then if ! lsmod | grep -q '^br_netfilter'; then sudo modprobe br_netfilter || true; fi; fi`,
-      );
-      shellExec(
-        `echo 'net.bridge.bridge-nf-call-iptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
-      );
-      shellExec(`sudo sysctl --system`);
+      // Pod networking: K3s and flannel need br_netfilter and the bridge and forward sysctls. A minimal
+      // image without the module keeps going.
+      if (!/^br_netfilter /m.test(fs.readFileSync('/proc/modules', 'utf8')))
+        shellExec('modprobe br_netfilter', { silentOnError: true, privileged: 'loads the br_netfilter kernel module' });
+      writeHostFile({
+        target: K3S_SYSCTL_PATH,
+        content:
+          'net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward = 1\n',
+      });
+      shellExec('sysctl --system', { privileged: 'applies the sysctl settings of the host' });
 
       ensureInotifyLimits();
     },
@@ -1761,63 +1770,162 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
       const { underpostRoot } = options;
       // Loads br_netfilter, applies bridge/forward sysctls, opens firewall ports, enables masquerade.
       // Must run before kubeadm init / kind create so kernel networking is ready.
-      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`);
+      shellExec(`bash ${shellArgumentFactory(path.join(underpostRoot, 'scripts/nat-iptables.sh'))}`, {
+        privileged: 'configures the firewall and the kernel networking of the host',
+      });
+    },
+
+    /**
+     * @method createKind
+     * @description Creates the Kind development cluster: host configuration, the MongoDB host paths,
+     * the pinned node image, then `kind create cluster`. It never deletes a cluster or a volume.
+     * @param {object} params
+     * @param {string} params.underpostRoot - The root that holds `manifests/kind-config-dev.yaml`.
+     * @param {string|number} [params.replicas] - MongoDB members, one host path each.
+     * @memberof UnderpostCluster
+     */
+    async createKind({ underpostRoot, replicas }) {
+      Underpost.cluster.config();
+      Underpost.cluster.natSetup({ underpostRoot });
+      logger.info('Initializing Kind cluster...');
+      const devReplicaCount = resolveReplicaCount(replicas, MONGODB_DEFAULT_REPLICA_COUNT);
+      for (const directory of [
+        '/data/mongodb',
+        ...Array.from({ length: devReplicaCount }, (_, i) => `/data/mongodb/v${i}`),
+      ])
+        makeHostDirectory(directory, { reason: 'creates the MongoDB host paths the Kind nodes mount' });
+      const nodeImage = shellArgumentFactory(KIND_NODE_IMAGE);
+      if (
+        shellExec(`docker image inspect ${nodeImage}`, {
+          silent: true,
+          silentOnError: true,
+          privileged: DOCKER_PRIVILEGE,
+        }).code !== 0
+      ) {
+        // Without a terminal, docker prints a layer only when it completes.
+        logger.info('Pulling the Kind node image. On a slow link this takes minutes.', {
+          image: KIND_NODE_IMAGE,
+        });
+        shellExec(`docker pull ${nodeImage}`, { privileged: DOCKER_PRIVILEGE });
+      }
+      // Kind writes the new context to a scratch kubeconfig: the merge of chown keeps the current context.
+      const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-kind-'));
+      const createCluster = () =>
+        shellExec(
+          `kind create cluster --config ${shellArgumentFactory(path.join(underpostRoot, 'manifests/kind-config-dev.yaml'))} --image ${nodeImage} --kubeconfig ${shellArgumentFactory(path.join(scratch, 'config'))}`,
+          { privileged: DOCKER_PRIVILEGE },
+        );
+      try {
+        createCluster();
+      } catch (error) {
+        const kindCreateErrText = `${error?.message || ''}\n${error?.stderr || ''}`;
+        if (kindCreateErrText.includes('all predefined address pools have been fully subnetted')) {
+          logger.warn(
+            'Docker address pool exhausted while creating Kind cluster. Running cleanup and retrying once...',
+          );
+          Underpost.cluster.recoverKindDockerNetworks();
+          try {
+            createCluster();
+          } catch (retryError) {
+            const retryErrText = `${retryError?.message || ''}\n${retryError?.stderr || ''}`;
+            if (retryErrText.includes('all predefined address pools have been fully subnetted')) {
+              logger.warn(
+                'Kind retry still failed from pool exhaustion. Applying Docker daemon address-pool config and retrying once more...',
+              );
+              Underpost.cluster.ensureDockerDefaultAddressPools();
+              createCluster();
+            } else {
+              throw retryError;
+            }
+          }
+        } else {
+          throw error;
+        }
+      } finally {
+        fs.removeSync(scratch);
+      }
+      Underpost.namespace.pin({
+        environment: 'development',
+        context: (await Underpost.cluster.chown('kind')).context,
+        source: 'the new cluster',
+        runtime: 'kind',
+      });
     },
 
     /**
      * @method chown
-     * @description Sets up kubectl configuration for the current user based on the cluster type.
-     * @param {string} clusterType - The type of Kubernetes cluster ('kubeadm', 'k3s', or 'kind').
+     * @description Gives the kubeconfig of a cluster to the user the command acts for, and to root
+     * when the command runs as root for that user, because the kubectl of a root process reads root's.
+     * The cluster context is merged into each file: its other contexts and its current context stay.
+     * Each file belongs to its user with mode 0600.
+     * @param {string} clusterType - 'kubeadm', 'k3s' or 'kind'.
+     * @returns {Promise<{context: string, written: string[]}>} The context of the cluster and the
+     *   kubeconfig files it wrote.
      * @memberof UnderpostCluster
      */
-    chown(clusterType) {
-      console.log(`Setting up kubectl configuration for ${clusterType} cluster...`);
-      shellExec(`mkdir -p ~/.kube`);
-
-      let kubeconfigPath;
-      if (clusterType === 'k3s') {
-        kubeconfigPath = '/etc/rancher/k3s/k3s.yaml';
-      } else if (clusterType === 'kubeadm') {
-        kubeconfigPath = '/etc/kubernetes/admin.conf';
-      } else {
-        // Default to kind if not specified or unknown
-        kubeconfigPath = ''; // Kind's kubeconfig is usually managed by kind itself, or merged
+    async chown(clusterType) {
+      const source =
+        clusterType === 'kind'
+          ? await runCommand('kind', ['get', 'kubeconfig'], { disableLog: true, privileged: DOCKER_PRIVILEGE })
+          : await runCommand('cat', [KUBECONFIG_SOURCES[clusterType]], {
+              disableLog: true,
+              privileged: `reads the root-only kubeconfig of ${clusterType}`,
+            });
+      const owners = [invokingUser()];
+      if (process.getuid() === 0 && owners[0].uid !== 0) owners.push({ ...os.userInfo(), home: os.userInfo().homedir });
+      const staged = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-kubeconfig-')), 'config');
+      fs.writeFileSync(staged, source.stdout, { mode: 0o600 });
+      const kubectl = (args, env) => runCommand('kubectl', args, { disableLog: true, env: { ...process.env, ...env } });
+      const written = [];
+      let context = '';
+      try {
+        context = (await kubectl(['config', 'current-context', '--kubeconfig', staged])).stdout.trim();
+        for (const owner of owners) {
+          const target = path.join(owner.home, '.kube', 'config');
+          const existed = fs.existsSync(target);
+          const current = existed
+            ? (
+                await kubectl(['config', 'current-context', '--kubeconfig', target]).catch(() => ({ stdout: '' }))
+              ).stdout.trim()
+            : '';
+          const merged = await kubectl(['config', 'view', '--flatten', '--raw'], {
+            KUBECONFIG: [staged, ...(existed ? [target] : [])].join(':'),
+          });
+          fs.ensureDirSync(path.dirname(target), { mode: 0o700 });
+          fs.writeFileSync(`${target}.tmp`, merged.stdout, { mode: 0o600 });
+          if (current) await kubectl(['config', 'use-context', current, '--kubeconfig', `${target}.tmp`]);
+          if (process.getuid() === 0) {
+            fs.chownSync(path.dirname(target), owner.uid, owner.gid);
+            fs.chownSync(`${target}.tmp`, owner.uid, owner.gid);
+          }
+          fs.renameSync(`${target}.tmp`, target);
+          written.push(target);
+          logger.info(`Merged the ${clusterType} context into ${target}`, {
+            currentContext: current || 'the cluster context',
+          });
+        }
+      } finally {
+        fs.removeSync(path.dirname(staged));
       }
-
-      if (kubeconfigPath) {
-        shellExec(`sudo -E cp -i -f ${kubeconfigPath} ~/.kube/config`);
-        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
-      } else if (clusterType === 'kind') {
-        // For Kind, the kubeconfig is usually merged automatically or can be explicitly exported
-        // This command ensures it's merged into the default kubeconfig
-        shellExec(`kind get kubeconfig > ~/.kube/config`);
-        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
-      } else {
-        logger.warn('No specific kubeconfig path defined for this cluster type, or it is managed automatically.');
-      }
-      console.log('kubectl config set up successfully.');
+      return { context, written };
     },
 
     // Shared reset helpers (internal — used by safeResetKind / safeResetKubeadm).
 
     /**
      * @method _truncateLargeLogs
-     * @description Removes files >1 GiB under /var/log. Best-effort.
+     * @description Removes each entry of /var/log over 1 GiB. Best-effort.
      * @private
      */
     _truncateLargeLogs() {
       try {
-        const cleanPath = `/var/log/`;
-        const largeLogsFiles = shellExec(
-          `sudo du -sh ${cleanPath}* | awk '{if ($1 ~ /G$/ && ($1+0) > 1) print}' | sort -rh`,
-          { stdout: true },
-        );
-        for (const pathLog of largeLogsFiles
-          .split('\n')
-          .map((p) => p.split(cleanPath)[1])
-          .filter((p) => p)) {
-          shellExec(`sudo rm -rf ${cleanPath}${pathLog}`);
-        }
+        const usage = shellExec('du -s -B1 -- /var/log/*', {
+          stdout: true,
+          silent: true,
+          privileged: 'measures the logs of the host',
+        });
+        for (const [bytes, target] of usage.split('\n').map((line) => line.split('\t')))
+          if (target && Number(bytes) > 1024 ** 3) removeHostPath(target, { reason: 'removes a log over 1 GiB' });
       } catch (err) {
         logger.warn(`  -> Skipped log truncation: ${err.message}`);
       }
@@ -1844,7 +1952,7 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
           if (pv.spec.hostPath && pv.spec.hostPath.path) {
             const hostPath = pv.spec.hostPath.path;
             logger.info(`  -> Removing PV '${pv.metadata.name}' hostPath: ${hostPath}`);
-            shellExec(`sudo rm -rf ${hostPath}/*`);
+            removeHostPath(hostPath, { contents: true, reason: 'wipes the data of a hostPath PersistentVolume' });
           }
         }
       } catch (error) {
@@ -1879,19 +1987,23 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
         .map((pattern) => `-e ${shellArgumentFactory(pattern)}`)
         .join(' ');
       const dockerImages = keep.length
-        ? `sudo docker system prune --volumes -f; sudo docker images --format '{{.Repository}}:{{.Tag}}' | grep -vF ${keptImages} | xargs -r sudo docker rmi >/dev/null 2>&1 || true;`
-        : `sudo docker system prune ${a}--volumes -f;`;
-      // Docker (also matches the podman-docker shim when docker is symlinked to podman).
-      shellExec(`if command -v docker >/dev/null 2>&1; then ${dockerImages} sudo docker builder prune ${a}-f; fi`, {
-        silentOnError: true,
-      });
+        ? `docker image prune -f; docker images --format '{{.Repository}}:{{.Tag}}' | grep -vF ${keptImages} | xargs -r docker rmi >/dev/null 2>&1 || true;`
+        : `docker image prune ${a}-f;`;
+      // Containers, images and volumes only, never networks: Podman reads the CNI configuration of a
+      // Kubernetes node as its own networks, and a network prune deletes it. `docker` may be the Podman shim.
+      shellExec(
+        `if command -v docker >/dev/null 2>&1; then docker container prune -f; ${dockerImages} docker volume prune -f; docker builder prune ${a}-f; fi`,
+        { silentOnError: true, privileged: DOCKER_PRIVILEGE },
+      );
       // Podman native — on this host images/overlays live under /var/lib/containers/storage.
-      shellExec(`if command -v podman >/dev/null 2>&1; then sudo podman system prune ${a}--volumes -f; fi`, {
-        silentOnError: true,
-      });
+      shellExec(
+        `if command -v podman >/dev/null 2>&1; then podman container prune -f; podman image prune ${a}-f; podman volume prune -f; fi`,
+        { silentOnError: true, privileged: 'prunes the container storage of root Podman' },
+      );
       if (options.crictl) {
         shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rmi --prune', options)}; fi`, {
           silentOnError: true,
+          privileged: CRICTL_PRIVILEGE,
         });
       }
       Underpost.cluster._unmountOrphanContainerOverlays();
@@ -1910,18 +2022,20 @@ net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-k3s.conf > /dev/null`,
      */
     _unmountOrphanContainerOverlays() {
       logger.info('  -> Unmounting orphaned container overlay mounts...');
-      shellExec(`if command -v podman >/dev/null 2>&1; then sudo podman umount --all >/dev/null 2>&1 || true; fi`, {
+      const privileged = 'unmounts the orphaned container overlays of the host';
+      shellExec(`if command -v podman >/dev/null 2>&1; then podman umount --all >/dev/null 2>&1 || true; fi`, {
         silentOnError: true,
+        privileged,
       });
       shellExec(
-        `active="$(sudo podman ps -aq 2>/dev/null | xargs -r -I{} sudo podman inspect --format '{{.GraphDriver.Data.MergedDir}}' {} 2>/dev/null || true)"
+        `active="$(podman ps -aq 2>/dev/null | xargs -r -I{} podman inspect --format '{{.GraphDriver.Data.MergedDir}}' {} 2>/dev/null || true)"
 findmnt -rn -o TARGET 2>/dev/null | grep -E '/var/lib/(containers/storage|docker)/overlay.*/merged' | sort -r | while IFS= read -r m; do
   if ! printf '%s\\n' "$active" | grep -qxF "$m"; then
     echo "Unmounting orphaned overlay: $m"
-    sudo umount -l "$m" 2>/dev/null || true
+    umount -l "$m" 2>/dev/null || true
   fi
 done`,
-        { silentOnError: true },
+        { silentOnError: true, privileged },
       );
     },
 
@@ -1932,10 +2046,10 @@ done`,
      * @private
      */
     _lazyUmountKubeletMounts() {
-      shellExec(
-        `sudo sh -c 'findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l'`,
-        { silentOnError: true },
-      );
+      shellExec('findmnt --raw --noheadings -o TARGET | grep /var/lib/kubelet | sort -r | xargs -r umount -l', {
+        silentOnError: true,
+        privileged: 'unmounts the kubelet mounts of the host',
+      });
     },
 
     // Per-type reset methods. Each only touches what its own runtime owns.
@@ -1960,16 +2074,19 @@ done`,
       else logger.info('  -> Skipping (pass --remove-volume-host-paths to enable).');
 
       logger.info('Phase 3/6: Deleting all Kind clusters...');
-      shellExec(`clusters=$(kind get clusters)
+      shellExec(
+        `clusters=$(kind get clusters)
 if [ -n "$clusters" ]; then
   for c in $clusters; do
     echo "Deleting cluster: $c"
     kind delete cluster --name "$c"
   done
-fi`);
+fi`,
+        { privileged: DOCKER_PRIVILEGE },
+      );
 
       logger.info('Phase 4/6: Cleaning kubeconfig and Kind Docker networks...');
-      shellExec(`rm -rf "$HOME/.kube"`);
+      fs.removeSync(path.join(os.homedir(), '.kube'));
       Underpost.cluster.recoverKindDockerNetworks();
 
       // The node image stays: the next cluster boots from it instead of pulling it again.
@@ -2013,42 +2130,40 @@ fi`);
       enforceSELinux(['/var/lib/kubelet', '/var/lib/containerd']);
 
       logger.info('Phase 3/7: Stopping host kubelet and container runtimes (kubeadm-scope only)...');
-      shellExec(`if systemctl is-active --quiet kubelet; then sudo systemctl stop kubelet; fi`);
-      shellExec(`if systemctl is-active --quiet docker; then sudo systemctl stop docker; fi`);
-      shellExec(`if systemctl is-active --quiet crio; then sudo systemctl stop crio; fi`);
+      for (const unit of ['kubelet', 'docker', 'crio']) stopHostService(unit);
       Underpost.cluster._lazyUmountKubeletMounts();
 
       logger.info('Phase 4/7: Killing control-plane processes and running kubeadm reset...');
+      const reason = 'resets the kubeadm state of the host';
       shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rm -a -f')}; fi`, {
         silentOnError: true,
+        privileged: CRICTL_PRIVILEGE,
       });
       // Remove CNI config before stopping sandboxes so Calico's CNI delete hook is
       // not invoked (the API server is already down and the hook would fail).
-      shellExec(`sudo rm -rf /etc/cni/net.d/*`);
+      removeHostPath('/etc/cni/net.d', { contents: true, reason });
       shellExec(`if command -v crictl >/dev/null 2>&1; then ${crictlCommandFactory('rmp -a -f')}; fi`, {
         silentOnError: true,
+        privileged: CRICTL_PRIVILEGE,
       });
-      shellExec(`if systemctl is-active --quiet etcd; then sudo systemctl stop etcd; fi`);
-      for (const port of [6443, 10259, 10257, 2379, 2380]) {
-        shellExec(`if sudo fuser ${port}/tcp >/dev/null 2>&1; then sudo fuser -k ${port}/tcp; fi`);
-      }
-      shellExec(`if command -v kubeadm >/dev/null 2>&1; then sudo kubeadm reset --force; fi`);
+      stopHostService('etcd');
+      for (const port of [6443, 10259, 10257, 2379, 2380])
+        shellExec(`if fuser ${port}/tcp >/dev/null 2>&1; then fuser -k ${port}/tcp; fi`, {
+          privileged: `stops the control-plane process on ${port}/tcp`,
+        });
+      shellExec('if command -v kubeadm >/dev/null 2>&1; then kubeadm reset --force; fi', { privileged: reason });
 
       logger.info('Phase 5/7: Filesystem cleanup (kubeadm-managed paths only)...');
-      shellExec(`sudo rm -rf /etc/kubernetes/*`);
+      removeHostPath('/etc/kubernetes', { contents: true, reason });
       Underpost.cluster._lazyUmountKubeletMounts();
-      shellExec(`sudo rm -rf /var/lib/kubelet/*`);
-      shellExec(`sudo rm -rf /var/lib/etcd`);
-      shellExec(`sudo rm -rf /var/lib/cni/*`);
-      shellExec(`sudo rm -rf /var/lib/containerd/*`);
-      shellExec(`rm -rf "$HOME/.kube"`);
+      for (const target of ['/var/lib/kubelet', '/var/lib/cni', '/var/lib/containerd'])
+        removeHostPath(target, { contents: true, reason });
+      removeHostPath('/var/lib/etcd', { reason });
+      fs.removeSync(path.join(os.homedir(), '.kube'));
 
       logger.info('Phase 6/7: Network cleanup (Calico interfaces + host iptables)...');
-      shellExec(`if ip link show cni0 >/dev/null 2>&1; then sudo ip link del cni0; fi`);
-      shellExec(`if ip link show vxlan.calico >/dev/null 2>&1; then sudo ip link del vxlan.calico; fi`);
-      shellExec(`if ip link show tunl0 >/dev/null 2>&1; then sudo ip link del tunl0; fi`);
-      shellExec(`sudo iptables -F`);
-      shellExec(`sudo iptables -t nat -F`);
+      for (const name of ['cni0', 'vxlan.calico', 'tunl0']) deleteHostLink(name);
+      shellExec('iptables -F && iptables -t nat -F', { privileged: 'flushes the iptables rules of the host' });
       Underpost.cluster._pruneContainerCaches({ all: true, crictl: true });
 
       logger.info('Phase 7/7: Re-applying host configuration (Docker, containerd, sysctl).');
@@ -2074,13 +2189,13 @@ fi`);
       logger.info(`=== K3s SAFE RESET (resetMode=${resetMode}) ===`);
 
       logger.info('Phase 1/5: Stopping K3s systemd units...');
-      shellExec(`if systemctl list-unit-files | grep -q '^k3s\\.service'; then sudo systemctl stop k3s; fi`);
-      shellExec(
-        `if systemctl list-unit-files | grep -q '^k3s-agent\\.service'; then sudo systemctl stop k3s-agent; fi`,
-      );
+      for (const unit of ['k3s', 'k3s-agent']) stopHostService(unit);
+      const runScript = (script) => {
+        if (fs.existsSync(script)) shellExec(shellArgumentFactory(script), { privileged: `runs ${script}` });
+      };
 
       logger.info('Phase 2/5: Running k3s-killall.sh (unmount pod overlays, tear down CNI)...');
-      shellExec(`if [ -x /usr/local/bin/k3s-killall.sh ]; then sudo /usr/local/bin/k3s-killall.sh; fi`);
+      runScript('/usr/local/bin/k3s-killall.sh');
 
       if (resetMode === 'drain') {
         logger.info('=== K3s DRAIN COMPLETE (K3s remains installed; will start on next boot) ===');
@@ -2088,14 +2203,13 @@ fi`);
       }
 
       logger.info('Phase 3/5: Running k3s-uninstall.sh...');
-      shellExec(`if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; fi`);
-      shellExec(`if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; fi`);
+      runScript('/usr/local/bin/k3s-uninstall.sh');
+      runScript('/usr/local/bin/k3s-agent-uninstall.sh');
 
       logger.info('Phase 4/5: Removing residual K3s state...');
-      shellExec(`rm -rf "$HOME/.kube"`);
-      shellExec(`if [ -d /etc/rancher/k3s ]; then sudo rm -rf /etc/rancher/k3s; fi`);
-      shellExec(`if ip link show flannel.1 >/dev/null 2>&1; then sudo ip link del flannel.1; fi`);
-      shellExec(`if ip link show cni0 >/dev/null 2>&1; then sudo ip link del cni0; fi`);
+      fs.removeSync(path.join(os.homedir(), '.kube'));
+      removeHostPath('/etc/rancher/k3s', { reason: 'removes the residual K3s state of the host' });
+      for (const name of ['flannel.1', 'cni0']) deleteHostLink(name);
       // k3s-uninstall.sh removes /var/lib/rancher/k3s; still prune any host docker/podman leftovers.
       Underpost.cluster._pruneContainerCaches({ all: true });
 
@@ -2145,150 +2259,36 @@ fi`);
 
     /**
      * @method initHost
-     * @description Installs essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm).
+     * @description Installs the host prerequisites of Kubernetes: the base packages, the tools of the cluster
+     * runtime in {@link HOST_TOOLS}, and SOPS and Age. Every step is idempotent and fails loudly.
+     * @param {object} params
+     * @param {string} params.underpostRoot - The root that holds `scripts/rocky-setup.sh`.
+     * @param {string} [params.runtime] - 'kind', 'kubeadm' or 'k3s'; the tools of every runtime when empty.
      * @memberof UnderpostCluster
      */
-    initHost() {
-      const archData = Underpost.baremetal.getHostArch();
-      logger.info('Installing essential host-level prerequisites for Kubernetes...', archData);
-
-      // Install base rocky setup and updates
-      shellExec(`node bin run host-update`);
-
-      // Install Docker and its dependencies
-      shellExec(`sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
-      shellExec(`sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
-
-      // Install Podman
-      shellExec(`sudo dnf -y install podman`);
-
-      // Install CRI-O (required for kubeadm with CRI-O socket)
-      shellExec(`node bin run install-crio`);
-
-      // Install Kind (Kubernetes in Docker)
-      shellExec(`[ $(uname -m) = ${archData.name} ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-${archData.alias}
-chmod +x ./kind
-sudo mv ./kind /bin/kind`);
-      // Install Kubernetes tools: Kubeadm, Kubelet, and Kubectl
-      shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
-[kubernetes]
-name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.33/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.33/rpm/repodata/repomd.xml.key
-exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
-EOF`);
-      shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
-
-      // Install Helm — check if already installed and linked to /bin/helm first
-      const helmBin = shellExec(`test -x /bin/helm && echo exists || echo missing`, {
-        stdout: true,
-        silent: true,
-      }).trim();
-      const helmLocalBin = shellExec(`test -x /usr/local/bin/helm && echo exists || echo missing`, {
-        stdout: true,
-        silent: true,
-      }).trim();
-
-      if (helmBin === 'exists') {
-        logger.info('Helm is already installed and linked to /bin/helm; skipping.');
-      } else if (helmLocalBin === 'exists') {
-        // Helm binary exists at /usr/local/bin but not linked to /bin/helm
-        logger.info('Helm found at /usr/local/bin; linking to /bin/helm...');
-        shellExec(`sudo ln -sf /usr/local/bin/helm /bin/helm`);
-      } else {
-        // Helm not installed — download and install
-        shellExec(`curl -fsSL -o get_helm.sh https://cdn.jsdelivr.net/gh/helm/helm@main/scripts/get-helm-3`);
-        shellExec(`chmod 700 get_helm.sh`);
-        // Run get_helm.sh but ignore its exit code — it may fail on PATH check
-        // even when installation succeeds (binary placed at /usr/local/bin).
-        shellExec(`bash ./get_helm.sh || true`);
-        // Ensure the binary is executable and linked to /bin/helm
-        shellExec(`test -x /usr/local/bin/helm && sudo chmod +x /usr/local/bin/helm || true`);
-        shellExec(`test -x /usr/local/bin/helm && sudo ln -sf /usr/local/bin/helm /bin/helm || true`);
-        shellExec(`sudo rm -rf get_helm.sh`);
-      }
-
-      // SOPS and Age for Git-native encrypted secret manifests. Owned by UnderpostSecret so the
-      // same idempotent install backs `underpost secret --install-tools`.
+    initHost({ underpostRoot, runtime = '' }) {
+      const { alias: arch } = Underpost.baremetal.getHostArch();
+      const tools = hostToolsFor(runtime);
+      logger.info('Installing the host prerequisites of Kubernetes...', { runtime: runtime || 'every runtime', tools });
+      updateHostPackages({ underpostRoot });
+      for (const tool of tools) installHostTool(tool, { arch });
       Underpost.secret.installTooling();
-
-      // Install snap
-      shellExec(`sudo yum install -y snapd`);
-      shellExec(`sudo systemctl enable --now snapd.socket`);
-
-      console.log('Host prerequisites installed successfully.');
+      logger.info('Host prerequisites installed.');
     },
 
     /**
      * @method uninstallHost
-     * @description Uninstalls all host components installed by initHost.
-     * This includes Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, and Helm.
+     * @description Removes what initHost installs and the host configuration of the cluster runtimes, then
+     * keeps SELinux enforcing.
      * @memberof UnderpostCluster
      */
     uninstallHost() {
-      console.log('Uninstalling host components: Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, Helm.');
-
-      // Remove Kind
-      console.log('Removing Kind...');
-      shellExec(`sudo rm -f /bin/kind`);
-
-      // Remove Helm
-      console.log('Removing Helm...');
-      shellExec(`sudo rm -f /usr/local/bin/helm`);
-      shellExec(`sudo rm -f /usr/local/bin/helm.sh`); // clean up the install script if it exists
-
-      // Remove Docker and its dependencies
-      console.log('Removing Docker, containerd, and related packages...');
-      shellExec(`sudo dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
-
-      // Remove Podman
-      console.log('Removing Podman...');
-      shellExec(`sudo dnf -y remove podman`);
-
-      // Remove CRI-O
-      console.log('Removing CRI-O...');
-      shellExec('sudo systemctl stop crio', { silentOnError: true });
-      shellExec('sudo systemctl disable crio', { silentOnError: true });
-      shellExec(`sudo dnf -y remove cri-o`);
-      shellExec(`sudo rm -f /etc/yum.repos.d/cri-o.repo`);
-      shellExec(`sudo rm -f /etc/crictl.yaml`);
-
-      // Remove Kubeadm, Kubelet, and Kubectl
-      console.log('Removing Kubernetes tools...');
-      shellExec(`sudo yum remove -y kubelet kubeadm kubectl`);
-
-      // Remove Kubernetes repo file
-      console.log('Removing Kubernetes repository configuration...');
-      shellExec(`sudo rm -f /etc/yum.repos.d/kubernetes.repo`);
-
-      // Clean up Kubeadm config and data directories
-      console.log('Cleaning up Kubernetes configuration directories...');
-      shellExec(`sudo rm -rf /etc/kubernetes/pki`);
-      shellExec(`sudo rm -rf ~/.kube`);
-
-      // Stop and disable services
-      console.log('Stopping and disabling services...');
-      shellExec(`sudo systemctl stop docker.service`);
-      shellExec(`sudo systemctl disable docker.service`);
-      shellExec(`sudo systemctl stop containerd.service`);
-      shellExec(`sudo systemctl disable containerd.service`);
-      shellExec(`sudo systemctl stop kubelet.service`);
-      shellExec(`sudo systemctl disable kubelet.service`);
-
-      // Clean up config files
-      console.log('Removing host configuration files...');
-      shellExec(`sudo rm -f /etc/containerd/config.toml`);
-      shellExec(`sudo rm -f /etc/sysctl.d/k8s.conf`);
-      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf`);
-      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf`);
-      shellExec(`sudo rm -f ${INOTIFY_SYSCTL_PATH}`);
-
-      console.log('Keeping SELinux in enforcing mode...');
+      for (const tool of hostToolsFor().reverse()) uninstallHostTool(tool);
+      for (const target of HOST_CONFIGURATION_PATHS)
+        removeHostPath(target, { reason: 'removes the Kubernetes configuration of the host' });
+      fs.removeSync(path.join(os.homedir(), '.kube'));
       enforceSELinux();
-
-      console.log('Uninstall process completed.');
+      logger.info('Host components removed.');
     },
 
     /**
@@ -2303,15 +2303,7 @@ EOF`);
     cleanKindMongoHostPaths(options = { basePath: '/data/mongodb', replicaCount: 3 }) {
       const basePath = options.basePath || '/data/mongodb';
       const replicaCount = Math.max(Number(options.replicaCount) || 3, 1);
-      const nodesRaw = shellExec('kind get nodes', {
-        stdout: true,
-        silent: true,
-        silentOnError: true,
-      });
-      const nodes = nodesRaw
-        .split('\n')
-        .map((node) => node.trim())
-        .filter((node) => !!node);
+      const nodes = kindNodes();
 
       if (nodes.length === 0) {
         logger.info('No Kind nodes detected for node-local MongoDB hostPath cleanup.');
@@ -2330,10 +2322,11 @@ EOF`);
           { length: replicaCount },
           (_, index) => `test -d ${basePath}/v${index};`,
         ).join(' ');
-        shellExec(`sudo docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`, {
+        shellExec(`docker exec ${node} sh -lc 'mkdir -p ${basePath}; ${prepareReplicaDirsCmd}'`, {
           silentOnError: true,
+          privileged: DOCKER_PRIVILEGE,
         });
-        shellExec(`sudo docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`);
+        shellExec(`docker exec ${node} sh -lc '${verifyReplicaDirsCmd}'`, { privileged: DOCKER_PRIVILEGE });
       }
     },
 
@@ -2345,14 +2338,11 @@ EOF`);
      */
     recoverKindDockerNetworks() {
       logger.warn('Attempting Docker network recovery for Kind (address pool exhaustion detected)...');
-      shellExec(`sudo docker ps -aq --filter label=io.x-k8s.kind.cluster | xargs -r sudo docker rm -f`, {
-        silentOnError: true,
-      });
-      shellExec(`sudo docker network ls -q --filter label=io.x-k8s.kind.cluster | xargs -r sudo docker network rm`, {
-        silentOnError: true,
-      });
-      shellExec(`sudo docker network rm kind`, { silentOnError: true });
-      shellExec(`sudo docker network prune -f`, { silentOnError: true });
+      const options = { silentOnError: true, privileged: DOCKER_PRIVILEGE };
+      shellExec('docker ps -aq --filter label=io.x-k8s.kind.cluster | xargs -r docker rm -f', options);
+      shellExec('docker network ls -q --filter label=io.x-k8s.kind.cluster | xargs -r docker network rm', options);
+      shellExec('docker network rm kind', options);
+      shellExec('docker network prune -f', options);
     },
 
     /**
@@ -2363,19 +2353,24 @@ EOF`);
      */
     ensureDockerDefaultAddressPools() {
       logger.warn('Applying Docker default-address-pools workaround for Kind network creation...');
-      shellExec(`cat <<'EOF' | sudo tee /etc/docker/daemon.json
-{
-  "default-address-pools": [
-    {"base": "172.17.0.0/16", "size": 24},
-    {"base": "172.18.0.0/16", "size": 24},
-    {"base": "172.19.0.0/16", "size": 24},
-    {"base": "172.20.0.0/14", "size": 24},
-    {"base": "172.24.0.0/14", "size": 24}
-  ]
-}
-EOF`);
-      shellExec('sudo systemctl restart docker');
-      shellExec('sudo docker network prune -f', { silentOnError: true });
+      writeHostFile({
+        target: '/etc/docker/daemon.json',
+        content: `${JSON.stringify(
+          {
+            'default-address-pools': [
+              '172.17.0.0/16',
+              '172.18.0.0/16',
+              '172.19.0.0/16',
+              '172.20.0.0/14',
+              '172.24.0.0/14',
+            ].map((base) => ({ base, size: 24 })),
+          },
+          null,
+          2,
+        )}\n`,
+      });
+      controlHostService('restart', 'docker');
+      shellExec('docker network prune -f', { silentOnError: true, privileged: DOCKER_PRIVILEGE });
     },
   };
 }

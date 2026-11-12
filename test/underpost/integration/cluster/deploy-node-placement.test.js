@@ -3,6 +3,7 @@
 import { expect } from 'chai';
 import fs from 'fs-extra';
 import Underpost from '../../../../src/index.js';
+import { podSchedulingFactory } from '../../../../src/server/runtime/pod-scheduling.js';
 
 const deploymentManifest = (nodeName = '') =>
   Underpost.deploy.deploymentYamlPartsFactory({
@@ -14,18 +15,18 @@ const deploymentManifest = (nodeName = '') =>
     namespace: 'default',
     cmd: ['true'],
     readinessProbe: { tcpSocket: { port: 3032 } },
-    nodeName,
+    scheduling: nodeName ? podSchedulingFactory({ hostnames: [nodeName] }) : {},
   });
 
 describe('deployment node placement', () => {
   it('renders explicit workload placement in the original pod template', () => {
-    expect(deploymentManifest('hp-envy-iso-ram-rocky9')).to.include(
-      'nodeSelector:\n        kubernetes.io/hostname: hp-envy-iso-ram-rocky9',
+    expect(deploymentManifest('hp-envy-iso-ram-rocky9')).to.match(
+      /operator: In\n\s+values:\n\s+- hp-envy-iso-ram-rocky9\n/,
     );
   });
 
   it('leaves scheduling unconstrained when no deployment node was requested', () => {
-    expect(deploymentManifest()).to.not.include('nodeSelector:');
+    expect(deploymentManifest()).to.not.include('affinity:');
   });
 
   it('does not restart a controller after node-move patches its pod template', () => {
@@ -37,9 +38,12 @@ describe('deployment node placement', () => {
     expect(runner).to.not.match(/shellExec\(`kubectl rollout restart/);
   });
 
-  it('forwards --node-name into live and generated custom-instance manifests', () => {
+  it('schedules live and generated custom-instance manifests as workloads, with --node-name above the scheduling', () => {
     const source = fs.readFileSync(new URL('../../../../src/cli/run.js', import.meta.url), 'utf8');
-    const placements = source.match(/nodeName: options\.nodeName\s*\? Underpost\.deploy\.resolveDeployNode/g) || [];
+    const placements =
+      source.match(
+        /scheduling: Underpost\.namespace\.podScheduling\(\{\s*resource: 'workloads',\s*environment: env,\s*node: options\.nodeName,?\s*\}\)/g,
+      ) || [];
     expect(placements).to.have.length(2);
   });
 });

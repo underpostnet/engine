@@ -1,12 +1,13 @@
 import fs from 'fs-extra';
 
 import { Command } from 'commander';
-import { deployEnvFactory, getNpmRootPath, loadCliEnv } from '../server/runtime/environment.js';
+import { deployEnvFactory, getNpmRootPath, isOciRuntime, loadCliEnv } from '../server/runtime/environment.js';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { registerDomainCommand } from './domains.js';
 import { TEST_FOOTPRINTS, TEST_PROJECTS, testDomainNames } from '../server/build/testing.js';
 import { EXECUTION_PROFILES, profileFromOptionsFactory, setExecutionProfile } from '../server/build/execution.js';
 import { SEVERITIES } from '../server/security/socketsecurity.js';
+import { runtimeOf } from './namespace.js';
 import { ENGINE_GRAPH } from '../projects/underpost/catalog-underpost.js';
 
 import Underpost from '../index.js';
@@ -14,6 +15,14 @@ import Underpost from '../index.js';
 loadCliEnv();
 
 const program = new Command();
+
+/** The commands whose `--dev` uses the development sandbox: they reach its cluster and data services. */
+const SANDBOX_COMMANDS = new Set(['db', 'metadata']);
+
+/** The help of `--dev` on those commands. */
+const SANDBOX_DEV_HELP =
+  'Uses the development sandbox of this host (underpost sandbox up): its cluster, its MongoDB through the sandbox ' +
+  'forward, and the development env. Refused when no sandbox runs.';
 
 program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`).version(Underpost.version);
 
@@ -28,12 +37,47 @@ program.option(
       .join('\n'),
 );
 
-// Resolved before any action runs, from the root flag, the subcommand's own options, or a
-// legacy bypass flag standing in for a profile. Writing it to the environment is what
-// carries it into nested `underpost` invocations.
+// The cluster target of every command: one resolution (Underpost.namespace.target) for each command
+// that reaches Kubernetes.
+program
+  .option(
+    '--context <context>',
+    'The kubeconfig context this command and each command it starts reach, instead of environments.<env>.context ' +
+      'of conf.cluster.json. No kubeconfig changes.',
+  )
+  .option(
+    '--current-context',
+    'Reach the current kubeconfig context when conf.cluster.json names no context for the environment. The first ' +
+      'change verifies the cluster against environments.<env>.cluster and prints it.',
+  );
+
+// Resolved before any action runs: the execution profile (the root flag, the subcommand's own
+// options, or a legacy bypass flag) and the cluster target of the environment of the command (its
+// `[env]` argument, then its options). Both live in the environment, which carries them into nested
+// `underpost` invocations. `new` writes configuration and reaches no cluster: it resolves no target, so it
+// runs on any conf.cluster.json. `image` loads one archive into each node runtime it names: its runtime
+// flags select no cluster.
 program.hook('preAction', (command, actionCommand) => {
-  const profile = profileFromOptionsFactory({ ...command.opts(), ...actionCommand.opts() });
+  const options = actionCommand.optsWithGlobals();
+  const profile = profileFromOptionsFactory(options);
   if (profile) setExecutionProfile(profile);
+  if (actionCommand.name() === 'new') return;
+  const envArgument = actionCommand.registeredArguments.findIndex((argument) => argument.name() === 'env');
+  let entry = actionCommand;
+  while (entry.parent && entry.parent !== program) entry = entry.parent;
+  try {
+    // `--dev` of a command that reaches the data plane uses the development sandbox of this host.
+    if (options.dev && SANDBOX_COMMANDS.has(entry.name()) && !options.context && !isOciRuntime())
+      options.context = Underpost.sandbox.live().descriptor.kubeContext;
+    Underpost.namespace.pin({
+      environment: envArgument < 0 ? '' : actionCommand.processedArgs[envArgument],
+      options,
+      runtime: actionCommand.name() === 'image' ? '' : runtimeOf(options),
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(error.expected ? 3 : 1);
+  }
 });
 
 const newCommand = program
@@ -41,14 +85,27 @@ const newCommand = program
   .argument('[app-name]', 'The name of the new project.')
   .option('--deploy-id <deploy-id>', 'Create deploy ID conf env files')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
-  .option('--cluster', 'Initialize the base cluster deploy folder engine-private/deploy from ./underpost.config.js')
+  .option(
+    '--cluster',
+    'Initialize the base cluster deploy folder engine-private/deploy from ./underpost.cluster.config.js: the users, ' +
+      'WireGuard, event and cron conf files and a conf.cluster.json on one of its profiles. Existing files are kept.',
+  )
+  .option(
+    '--placement <profile>',
+    'With --cluster: the built-in profile conf.cluster.json selects. recommended (default): one namespace per ' +
+      'responsibility for a new cluster; legacy: every resource where it has always run, to adopt an existing cluster.',
+    'recommended',
+  )
   .option('--build-repos', 'Create deploy ID repositories')
   .option('--build', 'Build the deployment to pwa-microservices-template (requires --deploy-id)')
   .option('--clean-template', 'Clean the build directory (pwa-microservices-template)')
   .option('--sync-conf', 'Sync configuration to private repositories (requires --deploy-id)')
   .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
-  .option('--default-conf', 'Create default deploy ID conf env files')
+  .option(
+    '--default-conf',
+    'Write the conf manifest of --deploy-id (underpost.config.<deploy-id>.js) or of --conf-workflow-id (underpost.config.js).',
+  )
   .option('--conf-workflow-id <workflow-id>', 'Set custom configuration workflow ID for conf generation')
   .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
@@ -183,10 +240,7 @@ program
 program
   .command('start')
   .argument('<deploy-id>', 'The unique identifier for the deployment configuration.')
-  .argument(
-    '[env]',
-    'Optional: The environment to start (e.g., "development", "production"). Defaults to "development".',
-  )
+  .argument('[env]', 'Optional: The environment to start (e.g., "development", "production").', 'development')
   .option('--run', 'Starts application servers and monitors their health.')
   .option('--build', 'Triggers the client-side application build process.')
   .option('--underpost-quickly-install', 'Uses Underpost Quickly Install for dependency installation.')
@@ -398,8 +452,8 @@ program
   .description('Displays the current public machine IP addresses.')
   .action(Underpost.dns.ipDispatcher);
 
-program
-  .command('cluster')
+Underpost.namespace
+  .options(program.command('cluster'))
   .argument('[pod-name]', 'Optional: Filters information by a specific pod name.')
   .option('--reset', `Deletes all clusters and prunes all related data and caches.`)
   .option(
@@ -439,15 +493,13 @@ program
   )
   .option(
     '--node-name <k8s-node-name>',
-    'Pins the just-deployed workload (MongoDB 4.4 / Valkey StatefulSets, the observability Deployments) ' +
-      'to the given Kubernetes node once it is ready, via a kubernetes.io/hostname nodeSelector.',
+    'The Kubernetes node of every resource this run installs; overrides the scheduling of conf.cluster.json.',
   )
-  .option('--cert-manager', "Initializes the cluster with a Let's Encrypt production ClusterIssuer.")
-  .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
   .option(
-    '--ns-use <ns-name>',
-    "Switches the current Kubernetes context to the specified namespace (creates if it doesn't exist).",
+    '--cert-manager',
+    "Installs cert-manager and reconciles the Let's Encrypt ClusterIssuer (node bin tls issuer reconcile).",
   )
+  .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
   .option('--kubeadm', 'Initializes the cluster using kubeadm for control plane management.')
   .option(
     '--pod-network-cidr <cidr>',
@@ -470,7 +522,10 @@ program
   .option('--dev', 'Initializes a development-specific cluster configuration.')
   .option('--list-pods', 'Displays detailed information about all pods.')
   .option('--pull-image', 'Sets an optional associated image to pull during initialization.')
-  .option('--init-host', 'Installs necessary Kubernetes node CLI tools (e.g., kind, kubeadm, docker, podman, helm).')
+  .option(
+    '--init-host',
+    'Installs the host tools of the cluster runtime named by --kubeadm or --k3s, or of every runtime (docker, podman, cri-o, kind, kubeadm, helm).',
+  )
   .option('--uninstall-host', 'Uninstalls all host components installed by init-host.')
   .option('--config', 'Sets the base Kubernetes node configuration.')
   .option('--chown', 'Sets the appropriate ownership for Kubernetes kubeconfig files.')
@@ -481,29 +536,22 @@ program
     '--reset-mode <mode>',
     'Reset mode for --reset --k3s: "drain" (stop services, keep K3s installed) or "full" (uninstall + cleanup). Default: "full".',
   )
-  .option('--namespace <namespace>', 'Kubernetes namespace for cluster operations (defaults to "default").')
+  .option(
+    '--namespace <namespace>',
+    'The namespace of the workloads; without it, engine-private/deploy/conf.cluster.json places them. ' +
+      'Each other resource takes its --namespace-<resource> option.',
+  )
   .option('--replicas <replicas>', 'Sets a custom number of replicas for statefulset deployments.')
   .action(Underpost.cluster.init)
   .description('Manages Kubernetes clusters, defaulting to Kind cluster initialization.');
 
-program
-  .command('deploy')
+Underpost.namespace
+  .options(program.command('deploy'))
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
-  .argument(
-    '[env]',
-    'Optional: The environment for deployment (e.g., "development", "production"). Defaults to "development".',
-  )
+  .argument('[env]', 'Optional: The environment for deployment (e.g., "development", "production").', 'development')
   .option('--remove', 'Deletes specified deployments and their associated services.')
   .option('--sync', 'Synchronizes deployment environment variables, ports, and replica counts.')
   .option('--info-router', 'Displays the current router structure and configuration.')
-  .option('--cert', 'Resets TLS/SSL certificate secrets for deployments.')
-  .option('--cert-hosts <hosts>', 'Resets TLS/SSL certificate secrets for specified hosts.')
-  .option(
-    '--self-signed',
-    'Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. ' +
-      'The secret must already exist in the namespace with the same name as the host. ' +
-      'Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer.',
-  )
   .option('--node <node>', 'Sets optional node for deployment operations.')
   .option(
     '--ingress-node <node-name>',
@@ -515,7 +563,7 @@ program
   )
   .option(
     '--build-manifest',
-    'Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets.',
+    'Builds Kubernetes YAML manifests: deployments, services, volumes, Gateways, routes and proxies.',
   )
   .option(
     '--sync-static',
@@ -540,11 +588,6 @@ program
   .option('--tcp-probes', 'Generates legacy TCP socket probes instead of HTTP internal-status probes (migration).')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
-  .option(
-    '--gateway-api',
-    'Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. ' +
-      'Both manifest sets are always generated; this selects which one is applied.',
-  )
   .option('--gateway-class <name>', 'GatewayClass name for generated Gateway manifests (default "eg").')
   .option(
     '--disable-http3',
@@ -557,7 +600,10 @@ program
   .option('--kind', 'Enables the kind context for deployment operations.')
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
-  .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
+  .option(
+    '--namespace <namespace>',
+    'The namespace of the application workloads; without it, engine-private/deploy/conf.cluster.json places them.',
+  )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .option(
     '--skip-full-build',
@@ -630,16 +676,21 @@ program
   .option('--kubeadm', 'Set kubeadm cluster env image context management.')
   .option('--k3s', 'Set k3s cluster env image context management.')
   .option('--docker-compose', 'Load the built image tar into the local Docker store for Docker Compose availability.')
-  .option('--node-name', 'Set node name for kubeadm or k3s cluster env image context management.')
+  .option(
+    '--nodes <node-names>',
+    'Comma-separated Kubernetes nodes that --ls, --rm, --pull-dockerhub, --digest, --release and --import-tar act on, ' +
+      'reached through their node identity in engine-private/deploy/nodes. Empty acts on this host, or on kind-worker with --kind.',
+  )
+  .option('--ssh-key-path <path>', 'Replaces the registered SSH key of each --nodes peer.')
   .option('--reset', 'Performs a build without using the cache.')
   .option('--dev', 'Use development mode.')
   .option('--pull-dockerhub <dockerhub-image>', 'Sets a custom Docker Hub image for base image pulls.')
   .option(
     '--release',
-    'Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here.',
+    'Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here, on each --nodes runtime.',
   )
   .option('--revision <sha>', 'With --release: the exact source revision.')
-  .option('--digest <reference>', 'Pulls an image reference on the node runtime and prints it by digest.')
+  .option('--digest <reference>', 'Pulls an image reference on each node runtime and prints the digest they share.')
   .option(
     '--import-tar <tar-path>',
     'Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one.',
@@ -652,7 +703,7 @@ program
     if (options.build) Underpost.image.build(options);
     if (options.importTar) Underpost.image.importTar(options);
     if (options.release) Underpost.image.release(options);
-    if (options.digest) Underpost.image.digest({ reference: options.digest, k3s: options.k3s });
+    if (options.digest) Underpost.image.digest({ ...options, reference: options.digest });
     if (options.pullDockerhub)
       Underpost.image.pullDockerHubImage({ ...options, dockerhubImage: options.pullDockerhub });
   });
@@ -664,13 +715,25 @@ program
     fs.copySync(`${underpostRootPath}/node_modules`, './node_modules');
   });
 
-program
-  .command('db')
+const dbCommand = Underpost.namespace
+  .options(program.command('db'))
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
   .option('--export', 'Backs up every database of each deployment to the object store.')
   .option('--import', 'Restores a backup of each deployment (default: the newest available one).')
-  .option('--backup <backup-id>', 'Selects the backup that --import or --verify reads.')
-  .option('--list', 'Lists the backups of each deployment.')
+  .option('--backup <backup-id>', 'Selects the backup that --import, --verify or --inspect reads.')
+  .option('--list', 'Lists the backups of each deployment, newest first, with the UTC time each one started.')
+  .option(
+    '--inspect',
+    'Prints one backup from its manifest, without reading its data: when it was taken, its last verification, and ' +
+      'each stream with the collections, documents and indexes it holds. Reads --backup, or the newest available ' +
+      'backup; --hosts and --paths keep the streams of those databases.',
+  )
+  .option(
+    '--rename-database <from:to>',
+    'With --import or --inspect, restores each database whose name is <from>, or starts with <from>-, under <to>: ' +
+      'example-cyberia:cyberia restores example-cyberia-content as cyberia-content. A renamed collection gets a new ' +
+      'UUID. Comma-separated pairs.',
+  )
   .option('--verify', 'Reads every part of a backup and checks its checksums, seal and archive inventory.')
   .option(
     '--restore-test',
@@ -698,7 +761,11 @@ program
   .option('--preserveUUID', 'Preserves collection UUIDs on restore (requires --drop).')
   .option('--hosts <hosts>', 'Comma-separated list of database hosts to filter operations.')
   .option('--paths <paths>', 'Comma-separated list of paths to filter database operations.')
-  .option('--ns <ns-name>', 'Kubernetes namespace context for database operations (defaults to "default").')
+  .option(
+    '--namespace <namespace>',
+    'The namespace of the workloads; without it, engine-private/deploy/conf.cluster.json places them. ' +
+      'Each database takes its --namespace-<resource> option.',
+  )
   .option(
     '--clean-fs-collection',
     'Cleans orphaned File documents from collections that are not referenced by any models.',
@@ -711,14 +778,122 @@ program
     '--migrate-stable-slugs',
     'Assigns every Document its public URL slug (stableSlug) and builds the unique index; idempotent, one-shot.',
   )
-  .option('--dev', 'Sets the development cli context')
+  .option('--dev', SANDBOX_DEV_HELP)
   .option('--kubeadm', 'Enables the kubeadm context for database operations.')
   .option('--kind', 'Enables the kind context for database operations.')
   .option('--k3s', 'Enables the k3s context for database operations.')
   .description(
-    'Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics.',
+    'Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, statistics, and collection operations.',
   )
   .action(Underpost.db.callback);
+
+/** Adds the deployment, host, path and database selectors of one side of a collection operation. */
+const collectionSelectors = (command, prefix, side) =>
+  command
+    .option(`--${prefix}deploy-id <deploy-id>`, `The deployment of the ${side}.`)
+    .option(`--${prefix}host <host>`, `The host of the ${side}, as the deployment declares it.`)
+    .option(`--${prefix}path <path>`, `The path of the host. Needed when several paths of the host declare a database.`)
+    .option(`--${prefix}database <database>`, `Uses this database for the ${side} instead of the configured one.`);
+
+const collectionAction = (operation) => (name, options, command) =>
+  Underpost.db.collection.run(operation, name, command.optsWithGlobals());
+
+const batchSizeOption = ['--batch-size <n>', 'Documents in one batch (default 500).', (value) => parseInt(value, 10)];
+const allowMissingFilesOption = [
+  '--allow-missing-files',
+  'Copies a reference to a File the source lacks as it is. The plan and the result count each one.',
+];
+
+const collectionCommand = dbCommand
+  .command('collection')
+  .description(
+    'Inspects, clones, moves and renames one application collection with the File documents it references. ' +
+      'Each command prints its plan; --apply writes. Credentials never appear in the output. Outside a container ' +
+      'the command reaches the MongoDB primary through a port-forward; with --dev, the MongoDB of the development sandbox.',
+  );
+
+collectionSelectors(
+  collectionSelectors(
+    collectionCommand.command('inspect').argument('<collection>', 'The collection, or the API whose model owns it.'),
+    '',
+    'collection',
+  ),
+  'target-',
+  'target',
+)
+  .option(...batchSizeOption)
+  .description(
+    'Reports a collection: documents, indexes, File references, missing Files and relationships. With --target-host, ' +
+      'also reports the target. Reads only.',
+  )
+  .action(collectionAction('inspect'));
+
+collectionSelectors(
+  collectionSelectors(
+    collectionCommand.command('clone').argument('<collection>', 'The collection, or the API whose model owns it.'),
+    'source-',
+    'source',
+  ),
+  'target-',
+  'target (default deployment: the source deployment)',
+)
+  .option(
+    '--source-backup-id <backup-id>',
+    'Reads the source from this backup of the source deployment. The backup and the live source stay unchanged.',
+  )
+  .option(
+    '--aggregate <apis>',
+    'Comma-separated APIs whose documents the collection references go with it, with their File documents.',
+  )
+  .option('--disable-file-sync', 'Copies no File document. The target must already hold each referenced File.')
+  .option(...allowMissingFilesOption)
+  .option(...batchSizeOption)
+  .option('--apply', 'Copies the collection. Without it, the command prints the plan only.')
+  .description(
+    'Copies a collection to a target with its _id values, indexes and referenced File documents, then verifies the ' +
+      'target. The source stays unchanged. An interrupted clone resumes when the same command runs again.',
+  )
+  .action(collectionAction('clone'));
+
+collectionSelectors(
+  collectionSelectors(
+    collectionCommand.command('move').argument('<collection>', 'The collection, or the API whose model owns it.'),
+    'source-',
+    'source',
+  ),
+  'target-',
+  'target (default deployment: the source deployment)',
+)
+  .option(
+    '--aggregate <apis>',
+    'Comma-separated APIs whose documents the collection references go with it, with their File documents.',
+  )
+  .option('--disable-file-sync', 'Copies no File document. The target must already hold each referenced File.')
+  .option(...allowMissingFilesOption)
+  .option(...batchSizeOption)
+  .option('--apply', 'Copies and verifies the collection. Without it, the command prints the plan only.')
+  .option(
+    '--confirm-source-delete',
+    'With --apply, after the verification, drops the source collection and deletes the source File documents that ' +
+      'no registered collection references. Stop writes to the source first.',
+  )
+  .description('Moves a collection: clones and verifies it, then deletes the source only with --confirm-source-delete.')
+  .action(collectionAction('move'));
+
+collectionSelectors(
+  collectionCommand
+    .command('rename')
+    .argument('<collection>', 'The collection, or the API whose model owns it.')
+    .requiredOption('--to <name>', 'The new collection name.'),
+  '',
+  'collection',
+)
+  .option('--apply', 'Renames the collection. Without it, the command prints the plan only.')
+  .description(
+    'Renames a collection inside its database. Documents, ids and indexes stay; an existing target name is refused. ' +
+      'Update the model or its configuration to read the new name.',
+  )
+  .action(collectionAction('rename'));
 
 program
   .command('metadata')
@@ -731,12 +906,12 @@ program
   .option('--instances', 'Apply to instance data collection')
   .option('--generate', 'Generate cluster metadata')
   .option('--itc', 'Apply under container execution context')
-  .option('--dev', 'Sets the development cli context')
+  .option('--dev', SANDBOX_DEV_HELP)
   .description('Manages cluster metadata operations, including import and export.')
   .action(Underpost.db.clusterMetadataBackupCallback);
 
-program
-  .command('cron')
+Underpost.namespace
+  .options(program.command('cron'))
   .argument(
     '[deploy-list]',
     'A comma-separated list of deployment IDs (e.g., "default-a,default-b"). In manifest modes its first entry is the manifest owner deploy-id.',
@@ -751,7 +926,11 @@ program
     '--setup-start',
     'Updates deploy-list package.json start script and generates+applies its K8s CronJob manifests.',
   )
-  .option('--namespace <namespace>', 'Kubernetes namespace for the CronJob resources (default: "default").')
+  .option(
+    '--namespace <namespace>',
+    'The namespace of the CronJobs; the operations namespace of conf.cluster.json by default. A copy stays suspended ' +
+      'while another namespace runs its schedule.',
+  )
   .option('--image <image>', 'Custom container image for the CronJob pods.')
   .option(
     '--node-name <node-name>',
@@ -801,10 +980,7 @@ program
       '"dd" covers every deploy in dd.routes.',
     'dd',
   )
-  .argument(
-    '[env]',
-    'Optional: The environment to monitor (e.g., "development", "production"). Defaults to "development".',
-  )
+  .argument('[env]', 'Optional: The environment to monitor (e.g., "development", "production").', 'development')
   .option('--ms-interval <ms-interval>', 'Sets a custom millisecond interval for monitoring checks.')
   .option('--now', 'Executes the monitor script immediately.')
   .option('--single', 'Disables recurrence, running the monitor script only once.')
@@ -863,7 +1039,8 @@ program
   .option('--dry-run', 'With --prune-series, lists the retired series without deleting them.')
   .option(
     '--node-name <k8s-node-name>',
-    'Pins every monitoring workload to this node; moving Grafana deletes and recreates its node-local data.',
+    'The node of the monitoring workloads; overrides the scheduling of conf.cluster.json. Moving Grafana deletes ' +
+      'and recreates its node-local data.',
   )
   .option('--kubeadm', 'Treats the cluster as kubeadm when resolving node and host addresses.')
   .option('--kind', 'Treats the cluster as Kind (Docker nodes) when resolving node and host addresses.')
@@ -963,21 +1140,31 @@ const edgeCommandFactory = (name, description) =>
     )
     .option('--interface <name>', 'WireGuard interface name (default: "wg0").')
     .option('--wireguard-install', 'Installs the wireguard-tools, haproxy and iptables host packages.')
+    .option(
+      '--wireguard-key',
+      'Creates the key pair of this machine once and prints its public key. Needs no node document, so a ' +
+        'new machine runs it before it enrolls. The private key stays in /etc/wireguard.',
+    )
     .option('--wireguard-setup', 'Generates keys, builds the interface config, and applies local network rules.')
     .option('--node-config', 'Writes a node identity under deploy/nodes, named after the machine it describes.')
     .option(
       '--node-name <node-name>',
       'Node record to write; defaults to this hostname, which is what runtime commands resolve their identity by.',
     )
-    .option('--node-role <role>', 'Machine role: control, worker, or hub.')
+    .option(
+      '--node-role <role>',
+      'Machine role: hub, control, worker or workstation. A workstation is a WireGuard peer for human ' +
+        'work: not a Kubernetes node, not synced or repaired by the fleet, and limited by the hub to the ' +
+        'workstation port of fleet peers.',
+    )
     .option('--hub-host <ipv4>', 'Static public IPv4 key of the hub topology this node belongs to.')
     .option('--port <port>', 'WireGuard UDP listening port (default: 51820).')
     .option(
       '--cidr <cidr>',
-      'Hub interface address on a hub; overlay subnet routed through the hub on control and worker nodes.',
+      'Hub interface address on a hub; overlay subnet routed through the hub on every other role.',
     )
     .option('--peer-ip <ip>', 'Tunnel address used by --peer-add or to update the selected node during setup.')
-    .option('--peer-id <peer-id>', 'Topology peer represented by a control or worker node identity.')
+    .option('--peer-id <peer-id>', 'Topology peer represented by a node identity of any role but hub.')
     .option('--public-key <key>', 'Public key used by off-host topology authoring or --peer-add.')
     .option('--peer-add <peer-id>', 'Registers a spoke and applies it to the running hub without a restart.')
     .option('--peer-remove <peer-id>', 'Removes a peer from the selected topology and running hub.')
@@ -1034,7 +1221,7 @@ const edgeCommandFactory = (name, description) =>
         'engine-private/deploy/nodes to the management address it is registered under in ' +
         'engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet.',
     )
-    .option('--copy', 'Copies the --connect-uri output to the clipboard instead of printing it.')
+    .option('--copy', 'Copies the --connect-uri or --wireguard-key output to the clipboard instead of printing it.')
     .option(
       '--cmd <command-list>',
       'Comma-separated custom commands to run on the selected nodes over their SSH identity. ' +
@@ -1098,8 +1285,128 @@ program
   .description('Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues.')
   .action(Underpost.vultr.callback);
 
-program
-  .command('run')
+Underpost.namespace
+  .options(program.command('sandbox'))
+  .argument(
+    '<operation>',
+    'up: create the Kind cluster when it is missing, provision MongoDB and Valkey when they are missing, and hold ' +
+      'their loopback forwards until Ctrl+C; status: the identity, session and service checks (JSON); down: stop the session.',
+  )
+  .argument('[cluster-name]', 'The Kind cluster of the Development Sandbox.', 'kind')
+  .option(
+    '--namespace <namespace>',
+    'The namespace of the sandbox services; without it, the development section of conf.cluster.json places each one.',
+  )
+  .option('--ipfs', 'For up: also provision and expose the IPFS Cluster (API 5001, Cluster API 9094, gateway 8080).')
+  .description(
+    'The Development Sandbox: a local Kind cluster with MongoDB and Valkey, exposed on 127.0.0.1. It never resets a ' +
+      'cluster, a database or a volume, and never stops a process it did not start.',
+  )
+  .action(Underpost.sandbox.callback);
+
+Underpost.namespace
+  .options(program.command('namespace'))
+  .argument(
+    '<operation>',
+    'target: the cluster target (environment, context, kubeconfig, runtime, profile) against the live cluster, the ' +
+      'identity to declare in environments.<env>.cluster and what refuses a change (exit 3 when refused); ' +
+      'status: the cluster, the placement, the state of each resource and endpoint, the blockers and the next command; ' +
+      'resolve: the namespace, node, context and source of each placed resource; env: shell assignments for deploy ' +
+      'scripts; profile list, profile show ' +
+      '<profile>: the placement profiles; nodes, nodes audit: the node groups against the node records and the ' +
+      'cluster; nodes identify <record>: record the Kubernetes node of a node record; ' +
+      'audit: compare the cluster and the deployment endpoints with the placement (exit 3 on an error); ' +
+      'capture: save a read-only, sanitized record of the live cluster; adopt: the placement a capture observes, ' +
+      'written with --write-config; plan: plan the migration from a capture to --target; migrate: recreate each unit ' +
+      'of a plan in its destination, or one --resource; reconcile: create and label the missing namespaces Underpost owns; repair: reconcile, and suspend the ' +
+      'duplicate CronJobs outside the operations namespace. Every change is a server dry run unless --apply.',
+  )
+  .argument('[action]', 'For resolve: one placed resource; for profile: list or show; for nodes: audit or identify.')
+  .argument('[name]', 'For profile show: a profile; for nodes identify: a node record of engine-private/deploy/nodes.')
+  .option('--namespace <namespace>', 'The legacy namespace override of the workloads.')
+  .option(
+    '--deploy-id <deploy-id>',
+    'For resolve and env: the deployment whose workloads to place, which a migration can move alone.',
+  )
+  .option('--dev', 'Reads the development section of engine-private/deploy/conf.cluster.json.')
+  .option('--env <env>', 'Reads the section of this environment: production, development or test.')
+  .option('--json', 'Prints JSON.')
+  .option('--capture <id>', 'For adopt and plan: a capture id, or latest (the default).')
+  .option('--map <resource=namespace,...>', 'For adopt: the namespace of a resource that runs in more than one.')
+  .option('--write-config', 'For adopt: write the section to conf.cluster.json, after a backup of the file.')
+  .option('--target <target>', 'For plan: recommended (the default), legacy, another profile or configured.')
+  .option('--kubernetes-node <node>', 'For nodes identify: the Kubernetes node of the record.')
+  .option('--plan <id>', 'For migrate: a plan id, or latest (the default).')
+  .option(
+    '--resource <unit>',
+    'For migrate: the one unit to run, for example datastores/mongodb, workloads/dd-core or platform.',
+  )
+  .option('--list', 'For migrate: the units of the plan in execution order, with their status.')
+  .option('--status', 'For migrate: the plan, what each unit deletes, keeps and installs, and its journal.')
+  .option(
+    '--verify',
+    'For migrate: the status of each unit, or of --resource, and its source cleanup, from the live cluster.',
+  )
+  .option('--resume', 'For migrate: run each unit a run left in progress.')
+  .option(
+    '--confirm-destructive',
+    'For migrate: accept that a unit deletes or discards data. Underpost backs up, copies and restores none.',
+  )
+  .option('--dry-run', 'Previews each change, the adoption, or the next operation of each unit. The default.')
+  .option(
+    '--apply',
+    'For reconcile, repair and migrate: make the changes, then verify them; for nodes identify: write the record.',
+  )
+  .description(
+    'Kubernetes placement from engine-private/deploy/conf.cluster.json: the context, the DNS domain and the namespace ' +
+      'of each resource, the live cluster against it, and its migration. Capture is not a backup. Only migrate ' +
+      'moves a resource: it deletes the source installation, installs it again in its destination and restarts its ' +
+      'consumers, one unit at a time; until a unit is ready in its destination every command reaches its source. ' +
+      'Nothing here deletes a namespace or rewrites an environment file.',
+  )
+  .action(Underpost.namespace.callback);
+
+// The operational domains of the routing share one selector surface.
+const routingCommandFactory = (name) =>
+  Underpost.namespace
+    .options(program.command(name))
+    .option('--env <env>', 'The environment: production (the default), development or test. A change needs it.')
+    .option('--deploy-id <deploy-ids>', 'Comma-separated deployments of dd.routes: each host each one declares.')
+    .option('--host <hosts>', 'Comma-separated hosts, each with the one deployment that declares it.')
+    .option('--all', 'For a change: every deployment of dd.routes.')
+    .option('--dry-run', 'Previews each change as a server dry run. The default.')
+    .option('--apply', 'Makes the changes, then reads the cluster again to verify them.')
+    .option('--json', 'Prints JSON.');
+
+routingCommandFactory('tls')
+  .argument(
+    '<operation>',
+    'status: the TLS mode, the issuer and the state of each host; audit: the findings (exit 3 on an error); ' +
+      'reconcile: the issuer, the TLS Secret and the Certificate of each host; renew: issue the certificate of ' +
+      'each --host again; issuer: the ACME ClusterIssuer.',
+  )
+  .argument('[action]', 'For issuer: status (the default) or reconcile.')
+  .description(
+    'TLS lifecycle: the ACME ClusterIssuer, the cert-manager Certificates, the TLS Secrets and self-signed TLS of ' +
+      'the hosts the deployments declare. environments.<env>.tls of conf.cluster.json sets the mode. It never ' +
+      'deletes a Certificate or a TLS Secret to renew it, and never changes a workload.',
+  )
+  .action(Underpost.tls.callback);
+
+routingCommandFactory('ingress')
+  .argument(
+    '<operation>',
+    'status: the routing object of each deployment and the listeners and routes of each host; audit: the ' +
+      'findings (exit 3 on an error); reconcile: remove the stale routing of the deployments.',
+  )
+  .description(
+    'Routing: which deployment declares each host, the Gateway or HTTPProxy that serves it, and the routing objects ' +
+      'a deployment leaves where it no longer runs. It never removes a shared object or one it cannot prove it owns.',
+  )
+  .action(Underpost.ingress.callback);
+
+Underpost.namespace
+  .options(program.command('run'))
   .argument('<runner-id>', `The runner ID to run. Options: ${Underpost.run.RUNNERS}.`)
   .argument('[path]', 'The input value, identifier, or path for the operation.')
   .option('--cmd <command-list>', 'Comma-separated list of commands to execute.')
@@ -1115,7 +1422,7 @@ program
   )
   .option(
     '--ssh-key-path <path>',
-    'Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa.',
+    'Optional: replaces the registered SSH key of each remote workload node, for volume shipping, image releases and pre-pulls.',
   )
   .option('--port <port>', 'Optional: Specifies the port for execution.')
   .option(
@@ -1179,7 +1486,10 @@ program
   )
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
-  .option('--cmd-cron-jobs <cmd-cron-jobs>', 'Pre-script commands to run before cron job execution.')
+  .option(
+    '--cmd-cron-jobs <cmd-cron-jobs>',
+    'For sync: the pre-script commands each CronJob runs before its jobs (passed to cron --setup-start as --cmd).',
+  )
   .option(
     '--deploy-id-cron-jobs <deploy-id-cron-jobs>',
     'Cron deploy-id to set up during sync; defaults to dd.cron, "none" skips cron setup entirely.',
@@ -1190,7 +1500,7 @@ program
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
   .option(
     '--traffic <traffic>',
-    'Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote` routes to. `stop` accepts a comma list, e.g. blue,green.',
+    'Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote`, `instance` and `instance-promote` route to. `stop` accepts a comma list, e.g. blue,green.',
   )
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
@@ -1211,15 +1521,6 @@ program
   .option('--timeout-idle <duration>', 'Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").')
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
-  .option(
-    '--gateway-api',
-    'Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. ' +
-      'Both manifest sets are always generated; this selects which one is applied.',
-  )
-  .option(
-    '--disable-gateway-api',
-    'Falls back to the Contour HTTPProxy stack in runners where the Gateway API is the default (cluster).',
-  )
   .option('--gateway-class <name>', 'GatewayClass name for generated Gateway manifests (default "eg").')
   .option(
     '--disable-http3',
@@ -1271,10 +1572,7 @@ program
     'Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build.',
   )
   .option('--remove', 'Remove/teardown resources')
-  .option(
-    '--test',
-    'Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager).',
-  )
+  .option('--test', 'Enables test/generic-purpose mode for the runner (e.g. resolve no runtime repository of its own).')
   .option('--branch <branch>', 'Sets the branch for git operations (default: current branch).')
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
@@ -1718,7 +2016,10 @@ program
   )
   .option('--set-env <list>', 'For job: plain environment values, as KEY=value,KEY=value.')
   .option('--node-name <node-name>', 'For job: pins the Job to the node that holds the release store.')
-  .option('--namespace <namespace>', 'For job: the Kubernetes namespace.', 'default')
+  .option(
+    '--namespace <namespace>',
+    'For job: the namespace of the Job; without it, conf.cluster.json places release Jobs.',
+  )
   .option('--store <path>', 'For job and prune: the release store path on the node.')
   .option('--timeout <seconds>', 'For job: the deadline of the Job, in seconds.', '3600')
   .option('--image-pull-policy <policy>', 'For job: Always, IfNotPresent or Never.', 'IfNotPresent')

@@ -16,6 +16,7 @@ import Underpost from '../../../../src/index.js';
 import UnderpostImage from '../../../../src/cli/image.js';
 import UnderpostSecret from '../../../../src/cli/secrets.js';
 import { Dns } from '../../../../src/server/network/dns.js';
+import { podSchedulingFactory } from '../../../../src/server/runtime/pod-scheduling.js';
 import { SCOPE_ENTITLEMENTS } from '../../../../src/server/runtime/config-scope.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
@@ -240,12 +241,21 @@ describe('CronJob manifest', () => {
     expect(yaml).to.include('namespace: ops');
   });
 
-  it('renders no nodeSelector when the pod is not pinned', () => {
-    expect(render()).not.to.include('nodeSelector');
+  it('renders no affinity when the pod is not pinned', () => {
+    expect(render()).not.to.include('affinity');
   });
 
-  it('pins the pod to a node by hostname', () => {
-    expect(render({ nodeName: 'worker-1' })).to.include('kubernetes.io/hostname: worker-1');
+  it('pins the pod to a node by hostname, with the tolerations of its scheduling', () => {
+    const yaml = render({
+      scheduling: podSchedulingFactory({
+        hostnames: ['worker-1'],
+        taints: [{ key: 'node-role.kubernetes.io/control-plane', effect: 'NoSchedule' }],
+      }),
+    });
+    expect(yaml).to.match(/- key: kubernetes\.io\/hostname\s+operator: In\s+values:\s+- worker-1\n/);
+    expect(yaml).to.include(
+      '          tolerations:\n            - key: node-role.kubernetes.io/control-plane\n              operator: Exists\n',
+    );
   });
 
   // The pod takes its environment injected, so it materializes none: `app load` reads a
@@ -583,14 +593,13 @@ describe('cron CLI', () => {
       }
     });
 
-    it('projects the key Secret alongside the credential Secret', async () => {
-      const applied = [];
-      vi.spyOn(UnderpostSecret.API, 'applyIfPresent').mockImplementation((name) => (applied.push(name), true));
+    it('provides the Secrets of the operations: the credentials and the key', async () => {
+      const provide = vi.spyOn(UnderpostSecret.API, 'provide').mockReturnValue({});
       await generate({ apply: true, kubeadm: true });
-      expect(applied).to.deep.equal(['underpost-cron-env', 'underpost-ssh-key']);
+      expect(provide.mock.calls.map(([params]) => params.resource)).to.deep.equal(['operations']);
     });
 
-    // A nodeSelector naming an unregistered node leaves every Job Pending at its
+    // An affinity naming an unregistered node leaves every Job Pending at its
     // next fire, with nothing in the manifest to say why.
     it('warns about an unregistered target node but still applies', async () => {
       harness.route({ match: 'kubectl get node', code: 0, stdout: '' });
@@ -612,19 +621,19 @@ describe('cron CLI', () => {
       const local = os.hostname();
       harness.route({ match: `kubectl get node ${local}`, code: 0, stdout: `node/${local}\n` });
       const { written } = await generate({ apply: true, kubeadm: true });
-      for (const manifest of written.values()) expect(manifest).to.include(`kubernetes.io/hostname: ${local}`);
+      for (const manifest of written.values()) expect(manifest).to.match(new RegExp(`values:\\s+- ${local}\\n`));
     });
 
     it('leaves a manifest it only writes unpinned, and reads no cluster to write it', async () => {
       const { written } = await generate();
-      for (const manifest of written.values()) expect(manifest).to.not.include('nodeSelector');
+      for (const manifest of written.values()) expect(manifest).to.not.include('affinity');
       expect(harness.calls.length).to.equal(0);
     });
 
     it('leaves the pods unpinned when the cluster does not know this machine as a node', async () => {
       harness.route({ match: 'kubectl get node', code: 0, stdout: '' });
       const { written } = await generate({ apply: true, kubeadm: true });
-      for (const manifest of written.values()) expect(manifest).to.not.include('nodeSelector');
+      for (const manifest of written.values()) expect(manifest).to.not.include('affinity');
     });
 
     // The context is rendered into the pod's own command, so a run that names none used to
@@ -661,15 +670,30 @@ describe('cron CLI', () => {
       expect(harness.ran('kubectl apply -f')).to.equal(true);
     });
 
+    it('keeps a copy suspended while another namespace runs its schedule', async () => {
+      harness.route({
+        match: 'kubectl get cronjobs --all-namespaces -l managed-by=underpost',
+        stdout: JSON.stringify({
+          items: [
+            { metadata: { name: 'dd-cron-dns', namespace: 'legacy' }, spec: { suspend: false } },
+            { metadata: { name: 'dd-cron-backup', namespace: 'legacy' }, spec: { suspend: true } },
+          ],
+        }),
+      });
+      const { written } = await generate({ apply: true, kubeadm: true });
+      expect(written.get('./manifests/cronjobs/dd-cron/dd-cron-dns.yaml')).to.include('suspend: true');
+      expect(written.get('./manifests/cronjobs/dd-cron/dd-cron-backup.yaml')).to.include('suspend: false');
+    });
+
     it('creates one immediate Job per published CronJob', async () => {
-      harness.route({ match: 'kubectl get cronjob', code: 0, stdout: 'cronjob.batch/dd-cron-dns\n' });
+      harness.route({ match: 'kubectl get cronjob dd-cron-', code: 0, stdout: 'cronjob.batch/dd-cron-dns\n' });
       await generate({ apply: true, createJobNow: true });
       expect(harness.count('kubectl create job')).to.equal(2);
       expect(harness.ran('--from=cronjob/dd-cron-dns -n default')).to.equal(true);
     });
 
     it('skips the immediate Job for a CronJob that was never published', async () => {
-      harness.route({ match: 'kubectl get cronjob', code: 0, stdout: '' });
+      harness.route({ match: 'kubectl get cronjob dd-cron-', code: 0, stdout: '' });
       await generate({ createJobNow: true });
       expect(harness.ran('kubectl create job')).to.equal(false);
     });

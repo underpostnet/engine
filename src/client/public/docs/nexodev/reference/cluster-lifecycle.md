@@ -116,6 +116,10 @@ DB_REPLICA_SET=rs0
 DB_AUTH_SOURCE=admin
 ```
 
+These hosts must match the placement of `conf.cluster.json`: `node bin namespace audit` classifies each
+one, and `node bin app apply` stops on a stale one
+([Place resources in namespaces](../how-to/place-resources-in-namespaces.md)).
+
 Overlays are mirrored into the deploy's private configuration repository along with the rest of `conf/dd-<conf-id>/`, so no extra sync step is needed.
 
 > **⚠️ Important:** Ensure `.env.*` files and `engine-private/` are listed in `.gitignore` and never committed to public repositories.
@@ -130,7 +134,7 @@ Creates deployment configurations, cluster files, and project scaffolding.
 
 ```bash
 node bin new --deploy-id dd-my-app
-node bin new --deploy-id dd-my-app --cluster
+node bin new --cluster
 node bin new --default-conf --deploy-id dd-my-app
 node bin new --sub-conf client my-service
 node bin new --deploy-id dd-my-app --build
@@ -140,7 +144,7 @@ node bin new --deploy-id dd-my-app --purge
 | Option                    | Description                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------- |
 | `--deploy-id <id>`        | Create deployment ID configuration and env files (format: `dd-<conf-id>`)          |
-| `--cluster`               | Create cluster files and sync (requires `--deploy-id`)                             |
+| `--cluster`               | Create the base cluster deploy folder from `underpost.cluster.config.js`           |
 | `--sub-conf <type>`       | Create sub-configuration files (`client`, `server`)                                |
 | `--build`                 | Build deployment to pwa-microservices-template                                     |
 | `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`) |
@@ -148,7 +152,7 @@ node bin new --deploy-id dd-my-app --purge
 | `--sync-conf`             | Sync configuration to private repositories                                         |
 | `--purge`                 | Remove deploy ID and all related files                                             |
 | `--dev`                   | Development CLI context                                                            |
-| `--default-conf`          | Create default deploy ID configuration                                             |
+| `--default-conf`          | Write the conf manifest of `--deploy-id` or of `--conf-workflow-id`                |
 | `--conf-workflow-id <id>` | Custom configuration workflow ID                                                   |
 
 The `package.json` of a deploy ID comes from `node bin package --sync`, which merges the engine manifest with the product catalog of the deploy ID.
@@ -167,8 +171,9 @@ node bin new ws chat --deploy-id dd-my-app --host www.my-app.com --paths /,/admi
 When `--deploy-id dd-my-app` is used with `--cluster`, the engine creates:
 
 - Config directory: `./engine-private/conf/dd-my-app/`
-- CI workflow: `.github/workflows/engine-my-app.ci.yml`
-- CD workflow: `.github/workflows/engine-my-app.cd.yml`
+- CI workflow: `.github/workflows/engine-my-app.ci.yml`, from `engine-test.ci.yml`, when it does not exist
+- CD workflow: `.github/workflows/engine-my-app.cd.yml`, from `engine-test.cd.yml`, when it does not exist
+- Conf manifest: `underpost.config.dd-my-app.js`, regenerated on each run
 - Appends `dd-my-app` to `./engine-private/deploy/dd.routes`
 
 When `--build-repos` is used, the engine creates two repositories:
@@ -354,7 +359,7 @@ Only the source repository is named. The private configuration repository is der
 
 The owner is taken from the reference, which may be an `owner/repo` slug or a full clone URL.
 
-Both checkouts are **replaced**, not merged — the same `underpost cmt --switch-repo` route the fleet sync takes, so a node reached by `run pull` and a node reached by `underpost edge --sync` land on the same commit by the same operation. A node that moved onto a test source repo comes back without being reprovisioned, and one that drifted onto commits of its own is brought back rather than refused by a fast-forward pull.
+Both checkouts are **replaced**, not merged — the same git commands `underpost cmt --switch-repo` and the fleet sync run, so a node reached by `run pull` and a node reached by `underpost wireguard --sync` land on the same commit by the same operation. A node that moved onto a test source repo comes back without being reprovisioned, and one that drifted onto commits of its own is brought back rather than refused by a fast-forward pull.
 
 | Option                         | Description                                                                                                    |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -445,6 +450,18 @@ node bin run ssh-deploy sync-engine-cyberia --force
 
 Complete cluster initialization: reset → setup → pull images → deploy databases → deploy cache → ingress → certs → services. The runner uses `kubeadm` by default or `k3s` when `--k3s` is specified.
 
+`node bin run cluster` is the workflow of a whole bring-up: it calls `node bin cluster` once per component,
+then `node bin tls reconcile`. `node bin cluster` creates or resets one cluster runtime (`--kubeadm`,
+`--k3s`, Kind with `--dev`) and installs one component per flag (`--mongodb`, `--gateway-api`,
+`--cert-manager`, …).
+
+`--dev` means three things, and no more: the development environment when the command names no `--env`
+(`--dev` with another `--env` is refused); this checkout (`node bin`) instead of the global install; and,
+where a command acts on node runtimes without `--kind`, `--kubeadm` or `--k3s`, Kind instead of kubeadm.
+It selects no kubeconfig context: the context comes from `environments.development.context` or
+`--context`. Two of `--kind`, `--kubeadm` and `--k3s` are refused, except by `image`, which loads one
+archive into each runtime it names.
+
 ```bash
 node bin run cluster
 node bin run cluster --deploy-id dd-core,dd-cyberia
@@ -456,15 +473,70 @@ node bin run cluster --k3s
 
 **Inputs are flags:** `--runtime-image` defaults to `express` (valid values: `express`, `lampp`), `--deploy-id` takes a comma-separated list of `dd-<conf-id>` ids or the `dd` meta id and defaults to the `dd.routes` contents. When the runtime image is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB. `--instance-id` names custom instances to deploy — see [Custom instances](#custom-instances).
 
-| Option                  | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `--dev`                 | Development environment (self-signed TLS + `/etc/hosts` mapping)               |
-| `--namespace <name>`    | Kubernetes namespace (default: `default`)                                      |
-| `--kubeadm`             | Kubeadm cluster (default)                                                      |
-| `--k3s`                 | K3s cluster                                                                    |
-| `--gateway-class <n>`   | GatewayClass to provision (default: `eg`)                                      |
-| `--disable-gateway-api` | Fall back to the Contour HTTPProxy stack (Gateway API + HTTP/3 is the default) |
-| `--disable-http3`       | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header                   |
+| Option                | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| `--dev`               | Development environment (its TLS policy + `/etc/hosts` mapping) |
+| `--namespace <name>`  | Kubernetes namespace (default: `default`)                       |
+| `--kubeadm`           | Kubeadm cluster (default)                                       |
+| `--k3s`               | K3s cluster                                                     |
+| `--gateway-class <n>` | GatewayClass to provision (default: `eg`)                       |
+| `--disable-http3`     | Omit the QUIC/HTTP3 listener config and the `Alt-Svc` header    |
+
+### Host prerequisites
+
+`node bin cluster --init-host` installs the base packages (`scripts/rocky-setup.sh`), the tools of a
+cluster runtime, and SOPS and Age. `--kubeadm` or `--k3s` selects the tools of that runtime. Without
+them, the command installs the tools of every runtime. `--uninstall-host` removes the same tools and the
+host configuration of the runtimes.
+
+| Tool         | Runtimes           | What it installs                                                     |
+| ------------ | ------------------ | -------------------------------------------------------------------- |
+| `docker`     | kind, kubeadm      | Docker CE repository, Docker Engine and containerd, `docker` service |
+| `podman`     | kind, kubeadm, k3s | `podman`                                                             |
+| `crio`       | kubeadm            | CRI-O and `cri-tools`, the systemd cgroup driver, `/etc/crictl.yaml` |
+| `kind`       | kind               | The pinned Kind release binary                                       |
+| `kubernetes` | kind, kubeadm      | Kubernetes repository, `kubelet`, `kubeadm`, `kubectl`               |
+| `helm`       | kind, kubeadm, k3s | The pinned Helm release binary                                       |
+| `snapd`      | kind, kubeadm, k3s | `snapd` and its socket                                               |
+
+`src/server/ops/host-tooling.js` holds the table. The Kubernetes and CRI-O repositories use one
+Kubernetes minor release. A release binary has a pinned version and a pinned SHA-256 for each
+architecture. The command downloads it as the invoking user, checks the SHA-256, installs it in
+`/usr/local/bin` with a link in `/bin`, and checks the version that it reports. Each step is idempotent.
+A failed step stops the command with a non-zero exit code.
+
+```bash
+node bin cluster --init-host            # every runtime
+node bin cluster --init-host --kubeadm  # a kubeadm node
+node bin cluster --init-host --k3s      # a K3s node
+node bin cluster --uninstall-host
+```
+
+### Privileges
+
+The CLI runs as root or as a regular user. A command that changes the host (packages, services, kernel
+parameters, SELinux, the network, storage and protected paths) needs root:
+
+- As root, the command runs as it is.
+- As a regular user on a terminal, `sudo` asks for the password of the user when it needs it.
+- In CI, or over SSH without a terminal, the command runs `sudo -n`. Grant the user `sudo` without a
+  password for the commands it runs. Underpost does not need `NOPASSWD: ALL`.
+- When `sudo` refuses, the error names the operation and the remedy.
+
+A Kubernetes API operation needs Kubernetes RBAC, not root. `kubectl` and `helm` always run as the
+invoking user, with its kubeconfig and its context. A command that runs as root keeps that kubeconfig and
+never reads the one of root. After `kubeadm init`, `node bin cluster --chown --kubeadm` merges the context
+of `/etc/kubernetes/admin.conf` into the kubeconfig of the user. Do not copy `super-admin.conf`.
+
+Docker runs as root, so a `docker` or `kind` command elevates like any other host change. Do not add a
+user to the `docker` group instead: the group grants root-equivalent access to the host. Rootless and
+rootful Podman have separate storage and runtime contexts; the image store of the cluster is the one of
+root.
+
+Ownership of data does not follow the user that creates or mounts it. Root creates and labels the
+host-path storage roots. Each workload sets the owner and the mode of its data directories, for example
+with an init container. [ADR 0013](../../underpost/adr/0013-command-execution-and-privileges.md) records
+the privilege boundary.
 
 On RHEL and Rocky Linux, host configuration keeps SELinux in Enforcing mode. Kubeadm enables containerd SELinux labeling, while K3s installs its policy package and starts with `--selinux`. Because the kubeadm control-plane static pods and tigera-operator are unprivileged (`container_t`), `/etc/kubernetes`, `/var/lib/etcd`, and `/var/lib/calico` get a persistent `container_file_t` mapping before `kubeadm init`; without it the API server, scheduler, controller-manager, and etcd crash-loop on AVC denials reading `pki/sa.key` and the component kubeconfigs, and the Calico rollout stalls on `/var/lib/calico/mtu`. K3s relabels its own trees (`/var/lib/rancher`, `/etc/rancher`, `/var/lib/kubelet`, `/var/lib/cni`) after the installer drops the `k3s-selinux` policy module, and both confined runtimes share the hostPath PV roots (`/data`, `/opt/local-path-provisioner`) with `container_file_t` so unprivileged pods can use their volumes. Kind needs none of this: Docker runs without `--selinux-enabled`, so its node containers are never confined. A node found with SELinux Disabled (some LXD guest images ship that way) has an unlabeled filesystem, so `/.autorelabel` is scheduled instead of flipping it straight to Enforcing — the switch completes on the next boot. Diagnose deployment denials with:
 
@@ -498,9 +570,9 @@ The dev cluster is a single command — there are no extra flags to remember, be
 node bin run cluster --deploy-id dd-cyberia --dev
 ```
 
-- **Gateway API + Envoy Gateway** is the default routing stack. `--disable-gateway-api` is the only way back to Contour.
+- **The routing provider of `development`** decides the stack: `environments.development.routing.provider` of `conf.cluster.json`, `gateway-api` (Envoy Gateway) or `contour`.
 - **HTTP/3 (QUIC) is on by default**, alongside HTTP/2 and HTTP/1.1. Each route advertises it with `Alt-Svc: h3=":443"`, and one `ClientTrafficPolicy` targets every hostname-scoped HTTPS listener in the merged data plane. QUIC has no cleartext transport, so this only exists where TLS does.
-- **TLS is self-signed and locally trusted.** Every host in the deploy's `conf.server.json` gets a certificate from `scripts/ssl.sh` (mkcert, which installs its root CA into the system and NSS trust stores) and a `kubernetes.io/tls` secret named after the host.
+- **TLS follows the policy of `development`**; with `{"mode": "self-signed"}` it is locally trusted. `node bin tls reconcile` issues a certificate for every host the deploy declares from `scripts/ssl.sh` (mkcert, which installs its root CA into the system and NSS trust stores), keeps it in the local store `.underpost/ssl`, and applies it as a `kubernetes.io/tls` secret named after the host.
 - **`/etc/hosts` is mapped** for those same hosts in a single rewrite, so `https://www.cyberiaonline.com` resolves to the local data plane. In development Envoy binds 80/443 on the host network, so no port-forward is involved.
 - **The gateway static tier is seeded** with each deploy's status pages and intercepted contexts before the routes are applied. See [Gateway infrastructure service](#gateway-infrastructure-service).
 
@@ -552,21 +624,18 @@ A host whose document is in none of them falls through to the shared default pag
 
 > The manifests reach `kubectl` through a **quoted** heredoc. Every value is already substituted before the string is built, so anything the shell would expand there is content — and `nginx.conf` is nothing but content the shell recognises. An unquoted delimiter turns `try_files $uri $uri/index.html` into `try_files /index.html`, which matches nothing, and every host's status page is answered by the shared default.
 
-### Routing stack defaults
+### Routing provider
 
-The Gateway API stack with QUIC/HTTP3 is the default for **every** runner that touches routing — `run cluster`, `run sync`, `run instance`, `run instance-promote`, `run promote`, `run stop` and `run get-traffic` — in both `development` and `production`. Each resolves it from one place, so no runner can act on a different stack than the one that deployed the routes. `--disable-gateway-api` is forwarded to spawned commands alongside the other gateway flags, so a legacy Contour workflow stays on HTTPProxy end to end instead of reverting to the default in a child process:
+Every runner that touches routing — `run cluster`, `run sync`, `run instance`, `run instance-promote`, `run promote`, `run stop` and `run get-traffic` — reads the routing provider of its environment, `environments.<env>.routing.provider` of `conf.cluster.json`. A spawned command reads it again from the same file, so no child process can act on another stack. No flag selects it; `run cluster` installs the stack the provider names:
 
-| Flags                                 | Stack                       | HTTP/3 |
-| ------------------------------------- | --------------------------- | ------ |
-| _(none)_                              | Gateway API + HTTPRoute     | on     |
-| `--gateway-api`                       | Gateway API + HTTPRoute     | on     |
-| `--disable-http3`                     | Gateway API + HTTPRoute     | off    |
-| `--disable-gateway-api`               | Contour HTTPProxy           | n/a    |
-| `--gateway-api --disable-gateway-api` | Gateway API (explicit wins) | on     |
+| `routing.provider` | Stack                   | HTTP/3                       |
+| ------------------ | ----------------------- | ---------------------------- |
+| `gateway-api`      | Gateway API + HTTPRoute | on, unless `--disable-http3` |
+| `contour`          | Contour HTTPProxy       | n/a                          |
 
-QUIC only exists where TLS does, so `--dev` without `--self-signed` yields an HTTP-only listener and no HTTP/3.
+QUIC only exists where TLS does, so an environment whose TLS mode is `none` yields an HTTP-only listener and no HTTP/3.
 
-**Traffic colour detection.** `getCurrentTraffic` reads the blue/green colour from whichever object carries it: the `HTTPRoute` backendRef, the `HTTPProxy` service, or — for a host whose errors the gateway intercepts — the `conf.d/<host>.conf` server block, because that host's route points at `underpost-gateway-service` and holds no colour of its own. All three are read on every call, so a blue/green promotion behaves identically in either stack and whether or not the host is intercepted. When the selected kind names no colour, the other kind is probed before concluding there is none — which kind describes a host is a property of the cluster, not of the flags used to ask.
+**Traffic colour detection.** `getCurrentTraffic` reads the blue/green colour from whichever object carries it: the `HTTPRoute` backendRef, the `HTTPProxy` service, or — for a host whose errors the gateway intercepts — the `conf.d/<host>.conf` server block, because that host's route points at `underpost-gateway-service` and holds no colour of its own. All three are read on every call, so a blue/green promotion behaves identically in either stack and whether or not the host is intercepted. When the kind of the provider names no colour, the other kind is probed before concluding there is none, so a host the other provider still routes keeps its colour during a provider change.
 
 ### Running both stacks at once
 
@@ -623,7 +692,7 @@ An instance belongs to a deploy through that deploy's own `conf.instances.json` 
 
 **Environment.** Instance hosts share the deploy's environment rather than getting a parallel one:
 
-| Environment | TLS                                                          | Hosts                                     |
+| Environment | TLS (`node bin tls reconcile` of the deploy)                 | Hosts                                     |
 | ----------- | ------------------------------------------------------------ | ----------------------------------------- |
 | `--dev`     | self-signed secret per instance host (same `scripts/ssl.sh`) | written into the single `/etc/hosts` pass |
 | production  | cert-manager `Certificate` per instance host                 | resolved by real DNS                      |
@@ -650,7 +719,7 @@ node bin cluster --kubeadm --mongo-express --pull-image --node-port
 node bin cluster --kubeadm --mongo-express --node-name hp-envy-iso-ram-rocky9
 ```
 
-**Credentials follow the storage secret convention.** The client owns none of its own: both the mongod connection and the UI's own session read `mongodb-secret` — the same Secret the StatefulSet consumes — through `secretKeyRef`, never through a literal. The Secret is applied before the workload with the usual precedence, SOPS/Age store first (`engine-private/secrets/<namespace>/mongodb-secret.enc.yaml`) and the origin seed files (`mongodb-username`, `mongodb-password`) only when no encrypted manifest exists. See [SOPS + Age Secret Management](../how-to/manage-secrets-with-sops.md).
+**Credentials follow the storage secret convention.** The client owns none of its own: both the mongod connection and the UI's own session read `mongodb-secret` — the same Secret the StatefulSet consumes — through `secretKeyRef`, never through a literal. The Secret is applied before the workload from the source the environment declares for `mongodb`: the SOPS/Age store (`engine-private/secrets/<environment>/mongodb/credentials.enc.yaml`) when it is `sops`, the origin seed files (`mongodb-username`, `mongodb-password`) when it is `seed`. See [SOPS + Age Secret Management](../how-to/manage-secrets-with-sops.md).
 
 **Auth mode is read from the cluster, not from the flags.** `manifests/mongodb` starts mongod with `--auth`; `manifests/mongodb-4.4` does not. Credentials sent to a server that enforces none are not ignored — the driver still runs SCRAM and the handshake fails — so the deployed StatefulSet's own mongod arguments select the kustomization: `manifests/deployment/mongo-express` with the admin pair, or `manifests/deployment/mongo-express-no-auth`, which drops it and keeps the UI's basic auth. Where no StatefulSet is deployed yet, `--mongodb4` selects the no-auth overlay and everything else the default auth-enabled one.
 
@@ -742,11 +811,32 @@ node bin image --pull-dockerhub underpost --kind
 
 ## Default Configuration
 
+### Configuration modules
+
+Two modules at the root of a checkout hold the defaults. The package and the base template carry both. Each has one default export, `config`.
+
+| Module                        | Owner           | Sections                                          | Where its defaults go                                                                                                                                                                                  |
+| ----------------------------- | --------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `underpost.config.js`         | The app runtime | `client`, `ssr`, `server`                         | `engine-private/conf/<deploy-id>/conf.<section>.json` (`node bin new --deploy-id`), and the manifest `underpost.config.<deploy-id>.js`                                                                 |
+| `underpost.cluster.config.js` | The cluster     | `users`, `wireguard`, `event`, `cron`, `profiles` | `engine-private/deploy/conf.users.json`, `conf.wireguard.json`, `conf.event.json`, and the `conf.cron.json` of the deployment `dd.cron` names (`node bin new --cluster`); `profiles` are read in place |
+
+A deployment folder holds app configuration only. Each command writes a file only when it is missing; after that, change the file in `engine-private`.
+
+### Conf manifest
+
 **Command:** `node bin new --default-conf --deploy-id <deploy-id>`
 
-Creates or updates default configuration files for a deployment. Reads from `./engine-private/conf/dd-<conf-id>/` (including `conf.server.json`, `conf.client.json`, `conf.ssr.json`) and writes the resolved config to `underpost.config.dd-<conf-id>.js`.
+Writes the conf manifest of a deployment. Reads `./engine-private/conf/dd-<conf-id>/` (`conf.server.json`, `conf.client.json`, `conf.ssr.json`) and writes `underpost.config.dd-<conf-id>.js`: the engine `underpost.config.js` with that configuration in place of its own. Like every `*.config.js` file, a manifest has one default export, `config`:
 
-During generation, `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated `underpost.config.dd-*.js` file. At runtime, `resolveConfSecrets()` in `conf.js` resolves these strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`. Private deployment-only fields (`git`, `directory`) are stripped from the public manifest.
+```js
+const config = /**/ { client: {}, server: {}, ssr: {} /* ... */ }; /**/
+
+export default config;
+```
+
+The generator replaces the text between the two `/**/` markers and keeps the rest of the file. It never changes the configuration the process imported. The cluster configuration has no manifest.
+
+During generation, `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated `underpost.config.dd-*.js` file. At runtime, `resolveConfSecrets()` in `conf.js` resolves these strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`.
 
 ```bash
 node bin new --default-conf --deploy-id dd-core
@@ -791,7 +881,7 @@ Manages cron jobs: execute directly, generate K8s CronJob manifests, or setup a 
 
 ### DD Cron File
 
-The file `./engine-private/deploy/dd.cron` stores the default cron deploy-id (e.g. `dd-cron`). This deploy-id maps to a configuration directory at `./engine-private/conf/dd-<conf-id>/` containing a `conf.cron.json` file that defines scheduled jobs.
+The file `./engine-private/deploy/dd.cron` stores the default cron deploy-id (e.g. `dd-cron`). This deploy-id maps to a configuration directory at `./engine-private/conf/dd-<conf-id>/` containing a `conf.cron.json` file that defines scheduled jobs. `node bin new --cluster` writes both when they are missing, the jobs from the `cron` section of `underpost.cluster.config.js`.
 
 ### Cron Command Cycle
 
@@ -854,7 +944,7 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | `--k3s`              | K3s cluster context                                     |
 | `--kubeadm`          | Kubeadm cluster context                                 |
 | `--git`              | Pass `--git` flag to job execution                      |
-| `--namespace <name>` | Kubernetes namespace (default: `default`)               |
+| `--namespace <name>` | Namespace (default: the operations namespace)           |
 | `--image <name>`     | Custom container image                                  |
 | `--node-name <node>` | Pin CronJob pods to one node (`kubernetes.io/hostname`) |
 | `--cmd <command>`    | Pre-script commands before cron execution               |
@@ -899,7 +989,7 @@ The `sync` command automatically triggers cron setup when `--deploy-id-cron-jobs
 node bin run sync --deploy-id dd-my-app --dev --kind --create-job-now
 ```
 
-This runs `node bin cron <cron-deploy-id> --setup-start --git --apply` with the resolved cluster flags, applying cron manifests as part of the full deployment sync cycle.
+This runs `node bin cron <cron-deploy-id> --setup-start --apply` with the resolved cluster flags, applying cron manifests as part of the full deployment sync cycle. `--cmd-cron-jobs <cmd>` reaches it as `--cmd <cmd>`: the commands each CronJob runs before its jobs.
 
 The cron deploy-id is independent of the deploy-id being synced: `--deploy-id-cron-jobs <id>` when given, otherwise `cronDeployIdResolve()` (`engine-private/deploy/dd.cron`) — the same helper `cron --setup-start` falls back to on its own, so both paths resolve identically.
 
@@ -941,7 +1031,7 @@ Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/
 | `--namespace <name>`                | Kubernetes namespace (default: `default`)                                                                                                                                                                                                                                 |
 | `--replicas <n>`                    | Number of replicas                                                                                                                                                                                                                                                        |
 | `--deploy-id-cron-jobs <deploy-id>` | Cron deploy-id to set up (defaults to `dd.cron`; `none` skips cron setup)                                                                                                                                                                                                 |
-| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution (accepted, not yet forwarded)                                                                                                                                                                                                   |
+| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution, forwarded to `cron --setup-start --apply` as `--cmd`                                                                                                                                                                           |
 | `--create-job-now`                  | Create immediate Job from each CronJob after applying                                                                                                                                                                                                                     |
 | `--timezone <tz>`                   | Set timezone for the deployment                                                                                                                                                                                                                                           |
 | `--disable-private-conf-update`     | Prevent private configuration updates during execution                                                                                                                                                                                                                    |
@@ -991,22 +1081,21 @@ node bin run deploy-job my-job --image-name my-app:v1 --host-aliases "127.0.0.1=
 
 **Command:** `node bin run node-move [resource] [options]`
 
-Abstract, kind-agnostic runner that relocates any schedulable Kubernetes workload onto a target node by patching its pod-template `nodeSelector` and rolling it out. It resolves the resource kind dynamically, so the same command handles `deployment`, `statefulset`, `daemonset`, `replicaset`, `job`, `cronjob`, and `replicationcontroller` without bespoke logic.
+Moves the pods of a Deployment, StatefulSet or DaemonSet, or the Jobs of a CronJob, onto a node with a
+`nodeSelector`. It reaches the cluster of the command target, reads it before it changes anything, and
+refuses a move it cannot complete safely.
 
 ```bash
-# Move a single deployment to a node (built-in hostname label, no node mutation)
+# Move one deployment to a node (the built-in hostname label)
 node bin run node-move deployment/dd-cyberia-production-blue --node-name machine-node-hostname
 
-# Move every StatefulSet in a namespace — preview the kubectl commands only
+# Preview every StatefulSet of the namespace: the checks run, nothing changes
 node bin run node-move statefulset --node-name machine-node-hostname --dry-run
 
-# Move all movable workloads (deployment + statefulset + daemonset) in the namespace
-node bin run node-move --node-name machine-node-hostname
-
-# Label-pool style: label the target node and select by that label (reusable pools)
+# Label a pool on the node and select by that label
 node bin run node-move deployment/dd-core-production-blue --node-name machine-node-hostname --labels workload=worker2
 
-# Undo placement — clear the nodeSelector so the scheduler is free again
+# Remove the keys node-move set; every other nodeSelector key stays
 node bin run node-move deployment/dd-cyberia-production-blue --remove
 ```
 
@@ -1014,24 +1103,32 @@ node bin run node-move deployment/dd-cyberia-production-blue --remove
 
 | Form            | Selects                                                           |
 | --------------- | ----------------------------------------------------------------- |
-| `<kind>/<name>` | A single resource (e.g. `deployment/dd-core-production-blue`)     |
+| `<kind>/<name>` | One resource (e.g. `deployment/dd-core-production-blue`)          |
 | `<kind>`        | Every resource of that kind in the namespace (e.g. `statefulset`) |
-| _(empty)_       | All movable workloads (deployment + statefulset + daemonset)      |
+| _(empty)_       | Every Deployment, StatefulSet and DaemonSet in the namespace      |
 
-| Option               | Description                                                                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--node-name <node>` | Target node (required unless `--remove`). Verified to exist before patching.                                                                                  |
-| `--namespace <name>` | Namespace to operate in (default: `default`).                                                                                                                 |
-| `--labels <k=v,...>` | Label the target node with these pairs and use them as the `nodeSelector` (reusable pool). Default placement is the built-in `kubernetes.io/hostname=<node>`. |
-| `--dry-run`          | Print the exact `kubectl patch` command without applying it.                                                                                                  |
-| `--remove`           | Clear the `nodeSelector` (unpin placement) instead of moving.                                                                                                 |
+| Option               | Description                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `--node-name <node>` | The destination node (required unless `--remove`).                                             |
+| `--namespace <name>` | The namespace (the workloads namespace of the placement by default).                           |
+| `--labels <k=v,...>` | Labels the node with these pairs and selects them, instead of `kubernetes.io/hostname=<node>`. |
+| `--dry-run`          | Runs every check and prints each `kubectl patch`; changes nothing.                             |
+| `--remove`           | Removes the nodeSelector keys node-move recorded, each after a test of its value.              |
 
-**Mechanics:** for templated controllers it applies `kubectl patch <kind> <name> --type=merge -p '{"spec":{"template":{"spec":{"nodeSelector":{…}}}}}'` (CronJobs use `spec.jobTemplate…`). Changing the pod template starts the controller rollout itself; no second `rollout restart` is issued.
+**Refusals.** A resource is refused, and nothing of it changes, when:
 
-> **⚠️ Caveats:**
->
-> - **Services, ConfigMaps, and bare Pods are skipped with a warning** — they are not schedulable controllers (a Service has no node placement). Move the owning controller instead.
-> - **StatefulSets bound to node-local storage** (e.g. `local-path-provisioner` PVs for `mongodb`, `mariadb`, `valkey`, `ipfs-cluster`) may stay `Pending` after a move because the PV is pinned to the original node's disk — moving the pod does not move the data. Stateless Deployments are the safe ones to relocate.
+- the node is not Ready, is cordoned, or has a `NoSchedule` or `NoExecute` taint the pods do not tolerate;
+- a nodeSelector key or the required node affinity that node-move did not set excludes the node: change
+  the node group of its category in `conf.cluster.json` instead;
+- it keeps data on a host path, or on a claim bound to a host path or local volume, that the node does not
+  hold, or on a node topology Underpost cannot read (`src/server/runtime/storage-placement.js`);
+- it is a StatefulSet whose ordinals share a written volume of the pod template;
+- it is another kind: move its controller.
+
+**Mechanics.** It sets its keys with a merge patch and records them in the `underpost.net/node-placement`
+annotation; tolerations, affinity and every other nodeSelector key stay. The pod template change starts
+the rollout; node-move then waits for `kubectl rollout status` (5 minutes) and fails when a pod runs on
+another node or stays Pending. Underpost moves no data between nodes.
 
 ---
 
@@ -1268,6 +1365,7 @@ Runtime processes own their own lifecycle. **No process orchestrated by `underpo
 The result:
 
 - A crashed runtime exits non-zero → kubelet CrashLoopBackOff → `Ready` stays `False` → orchestrator gate never opens.
+- A node whose CNI is down cannot create the pod sandbox. After six `FailedCreatePodSandBox` events the orchestrator fails and names the node and the last kubelet message.
 - The orchestrator queries kubelet via `kubectl get pod -o json` — the authoritative source of pod readiness.
 
 ---

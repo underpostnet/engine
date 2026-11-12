@@ -4,6 +4,7 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import { load as yamlLoad } from 'js-yaml';
 import UnderpostDockerCompose from '../../../../src/cli/docker-compose.js';
+import shell from 'shelljs';
 import { loadProjectExport } from '../../../../src/server/runtime/conf.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
@@ -11,6 +12,13 @@ import { shellHarness } from '../../../support/shell-harness.js';
 vi.mock(import('../../../../src/server/runtime/conf.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   loadProjectExport: vi.fn(async () => null),
+}));
+
+// The shell environment, without the keys the CLI env file set.
+const { SHELL_ENV } = vi.hoisted(() => ({ SHELL_ENV: { PATH: '/usr/bin', SHELL_ONLY: 'shell' } }));
+vi.mock(import('../../../../src/server/runtime/environment.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  shellEnvFactory: vi.fn(() => SHELL_ENV),
 }));
 
 // Everything below writes generated artifacts under the engine tree and drives
@@ -163,7 +171,7 @@ describe('docker compose stack', () => {
     });
 
     it('renders the compose document, the gateway and the init script of each platform service', async () => {
-      const { written } = composeFixture({ [at('compose.env')]: 'PORT=4000\n' });
+      const { written } = composeFixture({ [at('compose.env')]: '' });
       await UnderpostDockerCompose.generate({ deployId: 'dd-core', dockerComposeId: 'custom' });
       expect(vi.mocked(loadProjectExport)).toHaveBeenCalledWith('dd-core', 'compose-stack.js', 'composeStacks');
       const compose = written.get(at('docker-compose.yml'));
@@ -172,9 +180,8 @@ describe('docker compose stack', () => {
       expect(written.get(at('nginx.conf'))).to.include('server_name app.test;');
       expect(written.get(at('mongodb/entrypoint.sh'))).to.equal(UnderpostDockerCompose.mongoEntrypointContent());
       expect(written.has(at('ipfs/configure-ipfs.sh'))).to.equal(false);
-      // The operator-owned env-file is read, never written.
+      // The operator-owned env-file is never written.
       expect(written.has(at('compose.env'))).to.equal(false);
-      expect(context.composeEnv).to.deep.equal({ PORT: '4000' });
     });
 
     it('hands the stack the deployment environment', async () => {
@@ -216,20 +223,19 @@ describe('docker compose stack', () => {
     it('installs the engine and the compose plugin from the official repository', () => {
       composeFixture({ '/etc/redhat-release': 'Rocky Linux release 9\n' });
       harness.route({ match: 'docker compose version', code: 1, stdout: '' });
-      UnderpostDockerCompose.install({ user: 'operator' });
+      UnderpostDockerCompose.install({});
       expect(harness.ran('download.docker.com/linux/rhel/docker-ce.repo')).to.equal(true);
-      expect(harness.ran('dnf -y install docker-ce docker-ce-cli containerd.io')).to.equal(true);
-      expect(harness.ran('systemctl enable --now docker')).to.equal(true);
-      expect(harness.ran('usermod -aG docker operator')).to.equal(true);
+      expect(harness.ran("dnf -y install 'docker-ce' 'docker-ce-cli' 'containerd.io'")).to.equal(true);
+      expect(harness.ran("systemctl enable --now 'docker'")).to.equal(true);
+      // The group is root-equivalent: the stack reaches the daemon through the privilege boundary.
+      expect(harness.ran('usermod')).to.equal(false);
     });
 
     it('reinstalls under --force and warns on a host that is not RHEL-compatible', () => {
       composeFixture();
       harness.route({ match: 'docker compose version', code: 0, stdout: 'v2.29.0\n' });
-      UnderpostDockerCompose.install({ force: true, user: 'root' });
-      expect(harness.ran('dnf -y install docker-ce')).to.equal(true);
-      // root is already privileged; adding it to the group buys nothing.
-      expect(harness.ran('usermod -aG docker')).to.equal(false);
+      UnderpostDockerCompose.install({ force: true });
+      expect(harness.ran("dnf -y install 'docker-ce'")).to.equal(true);
     });
   });
 
@@ -317,6 +323,15 @@ describe('docker compose stack', () => {
     it('recreates the stack when a reset is followed by an up', async () => {
       await run('', { reset: true, up: true });
       expect(harness.ran('up -d')).to.equal(true);
+    });
+
+    // Compose reads a variable from its process environment before the env-file.
+    it('runs every compose subcommand on the shell environment, not the CLI env file', async () => {
+      await run('', {});
+      UnderpostDockerCompose.reset({ deployId: 'dd-core', dockerComposeId: 'custom' });
+      const composeCalls = shell.exec.mock.calls.filter(([command]) => `${command}`.includes('docker compose'));
+      expect(composeCalls.length).to.equal(2);
+      for (const [, options] of composeCalls) expect(options.env).to.equal(SHELL_ENV);
     });
 
     it('routes every remaining lifecycle flag to its compose subcommand', async () => {

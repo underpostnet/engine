@@ -144,6 +144,46 @@ describe('event subject registries', () => {
     ]);
   });
 
+  it('names each cluster node by the Kubernetes node its document records', () => {
+    eventFixture({
+      files: {
+        ...FILES,
+        [`${NODES_PATH}/worker-node.json`]: JSON.stringify({
+          role: 'worker',
+          hubHost: HUB_HOST,
+          peerId: 'worker-b',
+          kubernetesNodeName: 'worker-b.lan',
+        }),
+      },
+    });
+    expect(UnderpostEvent.API.clusterNodes()).to.deep.equal([
+      { nodeName: 'control-node', role: 'control' },
+      { nodeName: 'worker-b.lan', role: 'worker' },
+    ]);
+  });
+
+  // An offline laptop is not an incident, and its checkout belongs to its operator.
+  it('keeps a workstation out of every fleet subject: probes, repair, sync and cluster nodes', () => {
+    const peers = [
+      ...TOPOLOGY[HUB_HOST].peers,
+      { id: 'ws-dev', address: '10.0.0.9', managementHost: '198.51.100.9', publicKey: 'wsPublicKeyFixture=' },
+    ];
+    eventFixture({
+      files: {
+        ...FILES,
+        [EDGE_TOPOLOGY_PATH]: JSON.stringify({ [HUB_HOST]: { ...TOPOLOGY[HUB_HOST], peers } }),
+        [`${NODES_PATH}/dev-laptop.json`]: JSON.stringify({ role: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' }),
+      },
+    });
+    expect(UnderpostEvent.API.spokes().map((spoke) => spoke.id)).to.deep.equal(['control-a', 'worker-b']);
+    expect(UnderpostEvent.API.clusterNodes().map((node) => node.nodeName)).to.deep.equal([
+      'control-node',
+      'worker-node',
+    ]);
+    expect(() => UnderpostEvent.API.spokeTarget('ws-dev')).to.throw("spoke 'ws-dev' is not in");
+    expect(Underpost.wireguard.syncTargets({}).map((target) => target.nodeName)).to.not.include('dev-laptop');
+  });
+
   it('lists every registered hub, named by its node document', () => {
     eventFixture();
     expect(UnderpostEvent.API.hubs()).to.deep.equal([
@@ -171,6 +211,31 @@ describe('event subject registries', () => {
 
 describe('event execution targets', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  // A volume ships to a Kubernetes node through the peer of the document that names it, never an address
+  // the cluster reports.
+  it('reaches a Kubernetes node through the peer of the document that records it', () => {
+    const recorded = (name, record) => JSON.stringify({ hubHost: HUB_HOST, ...record, kubernetesNodeName: name });
+    eventFixture({
+      files: {
+        ...FILES,
+        [`${NODES_PATH}/control-node.json`]: recorded('node-a', { role: 'control', peerId: 'control-a' }),
+        [`${NODES_PATH}/worker-node.json`]: recorded('node-b', { role: 'worker', peerId: 'worker-b' }),
+      },
+    });
+    expect(UnderpostEvent.API.kubernetesNodeTarget('node-b')).to.include({
+      spokeId: 'worker-b',
+      user: 'fixture',
+      host: '198.51.100.3',
+      port: 22,
+      keyPath: KEY_PATH,
+      via: 'fixture@198.51.100.3:22',
+    });
+    expect(UnderpostEvent.API.kubernetesNodeTarget('hub-node')).to.include({ via: 'local' });
+    expect(() => UnderpostEvent.API.kubernetesNodeTarget('node-z')).to.throw(
+      "no node of deploy/nodes names the Kubernetes node 'node-z'",
+    );
+  });
 
   it('resolves a hub through its static public address, which no failed tunnel is part of', () => {
     eventFixture();

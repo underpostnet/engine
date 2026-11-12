@@ -661,7 +661,7 @@ The message itself is plain text, rendered from the handler result — event, ro
 
 `MailerProvider.use(middleware)` wraps every send in the engine, in registration order, with `({ id, sendOptions, sender }, next)`. A middleware that never calls `next` suppresses the delivery.
 
-`mailerInterceptorFactory()` in `src/mailer/MailerInterceptor.js` is the general-purpose recorder built on it: it captures each message and whether the transport accepted it, offers `waitFor(predicate)`, and unregisters with `close()`. `suppress: true` records without delivering. This is what makes "was the mail actually sent?" an assertion rather than an inbox check — the end-to-end rehearsal below uses it, and so can any other caller that needs to audit or hold outbound mail.
+`mailerInterceptorFactory()` in `src/mailer/mailer-interceptor.js` is the general-purpose recorder built on it: it captures each message and whether the transport accepted it, offers `waitFor(predicate)`, and unregisters with `close()`. `suppress: true` records without delivering. This is what makes "was the mail actually sent?" an assertion rather than an inbox check — the end-to-end rehearsal below uses it, and so can any other caller that needs to audit or hold outbound mail.
 
 ---
 
@@ -910,13 +910,15 @@ kubectl port-forward svc/grafana 3000:3000 -n default
 
 Re-running with different flags converges Grafana onto the new answer, and dropping `--grafana-host` removes the route.
 
+`node bin ingress` owns that route: it attaches it to the Gateway of the deployment of `dd.routes` that declares the host, with the ownership labels of that deployment. A host no deployment declares, or an environment routed by Contour, refuses.
+
 ---
 
 ## Cluster prerequisites
 
 `--observability` verifies what the stack depends on before applying anything:
 
-- **Cluster DNS (CoreDNS / kube-dns)** is verified, not installed. Every component is addressed by a `svc.cluster.local` name, so without it the stack comes up green and scrapes nothing. It belongs to the cluster runtime (kubeadm, K3s, Kind), so a missing one is reported and the run stops.
+- **Cluster DNS (CoreDNS / kube-dns)** is verified, not installed. Every component is addressed by its cluster DNS name, so without it the stack comes up green and scrapes nothing. It belongs to the cluster runtime (kubeadm, K3s, Kind), so a missing one is reported and the run stops.
 - **The Gateway API control plane** is installed when absent, by running `cluster --gateway-api` — the same Helm-based install that would otherwise be run by hand. Without it the `envoy-gateway` job discovers no targets.
 - **The local-path provisioner** is verified and installed when absent, then awaited before Grafana is created. Its `rancher.io/local-path` controller is what binds `grafana-pvc`; a StorageClass alone cannot provision a volume.
 
@@ -1019,7 +1021,7 @@ Cockpit and Prometheus both default to port 9090. They do not collide — Promet
 | `--events <ids>`                 | Comma-separated event ids to provision (default: every registered event)    |
 | `--webhook-url <url>`            | URL Alertmanager delivers to (default: the node's InternalIP on port 39099) |
 | `--extra-targets <t>`            | Comma-separated additional `host:port` targets scraped at `/metrics`        |
-| `--namespace <name>`             | Namespace holding the stack (default: `default`)                            |
+| `--namespace <name>`             | Namespace holding the stack (default: the workloads namespace)              |
 | `--node-name <node>`             | Pin every workload; moving Grafana deletes and recreates its local storage  |
 | `--grafana-host <h>`             | Publish Grafana at `https://<h>/grafana` through that host's Gateway        |
 | `--node-port`                    | Publish Grafana on the node's LAN address (32300)                           |

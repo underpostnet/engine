@@ -92,3 +92,36 @@ describe('the build phase of a pod', () => {
     expect(await build({})).to.include('node bin client dd-test --env production');
   });
 });
+
+describe('the run phase of a pod', () => {
+  const ENV_FILE = './engine-private/conf/dd-test/.env.production';
+  const internalPort = process.env.UNDERPOST_INTERNAL_PORT;
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (internalPort === undefined) delete process.env.UNDERPOST_INTERNAL_PORT;
+    else process.env.UNDERPOST_INTERNAL_PORT = internalPort;
+  });
+
+  it('refuses a manifest whose internal port is not the base port of its environment', async () => {
+    const commands = [];
+    vi.spyOn(shell, 'exec').mockImplementation((command, shellOptions, callback) => {
+      commands.push(command);
+      callback?.(0, '', '');
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    const { existsSync, readFileSync } = fs;
+    vi.spyOn(fs, 'existsSync').mockImplementation((path) => !`${path}`.startsWith(ENV_FILE) && existsSync(path));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((path, ...rest) =>
+      `${path}` === ENV_FILE ? 'PORT=3016\n' : readFileSync(path, ...rest),
+    );
+    process.env.UNDERPOST_INTERNAL_PORT = '3019';
+
+    const error = await Underpost.start.run('dd-test', 'production').catch((caught) => caught);
+
+    expect(error.message).to.equal(
+      'The manifest of dd-test names the internal port 3019, but its production environment sets PORT 3016: ' +
+        'redeploy dd-test with node bin deploy --build-manifest',
+    );
+    expect(commands).to.deep.equal([]);
+  });
+});

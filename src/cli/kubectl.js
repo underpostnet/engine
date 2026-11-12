@@ -7,6 +7,9 @@
  */
 
 import net from 'node:net';
+import fs from 'fs-extra';
+import { loadAll } from 'js-yaml';
+import { schedulePodTemplate } from '../server/runtime/pod-scheduling.js';
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { shellArgumentFactory, shellExec, shellSpawn, sleepSync } from '../server/runtime/process.js';
 import { timer } from '../client/components/core/CommonJs.js';
@@ -142,7 +145,7 @@ class UnderpostKubectl {
       // namespace, or no pods matching the filter must return an empty
       // list (not throw). silentOnError keeps the legacy contract.
       const raw = shellExec(
-        `sudo kubectl get ${kindType}${namespace ? ` -n ${shellArgumentFactory(namespace)}` : ` --all-namespaces`} -o wide`,
+        `kubectl get ${kindType}${namespace ? ` -n ${shellArgumentFactory(namespace)}` : ` --all-namespaces`} -o wide`,
         { stdout: true, disableLog: true, silent: true, silentOnError: true },
       );
 
@@ -167,6 +170,74 @@ class UnderpostKubectl {
         result.push(pod);
       }
       return result;
+    },
+
+    /**
+     * Prepares a retained PersistentVolume for one claim before an installer applies it. A volume that
+     * a live claim of another namespace or name holds refuses: that claim owns its data. A released
+     * volume drops its stale claim reference, so the claim binds it and its data stays.
+     * @param {object} params
+     * @param {string} params.volume - The PersistentVolume.
+     * @param {string} params.namespace - The namespace of the claim.
+     * @param {string} params.claim - The claim.
+     * @returns {'absent'|'ready'|'released'} The state of the volume before the call.
+     * @throws {Error} When a live claim holds the volume.
+     * @memberof UnderpostKubectl
+     */
+    claimVolume({ volume, namespace, claim }) {
+      const read = (command) =>
+        `${shellExec(command, { stdout: true, silent: true, silentOnError: true }) ?? ''}`.trim();
+      const reference = read(
+        `kubectl get pv ${shellArgumentFactory(volume)} --ignore-not-found ` +
+          `-o jsonpath='{.spec.claimRef.namespace}/{.spec.claimRef.name}/{.spec.claimRef.uid}'`,
+      );
+      if (!reference) return 'absent';
+      const [holderNamespace, holder, uid] = reference.split('/');
+      if (!holder || (holderNamespace === namespace && holder === claim)) return 'ready';
+      const live = read(
+        `kubectl get pvc ${shellArgumentFactory(holder)} -n ${shellArgumentFactory(holderNamespace)} ` +
+          `--ignore-not-found -o jsonpath='{.metadata.uid}'`,
+      );
+      if (live && (!uid || live === uid))
+        throw new Error(
+          `PersistentVolume ${volume} holds the data of ${holderNamespace}/${holder}, which is live: release it ` +
+            `(node bin namespace migrate) or install into ${holderNamespace}`,
+        );
+      shellExec(
+        `kubectl patch pv ${shellArgumentFactory(volume)} --type=json -p ${shellArgumentFactory(
+          JSON.stringify([
+            {
+              op: 'replace',
+              path: '/spec/claimRef',
+              value: { apiVersion: 'v1', kind: 'PersistentVolumeClaim', namespace, name: claim },
+            },
+          ]),
+        )}`,
+      );
+      logger.info(`Released PersistentVolume ${volume} from ${holderNamespace}/${holder} for ${namespace}/${claim}`);
+      return 'released';
+    },
+
+    /**
+     * Applies a manifest with the pod scheduling of its resource: a kustomization directory, rendered by
+     * `kubectl kustomize`, or a file. Each pod template takes the node selector and the tolerations; a
+     * DaemonSet keeps its own placement.
+     * @param {object} params
+     * @param {string} params.path - A kustomization directory or a manifest file.
+     * @param {string} params.namespace - The namespace of its namespaced objects.
+     * @param {{affinity?:Object, tolerations?:Object[]}} [params.scheduling] - {@link UnderpostNamespace.podScheduling}.
+     * @memberof UnderpostKubectl
+     */
+    applyScheduled({ path, namespace, scheduling = {} }) {
+      const manifest = fs.statSync(path).isDirectory()
+        ? shellExec(`kubectl kustomize ${shellArgumentFactory(path)}`, { stdout: true, silent: true })
+        : fs.readFileSync(path, 'utf8');
+      const items = loadAll(manifest)
+        .filter(Boolean)
+        .map((object) => schedulePodTemplate(object, scheduling));
+      shellExec(
+        `kubectl apply -n ${shellArgumentFactory(namespace)} -f - <<'EOF'\n${JSON.stringify({ apiVersion: 'v1', kind: 'List', items })}\nEOF\n`,
+      );
     },
 
     /**
@@ -266,7 +337,7 @@ class UnderpostKubectl {
         );
         const probe = shellExec(
           withTimeout(
-            `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c "exit 0"`,
+            `kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c "exit 0"`,
             probeTimeoutSeconds,
           ),
           probeOptions,
@@ -374,7 +445,7 @@ class UnderpostKubectl {
      * @memberof UnderpostKubectl
      */
     exec({ podName, namespace, command, retries = DEFAULT_POD_RETRIES, timeoutSeconds = 0 }) {
-      const kubectlCmd = `sudo kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`;
+      const kubectlCmd = `kubectl exec -n ${shellArgumentFactory(namespace)} -i ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`;
       return Underpost.kubectl.run(kubectlCmd, {
         context: `exec in pod ${podName}`,
         retries,
@@ -396,7 +467,7 @@ class UnderpostKubectl {
      */
     execStream({ podName, namespace = 'default', command }) {
       return shellSpawn(
-        `sudo kubectl exec -i -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`,
+        `kubectl exec -i -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(podName)} -- sh -c ${shellArgumentFactory(command)}`,
       );
     },
 
@@ -436,7 +507,7 @@ class UnderpostKubectl {
       const ns = shellArgumentFactory(namespace);
       const remove = () =>
         shellExec(
-          `sudo kubectl delete pod/${shellArgumentFactory(name)} secret/${shellArgumentFactory(name)} -n ${ns} --ignore-not-found --wait=false`,
+          `kubectl delete pod/${shellArgumentFactory(name)} secret/${shellArgumentFactory(name)} -n ${ns} --ignore-not-found --wait=false`,
           { silent: true, silentOnError: true, disableLog: true },
         );
       const manifest = clientPodManifestFactory({
@@ -450,7 +521,7 @@ class UnderpostKubectl {
         activeDeadlineSeconds,
       });
       const create = async () => {
-        const child = shellSpawn(`sudo kubectl create -f - -n ${ns}`, { disableLog: true });
+        const child = shellSpawn(`kubectl create -f - -n ${ns}`, { disableLog: true });
         child.stdin.end(manifest);
         try {
           await child.exited;
@@ -462,7 +533,7 @@ class UnderpostKubectl {
       let created = await create();
       if (created.code !== 0 && /AlreadyExists/.test(`${created.stderr}`)) {
         const phase = shellExec(
-          `sudo kubectl get pod ${shellArgumentFactory(name)} -n ${ns} -o jsonpath='{.status.phase} {.metadata.creationTimestamp}'`,
+          `kubectl get pod ${shellArgumentFactory(name)} -n ${ns} -o jsonpath='{.status.phase} {.metadata.creationTimestamp}'`,
           { stdout: true, silent: true, silentOnError: true, disableLog: true },
         ).trim();
         const [state, createdAt] = phase.split(' ');
@@ -478,7 +549,7 @@ class UnderpostKubectl {
         throw new Error(`Client pod ${name} was not created: ${redactSensitiveText(`${created.stderr}`)}`);
       try {
         Underpost.kubectl.run(
-          `sudo kubectl wait --for=condition=Ready pod/${shellArgumentFactory(name)} -n ${ns} --timeout=${readyTimeoutSeconds}s`,
+          `kubectl wait --for=condition=Ready pod/${shellArgumentFactory(name)} -n ${ns} --timeout=${readyTimeoutSeconds}s`,
           { context: `client pod ${name}` },
         );
         if (!Underpost.kubectl.ensureExecReady({ podName: name, namespace }))
@@ -491,35 +562,51 @@ class UnderpostKubectl {
     },
 
     /**
-     * Forwards a free local port to a port of a pod, for a process outside the cluster that must
-     * reach one member by address. The forward lives until `close()`.
+     * Forwards a local port to a port of a pod or a Service, for a process outside the cluster. The
+     * forward lives while this process holds its stdin: `close()`, or any exit of this process,
+     * Ctrl+C and SIGKILL included, stops it.
      * @param {object} params
-     * @param {string} params.podName
+     * @param {string} params.resource - `pod/<name>` or `svc/<name>`.
      * @param {string} [params.namespace='default']
+     * @param {string} [params.context] - The kubeconfig context; the current one when absent.
      * @param {number} params.remotePort
+     * @param {string} [params.address='127.0.0.1'] - The local address the forward listens on.
+     * @param {number} [params.localPort] - The local port; a free one when absent.
      * @param {number} [params.readyTimeoutMs=20000] - Wait for `kubectl` to listen.
-     * @returns {Promise<{localPort:number, close:() => void}>}
-     * @throws {Error} When the forward does not listen in time or exits.
+     * @returns {Promise<{localPort:number, close:() => void, ended:Promise<void>}>} `ended` settles
+     *   when the forward stops.
+     * @throws {Error} When the resource is not a pod or a Service, or the forward does not listen in time or exits.
      * @memberof UnderpostKubectl
      */
-    async portForward({ podName, namespace = 'default', remotePort, readyTimeoutMs = 20000 }) {
-      const localPort = await new Promise((resolve, reject) => {
+    async portForward({
+      resource,
+      namespace = 'default',
+      context = '',
+      remotePort,
+      address = '127.0.0.1',
+      localPort,
+      readyTimeoutMs = 20000,
+    }) {
+      if (!/^(pod|svc)\/[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(`${resource}`))
+        throw new Error(`A forward targets pod/<name> or svc/<name>, not ${resource}`);
+      localPort ??= await new Promise((resolve, reject) => {
         const server = net.createServer();
         server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
+        server.listen(0, address, () => {
           const { port } = server.address();
           server.close(() => resolve(port));
         });
       });
+      const forward = `kubectl${context ? ` --context ${shellArgumentFactory(context)}` : ''} port-forward -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(resource)} --address ${shellArgumentFactory(address)} ${localPort}:${remotePort}`;
+      // A watcher stops kubectl at the end of stdin, so a close needs no signal to a process group.
       const child = shellSpawn(
-        `sudo kubectl port-forward -n ${shellArgumentFactory(namespace)} ${shellArgumentFactory(`pod/${podName}`)} --address 127.0.0.1 ${localPort}:${remotePort}`,
+        `sh -c ${shellArgumentFactory(`exec 3<&0; ${forward} </dev/null 3<&- & k=$!; (read x <&3; kill $k) >/dev/null 2>&1 & wait $k`)}`,
       );
-      child.stdin.end();
-      const close = () => child.child.kill('SIGTERM');
+      const close = () => child.stdin.end();
       try {
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(
-            () => reject(new Error(`The forward to ${podName}:${remotePort} did not listen in ${readyTimeoutMs}ms`)),
+            () => reject(new Error(`The forward to ${resource}:${remotePort} did not listen in ${readyTimeoutMs}ms`)),
             readyTimeoutMs,
           );
           child.stdout.on('data', (chunk) => {
@@ -528,17 +615,24 @@ class UnderpostKubectl {
             resolve();
           });
           child.exited.then(
-            () => reject(new Error(`The forward to ${podName}:${remotePort} exited`)),
+            () => reject(new Error(`The forward to ${resource}:${remotePort} exited`)),
             (error) =>
-              reject(new Error(`The forward to ${podName}:${remotePort} failed: ${error.stderr || error.message}`)),
+              reject(new Error(`The forward to ${resource}:${remotePort} failed: ${error.stderr || error.message}`)),
           );
         });
       } catch (error) {
         close();
         throw error;
       }
-      logger.info('Port forward ready', { podName, namespace, localPort, remotePort });
-      return { localPort, close };
+      logger.info('Port forward ready', { resource, namespace, context, address, localPort, remotePort });
+      return {
+        localPort,
+        close,
+        ended: child.exited.then(
+          () => {},
+          () => {},
+        ),
+      };
     },
 
     /**
@@ -551,7 +645,7 @@ class UnderpostKubectl {
     podImage(podName, namespace = 'default') {
       const read = (path) =>
         shellExec(
-          `sudo kubectl get pod ${shellArgumentFactory(podName)} -n ${shellArgumentFactory(namespace)} -o jsonpath=${shellArgumentFactory(`{${path}}`)}`,
+          `kubectl get pod ${shellArgumentFactory(podName)} -n ${shellArgumentFactory(namespace)} -o jsonpath=${shellArgumentFactory(`{${path}}`)}`,
           { stdout: true, silent: true, silentOnError: true, disableLog: true },
         ).trim();
       const imageId = read('.status.containerStatuses[0].imageID').replace(/^docker-pullable:\/\//, '');
@@ -571,7 +665,7 @@ class UnderpostKubectl {
      */
     cpTo({ sourcePath, podName, namespace, destPath, retries = DEFAULT_POD_RETRIES }) {
       try {
-        const command = `sudo kubectl cp ${sourcePath} ${namespace}/${podName}:${destPath}`;
+        const command = `kubectl cp ${sourcePath} ${namespace}/${podName}:${destPath}`;
         Underpost.kubectl.run(command, { context: `copy to pod ${podName}`, retries, podName, namespace });
         return true;
       } catch {
@@ -592,7 +686,7 @@ class UnderpostKubectl {
      */
     cpFrom({ podName, namespace, sourcePath, destPath, retries = DEFAULT_POD_RETRIES }) {
       try {
-        const command = `sudo kubectl cp ${namespace}/${podName}:${sourcePath} ${destPath}`;
+        const command = `kubectl cp ${namespace}/${podName}:${sourcePath} ${destPath}`;
         Underpost.kubectl.run(command, { context: `copy from pod ${podName}`, retries, podName, namespace });
         return true;
       } catch {

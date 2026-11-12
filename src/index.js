@@ -20,11 +20,14 @@ import UnderpostFileStorage from './cli/fs.js';
 import UnderpostGraphify from './cli/graphify.js';
 import UnderpostIPFS from './cli/ipfs.js';
 import UnderpostImage from './cli/image.js';
+import UnderpostIngress from './cli/ingress.js';
 import UnderpostLxd from './cli/lxd.js';
 import UnderpostMonitor from './cli/monitor.js';
+import UnderpostNamespace from './cli/namespace.js';
 import UnderpostPackage from './cli/package.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
+import UnderpostSandbox from './cli/sandbox.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSite from './cli/site.js';
 import UnderpostSocketSecurity from './cli/socketsecurity.js';
@@ -32,6 +35,7 @@ import UnderpostSSH from './cli/ssh.js';
 import UnderpostState from './cli/state.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
+import UnderpostTls from './cli/tls.js';
 import UnderpostRelease from './cli/release.js';
 import UnderpostSourceRelease from './cli/source-release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
@@ -42,7 +46,6 @@ import UnderpostDns from './server/network/dns.js';
 import UnderpostBackup from './server/storage/backup.js';
 import UnderpostCron from './server/ops/cron.js';
 import UnderpostStartUp from './server/runtime/start.js';
-import UnderpostTLS from './server/network/tls.js';
 
 /**
  * Underpost main module methods
@@ -203,6 +206,33 @@ class Underpost {
     return UnderpostIPFS.API;
   }
   /**
+   * Ingress cli API: host ownership, the routing object of each host and routing reconciliation
+   * @static
+   * @type {UnderpostIngress.API}
+   * @memberof Underpost
+   */
+  static get ingress() {
+    return UnderpostIngress.API;
+  }
+  /**
+   * Kubernetes namespace placement cli API
+   * @static
+   * @type {UnderpostNamespace.API}
+   * @memberof Underpost
+   */
+  static get namespace() {
+    return UnderpostNamespace.API;
+  }
+  /**
+   * Development Sandbox cli API
+   * @static
+   * @type {UnderpostSandbox.API}
+   * @memberof Underpost
+   */
+  static get sandbox() {
+    return UnderpostSandbox.API;
+  }
+  /**
    * Monitor cli API
    * @static
    * @type {UnderpostMonitor.API}
@@ -350,13 +380,13 @@ class Underpost {
   }
 
   /**
-   * TLS/SSL server utilities API
+   * TLS lifecycle cli API: Certificates, TLS Secrets, the ACME issuer and self-signed TLS
    * @static
-   * @type {UnderpostTLS.API}
+   * @type {UnderpostTls.API}
    * @memberof Underpost
    */
   static get tls() {
-    return UnderpostTLS.API;
+    return UnderpostTls.API;
   }
 
   /**
@@ -454,6 +484,7 @@ export {
   UnderpostFileStorage,
   UnderpostGraphify,
   UnderpostImage,
+  UnderpostIngress,
   UnderpostStatic,
   UnderpostTest,
   UnderpostLxd,
@@ -475,7 +506,7 @@ export {
   UnderpostCron,
   UnderpostStartUp,
   UnderpostRelease,
-  UnderpostTLS,
+  UnderpostTls,
   UnderpostVultr,
   UnderpostWireguard,
 };

@@ -97,7 +97,11 @@ if [[ "$verb" == "get" && "$kind" == "pods" ]]; then
   exit 0
 fi
 if [[ "$verb" == "get" && "$kind" == "pod" ]]; then
-  printf '{"status":{"conditions":[{"type":"Ready","status":"%s"}]}}\\n' "\${FAKE_POD_READY:-True}"
+  printf '{"spec":{"nodeName":"worker-1"},"status":{"conditions":[{"type":"PodReadyToStartContainers","status":"%s"},{"type":"Ready","status":"%s"}]}}\\n' "\${FAKE_SANDBOX_READY:-True}" "\${FAKE_POD_READY:-True}"
+  exit 0
+fi
+if [[ "$verb" == "get" && "$kind" == "events" ]]; then
+  printf '{"items":[{"count":%s,"lastTimestamp":"2026-11-12T00:00:00Z","message":"no CNI configuration file in /etc/cni/net.d/"}]}\\n' "\${FAKE_SANDBOX_FAILURES:-0}"
   exit 0
 fi
 if [[ "$verb" == "port-forward" ]]; then
@@ -126,7 +130,8 @@ try {
     TRAFFIC,
   )}, [], 'default', options);
   process.exit(0);
-} catch (_) {
+} catch (error) {
+  console.log(error.message);
   process.exit(1);
 }
 `,
@@ -149,6 +154,7 @@ try {
     Underpost.state.set('start-container-status', '');
   });
 
+  let monitorOutput = '';
   const spawnMonitor = (overrides = {}) =>
     new Promise((resolve) => {
       const envVars = {
@@ -171,9 +177,34 @@ try {
         async: true,
         silent: true,
         disableLog: true,
-        callback: (code) => resolve(code),
+        callback: (code, stdout) => {
+          monitorOutput = `${stdout}`;
+          resolve(code);
+        },
       });
     });
+
+  it('sandbox failure: a node whose CNI is down fails the pod with its node and cause', async () => {
+    const code = await spawnMonitor({
+      FAKE_SANDBOX_READY: 'False',
+      FAKE_POD_READY: 'False',
+      FAKE_SANDBOX_FAILURES: '6',
+    });
+    expect(code).to.equal(1);
+    expect(monitorOutput).to.include(`Pod ${POD_NAME} cannot start on node worker-1: 6 sandbox failures`);
+    expect(monitorOutput).to.include('no CNI configuration file');
+  });
+
+  it('sandbox retries under the limit keep the monitor waiting', async () => {
+    const code = await spawnMonitor({
+      FAKE_SANDBOX_READY: 'False',
+      FAKE_POD_READY: 'False',
+      FAKE_SANDBOX_FAILURES: '5',
+      UNDERPOST_MONITOR_MAX_ITERATIONS: '5',
+    });
+    expect(code).to.equal(1);
+    expect(monitorOutput).not.to.include('cannot start');
+  });
 
   it('success (default exec transport): both phases satisfied → monitor exits 0', async () => {
     Underpost.state.set('container-status', RUNNING_STATUS);
