@@ -1,9 +1,10 @@
 /**
  * The sagas each item label, map code, quest code, action code and dialogue code belongs to. A map
- * belongs to the saga that defines it in the content artifact and to every stored saga that lists
- * it. An item belongs to the saga that defines it, to the saga of every map whose stored entities
- * carry it, to the sagas of the maps of every instance whose entity-type defaults wire it, and to
- * every saga of an item whose stored skill summons it. A quest or an action belongs to the saga
+ * belongs to the saga that defines it in the content artifact, to every stored saga that lists it as
+ * its map or its place, and to every saga that defines or links a quest or an action standing on it. An item belongs to
+ * the saga that defines it, to every stored saga that names it, to the saga of every map whose stored
+ * entities carry it, to the sagas of the maps of every instance whose entity-type defaults wire it,
+ * and to every saga of an item whose stored skill summons it. A quest or an action belongs to the saga
  * that defines it, to every stored saga that links it, and to the sagas of the map it stands on. A
  * dialogue belongs to the sagas of the actions that show it, and the default dialogue of an item to
  * the sagas of the item. A code may belong to several sagas.
@@ -11,7 +12,7 @@
  * @module src/projects/cyberia/saga/saga-associations.js
  * @namespace CyberiaSagaAssociations
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { DataQuery } from '../../../server/storage/data-query.js';
 import { SAGA_FILTER_KEY } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
 import { collectInstanceItemIds } from '../../../api/cyberia-instance/cyberia-instance-items.js';
@@ -21,7 +22,7 @@ import { contentArtifact } from '../content/content-artifact.js';
  * The saga codes of each item label, map code, quest code, action code and dialogue code, sorted.
  * @param {Object} stored
  * @param {Object[]} [stored.maps] - Stored maps: `code`, `entities[].objectLayerItemIds`.
- * @param {Object[]} [stored.sagas] - Stored sagas: `code`, `mapCodes`, `questCodes`, `actionCodes`.
+ * @param {Object[]} [stored.sagas] - Stored sagas: `code`, `mapCodes`, `placeCodes`, `itemIds`, `questCodes`, `actionCodes`.
  * @param {Object[]} [stored.instances] - Stored instances: `cyberiaMapCodes`, and `entityDefaults`, the
  *   entity-type default documents their conf references.
  * @param {Object[]} [stored.skills] - Stored skills: `triggerItemId`, `skills[].summonedEntityItemId`.
@@ -46,7 +47,10 @@ export function sagaAssociations(
   for (const [label, id] of Object.entries(index.labels)) if (sagaOf(id)) add(items, label, sagaOf(id));
   for (const id of Object.keys(index.definitions))
     if (id.startsWith('map.') && sagaOf(id)) add(mapSagas, id.slice('map.'.length), sagaOf(id));
-  for (const saga of sagas) for (const mapCode of saga.mapCodes ?? []) add(mapSagas, mapCode, saga.code);
+  for (const saga of sagas) {
+    for (const mapCode of [...(saga.mapCodes ?? []), ...(saga.placeCodes ?? [])]) add(mapSagas, mapCode, saga.code);
+    for (const itemId of saga.itemIds ?? []) add(items, itemId, saga.code);
+  }
   for (const map of maps)
     for (const code of mapSagas[map.code] ?? [])
       for (const entity of map.entities ?? [])
@@ -78,6 +82,13 @@ export function sagaAssociations(
     for (const { questCode } of saga.questCodes ?? []) add(questSagas, questCode, saga.code);
     for (const { actionCode } of saga.actionCodes ?? []) add(actionSagas, actionCode, saga.code);
   }
+  const mapBucket = Object.fromEntries(Object.entries(mapSagas).map(([code, codes]) => [code, [...codes]]));
+  for (const [documents, bucket] of [
+    [quests, questSagas],
+    [actions, actionSagas],
+  ])
+    for (const { code, sourceMapCode } of documents)
+      if (sourceMapCode) for (const saga of bucket[code] ?? []) add(mapBucket, sourceMapCode, saga);
   for (const quest of quests) for (const code of mapSagas[quest.sourceMapCode] ?? []) add(questSagas, quest.code, code);
   for (const action of actions) {
     for (const code of mapSagas[action.sourceMapCode] ?? []) add(actionSagas, action.code, code);
@@ -87,20 +98,23 @@ export function sagaAssociations(
   }
   for (const [itemId, codes] of Object.entries(items))
     for (const code of codes) add(dialogueSagas, `default-${itemId}`, code);
-  return { items, maps: mapSagas, quests: questSagas, actions: actionSagas, dialogues: dialogueSagas };
+  return { items, maps: mapBucket, quests: questSagas, actions: actionSagas, dialogues: dialogueSagas };
 }
 
 /**
  * {@link sagaAssociations} of what a host stores.
- * @param {import('../../../api/types.js').RouterOptions} options
+ * @param {import('../../../api/types.js').ApiRouterContext} options
+ * @param {Object} [index] - Context index; the artifact's by default.
  * @returns {Promise<ReturnType<typeof sagaAssociations>>}
  * @memberof CyberiaSagaAssociations
  */
-export async function loadSagaAssociations(options) {
+export async function loadSagaAssociations(options, index) {
   const model = (name) => DataBaseProviderService.getModel(name, options);
   const [maps, sagas, skills, instances, confs, entityDefaults, quests, actions] = await Promise.all([
     model('CyberiaMap').find({}, { code: 1, 'entities.objectLayerItemIds': 1 }).lean(),
-    model('CyberiaSaga').find({}, { code: 1, mapCodes: 1, questCodes: 1, actionCodes: 1 }).lean(),
+    model('CyberiaSaga')
+      .find({}, { code: 1, mapCodes: 1, placeCodes: 1, itemIds: 1, questCodes: 1, actionCodes: 1 })
+      .lean(),
     model('CyberiaSkill').find({}, { triggerItemId: 1, 'skills.summonedEntityItemId': 1 }).lean(),
     model('CyberiaInstance').find({}, { cyberiaMapCodes: 1, conf: 1 }).lean(),
     model('CyberiaInstanceConf').find({}, { entityDefaults: 1 }).lean(),
@@ -113,17 +127,20 @@ export async function loadSagaAssociations(options) {
   const byId = (documents) => new Map(documents.map((document) => [String(document._id), document]));
   const confOf = byId(confs);
   const defaultOf = byId(entityDefaults);
-  return sagaAssociations({
-    maps,
-    sagas,
-    skills,
-    quests,
-    actions,
-    instances: instances.map(({ cyberiaMapCodes, conf }) => ({
-      cyberiaMapCodes,
-      entityDefaults: (confOf.get(String(conf))?.entityDefaults ?? []).map((id) => defaultOf.get(String(id))),
-    })),
-  });
+  return sagaAssociations(
+    {
+      maps,
+      sagas,
+      skills,
+      quests,
+      actions,
+      instances: instances.map(({ cyberiaMapCodes, conf }) => ({
+        cyberiaMapCodes,
+        entityDefaults: (confOf.get(String(conf))?.entityDefaults ?? []).map((id) => defaultOf.get(String(id))),
+      })),
+    },
+    index,
+  );
 }
 
 /**
@@ -150,7 +167,7 @@ export function keysOfSagas(bucket, filter) {
  * a string, so the list cache keys on it.
  * @param {Object} params - Request query: `filterModel` and the rest.
  * @param {{family: 'items'|'maps', field: string}} target - The bucket and the stored field of a row key.
- * @param {import('../../../api/types.js').RouterOptions} options
+ * @param {import('../../../api/types.js').ApiRouterContext} options
  * @returns {Promise<Object>} The parameters to list with.
  * @memberof CyberiaSagaAssociations
  */

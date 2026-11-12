@@ -15,15 +15,17 @@ const CyberiaSagaSchema = new Schema(
     // Content foundation version the saga was composed against.
     foundationVersion: { type: String, default: '' },
 
-    // Foundation definition ids the saga uses.
+    // Ids of the foundation and of other sagas that its definitions name.
     references: { type: [String], default: [] },
 
     // Semantic definitions the saga adds to the foundation.
     definitions: { type: [Schema.Types.Mixed], default: [] },
 
-    // Complete set of map identifiers that belong to this saga: its places.
-    // Any map outside this list is considered external to the saga.
+    // The maps the saga defines and owns.
     mapCodes: { type: [String], default: [] },
+
+    // The maps of other sources the saga plays on. Their owner stays the source that defines them.
+    placeCodes: { type: [String], default: [] },
 
     // Item labels the saga's references and definitions run on.
     itemIds: { type: [String], default: [] },

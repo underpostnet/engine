@@ -36,7 +36,7 @@ const stored = vi.hoisted(() => ({
 vi.mock('../../../src/projects/cyberia/content/content-artifact.js', () => ({
   contentArtifact: () => ({ context: INDEX }),
 }));
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: (name) => ({
       find: () => ({
@@ -151,6 +151,7 @@ describe('saga associations', () => {
       ],
     });
     expect(associations.quests).toEqual({ ember: ['ash-signal'], 'raider-toll': ['bloom'], hunt: ['bloom'] });
+    expect(associations.maps).toEqual({ cave: ['ash-signal'], ruin: ['bloom'] });
     expect(associations.actions).toEqual({ lantern: ['ash-signal'], stall: ['bloom'], gate: ['ash-signal'] });
     expect(associations.dialogues).toEqual({
       hello: ['bloom'],
@@ -159,6 +160,24 @@ describe('saga associations', () => {
       'default-lamp': ['ash-signal'],
     });
   });
+  it('gives a map the sagas of the quests and actions on it, and spreads them no further', () => {
+    const associations = sagaAssociations({
+      maps: [map('ruin', 'merchant', 'lantern-post')],
+      sagas: [
+        { code: 'bloom', mapCodes: ['ruin'] },
+        { code: 'caravan', questCodes: [{ providerSkinItemId: 'merchant', questCode: 'escort' }] },
+      ],
+      quests: [
+        { code: 'escort', sourceMapCode: 'ruin' },
+        { code: 'hunt', sourceMapCode: 'ruin' },
+      ],
+      actions: [{ code: 'lantern', sourceMapCode: 'ruin', dialogCode: '' }],
+    });
+    expect(associations.maps).toEqual({ cave: ['ash-signal'], ruin: ['ash-signal', 'bloom', 'caravan'] });
+    expect(associations.quests).toMatchObject({ escort: ['bloom', 'caravan'], hunt: ['bloom'] });
+    expect(associations.items.merchant).toEqual(['bloom']);
+  });
+
   it('selects the keys of the sagas comma-separated terms name, by part of the code, ignoring case', () => {
     const bucket = { cave: ['ash-signal', 'bloom'], ruin: ['bloom'], glade: [] };
     expect(keysOfSagas(bucket, 'ASH')).toEqual(['cave']);
