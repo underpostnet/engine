@@ -10,12 +10,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { OAuth2 } from 'oauth';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { authMiddlewareFactory } from '../../../src/server/security/auth.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
 import { UserDto } from '../../../src/api/user/user.model.js';
-import { UserRouter } from '../../../src/api/user/user.router.js';
-import { GoogleAuthRouter } from '../../../src/api/google-auth/google-auth.router.js';
+import { ApiModule as UserModule } from '../../../src/api/user/user.router.js';
+import { ApiModule as GoogleAuthModule } from '../../../src/api/google-auth/google-auth.router.js';
+import { startTestApi } from '../../support/api-module.js';
 import { GoogleAuthService } from '../../../src/api/google-auth/google-auth.service.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
@@ -57,14 +57,13 @@ const claimsOf = (sub, email, extra = {}) => ({
 });
 
 const servers = [];
-const listen = (context) => {
+const listen = async (context) => {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json());
   app.use(cookieParser(process.env.JWT_SECRET));
-  const options = { ...context, apiPath: API, authMiddleware: authMiddlewareFactory(context) };
-  app.use(`${API}/user`, UserRouter.router(options));
-  app.use(`${API}/google-auth`, GoogleAuthRouter.router(options));
+  app.use(`${API}/user`, (await startTestApi(UserModule, context)).router);
+  app.use(`${API}/google-auth`, (await startTestApi(GoogleAuthModule, context)).router);
   return new Promise((resolve) => {
     const server = app.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`));
     servers.push(server);
@@ -330,9 +329,11 @@ describe.skipIf(!mongodBinary)('Google sign-in', () => {
       expect((await exchange(client, flow)).status).toBe(200);
     });
 
-    it('refuses to mount on a host without OAuth credentials', () => {
+    it('refuses to start on a host without OAuth credentials', async () => {
       setEnv({ GOOGLE_CLIENT_ID: undefined });
-      expect(() => GoogleAuthRouter.router({ ...A, apiPath: API })).toThrow(/key=GOOGLE_CLIENT_ID reason=missing/);
+      await expect(startTestApi(GoogleAuthModule, { host: 'unconfigured.test', path: '/' })).rejects.toThrow(
+        /key=GOOGLE_CLIENT_ID reason=missing/,
+      );
       setEnv(ENV);
     });
 

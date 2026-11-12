@@ -10,7 +10,7 @@ const libraries = {
   'github-actions-logging.sh': `deploy_start() { echo "start: $1"; }
 deploy_step() { shift; "$@"; }
 `,
-  'host.sh': 'ENGINE_ROOT=/engine HOST_NODE=host\n',
+  'host.sh': 'ENGINE_ROOT=/engine\n',
   'content-release.sh': `live_image() { echo engine:1; }
 apply_release_secret() { echo secret; return "\${SECRET_STATUS:-0}"; }
 release_job() { echo "job: $1 | $2 | $3"; }
@@ -34,7 +34,7 @@ const run = (args, env = {}) => {
 };
 
 describe('deploy/dd-cyberia/player.sh', () => {
-  it.each([[[]], [['player']], [['content-release', 'status']]])('prints the usage for %j', (args) => {
+  it.each([[[]], [['player']], [['content', 'release', 'status']]])('prints the usage for %j', (args) => {
     const result = run(args);
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('usage:');

@@ -273,7 +273,7 @@ const setDocTitle = (route, title) => {
 /**
  * Main router function. It matches the current URL path against the provided routes configuration
  * and renders the corresponding component. It also fires registered router events.
- * @param {object} [options={ Routes: () => {}, e: new PopStateEvent() }] - The router options.
+ * @param {object} [options={ Routes: () => {}, e: new PopStateEvent() }] - The API context.
  * @param {function} options.Routes - A function that returns the routes object.
  * @param {PopStateEvent} options.e - The popstate event object.
  * @memberof PwaRouter

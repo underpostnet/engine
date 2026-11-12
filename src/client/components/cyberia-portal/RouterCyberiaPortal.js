@@ -46,6 +46,14 @@ class RouterCyberiaPortal {
         render: () => s(`.main-btn-object-layer-engine-viewer`).click(),
       },
       '/object-layer': { title: 'object-layer', render: () => ObjectLayerEngineViewer.route() },
+      '/cyberia-saga-engine': {
+        title: 'cyberia-saga-engine',
+        render: () => s(`.main-btn-cyberia-saga-engine`).click(),
+      },
+      '/cyberia-content-lifecycle': {
+        title: 'cyberia-content-lifecycle',
+        render: () => s(`.main-btn-cyberia-content-lifecycle`).click(),
+      },
       '/cyberia-procedural-engine': {
         title: 'cyberia-procedural-engine',
         render: () => s(`.main-btn-cyberia-procedural-engine`).click(),

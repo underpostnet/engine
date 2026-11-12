@@ -20,7 +20,7 @@
  * @namespace CacheService
  */
 import crypto from 'crypto';
-import { ValkeyAPI } from '../../db/valkey/Valkey.js';
+import { ValkeyAPI } from '../../db/valkey/valkey.js';
 import { contentDataKey } from '../../db/served-databases.js';
 import { loggerFactory } from '../ops/logger.js';
 import { counter, histogram } from '../ops/metrics.js';
@@ -111,7 +111,7 @@ class CacheService {
   /**
    * One resource of one domain under one policy. The domain is the deployment context that
    * serves it: two hosts of a deploy never share a value.
-   * @param {{host?:string,path?:string}} options - Router options.
+   * @param {{host?:string,path?:string}} options - The API context.
    * @param {string} resource - Resource name, an API name or one of its parts.
    * @param {{ttlMs:number}} [policy=CACHE_POLICY.mutable]
    * @returns {CacheNamespace}
@@ -211,7 +211,7 @@ class CacheService {
   /**
    * Removes every key of a deployment context's environment: the operator's reset, never a
    * mutation's. Scans the keyspace in batches.
-   * @param {{host?:string,path?:string}} options - Router options.
+   * @param {{host?:string,path?:string}} options - The API context.
    * @returns {Promise<number>} Keys removed.
    */
   static async clear(options) {

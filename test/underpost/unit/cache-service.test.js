@@ -17,7 +17,7 @@ const client = {
   },
   del: async (...keys) => keys.filter((key) => store.delete(key)).length,
 };
-vi.mock('../../../src/db/valkey/Valkey.js', () => ({
+vi.mock('../../../src/db/valkey/valkey.js', () => ({
   ValkeyAPI: {
     isConnected: () => valkey.connected,
     get: command(async (_options, key) => {

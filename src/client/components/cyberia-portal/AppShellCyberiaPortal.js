@@ -18,7 +18,7 @@ import { Chat } from '../core/Chat.js';
 import { Recover } from '../core/Recover.js';
 import { ObjectLayerEngineModal } from '../objectlayer-studio/ObjectLayerEngineModal.js';
 import { ObjectLayerEngineViewer } from '../objectlayer-studio/ObjectLayerEngineViewer.js';
-import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
+import { ObjectLayerManagement } from '../../services/object-layer/ObjectLayerManagement.js';
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
@@ -32,6 +32,8 @@ import { DEFAULT_INSTANCE_CODE } from '../cyberia/SharedDefaultsCyberia.js';
 import { ActionEngineCyberia } from '../cyberia/ActionEngineCyberia.js';
 import { EntityEngineCyberia } from '../cyberia/EntityEngineCyberia.js';
 import { ProceduralEngineCyberia } from '../cyberia/ProceduralEngineCyberia.js';
+import { SagaEngineCyberia } from '../cyberia/SagaEngineCyberia.js';
+import { ContentLifecycleCyberia } from '../cyberia/ContentLifecycleCyberia.js';
 import { ItemCatalogCyberia } from '../cyberia/ItemCatalogCyberia.js';
 import { CyberiaObjectLayerProfile } from '../cyberia/ObjectLayerProfileCyberia.js';
 import { CyberiaObjectLayerStudio } from '../cyberia/ObjectLayerStudioCyberia.js';
@@ -62,6 +64,14 @@ class AppShellCyberiaPortal {
           }),
       }),
       'object-layer-engine-viewer': () => ({ observer: true, html: async () => ObjectLayerEngineViewer.instance() }),
+      'cyberia-saga-engine': () => ({
+        observer: true,
+        html: async () => await SagaEngineCyberia.render({ appStore }),
+      }),
+      'cyberia-content-lifecycle': () => ({
+        observer: true,
+        html: async () => await ContentLifecycleCyberia.render({ appStore }),
+      }),
       'cyberia-procedural-engine': () => ({
         observer: true,
         html: async () => await ProceduralEngineCyberia.render({ appStore }),

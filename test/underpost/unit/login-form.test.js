@@ -12,12 +12,12 @@ const ui = vi.hoisted(() => ({
   register: vi.fn(),
 }));
 
-vi.mock('../../../src/client/services/core/core.service.js', () => ({
+vi.mock('../../../src/client/services/core/CoreService.js', () => ({
   CoreService: {},
   getApiBaseUrl: ({ id, endpoint }) => `/api/${endpoint}/${id}`,
 }));
-vi.mock('../../../src/client/services/file/file.service.js', () => ({ FileService: { get: ui.file } }));
-vi.mock('../../../src/client/services/user/user.service.js', () => ({ UserService: { post: ui.post } }));
+vi.mock('../../../src/client/services/file/FileService.js', () => ({ FileService: { get: ui.file } }));
+vi.mock('../../../src/client/services/user/UserService.js', () => ({ UserService: { post: ui.post } }));
 vi.mock('../../../src/client/components/core/Auth.js', () => ({ Auth: { sessionIn: ui.sessionIn } }));
 vi.mock('../../../src/client/components/core/BtnIcon.js', () => ({
   BtnIcon: { instance: async ({ class: name }) => `<button class="${name}"></button>` },

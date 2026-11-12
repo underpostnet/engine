@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import jwt from 'jsonwebtoken';
 import { memoryValkey } from '../../support/valkey-memory.js';
 
-vi.mock('../../../src/db/valkey/Valkey.js', async () =>
+vi.mock('../../../src/db/valkey/valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
 );
 

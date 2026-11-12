@@ -2,8 +2,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { ApiRouter as PlayerRouter } from '../../../src/api/cyberia-player/cyberia-player.router.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { ApiModule as PlayerModule } from '../../../src/api/cyberia-player/cyberia-player.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { reportServer } from '../../../src/api/cyberia-server-registry/cyberia-server-registry.service.js';
 import {
   authMiddlewareFactory,
@@ -27,7 +28,7 @@ import { STAT_DEFAULTS } from '../../../src/client/components/cyberia/SharedDefa
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { playerSessions, stack } from '../../support/player-sessions.js';
 
-vi.mock('../../../src/db/valkey/Valkey.js', async () =>
+vi.mock('../../../src/db/valkey/valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
 );
 
@@ -490,13 +491,13 @@ describe.skipIf(!mongodBinary)('operator changes to player profiles and accounts
     beforeAll(async () => {
       const app = express();
       app.use(express.json());
-      const authMiddleware = (req, res, next) => {
+      const authenticate = (req, res, next) => {
         const role = req.headers['x-role'];
         if (!role) return res.status(401).json({ status: 'error', message: 'unauthorized' });
         req.auth = { user: { _id: role === 'admin' ? ADMIN : MODERATOR, role } };
         next();
       };
-      app.use('/player', PlayerRouter({ ...CONTEXT, authMiddleware }));
+      app.use('/player', PlayerModule.createRouter(testApiContext(PlayerModule, { ...CONTEXT, authenticate })));
       await new Promise((done) => (server = app.listen(0, done)));
       base = `http://127.0.0.1:${server.address().port}/player`;
     });

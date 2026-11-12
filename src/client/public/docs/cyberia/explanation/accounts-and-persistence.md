@@ -156,12 +156,12 @@ The portal, the bridge, the client and the server take each other's origins from
 writes `CYBERIA_DATA_SERVER_URL` and `CYBERIA_WS_ORIGIN` to the client env, and
 `CYBERIA_DATA_SERVER_URL` and `CYBERIA_CORS_ALLOWED_ORIGINS` to the server env.
 
-| Process                | Development                                  | Production                         |
-| ---------------------- | -------------------------------------------- | ---------------------------------- |
-| Portal                 | `http://localhost:4008`                      | `https://www.cyberiaonline.com`    |
-| Game client            | `http://localhost:8082`                      | `https://client.cyberiaonline.com` |
-| Game server            | `http://localhost:8083`                      | `https://server.cyberiaonline.com` |
-| Engine, for the server | The traffic Service of the deploy, port 4008 | `https://www.cyberiaonline.com`    |
+| Process                | Development                                  | Production                           |
+| ---------------------- | -------------------------------------------- | ------------------------------------ |
+| Portal                 | `http://localhost:4004`                      | `https://services.cyberiaonline.com` |
+| Game client            | `http://localhost:8082`                      | `https://client.cyberiaonline.com`   |
+| Game server            | `http://localhost:8083`                      | `https://server.cyberiaonline.com`   |
+| Engine, for the server | The traffic Service of the deploy, port 4004 | `https://services.cyberiaonline.com` |
 
 A world other than the default one lives under its code on the client and the server
 (`/<instance>`). A build with no origin for a runtime stops the launch with a message; it never
@@ -528,6 +528,6 @@ A lease stays as a document after it expires: presence counts it only while `exp
 future, and the next session of the account replaces it. No TTL index deletes a lease or an account
 session.
 
-All of them live in the host database of `www.cyberiaonline.com`, beside `users`. A content release
+All of them live in the host database of `services.cyberiaonline.com`, beside `users`. A content release
 or rollback never touches them, so a backup of the host database holds every player independently
 of the content.

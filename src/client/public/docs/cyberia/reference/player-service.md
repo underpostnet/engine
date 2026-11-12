@@ -235,7 +235,7 @@ token or an email.
 cyberia runtime-indexes [--apply] --dev
 cyberia player held [--universe <code>] --dev
 cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
-cyberia run-workflow drop-db --include-runtime --confirm <deploy-id> --dev
+cyberia content workspace drop --include-runtime --confirm <deploy-id> --dev
 ```
 
 | Command           | Does                                                                                                                                                                                              |
@@ -243,6 +243,6 @@ cyberia run-workflow drop-db --include-runtime --confirm <deploy-id> --dev
 | `runtime-indexes` | Deletes the runtime records without a required field of a unique key, then makes the indexes the ones their models declare; reports without `--apply`; exits 1 while one differs or a build fails |
 | `held`            | Lists the held stacks: universe, world (empty for a bag or storage stack), label, definition, reason, counts                                                                                      |
 | `rebind-held`     | Gives the held stacks of a label the definition the catalog binds now, in the profile and its worlds; skips profiles in a session                                                                 |
-| `drop-db`         | With `--include-runtime`, also drops the player records                                                                                                                                           |
+| `workspace drop`  | With `--include-runtime`, also drops the player records                                                                                                                                           |
 
 `rebind-held` reports without `--apply`. It skips profiles with a live session.

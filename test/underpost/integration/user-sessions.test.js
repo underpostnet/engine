@@ -9,10 +9,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { authMiddlewareFactory, hashToken, jwtSign } from '../../../src/server/security/auth.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { hashToken, jwtSign } from '../../../src/server/security/auth.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
-import { UserRouter } from '../../../src/api/user/user.router.js';
+import { ApiModule as UserModule } from '../../../src/api/user/user.router.js';
+import { startTestApi } from '../../support/api-module.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 const CONTEXT = { host: 'sessions.test', path: '/' };
@@ -87,10 +88,7 @@ describe.skipIf(!mongodBinary)('user sessions', () => {
     const app = express();
     app.use(express.json());
     app.use(cookieParser(process.env.JWT_SECRET));
-    app.use(
-      `${API}/user`,
-      UserRouter.router({ ...CONTEXT, apiPath: API, authMiddleware: authMiddlewareFactory(CONTEXT) }),
-    );
+    app.use(`${API}/user`, (await startTestApi(UserModule, CONTEXT)).router);
     origin = await new Promise((resolve) => {
       server = app.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`));
     });

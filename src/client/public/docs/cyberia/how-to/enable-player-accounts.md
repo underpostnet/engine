@@ -16,7 +16,7 @@ messages are in [the player service reference](../reference/player-service.md).
 
 ## 1. Deploy the engine
 
-1. Add the player APIs to the host that holds `users` (`www.cyberiaonline.com/`) in the deploy
+1. Add the player APIs to the host that holds `users` (`services.cyberiaonline.com/`) in the deploy
    `conf.server.json`, after `cyberia-quest-progress`: `cyberia-player`, `cyberia-game-session`,
    `cyberia-game-ticket` and `cyberia-social` and `cyberia-social-profile`. The engine serves `CyberiaPlayerService` only on
    that host.
@@ -38,7 +38,7 @@ node bin run instance-build-manifest --deploy-id dd-cyberia --instance-id mmo-cl
 The build copies the setting to every world of the family and writes the origins of each
 environment ([origins](../explanation/accounts-and-persistence.md#origins)). In production the
 server gets
-`CYBERIA_CORS_ALLOWED_ORIGINS=https://www.cyberiaonline.com,https://client.cyberiaonline.com`: exact
+`CYBERIA_CORS_ALLOWED_ORIGINS=https://services.cyberiaonline.com,https://client.cyberiaonline.com`: exact
 origins. The socket refuses an upgrade from any other `Origin`. A server in account mode without
 `CYBERIA_SERVER_API_KEY` does not start.
 

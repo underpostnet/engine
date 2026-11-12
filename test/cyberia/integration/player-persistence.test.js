@@ -10,11 +10,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import * as grpc from '@grpc/grpc-js';
 import mongoose from 'mongoose';
 import express from 'express';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { authMiddlewareFactory, hashToken, jwtSign } from '../../../src/server/security/auth.js';
-import { CyberiaSocialRouter } from '../../../src/api/cyberia-social/cyberia-social.router.js';
-import { CyberiaSocialProfileRouter } from '../../../src/api/cyberia-social-profile/cyberia-social-profile.router.js';
-import { CyberiaPlayerRouter } from '../../../src/api/cyberia-player/cyberia-player.router.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { hashToken, jwtSign } from '../../../src/server/security/auth.js';
+import { ApiModule as CyberiaSocialModule } from '../../../src/api/cyberia-social/cyberia-social.router.js';
+import { ApiModule as CyberiaSocialProfileModule } from '../../../src/api/cyberia-social-profile/cyberia-social-profile.router.js';
+import { ApiModule as CyberiaPlayerModule } from '../../../src/api/cyberia-player/cyberia-player.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { appearanceReference } from '../../../src/projects/cyberia/player/appearance-preview.js';
 import { createGameTicket } from '../../../src/api/cyberia-game-ticket/cyberia-game-ticket.service.js';
 import { commitState, commitStates } from '../../../src/projects/cyberia/player/player-state.js';
@@ -47,7 +48,7 @@ import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { memoryValkey } from '../../support/valkey-memory.js';
 import { emptyState, playerSessions, stack } from '../../support/player-sessions.js';
 
-vi.mock('../../../src/db/valkey/Valkey.js', async () =>
+vi.mock('../../../src/db/valkey/valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
 );
 
@@ -982,14 +983,14 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       const live = await play(who);
       const app = express();
       app.use(express.json());
-      app.use('/player', CyberiaPlayerRouter.router({ ...CONTEXT, authMiddleware: authMiddlewareFactory(CONTEXT) }));
+      app.use('/player', CyberiaPlayerModule.createRouter(testApiContext(CyberiaPlayerModule, CONTEXT)));
       const http = await new Promise((resolve) => {
         const server = app.listen(0, '127.0.0.1', () => resolve(server));
       });
       try {
         const base = `http://127.0.0.1:${http.address().port}/player`;
         const as = (role) => ({
-          Authorization: `Bearer ${jwtSign({ _id: String(new mongoose.Types.ObjectId()), role }, CONTEXT, 5, 10)}`,
+          Authorization: `Bearer ${jwtSign({ _id: String(new mongoose.Types.ObjectId()), role, ...CONTEXT }, CONTEXT, 5, 10)}`,
           'Content-Type': 'application/json',
         });
         const body = JSON.stringify({
@@ -1030,9 +1031,8 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       await updateStatusNote({ accountId: owner.user, note: 'Private note' }, CONTEXT);
       const profile = await model('CyberiaSocialProfile').findOne({ user: owner.user }).lean();
       const app = express();
-      const options = { ...CONTEXT, authMiddleware: authMiddlewareFactory(CONTEXT) };
-      app.use('/social', CyberiaSocialRouter.router(options));
-      app.use('/profile', CyberiaSocialProfileRouter.router(options));
+      app.use('/social', CyberiaSocialModule.createRouter(testApiContext(CyberiaSocialModule, CONTEXT)));
+      app.use('/profile', CyberiaSocialProfileModule.createRouter(testApiContext(CyberiaSocialProfileModule, CONTEXT)));
       const http = await new Promise((resolve) => {
         const server = app.listen(0, '127.0.0.1', () => resolve(server));
       });
@@ -1041,7 +1041,7 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
         for (const path of ['/social', `/social/${profile._id}`, '/profile', `/profile/${profile._id}`]) {
           expect((await fetch(base + path)).status).toBe(401);
           for (const role of ['user', 'guest']) {
-            const token = jwtSign({ _id: owner.user, role }, CONTEXT, 5, 10);
+            const token = jwtSign({ _id: owner.user, role, ...CONTEXT }, CONTEXT, 5, 10);
             const response = await fetch(base + path, { headers: { Authorization: `Bearer ${token}` } });
             expect(response.status).toBe(403);
             expect(await response.text()).not.toContain('Private note');
@@ -1167,7 +1167,7 @@ describe.skipIf(!mongodBinary)('player persistence', () => {
       expect((await identityPreviews(ana.user, [bo.user], CONTEXT)).get(bo.user).avatar).toBe('');
 
       const app = express();
-      app.use('/player', CyberiaPlayerRouter.router({ ...CONTEXT, authMiddleware: authMiddlewareFactory(CONTEXT) }));
+      app.use('/player', CyberiaPlayerModule.createRouter(testApiContext(CyberiaPlayerModule, CONTEXT)));
       const http = await new Promise((resolve) => {
         const server = app.listen(0, '127.0.0.1', () => resolve(server));
       });

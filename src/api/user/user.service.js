@@ -20,11 +20,9 @@ import {
   jwtSign,
   validatePasswordMiddleware,
 } from '../../server/security/auth.js';
-import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsEmitter } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto, uniqueConflict } from './user.model.js';
 import { isValidUsername, timer } from '../../client/components/core/CommonJs.js';
@@ -32,6 +30,40 @@ import { GuestService } from './guest.service.js';
 import { resolveHostKeyContext } from '../../server/runtime/conf.js';
 
 const logger = loggerFactory(import.meta);
+
+/** The password value of the env templates: never a credential. */
+const TEMPLATE_PASSWORD = 'changethis';
+
+/**
+ * Creates the first administrator of a host path with `DEFAULT_ADMIN_PASSWORD`. Without a configured
+ * password the bootstrap stays pending, so no account gets a known credential. A concurrent start
+ * that creates it first wins through the unique indexes.
+ * @param {import('mongoose').Model} User
+ * @param {import('../types.js').ApiRouterContext} context
+ * @returns {Promise<void>}
+ */
+const seedAdministrator = async (User, context) => {
+  const where = `${context.host}${context.path}`;
+  try {
+    if (await User.exists({ role: 'admin' })) return;
+    const password = process.env.DEFAULT_ADMIN_PASSWORD;
+    if (!password || password === TEMPLATE_PASSWORD) {
+      logger.warn(`Administrator bootstrap of ${where} is pending: set DEFAULT_ADMIN_PASSWORD`);
+      return;
+    }
+    await User.create({
+      username: 'admin',
+      email: process.env.DEFAULT_ADMIN_EMAIL || `admin@${context.host}`,
+      password: await hashPassword(password),
+      role: 'admin',
+      emailConfirmed: true,
+    });
+    logger.warn(`Administrator of ${where} created with the username admin: change its password`);
+  } catch (error) {
+    if (error.code === 11000 && (await User.exists({ role: 'admin' }))) return;
+    logger.error(`Administrator bootstrap of ${where} is incomplete`, { error: error.message });
+  }
+};
 
 /**
  * User Service for handling REST API user operations.
@@ -49,15 +81,15 @@ class UserService {
    * @memberof UserService
    * @param {Object} req - Express request object.
    * @param {Object} res - Express response object.
-   * @param {Object} options - Request options containing host and path.
+   * @param {Object} context - Request context containing host and path.
    * @returns {Promise<Object>} User data with auth token, or status message.
    * @throws {Error} If authentication fails, email is invalid, or email send error.
    */
-  static post = async (req, res, options) => {
+  static post = async (req, res, context) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
+    const File = context.services.database.getModel('File');
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProviderService.getModel('User', options);
+    const User = context.services.database.getModel('User');
 
     if (req.params.id === 'recover-verify-email') {
       const user = await User.findOne({
@@ -70,34 +102,24 @@ class UserService {
         return { message: 'email send successfully' };
       }
 
-      const token = jwtSign({ email: req.body.email }, options, 15);
-      const payloadToken = jwtSign({ email: req.body.email }, options, 15);
-      const id = resolveHostKeyContext(options);
-      const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
+      const token = jwtSign({ email: req.body.email }, context, 15);
+      const payloadToken = jwtSign({ email: req.body.email }, context, 15);
+      const { mailer } = context.services;
+      const translate = mailer.translation('recoverEmail');
       const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${req.body.proxyPath
         }recover?payload=${payloadToken}`;
-      const sendResult = await MailerProvider.send({
-        id,
-        sendOptions: {
-          to: req.body.email, // list of receivers
-          subject: translate.H1[req.lang], // Subject line
-          text: translate.H1[req.lang], // plain text body
-          html: MailerProvider.instance[id].templates.userRecoverEmail
-            .replace('{{H1}}', translate.H1[req.lang])
-            .replace('{{P1}}', translate.P1[req.lang])
-            .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, req.body.hostname) // html body
-            .replace('{{RECOVER_WEB_URL}}', recoverUrl)
-            .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
-
-          attachments: [
-            // {
-            //   filename: 'logo.png',
-            //   path: `./logo.png`,
-            //   cid: 'logo', // <img src='cid:logo'>
-            // },
-          ],
-        },
+      const sendResult = await mailer.send({
+        to: req.body.email, // list of receivers
+        subject: translate.H1[req.lang], // Subject line
+        text: translate.H1[req.lang], // plain text body
+        html: mailer
+          .template('userRecoverEmail')
+          .replace('{{H1}}', translate.H1[req.lang])
+          .replace('{{P1}}', translate.P1[req.lang])
+          .replace('{{TOKEN}}', token)
+          .replace(`{{COMPANY}}`, req.body.hostname) // html body
+          .replace('{{RECOVER_WEB_URL}}', recoverUrl)
+          .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
       });
 
       if (!sendResult) throw new Error('email send error');
@@ -107,8 +129,8 @@ class UserService {
     if (req.path.startsWith('/mailer') && req.params.id === 'verify-email') {
       if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
-      const token = jwtSign({ email: req.body.email }, options, 15);
-      const id = resolveHostKeyContext(options);
+      const token = jwtSign({ email: req.body.email }, context, 15);
+      const { mailer } = context.services;
       const user = await User.findById(req.auth.user._id);
 
       if (user.emailConfirmed) throw new Error('email already confirmed');
@@ -124,26 +146,17 @@ class UserService {
           },
         );
       }
-      const translate = MailerProvider.instance[id].translateTemplates.confirmEmail;
-      const sendResult = await MailerProvider.send({
-        id,
-        sendOptions: {
-          to: req.body.email, // list of receivers
-          subject: translate.H1[req.lang], // Subject line
-          text: translate.H1[req.lang], // plain text body
-          html: MailerProvider.instance[id].templates.userVerifyEmail
-            .replace('{{H1}}', translate.H1[req.lang])
-            .replace('{{P1}}', translate.P1[req.lang])
-            .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, req.body.hostname), // html body
-          attachments: [
-            // {
-            //   filename: 'logo.png',
-            //   path: `./logo.png`,
-            //   cid: 'logo', // <img src='cid:logo'>
-            // },
-          ],
-        },
+      const translate = mailer.translation('confirmEmail');
+      const sendResult = await mailer.send({
+        to: req.body.email, // list of receivers
+        subject: translate.H1[req.lang], // Subject line
+        text: translate.H1[req.lang], // plain text body
+        html: mailer
+          .template('userVerifyEmail')
+          .replace('{{H1}}', translate.H1[req.lang])
+          .replace('{{P1}}', translate.P1[req.lang])
+          .replace('{{TOKEN}}', token)
+          .replace(`{{COMPANY}}`, req.body.hostname), // html body
       });
 
       if (!sendResult) throw new Error('email send error');
@@ -191,7 +204,7 @@ class UserService {
                   },
                 );
 
-                return { token: await signSessionToken(user, User, req, res, options), user };
+                return { token: await signSessionToken(user, User, req, res, context), user };
               } else throw new Error(accountLocketMessage());
             }
           } else {
@@ -244,11 +257,11 @@ class UserService {
         } else throw new Error('Invalid credentials');
 
       case 'guest': {
-        return await GuestService.create(req, options);
+        return await GuestService.create(req, context);
       }
 
       default:
-        return await createUserAndSession(req, res, User, options);
+        return await createUserAndSession(req, res, User, context);
     }
   };
 
@@ -262,15 +275,15 @@ class UserService {
    * @memberof UserService
    * @param {Object} req - Express request object.
    * @param {Object} res - Express response object.
-   * @param {Object} options - Request options containing host and path.
+   * @param {Object} context - Request context containing host and path.
    * @returns {Promise<Object>} User data with optional session token.
    * @throws {Error} If user not found, profile is private, or token invalid.
    */
-  static get = async (req, res, options) => {
+  static get = async (req, res, context) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
+    const File = context.services.database.getModel('File');
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProviderService.getModel('User', options);
+    const User = context.services.database.getModel('User');
 
     if (req.path.startsWith('/username/')) {
       const userNotFound = () => Object.assign(new Error('User not found'), { status: 404 });
@@ -290,8 +303,7 @@ class UserService {
     }
 
     if (req.path.startsWith('/assets')) {
-      options.png.header(res, req);
-      return options.png.buffer[req.params.id];
+      return context.services.assets.get(req.params.id);
     }
 
     if (req.path.startsWith('/email')) {
@@ -303,11 +315,10 @@ class UserService {
     if (req.path.startsWith('/recover')) {
       let payload;
       try {
-        payload = verifyJWT(req.params.id, options);
+        payload = verifyJWT(req.params.id, context);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
-        options.png.header(res, req);
-        return options.png.buffer['invalid-token'];
+        return context.services.assets.get('invalid-token');
       }
       const user = await User.findOne({
         email: payload.email,
@@ -319,22 +330,19 @@ class UserService {
           { recoverTimeOut: new Date(+new Date() + 1000 * 60 * 15) },
           { runValidators: true },
         );
-        options.png.header(res, req);
-        return options.png.buffer['recover'];
+        return context.services.assets.get('recover');
       } else {
-        options.png.header(res, req);
-        return options.png.buffer['invalid-token'];
+        return context.services.assets.get('invalid-token');
       }
     }
 
     if (req.path.startsWith('/mailer')) {
       let payload;
       try {
-        payload = verifyJWT(req.params.id, options);
+        payload = verifyJWT(req.params.id, context);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
-        options.png.header(res, req);
-        return options.png.buffer['invalid-token'];
+        return context.services.assets.get('invalid-token');
       }
       const user = await User.findOne({
         email: payload.email,
@@ -344,18 +352,16 @@ class UserService {
         {
           const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
         }
-        const userWsId = CoreWsMailerChannel.getUserWsId(resolveHostKeyContext(options), user._id.toString());
+        const userWsId = CoreWsMailerChannel.getUserWsId(resolveHostKeyContext(context), user._id.toString());
         if (userWsId && CoreWsMailerChannel.client[userWsId]) {
           CoreWsEmitter.emit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
             status: 'email-confirmed',
             id: userWsId,
           });
         }
-        options.png.header(res, req);
-        return options.png.buffer['check'];
+        return context.services.assets.get('check');
       } else {
-        options.png.header(res, req);
-        return options.png.buffer['invalid-token'];
+        return context.services.assets.get('invalid-token');
       }
     }
 
@@ -386,7 +392,7 @@ class UserService {
       case 'auth': {
         let user;
         if (req.auth.user._id.match('guest')) {
-          return await GuestService.auth(req, options);
+          return await GuestService.auth(req, context);
         } else
           user = await User.findOne({
             _id: req.auth.user._id,
@@ -395,7 +401,7 @@ class UserService {
         if (!user) throw new Error('user not found');
 
         return {
-          token: await refreshSessionAndToken(req, res, User, options),
+          token: await refreshSessionAndToken(req, res, User, context),
           user: await User.findOne({
             _id: req.auth.user._id,
           }).select(UserDto.select.get()),
@@ -429,16 +435,16 @@ class UserService {
    * @memberof UserService
    * @param {Object} req - Express request object.
    * @param {Object} res - Express response object.
-   * @param {Object} options - Request options containing host and path.
+   * @param {Object} context - Request context containing host and path.
    * @returns {Promise<Object>} Deleted user data or logout status message.
    * @throws {Error} If logout fails, user not found, or token invalid.
    */
-  static delete = async (req, res, options) => {
+  static delete = async (req, res, context) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProviderService.getModel('User', options);
+    const User = context.services.database.getModel('User');
 
     if (req.params.id === 'logout') {
-      const result = await logoutSession(User, req, res);
+      const result = await logoutSession(User, req, res, context);
       if (!result) throw new Error('Logout failed');
       return { message: 'Logged out successfully' };
     }
@@ -475,15 +481,15 @@ class UserService {
    * @memberof UserService
    * @param {Object} req - Express request object.
    * @param {Object} res - Express response object.
-   * @param {Object} options - Request options containing host and path.
+   * @param {Object} context - Request context containing host and path.
    * @returns {Promise<Object>} Updated user data.
    * @throws {Error} If user not found, token invalid, or invalid file.
    */
-  static put = async (req, res, options) => {
+  static put = async (req, res, context) => {
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProviderService.getModel('File', options);
+    const File = context.services.database.getModel('File');
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProviderService.getModel('User', options);
+    const User = context.services.database.getModel('User');
 
     // req.path | req.baseUrl
 
@@ -520,7 +526,7 @@ class UserService {
     }
 
     if (req.path.startsWith('/recover')) {
-      const payload = verifyJWT(req.params.id, options);
+      const payload = verifyJWT(req.params.id, context);
       const user = await User.findOne({
         email: payload.email,
       });
@@ -581,6 +587,31 @@ class UserService {
         }
       }
     }
+  };
+
+  /**
+   * Prepares the user API of a host path before it takes requests: builds the unique email and
+   * username indexes, then seeds the first administrator. Safe to run again, and on several
+   * instances at once.
+   * @async
+   * @function bootstrap
+   * @memberof UserService
+   * @param {import('../types.js').ApiRouterContext} context - The context of the user API.
+   * @returns {Promise<void>}
+   * @throws {Error} When the unique indexes cannot be built.
+   */
+  static bootstrap = async (context) => {
+    const User = context.services.database.getModel('User');
+    try {
+      await User.createIndexes();
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      throw new Error(
+        `The unique user indexes cannot be built: ${JSON.stringify(error.keyValue ?? {})} repeats. ` +
+          'Merge or remove the duplicate accounts, then start the API again',
+      );
+    }
+    await seedAdministrator(User, context);
   };
 }
 

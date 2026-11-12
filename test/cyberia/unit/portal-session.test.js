@@ -15,11 +15,11 @@ const state = vi.hoisted(() => ({
   reload: vi.fn(),
 }));
 
-vi.mock('../../../src/client/services/user/user.service.js', () => ({
+vi.mock('../../../src/client/services/user/UserService.js', () => ({
   UserMock: { default: state.guest },
   UserService: { get: state.get, post: state.post, delete: state.delete },
 }));
-vi.mock('../../../src/client/services/user/guest.service.js', () => ({
+vi.mock('../../../src/client/services/user/GuestService.js', () => ({
   GuestService: {
     getUserToken: () => state.userToken,
     setUserToken: (token) => (state.userToken = token),
@@ -53,11 +53,11 @@ vi.mock('../../../src/client/components/core/BtnIcon.js', () => ({ BtnIcon: {} }
 vi.mock('../../../src/client/components/core/EventsUI.js', () => ({ EventsUI: {} }));
 vi.mock('../../../src/client/components/core/Input.js', () => ({ Input: {} }));
 vi.mock('../../../src/client/components/core/Validator.js', () => ({ Validator: {} }));
-vi.mock('../../../src/client/services/core/core.service.js', () => ({
+vi.mock('../../../src/client/services/core/CoreService.js', () => ({
   CoreService: {},
   getApiBaseUrl: () => '/avatar',
 }));
-vi.mock('../../../src/client/services/file/file.service.js', () => ({
+vi.mock('../../../src/client/services/file/FileService.js', () => ({
   FileService: { get: async () => ({ status: 'success', data: [{ _id: 'avatar' }] }) },
 }));
 vi.mock('../../../src/client/components/google-auth/GoogleSignIn.js', () => ({

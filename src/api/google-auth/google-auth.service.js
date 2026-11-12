@@ -11,7 +11,7 @@
  */
 import { Types } from 'mongoose';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { loggerFactory } from '../../server/ops/logger.js';
 import { configRejectionFactory } from '../../server/runtime/config-scope.js';
 import { cookieOptionsFactory, generateRandomHex, hashToken, signSessionToken } from '../../server/security/auth.js';
@@ -48,7 +48,7 @@ const USERNAME_ATTEMPTS = 5;
 /**
  * The OAuth client of a host, from the deploy environment.
  * `GOOGLE_CALLBACK_URL` overrides the host's own callback. Google must list it exactly.
- * @param {import('../types.js').RouterOptions} options - Router options.
+ * @param {import('../types.js').ApiRouterContext} options - The API context.
  * @returns {{clientID: string, clientSecret: string, callbackURL: string}}
  * @throws {Error} When the client is incomplete, or its callback is not HTTPS in production.
  * @memberof GoogleAuthService
@@ -56,7 +56,7 @@ const USERNAME_ATTEMPTS = 5;
 const googleAuthConfig = (options) => {
   const { GOOGLE_CLIENT_ID: clientID, GOOGLE_CLIENT_SECRET: clientSecret, GOOGLE_CALLBACK_URL } = process.env;
   const callbackURL = URL.parse(
-    GOOGLE_CALLBACK_URL || `https://${options.host}${options.apiPath}/google-auth/callback`,
+    GOOGLE_CALLBACK_URL || `https://${options.host}${options.apiBasePath}/google-auth/callback`,
   );
   const protocols = process.env.NODE_ENV === 'production' ? ['https:'] : ['https:', 'http:'];
   const [, key, reason] =
@@ -84,7 +84,7 @@ const viewOf = (value) => (GOOGLE_AUTH_VIEWS.includes(value) ? value : GOOGLE_AU
 /**
  * The PWA route a flow ends on: home after a sign-in, the log-in view for a link, else the view
  * the flow started from. It is relative, so it stays on the origin that served the request.
- * @param {import('../types.js').RouterOptions} options - Router options.
+ * @param {import('../types.js').ApiRouterContext} options - The API context.
  * @param {string} status - One of {@link GOOGLE_AUTH_STATUS}.
  * @param {{flow?: string, view?: string}} [flowContext] - The flow, and the view it started from.
  * @returns {string}
@@ -109,14 +109,14 @@ const returnPath = (options, status, { flow = '', view } = {}) => {
  * Attributes of the flow's cookies: signed, HttpOnly, limited to this API. `Lax` sends them on
  * the top-level redirect back from Google.
  * @param {import('express').Request} req - Express request.
- * @param {import('../types.js').RouterOptions} options - Router options.
+ * @param {import('../types.js').ApiRouterContext} options - The API context.
  * @param {number} [maxAge] - Lifetime in milliseconds.
  * @returns {object}
  */
 const flowCookie = (req, options, maxAge) => ({
-  ...cookieOptionsFactory(req, options.host),
+  ...cookieOptionsFactory(req),
   sameSite: 'Lax',
-  path: `${options.apiPath}/google-auth`,
+  path: `${options.apiBasePath}/google-auth`,
   signed: true,
   maxAge,
 });
@@ -134,7 +134,7 @@ const takeFlowCookie = (req, res, options, kind, flow) => {
  * Passport state store that keeps each authorization request, with its PKCE verifier and view, in
  * a cookie named by the request. No server memory holds it, so any replica serves the callback,
  * a callback in another browser fails, and parallel requests do not overwrite one another.
- * @param {import('../types.js').RouterOptions} options - Router options.
+ * @param {import('../types.js').ApiRouterContext} options - The API context.
  * @returns {{store: Function, verify: Function}}
  * @memberof GoogleAuthService
  */
@@ -247,7 +247,7 @@ const provision = async ({ GoogleAuth, User }, claims) => {
 class GoogleAuthService {
   /**
    * The Google strategy of a host. The verify step keeps no Google token.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @param {{clientID: string, clientSecret: string, callbackURL: string}} config - OAuth client.
    * @returns {GoogleStrategy}
    */
@@ -271,7 +271,7 @@ class GoogleAuthService {
    * - A new subject whose email an account holds otherwise must prove that account: `link`.
    * - A new subject with a verified email no account holds gets a new user.
    * @param {object} profile - Passport profile.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{identity?: object, link?: object, status?: string}>} The record, the
    *   claims to link after a log-in, or the reason there is neither.
    */
@@ -313,7 +313,7 @@ class GoogleAuthService {
    * user that has another binding is a conflict, never a transfer.
    * @param {{subject: string, email: string, emailVerified: boolean}} claims - Google claims.
    * @param {Types.ObjectId|string} userId - The user.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{identity?: object, status?: string}>}
    */
   static async bind({ subject, email, emailVerified }, userId, options) {
@@ -331,7 +331,7 @@ class GoogleAuthService {
    * Gives the browser a one-time ticket for the session of an identity. Only its hash is stored.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @param {object} identity - GoogleAuth record.
    * @param {string} flow - The flow the ticket answers.
    * @returns {Promise<void>}
@@ -349,7 +349,7 @@ class GoogleAuthService {
    * Keeps verified Google claims in the browser until a log-in proves the account to link them to.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @param {object} claims - Google claims.
    * @param {string} flow - The flow the claims come from.
    */
@@ -362,7 +362,7 @@ class GoogleAuthService {
    * Removes the authorization request cookie of a callback, so a request serves one callback.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {{flow: string, view: string}} The flow, and the view it started from.
    */
   static takeState(req, res, options) {
@@ -375,7 +375,7 @@ class GoogleAuthService {
    * consumed before it is checked, so it works once.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{token: string, user: object}>} The response `POST /user/auth` gives.
    * @throws {Error} `status` 401 when the ticket is missing, unknown, used or expired.
    */
@@ -410,7 +410,7 @@ class GoogleAuthService {
    * authority for the user's email, the email becomes confirmed.
    * @param {import('express').Request} req - Express request.
    * @param {import('express').Response} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<{user: object}>}
    * @throws {Error} `status` 401 when the link request or the session is not valid and recent,
    *   409 when the Google account or the user has another link.

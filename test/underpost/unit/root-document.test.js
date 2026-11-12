@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'fs-extra';
 import { sanitizeHtml, ssrFactory } from '../../../src/client-builder/ssr.js';
-import { DefaultConf } from '../../../underpost.config.js';
+import underpostConfig from '../../../underpost.config.js';
 
 // The root element holds session and theme state.
 
@@ -22,9 +22,9 @@ vi.mock('../../../src/client/components/core/ClientEvents.js', () => ({
   authLoginEvents: { emit: vi.fn() },
   authLogoutEvents: { emit: vi.fn() },
 }));
-vi.mock('../../../src/client/services/core/core.service.js', () => ({ CoreService: {}, getApiBaseUrl: vi.fn() }));
-vi.mock('../../../src/client/services/file/file.service.js', () => ({ FileService: {} }));
-vi.mock('../../../src/client/services/user/user.service.js', () => ({ UserService: {} }));
+vi.mock('../../../src/client/services/core/CoreService.js', () => ({ CoreService: {}, getApiBaseUrl: vi.fn() }));
+vi.mock('../../../src/client/services/file/FileService.js', () => ({ FileService: {} }));
+vi.mock('../../../src/client/services/user/UserService.js', () => ({ UserService: {} }));
 
 const { LogIn } = await import('../../../src/client/components/core/LogIn.js');
 const { LogOut } = await import('../../../src/client/components/core/LogOut.js');
@@ -118,13 +118,18 @@ describe('root document', () => {
     }
   });
 
-  it.each(Object.entries(DefaultConf.ssr))('%s renders its body list without object text', async (client, { body }) => {
-    const components = await Promise.all(body.map((name) => ssrFactory(`./src/client/ssr/body/${name}.js`)));
-    const ssrBodyComponents = components.map((component) => component({ ssrPath: '/', ttiLoadTimeLimit: 1 })).join('');
-    const document = await render({ ssrBodyComponents });
-    expect(document).not.toContain('[object Object]');
-    expect(document).toContain(ssrBodyComponents);
-  });
+  it.each(Object.entries(underpostConfig.ssr))(
+    '%s renders its body list without object text',
+    async (client, { body }) => {
+      const components = await Promise.all(body.map((name) => ssrFactory(`./src/client/ssr/body/${name}.js`)));
+      const ssrBodyComponents = components
+        .map((component) => component({ ssrPath: '/', ttiLoadTimeLimit: 1 }))
+        .join('');
+      const document = await render({ ssrBodyComponents });
+      expect(document).not.toContain('[object Object]');
+      expect(document).toContain(ssrBodyComponents);
+    },
+  );
 });
 
 describe('session state on the root element', () => {

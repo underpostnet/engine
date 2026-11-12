@@ -75,12 +75,12 @@ vi.mock('../../../src/client/components/core/ClientEvents.js', () => ({
   authSignupEvents: { on: vi.fn(), off: vi.fn(), has: vi.fn(), emit: vi.fn() },
 }));
 vi.mock('../../../src/client/components/core/Webhook.js', () => ({ WebhookProvider: { register: vi.fn() } }));
-vi.mock('../../../src/client/services/core/core.service.js', () => ({ CoreService: {}, getApiBaseUrl: vi.fn() }));
-vi.mock('../../../src/client/services/file/file.service.js', () => ({ FileService: {} }));
-vi.mock('../../../src/client/services/user/user.service.js', () => ({ UserService: { post: vi.fn() } }));
-vi.mock('../../../src/client/services/google-auth/google-auth.service.js', () => ({
+vi.mock('../../../src/client/services/core/CoreService.js', () => ({ CoreService: {}, getApiBaseUrl: vi.fn() }));
+vi.mock('../../../src/client/services/file/FileService.js', () => ({ FileService: {} }));
+vi.mock('../../../src/client/services/user/UserService.js', () => ({ UserService: { post: vi.fn() } }));
+vi.mock('../../../src/client/services/google-auth/GoogleAuthService.js', () => ({
   GoogleAuthService: {
-    signInUrl: (view) => `https://www.cyberiaonline.com/api/v1/google-auth?view=${view}`,
+    signInUrl: (view) => `https://services.cyberiaonline.com/api/v1/google-auth?view=${view}`,
     session: vi.fn(),
     link: vi.fn(),
   },
@@ -99,7 +99,7 @@ const { LogIn } = await import('../../../src/client/components/core/LogIn.js');
 const { SignUp } = await import('../../../src/client/components/core/SignUp.js');
 const { Auth } = await import('../../../src/client/components/core/Auth.js');
 const { NotificationManager } = await import('../../../src/client/components/core/NotificationManager.js');
-const { GoogleAuthService } = await import('../../../src/client/services/google-auth/google-auth.service.js');
+const { GoogleAuthService } = await import('../../../src/client/services/google-auth/GoogleAuthService.js');
 afterAll(() => vi.unstubAllGlobals());
 
 const flushTimers = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -134,7 +134,7 @@ describe('Google sign-in button', () => {
     const button = elements.get(`.${id}`);
     expect(button.disabled).toBe(true);
     expect(button.attributes['aria-busy']).toBe('true');
-    expect(location.assign).toHaveBeenCalledWith('https://www.cyberiaonline.com/api/v1/google-auth?view=sign-up');
+    expect(location.assign).toHaveBeenCalledWith('https://services.cyberiaonline.com/api/v1/google-auth?view=sign-up');
 
     const [event, restore, options] = windowStub.addEventListener.mock.calls[0];
     expect([event, options]).toEqual(['pageshow', { once: true }]);

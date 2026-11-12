@@ -8,7 +8,7 @@ import {
   usernameCandidates,
 } from '../../../src/api/google-auth/google-auth.service.js';
 
-const options = { host: 'www.cyberiaonline.com', path: '/', apiPath: '/api/v1' };
+const options = { host: 'www.cyberiaonline.com', path: '/', apiBasePath: '/api/v1' };
 const ENV_KEYS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL', 'NODE_ENV'];
 const saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
 

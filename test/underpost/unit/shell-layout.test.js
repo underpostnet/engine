@@ -29,7 +29,7 @@ vi.mock('../../../src/client/components/core/VanillaJs.js', () => ({
   },
   htmls: (selector, markup) => (dom.elements.get(selector).markup = markup),
 }));
-vi.mock('../../../src/client/components/core/windowGetDimensions.js', () => ({ windowGetW: () => dom.viewport.width }));
+vi.mock('../../../src/client/components/core/WindowGetDimensions.js', () => ({ windowGetW: () => dom.viewport.width }));
 vi.mock('../../../src/client/components/core/Responsive.js', () => ({
   Responsive: { onChanged: (listener, { key }) => (dom.responsive[key] = listener) },
 }));

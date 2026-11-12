@@ -18,6 +18,14 @@ class TranslateCyberiaPortal {
       en: 'Object Layer Viewer',
       es: 'Object Layer Viewer',
     };
+    Translate.Data['cyberia-content-lifecycle'] = {
+      en: 'Cyberia Content Lifecycle',
+      es: 'Cyberia Content Lifecycle',
+    };
+    Translate.Data['cyberia-saga-engine'] = {
+      en: 'Cyberia Saga Engine',
+      es: 'Cyberia Saga Engine',
+    };
     Translate.Data['cyberia-procedural-engine'] = {
       en: 'Cyberia Procedural Engine',
       es: 'Cyberia Procedural Engine',

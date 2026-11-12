@@ -4,17 +4,16 @@
  *
  * Needs a `mongod` binary: `UNDERPOST_MONGOD_BIN`, or one on PATH. Skipped otherwise.
  */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { jwtSign } from '../../../src/server/security/auth.js';
 import { apiPathOf } from '../../../src/server/domain/api-contract.js';
-import { UserRouter } from '../../../src/api/user/user.router.js';
-import { MailerProvider } from '../../../src/mailer/MailerProvider.js';
-import { resolveHostKeyContext } from '../../../src/server/runtime/conf.js';
+import { ApiModule as UserModule } from '../../../src/api/user/user.router.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
+import { recordingMailer, startTestApi } from '../../support/api-module.js';
 
 const CONTEXT = { host: 'users.test', path: '/' };
 const API = apiPathOf('/');
@@ -28,6 +27,7 @@ const ENV = {
   DEFAULT_ADMIN_PASSWORD: PASSWORD,
 };
 const saved = Object.fromEntries(Object.keys(ENV).map((key) => [key, process.env[key]]));
+const mailer = recordingMailer();
 
 /** A browser that keeps its cookies and its access token. */
 const browser = (origin) => {
@@ -113,15 +113,12 @@ describe.skipIf(!mongodBinary)('user API', () => {
     const app = express();
     app.use(express.json());
     app.use(cookieParser(process.env.JWT_SECRET));
-    app.use(
-      `${API}/user`,
-      UserRouter.router({ ...CONTEXT, apiPath: API, authMiddleware: authMiddlewareFactory(CONTEXT) }),
-    );
+    app.use(`${API}/user`, (await startTestApi(UserModule, { ...CONTEXT, services: { mailer } })).router);
     origin = await new Promise((resolve) => {
       server = app.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`));
     });
-    // The router creates the first administrator in the background.
-    await vi.waitFor(async () => expect(await User.findOne({ role: 'admin' })).toBeTruthy(), { timeout: 15000 });
+    // The start of the module created the first administrator before the router mounted.
+    expect(await User.countDocuments({ role: 'admin' })).toBe(1);
   });
 
   afterAll(async () => {
@@ -151,6 +148,43 @@ describe.skipIf(!mongodBinary)('user API', () => {
     expect(profile.body.data.password).toBeUndefined();
   });
 
+  it('answers a declared asset with its type, cache policy and ETag, and nothing for another name', async () => {
+    const res = await fetch(`${origin}${API}/user/assets/avatar`, { headers: { origin: 'https://other.test' } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=86400, must-revalidate');
+    expect(res.headers.get('cross-origin-resource-policy')).toBe('cross-origin');
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+    const etag = res.headers.get('etag');
+    expect(etag).toMatch(/^"[\w-]+"$/);
+    // A conditional fetch adds `Cache-Control: no-cache` unless the request names a policy.
+    const again = await fetch(`${origin}${API}/user/assets/avatar`, {
+      headers: { 'if-none-match': etag, 'cache-control': 'max-age=0' },
+    });
+    expect(again.status).toBe(304);
+    for (const name of ['unknown', '..%2F..%2Fpackage.json', 'constructor']) {
+      const missing = await fetch(`${origin}${API}/user/assets/${name}`);
+      expect(missing.status).toBe(404);
+      expect(await missing.json()).toMatchObject({
+        status: 'error',
+        message: `Asset ${decodeURIComponent(name)} not found`,
+      });
+    }
+  });
+
+  it('starts once per host path: no second administrator, the same asset buffers', async () => {
+    const other = { host: 'other.users.test', path: '/' };
+    await DataBaseProviderService.load({
+      apis: ['user', 'file'],
+      ...other,
+      db: { provider: 'mongoose', host: mongod.host, name: 'user-api' },
+    });
+    const first = await startTestApi(UserModule, { ...CONTEXT, services: { mailer } });
+    const second = await startTestApi(UserModule, { ...other, services: { mailer } });
+    expect(await User.countDocuments({ role: 'admin' })).toBe(1);
+    expect(first.context.services.assets.get('check').buffer).toBe(second.context.services.assets.get('check').buffer);
+  });
+
   it('serves the mailer images: an asset, a recovery link and an email confirmation', async () => {
     const avatar = await png(`${API}/user/assets/avatar`);
     expect(avatar.length).toBeGreaterThan(0);
@@ -171,13 +205,7 @@ describe.skipIf(!mongodBinary)('user API', () => {
   });
 
   it('sends the recovery and the verification mails through the host mailer', async () => {
-    const id = resolveHostKeyContext(CONTEXT);
-    const words = { H1: { en: 'Title' }, P1: { en: 'Body' }, BTN_LABEL: { en: 'Go' } };
-    MailerProvider.instance[id] = {
-      translateTemplates: { recoverEmail: words, confirmEmail: words },
-      templates: { userRecoverEmail: '{{H1}} {{TOKEN}} {{RECOVER_WEB_URL}}', userVerifyEmail: '{{H1}} {{TOKEN}}' },
-    };
-    const send = vi.spyOn(MailerProvider, 'send').mockResolvedValue(true);
+    mailer.sent.length = 0;
     try {
       const { client } = await signedIn('mailed', 'mailed@users.test');
       const recovery = await client.json(`${API}/user/recover-verify-email`, {
@@ -185,7 +213,7 @@ describe.skipIf(!mongodBinary)('user API', () => {
         body: { email: 'mailed@users.test', hostname: 'users.test', proxyPath: '/' },
       });
       expect(recovery).toMatchObject({ status: 200, body: { data: { message: 'email send successfully' } } });
-      expect(send.mock.calls[0][0].sendOptions.html).toContain('https://users.test/recover?payload=');
+      expect(mailer.sent[0].html).toContain('https://users.test/recover?payload=');
 
       expect(
         (await client.json(`${API}/user/mailer/verify-email`, { method: 'POST', body: { email: 'not-an-email' } })).body
@@ -196,7 +224,7 @@ describe.skipIf(!mongodBinary)('user API', () => {
         body: { email: 'renamed@users.test', hostname: 'users.test' },
       });
       expect(verify.status).toBe(200);
-      expect(send.mock.calls.at(-1)[0].sendOptions.to).toBe('renamed@users.test');
+      expect(mailer.sent.at(-1).to).toBe('renamed@users.test');
       expect((await User.findOne({ username: 'mailed' })).email).toBe('renamed@users.test');
 
       await User.updateOne({ username: 'mailed' }, { emailConfirmed: true });
@@ -209,7 +237,7 @@ describe.skipIf(!mongodBinary)('user API', () => {
         ).body.message,
       ).toBe('email already confirmed');
 
-      send.mockResolvedValue(false);
+      mailer.failing = true;
       expect(
         (
           await client.json(`${API}/user/recover-verify-email`, {
@@ -219,8 +247,7 @@ describe.skipIf(!mongodBinary)('user API', () => {
         ).body.message,
       ).toBe('email send error');
     } finally {
-      send.mockRestore();
-      delete MailerProvider.instance[id];
+      mailer.failing = false;
     }
   });
 

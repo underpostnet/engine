@@ -26,7 +26,7 @@ The deploy configuration also names the API, its client parts and its packages:
 
 | File                 | Entry                                                                                                                        |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `conf.server.json`   | `google-auth` in `apis` of `www.cyberiaonline.com`                                                                           |
+| `conf.server.json`   | `google-auth` in `apis` of `services.cyberiaonline.com`                                                                      |
 | `conf.client.json`   | `GoogleSignIn` and `TranslateGoogleAuth` in the `google-auth` components and `google-auth` in `services` of `cyberia-portal` |
 | `catalog-cyberia.js` | `passport` and `passport-google-oauth20` in `packageDependencies`                                                            |
 
@@ -38,17 +38,19 @@ In production, the callback must be HTTPS. The start error names the missing key
 
 ## Production
 
-The default callback of `www.cyberiaonline.com` is
-`https://www.cyberiaonline.com/api/v1/google-auth/callback`. The OAuth client lists this URI, so
-production needs no `GOOGLE_CALLBACK_URL`. Apply the environment and restart the deploy.
+The default callback of `services.cyberiaonline.com` is
+`https://services.cyberiaonline.com/api/v1/google-auth/callback`. List this URI as an authorized
+redirect URI of the OAuth client, and `https://services.cyberiaonline.com` as an authorized
+JavaScript origin. Production then needs no `GOOGLE_CALLBACK_URL`. Apply the environment and
+restart the deploy.
 
 ## Development
 
-The development engine serves the portal on `http://localhost:4008`.
+The development engine serves the portal on `http://localhost:4004`.
 
-1. In the Google Cloud console, add `http://localhost:4008/api/v1/google-auth/callback` to the
+1. In the Google Cloud console, add `http://localhost:4004/api/v1/google-auth/callback` to the
    **Authorized redirect URIs** of the OAuth client.
-2. In `.env.development`, set `GOOGLE_CALLBACK_URL=http://localhost:4008/api/v1/google-auth/callback`.
+2. In `.env.development`, set `GOOGLE_CALLBACK_URL=http://localhost:4004/api/v1/google-auth/callback`.
 3. Restart the development engine.
 
 Without these steps, Google sends the browser to the production callback, and sign-in fails there.

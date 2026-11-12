@@ -20,8 +20,8 @@ import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
-import { isDevProxyContext } from '../runtime/conf.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
+import { AUTH_CONTRIBUTION, documented, roleContribution } from '../domain/api-document.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -281,9 +281,15 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
         return res.status(401).json({ status: 'error', message: 'unauthorized device' });
       }
 
+      // A token answers only on the host path that signed it, and its session lives in that database.
+      if (payload.host !== options.host || payload.path !== options.path) {
+        logger.warn(`Host or path mismatch for ${payload._id}`);
+        return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
+      }
+
       // Non-guest verify session exists
       if (payload.jwtid && payload.role !== 'guest') {
-        const User = DataBaseProviderService.getModel('user', { host: payload.host, path: payload.path });
+        const User = DataBaseProviderService.getModel('user', options);
         const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.jwtid }).lean();
 
         if (!user) {
@@ -328,7 +334,7 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
       return res.status(401).json({ status: 'error', message: 'unauthorized' });
     }
   };
-  return authMiddleware;
+  return documented(authMiddleware, AUTH_CONTRIBUTION);
 };
 
 /**
@@ -338,7 +344,7 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
  * @param {import('express').NextFunction} next The next middleware function.
  * @memberof Auth
  */
-const adminGuard = (req, res, next) => {
+const adminGuard = documented((req, res, next) => {
   try {
     if (!req.auth || !commonAdminGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
@@ -347,7 +353,7 @@ const adminGuard = (req, res, next) => {
     logger.error(err);
     return res.status(400).json({ status: 'error', message: 'bad request' });
   }
-};
+}, roleContribution('admin'));
 /**
  * Express middleware to guard routes for moderator or admin users.
  * @param {import('express').Request} req The Express request object.
@@ -355,7 +361,7 @@ const adminGuard = (req, res, next) => {
  * @param {import('express').NextFunction} next The next middleware function.
  * @memberof Auth
  */
-const moderatorGuard = (req, res, next) => {
+const moderatorGuard = documented((req, res, next) => {
   try {
     if (!req.auth || !commonModeratorGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
@@ -364,7 +370,7 @@ const moderatorGuard = (req, res, next) => {
     logger.error(err);
     return res.status(400).json({ status: 'error', message: 'bad request' });
   }
-};
+}, roleContribution('moderator'));
 /**
  * Express middleware to guard routes for authenticated users (any non-guest role).
  * @param {import('express').Request} req The Express request object.
@@ -372,7 +378,7 @@ const moderatorGuard = (req, res, next) => {
  * @param {import('express').NextFunction} next The next middleware function.
  * @memberof Auth
  */
-const userGuard = (req, res, next) => {
+const userGuard = documented((req, res, next) => {
   try {
     if (!req.auth || !commonUserGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
@@ -381,7 +387,23 @@ const userGuard = (req, res, next) => {
     logger.error(err);
     return res.status(400).json({ status: 'error', message: 'bad request' });
   }
-};
+}, roleContribution('user'));
+
+/**
+ * The authentication service of one host path, as an API module receives it: the token check, and
+ * each role check after it.
+ * @param {{host:string, path:string}} identity - The host path.
+ * @param {import('express').RequestHandler} [authenticate] - The token check; {@link authMiddlewareFactory} by default.
+ * @returns {import('../../api/types.js').ApiAuthService}
+ * @memberof Auth
+ */
+const authServiceFactory = (identity, authenticate = authMiddlewareFactory(identity)) =>
+  Object.freeze({
+    authenticate,
+    requireUser: Object.freeze([authenticate, userGuard]),
+    requireModerator: Object.freeze([authenticate, moderatorGuard]),
+    requireAdmin: Object.freeze([authenticate, adminGuard]),
+  });
 
 /**
  * Object-level authorization: the owner of a resource or an admin acts on it; everyone else is
@@ -416,36 +438,48 @@ const validatePasswordMiddleware = (req) => {
 // ---------- Session & Refresh token management ----------
 
 /**
- * Creates cookie options for the refresh token.
+ * Attributes of the refresh token cookie: host-only (no `Domain`), HttpOnly, on the whole host.
+ * A secure request gets `SameSite=None`, which needs `Secure`; any other gets `Lax`.
  * @param {import('express').Request} req The Express request object.
- * @param {string} host The host name.
  * @returns {object} Cookie options.
  * @memberof Auth
  */
-const cookieOptionsFactory = (req, host) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // Determine if request is secure: respect X-Forwarded-Proto when behind proxy
+const cookieOptionsFactory = (req) => {
+  // Behind a proxy the scheme the client used is in X-Forwarded-Proto.
   const forwardedProto = (req.headers && req.headers['x-forwarded-proto']) || '';
   const reqIsSecure = Boolean(req.secure || forwardedProto.split(',')[0] === 'https');
-
-  // secure must be true for SameSite=None to work across sites
-  const secure = isProduction ? reqIsSecure : req.protocol === 'https';
-  const sameSite = secure ? 'None' : 'Lax';
-
-  // Safe parse of maxAge minutes
-  const maxAge = parseInt(process.env.ACCESS_EXPIRE_MINUTES) * 60 * 1000;
-
-  const opts = {
+  const secure = process.env.NODE_ENV === 'production' ? reqIsSecure : req.protocol === 'https';
+  return {
     httpOnly: true,
     secure,
-    sameSite,
+    sameSite: secure ? 'None' : 'Lax',
     path: '/',
-    domain: process.env.NODE_ENV === 'production' || isDevProxyContext() ? host : 'localhost',
-    maxAge,
+    maxAge: parseInt(process.env.ACCESS_EXPIRE_MINUTES) * 60 * 1000,
   };
+};
 
-  return opts;
+/**
+ * Removes the refresh token cookie with the attributes it was set with.
+ * @param {import('express').Request} req The Express request object.
+ * @param {import('express').Response} res The Express response object.
+ * @returns {void}
+ * @memberof Auth
+ */
+const clearRefreshCookie = (req, res) => res.clearCookie('refreshToken', cookieOptionsFactory(req));
+
+/**
+ * Refuses a cross-origin call that the refresh cookie authenticates. Its `Origin` must be the host
+ * itself or an allowed origin of the host. A call without `Origin` is no cross-origin browser call.
+ * @param {import('express').Request} req The Express request object.
+ * @param {string[]} [origins] Allowed origins of the host.
+ * @returns {void}
+ * @throws {Error} With status 403 for any other origin.
+ * @memberof Auth
+ */
+const assertCookieOrigin = (req, origins = []) => {
+  const origin = req.headers?.origin;
+  if (!origin || origins.includes(origin) || URL.parse(origin)?.host === req.get('host')) return;
+  throw Object.assign(new Error('Origin not allowed'), { status: 403, expected: true });
 };
 
 /**
@@ -497,7 +531,7 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
   const jwtid = session._id.toString();
 
   // Secure cookie settings
-  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req, options.host));
+  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req));
 
   return { jwtid };
 }
@@ -556,14 +590,17 @@ async function removeSession(User, userId, sessionId) {
  * @param {import('mongoose').Model} User The Mongoose User model.
  * @param {import('express').Request} req The Express request object.
  * @param {import('express').Response} res The Express response object.
+ * @param {{origins?: string[]}} [options] The API context: the allowed origins of the host.
  * @returns {Promise<boolean>} True if a session was found and removed, false otherwise.
+ * @throws {Error} With status 403 for a foreign origin.
  * @memberof Auth
  */
-async function logoutSession(User, req, res) {
+async function logoutSession(User, req, res, options = {}) {
+  assertCookieOrigin(req, options.origins);
   const found = await findCookieSession(User, req);
   if (!found) return false;
   const result = await removeSession(User, found.user._id, found.session._id);
-  res.clearCookie('refreshToken', { path: '/' });
+  clearRefreshCookie(req, res);
   return result.modifiedCount > 0;
 }
 
@@ -606,18 +643,20 @@ async function createUserAndSession(req, res, User, options = { host: '', path: 
  * @param {object} options Additional options.
  * @param {string} options.host The host name.
  * @param {string} options.path The path name.
+ * @param {string[]} [options.origins] The allowed origins of the host.
  * @returns {Promise<{token: string}>} The new access token.
- * @throws {Error} If the refresh token is missing, invalid, or expired.
+ * @throws {Error} If the origin is foreign, or the refresh token is missing, invalid, or expired.
  * @memberof Auth
  */
 async function refreshSessionAndToken(req, res, User, options = { host: '', path: '' }) {
+  assertCookieOrigin(req, options.origins);
   if (!req.cookies?.refreshToken) throw new Error('Refresh token missing');
 
   const found = await findCookieSession(User, req);
   if (!found) {
     // TODO: on cors requests, this will throw an error, because the cookie is not sent.
     logger.warn('Refresh token reuse or invalid token detected');
-    res.clearCookie('refreshToken', { path: '/' });
+    clearRefreshCookie(req, res);
     throw new Error('Invalid refresh token');
   }
   const { user, session } = found;
@@ -625,14 +664,14 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
   const restriction = restrictionOf(user);
   if (restriction) {
     await removeSession(User, user._id, session._id);
-    res.clearCookie('refreshToken', { path: '/' });
+    clearRefreshCookie(req, res);
     throw Object.assign(new Error(restrictionMessage(restriction)), { status: 403 });
   }
 
   // A session idle past the life of its cookie is over, whatever cookie a client still presents.
   if (Date.now() - lastRefreshOf(session) > sessionIdleLimit()) {
     await removeSession(User, user._id, session._id);
-    res.clearCookie('refreshToken', { path: '/' });
+    clearRefreshCookie(req, res);
     throw new Error('Refresh token expired');
   }
 
@@ -646,7 +685,7 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
 
   logger.info(`Refreshed session ${session._id} of user ${user._id}`);
 
-  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req, options.host));
+  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req));
 
   return jwtSign(
     UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
@@ -791,6 +830,7 @@ function applySecurity(app, opts = {}) {
 
 export {
   authMiddlewareFactory,
+  authServiceFactory,
   hashPassword,
   verifyPassword,
   hashToken,
@@ -808,6 +848,8 @@ export {
   isServiceKey,
   servicePrincipal,
   cookieOptionsFactory,
+  clearRefreshCookie,
+  assertCookieOrigin,
   createSessionAndUserToken,
   findCookieSession,
   signSessionToken,
