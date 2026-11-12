@@ -5,14 +5,14 @@ through, the game server topology it lands on, and how to verify the result.
 
 ## Bootstrap and normal deploys
 
-| Operation                      | Bootstrap (explicit, `--confirm <deploy-id>`)        | Normal deploy                    |
-| ------------------------------ | ---------------------------------------------------- | -------------------------------- |
-| Create databases, indexes      | yes                                                  | idempotent only                  |
-| Seed or import content         | yes                                                  | into a new release database only |
-| `cyberia ol --drop`            | yes                                                  | never                            |
-| `cyberia run-workflow drop-db` | yes; keeps player records unless `--include-runtime` | never                            |
-| `cyberia instance --drop`      | yes                                                  | never                            |
-| Touch player or runtime state  | only with `--include-runtime`                        | never                            |
+| Operation                             | Bootstrap (explicit, `--confirm <deploy-id>`)        | Normal deploy                    |
+| ------------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| Create databases, indexes             | yes                                                  | idempotent only                  |
+| Seed or import content                | yes                                                  | into a new release database only |
+| `cyberia content object-layer --drop` | yes                                                  | never                            |
+| `cyberia content workspace drop`      | yes; keeps player records unless `--include-runtime` | never                            |
+| `cyberia instance snapshot --drop`    | yes                                                  | never                            |
+| Touch player or runtime state         | only with `--include-runtime`                        | never                            |
 
 The first deploy on the release layout has no active release: the new pod serves the workspace
 until Stage G promotes the first validated release. The content collections a runtime database
@@ -42,8 +42,10 @@ Set `SKIP_CONTENT_RELEASE=1` to deploy the runtimes only. The content candidate 
 A live change is a change to the active release that its build does not hold
 ([Live changes](../explanation/content-releases.md#live-changes)). The promotion stops serving it, so
 Stage D stops the deploy before the rollout and names the changed content.
-[Export the live content](#export-the-live-content) to keep the changes. Set `DISCARD_LIVE_CHANGES=1`
-to promote and stop serving them.
+[Export the live content](#export-the-live-content) to keep the changes. To promote and stop serving
+them, set `DISCARD_LIVE_CHANGES=<active-release-id>` and `DISCARD_REASON=<reason>`. The id must be the
+active release. The reason must not be empty and must not contain quotes, `$`, backticks or
+backslashes. The ledger records both with the changes.
 
 `REPLICAS` sets the pod count of each colour (default `1`). Stage E and a switch back render this count.
 
@@ -85,9 +87,10 @@ and their records.
 
 ## Export the live content
 
-`cyberia content-release export-live` turns the content production serves into `cyberia-content`
+`cyberia content source export-live` turns the content production serves into `cyberia-content`
 source. It reads a **production content baseline**: a capture of the active release in the object
-store. Git never carries the database.
+store. Git never carries the database. A [content lifecycle](run-a-content-lifecycle.md) runs these
+steps across the hosts and records each one.
 
 On the production control host:
 
@@ -97,8 +100,8 @@ On the production control host:
    cluster, so the capture opens a `kubectl port-forward` to the primary for its run and closes it:
 
    ```bash
-   node bin/cyberia content-baseline capture
-   node bin/cyberia content-baseline verify
+   node bin/cyberia content baseline capture --env-path ./engine-private/conf/dd-cyberia/.env.production
+   node bin/cyberia content baseline verify --env-path ./engine-private/conf/dd-cyberia/.env.production
    ```
 
 On the development host:
@@ -107,25 +110,26 @@ On the development host:
    refuses the replica set it was captured from:
 
    ```bash
-   node bin/cyberia content-baseline list --dev
-   node bin/cyberia content-baseline restore <baseline-id> --dev --confirm <baseline-id>
+   node bin/cyberia content baseline list --dev
+   node bin/cyberia content baseline restore <baseline-id> --dev --confirm <baseline-id>
    ```
 
-3. Bootstrap the workspace when the host has none, then preview the export and write it:
+3. Preview the export and write it. The export reads the baseline only, so the workspace needs no
+   reset first:
 
    ```bash
-   node bin/cyberia run-workflow import-content --clean --confirm dd-cyberia --dev
-   node bin/cyberia content-release export-live --baseline <baseline-id> --dev
-   node bin/cyberia content-release export-live --baseline <baseline-id> --apply --dev
+   node bin/cyberia content source export-live --baseline <baseline-id> --dev
+   node bin/cyberia content source export-live --baseline <baseline-id> --apply --dev
    ```
 
 4. Review `git diff` in `cyberia-content`, run its tests, and commit. Put the `Baseline:` line the
    export prints in the commit message: it records the provenance of the change.
 5. Build, lock and publish the source release: `cyberia release build --commit`,
    `cyberia release lock --commit`, `cyberia release publish --private`.
-6. Deploy with `DISCARD_LIVE_CHANGES=1`. The live changes are now source, but the guard compares the
-   release with its build, so it still names them. The promotion records the discard in the audit
-   trail of both releases.
+6. Deploy with `DISCARD_LIVE_CHANGES=<active-release-id>` and
+   `DISCARD_REASON="exported to cyberia-content <revision>"`. The live changes are now source, but the
+   guard compares the release with its build, so it still names them. The promotion records the
+   discard, the changes and the reason in the audit trail of both releases.
 
 ### Consistency of a baseline
 
@@ -139,7 +143,7 @@ captures again (`--attempts`, 3 by default). The manifest records both hashes.
 The export restores the release database of the baseline into a scratch release database,
 `<content partition>-capture-<baseline-id>`. It then imports the absent content of the content
 artifact: the documents a newer schema adds, such as economies and markets. A document production
-holds stays as production holds it. Every check of `content-release validate` runs, except the
+holds stays as production holds it. Every check of `content release validate` runs, except the
 canonical check, because nothing is published. Each world is exported into a temporary directory.
 
 The scratch copy then takes the global content production must keep: each definition an item
@@ -158,13 +162,13 @@ its map registry rows are removed at the end. Nothing is committed or published 
 
 | Command                                   | Where            | What it does                                                           |
 | ----------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
-| `content-baseline capture`                | control host     | Captures the active release; `failed` when it cannot prove consistency |
-| `content-baseline list`                   | any              | `available`, `failed` or `incomplete`, size, verified                  |
-| `content-baseline inspect [id]`           | any              | Release, source revision, consistency, scope, streams, verifications   |
-| `content-baseline verify [id]`            | any              | Reads every part, checks the archive inventory, records the result     |
-| `content-baseline download [id]`          | development host | Downloads and verifies into `~/.cache/underpost/content-baselines`     |
-| `content-baseline restore <id> --confirm` | development host | Restores the release database, its Files and its ledger row            |
-| `content-baseline prune [--dry-run]`      | any              | Removes baselines beyond `--keep` (5) and failed captures              |
+| `content baseline capture`                | control host     | Captures the active release; `failed` when it cannot prove consistency |
+| `content baseline list`                   | any              | `available`, `failed` or `incomplete`, size, verified                  |
+| `content baseline inspect [id]`           | any              | Release, source revision, consistency, scope, streams, verifications   |
+| `content baseline verify [id]`            | any              | Reads every part, checks the archive inventory, records the result     |
+| `content baseline download [id]`          | development host | Downloads and verifies into `~/.cache/underpost/content-baselines`     |
+| `content baseline restore <id> --confirm` | development host | Restores the release database, its Files and its ledger row            |
+| `content baseline prune [--dry-run]`      | any              | Removes baselines beyond `--keep` (5) and failed captures              |
 
 A baseline is a backup of the `content-baseline` profile: the format, the seal, retention and
 verification are those of [DB and Backup Management](../../nexodev/how-to/manage-databases-and-backups.md).
@@ -175,7 +179,7 @@ The capture runs its dump in a client pod, never in the `mongod` container.
 A failure from Stage E until the game server is ready in Stage G restores what served before the
 deploy, in this order:
 
-1. The content release this deploy promoted is rolled back: `content-release rollback --from <id>`,
+1. The content release this deploy promoted is rolled back: `content release rollback --from <id>`,
    which does nothing unless that release is the active one.
 2. Traffic returns to the colour that served before:
    `underpost run promote <deploy-id> --traffic <colour>`, which only routes to a colour that is
@@ -211,7 +215,7 @@ The CD workflow `engine-cyberia.cd.yml` takes the channel and `REPLICAS` as inpu
 
 ## Release commands on the live deployment
 
-`deploy/dd-cyberia/content-release.sh <status | validate <id> | live-changes | promote <id> [--discard-live-changes] | rollback | retire | prune>`
+`deploy/dd-cyberia/content-release.sh <status | validate <id> | live-changes | promote <id> [--discard-live-changes <active-id> --discard-reason <why>] | rollback | retire | prune>`
 runs one release command in a Release Job, on the image the live colour serves, with the
 data-release Secret alone. Kubernetes removes the Job a day after it ends.
 

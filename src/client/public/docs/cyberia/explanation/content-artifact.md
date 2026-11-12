@@ -14,9 +14,9 @@ workspace (engine root)
 ├── cyberia-deployment   deployment state and underpost.lock.json
 └── engine               content-artifact.js
                              │
-                             ├── cyberia instance --import / --export
+                             ├── cyberia instance snapshot --import / --export
                              ├── cyberia content import
-                             └── cyberia content-release build (content-release.js)
+                             └── cyberia content release build (content-release.js)
                                           │
                                           ▼
                              MongoDB and the Object Layer
@@ -109,7 +109,7 @@ artifact: `cyberia-content pack` writes the same `dist/` into a tarball, and its
 has the same layout. A registry, an OCI image or a release asset can carry that tarball later; the
 engine reads it the same way.
 
-A source checkout takes writes: `cyberia instance --export` writes into its instance sources by
+A source checkout takes writes: `cyberia instance snapshot --export` writes into its instance sources by
 default, and `cyberia stat-contract` writes its runtime contract. A packed artifact has no sources,
 so nothing writes into it.
 
@@ -203,11 +203,14 @@ Studio's work stays: a written definition keeps the render of the bound one, a q
 keeps its source map and cell, and a map keeps its entities. A compiled map holds none: Studio
 places them.
 
-`--saga <code>` imports one compiled saga the same way, then its `CyberiaSaga` record and its
-instance. The instance conf references the entity-type defaults of every entity the saga places.
-Only an insert writes the instance portal graph.
+`--saga <code>` imports one compiled saga the same way, its `CyberiaSaga` record, and the world it
+joins: the authoring world of the saga code, or the world `--instance` names. The world conf
+references the entity-type defaults of every entity the saga places. A world can host maps of
+several sagas, so the import only adds what the world lacks: its other maps, its settings and its
+portal graph stay as stored. A map another world owns stays there. A saga is never a world of its
+own: see [Saga Engine](saga-engine.md#import-into-a-world).
 
-`cyberia instance <code> --import` restores an instance backup of the artifact, and it needs the
+`cyberia instance snapshot <code> --import` restores an instance backup of the artifact, and it needs the
 foundation in the store:
 
 - The backup is a snapshot: `object-layers/<itemId>.json` is the definition the item ran when it
@@ -255,17 +258,17 @@ artifact lacks one of them, and it never imports another saga or instance that t
 An import starts only once the one before it succeeded, so a failed foundation import stops the
 instances. `src/projects/cyberia/content/content-release.js` holds that order, and every path runs it:
 
-| Path                                  | Store                       | Imports                                                                        |
-| ------------------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
-| `cyberia content-release build`       | An empty candidate database | The release copy, the foundation, the release sagas, then the served instances |
-| `cyberia run-workflow import-content` | The workspace               | The foundation, the release sagas, then the release instances                  |
-| The content job of the Docker stack   | The workspace               | As `import-content`                                                            |
+| Path                                | Store                       | Imports                                                                        |
+| ----------------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `cyberia content release build`     | An empty candidate database | The release copy, the foundation, the release sagas, then the served instances |
+| `cyberia content workspace import`  | The workspace               | The foundation, the release sagas, then the release instances                  |
+| The content job of the Docker stack | The workspace               | As `content workspace import`                                                  |
 
 A release build always starts from an empty candidate database, so the release is a function of
 the source revision, the release content and the release configuration alone. The workspace is a
 mutable development store: there an import upserts, and the plan statuses decide what it writes.
 
-`cyberia content-release` builds the artifact from the locked revision in a release workspace and
+`cyberia content release` builds the artifact from the locked revision in a release workspace and
 records its source and the artifact in the ledger. See [Content releases](content-releases.md).
 
 ## Audit
@@ -280,7 +283,7 @@ label it names or stores:
 
 ## Changing content
 
-1. Author in the portal, then `cyberia instance <code> --export`. The export lands in the
+1. Author in the portal, then `cyberia instance snapshot <code> --export`. The export lands in the
    `cyberia-content` checkout as source content.
 2. In `cyberia-content`: validate, commit, increment the version, build.
 3. `cyberia release lock --commit` pins the new revision in the deployment lock, and

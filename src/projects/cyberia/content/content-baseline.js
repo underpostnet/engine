@@ -3,7 +3,7 @@
  * development host. Git never carries them: a baseline is a backup of the `content-baseline`
  * profile in the object store (`src/server/storage/backup.js`).
  *
- * A baseline holds what `content-release export-live` reads, and no more:
+ * A baseline holds what `content source export-live` reads, and no more:
  * - `release-db`: the archive of the active release database.
  * - `ledger`: the ledger row of the active release.
  * - `files`: the File documents of the runtime database the release content references.
@@ -26,7 +26,8 @@ import { pipeline } from 'node:stream/promises';
 import mongoose from 'mongoose';
 import Underpost from '../../../index.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
-import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
+import { MongooseDB } from '../../../db/mongo/mongoose-db.js';
+import { fileRefApis, fileRefFields } from '../../../api/file/file.ref.js';
 import {
   backupKeyMaterial,
   listBackups,
@@ -37,6 +38,7 @@ import {
 import { mongoArchiveTap, restoreMongoArchive } from '../../../server/storage/mongo-archive.js';
 import { ownedCids } from '../catalog/global-content.js';
 import { liveChanges } from './content-release.js';
+import { failure } from './content-lifecycle.js';
 
 const logger = loggerFactory(import.meta);
 const { BSON } = mongoose.mongo;
@@ -63,17 +65,6 @@ const LOCAL_FILES = Object.freeze({
   [BASELINE_STREAMS.owned]: 'owned.json',
 });
 
-/** The fields through which each API references a File document. */
-const FILE_REFERENCES = JSON.parse(
-  fs.readFileSync(new URL('../../../api/file/file.ref.json', import.meta.url), 'utf8'),
-);
-
-/** The field paths of a `file.ref.json` model entry. */
-const referencePaths = (model, prefix = '') =>
-  Object.entries(model).flatMap(([name, value]) =>
-    value === true ? [`${prefix}${name}`] : typeof value === 'object' ? referencePaths(value, `${prefix}${name}.`) : [],
-  );
-
 /**
  * The ids of the File documents the content of a database references, through the APIs of the
  * content partition that `file.ref.json` declares. A driver read: the database is never written.
@@ -87,10 +78,10 @@ const referencePaths = (model, prefix = '') =>
 export async function referencedFileIds({ connection, database, apis }) {
   const ids = new Map();
   const store = connection.getClient().db(database);
-  for (const { api, model } of FILE_REFERENCES) {
+  for (const api of fileRefApis()) {
     if (!apis.includes(api)) continue;
     const collection = store.collection(await MongooseDB.collectionName(api));
-    for (const field of referencePaths(model))
+    for (const field of fileRefFields(api))
       for (const id of await collection.distinct(field)) if (id instanceof BSON.ObjectId) ids.set(id.toHexString(), id);
   }
   return [...ids.values()];
@@ -348,25 +339,38 @@ export async function downloadContentBaseline({ store, deployId, backupId, keyMa
 }
 
 /**
- * Refuses a restore target that is the replica set a baseline was captured from: a restore never
- * writes to production. A standalone server holds no replica set identity and can never be it.
+ * The identity of the replica set a client reaches, as its configuration records it.
+ * @param {import('mongodb').MongoClient} client
+ * @returns {Promise<string>} The hex id; '' for a server with no replication.
+ * @memberof CyberiaContentBaseline
+ */
+export async function replicaSetIdOf(client) {
+  try {
+    return (
+      (await client.db('admin').command({ replSetGetConfig: 1 })).config?.settings?.replicaSetId?.toHexString() ?? ''
+    );
+  } catch (error) {
+    if (error?.codeName === 'NoReplicationEnabled') return '';
+    throw error;
+  }
+}
+
+/**
+ * Refuses a development target that is the replica set a baseline was captured from: a restore or
+ * a development drop never writes to production. A standalone server holds no replica set identity
+ * and can never be it.
  * @param {{client:import('mongodb').MongoClient, manifest:Object}} params
  * @returns {Promise<string>} The identity of the target replica set, or '' for a standalone server.
- * @throws {Error} When the target is the source, or the source recorded no identity.
+ * @throws {Error} `blocked` when the target is the source; an error when the source recorded no identity.
  * @memberof CyberiaContentBaseline
  */
 export async function assertDevelopmentTarget({ client, manifest }) {
   const source = manifest.source?.mongodb?.replicaSetId;
   if (!source) throw new Error(`Baseline ${manifest.backupId} records no replica set identity: capture it again`);
-  let target = '';
-  try {
-    target =
-      (await client.db('admin').command({ replSetGetConfig: 1 })).config?.settings?.replicaSetId?.toHexString() ?? '';
-  } catch (error) {
-    if (error?.codeName !== 'NoReplicationEnabled') throw error;
-  }
+  const target = await replicaSetIdOf(client);
   if (target === source)
-    throw new Error(
+    throw failure(
+      'blocked',
       `Refused: the target is replica set ${source}, the one baseline ${manifest.backupId} was captured from`,
     );
   return target;
@@ -432,6 +436,45 @@ export async function restoreContentBaseline({ client, baseline, runtimeDatabase
     ),
   );
   return { collections: restored, files: fileCount, ledger: inserted };
+}
+
+/**
+ * Checks a restore against the database it wrote: every restored collection holds the documents the
+ * restore wrote, every File of the baseline is in the runtime database, and the ledger holds the release.
+ * @param {Object} params
+ * @param {import('mongodb').MongoClient} params.client - The development server.
+ * @param {Awaited<ReturnType<typeof openLocalBaseline>>} params.baseline
+ * @param {string} params.runtimeDatabase
+ * @param {Object<string,number>} params.collections - Documents per `<database>.<collection>`, as restored.
+ * @returns {Promise<{collections:number, documents:number, files:number}>}
+ * @throws {Error} `failed` with the first difference.
+ * @memberof CyberiaContentBaseline
+ */
+export async function verifyBaselineRestore({ client, baseline, runtimeDatabase, collections }) {
+  const { release, scope } = baseline.manifest.meta;
+  let documents = 0;
+  for (const [namespace, expected] of Object.entries(collections)) {
+    const [database, ...name] = namespace.split('.');
+    const found = await client.db(database).collection(name.join('.')).countDocuments();
+    if (found !== expected)
+      throw failure('failed', `${namespace} holds ${found} documents, not the ${expected} restored`);
+    documents += found;
+  }
+  const fileIds = await baselineFileIds(baseline);
+  const files = await client
+    .db(runtimeDatabase)
+    .collection(scope.collections.files)
+    .countDocuments({ _id: { $in: fileIds } });
+  if (files !== fileIds.length)
+    throw failure('failed', `${fileIds.length - files} File(s) of baseline ${baseline.manifest.backupId} are missing`);
+  if (
+    !(await client
+      .db(runtimeDatabase)
+      .collection(scope.collections.ledger)
+      .countDocuments({ releaseId: release.releaseId }))
+  )
+    throw failure('failed', `The ledger holds no release ${release.releaseId}`);
+  return { collections: Object.keys(collections).length, documents, files };
 }
 
 /**

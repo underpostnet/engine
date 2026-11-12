@@ -12,6 +12,7 @@ import {
   CHAT_EMOJI,
   CHAT_TEXT_MAX_RUNES,
   CONTAINER_CAPACITY,
+  DIALOGUE_MOODS,
   ENTITY_TYPE_TO_ITEM_TYPES,
   ENTITY_TYPES,
   ITEM_DIALOGUE_PREFIX,
@@ -259,6 +260,7 @@ export function buildContentContractArtifacts() {
     portalModes: PORTAL_MODES,
     casterSkinPlaceholder: CASTER_SKIN_PLACEHOLDER,
     itemDialoguePrefix: ITEM_DIALOGUE_PREFIX,
+    dialogueMoods: DIALOGUE_MOODS,
     economy: ECONOMY_CONTRACT,
     market: MARKET_CONTRACT,
   };

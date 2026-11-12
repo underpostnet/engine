@@ -9,12 +9,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import net from 'node:net';
 import * as grpc from '@grpc/grpc-js';
 import mongoose from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { GrpcServer, cyberiaProto } from '../../../src/grpc/cyberia/grpc-server.js';
 import { CYBERIA_PLAYER_APIS } from '../../../src/projects/cyberia/stack/domain-ownership.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
-vi.mock('../../../src/db/valkey/Valkey.js', async () =>
+vi.mock('../../../src/db/valkey/valkey.js', async () =>
   (await import('../../support/valkey-memory.js')).memoryValkeyModule(),
 );
 

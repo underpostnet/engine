@@ -1,11 +1,11 @@
 /**
  * CyberiaContentRelease service: read access to the release ledger. Build, validation,
- * promotion and rollback are operator actions of the `cyberia content-release` CLI.
+ * promotion and rollback are operator actions of the `cyberia content release` CLI.
  *
  * @module src/api/cyberia-content-release/cyberia-content-release.service.js
  * @namespace CyberiaContentReleaseService
  */
-import { DataBaseProviderService } from '../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../db/database-provider.js';
 import { DataQuery } from '../../server/storage/data-query.js';
 import { CyberiaContentReleaseDto } from './cyberia-content-release.model.js';
 import { servedContentArtifact } from '../../projects/cyberia/content/content-artifact.js';
@@ -16,7 +16,7 @@ class CyberiaContentReleaseService {
    * `/:releaseId` (one release) or `/` (paginated).
    * @param {Object} req - Express request.
    * @param {Object} res - Express response.
-   * @param {import('../types.js').RouterOptions} options - Router options.
+   * @param {import('../types.js').ApiRouterContext} options - The API context.
    * @returns {Promise<Object>}
    */
   static get = async (req, res, options) => {

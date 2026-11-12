@@ -24,6 +24,7 @@ import {
   isMaterialItemId,
 } from '../../../api/cyberia-instance/cyberia-instance-items.js';
 import { STAT_TYPES } from '../../../client/components/cyberia/SharedDefaultsCyberia.js';
+import { revisionGuard } from '../../../server/storage/revision.js';
 import {
   bindItem,
   composeItemDefinition,
@@ -32,6 +33,7 @@ import {
   publishItemDefinition,
 } from '../catalog/object-layer-catalog.js';
 import { readEconomy, replaceEconomy } from '../economy/economy-policy.js';
+import { bindingConflicts, releaseInstanceCodes, snapshotBindings } from './release-content.js';
 
 /** The artifact layout and document shapes this engine reads. */
 export const CONTENT_SCHEMA_VERSION = 11;
@@ -98,11 +100,55 @@ export function contentSources() {
 export const instanceSourceDir = (code) => path.join(contentSources(), 'content', 'instances', code);
 
 /**
+ * The items the release instances of the content checkout bind to different definitions.
+ * @returns {string[]} {@link bindingConflicts} lines.
+ * @memberof CyberiaContentArtifact
+ */
+export const sourceBindingConflicts = () =>
+  bindingConflicts(
+    Object.fromEntries(releaseInstanceCodes().map((code) => [code, snapshotBindings(instanceSourceDir(code))])),
+  );
+
+/**
+ * The directory of the saga packages of the content checkout.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const sagaSourceDir = () => path.join(contentSources(), 'content', 'sagas');
+
+/** The directory of global content in the artifact and in the content sources. */
+export const GLOBAL_CONTENT_DIR = 'global';
+
+/**
  * The source directory of the global content: where its export lands, one file per definition.
  * @returns {string}
  * @memberof CyberiaContentArtifact
  */
-export const globalContentSourceDir = () => path.join(contentSources(), 'content', 'global');
+export const globalContentSourceDir = () => path.join(contentSources(), 'content', GLOBAL_CONTENT_DIR);
+
+/**
+ * The source directory a live export writes for one of its names: the global content, or a world.
+ * @param {string} name - {@link GLOBAL_CONTENT_DIR} or an instance code.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const exportSourceDir = (name) =>
+  name === GLOBAL_CONTENT_DIR ? globalContentSourceDir() : instanceSourceDir(name);
+
+/**
+ * The sha256 of the files of some directories: each relative path and its bytes, in path order.
+ * @param {string[]} dirs - Absent directories hold nothing.
+ * @returns {string} `sha256:<hex>`.
+ * @memberof CyberiaContentArtifact
+ */
+export const treeDigest = (dirs) => {
+  const hash = crypto.createHash('sha256');
+  for (const dir of dirs.filter((entry) => fs.existsSync(entry)))
+    for (const file of fs.readdirSync(dir, { recursive: true }).sort())
+      if (fs.statSync(path.join(dir, file)).isFile())
+        hash.update(`${path.basename(dir)}/${file}\0`).update(fs.readFileSync(path.join(dir, file)));
+  return `sha256:${hash.digest('hex')}`;
+};
 
 /**
  * Whether the content root holds a built artifact. Callers that only run in a full workspace skip
@@ -389,10 +435,13 @@ function runtimeArtifact(opened) {
       templates: opened.json('procedural/genesis-templates.json'),
       ...opened.json('procedural/palettes.json'),
     }),
-    saga(code) {
+    sagaRecord(code) {
       if (!opened.manifest.sagas.includes(code)) throw new Error(`The content artifact holds no saga ${code}`);
+      return opened.json(`sagas/${code}/saga.json`);
+    },
+    saga(code) {
       return {
-        saga: opened.json(`sagas/${code}/saga.json`),
+        saga: this.sagaRecord(code),
         instance: opened.json(`sagas/${code}/instance.json`),
         families: readFamilies(opened, `sagas/${code}`),
       };
@@ -408,8 +457,8 @@ function runtimeArtifact(opened) {
  * ({@link refreshWorkspaceArtifact}).
  * @returns {{manifest:Object, foundation:Object<string,Object[]>, baseline:ReadonlyArray<Object>,
  *   itemBaseline:Object<string,string>, byItemId:Map<string,Object>, context:Object,
- *   procedural:{templates:Object[], families:string[], palettes:Object[]}, saga:(code:string)=>{saga:Object,
- *   instance:Object, families:Object<string,Object[]>}, instanceDir:(code:string)=>string,
+ *   procedural:{templates:Object[], families:string[], palettes:Object[]}, sagaRecord:(code:string)=>Object,
+ *   saga:(code:string)=>{saga:Object, instance:Object, families:Object<string,Object[]>}, instanceDir:(code:string)=>string,
  *   globalContent:(cid:string)=>string}} `baseline` holds the entity-type defaults every world resolves
  *   against; `itemBaseline` the item label a new item of each type takes its function from; `context` is
  *   the index of every definition and its references; `procedural` the Genesis Templates and the palette
@@ -422,6 +471,19 @@ export function contentArtifact() {
   if (served) return served.artifact;
   return (workspaceArtifact ??= runtimeArtifact(openContentArtifact()));
 }
+
+/**
+ * {@link contentArtifact}, or null where the host holds none or it fails to load.
+ * @returns {ReturnType<typeof contentArtifact>|null}
+ * @memberof CyberiaContentArtifact
+ */
+export const optionalContentArtifact = () => {
+  try {
+    return contentArtifact();
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Makes the next read open the artifact on disk again when its manifest names another content
@@ -444,6 +506,39 @@ export function refreshWorkspaceArtifact() {
 }
 
 /**
+ * The output of a git command in a checkout, or '' when git cannot read it.
+ * @param {string} root - The checkout.
+ * @param {...string} args - The git arguments.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const checkoutGit = (root, ...args) => {
+  try {
+    return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+};
+
+const contentGit = (...args) => (hasContentSources() ? checkoutGit(contentRoot(), ...args) : '');
+
+/**
+ * The commit the content checkout is at; '' on a host with no content sources, or a checkout git
+ * cannot read.
+ * @returns {string}
+ * @memberof CyberiaContentArtifact
+ */
+export const contentCheckoutRevision = () => contentGit('rev-parse', 'HEAD');
+
+/**
+ * Whether a file of the content checkout differs from its commit: changed, added or untracked.
+ * @param {string} file - A path relative to the checkout root.
+ * @returns {boolean}
+ * @memberof CyberiaContentArtifact
+ */
+export const contentSourceChanged = (file) => Boolean(contentGit('status', '--porcelain', '--', file));
+
+/**
  * Whether the content this process serves is built from the commit the content checkout is at. A
  * host with no content sources, or a checkout git cannot read, answers no checkout revision.
  * @returns {{sourceRevision:string, checkoutRevision:string, stale:boolean}} `stale` when the checkout
@@ -453,16 +548,7 @@ export function refreshWorkspaceArtifact() {
  */
 export function contentFreshness() {
   const { sourceRevision } = contentArtifact().manifest;
-  let checkoutRevision = '';
-  if (hasContentSources())
-    try {
-      checkoutRevision = execFileSync('git', ['-C', contentRoot(), 'rev-parse', 'HEAD'], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim();
-    } catch {
-      checkoutRevision = '';
-    }
+  const checkoutRevision = contentCheckoutRevision();
   return { sourceRevision, checkoutRevision, stale: Boolean(checkoutRevision) && checkoutRevision !== sourceRevision };
 }
 
@@ -573,7 +659,7 @@ export async function planMaterialization({ items, models }) {
  * @param {Object[]} params.plan - {@link planMaterialization} output.
  * @param {Object[]} params.items - The planned artifact items.
  * @param {import('../catalog/object-layer-catalog.js').CatalogModels} params.models
- * @param {Object} [params.options] - Router options of this host.
+ * @param {Object} [params.options] - The API context of this host.
  * @param {boolean} [params.rebind=false]
  * @returns {Promise<Object[]>} The written entries, with the cid the label is bound to now.
  * @memberof CyberiaContentArtifact
@@ -642,7 +728,7 @@ const FAMILY_STORES = Object.freeze({
   entityTypeDefaults: { model: 'CyberiaEntityTypeDefault', key: entityTypeDefaultKey },
   skills: { model: 'CyberiaSkill', key: ({ triggerItemId }) => ({ triggerItemId }) },
   maps: { model: 'CyberiaMap', key: ({ code }) => ({ code }), revised: true },
-  quests: { model: 'CyberiaQuest', key: ({ code }) => ({ code }), content: withoutPlacement },
+  quests: { model: 'CyberiaQuest', key: ({ code }) => ({ code }), content: withoutPlacement, revised: true },
   dialogues: { model: 'CyberiaDialogue', key: ([{ code }]) => ({ code }) },
   markets: { model: 'CyberiaMarket', key: ({ code }) => ({ code }), revised: true },
   actions: { model: 'CyberiaAction', key: ({ code }) => ({ code }), content: withoutPlacement, revised: true },
@@ -654,27 +740,34 @@ const documentsOf = (family, documents) =>
 
 const catalogOf = ({ ObjectLayer, CyberiaItemCatalog }) => ({ ObjectLayer, CyberiaItemCatalog });
 
-const findStored = (Model, family, key) =>
-  family === 'dialogues' ? Model.find(key).sort({ order: 1 }).lean() : Model.findOne(key).lean();
+const findStored = (Model, family, key, session) =>
+  family === 'dialogues'
+    ? Model.find(key, null, { session }).sort({ order: 1 }).lean()
+    : Model.findOne(key, null, { session }).lean();
 
 /**
  * The plan of compiled families against a store. A document or an Object Layer item is absent,
- * in sync, or differs.
+ * in sync, or differs. A stored document of a revised family also gives its id and revision.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families, as {@link contentArtifact} reads them.
  * @param {Object} params.models - The content models and the catalog models.
- * @returns {Promise<{objectLayers:Object[], documents:Object<string,Array<{doc:Object, status:string}>>}>}
+ * @param {import('mongoose').ClientSession} [params.session] - Reads the documents in this session.
+ * @returns {Promise<{objectLayers:Object[], documents:Object<string,Array<{doc:Object, status:string, stored?:Object}>>}>}
  * @memberof CyberiaContentArtifact
  */
-export async function planContent({ families, models }) {
+export async function planContent({ families, models, session = null }) {
   const documents = {};
-  for (const [family, { model, key, content = (doc) => doc }] of Object.entries(FAMILY_STORES)) {
+  for (const [family, { model, key, content = (doc) => doc, revised }] of Object.entries(FAMILY_STORES)) {
     documents[family] = [];
     for (const doc of documentsOf(family, families[family])) {
-      const stored = await findStored(models[model], family, key(doc));
+      const stored = await findStored(models[model], family, key(doc), session);
       const found = Array.isArray(stored) ? stored.length > 0 : !!stored;
       const status = !found ? 'absent' : holdsContent(stored, content(doc)) ? 'in-sync' : 'differs';
-      documents[family].push({ doc, status });
+      documents[family].push({
+        doc,
+        status,
+        ...(found && revised && { stored: { _id: stored._id, revision: stored.revision } }),
+      });
     }
   }
   // An economy is one profile with its item rows, stored apart and compared whole.
@@ -689,94 +782,112 @@ export async function planContent({ families, models }) {
   };
 }
 
+/** What an import does with the planned entries of one family; `conflict` counts the rebinds it lost. */
+const familySummary = (entries, rebind, conflict = 0) => {
+  const count = (status) => entries.filter((entry) => entry.status === status).length;
+  return {
+    inserted: count('absent'),
+    inSync: count('in-sync'),
+    differsKept: rebind ? 0 : count('differs'),
+    rebound: rebind ? count('differs') - conflict : 0,
+    conflict,
+  };
+};
+
+/**
+ * A {@link familySummary} of each family of a content plan, Object Layer items first.
+ * @param {Object} plan - {@link planContent} output.
+ * @param {boolean} rebind
+ * @param {Array<{family:string}>} [conflicts] - The rebinds another writer got ahead of.
+ * @returns {Object<string,{inserted:number, inSync:number, differsKept:number, rebound:number, conflict:number}>}
+ * @memberof CyberiaContentArtifact
+ */
+export const contentSummary = (plan, rebind, conflicts = []) => ({
+  objectLayers: familySummary(plan.objectLayers, rebind),
+  ...Object.fromEntries(
+    Object.entries(plan.documents).map(([family, entries]) => [
+      family,
+      familySummary(entries, rebind, conflicts.filter((conflict) => conflict.family === family).length),
+    ]),
+  ),
+});
+
 /**
  * Imports compiled families in dependency order: Object Layer items and their catalog bindings,
  * entity-type defaults, skills, maps, quests, dialogues, markets, actions, then economies with their item rows. It inserts what is absent,
  * and with `rebind` moves differing labels and documents to the artifact. Studio's work stays: an
- * item keeps its render, a quest or action its source, and a map its entities. Idempotent.
+ * item keeps its render, a quest or action its source, and a map its entities. A rebind of a
+ * revised document writes only the revision it planned against. Idempotent.
  * @param {Object} params
  * @param {Object<string,Object[]>} params.families - Compiled families.
  * @param {Object} params.models - The content models and the catalog models.
  * @param {{host:string,path:string}} [params.context] - Host the models belong to.
  * @param {boolean} [params.rebind=false] - Move differing labels and documents to the artifact.
- * @returns {Promise<{plan:Object, objectLayers:number, written:Object<string,number>, entityTypeDefaultIds:Array}>}
- *   The plan, the Object Layer definitions written, the documents written per family, and the id of
- *   each entity-type default in compiled order.
+ * @param {import('mongoose').ClientSession} [params.session] - Reads and writes the documents in this
+ *   transaction; Object Layer items and economies never join it.
+ * @returns {Promise<{plan:Object, families:Object<string,Object>, conflicts:Object[], entityTypeDefaultIds:Array}>}
+ *   The plan, its {@link contentSummary}, each rebind another writer got ahead of, and the id of each
+ *   entity-type default in compiled order.
  * @memberof CyberiaContentArtifact
  */
-export async function importContent({ families, models, context, rebind = false }) {
-  const plan = await planContent({ families, models });
-  const objectLayers = await materializeObjectLayers({
+export async function importContent({ families, models, context, rebind = false, session = null }) {
+  const plan = await planContent({ families, models, session });
+  await materializeObjectLayers({
     plan: plan.objectLayers,
     items: families.objectLayers,
     models: catalogOf(models),
     options: context,
     rebind,
   });
-  const written = {};
+  const conflicts = [];
   for (const [family, { model, key, content = (doc) => doc, revised }] of Object.entries(FAMILY_STORES)) {
     const Model = models[model];
-    written[family] = 0;
-    for (const { doc, status } of plan.documents[family]) {
+    for (const { doc, status, stored } of plan.documents[family]) {
       if (status === 'in-sync' || (status === 'differs' && !rebind)) continue;
+      // An insert is an upsert of a copy on the natural key: the artifact stays frozen, and two imports store one document.
       if (family === 'dialogues') {
-        await Model.deleteMany(key(doc));
-        await Model.insertMany(doc);
-      } else if (status === 'absent') await Model.create(doc);
-      else await Model.updateOne(key(doc), { $set: content(doc), ...(revised ? { $inc: { revision: 1 } } : {}) });
-      written[family]++;
+        if (status === 'differs') await Model.deleteMany(key(doc), { session });
+        await Model.bulkWrite(
+          doc.map((line) => ({
+            updateOne: {
+              filter: { code: line.code, order: line.order },
+              update: { $setOnInsert: structuredClone(line) },
+              upsert: true,
+            },
+          })),
+          { session },
+        );
+      } else if (status === 'absent')
+        await Model.updateOne(key(doc), { $setOnInsert: structuredClone(doc) }, { upsert: true, session });
+      else if (!revised) await Model.updateOne(key(doc), { $set: content(doc) }, { session });
+      else {
+        const { filter, next } = revisionGuard(stored);
+        const { matchedCount } = await Model.updateOne(
+          filter,
+          { $set: { ...content(doc), revision: next } },
+          { session },
+        );
+        if (matchedCount === 0)
+          conflicts.push({ family, ...key(doc), message: 'changed after the plan: kept, import again' });
+      }
     }
   }
-  written.economies = 0;
-  for (const { doc, status } of plan.documents.economies) {
-    if (status === 'in-sync' || (status === 'differs' && !rebind)) continue;
-    await replaceEconomy(models, doc);
-    written.economies++;
-  }
+  for (const { doc, status } of plan.documents.economies)
+    if (status === 'absent' || (status === 'differs' && rebind)) await replaceEconomy(models, doc);
   const entityTypeDefaultIds = [];
   for (const row of families.entityTypeDefaults)
     entityTypeDefaultIds.push(
-      (await models.CyberiaEntityTypeDefault.findOne(FAMILY_STORES.entityTypeDefaults.key(row), { _id: 1 }).lean())._id,
+      (
+        await models.CyberiaEntityTypeDefault.findOne(
+          FAMILY_STORES.entityTypeDefaults.key(row),
+          { _id: 1 },
+          { session },
+        )
+          .sort({ _id: 1 })
+          .lean()
+      )._id,
     );
-  return { plan, objectLayers: objectLayers.length, written, entityTypeDefaultIds };
-}
-
-/**
- * Imports a compiled saga: its families, its CyberiaSaga record, and its instance. The instance
- * conf references the entity-type defaults of every entity the saga places. The instance portal
- * graph is spatial authoring's, so only an insert writes it.
- * @param {Object} params
- * @param {Object} params.saga - `contentArtifact().saga(code)`.
- * @param {Object} params.models - The content models, `CyberiaSaga`, `CyberiaInstance`, `CyberiaInstanceConf`
- *   and the catalog models.
- * @param {{host:string,path:string}} [params.context] - Host the models belong to.
- * @param {boolean} [params.rebind=false] - Move differing labels and documents to the artifact.
- * @returns {Promise<Object>} {@link importContent} output.
- * @memberof CyberiaContentArtifact
- */
-export async function importSaga({ saga: { saga, instance, families }, models, context, rebind = false }) {
-  const result = await importContent({ families, models, context, rebind });
-  await models.CyberiaSaga.findOneAndUpdate({ code: saga.code }, { $set: saga }, { upsert: true });
-  const conf = await models.CyberiaInstanceConf.findOneAndUpdate(
-    { instanceCode: instance.code },
-    { $addToSet: { entityDefaults: { $each: result.entityTypeDefaultIds } } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
-  );
-  await models.CyberiaInstance.findOneAndUpdate(
-    { code: instance.code },
-    {
-      $set: {
-        name: instance.name,
-        description: instance.description,
-        tags: instance.tags,
-        cyberiaMapCodes: instance.cyberiaMapCodes,
-        topologyMode: instance.topologyMode,
-      },
-      $setOnInsert: { code: instance.code, portals: instance.portals, conf: conf._id },
-    },
-    { upsert: true },
-  );
-  return result;
+  return { plan, families: contentSummary(plan, rebind, conflicts), conflicts, entityTypeDefaultIds };
 }
 
 /** Collections an audit reads, with the backup directory each one is exported to. */

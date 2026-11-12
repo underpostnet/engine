@@ -6,6 +6,8 @@
  * @namespace CyberiaReleaseContent
  */
 
+import fs from 'fs';
+import path from 'path';
 import { normalizeInstanceTopology } from '../../../server/runtime/conf.js';
 import {
   CONTENT_CODE_PATTERN,
@@ -69,18 +71,73 @@ const validateReleaseContent = (content = RELEASE_CONTENT) => {
 const releaseInstanceCodes = (requested = [], content = RELEASE_CONTENT) =>
   requested.length > 0 ? [...requested] : content.instances.map(({ instanceCode }) => instanceCode);
 
+/** The snapshot of a world binds each item to the definition in `object-layers/<itemId>.json`. */
+const SNAPSHOT_BINDINGS = 'object-layers';
+
+/**
+ * The definition each item of a world snapshot directory is bound to.
+ * @param {string} dir - A world snapshot directory.
+ * @returns {Object<string,string>} Item id → cid; empty without a snapshot.
+ * @memberof CyberiaReleaseContent
+ */
+const snapshotBindings = (dir) => {
+  const bound = path.join(dir, SNAPSHOT_BINDINGS);
+  if (!fs.existsSync(bound)) return {};
+  return Object.fromEntries(
+    fs
+      .readdirSync(bound)
+      .filter((file) => file.endsWith('.json'))
+      .map((file) => [path.basename(file, '.json'), JSON.parse(fs.readFileSync(path.join(bound, file), 'utf8')).cid]),
+  );
+};
+
+/** The definition each item of a world of an opened artifact is bound to, read through its verified reader. */
+const artifactBindings = ({ manifest, json }, code) => {
+  const prefix = `instances/${code}/${SNAPSHOT_BINDINGS}/`;
+  return Object.fromEntries(
+    Object.keys(manifest.files)
+      .filter((file) => file.startsWith(prefix))
+      .map((file) => [path.basename(file, '.json'), json(file).cid]),
+  );
+};
+
+/**
+ * The items that worlds bind to different definitions. A release keeps one binding per item, so it
+ * cannot run them all.
+ * @param {Object<string, Object<string,string>>} bindings - World code → item id → cid.
+ * @returns {string[]} One line per item, `<itemId>: <code> <cid>, …`, by item id.
+ * @memberof CyberiaReleaseContent
+ */
+const bindingConflicts = (bindings) => {
+  const byItem = new Map();
+  for (const [code, items] of Object.entries(bindings))
+    for (const [itemId, cid] of Object.entries(items)) byItem.set(itemId, { ...byItem.get(itemId), [code]: cid });
+  return [...byItem]
+    .filter(([, worlds]) => new Set(Object.values(worlds)).size > 1)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([itemId, worlds]) =>
+        `${itemId}: ${Object.entries(worlds)
+          .map(([code, cid]) => `${code} ${cid}`)
+          .join(', ')}`,
+    );
+};
+
 /**
  * What a release imports from a content artifact: the release sagas, the selected instances and all
  * the global content. Any other saga or instance of the artifact stays out.
  * @param {Object} params
- * @param {{sagas: string[], instances: string[], global: string[]}} params.manifest - The content artifact manifest.
+ * @param {{manifest: {sagas: string[], instances: string[], global: string[], files: Object}, json: Function}} params.artifact -
+ *   The opened content artifact.
  * @param {string[]} [params.instances=[]] - Instance codes to import; the release instances when empty.
  * @param {Object} [params.content=RELEASE_CONTENT]
  * @returns {{sagas: string[], instances: string[], globalContent: string[]}}
- * @throws {Error} When the content set is invalid, or the artifact lacks a selected saga or instance.
+ * @throws {Error} When the content set is invalid, the artifact lacks a selected saga or instance, or
+ *   two selected instances bind one item to different definitions.
  * @memberof CyberiaReleaseContent
  */
-const selectReleaseContent = ({ manifest, instances = [], content = RELEASE_CONTENT }) => {
+const selectReleaseContent = ({ artifact, instances = [], content = RELEASE_CONTENT }) => {
+  const { manifest } = artifact;
   validateReleaseContent(content);
   const held = (kind, codes, available) => {
     const missing = codes.filter((code) => !available.includes(code));
@@ -90,11 +147,19 @@ const selectReleaseContent = ({ manifest, instances = [], content = RELEASE_CONT
       );
     return codes;
   };
-  return {
+  const selected = {
     sagas: held('saga', [...content.sagas], manifest.sagas),
     instances: held('instance', releaseInstanceCodes(instances, content), manifest.instances),
     globalContent: [...manifest.global],
   };
+  const conflicts = bindingConflicts(
+    Object.fromEntries(selected.instances.map((code) => [code, artifactBindings(artifact, code)])),
+  );
+  if (conflicts.length > 0)
+    throw new Error(
+      `The release instances bind one item to different definitions; export each of them again from one workspace:\n${conflicts.join('\n')}`,
+    );
+  return selected;
 };
 
 /**
@@ -151,10 +216,12 @@ function buildCyberiaMmoInstanceEnv({ instance = {}, env = {} }) {
 
 export {
   RELEASE_CONTENT,
+  bindingConflicts,
   buildCyberiaMmoInstanceEnv,
   releaseInstanceCode,
   releaseInstanceCodes,
   selectReleaseContent,
+  snapshotBindings,
   validateReleaseContent,
   withReleaseVariants,
 };

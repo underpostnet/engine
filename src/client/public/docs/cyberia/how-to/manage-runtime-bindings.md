@@ -7,7 +7,7 @@ from loading. The model is in [Runtime binding](../explanation/runtime-binding.m
 
 - Your role is moderator or admin. Another role reads the catalog and binds nothing.
 - The definition to bind is stored and published: a save in the Studio published it, or a
-  promotion, an import or `cyberia ol` did.
+  promotion, an import or `cyberia content object-layer` did.
 
 ## Read the catalog
 
@@ -117,9 +117,9 @@ with the reason it runs none. The marks are read only. **Item Catalog** opens th
 ## Check before a game server loads
 
 ```bash
-node bin/cyberia catalog check --dev                 # every world
-node bin/cyberia catalog check --instance FOREST --dev
-node bin/cyberia catalog check --ipfs --dev          # also binding, content, MFS and pin
+node bin/cyberia content catalog check --dev                 # every world
+node bin/cyberia content catalog check --instance FOREST --dev
+node bin/cyberia content catalog check --ipfs --dev          # also binding, content, MFS and pin
 ```
 
 An error stops the item from running: `unbound`, `missing`, `draft`, `archived` or `no-atlas`.

@@ -12,7 +12,7 @@
  */
 import crypto from 'crypto';
 import canonicalize from 'canonicalize';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { loggerFactory } from '../../../server/ops/logger.js';
 import { clearDomainCache, domainOrigin } from '../../../server/domain/domain-client.js';
 import { publishObjectLayer, resolveObjectLayer } from '../../../server/domain/object-layer-resolver.js';
@@ -39,7 +39,7 @@ import { liveEndpoints } from '../../../api/cyberia-server-registry/cyberia-serv
 import { CyberiaObjectLayerProfile } from '../../../client/components/cyberia/ObjectLayerProfileCyberia.js';
 import { AtlasSpriteSheetStore } from '../../../api/atlas-sprite-sheet/atlas-sprite-sheet.store.js';
 import { pruneUnreferencedContent } from '../../../api/object-layer/object-layer.ipfs.js';
-import { MongooseDB } from '../../../db/mongo/MongooseDB.js';
+import { MongooseDB } from '../../../db/mongo/mongoose-db.js';
 import { assertReleaseId } from '../../../server/release/source-release.js';
 import {
   loadContentArtifact,
@@ -96,11 +96,12 @@ export async function importArtifactContent({ run, instances, sagas = [], global
   await once('foundation', () => run(`content import${target}`));
   for (const code of sagas) await once(`saga-${code}`, () => run(`content import --saga ${code} --rebind${target}`));
   if (globalContent.length > 0) await once('global', () => run(`content import --global${target}`));
-  for (const code of instances) await once(`instance-${code}`, () => run(`instance ${code} --import${target}`));
+  for (const code of instances)
+    await once(`instance-${code}`, () => run(`instance snapshot ${code} --import${target}`));
 }
 
 /**
- * One ledger row as `content-release status` prints it. It starts `<status> <release-id>`, which
+ * One ledger row as `content release status` prints it. It starts `<status> <release-id>`, which
  * the deploy scripts parse.
  * @param {Object} entry - A CyberiaContentRelease document.
  * @returns {string}
@@ -194,7 +195,7 @@ const identityDefect = (doc) => {
  *   `ObjectLayer`, `AtlasSpriteSheet`, `File`, `CyberiaQuest`, `CyberiaAction`, `CyberiaMap`,
  *   `CyberiaEntityTypeDefault`, `CyberiaSkill`, `CyberiaInstance`, `CyberiaInstanceConf`.
  * @param {Object} [params]
- * @param {import('../../../api/types.js').RouterOptions} [params.options] - Router options of the host, for the canonical resolver.
+ * @param {import('../../../api/types.js').ApiRouterContext} [params.options] - The API context of the host, for the canonical resolver.
  * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Canonical lookup; defaults to the domain resolver.
  * @param {{db:import('mongodb').Db, digest:string}} [params.artifact] - The release database and the
  *   content digest the release records; absent for the workspace.
@@ -425,8 +426,8 @@ export async function validateContentRelease(models, { options, resolveCanonical
 }
 
 /**
- * The content a live change can alter: the worlds and their item bindings, which `instance --export`
- * writes out, and the global content, which `content-release export-live` writes out.
+ * The content a live change can alter: the worlds and their item bindings, which `instance snapshot --export`
+ * writes out, and the global content, which `content source export-live` writes out.
  */
 const LIVE_CONTENT_APIS = Object.freeze([
   'cyberia-instance',
@@ -531,7 +532,7 @@ export async function requiredCanonicalCids(models) {
  * @param {Object} params
  * @param {import('mongoose').Model} params.ObjectLayer - ObjectLayer model of the release.
  * @param {string} params.cid
- * @param {Object} [params.options] - Router options of the host.
+ * @param {Object} [params.options] - The API context of the host.
  * @param {(definition:Object)=>Promise<{cid:string}>} [params.publish] - Defaults to the domain publisher.
  * @param {(cid:string)=>Promise<Object|null>} [params.resolveCanonical] - Fresh canonical lookup.
  * @returns {Promise<{contentHash:string, sent:boolean}>}
@@ -572,7 +573,7 @@ export async function settleCanonical({ ObjectLayer, cid, options, publish = pub
  * @param {import('mongoose').Model} params.CyberiaContentRelease
  * @param {string} params.releaseId
  * @param {Object} params.models - Content models of the release.
- * @param {Object} [params.options] - Router options of the host.
+ * @param {Object} [params.options] - The API context of the host.
  * @param {string} params.holder - The execution that runs the stage.
  * @param {Function} [params.publish]
  * @param {Function} [params.resolveCanonical]
@@ -957,6 +958,44 @@ const ownedDefinitions = async ({ CyberiaPlayer, connection, databases, context 
   }
   return owned;
 };
+
+/**
+ * Points each release at its database under the content base, after the base was renamed: a
+ * release database is `<base>-<release id>`. A release whose database is still under the old name
+ * blocks the rebase, so no ledger entry names a database that lost its data.
+ * @param {Object} params
+ * @param {import('mongoose').Model} params.CyberiaContentRelease
+ * @param {string[]} params.databases - Every database of the content server.
+ * @param {string} params.base - The configured content base.
+ * @param {string} params.by - Who rebases, for the audit trail.
+ * @param {boolean} [params.apply=false] - Writes the new names; plans only without it.
+ * @returns {Promise<Array<{releaseId:string, status:string, from:string, to:string}>>} The entries that move.
+ * @throws {Error} When a database is still only under its old name.
+ * @memberof CyberiaContentRelease
+ */
+export async function rebaseContentReleases({ CyberiaContentRelease, databases, base, by, apply = false }) {
+  const changes = (await CyberiaContentRelease.find({}, { releaseId: 1, status: 1, database: 1 }).lean())
+    .map(({ releaseId, status, database }) => ({
+      releaseId,
+      status,
+      from: database,
+      to: releaseDatabaseName(base, releaseId),
+    }))
+    .filter(({ from, to }) => from !== to);
+  const stranded = changes.filter(({ from, to }) => databases.includes(from) && !databases.includes(to));
+  if (stranded.length)
+    throw new Error(
+      `Restore these databases under ${base} first (db --import --rename-database): ` +
+        stranded.map(({ from, to }) => `${from} -> ${to}`).join(', '),
+    );
+  if (apply)
+    for (const { releaseId, from, to } of changes)
+      await CyberiaContentRelease.updateOne(
+        { releaseId },
+        { $set: { database: to }, $push: { audit: { at: new Date(), by, action: 'rebase', detail: { from, to } } } },
+      );
+  return changes;
+}
 
 /**
  * Drops the releases beyond the newest `keep`: their database, then their ledger entry, then the

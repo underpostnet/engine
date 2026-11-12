@@ -46,15 +46,15 @@ what bound it (`studio`, `procedural`, `content`, `snapshot`, `revise`, `seed`, 
 when. An `import` also keeps its `provenance`: the authority host, who stored the definition there
 and when, and the warnings the moderator confirmed.
 
-| Path                    | Publishes             | Binds                                                       |
-| ----------------------- | --------------------- | ----------------------------------------------------------- |
-| Studio save             | A new revision        | Never. **Bind as Runtime Version** in the Studio or catalog |
-| Procedural candidate    | A draft revision      | Never. A promotion binds                                    |
-| Procedural promotion    | The approved revision | In one transaction with the candidate status and the audit  |
-| Content import          | The artifact item     | An absent item, or with `--rebind` a differing one          |
-| Snapshot restore        | The snapshot item     | Always: the snapshot is authoritative for what it restores  |
-| `cyberia ol` operations | The written item      | The item the operator wrote                                 |
-| Object Layer import     | A cache copy          | Optional: the item the moderator chose, under its binding   |
+| Path                                      | Publishes             | Binds                                                       |
+| ----------------------------------------- | --------------------- | ----------------------------------------------------------- |
+| Studio save                               | A new revision        | Never. **Bind as Runtime Version** in the Studio or catalog |
+| Procedural candidate                      | A draft revision      | Never. A promotion binds                                    |
+| Procedural promotion                      | The approved revision | In one transaction with the candidate status and the audit  |
+| Content import                            | The artifact item     | An absent item, or with `--rebind` a differing one          |
+| Snapshot restore                          | The snapshot item     | Always: the snapshot is authoritative for what it restores  |
+| `cyberia content object-layer` operations | The written item      | The item the operator wrote                                 |
+| Object Layer import                       | A cache copy          | Optional: the item the moderator chose, under its binding   |
 
 An Object Layer import (`src/projects/cyberia/catalog/object-layer-import.js`) takes a definition by
 its CID, read from the authority origin of the deploy, or by its document: the data of one definition,
@@ -104,9 +104,9 @@ A complete instance snapshot (`instances/<code>/` of the content artifact, with 
 is frozen runtime state. `object-layers/<itemId>.json` is the definition the item ran when the
 snapshot was exported: that file set is the binding state of the snapshot.
 
-- `cyberia instance <code> --export` writes, for each item the instance names, the definition the
+- `cyberia instance snapshot <code> --export` writes, for each item the instance names, the definition the
   catalog binds it to now. Quests and actions travel with item ids only.
-- `cyberia instance <code> --import` restores each definition exactly and binds the item to it,
+- `cyberia instance snapshot <code> --import` restores each definition exactly and binds the item to it,
   whatever the item ran before. This is an explicit restore, not runtime wiring.
 
 A quest or an action inside a snapshot may still carry `objectLayerCid`, as frozen state. The
@@ -136,7 +136,7 @@ visual definition does not make one. A global definition with no binding shows b
 binds it to an item id later. A stack keeps its `olCid`: a later bind of its item id never rewrites
 it, so the stack shows what it was granted with.
 
-An import registers the definition it imports. `cyberia content-release export-live` registers, on
+An import registers the definition it imports. `cyberia content source export-live` registers, on
 its scratch copy of the production content baseline, each definition an item binding or a player stack names that no
 world snapshot and no artifact composition carries, then writes every row to
 `src/content/global/<cid>.json` of `cyberia-content`: the canonical payload, the render bytes the
@@ -152,7 +152,7 @@ composition. The previous database is never an input. To keep a binding a modera
 release ran, export it before the next release:
 
 ```text
-runtime: coin → CID-B  →  instance --export  →  snapshot: coin → CID-B  →  release  →  coin → CID-B
+runtime: coin → CID-B  →  instance snapshot --export  →  snapshot: coin → CID-B  →  release  →  coin → CID-B
 ```
 
 Without an export, the next release runs what its snapshot holds, and the binding made live goes.
@@ -170,9 +170,9 @@ stats, actions, drops and behavior come from the content of the world that runs 
 
 ## Consistency
 
-| Check                   | What it finds                                                                                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cyberia catalog check` | Each world, as the game server receives it: items unbound, bound to a definition this host does not store, to a draft or an archived one, and without an atlas |
-| `catalog check --ipfs`  | How each bound definition is stored, by category: binding, content, MFS and pin                                                                                |
+| Check                           | What it finds                                                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cyberia content catalog check` | Each world, as the game server receives it: items unbound, bound to a definition this host does not store, to a draft or an archived one, and without an atlas |
+| `catalog check --ipfs`          | How each bound definition is stored, by category: binding, content, MFS and pin                                                                                |
 
 See [Manage runtime bindings](../how-to/manage-runtime-bindings.md).

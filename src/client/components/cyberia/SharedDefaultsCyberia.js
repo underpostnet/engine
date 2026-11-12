@@ -249,6 +249,12 @@ export const worldPlacementDefects = (maps) => {
 /** Prefix of an item's dialogue code: its flavor text, and an NPC's greeting when the item is its skin. */
 export const ITEM_DIALOGUE_PREFIX = 'default-';
 
+/** The dialogue code of the talk of a quest. */
+export const questTalkDialogueCode = (questCode) => `quest-talk-${questCode}`;
+
+/** The moods a dialogue line may carry. */
+export const DIALOGUE_MOODS = Object.freeze(['neutral', 'happy', 'sad', 'angry']);
+
 /** The item a dialogue code belongs to, or '' when the code is not an item dialogue. */
 export const dialogueItemId = (code) =>
   String(code ?? '').startsWith(ITEM_DIALOGUE_PREFIX) ? code.slice(ITEM_DIALOGUE_PREFIX.length) : '';

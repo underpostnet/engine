@@ -21,10 +21,11 @@ const TEMPLATE_RESTORE_PATHS = [
   `./deploy/lib`,
   './deploy/release',
   './deploy/pwa-microservices-template',
-  './src/client/services/user/guest.service.js',
+  './src/client/services/user/GuestService.js',
+  './src/client/ssr/body/CustomPage.js',
   './src/api/user/guest.service.js',
-  './src/ws/IoInterface.js',
-  './src/ws/IoServer.js',
+  './src/ws/io-interface.js',
+  './src/ws/io-server.js',
   './manifests/deployment/dd-default-development',
 ];
 

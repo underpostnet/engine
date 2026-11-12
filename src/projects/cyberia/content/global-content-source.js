@@ -4,7 +4,7 @@
  * The content artifact carries global content as one file per definition, `global/<cid>.json`,
  * from `src/content/global/` of the cyberia-content sources. A file holds the canonical payload of
  * the definition, the render it names (the primary render as pinned and its layout), the item ids
- * the catalog bound to it, and its `CyberiaGlobalContent` row. `cyberia content-release export-live`
+ * the catalog bound to it, and its `CyberiaGlobalContent` row. `cyberia content source export-live`
  * writes the files from a host backup; `cyberia content import --global` restores them into a
  * release, after the foundation and the sagas and before the instances, so the binding a file
  * froze replaces the composition of the foundation or a saga, as an instance snapshot does.
@@ -20,11 +20,8 @@ import { AtlasSpriteSheetService } from '../../../api/atlas-sprite-sheet/atlas-s
 import { bindItem, findBoundCid } from '../catalog/object-layer-catalog.js';
 import { importDefinition, previewImport } from '../catalog/object-layer-import.js';
 import { ownedCids } from '../catalog/global-content.js';
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 import { planObjectLayer } from './content-artifact.js';
-
-/** The directory of global content in the artifact and in the content sources. */
-export const GLOBAL_CONTENT_DIR = 'global';
 
 /** The most rows a reconciliation lists of the definitions it leaves out. */
 const REPORT_LIMIT = 50;
@@ -36,7 +33,7 @@ const contentJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
  * The file of one global content row: the definition, its render, the item ids bound to it and the row.
  * @param {Object} models - {@link catalogModels}.
  * @param {Object} row - A lean `CyberiaGlobalContent` row.
- * @param {Object} options - Router options of the content store.
+ * @param {Object} options - The API context of the content store.
  * @returns {Promise<Object>}
  * @throws {Error} When this host stores no published copy, or the render it names is unavailable.
  * @memberof CyberiaGlobalContentSource
@@ -114,7 +111,7 @@ export function readGlobalContentFile(cid, text) {
  * @param {Object} models - {@link catalogModels}.
  * @param {Object} params
  * @param {Object} params.artifact - The content artifact: {@link contentArtifact}.
- * @param {Object} params.options - Router options of the content store.
+ * @param {Object} params.options - The API context of the content store.
  * @returns {Promise<Array<{cid:string, stored:Object, itemIds:string[]}>>}
  * @throws {Error} On the first definition that does not import.
  * @memberof CyberiaGlobalContentSource
@@ -176,7 +173,7 @@ export function representedCids({ artifact, snapshots }) {
  * nothing: it reports what it would add. Idempotent.
  * @param {Object} models - {@link catalogModels}.
  * @param {Object} params
- * @param {Object} params.options - Router options of the content store.
+ * @param {Object} params.options - The API context of the content store.
  * @param {Set<string>} params.represented - {@link representedCids}.
  * @param {string[]} [params.owned] - The CIDs players own; defaults to the profiles this host serves.
  * @param {boolean} [params.apply=false]

@@ -8,15 +8,15 @@ databases it runs on.
 
 One MongoDB replica set, one logical database per boundary:
 
-| Database                            | Holds                                                                   | Written by                                                          |
-| ----------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `DB_NAME_OBJECTLAYER`               | Canonical Object Layers                                                 | `objectlayer.org`                                                   |
-| `DB_NAME_ITEMLEDGER`                | Bindings, transfers, balances, checkpoints                              | `itemledger.com`, the indexer                                       |
-| `DB_NAME_CRYPTOKOYN`                | CKY accounts                                                            | `cryptokoyn.net`                                                    |
-| `DB_NAME_CYBERIA`                   | Cyberia runtime: users, quest progress, server registry, release ledger | `cyberiaonline.com`                                                 |
-| `DB_NAME_CYBERIA_CONTENT`           | Workspace: what the CLI authors, drafts included                        | `cyberia` CLI, the Studio while no release is active                |
-| `DB_NAME_CYBERIA_CONTENT-<release>` | One content release: world, catalog, Object Layer cache, artifact copy  | `cyberia content-release build`, then moderators while it is active |
-| `DB_NAME_NEXODEV`                   | `underpost.net`                                                         | `underpost.net`                                                     |
+| Database                            | Holds                                                                                       | Written by                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `DB_NAME_OBJECTLAYER`               | Canonical Object Layers                                                                     | `objectlayer.org`                                                   |
+| `DB_NAME_ITEMLEDGER`                | Bindings, transfers, balances, checkpoints                                                  | `itemledger.com`, the indexer                                       |
+| `DB_NAME_CRYPTOKOYN`                | CKY accounts                                                                                | `cryptokoyn.net`                                                    |
+| `DB_NAME_CYBERIA`                   | Cyberia runtime: users, quest progress, server registry, release ledger, content lifecycles | `services.cyberiaonline.com`, the `cyberia` CLI for the lifecycles  |
+| `DB_NAME_CYBERIA_CONTENT`           | Workspace: what the CLI authors, drafts included                                            | `cyberia` CLI, the Studio while no release is active                |
+| `DB_NAME_CYBERIA_CONTENT-<release>` | One content release: world, catalog, Object Layer cache, artifact copy                      | `cyberia content release build`, then moderators while it is active |
+| `DB_NAME_UNDERPOST`                 | `underpost.net`                                                                             | `underpost.net`                                                     |
 
 The Cyberia host declares its content APIs as the `content` partition of its `db`. The runtime
 binds the partition to the database it serves: the active release, or the workspace while no
@@ -39,7 +39,7 @@ that release holds ([the release copy](content-artifact.md#the-release-copy)).
 
 The File store is shared by every release. Atlas renders are content-addressed, so two releases
 may hold the same render: neither a write nor a purge deletes a render there, and
-`content-release prune` removes a render only when no kept release points at it and no player
+`content release prune` removes a render only when no kept release points at it and no player
 owns its definition. It reads the definitions players own before it drops a database, so the IPFS
 copy of their renders stays pinned.
 
@@ -57,7 +57,7 @@ building ──▶ candidate ──validate──▶ validated ──promote─�
 
 | Step      | What happens                                                                                                                                                                                                                                                              |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prepare   | On the host, `content-release prepare <id> --channel <channel>` fetches the locked revision into a read-only workspace                                                                                                                                                    |
+| Prepare   | On the host, `content release prepare <id> --channel <channel>` fetches the locked revision into a read-only workspace                                                                                                                                                    |
 | Contract  | In the Release Job, the repository's own `npm ci`, `npm test` and `npm pack` build a copy of the workspace, with no Secret                                                                                                                                                |
 | Verify    | The built artifact has the locked digest and revision                                                                                                                                                                                                                     |
 | Ingest    | The release copy of the artifact is stored, then the foundation, the release sagas, the global content and each served world are imported into the release database, each as one durable step. Their definitions stay drafts. A failed foundation import imports no world |
@@ -65,8 +65,8 @@ building ──▶ candidate ──validate──▶ validated ──promote─�
 | Validate  | `artifact`, `catalog`, `canonical`, `labels`, `skills`, `render`, `global`, `instances`, `economy`, `schema`                                                                                                                                                              |
 | Promote   | One transaction retires the active release and activates the new one. A unique index allows one active release                                                                                                                                                            |
 | Serve     | Each engine follows the ledger, reads the release copy of the artifact, rebinds the partition and hot-reloads the game servers ([Serving a release](#serving-a-release))                                                                                                  |
-| Roll back | `cyberia content-release rollback` re-promotes the previous release                                                                                                                                                                                                       |
-| Retire    | `cyberia content-release retire` retires the active release with no successor: the workspace serves until a promotion                                                                                                                                                     |
+| Roll back | `cyberia content release rollback` re-promotes the previous release                                                                                                                                                                                                       |
+| Retire    | `cyberia content release retire` retires the active release with no successor: the workspace serves until a promotion                                                                                                                                                     |
 | Prune     | A Release Job drops old releases: database and ledger entry. A building, validated or active release, the rollback target and the renders players own stay. The host then removes every release workspace but the current one                                             |
 
 The source channel is provenance: a release from the private channel runs the same steps and may
@@ -92,12 +92,12 @@ and a failed one resumes. Its candidate database, its verified artifact and its 
 publications stay; only what did not complete runs. A retry never runs `npm ci`, `npm test` and
 `npm pack` again: it reads the artifact the candidate holds, checked file by file against its digest.
 A release id with another source revision or another content digest is refused. The first build
-starts from an empty candidate database; `content-release build --reset` starts it again, raises its
+starts from an empty candidate database; `content release build --reset` starts it again, raises its
 generation and records the reset in the audit trail of the release. The release is a function of the
 source revision, the [release content](content-artifact.md#release-content) and the release
 configuration.
 
-`cyberia content-release inspect <release-id>` shows the stage that stopped a release, each task
+`cyberia content release inspect <release-id>` shows the stage that stopped a release, each task
 that is waiting, blocked or failed with its attempts and its error, and the audit trail.
 
 ### Publication
@@ -157,7 +157,7 @@ what runs the import.
 bootstrap → foundation → release sagas → release instances → edit → hot reload
 ```
 
-`cyberia run-workflow import-content` imports into the workspace, a mutable database: it upserts,
+`cyberia content workspace import` imports into the workspace, a mutable database: it upserts,
 and an import into a store that already holds content keeps what Studio authored. The content job
 of the Docker stack runs the same command. No Release Job, ledger entry or candidate database takes
 part. [Cyberia local content development](../how-to/develop-content-locally.md) holds the daily
@@ -170,7 +170,7 @@ source revision → release workspace → empty candidate database → release c
   → release sagas → release instances → validation → promotion → active
 ```
 
-A Release Job runs `cyberia content-release build --from source`. The serving workload never imports
+A Release Job runs `cyberia content release build --from source`. The serving workload never imports
 content: it serves the active release and follows the ledger.
 
 ## Live changes
@@ -185,7 +185,7 @@ release baseline + live authorized changes = current production state
 
 The next release replaces the baseline with the content of `cyberia-content`, and keeps no live
 change. A change that must outlive its release goes into `cyberia-content` on purpose:
-`cyberia content-release export-live` writes it out from a production content baseline, and a commit makes it source.
+`cyberia content source export-live` writes it out from a production content baseline, and a commit makes it source.
 An item binding is such a change: the export freezes the definition each item runs into the
 snapshot, and the next release restores it. So is [global content](runtime-binding.md#global-content):
 the export writes each definition no world carries, and the next release imports it. Nothing writes Git on its own, and no release reads
@@ -195,11 +195,13 @@ when it retired.
 A release records the fingerprint of its content as it was built: one digest per content API of
 the worlds and their bindings (instances, confs, maps, quests, actions, dialogues, skills, entity
 defaults, the item catalog and the global content). Timestamps, version keys, save revisions and generated map
-pictures do not count. `content-release live-changes` compares the active release with its
+pictures do not count. `content release live-changes` compares the active release with its
 fingerprint and names each API that changed. `promote` and `build --promote` refuse while there
 is a change, because the promotion stops serving it. Export the changed worlds, commit them to
-`cyberia-content`, and build the next release from that revision. `--discard-live-changes`
-promotes anyway; the changes then stay in the retired release database until a prune drops it. A
+`cyberia-content`, and build the next release from that revision. To promote anyway, name the
+active release with `--discard-live-changes <active-release-id>` and say why with
+`--discard-reason <reason>`; the ledger records both in an audit entry. The changes then stay in the
+retired release database until a prune drops it. A
 release that records no fingerprint has unknown live changes and needs the same choice. A rollback
 is not checked: the release it leaves keeps its own live changes.
 

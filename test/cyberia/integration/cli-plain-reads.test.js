@@ -80,8 +80,8 @@ describe('data commands without an env file', () => {
   const cli = new URL('../../../bin/cyberia.js', import.meta.url).pathname;
 
   it.skipIf(!fs.existsSync(cli)).each([
-    ['instance', 'TEST'],
-    ['ol', 'x'],
+    ['instance snapshot', 'TEST'],
+    ['content object-layer', 'x'],
   ])(
     '%s resolves the deploy from the process environment',
     (command, target) => {
@@ -90,19 +90,23 @@ describe('data commands without an env file', () => {
         fs.outputJsonSync(`${pod}/engine-private/conf/dd-x/conf.server.json`, {
           h: { '/': { db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:1', name: 'x' } } },
         });
-        const { stdout, stderr } = spawnSync(process.execPath, [cli, command, target, '--import', '--release', 'r1'], {
-          cwd: pod,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            DEFAULT_DEPLOY_ID: 'dd-x',
-            DEFAULT_DEPLOY_HOST: 'h',
-            DEFAULT_DEPLOY_PATH: '/',
-            // An empty global npm root: the host's underpost store `.env` overrides the process env.
-            npm_config_prefix: `${pod}/npm-global`,
+        const { stdout, stderr } = spawnSync(
+          process.execPath,
+          [cli, ...command.split(' '), target, '--import', '--release', 'r1'],
+          {
+            cwd: pod,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              DEFAULT_DEPLOY_ID: 'dd-x',
+              DEFAULT_DEPLOY_HOST: 'h',
+              DEFAULT_DEPLOY_PATH: '/',
+              // An empty global npm root: the host's underpost store `.env` overrides the process env.
+              npm_config_prefix: `${pod}/npm-global`,
+            },
+            timeout: 50000,
           },
-          timeout: 50000,
-        });
+        );
         const output = `${stdout}${stderr}`;
         expect(output).to.not.include('Env file not found');
         // The next check after env resolution: the minimal conf declares no content partition.

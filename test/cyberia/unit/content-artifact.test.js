@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-vi.mock('../../../src/db/DataBaseProvider.js', () => ({
+vi.mock('../../../src/db/database-provider.js', () => ({
   DataBaseProviderService: {
     getModel: () => ({ findOne: () => ({ lean: async () => null }), materialize: async () => {} }),
   },
@@ -515,11 +515,16 @@ describe('materialization', () => {
 const collection = (seed = []) => {
   const docs = seed.map((doc, index) => ({ _id: `seed-${index}`, ...structuredClone(doc) }));
   const matches = (doc, filter) =>
-    Object.entries(filter).every(([key, value]) => JSON.stringify(doc[key]) === JSON.stringify(value));
+    Object.entries(filter).every(([key, value]) =>
+      value?.$in ? value.$in.includes(doc[key] ?? null) : JSON.stringify(doc[key]) === JSON.stringify(value),
+    );
   const add = (doc) => docs.push({ _id: `id-${docs.length}`, ...structuredClone(doc) });
   return {
     docs,
-    findOne: (filter) => ({ lean: async () => structuredClone(docs.find((doc) => matches(doc, filter)) ?? null) }),
+    findOne: (filter) => {
+      const query = { lean: async () => structuredClone(docs.find((doc) => matches(doc, filter)) ?? null) };
+      return { ...query, sort: () => query };
+    },
     find: (filter) => ({
       sort: () => ({
         lean: async () => structuredClone(docs.filter((doc) => matches(doc, filter)).sort((a, b) => a.order - b.order)),
@@ -527,10 +532,14 @@ const collection = (seed = []) => {
     }),
     create: async (doc) => add(doc),
     insertMany: async (list) => list.forEach(add),
-    updateOne: async (filter, { $set }, { upsert } = {}) => {
+    updateOne: async (filter, { $set, $setOnInsert }, { upsert } = {}) => {
       const found = docs.find((doc) => matches(doc, filter));
       if (found) Object.assign(found, structuredClone($set));
-      else if (upsert) add({ ...filter, ...$set });
+      else if (upsert) add({ ...filter, ...$setOnInsert, ...$set });
+      return { matchedCount: found ? 1 : 0 };
+    },
+    async bulkWrite(operations) {
+      for (const { updateOne } of operations) await this.updateOne(updateOne.filter, updateOne.update, updateOne);
     },
     db: { startSession: async () => ({ withTransaction: async (work) => await work(), endSession: async () => {} }) },
     deleteMany: async (filter) => {
@@ -666,16 +675,17 @@ describe('content import', () => {
   it('inserts every family, finds it in sync the second time, and writes nothing then', async () => {
     const models = contentStore();
     const first = await importContent({ families: FAMILIES, models });
-    expect(first.objectLayers).toBe(2);
-    expect(first.written).toEqual({
-      entityTypeDefaults: 1,
-      skills: 1,
-      maps: 1,
-      quests: 1,
-      dialogues: 1,
-      markets: 1,
-      actions: 1,
-      economies: 1,
+    const inserted = (count) => ({ inserted: count, inSync: 0, differsKept: 0, rebound: 0, conflict: 0 });
+    expect(first.families).toEqual({
+      objectLayers: inserted(2),
+      entityTypeDefaults: inserted(1),
+      skills: inserted(1),
+      maps: inserted(1),
+      quests: inserted(1),
+      dialogues: inserted(1),
+      markets: inserted(1),
+      actions: inserted(1),
+      economies: inserted(1),
     });
     expect(models.CyberiaMarket.docs[0]).toMatchObject({
       code: 'bazaar',
@@ -690,8 +700,7 @@ describe('content import', () => {
     expect(first.entityTypeDefaultIds).toEqual([models.CyberiaEntityTypeDefault.docs[0]._id]);
 
     const second = await importContent({ families: FAMILIES, models });
-    expect(second.objectLayers).toBe(0);
-    expect(Object.values(second.written).every((count) => count === 0)).toBe(true);
+    expect(Object.values(second.families).every(({ inserted, inSync }) => inserted === 0 && inSync > 0)).toBe(true);
     expect(
       Object.values(statuses(second.plan))
         .flat()
@@ -708,12 +717,34 @@ describe('content import', () => {
     });
     const kept = await importContent({ families: FAMILIES, models });
     expect(statuses(kept.plan)).toMatchObject({ quests: ['differs'], dialogues: ['differs'], maps: ['differs'] });
+    expect(kept.families.quests).toMatchObject({ differsKept: 1, rebound: 0 });
     expect(models.CyberiaQuest.docs[0].title).toBe('Old');
 
-    await importContent({ families: FAMILIES, models, rebind: true });
-    expect(models.CyberiaQuest.docs[0]).toMatchObject({ title: 'Logs', sourceMapCode: 'glade', sourceCellX: 3 });
+    const rebound = await importContent({ families: FAMILIES, models, rebind: true });
+    expect(rebound.families.quests).toMatchObject({ differsKept: 0, rebound: 1, conflict: 0 });
+    expect(models.CyberiaQuest.docs[0]).toMatchObject({
+      title: 'Logs',
+      sourceMapCode: 'glade',
+      sourceCellX: 3,
+      revision: 2,
+    });
     expect(models.CyberiaDialogue.docs.map(({ text }) => text)).toEqual(['Hello.', 'Bye.']);
     expect(models.CyberiaMap.docs[0]).toMatchObject({ name: 'Glade', entities: [{ initCellX: 1, initCellY: 2 }] });
+  });
+
+  it('keeps a revised document another writer changed after the plan, and names it', async () => {
+    const models = contentStore({ quests: [{ ...FAMILIES.quests[0], title: 'Old', revision: 4 }] });
+    const updateOne = models.CyberiaQuest.updateOne;
+    models.CyberiaQuest.updateOne = async (filter, update, options) => {
+      models.CyberiaQuest.docs[0].revision = 5;
+      return await updateOne(filter, update, options);
+    };
+    const result = await importContent({ families: FAMILIES, models, rebind: true });
+    expect(result.families.quests).toMatchObject({ rebound: 0, conflict: 1 });
+    expect(result.conflicts).toEqual([
+      { family: 'quests', code: FAMILIES.quests[0].code, message: 'changed after the plan: kept, import again' },
+    ]);
+    expect(models.CyberiaQuest.docs[0]).toMatchObject({ title: 'Old', revision: 5 });
   });
 
   it('compares only what the artifact compiles: stored extras never differ', () => {

@@ -102,7 +102,7 @@ Every deployed client ships as a static application shell with PWA support. The 
 inputs:
 
 - the deploy `ssr` configuration in `underpost.config.dd-*.js` (or `conf.ssr.json`)
-- the service worker source in `src/client/sw/core.sw.js`
+- the service worker source in `src/client/sw/CoreServiceWorker.js`
 
 Everything else — `index.html` pages, `sw.js`, the precache list — is **generated** during the client
 build. Treat them as outputs only; never hand-edit them.
@@ -211,30 +211,30 @@ underpost monitor
 
 ### Cyberia (cyberia) — `bin/cyberia.js`
 
-| Group          | Command                                | Purpose                                                  |
-| -------------- | -------------------------------------- | -------------------------------------------------------- |
-| `ol`           | `cyberia ol [item-id]`                 | ObjectLayer import, procedural generation, atlas/sprite  |
-| `instance`     | `cyberia instance [instance-code]`     | export / import / drop a Cyberia instance and its data   |
-| `client-hints` | `cyberia client-hints [instance-code]` | per-instance presentation hints (palette, camera, icons) |
-| `chain`        | `cyberia chain <sub>`                  | Hyperledger Besu + ERC-1155 ObjectLayerToken lifecycle   |
-| `run-workflow` | `cyberia run-workflow <name>`          | named maintenance/build scripts from `scripts/`          |
+| Group          | Command                                  | Purpose                                                  |
+| -------------- | ---------------------------------------- | -------------------------------------------------------- |
+| `ol`           | `cyberia content object-layer [item-id]` | ObjectLayer import, procedural generation, atlas/sprite  |
+| `instance`     | `cyberia instance [instance-code]`       | export / import / drop a Cyberia instance and its data   |
+| `client-hints` | `cyberia instance hints [instance-code]` | per-instance presentation hints (palette, camera, icons) |
+| `chain`        | `cyberia chain <sub>`                    | Hyperledger Besu + ERC-1155 ObjectLayerToken lifecycle   |
+| `run-workflow` | `cyberia run-workflow <name>`            | named maintenance/build scripts from `scripts/`          |
 
 Common examples:
 
 ```bash
 # Object layer content
-cyberia ol hatchet,sword --client-public --import # import specific items from the asset tree
-cyberia ol --client-public --import-types skin    # batch import by type (or: all)
-cyberia ol hatchet --to-atlas-sprite-sheet        # build atlas sprite sheet
-cyberia ol --drop --client-public                 # drop data and asset folders
+cyberia content object-layer hatchet,sword --client-public --import # import specific items from the asset tree
+cyberia content object-layer --client-public --import-types skin    # batch import by type (or: all)
+cyberia content object-layer hatchet --to-atlas-sprite-sheet        # build atlas sprite sheet
+cyberia content object-layer --drop --client-public                 # drop data and asset folders
 
 # Instance data
-cyberia instance FOREST --export ./backup
-cyberia instance FOREST --import ./backup
-cyberia instance FOREST --drop
+cyberia instance snapshot FOREST --export ./backup
+cyberia instance snapshot FOREST --import ./backup
+cyberia instance snapshot FOREST --drop
 
 # Presentation hints
-cyberia client-hints cyberia-main --seed-defaults
+cyberia instance hints cyberia-main --seed-defaults
 
 # Chain / token lifecycle
 cyberia chain deploy --chain-id 777771
@@ -246,6 +246,17 @@ cyberia content status
 cyberia content audit --dev
 cyberia content import --dev
 cyberia content import --saga <saga-code> --dev
+cyberia content import --saga <saga-code> --instance <instance-code> --dev
+cyberia content saga list --dev
+cyberia content saga check <saga-code> --dev
+cyberia content workspace import --dev
+cyberia content workspace reset --confirm <deploy-id> --dev
+cyberia instance list --dev
+
+# Content lifecycle across the hosts of a deployment
+cyberia content lifecycle start --saga <saga-code>
+cyberia content lifecycle doctor <cycle-id>
+cyberia content lifecycle handoff <cycle-id>
 
 # Product repositories: build, pin in the deployment lock, publish
 cyberia release build --commit
@@ -253,7 +264,6 @@ cyberia release lock --commit
 cyberia release publish
 
 # Named workflows
-cyberia run-workflow import-content
 cyberia run-workflow build-server-dashboard
 ```
 

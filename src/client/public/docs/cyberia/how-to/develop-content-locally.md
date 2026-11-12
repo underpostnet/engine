@@ -57,12 +57,12 @@ node bin docker-compose --deploy-id dd-cyberia --docker-compose-id cyberia --up
 ```
 
 It serves the same domains on the same ports as the development engine below: one engine
-container publishes the port block of `conf.server.json`, so `http://localhost:4017`
+container publishes the port block of `conf.server.json`, so `http://localhost:4014`
 is the Object Layer authority there as well. Its nginx also answers each domain by name —
 `http://objectlayer.org/` — for the browser and for every container, which is what
 `node bin/cyberia run-workflow docker:up` maintains the `/etc/hosts` block for. The Cyberia
 data plane (the WASM client's `/api/` and `/assets/`, the game server's `engine-cyberia`) is
-answered by `www.cyberiaonline.com`, the host that owns the Cyberia APIs. The stack is generated;
+answered by `services.cyberiaonline.com`, the host that owns the Cyberia APIs. The stack is generated;
 [Run the Cyberia Docker stack locally](./run-the-docker-stack-locally.md) shows how, and how to
 run it on images built from this workspace.
 
@@ -77,13 +77,14 @@ node bin/cyberia debug engine-cyberia    # npm run dev dd-cyberia
 The engine builds the clients, then starts one runtime per host of `conf.server.json`. The
 `Runtime network` log names the local port of each host:
 
-| Host                    | Local address    | Serves                                               |
-| ----------------------- | ---------------- | ---------------------------------------------------- |
-| `www.cyberiaonline.com` | `localhost:4008` | Portal, Studio, content and runtime APIs, gRPC 50051 |
-| `objectlayer.org`       | `localhost:4017` | The Object Layer authority                           |
-| `itemledger.com`        | `localhost:4014` | ItemLedger                                           |
-| `cryptokoyn.net`        | `localhost:4011` | CKY finance, wallet UI                               |
-| `underpost.net`         | `localhost:4005` | Journal                                              |
+| Host                         | Local address    | Serves                                               |
+| ---------------------------- | ---------------- | ---------------------------------------------------- |
+| `services.cyberiaonline.com` | `localhost:4004` | Portal, Studio, content and runtime APIs, gRPC 50051 |
+| `www.cyberiaonline.com`      | `localhost:4006` | The public website, static                           |
+| `objectlayer.org`            | `localhost:4014` | The Object Layer authority                           |
+| `itemledger.com`             | `localhost:4011` | ItemLedger                                           |
+| `cryptokoyn.net`             | `localhost:4008` | CKY finance, wallet UI                               |
+| `underpost.net`              | `localhost:4001` | Journal                                              |
 
 A development build addresses every other domain on its local port. The `apiHosts` of a client
 (`conf.client.json`) name the owner domain; the build resolves each owner to `localhost:<port>`
@@ -97,9 +98,9 @@ goes to the owner host of this deploy on its local port. Every API path is `/api
 ### Verify the local domain services
 
 ```bash
-curl http://localhost:4017/api/v1/object-layer?limit=1              # the authority answers
-curl http://localhost:4008/api/v1/cyberia-content-release/active    # what the runtime serves
-node bin/cyberia content-release status --dev                    # the release ledger
+curl http://localhost:4013/api/v1/object-layer?limit=1              # the authority answers
+curl http://localhost:4004/api/v1/cyberia-content-release/active    # what the runtime serves
+node bin/cyberia content release status --dev                    # the release ledger
 ```
 
 `/active` answers `"serving": false` and the workspace database while no release is active. That
@@ -112,7 +113,7 @@ this host. Without a target, it lists the processes:
 
 | Terminal                                          | Listens on                               | Serves                       |
 | ------------------------------------------------- | ---------------------------------------- | ---------------------------- |
-| `node bin/cyberia debug engine-cyberia`           | `localhost:4008`, gRPC `localhost:50051` | The engine                   |
+| `node bin/cyberia debug engine-cyberia`           | `localhost:4004`, gRPC `localhost:50051` | The engine                   |
 | `node bin/cyberia debug gateway`                  | `localhost:8083`, `localhost:8082`       | The game origins             |
 | `node bin/cyberia debug cyberia-server /`         | `localhost:8093`                         | `http://localhost:8083`      |
 | `node bin/cyberia debug cyberia-server /test`     | `localhost:8103`                         | `http://localhost:8083/test` |
@@ -120,9 +121,11 @@ this host. Without a target, it lists the processes:
 | `node bin/cyberia debug cyberia-client /test`     | `localhost:8102`                         | `http://localhost:8082/test` |
 
 Each game process runs the development env that `instance-build-manifest` writes for its world:
-`engine-private/conf/dd-cyberia/instances/<id>/env/development.env`. The command changes only
-what this host changes: the local engine address, the port, and no container status reports. The
-first world of a runtime listens on the development port of the runtime plus 10, the second plus 20.
+`engine-private/conf/dd-cyberia/instances/<id>/env/development.env`. The builder of that env sets
+its origins again from the current `PORT` of `.env.development`, so a port change needs no new
+manifest build. The command changes only what this host changes: the local engine address, the
+port, and no container status reports. The first world of a runtime listens on the development port
+of the runtime plus 10, the second plus 20.
 
 The gateway answers the development origins of `conf.instances.json` and sends each world path to
 its process, over HTTP and WebSocket, as the cluster gateway does. The client of `/test` opens
@@ -140,7 +143,7 @@ Each server loads its world over gRPC from what the engine serves and reports it
 [universe](../explanation/universe.md) of the world.
 Create it in the Studio universe editor and select its worlds.
 
-Open the portal at `http://localhost:4008` and press Play: the launch bridge opens
+Open the portal at `http://localhost:4004` and press Play: the launch bridge opens
 `http://localhost:8082` with a ticket. A direct visit to `http://localhost:8082` offers Continue as
 guest and Sign in. **TRAVEL** in the universe map opens `http://localhost:8082/test`. A world
 whose server does not run shows as offline.
@@ -153,7 +156,7 @@ whose server does not run shows as offline.
 4. Import the release content:
 
    ```bash
-   node bin/cyberia run-workflow import-content --dev
+   node bin/cyberia content workspace import --dev
    ```
 
    It imports the foundation, the release sagas, then the release instances
@@ -169,8 +172,8 @@ whose server does not run shows as offline.
    arrives without entities, and every item without render. In the Studio, paint the items and
    place the entities.
 
-5. Create or update Object Layers. Use the Studio at `http://localhost:4008/object-layer-engine`
-   (sign in as a moderator), or the CLI: `node bin/cyberia ol <item-id> --client-public --import --dev`.
+5. Create or update Object Layers. Use the Studio at `http://localhost:4004/object-layer-engine`
+   (sign in as a moderator), or the CLI: `node bin/cyberia content object-layer <item-id> --client-public --import --dev`.
    Both write to MongoDB through the same path: draft → the local authority → `olCid` → cache copy.
    Only `--client-public` also touches `src/client/public/cyberia/assets`. The
    authority is the only writer of published definitions. A Cyberia database never holds an
@@ -181,7 +184,7 @@ whose server does not run shows as offline.
    the cid the item runs now (empty when unbound):
 
    ```
-   POST http://localhost:4008/api/v1/cyberia-item-catalog
+   POST http://localhost:4004/api/v1/cyberia-item-catalog
      { "itemId": "hatchet", "objectLayerCid": "bafkrei…", "expectedCid": "bafkrei…" }
    ```
 
@@ -195,12 +198,12 @@ whose server does not run shows as offline.
 8. Validate:
 
    ```bash
-   node bin/cyberia content-release validate --dev
+   node bin/cyberia content release validate --dev
    ```
 
    With no release named, every check runs on the workspace: catalog bindings, canonical CIDs at
    the authority, map labels, atlas renders, instance conf and maps, economies, schemas.
-   `node bin/cyberia catalog check --dev` checks each world as the game server receives it.
+   `node bin/cyberia content catalog check --dev` checks each world as the game server receives it.
    Each finding names the missing or invalid dependency.
 
 9. Test in the client, the Studio or the server dashboard.
@@ -215,36 +218,37 @@ Run the production content lifecycle against the local runtime when a change mus
 release.
 
 ```bash
-node bin/cyberia content-release build local-1 --from workspace --dev   # copy, publish, validate
-node bin/cyberia content-release promote local-1 --dev                  # serve it
-node bin/cyberia content-release status --dev
-node bin/cyberia content-release rollback --dev                         # the release before it
-node bin/cyberia content-release retire --dev                           # the workspace serves again
-node bin/cyberia content-release prune --keep 0 --dev                   # drop retired databases
+node bin/cyberia content release build local-1 --from workspace --dev   # copy, publish, validate
+node bin/cyberia content release promote local-1 --dev                  # serve it
+node bin/cyberia content release status --dev
+node bin/cyberia content release rollback --dev                         # the release before it
+node bin/cyberia content release retire --dev                           # the workspace serves again
+node bin/cyberia content release prune --keep 0 --dev                   # drop retired databases
 ```
 
-| Command                       | Effect                                                                                                                                                                                                                                |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build <id> --from workspace` | Copies the workspace into `<DB_NAME_CYBERIA_CONTENT>-<id>`, drafts left out; publishes what is not yet at the authority; validates                                                                                                    |
-| `live-changes`                | Names the Studio edits on the active release that its build does not hold                                                                                                                                                             |
-| `export-live`                 | Exports every world and the global content of the release a production content baseline captured into `cyberia-content`. See [Export the live content](./deploy-a-release.md#export-the-live-content)                                 |
-| `promote <id>`                | One transaction: the active release retires, `<id>` turns active. The running engine follows within 15 s and reloads every registered game server. Refuses while the active release has live changes, unless `--discard-live-changes` |
-| `rollback`                    | Promotes the release that was active before the current one                                                                                                                                                                           |
-| `retire`                      | Retires the active release with no successor. The runtime serves the workspace again; `rollback` re-promotes the release                                                                                                              |
-| `prune --keep <n>`            | Drops old releases beyond `n`: database and ledger entry. A building, validated or active release, the rollback target and the renders players own always stay                                                                        |
+| Command                       | Effect                                                                                                                                                                                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build <id> --from workspace` | Copies the workspace into `<DB_NAME_CYBERIA_CONTENT>-<id>`, drafts left out; publishes what is not yet at the authority; validates                                                                                                      |
+| `live-changes`                | Names the Studio edits on the active release that its build does not hold                                                                                                                                                               |
+| `promote <id>`                | One transaction: the active release retires, `<id>` turns active. The running engine follows within 15 s and reloads every registered game server. Refuses while the active release has live changes, unless they are discarded by name |
+| `rollback`                    | Promotes the release that was active before the current one                                                                                                                                                                             |
+| `retire`                      | Retires the active release with no successor. The runtime serves the workspace again; `rollback` re-promotes the release                                                                                                                |
+| `prune --keep <n>`            | Drops old releases beyond `n`: database and ledger entry. A building, validated or active release, the rollback target and the renders players own always stay                                                                          |
 
 While a release is active, Studio edits change that release live, as in production. The workspace
 keeps what it held, and `retire` serves it again. A Studio edit made on the release stays in the
-release database: `cyberia instance <code> --export <dir> --release <id>` carries it out. The next
-`promote` refuses until `--discard-live-changes` stops serving it.
+release database: `cyberia instance snapshot <code> --export <dir> --release <id>` carries it out. The next
+`promote` refuses until `--discard-live-changes <active-release-id> --discard-reason <reason>` stops
+serving it. `cyberia content source export-live` turns the content of a production baseline into
+source; see [Export the live content](./deploy-a-release.md#export-the-live-content).
 
 A local release serves development only: a production runtime promotes only a release built from
 an exact source revision. To rehearse a deploy release, prepare the locked revision into a local
 store and build it in this process:
 
 ```bash
-node bin/cyberia content-release prepare rehearsal-1 --channel private --store /tmp/release-store
-node bin/cyberia content-release build rehearsal-1 --from source --store /tmp/release-store --dev
+node bin/cyberia content release prepare rehearsal-1 --channel private --store /tmp/release-store
+node bin/cyberia content release build rehearsal-1 --from source --store /tmp/release-store --dev
 ```
 
 A release id is lower-case letters, digits and dashes. Production uses
@@ -253,18 +257,27 @@ from either source channel. A local id such as `local-1` never collides with it.
 
 ## Reset
 
-Each reset is a separate command, needs `--confirm dd-cyberia`, and is never part of startup or of
-a deploy.
+Each reset needs `--confirm dd-cyberia` and is never part of startup or of a deploy. `--dry-run`
+on `content workspace drop` and `reset` counts what they remove.
 
-| Command                                                            | Removes                                                                                           |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `node bin/cyberia instance test --drop --confirm dd-cyberia --dev` | Every workspace document of that instance                                                         |
-| `node bin/cyberia run-workflow drop-db --confirm dd-cyberia --dev` | Every content collection of the workspace and the files they reference                            |
-| `… drop-db --include-runtime …`                                    | Also the player records: profiles, sessions, tickets, friendships, quest progress. Off by default |
-| `node bin/cyberia ol --drop --confirm dd-cyberia --dev`            | Object Layer documents and their atlas assets                                                     |
-| `node bin/cyberia content-release prune --keep 0 --dev`            | Old release databases, except the protected ones                                                  |
+```bash
+node bin/cyberia content workspace reset --confirm dd-cyberia --dry-run --dev
+node bin/cyberia content workspace reset --confirm dd-cyberia --dev
+```
 
-Reimport after a reset with the same import command. A canonical definition at the authority is
+`content workspace reset` drops the content collections and every Object Layer definition, then
+imports the release content of the artifact. The commands below remove one part each.
+
+| Command                                                                     | Removes                                                                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `node bin/cyberia instance snapshot test --drop --confirm dd-cyberia --dev` | Every workspace document of that instance                                                         |
+| `node bin/cyberia content workspace drop --confirm dd-cyberia --dev`        | Every content collection of the workspace and the files they reference                            |
+| `… workspace drop --include-runtime …`                                      | Also the player records: profiles, sessions, tickets, friendships, quest progress. Off by default |
+| `node bin/cyberia content object-layer --drop --confirm dd-cyberia --dev`   | Object Layer documents and their atlas assets                                                     |
+| `node bin/cyberia content release prune --keep 0 --dev`                     | Old release databases, except the protected ones                                                  |
+
+Reimport after a partial reset with `content workspace import`. No reset removes the records of a
+content lifecycle. A canonical definition at the authority is
 never removed by a Cyberia reset: the next import finds it there and keeps its `olCid`.
 
 ## Cache
@@ -315,8 +328,8 @@ management grids show the failure in place of rows.
 | Step       | Local                                              | Production (`deploy/dd-cyberia/sync-deploy.sh`)       |
 | ---------- | -------------------------------------------------- | ----------------------------------------------------- |
 | Source     | Workspace, edited in place                         | The locked revision, fetched into a release workspace |
-| Candidate  | `content-release build local-<n> --from workspace` | A Release Job: `content-release build --from source`  |
-| Validation | The build, or `content-release validate`           | The build; the deploy stops on a failure              |
+| Candidate  | `content release build local-<n> --from workspace` | A Release Job: `content release build --from source`  |
+| Validation | The build, or `content release validate`           | The build; the deploy stops on a failure              |
 | Promotion  | `promote`, by hand                                 | Stage G, after readiness                              |
 | Back       | `rollback` or `retire`                             | `deploy/dd-cyberia/content-release.sh rollback`       |
 

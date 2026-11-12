@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import {
   CONTENT_FAMILIES,
   auditContent,
   contentArtifact,
   hasContentArtifact,
+  entityTypeDefaultKey,
   importContent,
-  importSaga,
   readDatabaseContent,
 } from '../../../src/projects/cyberia/content/content-artifact.js';
+import { importSaga } from '../../../src/projects/cyberia/saga/saga-import.js';
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 
 // One host that is its own Object Layer authority, so definitions are stored here. IPFS points at
@@ -32,6 +33,7 @@ const APIS = [
   'cyberia-entity-type-default',
   'cyberia-economy',
   'cyberia-economic-item-policy',
+  'cyberia-global-map-code-registry',
 ];
 const MODELS = {
   entityTypeDefaults: 'CyberiaEntityTypeDefault',
@@ -83,13 +85,13 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
 
   it('imports every document family of the foundation, beyond Object Layer definitions', async () => {
     const result = await importFoundation();
-    expect(result.objectLayers).toBe(foundation.objectLayers.length);
+    expect(result.families.objectLayers.inserted).toBe(foundation.objectLayers.length);
     expect(await models().CyberiaItemCatalog.countDocuments()).toBe(foundation.objectLayers.length);
     for (const [family, model] of Object.entries(MODELS)) {
       expect(await models()[model].countDocuments(), family).toBe(foundation[family].length);
       expect(foundation[family].length, family).toBeGreaterThan(0);
     }
-    expect(Object.keys(result.written)).toEqual(Object.keys(CONTENT_FAMILIES).filter((f) => f !== 'objectLayers'));
+    expect(Object.keys(result.families)).toEqual(Object.keys(CONTENT_FAMILIES));
     expect(await models().CyberiaEconomy.countDocuments()).toBe(foundation.economies.length);
     const standard = foundation.economies.find(({ code }) => code === 'standard');
     expect(await models().CyberiaEconomicItemPolicy.countDocuments({ economyCode: 'standard' })).toBe(
@@ -127,8 +129,7 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     const before = await models().ObjectLayer.countDocuments();
     const result = await importFoundation();
     expect(allInSync(result)).toBe(true);
-    expect(result.objectLayers).toBe(0);
-    expect(Object.values(result.written).every((count) => count === 0)).toBe(true);
+    expect(Object.values(result.families).every(({ inserted, rebound }) => inserted + rebound === 0)).toBe(true);
     expect(await models().ObjectLayer.countDocuments()).toBe(before);
   });
 
@@ -156,8 +157,8 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
   it('imports the artifact saga over the foundation, twice, to the same state, with a runnable instance', async () => {
     const first = await importSaga({ saga, models: models(), context: host });
     const second = await importSaga({ saga, models: models(), context: host });
-    expect(first.objectLayers).toBe(saga.families.objectLayers.length);
-    expect(second.objectLayers).toBe(0);
+    expect(first.report.families.objectLayers.inserted).toBe(saga.families.objectLayers.length);
+    expect(second.report.families.objectLayers.inserted).toBe(0);
     expect(allInSync(second)).toBe(true);
 
     for (const quest of saga.families.quests) {
@@ -174,8 +175,24 @@ describe.skipIf(!mongodBinary || !hasContentArtifact())('content artifact import
     expect(instance.cyberiaMapCodes).toEqual(saga.instance.cyberiaMapCodes);
     const conf = await models().CyberiaInstanceConf.findOne({ instanceCode: sagaCode }).lean();
     expect(String(instance.conf)).toBe(String(conf._id));
-    expect(conf.entityDefaults.map(String).sort()).toEqual(first.entityTypeDefaultIds.map(String).sort());
+    const defaults = await Promise.all(
+      saga.families.entityTypeDefaults.map((row) =>
+        models().CyberiaEntityTypeDefault.findOne(entityTypeDefaultKey(row)).lean(),
+      ),
+    );
+    expect(conf.entityDefaults.map(String).sort()).toEqual(defaults.map(({ _id }) => String(_id)).sort());
     expect(conf.entityDefaults).toHaveLength(saga.families.entityTypeDefaults.length);
+  });
+
+  it('adds the saga maps to its world and keeps the maps and settings other sagas gave it', async () => {
+    await models().CyberiaInstance.updateOne(
+      { code: sagaCode },
+      { $set: { name: 'Shared world' }, $push: { cyberiaMapCodes: 'caravan-camp' } },
+    );
+    await importSaga({ saga, models: models(), context: host });
+    const instance = await models().CyberiaInstance.findOne({ code: sagaCode }).lean();
+    expect(instance.name).toBe('Shared world');
+    expect(instance.cyberiaMapCodes).toEqual([...saga.instance.cyberiaMapCodes, 'caravan-camp']);
   });
 
   it('audits the database: foundation labels in sync, saga labels owned by their saga', async () => {

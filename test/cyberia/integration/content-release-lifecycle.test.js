@@ -6,12 +6,13 @@ import nodePath from 'node:path';
 import fs from 'fs-extra';
 import express from 'express';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { MongooseDB } from '../../../src/db/mongo/MongooseDB.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { MongooseDB } from '../../../src/db/mongo/mongoose-db.js';
 import { deferPublication, publishDefinition } from '../../../src/api/object-layer/object-layer.publication.js';
 import { clearDomainCache } from '../../../src/server/domain/domain-client.js';
-import { authMiddlewareFactory, jwtSign } from '../../../src/server/security/auth.js';
-import { CyberiaMapRouter } from '../../../src/api/cyberia-map/cyberia-map.router.js';
+import { jwtSign } from '../../../src/server/security/auth.js';
+import { ApiModule as CyberiaMapModule } from '../../../src/api/cyberia-map/cyberia-map.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { fetchItemContent, fetchMapData, getInstanceModels } from '../../../src/projects/cyberia/instance-data.js';
 import { objectLayerIdentity, renderContractOf } from '../../../src/api/object-layer/object-layer.identity.js';
 import { FileFactory } from '../../../src/api/file/file.service.js';
@@ -894,13 +895,15 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
     beforeAll(async () => {
       process.env.JWT_SECRET = 'content-release-test-secret';
       for (const role of roles.filter(Boolean))
-        tokens[role] = jwtSign({ _id: `${new Types.ObjectId()}`, role }, runtime, 5, 10);
+        tokens[role] = jwtSign(
+          { _id: `${new Types.ObjectId()}`, role, host: runtime.host, path: runtime.path },
+          runtime,
+          5,
+          10,
+        );
       const app = express();
       app.use(express.json());
-      app.use(
-        '/api/v1/cyberia-map',
-        CyberiaMapRouter.router({ ...runtime, authMiddleware: authMiddlewareFactory(runtime) }),
-      );
+      app.use('/api/v1/cyberia-map', CyberiaMapModule.createRouter(testApiContext(CyberiaMapModule, runtime)));
       server = await new Promise((resolve) => {
         const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
       });

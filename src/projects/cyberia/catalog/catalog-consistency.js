@@ -96,7 +96,7 @@ export const STORAGE_CATEGORIES = Object.freeze(['binding', 'content', 'mfs', 'p
  * @param {Object} models - Served models: `CyberiaItemCatalog`, `ObjectLayer`, `AtlasSpriteSheet`, `Ipfs`.
  * @param {Object} params
  * @param {boolean} [params.canonical=false] - This host pins the canonical bytes: it is the Object Layer authority.
- * @param {Object} [params.options] - Router options ({ host, path }).
+ * @param {Object} [params.options] - The host path ({ host, path }).
  * @returns {Promise<{ok:boolean,findings:Array<{category:string,itemIds:string[],cid:string,file:string,problem:string}>}>}
  * @memberof CyberiaCatalogConsistency
  */

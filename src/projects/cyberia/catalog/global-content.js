@@ -12,14 +12,14 @@
  * @module src/projects/cyberia/catalog/global-content.js
  * @namespace CyberiaGlobalContent
  */
-import { DataBaseProviderService } from '../../../db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../db/database-provider.js';
 
 const failure = (status, message) => Object.assign(new Error(message), { status, expected: true });
 const model = (name, options) => DataBaseProviderService.getModel(name, options);
 
 /**
  * Whether a definition is global content.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {string} cid
  * @returns {Promise<boolean>}
  * @memberof CyberiaGlobalContent
@@ -30,7 +30,7 @@ export const isGlobalContent = async (options, cid) =>
 /**
  * Registers a definition as global content. A definition stays registered as it was first:
  * registering it again changes nothing.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {Object} row
  * @param {string} row.cid
  * @param {string} row.reason - One of `GLOBAL_CONTENT_REASONS`.
@@ -67,7 +67,7 @@ const availabilityOf = (definition, atlased) => {
 /**
  * A page of global content, newest first unless the page names a sort, each row with its item, its
  * availability and the item ids the catalog binds to it.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {{query:Object,sort:Object,skip:number,limit:number}} page - A parsed data query.
  * @returns {Promise<{data:Object[],total:number}>}
  * @memberof CyberiaGlobalContent
@@ -107,7 +107,7 @@ export async function listGlobalContent(options, { query, sort, skip, limit }) {
 
 /**
  * The CIDs of every stack a player owns, or none on a host that serves no player profile.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @returns {Promise<string[]>}
  * @memberof CyberiaGlobalContent
  */
@@ -119,7 +119,7 @@ export const ownedCids = async (options) =>
 /**
  * Removes a definition from global content: the next release no longer carries it. The definition
  * stays stored. Refused while an item binding or a player stack names it.
- * @param {Object} options - Router options.
+ * @param {Object} options - The API context.
  * @param {string} cid
  * @returns {Promise<Object>} The removed row.
  * @throws {Error} 404 for a CID that is not global content; 409 while an item or a player holds it.

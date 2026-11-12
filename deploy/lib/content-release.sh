@@ -1,13 +1,18 @@
 # Data releases of $DEPLOY_ID — content releases and player records change in Release Jobs — and the
-# readiness probes the deploy stages share. Sourced; the caller sets DEPLOY_ID and DEPLOY_ENV.
-# Cluster calls run through `sudo -n`, as every other deploy step does.
+# readiness probes the deploy stages share. Sourced after lib/host.sh; the caller sets DEPLOY_ID and
+# DEPLOY_ENV. Cluster calls run in the context and namespaces conf.cluster.json gives DEPLOY_ENV.
 
-CONTENT_NAMESPACE="${CONTENT_NAMESPACE:-default}"
 # The Object Layer authority a release publishes its definitions to.
 OBJECT_LAYER_API_ORIGIN="${OBJECT_LAYER_API_ORIGIN:-https://objectlayer.org}"
 
-# The public origin of the engine API.
-CYBERIA_API_ORIGIN="${CYBERIA_API_ORIGIN:-https://www.cyberiaonline.com}"
+# The public engine API origin: CYBERIA_API_ORIGIN, else the production Cyberia API host of the deploy conf.
+engine_api_origin() {
+    if [ -n "${CYBERIA_API_ORIGIN:-}" ]; then
+        printf '%s' "$CYBERIA_API_ORIGIN"
+        return
+    fi
+    sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node --input-type=module -e \"import('./src/projects/cyberia/runtime/game-origins.js').then(({ gameOrigins }) => process.stdout.write(gameOrigins('$DEPLOY_ID', 'production').engine))\""
+}
 
 # The versioned API path the engine serves, from its one source (`DOMAIN_API_VERSION`).
 engine_api_path() {
@@ -16,9 +21,20 @@ engine_api_path() {
 
 # The colour the stable traffic Service routes to: the same selector the engine reads.
 live_colour() {
-    sudo -n -- kubectl get service "${DEPLOY_ID}-${DEPLOY_ENV}-traffic-service" \
-        -n "$CONTENT_NAMESPACE" -o jsonpath='{.spec.selector.app}' 2>/dev/null \
+    cluster_placement
+    cluster_kubectl get service "${DEPLOY_ID}-${DEPLOY_ENV}-traffic-service" \
+        -n "$UNDERPOST_NAMESPACE_WORKLOADS" -o jsonpath='{.spec.selector.app}' 2>/dev/null \
         | sed "s/^${DEPLOY_ID}-${DEPLOY_ENV}-//"
+}
+
+# The live colour while it serves: its Service has a ready endpoint. Nothing when no colour serves.
+serving_colour() {
+    local colour
+    colour="$(live_colour)"
+    [ -n "$colour" ] || return 0
+    cluster_kubectl get endpointslice -n "$UNDERPOST_NAMESPACE_WORKLOADS" \
+        -l "kubernetes.io/service-name=${DEPLOY_ID}-${DEPLOY_ENV}-${colour}-service" \
+        -o jsonpath='{.items[*].endpoints[*].conditions.ready}' 2>/dev/null | grep -qw true && echo "$colour"
 }
 
 # The image the live colour runs: an operator's release command runs the version that serves.
@@ -29,19 +45,19 @@ live_image() {
         echo "No live colour routed for ${DEPLOY_ID}-${DEPLOY_ENV}" >&2
         return 1
     fi
-    sudo -n -- kubectl get deployment "${DEPLOY_ID}-${DEPLOY_ENV}-${colour}" -n "$CONTENT_NAMESPACE" \
+    cluster_kubectl get deployment "${DEPLOY_ID}-${DEPLOY_ENV}-${colour}" -n "$UNDERPOST_NAMESPACE_WORKLOADS" \
         -o jsonpath='{.spec.template.spec.containers[0].image}'
 }
 
-# Projects the credentials of a data release into their own Secret: only the keys the
-# `data-release` configuration scope names.
+# Projects the credentials of a data release into their own Secret, in the namespace of the release
+# Jobs: only the keys the `data-release` configuration scope names.
 apply_release_secret() {
     sudo -n -- /bin/bash -lc \
         "cd $ENGINE_ROOT && node bin app apply --env $DEPLOY_ENV --args deploy-id=$DEPLOY_ID,scope=data-release"
 }
 
-# One command line in a Release Job, on the engine this host deploys. The image's own `.env` is
-# removed, so the data-release Secret is the only source of credentials.
+# One command line in a Release Job, on the engine this host deploys, in the namespace of the release
+# Jobs. The image's own `.env` is removed, so the data-release Secret is the only source of credentials.
 #
 # Usage: release_job <job-id> <image> <command line>
 release_job() {
@@ -49,20 +65,19 @@ release_job() {
     local image="$2"
     local command="$3"
     sudo -n -- /bin/bash -lc "cd $ENGINE_ROOT && node bin source-release job $job_id \
-        --deploy-id $DEPLOY_ID --env $DEPLOY_ENV --scope data-release --namespace $CONTENT_NAMESPACE \
+        --deploy-id $DEPLOY_ID --env $DEPLOY_ENV --scope data-release \
         --image '$image' --set-env NODE_ENV=$DEPLOY_ENV,OBJECT_LAYER_API_ORIGIN=$OBJECT_LAYER_API_ORIGIN \
-        ${TARGET_NODE:+--node-name $TARGET_NODE} \
         --cmd 'rm -f .env && $command'"
 }
 
-# One content-release command in a Release Job.
+# One content release command in a Release Job.
 #
-# Usage: content_release_job <job-id> <image> <content-release args...>
+# Usage: content_release_job <job-id> <image> <content release args...>
 content_release_job() {
     local job_id="$1"
     local image="$2"
     shift 2
-    release_job "$job_id" "$image" "node bin/cyberia content-release $*"
+    release_job "$job_id" "$image" "node bin/cyberia content release $*"
 }
 
 # The release id the runtime serves, from the engine API; empty while none is active.
@@ -148,7 +163,8 @@ wait_for_client_bundle() {
 
 # The client bundles the colours of $DEPLOY_ID restore, comma-separated: what a prune must keep.
 deployed_client_bundles() {
-    sudo -n -- kubectl get deployments -n "$CONTENT_NAMESPACE" -l "deploy-id=${DEPLOY_ID}-${DEPLOY_ENV}" \
+    cluster_placement
+    cluster_kubectl get deployments -n "$UNDERPOST_NAMESPACE_WORKLOADS" -l "deploy-id=${DEPLOY_ID}-${DEPLOY_ENV}" \
         -o jsonpath='{range .items[*]}{.spec.template.spec.containers[0].command[2]}{"\n"}{end}' \
         | { grep -o -- '--bundle [^ ,]*' || true; } | cut -d' ' -f2 | sort -u | paste -sd, -
 }
