@@ -49,12 +49,13 @@ The platform default is off: `graphify: false` in `EMPTY_CATALOG` of `src/server
 Cyberia sets `graphify: true` in `src/projects/cyberia/catalog-cyberia.js`, and declares a graph
 directory for each code repository:
 
-| Repository        | Graph directory     | `.graphifyignore` scans                   |
-| ----------------- | ------------------- | ----------------------------------------- |
-| `cyberia-client`  | `docs/graphify-out` | `src/`, except `src/shell.html`           |
-| `cyberia-server`  | `docs/graphify-out` | The Go packages, except tests             |
-| `cyberia-content` | `docs/graphify-out` | `src/`, except the data in `src/content/` |
-| `cyberia-audio`   | `docs/graphify-out` | `src/`                                    |
+| Repository        | Graph directory     | `.graphifyignore` scans                                       |
+| ----------------- | ------------------- | ------------------------------------------------------------- |
+| `cyberia-client`  | `docs/graphify-out` | `src/`, except `src/shell.html`                               |
+| `cyberia-server`  | `docs/graphify-out` | The Go packages, except tests                                 |
+| `cyberia-content` | `docs/graphify-out` | `src/`, except the data in `src/content/`                     |
+| `cyberia-audio`   | `docs/graphify-out` | `src/`                                                        |
+| `cyberia-hardhat` | `docs/graphify-out` | `contracts/`, `ignition/`, `scripts/` and `hardhat.config.js` |
 
 `cyberia-deployment` holds no code and declares no graph.
 

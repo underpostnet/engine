@@ -1,19 +1,32 @@
+<p align="center">
+  <img src="https://www.cyberiaonline.com/apple-touch-icon-precomposed.png" alt="CYBERIA online"/>
+</p>
+
+<div align="center">
+
+<h1>cyberia hardhat</h1>
+
+</div>
+
 # Hardhat Module
 
-**Path:** `hardhat/`
+**Path:** `cyberia-hardhat/` · **Language:** Solidity, JavaScript · **Role:** on-chain registry of the Object Layer Protocol
 
----
+`cyberia-hardhat` holds the `ObjectLayerToken` ERC-1155 contract and the Hardhat toolchain that compiles, tests and
+deploys it. Token id `0` is CryptoKoyn (CKY), the fungible currency. Every other token id is one registered Object
+Layer, and its value is the canonical content digest of that Object Layer. Any party can compute a token id
+off-chain and check it on-chain.
 
-## Overview
-
-The Hardhat module is the smart contract development, testing, and deployment environment for the **ObjectLayerToken** ERC-1155 contract — the on-chain economic reality layer of the Object Layer Protocol. It targets Hyperledger Besu private networks (IBFT2/QBFT) running on Kubernetes.
+It is **not** a content store or an index. Object Layer definitions come from `engine-cyberia`. ItemLedger projects
+the contract events into its own collections. The contract targets Hyperledger Besu private networks (IBFT2/QBFT) on
+Kubernetes.
 
 ---
 
 ## Directory Structure
 
 ```
-hardhat/
+cyberia-hardhat/
   hardhat.config.js       Main Hardhat configuration
   package.json
   contracts/
@@ -21,6 +34,7 @@ hardhat/
   scripts/
     deployObjectLayerToken.js  Deployment script
   test/                   Contract tests (node:test + viem)
+  test/support/           Identity vectors, copied from the engine
   deployments/            Deployment artifacts (auto-generated)
   ignition/               Hardhat Ignition modules (optional)
   networks/               Network-specific genesis configs
@@ -67,6 +81,8 @@ This guarantees:
 - The `tokenId` is not the CID: `getObjectLayerCid(tokenId)` computes the CID (CIDv1, raw,
   sha2-256, base32) from the digest.
 - `test/support/object-layer-identity-vectors.json` pins the derivation across Solidity and JavaScript.
+  The engine owns the file; `cyberia release build cyberia-hardhat` copies it to the same path in
+  the checkout.
 
 ### Key State Variables
 
@@ -145,7 +161,7 @@ If the key file does not exist, the config falls back to a dummy key (safe for c
 ### Prerequisites
 
 ```bash
-cd hardhat
+cd cyberia-hardhat
 npm install
 ```
 
@@ -153,7 +169,7 @@ npm install
 
 ```bash
 npx hardhat compile
-# Artifacts written to hardhat/artifacts/
+# Artifacts written to cyberia-hardhat/artifacts/
 ```
 
 ### Deploy to Besu
@@ -175,7 +191,7 @@ npx hardhat run scripts/deployObjectLayerToken.js --network besu-k8s
 2. Deploy `ObjectLayerToken` contract.
 3. Mint `INITIAL_CRYPTOKOYN_SUPPLY` (10M CKY) to the deployer address.
 4. Verify initial state: total supply, deployer balance.
-5. Write deployment artifact to `hardhat/deployments/{network}/ObjectLayerToken.json`.
+5. Write deployment artifact to `cyberia-hardhat/deployments/{network}-ObjectLayerToken.json`.
 
 **Deployment artifact structure:**
 
@@ -203,7 +219,8 @@ The artifact is consumed by:
 ## Running Tests
 
 Contract tests are the `item-ledger:contract` project of the platform runner, so they run
-alongside every other suite and report to the same dashboard:
+alongside every other suite and report to the same dashboard. The runner skips the project when
+the checkout is absent:
 
 ```bash
 underpost test item-ledger:contract             # this project only
@@ -212,10 +229,10 @@ underpost test item-ledger:contract --grep Burning
 underpost test                                  # every project, contracts last
 ```
 
-Hardhat's own tasks stay available for contract-only work:
+Hardhat's own tasks stay available for contract-only work, and the repository CI runs them:
 
 ```bash
-cd hardhat
+cd cyberia-hardhat
 npm test                             # hardhat test
 npm run coverage                     # Solidity line/statement coverage
 REPORT_GAS=true npm test
@@ -328,7 +345,7 @@ cyberia chain unpause
 
 ## Contract
 
-`hardhat/contracts/ObjectLayerToken.sol` keeps one resolution relationship: token id →
+`cyberia-hardhat/contracts/ObjectLayerToken.sol` keeps one resolution relationship: token id →
 Object Layer CID, computed from the digest, never stored, never changed.
 
 | Function                                                           | Role                                                  |

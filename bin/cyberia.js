@@ -7457,8 +7457,15 @@ node bin test cyberia --grep 'Cyberia load'`);
       build: () => shellExec(`cd ${contentRoot()} && node bin/cyberia-content.js pack`),
     },
     [HARDHAT_SOURCE]: {
-      build: () => fs.copySync(IDENTITY_VECTORS, nodePath.join(hardhatRoot(), IDENTITY_VECTORS)),
-      message: () => 'Update the identity vectors',
+      build: () => {
+        const root = hardhatRoot();
+        fs.copySync(IDENTITY_VECTORS, nodePath.join(root, IDENTITY_VECTORS));
+        fs.copyFileSync(
+          './src/client/public/docs/item-ledger/reference/object-layer-token-contract.md',
+          nodePath.join(root, 'README.md'),
+        );
+      },
+      message: () => 'Update the files the engine writes',
     },
     [DEPLOYMENT_SOURCE]: {
       build: buildDeploymentCheckout,

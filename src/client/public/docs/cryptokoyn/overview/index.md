@@ -48,7 +48,7 @@ What that means, exactly:
 | ---------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
 | Wallet identity and sign-in                    | Working                                           | `src/client/components/wallet/`, `src/api/wallet-account/` |
 | Account record (CAIP-10)                       | Working                                           | `src/api/wallet-account/wallet-account.model.js`           |
-| `ObjectLayerToken` contract                    | Written, tested, not deployed to a public network | `hardhat/contracts/ObjectLayerToken.sol`                   |
+| `ObjectLayerToken` contract                    | Written, tested, not deployed to a public network | `cyberia-hardhat/contracts/ObjectLayerToken.sol`           |
 | CKY balance, staking, governance, fiat bridges | Not implemented                                   | Phase 3                                                    |
 | Marketplace and analytics                      | Not implemented                                   | Phase 3                                                    |
 

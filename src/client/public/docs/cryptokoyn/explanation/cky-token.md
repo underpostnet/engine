@@ -44,7 +44,7 @@ networks and its deployment artifact.
 | Emergency stop  | `pause()` / `unpause()`, owner only             |
 
 Until a deployment artifact exists for a network
-(`hardhat/deployments/<network>-ObjectLayerToken.json`), every one of those reads is unavailable,
+(`cyberia-hardhat/deployments/<network>-ObjectLayerToken.json`), every one of those reads is unavailable,
 and the domain reports that instead of guessing.
 
 ## Operations

@@ -740,6 +740,7 @@ repository, its release profile and its code graph directory come from `releaseR
 | -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `cyberia-content`    | `data-release`      | the code graph, then `dist/` and `artifacts/cyberia-content-<version>.tgz`, with its own `pack`                            |
 | `cyberia-audio`      | `source-sync`       | the code graph                                                                                                             |
+| `cyberia-hardhat`    | `source-sync`       | the code graph, then `test/support/object-layer-identity-vectors.json` and `README.md`                                     |
 | `cyberia-deployment` | `source-sync`       | the `dd-cyberia` conf and package manifest, the runtime images and the manifests                                           |
 | `cyberia-server`     | `container-release` | the code graph, status pages, instance manifests, the dashboard, deploy scripts, `README.md`, Dockerfiles, the CD workflow |
 | `cyberia-client`     | `container-release` | the code graph, status pages, instance manifests, deploy scripts, `README.md`, Dockerfiles, the CD workflow                |
@@ -751,7 +752,7 @@ repository, its release profile and its code graph directory come from `releaseR
 | `lock`                            | Pin the committed revision of every repository but the deployment, and the content artifact, in `underpost.lock.json` of the deployment                                                                                                                      |
 | `verify`                          | Exit non-zero unless the installed content artifact is the one the lock pins                                                                                                                                                                                 |
 | `publish [names...]`              | Push the named checkouts (default: all of them) to the public repository, or with `--private` to the private mirror, and track it as origin; the deployment goes last. `--dry-run` tracks each target as origin and lists the commits it lacks, with no push |
-| `clean [names...]`                | Discard every change not committed in the checkouts a build writes: the game and deployment checkouts. Commits stay                                                                                                                                          |
+| `clean [names...]`                | Discard every change not committed in the checkouts a build writes: the game, Hardhat and deployment checkouts. Commits stay                                                                                                                                 |
 
 ```bash
 cyberia release build --commit                        # the contract, every repository, the secret scan
