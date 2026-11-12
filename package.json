@@ -126,7 +126,7 @@
     "workbox-strategies": "^7.4.1"
   },
   "devDependencies": {
-    "@socketsecurity/cli": "^1.14.0",
+    "@socketsecurity/cli": "^1.14.1",
     "@vitest/coverage-v8": "5.1.0",
     "allure-vitest": "3.14.0",
     "bumpp": "^12.3.0",
