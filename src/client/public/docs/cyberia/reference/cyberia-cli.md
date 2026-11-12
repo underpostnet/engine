@@ -1,11 +1,8 @@
 # Cyberia CLI
 
-`cyberia` (`bin/cyberia.js`) is the Cyberia-specific extension layer on top of the `underpost` CLI. Use
-it for MMO content and extension workflows; use `underpost` for the shared platform, deployment, and
-infrastructure surface. Unrecognized commands pass through to `underpost`.
-
-This page is intentionally command-first: keep it aligned with the shipped CLI surface and avoid
-repeating architecture prose unless it changes command behavior.
+`cyberia` (`bin/cyberia.js`) is the Cyberia extension layer on top of the `underpost` CLI. Use it for
+MMO content and runtime worlds; use `underpost` for the shared platform, deployment and
+infrastructure. A command that `cyberia` does not have passes through to `underpost`.
 
 ```bash
 node bin/cyberia.js <command> [subcommand] [options]
@@ -13,18 +10,49 @@ node bin/cyberia.js <command> [subcommand] [options]
 cyberia <command> [subcommand] [options]
 ```
 
-| Command        | Purpose                                                             |
-| -------------- | ------------------------------------------------------------------- |
-| `ol`           | object-layer content import, atlas/sprite work                      |
-| `instance`     | export / import / drop a Cyberia instance and its related documents |
-| `client-hints` | per-instance presentation hints (palette, camera, status icons)     |
-| `chain`        | Hyperledger Besu network + ERC-1155 `ObjectLayerToken` lifecycle    |
-| `release`      | product repositories: build, lock and publish them                  |
-| `player`       | player profiles: held stacks                                        |
-| `economy`      | economy profiles: the move of conf coin rules to profiles           |
-| `universe`     | universes: the move of player records to universe profiles          |
-| `debug`        | one process of the development topology in this terminal            |
-| `run-workflow` | named operational scripts (seed defaults, dashboard, status pages)  |
+Two groups hold the content lifecycle: `content` holds what exists and how it works, and `instance`
+holds the runtime worlds. Each other command is a domain or operational interface of its own.
+`--help` on a command prints its subcommands and options from the command registry, and a test
+checks the tables below against that registry.
+
+| Command           | Purpose                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| `content`         | Content lifecycle: artifact, sagas, imports, items, audio, releases      |
+| `instance`        | Runtime worlds: their list, their snapshots and their presentation hints |
+| `chain`           | Hyperledger Besu network and the ERC-1155 `ObjectLayerToken` lifecycle   |
+| `player`          | Player records: held stacks                                              |
+| `ipfs`            | IPFS storage of Object Layer definitions                                 |
+| `runtime-indexes` | The indexes of the runtime records                                       |
+| `cache`           | The platform cache of this host                                          |
+| `debug`           | One process of the development topology in this terminal                 |
+| `run-workflow`    | Named operational scripts                                                |
+| `release`         | Product source repositories: build, lock and publish them                |
+| `stats`           | Signed stats and progression rules                                       |
+| `stat-contract`   | The runtime contract files of the server, the client and the content     |
+
+| Command                | Does                                                                      |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `content status`       | Print the identity of the content artifact                                |
+| `content audit`        | Classify every label the database or a backup names, against the artifact |
+| `content import`       | Add the foundation, a saga with the world it joins, or the global content |
+| `content saga`         | List and inspect the sagas, check what one needs, place its providers     |
+| `content object-layer` | Import, rebuild and drop object layers                                    |
+| `content audio`        | Import audio assets and bind them to maps                                 |
+| `content catalog`      | The item catalog: the definition each label runs on                       |
+| `content map-registry` | Compare the map owners with the maps and worlds of a catalog              |
+| `content population`   | Migrate and prune the map populations of the Procedural Engine            |
+| `content release`      | Build, validate, promote and roll back the versioned content data         |
+| `content baseline`     | Capture and restore production content baselines                          |
+| `content source`       | Export the content a production baseline served into `cyberia-content`    |
+| `content workspace`    | Import, drop or reset the content workspace of this host                  |
+| `content lifecycle`    | One content cycle across the hosts of a deployment: stages and journal    |
+| `instance list`        | List the worlds with their maps, conf link and sagas                      |
+| `instance snapshot`    | Export, import or drop a world and its documents as a backup directory    |
+| `instance hints`       | The presentation hints of a world                                         |
+
+`release` builds the product source repositories; `content release` builds the content data
+releases. `content import` only adds: it never replaces a stored document or a world.
+`instance snapshot --import` restores a backup and replaces the documents it holds.
 
 Most data commands resolve the target DB from `DEFAULT_DEPLOY_ID` / `DEFAULT_DEPLOY_HOST` /
 `DEFAULT_DEPLOY_PATH` in the `--env-path` file (default `./.env`). Without that file, they come from the
@@ -33,12 +61,12 @@ process environment, as in a pod, which receives its environment from a Secret. 
 
 ---
 
-## `cyberia ol` — object layer
+## `cyberia content object-layer` — object layer
 
 Import, rebuild and drop object layers in MongoDB and IPFS; `--client-public` keeps the asset tree in step.
 
 ```bash
-cyberia ol [item-id] [options]
+cyberia content object-layer [item-id] [options]
 ```
 
 | Option                                                | Description                                                                     |
@@ -61,41 +89,41 @@ cyberia ol [item-id] [options]
 
 ```bash
 # Restore specific items from an instance backup: the backup is the authority for the item
-cyberia ol hatchet,sword --instance FOREST --import
+cyberia content object-layer hatchet,sword --instance FOREST --import
 
 # Import specific items from the asset tree
-cyberia ol hatchet,sword --client-public --import --env-path ./engine-private/conf/dd-cyberia/.env.development
+cyberia content object-layer hatchet,sword --client-public --import --env-path ./engine-private/conf/dd-cyberia/.env.development
 
 # Batch import by type, or everything, from the asset tree
-cyberia ol --client-public --import-types skin,floors
-cyberia ol --client-public --import-types all
+cyberia content object-layer --client-public --import-types skin,floors
+cyberia content object-layer --client-public --import-types all
 
 # Atlas / inspect
-cyberia ol hatchet --to-atlas-sprite-sheet
-cyberia ol hatchet --show-frame 08_0
+cyberia content object-layer hatchet --to-atlas-sprite-sheet
+cyberia content object-layer hatchet --show-frame 08_0
 
 # Rebuild the render. The scope is an item-id, an instance, or everything.
 # The upscale factor is part of the render metadata: a new factor publishes a new definition.
-cyberia ol hatchet --to-atlas-sprite-sheet --upscale 40
-cyberia ol --instance TEST --upscale 20
-cyberia ol --to-atlas-sprite-sheet
+cyberia content object-layer hatchet --to-atlas-sprite-sheet --upscale 40
+cyberia content object-layer --instance TEST --upscale 20
+cyberia content object-layer --to-atlas-sprite-sheet
 
 # Bring stored items in line with the current profile, stats and schema, and derive their
 # upscaled render and idle preview again from the primary render
-cyberia ol hatchet --sync
-cyberia ol --sync --instance FOREST
-cyberia ol --sync
+cyberia content object-layer hatchet --sync
+cyberia content object-layer --sync --instance FOREST
+cyberia content object-layer --sync
 
 # Balance stats on every layer an action writes
-cyberia ol --sync --instance FOREST --normalize-stats
-cyberia ol hatchet --client-public --import --random-stats --normalize-stats --max-stat 10
+cyberia content object-layer --sync --instance FOREST --normalize-stats
+cyberia content object-layer hatchet --client-public --import --random-stats --normalize-stats --max-stat 10
 
 # Bootstrap only: drop an item from MongoDB, then import it again from the asset tree
-cyberia ol hatchet --drop --confirm dd-cyberia
-cyberia ol hatchet --client-public --import
+cyberia content object-layer hatchet --drop --confirm dd-cyberia
+cyberia content object-layer hatchet --client-public --import
 
 # Bootstrap only: drop an item and its asset folders
-cyberia ol hatchet --drop --confirm dd-cyberia --client-public
+cyberia content object-layer hatchet --drop --confirm dd-cyberia --client-public
 ```
 
 `--drop` runs the same purge as the Object Layer management view's purge action
@@ -154,13 +182,21 @@ definition after the reload. A browser keeps the item pictures it loaded until t
 
 ---
 
-## `cyberia instance` — instance data
-
-Export / import / drop a game instance and its related maps, entities, actions, quests, object
-layers and map audio in MongoDB.
+## `cyberia instance` — runtime worlds
 
 ```bash
-cyberia instance <instance-code> [options]
+cyberia instance list [--release <release-id>] --dev
+```
+
+Lists each world of the workspace, or of one content release: its status, revision, maps, whether
+its conf is linked, and the sagas whose maps or places it holds. Writes nothing. Prints JSON.
+
+`instance snapshot` exports, imports or drops a world and its maps, entities, actions, quests,
+object layers and map audio. An import restores a backup: it replaces the documents the backup
+holds. To add a saga to a world, use `content import --saga` instead.
+
+```bash
+cyberia instance snapshot <instance-code> [options]
 ```
 
 | Option                                                | Description                                                                               |
@@ -177,19 +213,23 @@ cyberia instance <instance-code> [options]
 The command works on the one instance it names. The default export writes into the instance
 sources of the `cyberia-content` checkout; the command fails when the content root is a packed
 artifact and no path is given. An import or a drop ends with a reconciliation of the map registry
-of the catalog it wrote ([`cyberia map-registry`](#cyberia-map-registry--map-owners)).
+of the catalog it wrote ([`cyberia content map-registry`](#cyberia-map-registry--map-owners)).
 
 ```bash
-cyberia instance FOREST --import
-cyberia instance FOREST --import --client-public
-cyberia instance FOREST --export
-cyberia instance FOREST --import ./backups/FOREST
-cyberia instance FOREST --import --release v3-4-0-8b4d643
-cyberia instance FOREST --drop --confirm dd-cyberia
+cyberia instance snapshot FOREST --import
+cyberia instance snapshot FOREST --import --client-public
+cyberia instance snapshot FOREST --export
+cyberia instance snapshot FOREST --import ./backups/FOREST
+cyberia instance snapshot FOREST --import --release v3-4-0-8b4d643
+cyberia instance snapshot FOREST --drop --confirm dd-cyberia
 ```
 
-An export is a projection of the database: it empties the backup and writes it again, so the next
-import brings back only what the world still references. Each Object Layer travels as its
+An export is a projection of the database. It writes a full copy of the world, then replaces the
+backup directory with it, so the next import brings back only what the world still references. A
+failed export leaves the directory as it was. Each item travels as the definition the catalog binds
+when the export runs; a binding to a CID that no stored definition holds fails the export. An export
+into the `cyberia-content` checkout names each item that the release worlds bind to different
+definitions: export each of those worlds again. Each Object Layer travels as its
 definition (`object-layers/`, without host state such as `origin`), its render frames, its atlas
 and the atlas Files, each with the fields its schema declares: a field the database still holds
 from an older shape stays out of the backup. A backup holds no `ipfs/` directory: the render payloads are the primary render
@@ -208,9 +248,9 @@ The restored definition binds its label. No other definition of the label is rem
 that pins another cid keeps it, so two instances can run two definitions of one label. The import
 reads no ItemLedger.
 
-`instance --import`, `ol --instance --import` and `run-workflow import-content` use the same
-restore. It keeps the render frames in MongoDB only. With `--client-public`, `instance --import`
-and `ol --instance --import` also write the frames and `metadata.json` of each item to
+`instance snapshot --import`, `content object-layer --instance --import` and `content workspace import` use the same
+restore. It keeps the render frames in MongoDB only. With `--client-public`, `instance snapshot --import`
+and `content object-layer --instance --import` also write the frames and `metadata.json` of each item to
 `src/client/public/cyberia/` and `public/<host><path>`. Every write is a no-op when the database already holds it, so the round trip is stable:
 export, import and export again write the same bytes. A backup of an older shape (`ledger`,
 `sha256`, raw IPFS payloads, an atlas the render contract does not describe, parent references to
@@ -258,7 +298,7 @@ The Instance engine has the same action as a button, syncing against the map cod
 selected.
 
 ```bash
-cyberia instance FOREST --sync-entities --dev
+cyberia instance snapshot FOREST --sync-entities --dev
 ```
 
 A reference cannot outlive its document. Deleting an entity-type default unlinks it from every
@@ -308,13 +348,13 @@ for one world, author a document in the Entity engine and reference it from that
 
 ---
 
-## `cyberia client-hints` — presentation hints
+## `cyberia instance hints` — presentation hints
 
 Manage the per-instance `CyberiaClientHints` document (palette, camera, status icons, interpolation).
 These are presentation overrides only — never an instance or server identifier.
 
 ```bash
-cyberia client-hints [instance-code] [options]
+cyberia instance hints [instance-code] [options]
 ```
 
 | Option                                                | Description                                     |
@@ -326,13 +366,13 @@ cyberia client-hints [instance-code] [options]
 | `--env-path <path>` · `--mongo-host <host>` · `--dev` | env / DB / dev overrides                        |
 
 ```bash
-cyberia client-hints cyberia-main --seed-defaults
-cyberia client-hints cyberia-main --export ./client-hints-cyberia-main.json
+cyberia instance hints cyberia-main --seed-defaults
+cyberia instance hints cyberia-main --export ./client-hints-cyberia-main.json
 ```
 
 ---
 
-## `cyberia audio` — audio assets and map audio
+## `cyberia content audio` — audio assets and map audio
 
 Imports recorded [`cyberia-audio`](https://github.com/underpostnet/cyberia-audio) assets into MongoDB and binds
 them to a map. Every recording is a pair — `<name>.wav` and its `<name>.json` manifest — and the pair is the unit
@@ -340,7 +380,7 @@ of import: a WAV with no manifest beside it is skipped. Produce the pair with `c
 `cyberia-audio music combat`.
 
 ```bash
-cyberia audio [audio-code] [options]
+cyberia content audio [audio-code] [options]
 ```
 
 | Option                                                | Description                                                          |
@@ -354,13 +394,13 @@ cyberia audio [audio-code] [options]
 
 ```bash
 # Import every recorded asset, or a single one
-cyberia audio --import
-cyberia audio combat --import
+cyberia content audio --import
+cyberia content audio combat --import
 
 # Configure a map, then read back what it resolved to
-cyberia audio --map FOREST --set-default-music exploration \
+cyberia content audio --map FOREST --set-default-music exploration \
   --set-event projectile:shoot --set-event coin_drop_or_transaction:coin
-cyberia audio --map FOREST
+cyberia content audio --map FOREST
 ```
 
 An asset is identified by its `code` alone — `cyberia-audio` stores what a sound _is_ (`code`, `fileId`,
@@ -526,7 +566,7 @@ against the chain.
 
 ---
 
-## `cyberia content-release` — versioned content
+## `cyberia content release` — versioned content
 
 The data release of `cyberia-content`. A deploy never drops content: it builds a candidate release
 into its own database, validates it, and promotes it by pointer.
@@ -539,50 +579,156 @@ into its own database, validates it, and promotes it by pointer.
 | `build <release-id>`                       | Build, ingest (the foundation, the release sagas, then each instance), publish and validate a release `--from source` (the prepared workspace), `backups` (the local artifact) or `workspace`; a failed release resumes, `--reset` starts its candidate again |
 | `validate [release-id]`                    | Run every check again and record the report; with no release named, check the workspace                                                                                                                                                                       |
 | `live-changes`                             | Name the live changes of the active release that its build does not hold; exits 1 when there are any                                                                                                                                                          |
-| `export-live [--baseline <id>] [--apply]`  | Export every world and the global content of the release a production content baseline captured into `cyberia-content`, read by the current models; writes only with `--apply`                                                                                |
 | `inspect <release-id>`                     | The stage that stopped a release, its waiting, blocked and failed tasks, and its audit trail                                                                                                                                                                  |
-| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless `--discard-live-changes`                                                                                             |
+| `promote <release-id>`                     | Serve a validated release; running engines rebind and reload the game servers. Refuses while the active release has live changes, unless they are discarded (see below)                                                                                       |
 | `rollback`                                 | Serve the release that was active before the current one                                                                                                                                                                                                      |
 | `retire`                                   | Stop serving the active release: the workspace serves again; `rollback` re-promotes it                                                                                                                                                                        |
 | `status`                                   | List the ledger and the active release                                                                                                                                                                                                                        |
 | `prune [--keep n]`                         | Drop old releases: their databases and ledger entries; never a building, validated or active release, the rollback target, or a render a player owns                                                                                                          |
 | `activate`                                 | Bind this process to the active release                                                                                                                                                                                                                       |
+| `rebase [--apply]`                         | Point each release at its database under the configured content base, after the base database was renamed; prints the plan without `--apply`                                                                                                                  |
 
 ```bash
-cyberia content-release prepare v3-4-5-8b4d643-04f978b0 --channel private
-cyberia content-release build v3-4-5-8b4d643-04f978b0 --from source        # in the Release Job
-cyberia content-release build local-1 --from backups --instances test --dev
-cyberia content-release build local-2 --from workspace --dev
-cyberia content-release validate                      # the workspace, before any build
-cyberia content-release retire                        # back to the workspace after a local rehearsal
-cyberia content-release live-changes                  # what the next promotion stops serving
-cyberia content-release export-live --apply --dev     # the live content of the newest production baseline, as source
-cyberia content-release promote v3-4-5-8b4d643-04f978b0
-cyberia content-release rollback
+cyberia content release prepare v3-4-5-8b4d643-04f978b0 --channel private
+cyberia content release build v3-4-5-8b4d643-04f978b0 --from source        # in the Release Job
+cyberia content release build local-1 --from backups --instances test --dev
+cyberia content release build local-2 --from workspace --dev
+cyberia content release validate                      # the workspace, before any build
+cyberia content release retire                        # back to the workspace after a local rehearsal
+cyberia content release live-changes                  # what the next promotion stops serving
+cyberia content release promote v3-4-5-8b4d643-04f978b0
+cyberia content release rollback
 ```
 
 `build --from source` runs the repository's own `npm ci`, `npm test` and `npm pack` on a copy of
 the workspace, with no Secret in their environment, then checks that the artifact has the locked
 digest and revision. A release carries the worlds the deploy serves: one instance per variant of
 `conf.instances.json`. `/` serves `amethyst-strata-expansion`, and `/test` serves `test`. A
-production runtime promotes only a release built from an exact source revision. `build --promote`
-takes `--discard-live-changes` as `promote` does.
+production runtime promotes only a release built from an exact source revision.
 
-## `cyberia content-baseline` — production content baselines
+A promotion stops serving the live changes of the active release. `promote` and `build --promote`
+refuse while there are any, unless the operator discards them by name:
+`--discard-live-changes <active-release-id> --discard-reason <reason>`. The id must be the active
+release, and the reason must not be empty. The ledger records both with the changes in an audit
+entry. To keep the changes, export them first with `content source export-live`.
+
+```bash
+cyberia content release promote v3-4-5-8b4d643-04f978b0 \
+  --discard-live-changes v3-4-4-1a2b3c4-04f978b0 --discard-reason "the hotfix is in the next release"
+```
+
+## `cyberia content baseline` — production content baselines
 
 A capture of what the active release serves, in the object store, for review on a development host.
 Git never carries it. [Export the live content](../how-to/deploy-a-release.md#export-the-live-content)
 holds the workflow.
 
-| Subcommand                             | Description                                                                                                                         |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `capture [--attempts <n>]`             | On the production control host: capture the active release database, its Files, its ledger row and the CIDs players own             |
-| `list`                                 | The baselines of this deployment: `available`, `failed` or `incomplete`, size, verified                                             |
-| `inspect [baseline-id]`                | Release, source revision, consistency proof, scope, streams and verifications                                                       |
-| `verify [baseline-id]`                 | Read every part, check checksums, seal and archive inventory, record the result                                                     |
-| `download [baseline-id]`               | Download and verify into `UNDERPOST_BASELINE_CACHE` (`~/.cache/underpost/content-baselines`)                                        |
-| `restore <baseline-id> --confirm <id>` | With `--dev`: restore the release database under its local name, its Files by id and its ledger row; refuses the source replica set |
-| `prune [--keep <n>] [--dry-run]`       | Remove baselines beyond `--keep` (5), and failed or abandoned captures                                                              |
+| Subcommand                             | Description                                                                                                                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capture [--attempts <n>]`             | On the production control host: capture the active release database, its Files, its ledger row and the CIDs players own                                                          |
+| `list`                                 | The baselines of this deployment: `available`, `failed` or `incomplete`, size, verified                                                                                          |
+| `inspect [baseline-id]`                | Release, source revision, consistency proof, scope, streams and verifications                                                                                                    |
+| `verify [baseline-id]`                 | Read every part, check checksums, seal and archive inventory, record the result                                                                                                  |
+| `download [baseline-id]`               | Download and verify into `UNDERPOST_BASELINE_CACHE` (`~/.cache/underpost/content-baselines`)                                                                                     |
+| `restore <baseline-id> --confirm <id>` | With `--dev`: restore into the sandbox MongoDB the release database under its local name, its Files by id and its ledger row, and read them back; refuses the source replica set |
+| `prune [--keep <n>] [--dry-run]`       | Remove baselines beyond `--keep` (5), and failed or abandoned captures                                                                                                           |
+
+## `cyberia content source` — the content source
+
+The `cyberia-content` checkout of this host, reconciled with the content production served.
+
+| Subcommand                                | Description                                                                                                                                                                                                     |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `export-live [--baseline <id>] [--apply]` | Export every world and the global content of the release a production content baseline captured into `cyberia-content`, read by the current models. Restore the same baseline first. Writes only with `--apply` |
+
+```bash
+cyberia content source export-live --dev                  # the newest production baseline: what changes
+cyberia content source export-live --apply --dev          # write it as source
+```
+
+With `--cycle`, the command takes the baseline of the cycle and needs `--apply`. It records the
+baseline, the release it served, the files it wrote and the digest of the source tree.
+
+## `cyberia content workspace` — the content workspace
+
+The content database of this host: the documents the portal authors and serves while no release
+is active.
+
+| Subcommand | Description                                                                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import`   | Import the release content of the artifact: its foundation, the release sagas, then the release instances. Adds what is absent and keeps what is stored               |
+| `drop`     | Bootstrap only: drop the content collections and the File documents they own. Needs `--confirm <deploy-id>`; `--include-runtime` also drops the player records        |
+| `reset`    | On a development host (`--dev`): drop the content collections and every Object Layer definition, then `import` and check the workspace. Needs `--confirm <deploy-id>` |
+
+```bash
+cyberia content workspace reset --confirm dd-cyberia --dry-run --dev   # count what the reset drops
+cyberia content workspace reset --confirm dd-cyberia --dev
+cyberia content workspace import --dev
+cyberia content workspace drop --confirm dd-cyberia --release local-1 --dev
+```
+
+`drop --release <release-id>` drops the content of one release database instead. `drop` and `reset`
+take `--dry-run`: they count what they remove and remove nothing. Neither touches the records of a
+content lifecycle. `reset` refuses without `--dev`; `drop` is never part of a deploy.
+
+With `--dev`, `content baseline restore`, `content workspace drop` and `reset`, and
+`content source export-live` write only to the MongoDB of a Development Sandbox session of this host
+(`underpost sandbox up`): the development database of the deploy must be the address of its MongoDB
+forward. They refuse any other database before they write.
+
+## `cyberia content lifecycle` — content lifecycle
+
+One cycle of content maintenance and release across the hosts of a deployment, from the
+infrastructure backup to the runtime convergence.
+[The content lifecycle](../explanation/content-lifecycle.md) holds the model;
+[Run a content lifecycle](../how-to/run-a-content-lifecycle.md) the workflow.
+
+| Subcommand                           | Description                                                                                                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`                              | Start a cycle of this deployment and print its plan; `--saga`, `--instance`, `--map`, `--item` name its scope. With `--dev`, a development rehearsal                                            |
+| `list`                               | The cycles of this deployment, newest change first                                                                                                                                              |
+| `doctor [cycle-id]`                  | Report this host: node, role, tunnel, contexts, targets, checkouts, target database, permitted stages; with `--dev`, its Development Sandbox. With a cycle, record its preflight the first time |
+| `plan <cycle-id>`                    | The state of each stage, whether this host may run it, and the next stage with the commands that ran and those left                                                                             |
+| `handoff <cycle-id>`                 | The plan as text for the operator of the next host                                                                                                                                              |
+| `share <cycle-id>`                   | On the control node: open one cycle to one workstation peer until Ctrl+C, expiry or revocation (`--peer-id`, `--port` 7735, `--hours` 8) and print the `CYBERIA_LIFECYCLE_SHARE` to set         |
+| `revoke-share <cycle-id> <share-id>` | On the control node: end an open share (`--reason`); its service refuses every request from then on                                                                                             |
+| `verify <stage> --cycle`             | Verify a stage from the records its domain owns and record the evidence; `--backup`, `--baseline` name the record                                                                               |
+| `inspect <cycle-id>`                 | The stored cycle with the newest events of its journal (`--events <n>`, 50)                                                                                                                     |
+| `cancel <cycle-id>`                  | Stop a cycle (`--reason`): it takes no stage and no operation after this                                                                                                                        |
+
+```bash
+cyberia content lifecycle start --saga amethyst-strata-expansion
+cyberia content lifecycle doctor dd-cyberia-202611051200-a1b2c3
+cyberia content lifecycle handoff dd-cyberia-202611051200-a1b2c3
+cyberia content lifecycle verify infrastructure-backup --cycle dd-cyberia-202611051200-a1b2c3
+cyberia content lifecycle inspect dd-cyberia-202611051200-a1b2c3 --events 20
+```
+
+`plan`, `handoff`, `list` and `inspect` change nothing. `doctor` changes no content. Every lifecycle
+command exits 0 when it succeeds, 1 when it fails and 3 when a precondition blocks it.
+
+The cycle lives in the runtime database of the production deployment. On the control node, each
+command reaches the primary through a forward it opens and closes, in the MongoDB namespace of
+[the placement](../../nexodev/how-to/place-resources-in-namespaces.md); `--namespace` overrides it. A workstation sets
+`CYBERIA_LIFECYCLE_SHARE` to the value that `share` prints: its commands then read the cycle and
+record their stages through the share, and `--mongo-host` and `--dev` address only the data of the
+command. Through a share, `start`, `list` and `cancel` refuse: they run on the control node. A
+development drop or reset in a cycle refuses the replica set the baseline of the cycle came from. A
+reset in a cycle also refuses until the content artifact is the build of the committed live export of
+the cycle. A cycle that started under another stage order is `superseded`: every command refuses it
+but `cancel`.
+
+Each stage completes for one execution target: the deployment, the Development Sandbox of one
+workstation, or its `cyberia-content` checkout. `plan`, `handoff` and `doctor` evaluate the cycle
+against the targets this host observes. `content baseline restore` and `content workspace reset`
+refuse to run again for a target they are complete for, unless you pass `--new-attempt`.
+
+These commands take `--cycle <cycle-id>` and record what they do in the journal of the cycle:
+`content baseline capture`, `verify` and `restore`; `content workspace import`, `drop` and `reset`;
+`content source export-live`; `content import`; `content saga sync`; `content release validate`;
+`release build`, `lock` and `publish`. A command that runs a stage first checks that this host may
+run it and that the stage before it is complete. Any other command needs a host that takes a
+context in the cycle. A refused stage records a blocked event.
 
 ## `cyberia release` — product repositories
 
@@ -635,11 +781,11 @@ that stage; `--graphify` turns them on. See
 [Generate Code Graphs](../../nexodev/how-to/generate-code-graphs.md) for the toolchain, the
 freshness rules and the fixes.
 
-## `cyberia catalog` — item bindings
+## `cyberia content catalog` — item bindings
 
 ```
-cyberia catalog reconcile --dev
-cyberia catalog check [--instance <codes>] [--ipfs] --dev
+cyberia content catalog reconcile --dev
+cyberia content catalog check [--instance <codes>] [--ipfs] --dev
 ```
 
 | Command     | Does                                                                                                                                                                                                                    |
@@ -670,10 +816,10 @@ cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
 [the player service reference](player-service.md#operator-commands) and
 [Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
 
-## `cyberia population` — map populations
+## `cyberia content population` — map populations
 
 ```
-cyberia population migrate [--apply] --dev
+cyberia content population migrate [--apply] --dev
 ```
 
 Moves every version 2, 3, 4 or 5 map population of the Procedural Engine to the current version.
@@ -691,7 +837,7 @@ stays outdated or a job waits or cannot be mapped. A second run changes nothing.
 [the Procedural Engine reference](procedural-engine.md#migration).
 
 ```
-cyberia population prune [--apply] [--retention-days <days>] --dev
+cyberia content population prune [--apply] [--retention-days <days>] --dev
 ```
 
 Clears the working copies of every map population closed for longer than the retention window (14
@@ -731,10 +877,10 @@ content release database syncs its indexes when it is built. The deploy runs
 `runtime-indexes --apply` in Stage D, on the deployed image, before the rollout
 ([deploy a release](../how-to/deploy-a-release.md)).
 
-## `cyberia map-registry` — map owners
+## `cyberia content map-registry` — map owners
 
 ```
-cyberia map-registry [--release <release-id>] [--apply] --dev
+cyberia content map-registry [--release <release-id>] [--apply] --dev
 ```
 
 Compares the map owners of the [map registry](../explanation/map-registry.md) with the maps and
@@ -752,13 +898,13 @@ Moves IPFS storage to the CID-first layout: one registry record per CID, every s
 listed under `/object-layer/cid/<cid>/`, no listing by item id. Prints the report as JSON; it
 writes only with `--apply`. See [IPFS storage](../../object-layer/explanation/ipfs-storage.md).
 
-## `cyberia content` — content artifact
+## `cyberia content` — content artifact and sagas
 
 The artifact of the content root (`CYBERIA_CONTENT_ROOT`, the `cyberia-content` checkout by default)
 is the only content source. These commands show its identity, audit serialized content against it,
-and import it. See [Content artifact](../explanation/content-artifact.md). Content is
-authored, generated, validated, built and packed in the `cyberia-content` repository, with its own
-CLI. A command that needs no content never resolves the content root.
+import it and follow its sagas. See [Content artifact](../explanation/content-artifact.md). Content
+is authored, generated, validated, built and packed in the `cyberia-content` repository, with its
+own CLI. A command that needs no content never resolves the content root.
 
 ```bash
 cyberia content status
@@ -766,22 +912,60 @@ cyberia content audit --dev
 cyberia content audit --backup ./backups/FOREST,./backups/TEST
 cyberia content import --dev --dry-run
 cyberia content import --dev
+cyberia content saga list --dev
+cyberia content saga inspect amethyst-strata-expansion --dev
+cyberia content saga check amethyst-strata-expansion --dev
+cyberia content import --saga amethyst-strata-expansion --dry-run --dev
 cyberia content import --saga amethyst-strata-expansion --dev
+cyberia content import --saga amethyst-strata-expansion --instance cyberia-main --dev
+cyberia content saga sync amethyst-strata-expansion --dev
+cyberia content saga sync amethyst-strata-expansion --apply --dev
 ```
 
-| Subcommand | Description                                                                                                                                                                                            |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `status`   | Print the artifact identity                                                                                                                                                                            |
-| `audit`    | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label                                                                                                 |
-| `import`   | Insert every absent document of the foundation families; `--saga <code>` imports one saga and its instance; `--global` restores the global content; `--release <id>` writes into that release database |
+| Subcommand            | Description                                                                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`              | Print the artifact identity                                                                                                                                          |
+| `audit`               | Classify every label the database (or `--backup <dirs>`) names or stores, and plan each artifact label                                                               |
+| `import`              | Add the foundation; `--saga <code>` adds one saga and the world it joins; `--global` restores the global content; `--release <id>` writes into that release database |
+| `saga list`           | Every saga of the content checkout, the artifact, the workspace and the Saga Engine workflows, with the state of each source; filters as in the API                  |
+| `saga inspect <code>` | One saga: each source, its worlds, its counts, its shared maps and items, and its placement                                                                          |
+| `saga check <code>`   | The gates and the blocking rows of the completeness report of a saga of the artifact; exits 1 while a gate is blocked                                                |
+| `saga sync <code>`    | Plan the provider of each quest and action of a stored saga; `--apply` writes it; exits 1 while a provider waits for a choice, conflicts or fails                    |
 
 `import` writes Object Layer definitions and their catalog bindings, entity-type defaults, skills,
-maps, quests, dialogues, market profiles and actions, in that order. An Object Layer item is planned by identity
-against the definition its label is bound to: absent, in sync, or differs. A label or a document
-that differs is reported and kept; `--rebind` moves it to the artifact, and a rebound label gets a
-new definition beside the earlier one. Render, quest and action sources, and placed maps stay as
-Studio set them. `--dry-run` plans only. An import ends with a reconciliation of the map registry of
-the catalog it wrote, and logs each defect.
+maps, quests, dialogues, market profiles and actions, in that order. An Object Layer item is
+planned by identity against the definition its label is bound to: absent, in sync, or differs. A
+label or a document that differs is reported and kept; `--rebind` moves it to the artifact, and a
+rebound label gets a new definition beside the earlier one. A rebind of a quest, an action, a map
+or a market writes only the revision it planned against. Render, quest and action sources, and
+placed maps stay as Studio set them. `--dry-run` plans and writes nothing. The command prints its
+report as JSON and exits 1 on an error or a lost rebind.
+
+### Import a saga
+
+`content import --saga <code>` adds a saga to a world. It never restores a snapshot and never
+replaces a world.
+
+| Record                   | When absent                                                           | When stored                                                                 |
+| ------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `CyberiaSaga`            | Inserted                                                              | Kept; a record that differs is reported, and `--rebind` writes it           |
+| The world                | Created: the authoring world, or a named one with `--create-instance` | Kept with every setting; it takes the saga maps it lacks and a new revision |
+| Its conf                 | Created with the runtime defaults                                     | Kept; it takes the entity-type defaults it lacks                            |
+| A saga map               | Inserted                                                              | Kept with its entities, grid and metadata                                   |
+| A map another world owns | —                                                                     | Stays in that world: the report names it in `ownedElsewhere`                |
+| A place of the saga      | —                                                                     | Joins no world                                                              |
+
+The default world is the authoring world named after the saga. `--instance <code>` adds the saga to
+another world; a world that does not exist is refused with exit 1, unless `--create-instance`. The
+saga record, the documents of the saga, the world, its conf and the map registry change in one
+transaction: a failure writes none of them, and a rerun completes the import. Two imports at once
+store each document once. The Object Layer items of the saga publish before the transaction.
+
+The report holds `artifact`, `database`, `served` when the host serves a content release instead of
+this database, `saga`, `targetInstance` (`created`, `confLinked`), `instanceConf` (`created`,
+`defaultsAdded`, `defaultsPresent`), `maps` (`attached`, `alreadyAttached`, `ownedElsewhere`),
+`places`, `families` (per family: `inserted`, `inSync`, `differsKept`, `rebound`, `conflict`),
+`conflicts`, `registry` and `errors`.
 
 ## `cyberia cache` — platform cache
 
@@ -819,26 +1003,20 @@ See [the debug run](../how-to/develop-content-locally.md#debug-run).
 
 Named scripts from the `scripts/` directory for seeding and build maintenance.
 
-| Subcommand               | Description                                                                                                                                                     |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `import-content`         | Import the release content of the artifact: its foundation, the release sagas, then the release instance backups; `--clean --confirm <deploy-id>` drops instead |
-| `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                                                              |
-| `drop-db`                | Bootstrap only: drop the content collections; needs `--confirm <deploy-id>`; `--include-runtime` also drops the player records                                  |
-| `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                                                             |
-| `dev-env [images...]`    | Reset the Docker stack, build its images from `--source local` or `clone`, then run it; `--test`, `--reset`, `--no-build`                                       |
-| `docker:<action>`        | The compose action on the Cyberia stack: `generate`, `up`, `down`, `restart`, `logs`, `status`, `reset` and more                                                |
-
-`import-content --clean` runs `drop-db`, then `ol --drop`. Both steps run even if one fails.
-If either step fails, the command exits with code 1 and lists each failed command to rerun.
+| Subcommand               | Description                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `validate-domains`       | Check API ownership, content partitions, views and components (`--env production`)                                        |
+| `build-server-dashboard` | Build the static cyberia-server metrics/status dashboard (`--dev`, `--output-path`)                                       |
+| `dev-env [images...]`    | Reset the Docker stack, build its images from `--source local` or `clone`, then run it; `--test`, `--reset`, `--no-build` |
+| `seed-universe`          | Create the universe of the Docker stack; nothing while a universe holds its code or one of its worlds                     |
+| `docker:<action>`        | The compose action on the Cyberia stack: `generate`, `up`, `down`, `restart`, `logs`, `status`, `reset` and more          |
 
 ```bash
-cyberia run-workflow import-content --clean --dev --confirm dd-cyberia
-cyberia run-workflow import-content --dev
 cyberia run-workflow build-server-dashboard
 cyberia run-workflow dev-env --source clone --channel private
 ```
 
-`dev-env` is described in [Run the Cyberia Docker stack locally](../how-to/run-the-docker-stack-locally.md).
+`dev-env` and `seed-universe` are described in [Run the Cyberia Docker stack locally](../how-to/run-the-docker-stack-locally.md).
 
 ---
 
@@ -869,12 +1047,12 @@ node bin run cluster --deploy-id dd-cyberia --instance-id mmo-server,mmo-client 
 
 Each id runs only where `dd-cyberia` declares it, and only once the portal workload has rolled out — `cyberia-server` dials the engine's gRPC ClusterIP for its world configuration at boot, so the content authority has to be serving first. `mmo-server` names the whole variant family (`amethyst-strata-expansion`, `test`); `mmo-server-test` names one variant.
 
-`server.cyberiaonline.com` and `client.cyberiaonline.com` are issued the same self-signed certificates as the portal hosts and written into the same `/etc/hosts` pass, so the three services are reachable over TLS from a local browser without further setup. In production the same flag issues cert-manager certificates instead.
+`server.cyberiaonline.com` and `client.cyberiaonline.com` are hosts of `dd-cyberia`, so `node bin tls reconcile --deploy-id dd-cyberia` issues them the same self-signed certificates as the portal hosts, and they are written into the same `/etc/hosts` pass: the three services are reachable over TLS from a local browser without further setup. In production the same command creates their cert-manager Certificates instead.
 
 To place the static documents again without redeploying — after rebuilding the portal client, for instance:
 
 ```bash
-node bin deploy dd-cyberia development --sync-static --gateway-api --kubeadm
+node bin deploy dd-cyberia development --sync-static --kubeadm
 ```
 
 ---
