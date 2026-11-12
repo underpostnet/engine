@@ -4,10 +4,12 @@ import { expect } from 'chai';
 import fs from 'fs-extra';
 import {
   DEFAULT_TYPEDOC_CONFIG_PATH,
+  TYPEDOC_PACKAGE_ENV,
   canonicalDocsClient,
   docsPlanFactory,
   docsReferencesFactory,
   typedocOptionsFactory,
+  typedocPackageFactory,
 } from '../../../src/server/build/docs.js';
 
 describe('client docs conf', () => {
@@ -48,6 +50,12 @@ describe('client docs conf', () => {
 
   it('reports no options when the tree carries no default config', () => {
     expect(typedocOptionsFactory({ docs: { typedoc: { name: 'Product' } } })).to.equal(null);
+  });
+
+  it('fetches the latest TypeDoc unless the environment sets a spec', () => {
+    expect(typedocPackageFactory({})).to.equal('typedoc@latest');
+    expect(typedocPackageFactory({ [TYPEDOC_PACKAGE_ENV]: '' })).to.equal('typedoc@latest');
+    expect(typedocPackageFactory({ [TYPEDOC_PACKAGE_ENV]: 'typedoc@0.28.20' })).to.equal('typedoc@0.28.20');
   });
 
   it('reads every markdown file a declared directory holds, in name order', () => {

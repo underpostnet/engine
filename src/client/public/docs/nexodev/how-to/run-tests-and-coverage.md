@@ -519,6 +519,12 @@ node bin client <deploy-id> '' <host> / --docs watch   # development preview of 
 node bin client <deploy-id> --env production --docs skip
 ```
 
+TypeDoc is not a dependency of the engine. Only a client with a `docs` block runs
+it. The task fetches `typedoc@latest` with `npm exec`, and npm keeps it with its
+TypeScript peer in the npm cache. The fetch needs the npm registry.
+`UNDERPOST_TYPEDOC_PACKAGE` sets another spec, such as `typedoc@0.28.20`. The run
+record and the client bundle record the TypeDoc version that built the site.
+
 A watch builds no client assets and publishes nothing. It runs the preview of one
 client at `/docs/engine/preview/`, and TypeDoc rebuilds it on every change. Ctrl+C
 (SIGINT) or SIGTERM stops TypeDoc and removes the preview. A preview never

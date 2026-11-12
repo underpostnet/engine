@@ -9,9 +9,24 @@ import { buildCoverage, buildDocs, buildDocsReferences } from '../../../src/clie
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
-// TypeDoc is the workload: the runner is replaced, reads the config TypeDoc would read, and plays
-// the outcome a test stages. The host is fixed, so admission is deterministic.
-const workload = vi.hoisted(() => ({ calls: [], run: null, availableBytes: 0 }));
+// TypeDoc is the workload: the npm fetch and the runner are replaced, the runner reads the config
+// TypeDoc would read, and plays the outcome a test stages. The host is fixed, so admission is deterministic.
+const workload = vi.hoisted(() => ({
+  calls: [],
+  run: null,
+  availableBytes: 0,
+  fetches: [],
+  fetchError: null,
+  typedoc: { path: '/npm-cache/node_modules/typedoc/bin/typedoc', version: '0.28.20' },
+}));
+vi.mock('../../../src/server/runtime/process.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchPackageBin: async (spec, name) => {
+    workload.fetches.push({ spec, name });
+    if (workload.fetchError) throw workload.fetchError;
+    return workload.typedoc;
+  },
+}));
 vi.mock('../../../src/server/runtime/managed-process.js', async (importOriginal) => ({
   ...(await importOriginal()),
   runManagedProcess: async (params) => {
@@ -225,11 +240,12 @@ describe('docs build', () => {
 
   beforeEach(() => {
     fixturePath = fs.mkdtempSync('/tmp/engine-docs-');
-    fs.symlinkSync(`${process.cwd()}/node_modules`, `${fixturePath}/node_modules`, 'dir');
     fs.outputJsonSync(`${fixturePath}/package.json`, { name: 'fixture' });
     cwd = process.cwd();
     process.chdir(fixturePath);
     workload.calls.length = 0;
+    workload.fetches.length = 0;
+    workload.fetchError = null;
     workload.run = ({ config }) => (stageSite(config.out), { exitCode: 0 });
     workload.availableBytes = 8 * GB;
   });
@@ -264,7 +280,8 @@ describe('docs build', () => {
       quotaUnavailable: 'no kernel boundary',
     });
     expect(params.command).to.equal(process.execPath);
-    expect(params.args[0]).to.match(/node_modules\/typedoc\/bin\/typedoc$/);
+    expect(workload.fetches).to.deep.equal([{ spec: 'typedoc@latest', name: 'typedoc' }]);
+    expect(params.args[0]).to.equal(workload.typedoc.path);
     expect(params.budget).to.include({ profile: 'heavy', memoryBytes: Math.floor(16 * GB * 0.3) });
     expect(params.budget.heapBytes).to.equal(Math.floor(params.budget.memoryBytes * 0.8));
     expect(params.boundary).to.equal(null);
@@ -322,7 +339,22 @@ describe('docs build', () => {
     expect(history.workload).to.match(/^[0-9a-f]{16}$/);
     expect(history.peak).to.include({ bytes: 700 * MB, source: 'kernel' });
     expect(history.last.class).to.equal('measured');
-    expect(published).to.deep.equal({ version: '1.2.3', at: history.last.at });
+    expect(published).to.deep.equal({ version: '1.2.3', typedoc: '0.28.20', at: history.last.at });
+  });
+
+  it('keeps the published site and starts no TypeDoc when npm cannot fetch it', async () => {
+    stageTypedocConfig();
+    stageSite(`${SITE}/1.2.3`);
+    workload.fetchError = Object.assign(new Error('shellExec failed (exit=1)'), {
+      stderr: 'npm error code ETARGET\nnpm error notarget No matching version found for typedoc@latest.\n',
+    });
+
+    expect(await runBuildDocs()).to.deep.equal({
+      status: 'failed',
+      reason: 'npm cannot fetch typedoc@latest: ETARGET',
+    });
+    expect(workload.calls).to.have.length(0);
+    expect(fs.existsSync(`${SITE}/1.2.3/index.html`)).to.equal(true);
   });
 
   it('keeps the published site when TypeDoc fails, and reports why', async () => {

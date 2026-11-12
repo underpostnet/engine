@@ -9,7 +9,7 @@
 import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import * as dir from 'path';
-import { packageBinPath } from '../server/runtime/process.js';
+import { fetchPackageBin } from '../server/runtime/process.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import {
   INTERRUPT_SIGNALS,
@@ -50,6 +50,7 @@ import {
   docsReferencesFactory,
   frontMatterOf,
   typedocOptionsFactory,
+  typedocPackageFactory,
 } from '../server/build/docs.js';
 import { documentationHref } from '../client/components/core/CommonJs.js';
 
@@ -169,6 +170,17 @@ const runTypedoc = async ({ host, path, metadata = {}, docs, version, mode, buil
       locks.push(lock);
     }
 
+    const spec = typedocPackageFactory();
+    let typedoc;
+    try {
+      typedoc = await fetchPackageBin(spec, 'typedoc', { signal: abort.signal, timeoutMs: profile.maxRuntimeMs });
+    } catch (error) {
+      if (abort.signal.aborted) return { status: 'cancelled', reason: `stopped by ${abort.signal.reason}` };
+      const reason = `npm cannot fetch ${spec}: ${/npm error code (\S+)/.exec(error.stderr ?? '')?.[1] ?? error.message}`;
+      event('TASK_FAILED', { reason });
+      return { status: 'failed', reason };
+    }
+
     fs.mkdirSync(root, { recursive: true });
     if (mode === 'build') {
       const recovered = recoverPublications(root);
@@ -210,6 +222,7 @@ const runTypedoc = async ({ host, path, metadata = {}, docs, version, mode, buil
     const { budget } = task;
     event('TASK_ADMITTED', {
       profile: profile.name,
+      typedoc: typedoc.version,
       workload,
       hostAvailableBytes: task.capacity.availableMemoryBytes,
       reserveBytes: budget.reserveBytes,
@@ -225,12 +238,7 @@ const runTypedoc = async ({ host, path, metadata = {}, docs, version, mode, buil
     fs.writeJsonSync(configPath, { ...options, out: dir.resolve(out) }, { spaces: 2 });
     const outcome = await runManagedProcess({
       command: process.execPath,
-      args: [
-        packageBinPath('typedoc'),
-        '--options',
-        configPath,
-        ...(mode === 'watch' ? ['--watch', '--preserveWatchOutput'] : []),
-      ],
+      args: [typedoc.path, '--options', configPath, ...(mode === 'watch' ? ['--watch', '--preserveWatchOutput'] : [])],
       cwd: process.cwd(),
       timeoutMs: mode === 'watch' ? 0 : profile.maxRuntimeMs,
       budget,
@@ -282,7 +290,7 @@ const runTypedoc = async ({ host, path, metadata = {}, docs, version, mode, buil
       .readdirSync(root)
       .filter((entry) => !entry.startsWith('.') && entry !== version && entry !== TYPEDOC_PREVIEW);
     for (const entry of removed) fs.removeSync(`${root}/${entry}`);
-    fs.writeJsonSync(recordPath, { history, published: { version, at: history.last.at } });
+    fs.writeJsonSync(recordPath, { history, published: { version, typedoc: typedoc.version, at: history.last.at } });
     event('ARTIFACT_PUBLISHED', { target, replaced, removed });
     return { status: 'published', metrics };
   } finally {

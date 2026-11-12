@@ -44,7 +44,6 @@ import {
   taskAdmissionFactory,
   terminationReason,
 } from '../server/runtime/managed-process.js';
-import { packageManifestFactory } from '../server/runtime/process.js';
 import { objectStore } from '../server/storage/object-store.js';
 import { extractZipTo } from '../server/storage/zip.js';
 import { clientBuildIdFactory, clientBundleIdFactory, getZipPartPaths } from './client-build.js';
@@ -514,6 +513,7 @@ const pushClientBundle = async ({
               version,
               entry: docsEntry(version),
               sha256: sha256(fs.readFileSync(`${publicPath}/${docsEntry(version)}`)),
+              typedoc: readJson(`${publicPath}/${TYPEDOC_DIRECTORY}/${TYPEDOC_RUN_RECORD}`)?.published?.typedoc ?? null,
             }
           : null,
       };
@@ -538,7 +538,6 @@ const pushClientBundle = async ({
         builder: record.builder,
         startedAt: record.startedAt,
         node: process.version,
-        typedoc: packageManifestFactory('typedoc').manifest.version,
         command: result.command,
       },
       image: image || null,

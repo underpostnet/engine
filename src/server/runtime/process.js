@@ -1000,6 +1000,29 @@ const packageBinPath = (name, root = process.cwd()) => {
   } = packageManifestFactory(name, root);
   return nodePath.resolve(nodePath.dirname(path), typeof bin === 'string' ? bin : bin[name]);
 };
+
+/**
+ * Fetches a package with `npm exec` and gives its command-line entry, so a runner uses a tool that
+ * no `package.json` lists. npm keeps the fetched tree, with its peer dependencies, in its cache.
+ * @memberof Process
+ * @param {string} spec - npm package spec: a version, a dist-tag or a directory.
+ * @param {string} name - Package name. The package gives a command with the same name.
+ * @param {Object} [options] - Options of {@link runCommand}, such as `signal` and `timeoutMs`.
+ * @returns {Promise<{path: string, version: string}>} Absolute path of the entry, and the fetched version.
+ * @throws {ShellExecError} When npm cannot fetch the package.
+ */
+const fetchPackageBin = async (spec, name, options = {}) => {
+  const { stdout } = await runCommand(
+    'npm',
+    ['exec', '--yes', `--package=${spec}`, '-c', `command -v ${name}`],
+    options,
+  );
+  const link = stdout.trim();
+  if (!link) throw new Error(`npm exec ${spec} gave no ${name} command`);
+  // The link is <tree>/node_modules/.bin/<name>.
+  const root = nodePath.resolve(link, '../../..');
+  return { path: packageBinPath(name, root), version: packageManifestFactory(name, root).manifest.version };
+};
 /**
  * Copies text content to the system clipboard using clipboardy.
  * Logs only the copied length: the content is often a password or a command carrying one.
@@ -1025,6 +1048,7 @@ export {
   writeHostFile,
   ShellExecError,
   getRootDirectory,
+  fetchPackageBin,
   packageBinPath,
   packageManifestFactory,
   invokingUser,

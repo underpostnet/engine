@@ -1,16 +1,19 @@
 'use strict';
 
 // Runs TypeDoc tasks in their own processes, as a client build runs them. The real TypeDoc cases use
-// a one-file fixture project. The failure cases use a stand-in `typedoc` package, so the runner, the
-// kernel boundary, the locks and the publication meet a workload that fails on cue. Each task takes
-// the host-wide TypeDoc locks: a TypeDoc that another process runs on this host makes them wait.
+// a one-file fixture project and fetch typedoc@latest with npm exec: they need the npm registry. The
+// failure cases fetch a stand-in `typedoc` package directory, so the runner, the kernel boundary, the
+// locks and the publication meet a workload that fails on cue. Each task takes the host-wide TypeDoc
+// locks: a TypeDoc that another process runs on this host makes them wait.
 
 import { expect } from 'chai';
 import { spawn } from 'node:child_process';
 import fs from 'fs-extra';
 import os from 'node:os';
 import nodePath from 'node:path';
+import { TYPEDOC_PACKAGE_ENV } from '../../../src/server/build/docs.js';
 import { acquireHostLock } from '../../../src/server/runtime/host-lock.js';
+import { runCommand } from '../../../src/server/runtime/process.js';
 import { alive } from '../../support/process.js';
 
 const engineRoot = process.cwd();
@@ -44,6 +47,7 @@ else setTimeout(() => (site(true), mark('end')), Number(process.env.FAKE_TYPEDOC
 describe('TypeDoc task', { timeout: 120000 }, () => {
   let fixture;
   let standIn;
+  let standInPackage;
   let marks;
   const started = [];
 
@@ -82,16 +86,11 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
     );
     return { child, result, output: () => output };
   };
-  const fake = (host, behaviour, env = {}) => task(host, { cwd: standIn, env: { FAKE_TYPEDOC: behaviour, ...env } });
+  const fake = (host, behaviour, env = {}) =>
+    task(host, { cwd: standIn, env: { [TYPEDOC_PACKAGE_ENV]: standInPackage, FAKE_TYPEDOC: behaviour, ...env } });
   const record = (root, host) => fs.readJsonSync(site(root, host, '.typedoc-run.json'));
 
-  const project = (root, { typedoc = 'link' } = {}) => {
-    if (typedoc === 'link')
-      fs.symlinkSync(nodePath.join(engineRoot, 'node_modules'), nodePath.join(root, 'node_modules'), 'dir');
-    else {
-      fs.outputJsonSync(nodePath.join(root, 'node_modules/typedoc/package.json'), { name: 'typedoc', bin: 'bin.js' });
-      fs.outputFileSync(nodePath.join(root, 'node_modules/typedoc/bin.js'), STAND_IN);
-    }
+  const project = (root) => {
     fs.outputJsonSync(nodePath.join(root, 'package.json'), { name: 'fixture', type: 'module' });
     fs.outputJsonSync(nodePath.join(root, 'typedoc.json'), {
       name: 'Fixture',
@@ -117,7 +116,14 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
     fixture = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-typedoc-'));
     standIn = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-typedoc-stand-in-'));
     project(fixture);
-    project(standIn, { typedoc: 'stand-in' });
+    project(standIn);
+    standInPackage = nodePath.join(standIn, 'typedoc-stand-in');
+    fs.outputJsonSync(nodePath.join(standInPackage, 'package.json'), {
+      name: 'typedoc',
+      version: '0.0.0-stand-in',
+      bin: 'bin.js',
+    });
+    fs.outputFileSync(nodePath.join(standInPackage, 'bin.js'), STAND_IN);
     marks = nodePath.join(standIn, 'marks.jsonl');
   });
 
@@ -133,7 +139,15 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
       } catch {}
   });
 
-  afterAll(() => {
+  // npm exec keeps a link to the stand-in in its cache: the link goes with the fixture.
+  afterAll(async () => {
+    const { stdout } = await runCommand(
+      'npm',
+      ['exec', '--yes', `--package=${standInPackage}`, '-c', 'command -v typedoc'],
+      { cwd: standIn, disableLog: true },
+    );
+    const fetched = nodePath.resolve(stdout.trim(), '../../..');
+    if (fetched.includes(`${nodePath.sep}_npx${nodePath.sep}`)) fs.removeSync(fetched);
     fs.removeSync(fixture);
     fs.removeSync(standIn);
   });
@@ -144,6 +158,7 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
     expect(fs.readFileSync(nodePath.join(site(fixture, 'a.fixture.test'), 'index.html'), 'utf8')).to.include('Fixture');
     const { history, published: release } = record(fixture, 'a.fixture.test');
     expect(release.version).to.equal(VERSION);
+    expect(release.typedoc).to.match(/^\d+\.\d+\.\d+/);
     expect(history.last.class).to.be.oneOf(['measured', 'unmeasured']);
     expect(published.metrics.durationMs).to.be.above(0);
 
@@ -242,6 +257,7 @@ describe('TypeDoc task', { timeout: 120000 }, () => {
     expect(result.output).to.match(/ARTIFACT_RECOVERED[^]*"restored": \[\s*"1\.0\.0"\s*\]/);
     expect(fs.readdirSync(root).sort()).to.deep.equal(['.typedoc-run.json', VERSION]);
     expect(fs.readFileSync(nodePath.join(root, VERSION, 'index.html'), 'utf8')).to.include('<title>Fixture</title>');
+    expect(record(standIn, 'b.fixture.test').published.typedoc).to.equal('0.0.0-stand-in');
   });
 
   it('runs one TypeDoc at a time on the host, for one client and for another', async () => {

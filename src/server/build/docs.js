@@ -28,6 +28,23 @@ import { anchorFactory } from '../../client/components/core/CommonJs.js';
  */
 const DEFAULT_TYPEDOC_CONFIG_PATH = './typedoc.json';
 
+/**
+ * @constant TYPEDOC_PACKAGE_ENV
+ * @description The environment variable that sets the npm spec of TypeDoc, such as `typedoc@0.28.20`.
+ * @memberof UnderpostDocs
+ */
+const TYPEDOC_PACKAGE_ENV = 'UNDERPOST_TYPEDOC_PACKAGE';
+
+/**
+ * @method typedocPackageFactory
+ * @description The npm spec of the TypeDoc that a documentation build fetches with `npm exec`.
+ * TypeDoc is not a dependency of the engine: only a client with a `docs` block fetches it.
+ * @param {NodeJS.ProcessEnv} [env] - Reads {@link TYPEDOC_PACKAGE_ENV}.
+ * @returns {string} The spec; `typedoc@latest` by default.
+ * @memberof UnderpostDocs
+ */
+const typedocPackageFactory = (env = process.env) => env[TYPEDOC_PACKAGE_ENV] || 'typedoc@latest';
+
 const normalizeDirectory = (directory) => `${directory ?? ''}`.replace(/\/+$/, '');
 
 /**
@@ -426,9 +443,11 @@ export {
   DEFAULT_TYPEDOC_CONFIG_PATH,
   TYPEDOC_DIRECTORY,
   TYPEDOC_MODES,
+  TYPEDOC_PACKAGE_ENV,
   TYPEDOC_PREVIEW,
   canonicalDocsClient,
   docsPlanFactory,
   docsReferencesFactory,
   typedocOptionsFactory,
+  typedocPackageFactory,
 };

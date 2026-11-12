@@ -101,7 +101,7 @@ const writeBuild = async ({ splitMb, marker, publishedAt = new Date().toISOStrin
       fs.outputFileSync(`${site}/assets/${asset}`, `${asset} ${marker}`);
     fs.outputJsonSync(`${publicPath}/docs/engine/.typedoc-run.json`, {
       history: { peak: { bytes: 1024 ** 3, source: 'kernel', at: publishedAt } },
-      published: { version: VERSION, at: publishedAt },
+      published: { version: VERSION, typedoc: '0.28.20', at: publishedAt },
     });
   }
   for (const { publicPath, bundleId } of ROUTES) {
@@ -160,7 +160,6 @@ describe('client bundle publication and restore', () => {
     fs.mkdirpSync(`${fixture}/engine`);
     process.chdir(`${fixture}/engine`);
     fs.copySync(`${ENGINE}/typedoc.json`, 'typedoc.json');
-    fs.symlinkSync(`${ENGINE}/node_modules`, 'node_modules');
     fs.outputJsonSync('package.json', { name: 'engine', version: VERSION });
     fs.outputJsonSync('engine-private/conf/dd-test/conf.server.json', {
       'a.com': { '/': { client: 'A' }, '/peer': { client: 'P' } },
@@ -211,6 +210,7 @@ describe('client bundle publication and restore', () => {
         .createHash('sha256')
         .update(fs.readFileSync(`public/a.com/${DOCS_ENTRY}`))
         .digest('hex'),
+      typedoc: '0.28.20',
     });
     expect(manifest.engine).toEqual({ version: VERSION, commit: git('rev-parse', 'HEAD') });
     expect(manifest.image).toBe('engine@sha256:abc');
