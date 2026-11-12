@@ -2,9 +2,10 @@
 
 import { expect } from 'chai';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
 import { FileService } from '../../../src/api/file/file.service.js';
-import { FileRouter } from '../../../src/api/file/file.router.js';
+import { ApiModule as FileModule } from '../../../src/api/file/file.router.js';
+import { testApiContext } from '../../support/api-module.js';
 
 // Models are in-memory stand-ins: the suite reads the queries the service sends, never a database.
 const ID = new Types.ObjectId().toString();
@@ -69,7 +70,7 @@ describe('file API id guard', () => {
   });
 
   it('serves no route without an id', () => {
-    const routes = FileRouter.router({ authMiddleware: (req, res, next) => next() })
+    const routes = FileModule.createRouter(testApiContext(FileModule, { authenticate: (req, res, next) => next() }))
       .stack.filter((layer) => layer.route)
       .map((layer) => `${Object.keys(layer.route.methods)[0]} ${layer.route.path}`);
     expect(routes).to.not.include('get /');

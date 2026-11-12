@@ -5,7 +5,7 @@
  */
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
-import { shellExec } from '../server/runtime/process.js';
+import { chownHostPath, hostAccount, removeHostPath, shellExec } from '../server/runtime/process.js';
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { waitForPort } from '../server/runtime/conf.js';
 import {
@@ -18,9 +18,24 @@ import {
 } from '../server/security/selinux.js';
 import ContainerStorageService from '../server/security/container-storage.js';
 import fs from 'fs-extra';
+import os from 'node:os';
+import nodePath from 'node:path';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
+
+/** Restricts a private key to its owner, as ssh requires. A key of another user keeps its mode. */
+const restrictKeyMode = (key) => {
+  try {
+    fs.chmodSync(key, 0o600);
+  } catch {
+    // The key belongs to another user, who keeps it as it is.
+  }
+};
+
+/** The options of a key-only, non-interactive `ssh` session that trusts the host it reaches. */
+const sshSessionOptionsFactory = (key, port) =>
+  `-i ${key} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
 
 const shellExecRedacted = (command, options = {}) => {
   const silent = options.silent === true;
@@ -274,12 +289,7 @@ class UnderpostSSH {
      * @param {string} username - Username to get home directory for
      * @returns {string} User's home directory path
      */
-    getUserHome: (username) => {
-      return shellExec(`getent passwd ${shellArgumentFactory(username)} | cut -d: -f6`, {
-        silent: true,
-        stdout: true,
-      }).trim();
-    },
+    getUserHome: (username) => hostAccount(username).home,
 
     /**
      * Creates a system user with password and groups.
@@ -312,10 +322,7 @@ class UnderpostSSH {
      * @returns {void}
      */
     ensureSSHDirectory: (sshDir) => {
-      if (!fs.existsSync(sshDir)) {
-        shellExec(`mkdir -p ${shellArgumentFactory(sshDir)}`);
-        shellExec(`chmod 700 ${shellArgumentFactory(sshDir)}`);
-      }
+      if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { recursive: true, mode: 0o700 });
     },
 
     /**
@@ -330,11 +337,14 @@ class UnderpostSSH {
      * @returns {void}
      */
     setSSHFilePermissions: (sshDir, username, keyPath, pubKeyPath) => {
-      shellExec(`chmod 600 ${shellArgumentFactory(`${sshDir}/authorized_keys`)}`);
-      shellExec(`chmod 644 ${shellArgumentFactory(`${sshDir}/known_hosts`)}`);
-      if (keyPath) shellExec(`chmod 600 ${shellArgumentFactory(keyPath)}`);
-      if (pubKeyPath) shellExec(`chmod 644 ${shellArgumentFactory(pubKeyPath)}`);
-      shellExec(`chown -R ${shellArgumentFactory(`${username}:${username}`)} ${shellArgumentFactory(sshDir)}`);
+      for (const [file, mode] of [
+        [`${sshDir}/authorized_keys`, 0o600],
+        [`${sshDir}/known_hosts`, 0o644],
+        [keyPath, 0o600],
+        [pubKeyPath, 0o644],
+      ])
+        if (file) fs.chmodSync(file, mode);
+      chownHostPath(sshDir, { owner: hostAccount(username), reason: `gives the SSH directory to ${username}` });
       runSELinuxCommands(selinuxSshContextCommandsFactory({ sshDirectory: sshDir }), { execute: shellExec });
     },
 
@@ -586,7 +596,7 @@ class UnderpostSSH {
 
         const sudoersFile = `/etc/sudoers.d/90_${options.user}`;
         if (fs.existsSync(sudoersFile)) {
-          shellExec(`sudo rm -f ${sudoersFile}`);
+          removeHostPath(sudoersFile, { reason: `removes the sudoers rule of ${options.user}` });
           logger.info(`Sudoers file removed: ${sudoersFile}`);
         }
 
@@ -733,7 +743,7 @@ class UnderpostSSH {
      * @param {string} params.localDir - Local source directory.
      * @param {string} params.remoteDir - Destination directory on the node.
      * @param {number} [params.port=22] - SSH port.
-     * @param {string} [params.user='root'] - SSH user (key-only).
+     * @param {string} [params.user='root'] - SSH user (key-only); another user writes through `sudo`.
      * @param {string} [params.keyPath] - Private key path; resolved by {@link sshKeyPathFactory} when empty.
      * @param {string} [params.owner='1000:1000'] - chown target on the node (empty to skip).
      * @param {string} [params.mode='755'] - chmod mode on the node (empty to skip).
@@ -758,19 +768,22 @@ class UnderpostSSH {
       if (!localDir || !fs.existsSync(localDir)) throw new Error(`copyDirToNode: local dir not found: ${localDir}`);
       if (!remoteDir) throw new Error('copyDirToNode requires a remoteDir');
       const key = sshKeyPathFactory(keyPath);
+      const sudo = user === 'root' ? '' : 'sudo ';
       try {
-        shellExec(`chmod 600 ${key}`, { silent: true, silentOnError: true, disableLog: true });
-        const sshOpts = `-i ${key} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
-        shellExec(`ssh ${sshOpts} ${user}@${host} 'mkdir -p ${remoteDir}'`, {
+        restrictKeyMode(key);
+        const sshOpts = sshSessionOptionsFactory(key, port);
+        shellExec(`ssh ${sshOpts} ${user}@${host} '${sudo}mkdir -p ${remoteDir}'`, {
           silent: true,
           disableLog: true,
         });
-        shellExec(`tar -C ${localDir} -c . | ssh ${sshOpts} ${user}@${host} 'tar -C ${remoteDir} -x'`, {
+        shellExec(`tar -C ${localDir} -c . | ssh ${sshOpts} ${user}@${host} '${sudo}tar -C ${remoteDir} -x'`, {
           silent: true,
           disableLog: true,
         });
-        const fixups =
-          `${owner ? `chown -R ${owner} ${remoteDir}; ` : ''}${mode ? `chmod -R ${mode} ${remoteDir}` : ''}`.trim();
+        const fixups = [
+          ...(owner ? [`${sudo}chown -R ${owner} ${remoteDir}`] : []),
+          ...(mode ? [`${sudo}chmod -R ${mode} ${remoteDir}`] : []),
+        ].join('; ');
         if (fixups)
           shellExec(`ssh ${sshOpts} ${user}@${host} '${fixups}'`, {
             silent: true,
@@ -781,9 +794,7 @@ class UnderpostSSH {
         if (containerStorage)
           shellExec(
             `ssh ${sshOpts} ${user}@${host} ${shellArgumentFactory(
-              ContainerStorageService.containerStorageSubtreeCommandsFactory(remoteDir, {
-                sudo: user !== 'root',
-              }).join('; '),
+              `${sudo}sh -c ${shellArgumentFactory(ContainerStorageService.containerStorageSubtreeCommandsFactory(remoteDir).join('; '))}`,
             )}`,
             { silent: true, disableLog: true },
           );
@@ -792,6 +803,56 @@ class UnderpostSSH {
         process.exit(1);
       }
     },
+
+    /**
+     * A command that needs root on a remote host: as it is for root, else through `sudo -n`, since a key-only
+     * session has no terminal to ask for a password.
+     * @function rootCommandFactory
+     * @memberof UnderpostSSH
+     * @param {string} user - The remote account.
+     * @param {string} command
+     * @returns {string}
+     */
+    rootCommandFactory: (user, command) => (user === 'root' ? command : `sudo -n ${command}`),
+
+    /**
+     * The `ssh` command that runs a shell command as root on a host over key-only SSH
+     * ({@link UnderpostSSH.rootCommandFactory}). Its stdin is the stdin of the remote command.
+     * @function rootSshCommandFactory
+     * @memberof UnderpostSSH
+     * @param {{host:string, port?:number, user?:string, keyPath?:string}} target
+     * @param {string} command
+     * @returns {string}
+     */
+    rootSshCommandFactory: ({ host, port = 22, user = 'root', keyPath = '' }, command) => {
+      const key = sshKeyPathFactory(keyPath);
+      restrictKeyMode(key);
+      return `ssh ${sshSessionOptionsFactory(key, port)} ${user}@${host} ${shellArgumentFactory(
+        Underpost.ssh.rootCommandFactory(user, `sh -c ${shellArgumentFactory(command)}`),
+      )}`;
+    },
+
+    /**
+     * Whether a key-only account can write on a host the way {@link UnderpostSSH.copyDirToNode} does: it
+     * runs a command, through `sudo -n` for a user other than root.
+     * @async
+     * @function writeAccess
+     * @memberof UnderpostSSH
+     * @param {{host:string, port?:number, user?:string, keyPath?:string}} params
+     * @returns {Promise<boolean>}
+     */
+    writeAccess: async ({ host, port = 22, user = 'root', keyPath = '' }) =>
+      (
+        await Underpost.ssh.sshExecBatch({
+          host,
+          port,
+          user,
+          keyPath,
+          command: Underpost.ssh.rootCommandFactory(user, 'true'),
+          retries: 1,
+          connectTimeoutSec: 10,
+        })
+      ).ok,
 
     /**
      * The private key this process authenticates with; see {@link sshKeyPathFactory}.
@@ -945,7 +1006,7 @@ EOF
       }
 
       const key = sshKeyPathFactory(keyPath);
-      shellExec(`chmod 600 ${key}`, { silent: true, silentOnError: true, disableLog: true });
+      restrictKeyMode(key);
 
       const sshOpts = [
         `-i ${key}`,
@@ -1132,19 +1193,21 @@ EOF
      * Cleans up temporary key files after copying.
      */
     generateKeys: ({ user, password, host }) => {
-      shellExec(`sudo rm -rf ./id_rsa`);
-      shellExec(`sudo rm -rf ./id_rsa.pub`);
-
-      shellExec(`ssh-keygen -t ed25519 -f id_rsa -N "${password}" -q -C "${user}@${host}"`);
-
-      shellExec(`sudo cp ./id_rsa ~/.ssh/id_rsa`);
-      shellExec(`sudo cp ./id_rsa.pub ~/.ssh/id_rsa.pub`);
-
-      shellExec(`sudo cp ./id_rsa ./engine-private/deploy/id_rsa`);
-      shellExec(`sudo cp ./id_rsa.pub ./engine-private/deploy/id_rsa.pub`);
-
-      shellExec(`sudo rm -rf ./id_rsa`);
-      shellExec(`sudo rm -rf ./id_rsa.pub`);
+      const scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-ssh-keys-'));
+      try {
+        const key = nodePath.join(scratch, 'id_rsa');
+        shellExec(
+          `ssh-keygen -t ed25519 -f ${shellArgumentFactory(key)} -N ${shellArgumentFactory(password)} -q -C ${shellArgumentFactory(`${user}@${host}`)}`,
+          { disableLog: true },
+        );
+        const sshDir = nodePath.join(os.homedir(), '.ssh');
+        Underpost.ssh.ensureSSHDirectory(sshDir);
+        for (const directory of [sshDir, './engine-private/deploy'])
+          for (const file of ['id_rsa', 'id_rsa.pub'])
+            fs.copyFileSync(nodePath.join(scratch, file), nodePath.join(directory, file));
+      } finally {
+        fs.removeSync(scratch);
+      }
     },
 
     /**
@@ -1164,19 +1227,17 @@ EOF
      * Sets ownership to specified user for ~/.ssh/ and contents.
      */
     chmod: ({ user }) => {
-      const sshDirectory = `${Underpost.ssh.getUserHome(user)}/.ssh`;
-      shellExec(`sudo chmod 700 ${shellArgumentFactory(sshDirectory)}`);
-      shellExec(
-        `if [ -f ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)} ]; then sudo chmod 600 ${shellArgumentFactory(`${sshDirectory}/authorized_keys`)}; fi`,
-      );
-      shellExec(
-        `if [ -f ${shellArgumentFactory(`${sshDirectory}/known_hosts`)} ]; then sudo chmod 644 ${shellArgumentFactory(`${sshDirectory}/known_hosts`)}; fi`,
-      );
-      shellExec(
-        `if [ -f ${shellArgumentFactory(`${sshDirectory}/id_rsa`)} ]; then sudo chmod 600 ${shellArgumentFactory(`${sshDirectory}/id_rsa`)}; fi`,
-      );
-      shellExec(`sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`);
-      shellExec(`sudo chown -R ${shellArgumentFactory(`${user}:${user}`)} ${shellArgumentFactory(sshDirectory)}`);
+      const account = hostAccount(user);
+      const sshDirectory = `${account.home}/.ssh`;
+      const reason = `secures the SSH files of ${user}`;
+      chownHostPath(sshDirectory, { owner: account, mode: '0700', reason });
+      for (const [file, mode] of [
+        ['authorized_keys', '0600'],
+        ['known_hosts', '0644'],
+        ['id_rsa', '0600'],
+      ])
+        chownHostPath(`${sshDirectory}/${file}`, { owner: account, mode, reason });
+      chownHostPath('/etc/ssh/ssh_host_ed25519_key', { owner: { uid: 0, gid: 0 }, mode: '0600', reason });
       runSELinuxCommands(
         [
           ...selinuxSshContextCommandsFactory({ sshDirectory }),
@@ -1239,6 +1300,7 @@ Subsystem sftp /usr/libexec/openssh/sftp-server
         if (sshPort !== 22) {
           shellExec(
             `if command -v dnf >/dev/null 2>&1 && ! command -v semanage >/dev/null 2>&1; then ${selinuxPackagesCommandFactory()}; fi`,
+            { privileged: 'installs the SELinux userspace' },
           );
         }
         runSELinuxCommands(portCommands, { execute: shellExec });

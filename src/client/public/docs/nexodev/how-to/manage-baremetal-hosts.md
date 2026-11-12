@@ -8,16 +8,17 @@ Minimalist reference for managing bare metal server operations using the Underpo
 
 1. [Command](#command)
 2. [Quick Start](#quick-start)
-3. [Control Server](#control-server)
-4. [Machine Management](#machine-management)
-5. [iPXE Boot](#ipxe-boot)
-6. [Cloud-Init](#cloud-init)
-7. [NFS Root Filesystem](#nfs-root-filesystem)
-8. [Packer Image Building](#packer-image-building)
-9. [Chroot Tools](#chroot-tools)
-10. [Bootstrap HTTP Server](#bootstrap-http-server)
-11. [Logs](#logs)
-12. [Options Reference](#options-reference)
+3. [Privileges](#privileges)
+4. [Control Server](#control-server)
+5. [Machine Management](#machine-management)
+6. [iPXE Boot](#ipxe-boot)
+7. [Cloud-Init](#cloud-init)
+8. [NFS Root Filesystem](#nfs-root-filesystem)
+9. [Packer Image Building](#packer-image-building)
+10. [Chroot Tools](#chroot-tools)
+11. [Bootstrap HTTP Server](#bootstrap-http-server)
+12. [Logs](#logs)
+13. [Options Reference](#options-reference)
 
 ---
 
@@ -53,7 +54,39 @@ underpost baremetal --ls
 
 ---
 
+## Privileges
+
+The command runs as root or as a regular user. A host change runs as root: as it is in a root process, else
+through `sudo`. On a terminal `sudo` can ask for the password; in CI or over SSH without a terminal it runs
+`sudo -n`. When `sudo` refuses, the error names the operation and the remedy.
+
+- **Root:** the MAAS snap and its system data, the MAAS CLI (it uses the profile that the control server
+  setup logs in as root), `debootstrap`, `chroot`, the mounts, `/etc/exports`, `exportfs`, the NFS
+  service, the firewall, `tcpdump` and the package installs.
+- **The rootful Podman storage:** every stage of an NFS root build (pull, create, export, copy and remove)
+  uses the storage of root. A failed stage removes its temporary container and stops the build.
+- **The user of the process:** the TFTP root, the bootstrap HTTP root and the NFS root belong to the user
+  that runs the command, so their files are written with the file system API. In a root process that user
+  is root, and the ownership does not change.
+- **The invoking user:** the SSH key that the control server setup registers, the snap data in the home of
+  the user, and the iPXE build. The command installs the iPXE build packages as root first.
+
+An NFS root build stops before it removes anything when `NFS_EXPORT_PATH` is not an absolute directory. It
+empties only the NFS root of the host it builds, hidden files included.
+
+`--nfs-sh` copies a `sudo chroot …` command to the clipboard. It is an instruction for you: the command does
+not run it.
+
+`scripts/maas-setup.sh`, `scripts/maas-nat-firewalld.sh` and `scripts/packer-setup.sh` run as root and check
+it. To run one by hand, use `sudo bash scripts/<name>.sh`. The PostgreSQL database of MAAS (`--control-server-db-*`)
+keeps its own `sudo` commands. [ADR 0013](../../underpost/adr/0013-command-execution-and-privileges.md)
+records the privilege boundary.
+
 ## Control Server
+
+The control server is the bare-metal provisioning controller: a MAAS region and rack controller that runs on the host itself, with its PostgreSQL database, and serves DHCP, TFTP and PXE on the host LAN. It is not a Kubernetes workload and needs no WireGuard peer.
+
+Run `underpost baremetal` on the control node. On a node with a node document, the command refuses every role that does not hold `baremetal-provisioning`: only `control` holds it, so a hub, a worker or a workstation cannot install, restart or uninstall the controller. A host with no node document runs it, so a new LAN host can install the controller before it joins the fleet.
 
 ### Install
 

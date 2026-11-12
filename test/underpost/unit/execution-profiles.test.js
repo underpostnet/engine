@@ -11,6 +11,9 @@ import {
   executionDecisionFactory,
   executionProfileFactory,
   profileFromOptionsFactory,
+  setExecutionTarget,
+  targetDecisionFactory,
+  targetIdentityRefusal,
   withExecutionProfile,
 } from '../../../src/server/build/execution.js';
 
@@ -127,6 +130,14 @@ describe('execution decisions', () => {
     ).to.equal(true);
   });
 
+  it('classifies the argument vector of a program without reading its arguments as shell syntax', () => {
+    const read = ['kubectl', 'get', 'services', '-o', 'jsonpath={range .items[*]}{.metadata.name}|{end}'];
+    expect(executionDecisionFactory(read, { profile: 'LIVE_CLUSTER' }).capability).to.equal('cluster:read');
+    expect(
+      executionDecisionFactory(['kubectl', 'patch', 'cronjob', 'x'], { profile: 'LIVE_CLUSTER' }).capability,
+    ).to.equal('cluster:write');
+  });
+
   it('denies even local work under OFFLINE_DRY_RUN', () => {
     expect(executionDecisionFactory('echo hi', { profile: 'OFFLINE_DRY_RUN' }).permitted).to.equal(false);
   });
@@ -176,6 +187,80 @@ describe('profile propagation', () => {
   it('defaults to LIVE_CLUSTER when the environment says nothing', () => {
     delete process.env[EXECUTION_PROFILE_ENV_KEY];
     expect(activeExecutionProfile().name).to.equal('LIVE_CLUSTER');
+  });
+});
+
+describe('cluster target decisions', () => {
+  const REFUSED = { environment: 'production', context: '', source: '', refusal: 'name a context' };
+  const PINNED = { environment: 'production', context: 'admin@prod', source: 'environments.production.context' };
+  const decide = (cmd, target) => targetDecisionFactory(cmd, classifyCommand([].concat(cmd).join(' ')), target);
+
+  it('refuses each cluster command of a refused target that names no context of its own', () => {
+    expect(decide('kubectl get pods', REFUSED).refusal).to.equal('name a context');
+    expect(decide('kubectl get pods | kubectl apply -f -', REFUSED).refusal).to.equal('name a context');
+    expect(decide(['helm', 'upgrade', '--install', 'x', 'y'], REFUSED).refusal).to.equal('name a context');
+  });
+
+  it('lets a command that names its context or kubeconfig, a kubeconfig read and local helm work through', () => {
+    expect(decide('kubectl --context admin@prod get pods', REFUSED).refusal).to.equal('');
+    expect(decide(['kubectl', '--kubeconfig', '/tmp/k', 'get', 'nodes'], REFUSED).refusal).to.equal('');
+    expect(decide('KUBECONFIG=/tmp/k kubectl get nodes', REFUSED).refusal).to.equal('');
+    expect(decide('kubectl config current-context', REFUSED).refusal).to.equal('');
+    expect(decide('helm repo add jetstack https://charts.jetstack.io', REFUSED).refusal).to.equal('');
+    expect(decide('ls -la', REFUSED).refusal).to.equal('');
+  });
+
+  it('decides nothing without a target: an API caller outside the CLI chooses its own cluster', () => {
+    expect(decide('kubectl apply -f x.yaml', null)).to.deep.equal({ refusal: '', verify: false });
+  });
+
+  it('verifies the cluster of a change through the target, and of every cluster command under an override', () => {
+    expect(decide('kubectl apply -f x.yaml', PINNED).verify).to.equal(true);
+    expect(decide(['kubectl', '--context', 'admin@prod', 'delete', 'pod', 'x'], PINNED).verify).to.equal(true);
+    expect(decide("kubectl --context='admin@prod' apply -f -", PINNED).verify).to.equal(true);
+    expect(decide('kubectl get pods', PINNED).verify).to.equal(false);
+    expect(decide('kubectl get pods', { ...PINNED, override: true }).verify).to.equal(true);
+    expect(decide('kubectl config view', { ...PINNED, override: true }).verify).to.equal(false);
+    // A command that names another context or its own kubeconfig chooses its cluster itself.
+    expect(decide('kubectl --context kind-kind apply -f x.yaml', PINNED).verify).to.equal(false);
+    expect(decide('kubectl --kubeconfig /tmp/k apply -f x.yaml', PINNED).verify).to.equal(false);
+  });
+
+  it('refuses a change, never a read, through a target with blockers', () => {
+    const blocked = { ...PINNED, blockers: ['environments.production.tls names no TLS policy'] };
+    expect(decide('kubectl apply -f x.yaml', blocked)).to.deep.equal({
+      refusal: 'The production target refuses a change: environments.production.tls names no TLS policy',
+      verify: false,
+    });
+    expect(decide(['helm', 'upgrade', '--install', 'x', 'y'], blocked).refusal).to.contain('refuses a change');
+    expect(decide('kubectl get pods', blocked)).to.deep.equal({ refusal: '', verify: false });
+    expect(decide('kubectl --context kind-kind apply -f x.yaml', blocked).refusal).to.equal('');
+  });
+
+  it('refuses a cluster that is not the declared one, or that does not answer', () => {
+    const declared = { ...PINNED, cluster: { fingerprint: 'uid-a', servers: ['https://10.0.0.1:6443'] } };
+    const live = { server: 'https://10.0.0.1:6443', fingerprint: 'uid-a' };
+    expect(targetIdentityRefusal(declared, live)).to.equal('');
+    expect(targetIdentityRefusal(PINNED, { server: '', fingerprint: '' })).to.equal('');
+    expect(targetIdentityRefusal(declared, { ...live, fingerprint: 'uid-b' })).to.equal(
+      'admin@prod reaches the cluster uid-b, and environments.production.cluster declares uid-a: check the context',
+    );
+    expect(targetIdentityRefusal(declared, { ...live, server: 'https://10.0.0.9:6443' })).to.contain(
+      'reaches the API server https://10.0.0.9:6443, which environments.production.cluster.servers does not list',
+    );
+    expect(targetIdentityRefusal({ ...declared, cluster: { fingerprint: 'uid-a', servers: [] } }, live)).to.equal('');
+    expect(targetIdentityRefusal(declared, { server: '', fingerprint: '' })).to.contain('does not answer');
+  });
+
+  it('carries the target to child processes through the environment', () => {
+    setExecutionTarget(PINNED);
+    try {
+      expect(JSON.parse(process.env.UNDERPOST_CLUSTER_TARGET)).to.deep.equal(PINNED);
+      expect(targetDecisionFactory('kubectl apply -f x.yaml', 'cluster:write').verify).to.equal(true);
+    } finally {
+      setExecutionTarget(null);
+    }
+    expect(process.env.UNDERPOST_CLUSTER_TARGET).to.equal(undefined);
   });
 });
 

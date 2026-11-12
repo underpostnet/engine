@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+[ "$(id -u)" -eq 0 ] || { echo "lxd-vm-setup.sh runs as root." >&2; exit 1; }
+
 # ---------------------------------------------------------------------------
-# LXD VM OS base setup. Runs inside the VM via `lxc exec`. Idempotent.
+# LXD VM OS base setup. Runs inside the VM as root via `lxc exec`. Idempotent.
 # ---------------------------------------------------------------------------
 
 # lxdbr0 is a plain L2 bridge: LXD runs no DHCP/DNS on it (MAAS owns
@@ -37,11 +39,11 @@ wait_for_ipv4() {
 
 refresh_resolver_state() {
     if command -v resolvectl >/dev/null 2>&1; then
-        sudo resolvectl flush-caches || true
+        resolvectl flush-caches || true
     fi
     
     if [ -f /run/NetworkManager/resolv.conf ]; then
-        sudo ln -sf /run/NetworkManager/resolv.conf /etc/resolv.conf || true
+        ln -sf /run/NetworkManager/resolv.conf /etc/resolv.conf || true
     fi
 }
 
@@ -74,7 +76,7 @@ retry_dnf() {
 if [ -n "${LXD_NODE_NAME:-}" ] && [ "$(hostname)" != "$LXD_NODE_NAME" ]; then
     echo "--- Hostname ---"
     echo "Setting hostname to ${LXD_NODE_NAME} (k3s node name)..."
-    sudo hostnamectl set-hostname "$LXD_NODE_NAME" 2>/dev/null || sudo hostname "$LXD_NODE_NAME"
+    hostnamectl set-hostname "$LXD_NODE_NAME" 2>/dev/null || hostname "$LXD_NODE_NAME"
 fi
 
 echo "--- Network Configuration ---"
@@ -181,11 +183,11 @@ fi
 
 echo "--- Disk Resizing ---"
 if ! command -v parted >/dev/null 2>&1; then
-    sudo dnf install -y parted
+    dnf install -y parted
 fi
 
 set +e
-sudo parted /dev/sda ---pretend-input-tty <<EOF
+parted /dev/sda ---pretend-input-tty <<EOF
 unit s
 resizepart 2 100%
 Yes
@@ -193,16 +195,16 @@ quit
 EOF
 set -e
 
-sudo resize2fs /dev/sda2
+resize2fs /dev/sda2
 echo "Disk partition and filesystem resized successfully."
 
 echo "--- Package Installation ---"
-retry_dnf sudo dnf install -y epel-release
-retry_dnf sudo dnf install -y tar bzip2 git curl jq
-retry_dnf sudo dnf -y update
+retry_dnf dnf install -y epel-release
+retry_dnf dnf install -y tar bzip2 git curl jq
+retry_dnf dnf -y update
 
 echo "--- Kernel Modules for K3s ---"
-sudo modprobe br_netfilter
-echo "br_netfilter" | sudo tee /etc/modules-load.d/k3s-br_netfilter.conf > /dev/null
+modprobe br_netfilter
+echo "br_netfilter" > /etc/modules-load.d/k3s-br_netfilter.conf
 
 echo "Setup complete. System is ready for k3s-node-setup.sh"

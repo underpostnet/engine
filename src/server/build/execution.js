@@ -203,19 +203,30 @@ const kubectlVerb = (tokens) => {
   return '';
 };
 
-const classifySegment = (segment) => {
-  const tokens = `${segment ?? ''}`.trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return 'fs';
+const unquote = (token = '') => token.replace(/^['"]|['"]$/g, '');
 
-  const { tokens: bare, escalated } = stripSudo(tokens);
-  if (bare.length === 0) return escalated ? 'host:write' : 'fs';
-
-  // Leading `VAR=value` assignments are not the command.
+/**
+ * The program of one command segment: past `sudo` and its flags, and past the leading `VAR=value`
+ * assignments, which are not the command. A quoted binary path (`'/x/.bin/socket' scan`) names the same
+ * binary as the bare one.
+ * @param {string} segment
+ * @returns {{escalated: boolean, assignments: string[], binary: string, rest: string[]}} `rest` starts with
+ *   the binary.
+ */
+const segmentProgram = (segment) => {
+  const { tokens, escalated } = stripSudo(`${segment ?? ''}`.trim().split(/\s+/).filter(Boolean));
   let start = 0;
-  while (start < bare.length && /^[A-Z_][A-Z0-9_]*=/i.test(bare[start])) start++;
-  // A quoted binary path (`'/x/.bin/socket' scan`) names the same binary as the bare one.
-  const binary = nodePath.basename(bare[start] ?? '').replace(/^['"]|['"]$/g, '');
-  const rest = bare.slice(start);
+  while (start < tokens.length && /^[A-Z_][A-Z0-9_]*=/i.test(tokens[start])) start++;
+  return {
+    escalated,
+    assignments: tokens.slice(0, start),
+    binary: nodePath.basename(unquote(tokens[start] ?? '')),
+    rest: tokens.slice(start),
+  };
+};
+
+const classifySegment = (segment) => {
+  const { escalated, binary, rest } = segmentProgram(segment);
 
   if (CLUSTER_BINARIES.has(binary)) {
     if (binary === 'helm') {
@@ -234,6 +245,15 @@ const classifySegment = (segment) => {
 };
 
 /**
+ * The segments of a command: an argument vector is one, and a heredoc body is data, not commands, so a
+ * command string splits on its first line alone.
+ * @param {string|string[]} cmd
+ * @returns {string[]}
+ */
+const commandSegments = (cmd) =>
+  Array.isArray(cmd) ? [cmd.join(' ')] : `${cmd ?? ''}`.split(/<<-?\s*'?[A-Za-z_]+'?/)[0].split(/&&|\|\||[;|]/);
+
+/**
  * Classifies the side effect a command exercises.
  *
  * Compound commands resolve to their most privileged segment, so a pipeline cannot
@@ -243,14 +263,9 @@ const classifySegment = (segment) => {
  * @memberof UnderpostExecution
  */
 const classifyCommand = (cmd = '') => {
-  const text = `${cmd ?? ''}`;
-  if (!text.trim()) return 'fs';
-  // Heredoc bodies are data, not commands: `kubectl apply -f - <<'EOF' … EOF` must be
-  // classified on its first line alone, or YAML content would be parsed as a pipeline.
-  const [head] = text.split(/<<-?\s*'?[A-Za-z_]+'?/);
-  const segments = `${head}`.split(/&&|\|\||[;|]/);
+  if (!`${cmd ?? ''}`.trim()) return 'fs';
   let capability = 'fs';
-  for (const segment of segments) {
+  for (const segment of commandSegments(cmd)) {
     const segmentCapability = classifySegment(segment);
     if (capabilityRank(segmentCapability) > capabilityRank(capability)) capability = segmentCapability;
   }
@@ -339,24 +354,181 @@ const withExecutionProfile = (name, fn) => {
 };
 
 /**
+ * Whether a segment reaches the Kubernetes API as root. `kubectl port-forward` does not count: it needs root
+ * only to bind a host port below 1024, and keeps the kubeconfig of the invoking user.
+ */
+const reachesClusterAsRoot = (segment) => {
+  if (!classifySegment(segment).startsWith('cluster:')) return false;
+  const { binary, rest } = segmentProgram(segment);
+  return !(binary === 'kubectl' && kubectlVerb(rest) === 'port-forward');
+};
+
+// Linux root is not the authorization of an API: Kubernetes has RBAC, and LXD authorizes the clients of its socket.
+const PRIVILEGED_CLUSTER_REFUSAL =
+  'A privileged command never reaches the Kubernetes API: kubectl and helm run as the invoking user, with its kubeconfig and RBAC';
+const PRIVILEGED_LXD_REFUSAL =
+  'A privileged command never runs the LXD client: lxc runs as the invoking user, with its LXD configuration and project';
+
+/**
  * Decides whether a command may run under the active profile.
  *
- * Returns a decision rather than acting on one; `shellExec` owns the consequence.
- * @param {string} cmd - The command string.
+ * Returns a decision rather than acting on one; `shellExec` owns the consequence. A privileged command is at
+ * least a host write, and is refused when a segment runs `lxc`, or `kubectl` or `helm` apart from `kubectl port-forward`.
+ * @param {string|string[]} cmd - The command string, or the argument vector of one program that runs
+ *   without a shell.
  * @param {object} [context] - Optional overrides.
  * @param {string} [context.profile] - Profile name, defaulting to the active one.
- * @returns {{permitted: boolean, capability: string, profile: string, neutral: boolean}} Decision.
+ * @param {boolean} [context.privileged] - The command runs as root.
+ * @returns {{permitted: boolean, capability: string, profile: string, neutral: boolean, refusal: string}} Decision.
  * @memberof UnderpostExecution
  */
-const executionDecisionFactory = (cmd, { profile } = {}) => {
+const executionDecisionFactory = (cmd, { profile, privileged = false } = {}) => {
   const record = profile ? executionProfileFactory(profile) : activeExecutionProfile();
-  const capability = classifyCommand(cmd);
+  const classified = Array.isArray(cmd) ? classifySegment(cmd.join(' ')) : classifyCommand(cmd);
+  const capability =
+    privileged && capabilityRank(classified) < capabilityRank('host:write') ? 'host:write' : classified;
+  const segments = privileged ? commandSegments(cmd) : [];
   return {
     permitted: record.permits.includes(capability),
     capability,
     profile: record.name,
     neutral: record.reads === 'neutral',
+    refusal: segments.some(reachesClusterAsRoot)
+      ? PRIVILEGED_CLUSTER_REFUSAL
+      : segments.some((segment) => segmentProgram(segment).binary === 'lxc')
+        ? PRIVILEGED_LXD_REFUSAL
+        : '',
   };
+};
+
+/**
+ * @constant EXECUTION_TARGET_ENV_KEY
+ * @description Environment key the cluster target of a command rides on into child processes, as JSON
+ * (`UnderpostNamespace.target`). A nested `underpost` invocation of the same environment reaches the same
+ * cluster through it.
+ * @memberof UnderpostExecution
+ */
+const EXECUTION_TARGET_ENV_KEY = 'UNDERPOST_CLUSTER_TARGET';
+
+/**
+ * @constant VERIFIED_TARGET_ENV_KEY
+ * @description Environment key that records the cluster this process tree verified, as JSON
+ * `{context, fingerprint, server}`: a nested invocation of the same context verifies it once.
+ * @memberof UnderpostExecution
+ */
+const VERIFIED_TARGET_ENV_KEY = 'UNDERPOST_CLUSTER_VERIFIED';
+
+/**
+ * The cluster target of this process.
+ * @returns {Object|null} The target `UnderpostNamespace.target` resolved; null when no command resolved one.
+ * @memberof UnderpostExecution
+ */
+const activeExecutionTarget = () => {
+  const raw = process.env[EXECUTION_TARGET_ENV_KEY];
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Installs the cluster target of this process and of every process it starts.
+ * @param {Object|null} target - null removes it.
+ * @returns {Object|null}
+ * @memberof UnderpostExecution
+ */
+const setExecutionTarget = (target) => {
+  if (target) process.env[EXECUTION_TARGET_ENV_KEY] = JSON.stringify(target);
+  else delete process.env[EXECUTION_TARGET_ENV_KEY];
+  return target;
+};
+
+// Helm verbs that read or write local files only.
+const HELM_LOCAL_VERBS = new Set([
+  'repo',
+  'search',
+  'show',
+  'template',
+  'version',
+  'pull',
+  'dependency',
+  'lint',
+  'env',
+]);
+
+/**
+ * How a command segment reaches a cluster: `none`, `local` (the kubeconfig or charts only), `implicit`
+ * (the context of the target), or `explicit` with the `context` it names ('' for a kubeconfig of its own).
+ */
+const segmentReach = (segment) => {
+  const { assignments, binary, rest } = segmentProgram(segment);
+  if (assignments.some((assignment) => assignment.startsWith('KUBECONFIG='))) return { reach: 'explicit', context: '' };
+  if (!CLUSTER_BINARIES.has(binary)) return { reach: 'none' };
+  for (let index = 0; index < rest.length; index++) {
+    const [flag, inline] = unquote(rest[index]).split(/=(.*)/s);
+    if (flag === '--kubeconfig') return { reach: 'explicit', context: '' };
+    if (flag === '--context' || flag === '--kube-context')
+      return { reach: 'explicit', context: unquote(inline ?? rest[index + 1]) };
+  }
+  if (binary === 'kubectl' ? kubectlVerb(rest) === 'config' : HELM_LOCAL_VERBS.has(rest[1])) return { reach: 'local' };
+  return { reach: 'implicit' };
+};
+
+/**
+ * Decides how a cluster command meets the cluster target of this process. A command that names its
+ * kubeconfig, or a context other than the one of the target, chooses its cluster itself; any other is
+ * refused when the target is, and a change through it is refused while the target has blockers.
+ * @param {string|string[]} cmd - A command string, or the argument vector of one program.
+ * @param {string} capability - Its {@link classifyCommand} capability.
+ * @param {Object|null} [target] - The active target by default.
+ * @returns {{refusal:string, verify:boolean}} `verify`: the command changes the cluster of the target, or
+ *   the target is an override, so the process boundary verifies and prints the cluster first.
+ * @memberof UnderpostExecution
+ */
+const targetDecisionFactory = (cmd, capability, target = activeExecutionTarget()) => {
+  if (!target || !capability.startsWith('cluster:')) return { refusal: '', verify: false };
+  const reaches = commandSegments(cmd).map(segmentReach);
+  if (target.refusal)
+    return { refusal: reaches.some(({ reach }) => reach === 'implicit') ? target.refusal : '', verify: false };
+  const own = reaches.some(
+    ({ reach, context }) => reach === 'implicit' || (reach === 'explicit' && context && context === target.context),
+  );
+  if (!own) return { refusal: '', verify: false };
+  const change = capability === 'cluster:write';
+  if (change && target.blockers?.length)
+    return {
+      refusal: `The ${target.environment} target refuses a change: ${target.blockers.join('; ')}`,
+      verify: false,
+    };
+  return { refusal: '', verify: change || target.override === true };
+};
+
+/**
+ * Why a live cluster is not the cluster of a target: it does not answer, or its fingerprint or its API server
+ * differs from the identity the target declares. '' when it is, or when the target declares none.
+ * @param {Object} target - The cluster target.
+ * @param {{server:string, fingerprint:string}} live - What the context of the target reaches.
+ * @returns {string}
+ * @memberof UnderpostExecution
+ */
+const targetIdentityRefusal = (target, live) => {
+  const { cluster } = target;
+  if (!cluster) return '';
+  const context = target.context || 'the current context';
+  if (!live.fingerprint) return `${context} does not answer: its cluster identity cannot be verified`;
+  if (live.fingerprint !== cluster.fingerprint)
+    return (
+      `${context} reaches the cluster ${live.fingerprint}, and environments.${target.environment}.cluster ` +
+      `declares ${cluster.fingerprint}: check the context`
+    );
+  if (cluster.servers?.length && !cluster.servers.includes(live.server))
+    return (
+      `${context} reaches the API server ${live.server || 'unknown'}, which environments.${target.environment}` +
+      `.cluster.servers does not list (${cluster.servers.join(', ')})`
+    );
+  return '';
 };
 
 const localUnderpostCli = `node ${packageRoot}/bin/index.js`;
@@ -397,15 +569,21 @@ const cli = (name = 'underpost', { local = false } = {}) => {
 
 export {
   activeExecutionProfile,
+  activeExecutionTarget,
   CAPABILITIES,
   classifyCommand,
   cli,
   EXECUTION_PROFILE_ENV_KEY,
   EXECUTION_PROFILES,
+  EXECUTION_TARGET_ENV_KEY,
   executionDecisionFactory,
   executionProfileFactory,
   PROFILE_ALIAS_FLAGS,
   profileFromOptionsFactory,
   setExecutionProfile,
+  setExecutionTarget,
+  targetDecisionFactory,
+  targetIdentityRefusal,
+  VERIFIED_TARGET_ENV_KEY,
   withExecutionProfile,
 };

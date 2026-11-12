@@ -88,38 +88,20 @@ else
 fi
 
 if [ "$DO_BUILD" = true ]; then
-    
-    # Helper function for package manager
-    if command -v dnf &> /dev/null; then
-        PKG_MGR="dnf"
-    else
-        PKG_MGR="yum"
-    fi
-    
-    # --- 2. Install Dependencies (RHEL/CentOS/Fedora) ---
-    echo ""
-    echo "--- Installing Build Dependencies ---"
-    echo "Requesting sudo permissions..."
-    
-    COMMON_PKGS="git make binutils-devel xz-devel perl"
-    
-    # Logic to determine if we need native or cross-compilers
+    # --- 2. Check the Compiler ---
+    # The build packages come from `underpost baremetal`, which installs the ipxe-build or the
+    # ipxe-cross-build host tool; this script installs nothing.
     if [ "$HOST_ARCH" = "$TARGET_ARCH" ]; then
-        # Native compilation
-        echo "Architecture match ($HOST_ARCH). Installing native GCC..."
-        sudo $PKG_MGR install -y $COMMON_PKGS gcc
         CROSS_COMPILE_PREFIX=""
-        
-        elif [ "$HOST_ARCH" = "x86_64" ] && [ "$TARGET_ARCH" = "aarch64" ]; then
-        # Cross-compilation: x86_64 host -> aarch64 target
-        echo "Cross-compiling for $TARGET_ARCH on $HOST_ARCH..."
-        # Note: Ensure EPEL repo is enabled on RHEL/CentOS for this package
-        sudo $PKG_MGR install -y $COMMON_PKGS gcc-aarch64-linux-gnu
+    elif [ "$HOST_ARCH" = "x86_64" ] && [ "$TARGET_ARCH" = "aarch64" ]; then
         CROSS_COMPILE_PREFIX="aarch64-linux-gnu-"
-        
     else
         echo "Error: No automated path defined for Host: $HOST_ARCH -> Target: $TARGET_ARCH"
         echo "You may need to install specific cross-compilers manually."
+        exit 1
+    fi
+    if ! command -v "${CROSS_COMPILE_PREFIX}gcc" >/dev/null 2>&1; then
+        echo "Error: ${CROSS_COMPILE_PREFIX}gcc is not installed. Install the iPXE build packages first."
         exit 1
     fi
     

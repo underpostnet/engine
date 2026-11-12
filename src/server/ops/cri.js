@@ -12,6 +12,13 @@ import { shellArgumentFactory, shellExec } from '../runtime/process.js';
 const CRIO_SOCKET_PATH = '/var/run/crio/crio.sock';
 
 /**
+ * @constant CRICTL_PRIVILEGE
+ * @description The `privileged` reason of a {@link crictlCommandFactory} command: the socket belongs to root.
+ * @memberof CriEndpoint
+ */
+const CRICTL_PRIVILEGE = 'runs crictl against the root-owned socket of the container runtime';
+
+/**
  * @constant CRI_SOCKETS
  * @description The CRI endpoints this platform ever targets.
  * @memberof CriEndpoint
@@ -33,13 +40,15 @@ const CRI_SOCKETS = {
  * @param {object} [options] - Resolution inputs.
  * @param {boolean} [options.k3s=false] - Whether the cluster is K3s-based.
  * @param {string} [options.criSocket] - Explicit endpoint override (highest precedence).
+ * @param {(command:string)=>string} [options.run] - Wraps the probe to run it on another node.
  * @returns {string} CRI endpoint URI.
  * @memberof CriEndpoint
  */
 const resolveCriSocket = (options = {}) => {
   if (options?.criSocket) return options.criSocket;
   if (options?.k3s) return CRI_SOCKETS.k3s;
-  const runtime = shellExec(`test -S ${CRIO_SOCKET_PATH} && echo crio || echo containerd`, {
+  const run = options?.run ?? ((command) => command);
+  const runtime = shellExec(run(`test -S ${CRIO_SOCKET_PATH} && echo crio || echo containerd`), {
     stdout: true,
     silent: true,
   }).trim();
@@ -56,7 +65,8 @@ const resolveCriSocket = (options = {}) => {
  * operations (`pull`, `rmi`, `images`) validating a `crio.sock` that no longer
  * exists, which fails with "validate CRI v1 image API for endpoint".
  *
- * crictl is not on sudo's secure_path, hence the explicit PATH.
+ * The command runs with `privileged: CRICTL_PRIVILEGE`. crictl is not on the secure_path of sudo, hence the
+ * explicit PATH.
  * @param {string} args - crictl subcommand and arguments (e.g. `pull mongo:latest`).
  * @param {object} [options] - Forwarded to {@link CriEndpoint.resolveCriSocket}.
  * @returns {string} Full shell command.
@@ -64,7 +74,7 @@ const resolveCriSocket = (options = {}) => {
  */
 const crictlCommandFactory = (args, options = {}) => {
   const socket = shellArgumentFactory(resolveCriSocket(options));
-  return `sudo env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${socket} --image-endpoint ${socket} ${args}`;
+  return `env PATH="$PATH:/usr/local/bin:/usr/bin" crictl --runtime-endpoint ${socket} --image-endpoint ${socket} ${args}`;
 };
 
-export { CRI_SOCKETS, resolveCriSocket, crictlCommandFactory };
+export { CRI_SOCKETS, CRICTL_PRIVILEGE, resolveCriSocket, crictlCommandFactory };

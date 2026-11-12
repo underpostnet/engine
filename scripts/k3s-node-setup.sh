@@ -1,10 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+[ "$(id -u)" -eq 0 ] || { echo "k3s-node-setup.sh runs as root." >&2; exit 1; }
+
 # ---------------------------------------------------------------------------
 # Underpost K3s Node Setup
 #
-# This script runs INSIDE an LXD VM. It assumes the host has already mirrored
+# This script runs as root INSIDE an LXD VM. It assumes the host has already mirrored
 # the project source into $ENGINE_ROOT (default /home/dd/engine) via the
 # `underpost lxd [vm-id] --vm-init` flow in `src/cli/lxd.js`. There is no
 # fallback to a globally installed `underpost`: every operational command
@@ -61,7 +63,7 @@ if ! command -v dnf >/dev/null 2>&1; then
     exit 1
 fi
 
-sudo dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit rsync
+dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit rsync
 
 # `command -v node` is not the question this step asks: an nvm runtime under $HOME answers it and
 # is exactly what a unit cannot execute. Only a Node 24 at a system path counts.
@@ -78,8 +80,8 @@ system_node_path() {
 
 if ! system_node_path >/dev/null; then
     echo "Installing system-wide Node.js 24..."
-    curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
-    sudo dnf install -y nodejs
+    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+    dnf install -y nodejs
 fi
 
 echo "
@@ -111,7 +113,7 @@ if [ "$ROLE" = "control" ]; then
     echo ""
     echo "K3s control plane is ready."
     echo "Node token (share with workers to join this cluster):"
-    sudo cat /var/lib/rancher/k3s/server/node-token
+    cat /var/lib/rancher/k3s/server/node-token
     echo ""
     echo "Control plane IP addresses:"
     ip -4 addr show scope global | grep inet | awk '{print $2}' | cut -d/ -f1
@@ -136,5 +138,5 @@ if [ "$ROLE" = "control" ]; then
     
     echo ""
     echo "K3s worker joined https://${CONTROL_IP}:6443 successfully."
-    sudo systemctl status k3s-agent --no-pager
+    systemctl status k3s-agent --no-pager
 fi

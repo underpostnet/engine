@@ -64,7 +64,18 @@ This section documents the safety model after a prior incident in which a forced
 1. **The host must stay bootable, always.** No CLI action will modify host configuration in a way that can block boot. `--reset` no longer touches the LXD snap or storage pools.
 2. **Errors propagate.** There is no `silentOnError`, no `silent: true`, no `|| true` in any host-side code path. Where a command's exit code is genuinely ambiguous (e.g. `parted resizepart`), the rc is captured explicitly and **logged**, never swallowed.
 3. **Pre-condition over recovery.** Destructive operations check that their target exists before acting. If a VM/profile/network is already gone, the step is a no-op with a log line. If the precondition passes and the command then fails, the error is raised.
-4. **Graceful daemon stop before any snap removal.** `--purge` always runs `sudo lxd shutdown --timeout 60` before `snap remove lxd --purge` so the daemon flushes the ZFS pool cleanly. This is the documented LXD-safe sequence and prevents the dirty-pool-on-next-boot scenario.
+4. **Graceful daemon stop before any snap removal.** `--purge` always runs `lxd shutdown --timeout 60` before `snap remove lxd --purge` so the daemon flushes the ZFS pool cleanly. This is the documented LXD-safe sequence and prevents the dirty-pool-on-next-boot scenario.
+
+### Privileges
+
+The command runs as root or as a regular user. Two separate authorizations apply:
+
+- **Host changes need root.** The snap (`install`, `start`, `remove`), the daemon (`/snap/bin/lxd shutdown`), the `snap.lxd.daemon` unit and the firewall of the bridge (firewalld zone and iptables `FORWARD` rules) run as root. A regular user gets them through `sudo`: on a terminal `sudo` can ask for the password, and in CI or over SSH without a terminal it runs `sudo -n`.
+- **`lxc` uses LXD authorization.** Every `lxc` command runs as the user that runs `underpost lxd`, with that user's client configuration, remotes and project (`--maas-project`). The command never runs `lxc` through `sudo`. When the LXD socket refuses the user, the error says so.
+
+Access to the local LXD socket gives full control of the daemon, and so of the host: an instance can attach host paths and devices and change its security settings. Membership of the `lxd` group grants that access, so it is root-equivalent. Underpost adds no user to the group. Run the command as root, or as a user that you trust with root.
+
+`lxc exec` runs as root in the guest unless `--user` names another user. The guest commands of this CLI (the node token read, the worker label, the setup scripts) carry no `sudo`.
 
 ### Pre-reboot procedure and post-boot restore
 
@@ -82,7 +93,7 @@ After the host comes back up, snap auto-starts the LXD daemon but does **not** a
 underpost lxd --restore
 ```
 
-`--restore` runs `sudo snap start lxd`, waits up to 30 s for the daemon's REST socket to respond (`lxc info`), then `lxc start <vm>` for every VM. VMs already in `Running` state are skipped. This is the symmetric counterpart to `--shutdown`.
+`--restore` runs `snap start lxd` as root, waits up to 30 s for the daemon's REST socket to respond (`lxc info`), then `lxc start <vm>` for every VM. VMs already in `Running` state are skipped. This is the symmetric counterpart to `--shutdown`.
 
 ### Admin profile hardening
 
@@ -160,7 +171,7 @@ node bin cluster --dev --reset --k3s --reset-mode=drain
 ### What you should never do
 
 1. **Never `reboot` / `poweroff` the host while VMs are running.** Always `underpost lxd --shutdown` first.
-2. **Never `snap remove lxd --purge` manually** while VMs are running. Use `underpost lxd --purge`; it runs `sudo lxd shutdown --timeout 60` first so the daemon flushes ZFS state.
+2. **Never `snap remove lxd --purge` manually** while VMs are running. Use `underpost lxd --purge`; it runs `lxd shutdown --timeout 60` first so the daemon flushes ZFS state.
 3. **Never add LXD-managed paths (`/var/snap/lxd/...`, storage pool mount points) to `/etc/fstab`.** Snap manages those mounts. A stale fstab entry pointing at a path the snap no longer manages can block boot.
 4. **Never enable `boot.autostart=true`** on a VM unless you have an external monitoring/recovery path. Autostart compounds VM failures into host-level boot failures.
 5. **Never bind-mount host paths into a VM via `disk` profile devices** unless you accept that the host directory becomes a runtime dependency of the VM. The default `admin-profile` uses pool-backed storage only, not host bind mounts. Keep it that way.
@@ -227,8 +238,8 @@ underpost lxd --reset --purge       # wipe VMs first, then remove the snap
 
 `--purge` is the opt-in destructive option:
 
-1. Runs `sudo lxd shutdown --timeout 60` so the daemon flushes ZFS state cleanly.
-2. Runs `sudo snap remove lxd --purge`.
+1. Runs `lxd shutdown --timeout 60` as root so the daemon flushes ZFS state cleanly.
+2. Runs `snap remove lxd --purge` as root.
 
 This is the safe replacement for the prior aggressive teardown that previously corrupted the host.
 

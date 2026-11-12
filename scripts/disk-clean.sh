@@ -83,17 +83,23 @@ done
 
 # 7) Docker / Podman cleanup (if present) — this is what actually reclaims the
 #    overlay storage behind those duplicated `overlay` df lines.
+#    Containers, images and volumes only, never networks: Podman reads the CNI configuration of a
+#    Kubernetes node as its own networks, and a network prune deletes it. `docker` may be the Podman shim.
 if command -v docker >/dev/null 2>&1; then
     log "Docker detected: pruning images/containers/volumes/build cache (aggressive)..."
     docker system df || true
-    docker system prune -a --volumes -f || true
+    docker container prune -f || true
+    docker image prune -a -f || true
+    docker volume prune -f || true
     docker builder prune -a -f || true
 fi
 
 if command -v podman >/dev/null 2>&1; then
     log "Podman detected: pruning images/containers/volumes (aggressive)..."
     podman system df || true
-    podman system prune -a --volumes -f || true
+    podman container prune -f || true
+    podman image prune -a -f || true
+    podman volume prune -f || true
 fi
 
 if command -v buildah >/dev/null 2>&1; then

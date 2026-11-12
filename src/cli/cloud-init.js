@@ -5,7 +5,7 @@
  * @namespace UnderpostCloudInit
  */
 
-import { shellArgumentFactory, shellExec } from '../server/runtime/process.js';
+import { removeHostPath, shellExec } from '../server/runtime/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/ops/logger.js';
 import { getNpmRootPath } from '../server/runtime/environment.js';
@@ -187,8 +187,8 @@ cat /etc/default/keyboard`,
 
           // Import SSH keys for root user.
           logger.info('Import ssh keys');
-          shellExec(`sudo rm -rf ${nfsHostPath}/root/.ssh`);
-          shellExec(`sudo rm -rf ${nfsHostPath}/home/root/.ssh`); // Ensure home root .ssh is also clean.
+          for (const sshDirectory of ['root/.ssh', 'home/root/.ssh'])
+            removeHostPath(`${nfsHostPath}/${sshDirectory}`, { reason: 'replaces the SSH keys of the NFS root' });
           logger.info('Copy', `/root/.ssh -> ${nfsHostPath}/root/.ssh`);
           fs.copySync(`/root/.ssh`, `${nfsHostPath}/root/.ssh`);
 
@@ -631,7 +631,7 @@ cat /etc/default/keyboard`,
     httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData = '' }) {
       if (!cloudConfigSrc) return;
       const dir = `${bootstrapHttpServerPath}/${hostname}/cloud-init`;
-      shellExec(`mkdir -p ${shellArgumentFactory(dir)}`);
+      fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(`${dir}/user-data`, cloudConfigSrc, 'utf8');
       fs.writeFileSync(`${dir}/meta-data`, `instance-id: ${hostname}\nlocal-hostname: ${hostname}`, 'utf8');
       fs.writeFileSync(`${dir}/vendor-data`, vendorData, 'utf8');

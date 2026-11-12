@@ -6,18 +6,83 @@
 
 import { fileURLToPath } from 'url';
 import { getNpmRootPath } from '../server/runtime/environment.js';
-import { pbcopy, shellArgumentFactory, shellExec } from '../server/runtime/process.js';
+import {
+  chownHostPath,
+  installHostFile,
+  makeHostDirectory,
+  pbcopy,
+  removeHostPath,
+  shellArgumentFactory,
+  shellExec,
+  writeHostFile,
+} from '../server/runtime/process.js';
 import { loggerFactory, loggerMiddleware } from '../server/ops/logger.js';
+import {
+  controlHostService,
+  ensureIptablesRule,
+  hostServiceExists,
+  installHostTool,
+} from '../server/ops/host-tooling.js';
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'node:os';
+import zlib from 'node:zlib';
 import Downloader from '../server/storage/downloader.js';
+import { extractZipTo } from '../server/storage/zip.js';
 import { newInstance, range, s4, timer } from '../client/components/core/CommonJs.js';
-import { spawnSync } from 'child_process';
 import Underpost from '../index.js';
 import express from 'express';
 import { MaasDatabaseProvider } from './maas-database.js';
+import { assertRoleCapability } from '../server/network/node-capability.js';
 
 const logger = loggerFactory(import.meta);
+
+/** The `privileged` reason of the MAAS CLI: the control server setup logs its profile in as root. */
+const MAAS_PRIVILEGE = 'uses the MAAS CLI profile and the region controller of root';
+
+/** The `privileged` reason of the rootful Podman storage that builds an NFS root. */
+const PODMAN_PRIVILEGE = 'builds the NFS root in the rootful Podman storage';
+
+/** The UEFI variable stores a Packer build copies, by file name, with the host files that hold them. */
+const PACKER_UEFI_VARS = Object.freeze({
+  'x86_64_VARS.fd': ['/usr/share/edk2/ovmf/OVMF_VARS.fd', '/usr/share/OVMF/OVMF_VARS.fd'],
+  'aarch64_VARS.fd': [
+    '/usr/share/AAVMF/AAVMF_VARS.fd',
+    '/usr/share/edk2/aarch64/AAVMF_VARS.fd',
+    '/usr/share/edk2/aarch64/QEMU_VARS.fd',
+  ],
+});
+
+/** The user of this process: it owns the trees it writes with the file system API. */
+const processOwner = () => ({ uid: process.getuid(), gid: process.getgid() });
+
+/**
+ * The directory that holds the NFS root of each host.
+ * @returns {string}
+ * @throws {Error} When NFS_EXPORT_PATH names no absolute directory.
+ */
+const nfsExportRoot = () => {
+  const root = `${process.env.NFS_EXPORT_PATH ?? ''}`;
+  if (!path.isAbsolute(root)) throw new Error(`NFS_EXPORT_PATH must name an absolute directory, not '${root}'`);
+  return root;
+};
+
+/**
+ * Runs a Podman command in the rootful storage of the NFS root build, so every stage sees the same containers.
+ * @param {string} args - The Podman arguments.
+ * @returns {*} The {@link shellExec} result.
+ */
+const rootfulPodman = (args) => shellExec(`podman ${args}`, { privileged: PODMAN_PRIVILEGE });
+
+/**
+ * Gives a host tree to the user of this process, so every file below it is written with the file system API.
+ * @param {string} target - Absolute path.
+ * @param {string} reason - Why the change needs root.
+ */
+const claimHostTree = (target, reason) => {
+  makeHostDirectory(target, { reason, owner: processOwner() });
+  chownHostPath(target, { reason, owner: processOwner(), mode: '0755' });
+};
 
 /**
  * @class UnderpostBaremetal
@@ -188,6 +253,10 @@ class UnderpostBaremetal {
         resumeJoin: false,
       },
     ) {
+      // The MAAS controller and its machines live on the host LAN: only a role that provisions them runs this.
+      const role = Underpost.wireguard.localRole();
+      if (role) assertRoleCapability({ role, capability: 'baremetal-provisioning', operation: 'baremetal' });
+
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
 
       // Determine the root path for npm and underpost.
@@ -219,6 +288,7 @@ class UnderpostBaremetal {
       }
 
       const tftpPrefix = workflowsConfig[workflowId].tftpPrefix || 'rpi4mb';
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(tftpPrefix)) throw new Error(`Invalid TFTP prefix: '${tftpPrefix}'`);
       // Define the bootstrap architecture.
       let bootstrapArch;
 
@@ -480,36 +550,25 @@ class UnderpostBaremetal {
               'aarch64_VARS.fd',
               workflow.maas.content,
             ];
-            shellExec(`cd packer/images/${workflowId}
-rm -rf ${artifacts.join(' ')}`);
+            for (const artifact of artifacts)
+              fs.rmSync(path.join(packerDir, artifact), { recursive: true, force: true });
             logger.info('Removed previous build artifacts');
           } else {
             logger.info('Cached mode: Keeping existing artifacts for incremental build');
           }
-          shellExec(`chmod +x ${underpostRoot}/scripts/packer-init-vars-file.sh`);
-          shellExec(`${underpostRoot}/scripts/packer-init-vars-file.sh`);
-
-          const init = spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
-          if (init.status !== 0) {
-            throw new Error('Packer init failed');
+          // UEFI boot needs a writable copy of each variable store.
+          for (const [name, sources] of Object.entries(PACKER_UEFI_VARS)) {
+            const target = path.join(packerDir, name);
+            const source = sources.find((candidate) => fs.existsSync(candidate));
+            if (!fs.existsSync(target) && source) fs.copyFileSync(source, target);
           }
 
-          const isArm = process.arch === 'arm64';
-          // Add /usr/local/bin to PATH so Packer can find compiled QEMU binaries
-          const packerEnv = {
-            ...process.env,
-            PACKER_LOG: '1',
-            PATH: `/usr/local/bin:${process.env.PATH || '/usr/bin:/bin'}`,
-          };
-          const build = spawnSync('packer', ['build', '-var', `host_is_arm=${isArm}`, '.'], {
-            stdio: 'inherit',
+          shellExec('packer init .', { cwd: packerDir });
+          // Packer finds the QEMU binaries compiled into /usr/local/bin.
+          shellExec(`packer build -var host_is_arm=${process.arch === 'arm64'} .`, {
             cwd: packerDir,
-            env: packerEnv,
+            env: { ...process.env, PACKER_LOG: '1', PATH: `/usr/local/bin:${process.env.PATH || '/usr/bin:/bin'}` },
           });
-
-          if (build.status !== 0) {
-            throw new Error('Packer build failed');
-          }
         } else {
           // Upload-only mode: verify tarball exists
           logger.info(`Upload-only mode: checking for existing build artifact...`);
@@ -527,12 +586,23 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Use the upload script to avoid MAAS CLI bugs
         const uploadScript = `${underpostRoot}/scripts/maas-upload-boot-resource.sh`;
-        const uploadCmd = `${uploadScript} ${process.env.MAAS_ADMIN_USERNAME} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
+        const uploadCmd = `bash ${[
+          uploadScript,
+          process.env.MAAS_ADMIN_USERNAME,
+          workflow.maas.name,
+          workflow.maas.title,
+          workflow.maas.architecture,
+          workflow.maas.base_image,
+          workflow.maas.filetype,
+          tarballPath,
+        ]
+          .map(shellArgumentFactory)
+          .join(' ')}`;
 
         logger.info(`Uploading to MAAS using: ${uploadScript}`);
         // silentOnError: caller logs stdout/stderr structure on failure
         // before throwing its own, more informative error.
-        const uploadResult = shellExec(uploadCmd, { silentOnError: true });
+        const uploadResult = shellExec(uploadCmd, { silentOnError: true, privileged: MAAS_PRIVILEGE });
         if (uploadResult.code !== 0) {
           logger.error(`Upload failed with exit code: ${uploadResult.code}`);
           if (uploadResult.stdout) {
@@ -554,13 +624,15 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       if (options.logs === 'dhcp-lease') {
-        shellExec(`cat /var/snap/maas/common/maas/dhcp/dhcpd.leases`);
-        shellExec(`cat /var/snap/maas/common/maas/dhcp/dhcpd.pid`);
+        for (const file of ['dhcpd.leases', 'dhcpd.pid'])
+          process.stdout.write(fs.readFileSync(`/var/snap/maas/common/maas/dhcp/${file}`, 'utf8'));
         return;
       }
 
       if (options.logs === 'dhcp-lan') {
-        shellExec(`sudo tcpdump -l -n -i any -s0 -vv 'udp and (port 67 or 68)'`);
+        shellExec(`tcpdump -l -n -i any -s0 -vv 'udp and (port 67 or 68)'`, {
+          privileged: 'captures the DHCP traffic of the host',
+        });
         return;
       }
 
@@ -575,9 +647,8 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       if (options.logs === 'cloud-init-config') {
-        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`);
-        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`);
-        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`);
+        for (const file of ['user-data', 'meta-data', 'vendor-data'])
+          process.stdout.write(fs.readFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/${file}`, 'utf8'));
         return;
       }
 
@@ -604,42 +675,37 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle control server installation.
       if (options.controlServerInstall === true) {
-        // Ensure the MAAS setup script is executable and then run it.
-        shellExec(`chmod +x ${underpostRoot}/scripts/maas-setup.sh`);
-        if (!fs.existsSync(`${process.env.HOME}/.ssh/id_rsa.pub`)) shellExec(`node bin ssh --generate`);
-        shellExec(`${underpostRoot}/scripts/maas-setup.sh`);
-        // Install GRUB modules into the NFS root filesystem to
-        // ensure the necessary files are present for bootloader installation later.
+        // The setup registers the public key of the user that runs this command.
+        const publicKey = path.join(os.homedir(), '.ssh', 'id_rsa.pub');
+        if (!fs.existsSync(publicKey)) shellExec(`node bin ssh --generate`);
+        shellExec(
+          `SSH_PUBLIC_KEY_FILE=${shellArgumentFactory(publicKey)} bash ${shellArgumentFactory(`${underpostRoot}/scripts/maas-setup.sh`)}`,
+          { privileged: 'installs and initializes the MAAS region and rack controller' },
+        );
+        // The GRUB modules are what the PXE boot later copies into the TFTP root.
         Underpost.baremetal.installGrubModules();
         return;
       }
 
-      // Handle control server uninstallation.
       if (options.controlServerUninstall === true) {
-        // Stop and remove MAAS services, handling potential errors gracefully.
-        shellExec(`sudo snap stop maas.pebble`);
-        shellExec(`sudo snap stop maas`);
-        shellExec(`sudo snap remove maas --purge`);
-
-        // Remove residual snap data to ensure a clean uninstall.
-        shellExec(`sudo rm -rf /var/snap/maas`);
-        shellExec(`sudo rm -rf ~/snap/maas`);
-
-        // Remove MAAS configuration and data directories.
-        shellExec(`sudo rm -rf /etc/maas`);
-        shellExec(`sudo rm -rf /var/lib/maas`);
-        shellExec(`sudo rm -rf /var/log/maas`);
+        const snap = (args) => shellExec(`snap ${args}`, { privileged: 'removes the MAAS snap and its system data' });
+        snap('stop maas.pebble');
+        snap('stop maas');
+        snap('remove maas --purge');
+        for (const target of ['/var/snap/maas', '/etc/maas', '/var/lib/maas', '/var/log/maas'])
+          removeHostPath(target, { reason: 'removes the MAAS system data' });
+        // The snap data of the user that runs this command.
+        fs.rmSync(path.join(os.homedir(), 'snap', 'maas'), { recursive: true, force: true });
         return;
       }
 
-      // Handle control server restart.
       if (options.controlServerRestart === true) {
-        shellExec(`sudo snap restart maas`);
+        shellExec('snap restart maas', { privileged: 'restarts the MAAS snap' });
         return;
       }
 
       if (options.controlServerStop === true) {
-        shellExec(`sudo snap stop maas`);
+        shellExec('snap stop maas', { privileged: 'stops the MAAS snap' });
         return;
       }
 
@@ -683,47 +749,51 @@ rm -rf ${artifacts.join(' ')}`);
           unmount: true,
         });
 
-        // Clean and create the NFS host path.
-        shellExec(`sudo rm -rf ${nfsHostPath}/*`);
-        shellExec(`mkdir -p ${nfsHostPath}`);
+        // The NFS root starts empty; the export root above it stays.
+        removeHostPath(nfsHostPath, { contents: true, within: nfsExportRoot(), reason: 'empties the NFS root' });
+        makeHostDirectory(nfsHostPath, { reason: 'creates the NFS root' });
 
-        // Perform the first stage of debootstrap.
         if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
           const { architecture, name } = workflowsConfig[workflowId].debootstrap.image;
+          // `--foreign` leaves the second stage to the chroot.
           shellExec(
             [
-              `sudo debootstrap`,
+              'debootstrap',
               `--arch=${architecture}`,
-              `--variant=minbase`,
-              `--foreign`, // Indicates a two-stage debootstrap.
+              '--variant=minbase',
+              '--foreign',
               name,
               nfsHostPath,
-              `http://ports.ubuntu.com/ubuntu-ports/`,
-            ].join(' '),
+              'http://ports.ubuntu.com/ubuntu-ports/',
+            ]
+              .map(shellArgumentFactory)
+              .join(' '),
+            { privileged: 'bootstraps the first stage of the NFS root' },
           );
         } else if (workflowsConfig[workflowId].type === 'chroot-container') {
-          const { image } = workflowsConfig[workflowId].container;
-          shellExec(`sudo podman pull --arch=${bootstrapArch} ${image}`);
-          shellExec(`sudo podman create --arch=${bootstrapArch} --name chroot-source ${image}`);
-          shellExec(`sudo podman export chroot-source | sudo tar -x -C ${nfsHostPath}`);
-          shellExec(`sudo podman rm chroot-source`);
+          const image = shellArgumentFactory(workflowsConfig[workflowId].container.image);
+          rootfulPodman(`pull --arch=${bootstrapArch} ${image}`);
+          rootfulPodman(`create --replace --arch=${bootstrapArch} --name chroot-source ${image}`);
+          try {
+            shellExec(`set -o pipefail; podman export chroot-source | tar -x -C ${shellArgumentFactory(nfsHostPath)}`, {
+              privileged: PODMAN_PRIVILEGE,
+            });
+          } finally {
+            rootfulPodman('rm --ignore chroot-source');
+          }
         }
 
-        // Create a podman container to extract QEMU static binaries.
-        shellExec(`sudo podman create --name extract docker.io/multiarch/qemu-user-static`);
-        shellExec(`podman ps -a`); // List all podman containers for verification.
-
-        // If cross-architecture, copy the QEMU static binary into the chroot.
-        if (bootstrapArch !== callbackMetaData.runnerHost.architecture)
-          Underpost.baremetal.crossArchBinFactory({
-            nfsHostPath,
-            bootstrapArch,
-          });
-
-        // Clean up the temporary podman container.
-        shellExec(`sudo podman rm extract`);
-        shellExec(`podman ps -a`);
-        shellExec(`file ${nfsHostPath}/bin/bash`); // Verify the bash executable in the chroot.
+        // The QEMU static binaries of a cross-architecture chroot come from a container image.
+        rootfulPodman('create --replace --name extract docker.io/multiarch/qemu-user-static');
+        try {
+          rootfulPodman('ps -a');
+          if (bootstrapArch !== callbackMetaData.runnerHost.architecture)
+            Underpost.baremetal.crossArchBinFactory({ nfsHostPath, bootstrapArch });
+        } finally {
+          rootfulPodman('rm --ignore extract');
+        }
+        rootfulPodman('ps -a');
+        shellExec(`file ${shellArgumentFactory(`${nfsHostPath}/bin/bash`)}`);
 
         // Mount necessary filesystems and register binfmt for the second stage.
         await Underpost.baremetal.nfsMountCallback({
@@ -745,8 +815,8 @@ rm -rf ${artifacts.join(' ')}`);
           workflowsConfig[workflowId].type === 'chroot-container' &&
           workflowsConfig[workflowId].osIdLike.match('rhel')
         ) {
-          // Copy resolv.conf to allow network access inside chroot
-          shellExec(`sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf`);
+          // The chroot resolves names with the resolver of the host.
+          installHostFile({ source: '/etc/resolv.conf', target: `${nfsHostPath}/etc/resolv.conf` });
 
           // Consolidate all package installations into one step to avoid redundancy
           const { packages } = workflowsConfig[workflowId].container;
@@ -906,11 +976,11 @@ rm -rf ${artifacts.join(' ')}`);
               `chmod +x /underpost/shutdown.sh`,
               `chmod +x /underpost/device_scan.sh`,
               `chmod +x /underpost/mac.sh`,
-              `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
-              `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
-              `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
-              `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
-              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
+              `chmod 700 ~/.ssh/`,
+              `chmod 600 ~/.ssh/authorized_keys`,
+              `chmod 644 ~/.ssh/known_hosts`,
+              `chmod 600 ~/.ssh/id_rsa`,
+              `chmod 600 /etc/ssh/ssh_host_ed25519_key`,
               `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
               `/underpost/test.sh`,
             ],
@@ -1118,26 +1188,28 @@ rm -rf ${artifacts.join(' ')}`);
           Underpost.baremetal.getFamilyBaseOs(workflowsConfig[workflowId].osIdLike).isDebianBased &&
           (type === 'iso-nfs' || type === 'chroot-debootstrap' || type === 'chroot-container')
         ) {
-          // Prepare NFS casper path if using NFS boot.
-          shellExec(`mkdir -p ${nfsHostPath}/casper`);
+          makeHostDirectory(`${nfsHostPath}/casper`, {
+            reason: 'creates the casper directory of the NFS root',
+            owner: processOwner(),
+          });
         }
 
-        // Clean and create TFTP root path. The iPXE EFI binary is restored from
-        // cache (or rebuilt) later by the gated build block, so no early copy here.
-        shellExec(`sudo rm -rf ${tftpRootPath}`);
-        shellExec(`mkdir -p ${tftpRootPath}/pxe`);
+        // The TFTP root belongs to the user of this process, and the tree of this workflow starts empty. The
+        // iPXE EFI binary is restored from cache, or rebuilt, by the iPXE block below.
+        claimHostTree(process.env.TFTP_ROOT, 'gives the TFTP root to the user of this process');
+        fs.rmSync(tftpRootPath, { recursive: true, force: true });
+        fs.mkdirSync(`${tftpRootPath}/pxe`, { recursive: true });
 
-        // Process firmwares for TFTP.
         for (const firmware of firmwares) {
           const { url, gateway, subnet } = firmware;
           if (url.match('.zip')) {
             const name = url.split('/').pop().replace('.zip', '');
-            const path = `../${name}`;
-            if (!fs.existsSync(path)) {
-              await Downloader.downloadFile(url, `../${name}.zip`); // Download firmware if not exists.
-              shellExec(`cd .. && mkdir ${name} && cd ${name} && unzip ../${name}.zip`); // Unzip firmware.
+            const firmwareDir = path.resolve('..', name);
+            if (!fs.existsSync(firmwareDir)) {
+              await Downloader.downloadFile(url, `${firmwareDir}.zip`);
+              await extractZipTo(`${firmwareDir}.zip`, firmwareDir);
             }
-            shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`); // Copy firmware files to TFTP root.
+            fs.cpSync(firmwareDir, tftpRootPath, { recursive: true });
 
             if (gateway && subnet) {
               const bootConfSrc = Underpost.baremetal.bootConfFactory({
@@ -1257,7 +1329,7 @@ rm -rf ${artifacts.join(' ')}`);
                 forceRebuild: true,
               });
             } else {
-              shellExec(`cp ${cachedIpxePath} ${tftpIpxePath}`);
+              fs.copyFileSync(cachedIpxePath, tftpIpxePath);
               logger.info('✓ Using cached iPXE EFI binary (pass --ipxe-rebuild to force a rebuild)', {
                 path: cachedIpxePath,
               });
@@ -1290,10 +1362,6 @@ rm -rf ${artifacts.join(' ')}`);
         // Pass architecture from commissioning or deployment config
         const grubArch = commissioningImage.architecture;
         Underpost.baremetal.efiGrubModulesFactory({ image: { architecture: grubArch } });
-
-        // Set ownership and permissions for TFTP root.
-        shellExec(`sudo chown -R $(whoami):$(whoami) ${process.env.TFTP_ROOT}`);
-        shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
         if (type === 'chroot-debootstrap' || type === 'chroot-container')
           await Underpost.baremetal.nfsMountCallback({
@@ -1493,7 +1561,7 @@ rm -rf ${artifacts.join(' ')}`);
           keyPath,
           retries: 4,
           waitForPortMs: 5 * 60 * 1000,
-          command: 'sudo kubeadm token create --print-join-command',
+          command: Underpost.ssh.rootCommandFactory(controlUser, 'kubeadm token create --print-join-command'),
         });
 
         let joinCommand = (joinResult.stdout || '')
@@ -1677,8 +1745,7 @@ rm -rf ${artifacts.join(' ')}`);
     async installPacker(underpostRoot) {
       const scriptPath = `${underpostRoot}/scripts/packer-setup.sh`;
       logger.info(`Installing Packer using script: ${scriptPath}`);
-      shellExec(`sudo chmod +x ${scriptPath}`);
-      shellExec(`sudo ${scriptPath}`);
+      shellExec(`bash ${shellArgumentFactory(scriptPath)}`, { privileged: 'installs Packer and QEMU on the host' });
     },
 
     /**
@@ -1717,7 +1784,7 @@ rm -rf ${artifacts.join(' ')}`);
       bootstrapHttpServerPort,
     }) {
       const outputPath = !isoOutputPath || isoOutputPath === '.' ? `./ipxe-${workflowId}.iso` : isoOutputPath;
-      shellExec(`mkdir -p $(dirname ${outputPath})`);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
       const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
       if (!workflowsConfig[workflowId]) {
@@ -1791,7 +1858,7 @@ rm -rf ${artifacts.join(' ')}`);
         logger.info(`Reusing existing iPXE ISO: ${builtIsoPath} -> ${outputPath}`);
       } else {
         logger.info(`Rebuild: cleaning iPXE build artifacts...`);
-        shellExec(`cd ${ipxeSrcDir} && make clean`);
+        shellExec('make clean', { cwd: ipxeSrcDir });
 
         const hostArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
         let crossCompile = '';
@@ -1805,8 +1872,7 @@ rm -rf ${artifacts.join(' ')}`);
           `Building iPXE ISO for ${targetArch} on ${hostArch}: make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`,
         );
 
-        const buildCmd = `cd ${ipxeSrcDir} && make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`;
-        shellExec(buildCmd);
+        shellExec(`make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`, { cwd: ipxeSrcDir });
 
         if (fs.existsSync(builtIsoPath)) {
           fs.copySync(builtIsoPath, outputPath);
@@ -1922,72 +1988,58 @@ rm -rf ${artifacts.join(' ')}`);
       // Determine OS family from osIdLike
       const { isDebianBased, isRhelBased } = Underpost.baremetal.getFamilyBaseOs(osIdLike);
 
-      // Set extraction directory based on OS family
-      const extractDirName = isDebianBased ? 'casper' : 'iso-extract';
-      shellExec(`mkdir -p ${nfsHostPath}/${extractDirName}`);
+      // The extraction and the mount point belong to the user of this process, which copies the ISO files.
+      const extractDir = `${nfsHostPath}/${isDebianBased ? 'casper' : 'iso-extract'}`;
+      const mountPoint = `${nfsHostPath}/mnt-iso-${arch}`;
+      for (const directory of [extractDir, mountPoint])
+        makeHostDirectory(directory, { reason: 'creates an ISO directory of the NFS root', owner: processOwner() });
 
       const isoPath = `/var/tmp/live-iso/${isoFilename}`;
-      const extractDir = `${nfsHostPath}/${extractDirName}`;
-
       if (!fs.existsSync(isoPath)) {
         logger.info(`Downloading ISO for ${arch}...`);
         logger.info(`URL: ${isoUrl}`);
-        shellExec(`mkdir -p /var/tmp/live-iso`);
-        shellExec(`wget --progress=bar:force -O ${isoPath} "${isoUrl}"`);
+        fs.mkdirSync(path.dirname(isoPath), { recursive: true });
+        shellExec(`wget --progress=bar:force -O ${shellArgumentFactory(isoPath)} ${shellArgumentFactory(isoUrl)}`);
         // Verify download by checking file existence and size (not exit code, which can be unreliable)
         if (!fs.existsSync(isoPath)) {
           throw new Error(`Failed to download ISO from ${isoUrl} - file not created`);
         }
         const stats = fs.statSync(isoPath);
         if (stats.size < 100 * 1024 * 1024) {
-          shellExec(`rm -f ${isoPath}`);
+          fs.rmSync(isoPath, { force: true });
           throw new Error(`Downloaded ISO is too small (${stats.size} bytes), download may have failed`);
         }
         logger.info(`Downloaded ISO to ${isoPath} (${(stats.size / 1024 / 1024 / 1024).toFixed(2)} GB)`);
       }
 
-      // ISO Logic
-      const mountPoint = `${nfsHostPath}/mnt-iso-${arch}`;
-      shellExec(`mkdir -p ${mountPoint}`);
+      const mount = (command) => shellExec(command, { privileged: 'mounts the live ISO on the host' });
+      if (
+        shellExec(`mountpoint -q ${shellArgumentFactory(mountPoint)}`, { silent: true, silentOnError: true }).code === 0
+      )
+        mount(`umount ${shellArgumentFactory(mountPoint)}`);
 
-      // Ensure mount point is not already mounted
-      shellExec(`sudo umount ${mountPoint}`, {
-        silentOnError: true, // Ignore errors if not mounted
-      });
-
+      mount(`mount -o loop,ro ${shellArgumentFactory(isoPath)} ${shellArgumentFactory(mountPoint)}`);
+      logger.info(`Mounted ISO at ${mountPoint}`);
       try {
-        // Mount the ISO
-        shellExec(`sudo mount -o loop,ro ${isoPath} ${mountPoint}`);
-        logger.info(`Mounted ISO at ${mountPoint}`);
-
-        // Distribution-specific extraction logic
         if (isDebianBased) {
-          // Ubuntu/Debian: Extract from casper directory
           if (!fs.existsSync(`${mountPoint}/casper`)) {
             throw new Error(`Failed to mount ISO or casper directory not found: ${isoPath}`);
           }
-          logger.info(`Checking casper directory contents...`);
-          shellExec(`ls -la ${mountPoint}/casper/ 2>/dev/null || echo "casper directory not found"`);
-          shellExec(`sudo cp -a ${mountPoint}/casper/* ${extractDir}/`);
+          logger.info('Extracting the casper directory', { files: fs.readdirSync(`${mountPoint}/casper`) });
+          fs.cpSync(`${mountPoint}/casper`, extractDir, { recursive: true });
         } else if (isRhelBased) {
-          // RHEL/Rocky: Extract from images/pxeboot directory
           const pxebootDir = `${mountPoint}/images/pxeboot`;
           if (!fs.existsSync(pxebootDir)) {
             throw new Error(`Failed to mount ISO or images/pxeboot directory not found: ${isoPath}`);
           }
           logger.info(`Extracting kernel and initrd from ${pxebootDir}...`);
-          shellExec(`sudo cp -a ${pxebootDir}/vmlinuz ${extractDir}/vmlinuz`);
-          shellExec(`sudo cp -a ${pxebootDir}/initrd.img ${extractDir}/initrd`);
+          fs.copyFileSync(`${pxebootDir}/vmlinuz`, `${extractDir}/vmlinuz`);
+          fs.copyFileSync(`${pxebootDir}/initrd.img`, `${extractDir}/initrd`);
         }
       } finally {
-        shellExec(`ls -la ${mountPoint}/`);
-
-        shellExec(`sudo chown -R $(whoami):$(whoami) ${extractDir}`);
-        // Unmount ISO
-        shellExec(`sudo umount ${mountPoint}`);
+        mount(`umount ${shellArgumentFactory(mountPoint)}`);
         logger.info(`Unmounted ISO`);
-        // Clean up temporary mount point
-        shellExec(`rmdir ${mountPoint}`);
+        fs.rmdirSync(mountPoint);
       }
 
       return {
@@ -2145,7 +2197,7 @@ rm -rf ${artifacts.join(' ')}`);
           logger.info(`Root archive found (${rootArchiveKey}) and missing kernel/initrd. Attempting to extract.`);
           const rootArchivePath = `${kernelPath}/${bootFiles[rootArchiveKey].filename_on_disk}`;
           const tempExtractDir = `/tmp/maas-extract-${resource.id}`;
-          shellExec(`mkdir -p ${tempExtractDir}`);
+          fs.mkdirSync(tempExtractDir, { recursive: true });
 
           // List files in archive to find kernel and initrd
           const tarList = shellExec(`tar -tf ${rootArchivePath}`).stdout.split('\n');
@@ -2254,9 +2306,7 @@ rm -rf ${artifacts.join(' ')}`);
      * @returns {void}
      */
     writeGrubConfigToFile({ grubCfgSrc = '' }) {
-      shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`, {
-        disableLog: true,
-      });
+      fs.mkdirSync(`${process.env.TFTP_ROOT}/grub`, { recursive: true });
       return fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfgSrc, 'utf8');
     },
 
@@ -2285,7 +2335,8 @@ rm -rf ${artifacts.join(' ')}`);
 
     /**
      * @method efiGrubModulesFactory
-     * @description Copies the appropriate EFI GRUB modules to the TFTP root based on the image architecture.
+     * @description Copies the EFI GRUB modules of the image architecture into the TFTP root, which belongs to the
+     * user of this process.
      * @param {object} options - Options for determining which GRUB modules to copy.
      * @param {object} options.image - Image configuration object.
      * @param {string} options.image.architecture - The architecture of the image ('amd64' or 'arm64').
@@ -2293,17 +2344,10 @@ rm -rf ${artifacts.join(' ')}`);
      * @returns {void}
      */
     efiGrubModulesFactory(options = { image: { architecture: 'amd64' } }) {
-      if (options.image.architecture.match('arm64')) {
-        // Copy ARM64 EFI GRUB modules.
-        const arm64EfiPath = `${process.env.TFTP_ROOT}/grub/arm64-efi`;
-        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
-        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
-      } else {
-        // Copy AMD64 EFI GRUB modules.
-        const amd64EfiPath = `${process.env.TFTP_ROOT}/grub/x86_64-efi`;
-        if (fs.existsSync(amd64EfiPath)) shellExec(`sudo rm -rf ${amd64EfiPath}`);
-        shellExec(`sudo cp -a /usr/lib/grub/x86_64-efi ${amd64EfiPath}`);
-      }
+      const modules = options.image.architecture.match('arm64') ? 'arm64-efi' : 'x86_64-efi';
+      const target = `${process.env.TFTP_ROOT}/grub/${modules}`;
+      fs.rmSync(target, { recursive: true, force: true });
+      fs.cpSync(`/usr/lib/grub/${modules}`, target, { recursive: true });
     },
 
     /**
@@ -2550,10 +2594,14 @@ shell
       const rebuildArg = forceRebuild ? ' --rebuild' : '';
 
       logger.info('Building iPXE EFI binary...', { embeddedScriptPath, forced: forceRebuild });
-      shellExec(`${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch}${embedArg}${rebuildArg}`);
+      const hostArch = Underpost.baremetal.getHostArch().alias;
+      installHostTool(arch === hostArch ? 'ipxe-build' : 'ipxe-cross-build', { arch: hostArch });
+      shellExec(
+        `bash ${shellArgumentFactory(`${underpostRoot}/scripts/ipxe-setup.sh`)} ${shellArgumentFactory(tftpRootPath)} --target-arch ${arch}${embedArg}${rebuildArg}`,
+      );
 
-      shellExec(`mkdir -p ${ipxeCacheDir}`);
-      shellExec(`cp ${tftpRootPath}/ipxe.efi ${ipxeCacheDir}/ipxe.efi`);
+      fs.mkdirSync(ipxeCacheDir, { recursive: true });
+      fs.copyFileSync(`${tftpRootPath}/ipxe.efi`, `${ipxeCacheDir}/ipxe.efi`);
     },
 
     /**
@@ -2840,7 +2888,8 @@ fi
       // The hostname names one directory under the bootstrap root.
       if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(hostname) || hostname.includes('..'))
         throw new Error(`Invalid bootstrap hostname: '${hostname}'`);
-      shellExec(`mkdir -p ${shellArgumentFactory(`${bootstrapHttpServerPath}/${hostname}`)}`);
+      claimHostTree(bootstrapHttpServerPath, 'gives the bootstrap HTTP root to the user of this process');
+      fs.mkdirSync(`${bootstrapHttpServerPath}/${hostname}`, { recursive: true });
 
       Underpost.cloudInit.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData });
       Underpost.kickstart.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, kickstartSrc });
@@ -2853,14 +2902,14 @@ fi
 
         if (!fs.existsSync(isoCachePath)) {
           logger.info(`Downloading ISO to cache: ${isoUrl}`);
-          shellExec(`mkdir -p ${isoCacheDir}`);
+          fs.mkdirSync(isoCacheDir, { recursive: true });
           shellExec(
             `wget --progress=bar:force -O ${shellArgumentFactory(isoCachePath)} ${shellArgumentFactory(isoUrl)}`,
           );
         }
 
         logger.info(`Copying ISO to bootstrap server: ${isoDestPath}`);
-        shellExec(`cp ${shellArgumentFactory(isoCachePath)} ${shellArgumentFactory(isoDestPath)}`);
+        fs.copyFileSync(isoCachePath, isoDestPath);
       }
     },
 
@@ -2939,21 +2988,29 @@ fi
         logger.info(`Static file server running on port ${port}`);
       });
 
-      // Configure iptables to allow incoming LAN connections
-      shellExec(
-        `sudo iptables -I INPUT 1 -p tcp -s 192.168.1.0/24 --dport ${port} -m conntrack --ctstate NEW -j ACCEPT`,
-      );
-      // Option for any host:
-      // sudo iptables -I INPUT 1 -p tcp --dport ${port} -m conntrack --ctstate NEW -j ACCEPT
-      shellExec(`sudo chown -R $(whoami):$(whoami) ${bootstrapHttpServerPath}`);
-      shellExec(`sudo sudo chmod 755 ${bootstrapHttpServerPath}`);
+      // The LAN of the machines reaches the server.
+      ensureIptablesRule('INPUT', [
+        '-p',
+        'tcp',
+        '-s',
+        '192.168.1.0/24',
+        '--dport',
+        `${port}`,
+        '-m',
+        'conntrack',
+        '--ctstate',
+        'NEW',
+        '-j',
+        'ACCEPT',
+      ]);
 
       logger.info(`Started Bootstrap Http Server on port ${port}`);
     },
 
     /**
      * @method updateKernelFiles
-     * @description Copies EFI bootloaders, kernel, and initrd images to the TFTP root path.
+     * @description Copies EFI bootloaders, kernel, and initrd images to the TFTP root path, which belongs to the user
+     * of this process.
      * It also handles decompression of the kernel if necessary for ARM64 compatibility,
      * and extracts raw kernel images from PE32+ EFI wrappers (common in Rocky Linux ARM64).
      * @param {object} params - The parameters for the function.
@@ -2970,24 +3027,18 @@ fi
       const efiFiles =
         arch === 'arm64' || arch === 'aarch64' ? ['bootaa64.efi', 'grubaa64.efi'] : ['bootx64.efi', 'grubx64.efi'];
 
-      for (const file of efiFiles) {
-        shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
-      }
-      // Copy kernel and initrd images to TFTP path.
+      for (const file of efiFiles) fs.copyFileSync(`${resourcesPath}/${file}`, `${tftpRootPath}/pxe/${file}`);
       for (const file of Object.keys(kernelFilesPaths)) {
         if (file == 'isoUrl') continue; // Skip URL entries
-        shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
-        // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
-        // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
+        fs.copyFileSync(kernelFilesPaths[file], `${tftpRootPath}/pxe/${file}`);
+        // GRUB on ARM64 often stops with a synchronous exception (0x200) on a large compressed kernel.
         if (file === 'vmlinuz-efi') {
           const kernelDest = `${tftpRootPath}/pxe/${file}`;
-          const fileType = shellExec(`file ${kernelDest}`).stdout;
+          const fileType = shellExec(`file ${shellArgumentFactory(kernelDest)}`).stdout;
 
-          // Handle gzip compressed kernels
           if (fileType.includes('gzip compressed data')) {
             logger.info(`Decompressing kernel ${file} for ARM64 UEFI compatibility...`);
-            shellExec(`sudo mv ${kernelDest} ${kernelDest}.gz`);
-            shellExec(`sudo gunzip ${kernelDest}.gz`);
+            fs.writeFileSync(kernelDest, zlib.gunzipSync(fs.readFileSync(kernelDest)));
           }
 
           // Handle PE32+ EFI wrapped kernels (common in Rocky Linux ARM64)
@@ -3406,6 +3457,7 @@ fi
       const output = shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} ${cmd}`, {
         stdout: true,
         silent: true,
+        privileged: MAAS_PRIVILEGE,
       }).trim();
       try {
         return output ? JSON.parse(output) : null;
@@ -3437,6 +3489,7 @@ fi
 
       const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
         stdout: true,
+        privileged: MAAS_PRIVILEGE,
       })
         .trim()
         .split(`\n`)[0] // Take only the first line of output.
@@ -3470,15 +3523,13 @@ fi
      * @returns {void}
      */
     mountBinfmtMisc() {
-      // Install necessary packages for debootstrap and QEMU.
-      shellExec(`sudo dnf install -y iptables-legacy`);
-      shellExec(`sudo dnf install -y debootstrap`);
-      shellExec(`sudo dnf install -y kernel-modules-extra-$(uname -r)`);
-      // Reset QEMU user-static binfmt for proper cross-architecture execution.
-      shellExec(`sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static:latest --reset -p yes`);
-      // Mount binfmt_misc filesystem.
-      shellExec(`sudo modprobe binfmt_misc`);
-      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`, { silentOnError: true });
+      installHostTool('nfs-root-build', { arch: Underpost.baremetal.getHostArch().alias });
+      // The QEMU user-static handlers run the binaries of the other architecture.
+      rootfulPodman('run --rm --privileged docker.io/multiarch/qemu-user-static:latest --reset -p yes');
+      const reason = 'mounts the binfmt_misc file system of the host';
+      shellExec('modprobe binfmt_misc', { privileged: reason });
+      if (!fs.existsSync('/proc/sys/fs/binfmt_misc/register'))
+        shellExec('mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc', { privileged: reason });
     },
 
     /**
@@ -3544,8 +3595,8 @@ fi
      * @returns {void}
      */
     installGrubModules() {
-      if (!fs.existsSync('/usr/lib/grub/x86_64-efi')) shellExec(`sudo dnf install -y grub2-efi-x64-modules`);
-      if (!fs.existsSync('/usr/lib/grub/arm64-efi')) shellExec(`sudo dnf install -y grub2-efi-aa64-modules`);
+      if (['/usr/lib/grub/x86_64-efi', '/usr/lib/grub/arm64-efi'].some((modules) => !fs.existsSync(modules)))
+        installHostTool('grub-efi-modules', { arch: Underpost.baremetal.getHostArch().alias });
     },
 
     /**
@@ -3561,12 +3612,10 @@ fi
     crossArchBinFactory({ nfsHostPath, bootstrapArch }) {
       switch (bootstrapArch) {
         case 'arm64':
-          // Copy QEMU static binary for ARM64.
-          shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nfsHostPath}/usr/bin/`);
+          rootfulPodman(`cp extract:/usr/bin/qemu-aarch64-static ${shellArgumentFactory(`${nfsHostPath}/usr/bin/`)}`);
           break;
         case 'amd64':
-          // Copy QEMU static binary for AMD64.
-          shellExec(`sudo podman cp extract:/usr/bin/qemu-x86_64-static ${nfsHostPath}/usr/bin/`);
+          rootfulPodman(`cp extract:/usr/bin/qemu-x86_64-static ${shellArgumentFactory(`${nfsHostPath}/usr/bin/`)}`);
           break;
         default:
           // Log a warning or throw an error for unsupported architectures.
@@ -3606,10 +3655,13 @@ fi
             break;
         }
 
-      // Execute the commands within the chroot environment using a heredoc.
-      shellExec(`sudo chroot ${nfsHostPath} ${qemuCrossArchBash}/bin/bash <<'EOF'
+      // The steps run as root inside the chroot.
+      shellExec(
+        `chroot ${shellArgumentFactory(nfsHostPath)} ${qemuCrossArchBash}/bin/bash <<'EOF'
 ${steps}
-EOF`);
+EOF`,
+        { privileged: 'runs provisioning steps in the chroot of the NFS root' },
+      );
     },
 
     /**
@@ -3696,21 +3748,20 @@ EOF`);
             if (isPathMounted) {
               logger.warn('Nfs path already mounted', mountPath);
               if (unmount === true) {
-                // Unmount if requested.
-                unMountCmds.push(`sudo umount -Rfl ${hostMountPath}`);
+                unMountCmds.push(`umount -Rfl ${shellArgumentFactory(hostMountPath)}`);
                 if (!recall) recall = true;
               }
             } else {
               if (mount === true) {
-                // Mount if requested and not already mounted.
-                mountCmds.push(`sudo mount --${mountCmd} ${mountPath} ${hostMountPath}`);
+                mountCmds.push(`mount --${mountCmd} ${mountPath} ${shellArgumentFactory(hostMountPath)}`);
               } else {
                 logger.warn('Nfs path not mounted', mountPath);
               }
             }
           }
         }
-        for (const unMountCmd of unMountCmds) shellExec(unMountCmd);
+        const privileged = 'mounts the system file systems of the NFS root';
+        for (const unMountCmd of unMountCmds) shellExec(unMountCmd, { privileged });
         if (recall) {
           if (currentRecall >= maxRecalls) {
             throw new Error(
@@ -3726,9 +3777,12 @@ EOF`);
           );
         }
         if (mountCmds.length > 0) {
-          shellExec(`sudo chown -R $(whoami):$(whoami) ${nfsHostPath}`);
-          shellExec(`sudo chmod -R 755 ${nfsHostPath}`);
-          for (const mountCmd of mountCmds) shellExec(mountCmd);
+          chownHostPath(nfsHostPath, {
+            reason: 'gives the NFS root to the user of this process',
+            modes: { directory: '0755', file: '0755' },
+            within: nfsExportRoot(),
+          });
+          for (const mountCmd of mountCmds) shellExec(mountCmd, { privileged });
         }
       }
     },
@@ -3742,8 +3796,7 @@ EOF`);
      * @throws {Error} If the host architecture is unsupported.
      */
     getHostArch() {
-      // `uname -m` returns e.g. 'x86_64' or 'aarch64'
-      const machine = shellExec('uname -m', { stdout: true, silent: true }).trim();
+      const machine = os.machine();
       if (machine === 'x86_64') return { alias: 'amd64', name: 'x86_64' };
       if (machine === 'aarch64') return { alias: 'arm64', name: 'aarch64' };
       throw new Error(`Unsupported host architecture: ${machine}`);
@@ -3775,14 +3828,13 @@ EOF`);
         throw new Error(`MAAS firewalld helper not found: ${maasNatFirewalldPath}`);
       }
 
-      // Write the NFS exports configuration to /etc/exports.
-      if (!fs.existsSync(nfsHostPath)) fs.mkdirSync(nfsHostPath, { recursive: true });
-      fs.writeFileSync(`/etc/exports`, `${nfsHostPath} ${subnet}(${exportOptions})`, 'utf8');
+      makeHostDirectory(nfsHostPath, { reason: 'creates the NFS root' });
+      writeHostFile({ target: '/etc/exports', content: `${nfsHostPath} ${subnet}(${exportOptions})\n` });
 
       logger.info('Configuring MAAS firewalld and fixed NFSv3 ports...');
       shellExec(
         [
-          `MAAS_LAN_CIDR=${subnet}`,
+          `MAAS_LAN_CIDR=${shellArgumentFactory(subnet)}`,
           `NFS_MODE=v3`,
           `CONFIGURE_NFS_V3_PORTS=true`,
           `NFS_MOUNTD_PORT=${nfsPorts.mountd}`,
@@ -3790,29 +3842,24 @@ EOF`);
           `NFS_STATD_OUTGOING_PORT=${nfsPorts.statdOutgoing}`,
           `NFS_LOCKD_PORT=${nfsPorts.lockd}`,
           `NFS_LOCKD_UDP_PORT=${nfsPorts.lockd}`,
-          `bash "${maasNatFirewalldPath}"`,
+          `bash ${shellArgumentFactory(maasNatFirewalldPath)}`,
         ].join(' '),
+        { privileged: 'configures the NAT, the firewall and the NFSv3 ports of the host' },
       );
 
+      const privileged = 'exports the NFS roots of the host';
       logger.info('Reloading NFS exports...');
-      shellExec(`sudo exportfs -rav`);
-
-      // Display the currently active NFS exports for verification.
+      shellExec('exportfs -rav', { privileged });
       logger.info('Displaying active NFS exports');
-      shellExec(`sudo exportfs -s`);
+      shellExec('exportfs -s', { privileged });
 
       if (nfsReset) {
-        logger.info('Restarting NFS server service...');
-        let restarted = false;
-        for (const unit of ['nfs-server', 'nfs-kernel-server']) {
-          const result = shellExec(`sudo systemctl restart ${unit}`, { silentOnError: true });
-          if (result.code === 0) {
-            restarted = true;
-            logger.info(`NFS server restarted via ${unit}.`);
-            break;
-          }
+        const unit = ['nfs-server', 'nfs-kernel-server'].find(hostServiceExists);
+        if (!unit) logger.warn('The host has no nfs-server or nfs-kernel-server unit to restart.');
+        else {
+          controlHostService('restart', unit);
+          logger.info(`NFS server restarted via ${unit}.`);
         }
-        if (!restarted) logger.warn('Unable to restart nfs-server or nfs-kernel-server after export reload.');
       }
     },
 
@@ -3829,17 +3876,18 @@ EOF`);
      * @returns {void}
      */
     checkQemuCrossArchSupport(workflow) {
+      // A compiled QEMU in /usr/local/bin comes first, then the one on PATH.
+      const qemuPath = (binary) => {
+        try {
+          fs.accessSync(`/usr/local/bin/${binary}`, fs.constants.X_OK);
+          return `/usr/local/bin/${binary}`;
+        } catch {
+          return shellExec(`command -v ${binary}`, { stdout: true, silent: true, silentOnError: true }).trim() || null;
+        }
+      };
       // Check for QEMU support if building for a different architecture (validator bots case)
       if (workflow.maas.architecture.startsWith('arm64') && process.arch !== 'arm64') {
-        // Building arm64/aarch64 on x86_64 host
-        // Check both /usr/local/bin (compiled) and system paths
-        let qemuAarch64Path = null;
-
-        if (shellExec('test -x /usr/local/bin/qemu-system-aarch64', { silentOnError: true }).code === 0) {
-          qemuAarch64Path = '/usr/local/bin/qemu-system-aarch64';
-        } else if (shellExec('which qemu-system-aarch64', { silentOnError: true }).code === 0) {
-          qemuAarch64Path = shellExec('which qemu-system-aarch64', { stdout: true }).trim();
-        }
+        const qemuAarch64Path = qemuPath('qemu-system-aarch64');
 
         if (!qemuAarch64Path) {
           throw new Error(
@@ -3860,15 +3908,7 @@ EOF`);
           );
         }
       } else if (workflow.maas.architecture.startsWith('amd64') && process.arch !== 'x64') {
-        // Building amd64/x86_64 on aarch64 host
-        // Check both /usr/local/bin (compiled) and system paths
-        let qemuX86Path = null;
-
-        if (shellExec('test -x /usr/local/bin/qemu-system-x86_64', { silentOnError: true }).code === 0) {
-          qemuX86Path = '/usr/local/bin/qemu-system-x86_64';
-        } else if (shellExec('which qemu-system-x86_64', { silentOnError: true }).code === 0) {
-          qemuX86Path = shellExec('which qemu-system-x86_64', { stdout: true }).trim();
-        }
+        const qemuX86Path = qemuPath('qemu-system-x86_64');
 
         if (!qemuX86Path) {
           throw new Error(

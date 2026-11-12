@@ -24,13 +24,21 @@
 import shell from 'shelljs';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
-import { spawn } from 'node:child_process';
+import os from 'node:os';
+import childProcess, { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { loggerFactory, redactSensitiveText } from '../ops/logger.js';
 import clipboard from 'clipboardy';
-import Underpost from '../../index.js';
 import { latchRuntimeError } from './runtime-status.js';
-import { executionDecisionFactory } from '../build/execution.js';
+import {
+  activeExecutionProfile,
+  activeExecutionTarget,
+  EXECUTION_TARGET_ENV_KEY,
+  executionDecisionFactory,
+  targetDecisionFactory,
+  targetIdentityRefusal,
+  VERIFIED_TARGET_ENV_KEY,
+} from '../build/execution.js';
 const logger = loggerFactory(import.meta);
 /**
  * Gets the current working directory, replacing backslashes with forward slashes for consistency.
@@ -171,31 +179,6 @@ class ShellExecError extends Error {
   }
 }
 /**
- * Executes a shell command using shelljs.
- *
- * **Default behaviour is fail-fast**: a non-zero exit code throws
- * `ShellExecError`. Callers that need to branch on the exit code
- * (existence checks, optional commands) must pass `silentOnError: true`
- * to opt out of throwing.
- *
- * The async-callback path is exempt from the throw — shelljs delivers
- * `(code, stdout, stderr)` to the callback, which owns its own error
- * handling.
- *
- * @memberof Process
- * @param {string} cmd - The command string to execute.
- * @param {Object} [options] - Options for execution.
- * @param {boolean} [options.silent=false] - Suppress child stdout/stderr to the parent terminal.
- * @param {boolean} [options.async=false] - Run the command asynchronously (use with `callback`).
- * @param {boolean} [options.stdout=false] - Return stdout string instead of the `ShellString` result object.
- * @param {boolean} [options.disableLog=false] - Skip the `[process] cmd …` info log line.
- * @param {Function} [options.callback=null] - Async callback `(code, stdout, stderr) => void` when `async: true`.
- * @param {boolean} [options.silentOnError=false] - When `true`, swallow non-zero exits and return the `ShellString` instead of throwing. Inverse of the previous `throwOnError` flag.
- * @param {string} [options.cwd] - Hermetic working directory (snapshotted + restored — does NOT leak).
- * @returns {string|shelljs.ShellString} `ShellString` by default; the stdout string when `stdout: true`.
- * @throws {ShellExecError} On non-zero exit when `silentOnError` is not set.
- */
-/**
  * The result a denied read hands back.
  *
  * Shaped as a `ShellString` so an elided command is indistinguishable from one that ran
@@ -222,12 +205,169 @@ const neutralShellResult = () => {
  * @memberof Process
  */
 const executionGate = (cmd, options) => {
-  const decision = executionDecisionFactory(cmd);
-  if (decision.permitted) return null;
+  const decision = executionDecisionFactory(cmd, { privileged: Boolean(options.privileged) });
+  if (decision.refusal) throw Object.assign(new Error(decision.refusal), { expected: true });
+  if (decision.permitted) {
+    targetGate(cmd, decision);
+    return null;
+  }
   logger.info(`[${decision.profile}] elided ${decision.capability}`, redactSensitiveText(cmd));
   return { elided: true, result: options.stdout ? '' : neutralShellResult() };
 };
 
+/**
+ * What the context of a target reaches: its name, its API server and the UID of `kube-system`. These reads
+ * name the context and run outside {@link targetGate}.
+ * @param {Object} target
+ * @returns {{context:string, server:string, fingerprint:string}} '' for a value the cluster does not give.
+ * @memberof Process
+ */
+const liveClusterOf = (target) => {
+  const read = (args) =>
+    `${shell.exec(`kubectl${target.context ? ` --context ${shellArgumentFactory(target.context)}` : ''} ${args}`, { silent: true }).stdout ?? ''}`.trim();
+  return {
+    context: target.context || read('config current-context'),
+    server: read(`config view --minify -o jsonpath='{.clusters[0].cluster.server}'`),
+    fingerprint: read(`get namespace kube-system --request-timeout=10s -o jsonpath='{.metadata.uid}'`),
+  };
+};
+
+/**
+ * Verifies the cluster of the target once per process tree and context, then prints the environment, the
+ * context and its source, the API server, the cluster fingerprint and the execution profile.
+ * @throws {Error} An expected error when the cluster is not the one the target declares.
+ */
+const verifyTarget = (target) => {
+  const verified = process.env[VERIFIED_TARGET_ENV_KEY];
+  if (verified && JSON.parse(verified).context === target.context) return;
+  const live = liveClusterOf(target);
+  const refusal = targetIdentityRefusal(target, live);
+  if (refusal) throw Object.assign(new Error(refusal), { expected: true });
+  process.env[VERIFIED_TARGET_ENV_KEY] = JSON.stringify({ ...live, context: target.context });
+  process.stderr.write(
+    [
+      `Environment  ${target.environment}`,
+      `Context      ${live.context || '(none)'} (${target.source})`,
+      `Cluster      ${live.server || 'unknown server'}` +
+        `${live.fingerprint ? ` (kube-system ${live.fingerprint})` : ', not answering'}` +
+        `${target.cluster ? ', verified' : ', identity not declared'}`,
+      `Profile      ${activeExecutionProfile().name}`,
+      '',
+    ].join('\n'),
+  );
+};
+
+/**
+ * Applies the cluster target of this process to one permitted command: a refused target refuses each
+ * cluster command that does not name its own context, a target with blockers refuses a change, and the
+ * first change verifies the cluster.
+ * @throws {Error} An expected error with the refusal of the target.
+ */
+const targetGate = (cmd, { capability }) => {
+  const { refusal, verify } = targetDecisionFactory(cmd, capability);
+  if (refusal) throw Object.assign(new Error(refusal), { expected: true });
+  if (verify) verifyTarget(activeExecutionTarget());
+};
+
+/**
+ * What a privileged command keeps of its environment through `sudo`, which resets the rest: the cluster
+ * target, and the kubeconfig of the invoking user, so root never reads its own.
+ */
+const PRIVILEGED_ENV_KEYS = Object.freeze(['KUBECONFIG', EXECUTION_TARGET_ENV_KEY, VERIFIED_TARGET_ENV_KEY]);
+
+/**
+ * How this process runs a privileged command: `root` runs it as it is, `interactive` lets `sudo` ask for a
+ * password on the terminal, and `non-interactive` runs `sudo -n`, which refuses instead of asking, in CI and
+ * without a terminal.
+ * @returns {'root'|'interactive'|'non-interactive'}
+ * @memberof Process
+ */
+const elevationFactory = () => {
+  if (process.getuid() === 0) return 'root';
+  const ci = !['', '0', 'false'].includes(`${process.env.CI ?? ''}`.toLowerCase());
+  return process.stdin.isTTY && process.stderr.isTTY && !ci ? 'interactive' : 'non-interactive';
+};
+
+/**
+ * The privilege boundary of an unprivileged process: the `sudo` prefix of {@link elevationFactory}, with the
+ * {@link PRIVILEGED_ENV_KEYS} of the environment of the command. Nothing else elevates.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string[]}
+ * @memberof Process
+ */
+const sudoArgv = (env = process.env) => {
+  const carried = { ...env, KUBECONFIG: env.KUBECONFIG || nodePath.join(os.homedir(), '.kube', 'config') };
+  return [
+    'sudo',
+    ...(elevationFactory() === 'interactive' ? [] : ['-n']),
+    '--',
+    'env',
+    ...PRIVILEGED_ENV_KEYS.filter((key) => carried[key]).map((key) => `${key}=${carried[key]}`),
+  ];
+};
+
+/**
+ * A shell command through the privilege boundary of {@link sudoArgv}.
+ * @param {string} cmd
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string} The command to run.
+ * @memberof Process
+ */
+const privilegedShellCommand = (cmd, env) =>
+  elevationFactory() === 'root' ? cmd : [...sudoArgv(env), '/bin/sh', '-c', cmd].map(shellArgumentFactory).join(' ');
+
+/** What `sudo` prints when it refuses, and what the operator does about it. */
+const SUDO_REFUSALS = Object.freeze([
+  [
+    /a password is required|a terminal is required/,
+    'sudo cannot ask for a password in this session. Run it as root, on a terminal, or grant this user passwordless sudo for it.',
+  ],
+  [
+    /is not in the sudoers file|is not allowed to execute|may not run sudo|incorrect password attempt/,
+    'sudo refuses this user. Run it as root, or grant this user sudo for it.',
+  ],
+  [/sudo: (command )?not found|spawn sudo ENOENT/, 'sudo is not installed. Run it as root.'],
+]);
+
+/**
+ * The error of a privileged command `sudo` refused: what needed root, and how to grant it.
+ * @returns {ShellExecError|null} null when the command itself failed.
+ */
+const privilegeError = (cmd, reason, result) => {
+  const [, remedy] = SUDO_REFUSALS.find(([pattern]) => pattern.test(result.stderr || '')) ?? [];
+  if (!remedy) return null;
+  return Object.assign(new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || ''), {
+    message: `${reason}: this needs root, and ${remedy}`,
+  });
+};
+
+/**
+ * Executes a shell command using shelljs.
+ *
+ * **Default behaviour is fail-fast**: a non-zero exit code throws
+ * `ShellExecError`. Callers that need to branch on the exit code
+ * (existence checks, optional commands) must pass `silentOnError: true`
+ * to opt out of throwing.
+ *
+ * The async-callback path is exempt from the throw — shelljs delivers
+ * `(code, stdout, stderr)` to the callback, which owns its own error
+ * handling.
+ *
+ * @memberof Process
+ * @param {string} cmd - The command string to execute.
+ * @param {Object} [options] - Options for execution.
+ * @param {boolean} [options.silent=false] - Suppress child stdout/stderr to the parent terminal.
+ * @param {boolean} [options.async=false] - Run the command asynchronously (use with `callback`).
+ * @param {boolean} [options.stdout=false] - Return stdout string instead of the `ShellString` result object.
+ * @param {boolean} [options.disableLog=false] - Skip the `[process] cmd …` info log line.
+ * @param {Function} [options.callback=null] - Async callback `(code, stdout, stderr) => void` when `async: true`.
+ * @param {boolean} [options.silentOnError=false] - When `true`, swallow non-zero exits and return the `ShellString` instead of throwing. Inverse of the previous `throwOnError` flag.
+ * @param {string} [options.cwd] - Hermetic working directory (snapshotted + restored — does NOT leak).
+ * @param {string} [options.privileged] - Why the command needs root: it then runs through
+ *   {@link privilegedShellCommand}, as a host write that never reaches the Kubernetes API.
+ * @returns {string|shelljs.ShellString} `ShellString` by default; the stdout string when `stdout: true`.
+ * @throws {ShellExecError} On non-zero exit when `silentOnError` is not set.
+ */
 const shellExec = (cmd, options = {}) => {
   const gated = executionGate(cmd, options);
   if (gated) {
@@ -235,6 +375,8 @@ const shellExec = (cmd, options = {}) => {
     return gated.result;
   }
   if (!options.disableLog) logger.info(`cmd`, redactSensitiveText(cmd));
+  if (options.privileged) logger.info('privileged', { reason: options.privileged, elevation: elevationFactory() });
+  const command = options.privileged ? privilegedShellCommand(cmd, options.env) : cmd;
 
   // Whitelist exactly the keys `shelljs.exec` understands. Passing our own
   // bookkeeping keys through (or a literal `cwd: undefined`) makes shelljs
@@ -263,13 +405,16 @@ const shellExec = (cmd, options = {}) => {
       // Async path. shelljs invokes the callback with (code, stdout, stderr).
       // The callback owns its own error handling; the throw default does
       // not apply here.
-      return shell.exec(cmd, shellOpts, options.callback);
+      return shell.exec(command, shellOpts, options.callback);
     }
-    const result = shell.exec(cmd, shellOpts);
+    const result = shell.exec(command, shellOpts);
 
     if (!options.silentOnError && result && typeof result.code === 'number' && result.code !== 0) {
       latchRuntimeError();
-      throw new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || '');
+      throw (
+        (options.privileged && privilegeError(cmd, options.privileged, result)) ||
+        new ShellExecError(cmd, result.code, result.stdout || '', result.stderr || '')
+      );
     }
 
     return options.stdout ? result.stdout : result;
@@ -342,6 +487,7 @@ const shellSpawn = (cmd, options = {}) => {
   const decision = executionDecisionFactory(cmd);
   if (!decision.permitted)
     throw new Error(`[${decision.profile}] elided ${decision.capability}: a stream has no neutral value`);
+  targetGate(cmd, decision);
   if (!options.disableLog) logger.info(`spawn`, redactSensitiveText(cmd));
   const child = spawn('/bin/sh', ['-c', cmd], {
     cwd: options.cwd,
@@ -366,6 +512,125 @@ const shellSpawn = (cmd, options = {}) => {
   exited.catch(() => {});
   return { child, stdin: child.stdin, stdout: child.stdout, exited };
 };
+
+/**
+ * Runs one program with an argument list and no shell, and resolves when it exits. No argument is
+ * parsed by a shell, so a value cannot inject a command. Use {@link shellExec} only where the
+ * command needs shell syntax.
+ *
+ * The execution profile gates it as it gates {@link shellExec}: an elided command resolves with
+ * empty output and `elided: true`. A non-zero exit, a timeout and an abort reject with {@link ShellExecError}, unless
+ * `silentOnError` resolves the result.
+ * @memberof Process
+ * @param {string} command - The program, resolved on PATH.
+ * @param {string[]} [args] - Its arguments, passed as they are.
+ * @param {Object} [options]
+ * @param {string} [options.cwd]
+ * @param {NodeJS.ProcessEnv} [options.env] - The environment of the child; this process's by default.
+ * @param {string} [options.input] - Written to the stdin of the child, which then closes.
+ * @param {number} [options.timeoutMs] - Stops the child with SIGTERM after this time.
+ * @param {AbortSignal} [options.signal] - Stops the child with SIGTERM when it aborts.
+ * @param {boolean} [options.silentOnError] - Resolve on a non-zero exit instead of rejecting.
+ * @param {boolean} [options.disableLog] - Suppress the command log line.
+ * @param {string} [options.privileged] - Why the program needs root: it runs after {@link sudoArgv}
+ *   unless this process is root.
+ * @returns {Promise<{code:number, stdout:string, stderr:string, elided?:boolean}>}
+ */
+const runCommand = (command, args = [], options = {}) => {
+  const line = [command, ...args].map(shellArgumentFactory).join(' ');
+  const [program, ...argv] =
+    options.privileged && elevationFactory() !== 'root'
+      ? [...sudoArgv(options.env), command, ...args]
+      : [command, ...args];
+  const decision = executionDecisionFactory([command, ...args], { privileged: Boolean(options.privileged) });
+  if (decision.refusal) return Promise.reject(Object.assign(new Error(decision.refusal), { expected: true }));
+  if (!decision.permitted) {
+    logger.info(`[${decision.profile}] elided ${decision.capability}`, redactSensitiveText(line));
+    return Promise.resolve({ code: 0, stdout: '', stderr: '', elided: true });
+  }
+  try {
+    targetGate([command, ...args], decision);
+  } catch (error) {
+    return Promise.reject(error);
+  }
+  if (!options.disableLog) logger.info('run', redactSensitiveText(line));
+  if (options.privileged) logger.info('privileged', { reason: options.privileged, elevation: elevationFactory() });
+  return new Promise((resolve, reject) => {
+    const child = childProcess.spawn(program, argv, {
+      cwd: options.cwd,
+      env: options.env ?? process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: options.timeoutMs,
+      signal: options.signal,
+    });
+    ProcessController.children.add(child);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stderr.on('data', (chunk) => (stderr += chunk));
+    const fail = (code, reason) => {
+      latchRuntimeError();
+      reject(
+        (options.privileged && privilegeError(line, options.privileged, { code, stdout, stderr: reason || stderr })) ||
+          new ShellExecError(line, code, stdout, redactSensitiveText(reason || stderr)),
+      );
+    };
+    child.on('error', (error) => {
+      ProcessController.children.delete(child);
+      fail(-1, error.name === 'AbortError' ? 'aborted' : error.message);
+    });
+    child.on('close', (code, signal) => {
+      ProcessController.children.delete(child);
+      if (code === 0 || (options.silentOnError && code !== null)) return resolve({ code, stdout, stderr });
+      if (code === null)
+        return fail(-1, `stopped by ${signal}${options.timeoutMs ? ` (timeout ${options.timeoutMs}ms)` : ''}`);
+      fail(code);
+    });
+    child.stdin.on('error', () => {});
+    child.stdin.end(options.input ?? '');
+  });
+};
+
+/** One entry of a host account database, as its fields. */
+const getent = (database, name) =>
+  childProcess.execFileSync('getent', [database, name], { encoding: 'utf8' }).trim().split(':');
+
+/**
+ * A user of this host, read from the system user database, never assumed.
+ * @memberof Process
+ * @param {string} name
+ * @returns {{name:string, uid:number, gid:number, home:string}} `gid` is the primary group.
+ * @throws {Error} When the database has no entry for the user.
+ */
+const hostAccount = (name) => {
+  const self = os.userInfo();
+  if (name === self.username) return { name, uid: self.uid, gid: self.gid, home: self.homedir };
+  const [, , uid, gid, , home] = getent('passwd', name);
+  return { name, uid: Number(uid), gid: Number(gid), home };
+};
+
+/**
+ * The ids of an owner as `chown` takes it: `user`, with its primary group, or `user:group`.
+ * @memberof Process
+ * @param {string} owner
+ * @returns {{uid:number, gid:number}}
+ * @throws {Error} When the host databases have no entry for the user or the group.
+ */
+const hostOwner = (owner) => {
+  const [user, group] = `${owner}`.split(':');
+  const { uid, gid } = hostAccount(user);
+  return { uid, gid: group ? Number(getent('group', group)[2]) : gid };
+};
+
+/**
+ * The user a command acts for: the user who ran `sudo` when this process runs as root through it,
+ * else the user of this process.
+ * @memberof Process
+ * @returns {{name:string, uid:number, gid:number, home:string}}
+ * @throws {Error} When the system user database has no entry for the sudo user.
+ */
+const invokingUser = () =>
+  hostAccount(process.getuid() === 0 && process.env.SUDO_USER ? process.env.SUDO_USER : os.userInfo().username);
 
 /**
  * Blocks the calling thread for `ms` milliseconds.
@@ -414,36 +679,282 @@ const shellCd = (cd, options = { disableLog: false }) => {
 const daemonProcess = (cmd) => `exec bash -c '${cmd}; exec tail -f /dev/null'`;
 
 /**
- * Installs a root-owned host file at an explicit mode, reporting whether it changed.
- *
- * Staged then installed rather than written in place: the caller may run
- * unprivileged while the destination is root-owned, and `install -m` sets the
- * mode as it copies, so a 0600 file is never briefly readable at the default
- * umask. Returning the changed flag is what lets callers restart a service only
- * when its unit actually differs.
- *
+ * Runs one file operation on a host path the invoking user may not write: natively in a root process, else
+ * as a shell command through the privilege boundary. The execution profile gates both as a host write.
+ * @param {string} reason - Why the operation needs root.
+ * @param {{native: Function, elevated: string}} operation - The file system call, and the command for `sudo`.
+ * @memberof Process
+ */
+const hostFileOperation = (reason, { native, elevated }) => {
+  if (elevationFactory() !== 'root') return void shellExec(elevated, { silent: true, privileged: reason });
+  const profile = activeExecutionProfile();
+  if (!profile.permits.includes('host:write')) return void logger.info(`[${profile.name}] elided host:write`, reason);
+  logger.info('privileged', { reason, elevation: 'root' });
+  native();
+};
+
+/**
+ * Installs a file as a root-owned host file at an explicit mode. The copy lands under a temporary name, then
+ * replaces the file, so a reader never sees half of it.
+ * @param {object} params
+ * @param {string} params.source - The file to install.
+ * @param {string} params.target - Destination path.
+ * @param {string} [params.mode] - Octal mode.
+ * @memberof Process
+ */
+const installHostFile = ({ source, target, mode = '0644' }) =>
+  hostFileOperation(`installs the root-owned file ${target}`, {
+    native: () => {
+      const sibling = `${target}.underpost-${process.pid}`;
+      fs.mkdirSync(nodePath.dirname(target), { recursive: true });
+      fs.copyFileSync(source, sibling);
+      fs.chmodSync(sibling, Number.parseInt(mode, 8));
+      fs.chownSync(sibling, 0, 0);
+      fs.renameSync(sibling, target);
+    },
+    elevated: `install -D -m ${mode} -o root -g root ${shellArgumentFactory(source)} ${shellArgumentFactory(target)}`,
+  });
+
+/**
+ * Writes a root-owned host file at an explicit mode, and reports whether it changed. The content is staged
+ * at 0600, so it is never readable at the default umask.
  * @param {object} params
  * @param {string} params.target - Destination path.
- * @param {string} params.content - File contents.
+ * @param {string|Buffer} params.content - File contents.
  * @param {string} [params.mode] - Octal mode.
  * @param {boolean} [params.dryRun] - Report the destination instead of writing.
  * @returns {boolean} True when the file changed.
- * @memberof ProcessService
+ * @memberof Process
  */
-const installRootFile = ({ target, content, mode = '0644', dryRun = false }) => {
-  const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
-  if (current === content) return false;
+const writeHostFile = ({ target, content, mode = '0644', dryRun = false }) => {
+  const bytes = Buffer.from(content);
+  let current = null;
+  try {
+    current = fs.readFileSync(target);
+  } catch {
+    // Missing, or unreadable by this user: written either way.
+  }
+  if (current !== null && Buffer.from(current).equals(bytes)) return false;
   if (dryRun) {
-    logger.info(`[dry-run] write ${target} (mode ${mode})`, { bytes: content.length });
+    logger.info(`[dry-run] write ${target} (mode ${mode})`, { bytes: bytes.length });
     return true;
   }
-  const staged = nodePath.join('/tmp', `underpost-root-file-${nodePath.basename(target)}-${process.pid}`);
-  fs.writeFileSync(staged, content, { mode: 0o600 });
-  shellExec(`sudo mkdir -p ${nodePath.dirname(target)}`, { silent: true });
-  shellExec(`sudo install -m ${mode} -o root -g root ${staged} ${target}`, { silent: true });
-  fs.removeSync(staged);
+  const staging = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-host-file-'));
+  const source = nodePath.join(staging, 'content');
+  fs.writeFileSync(source, bytes, { mode: 0o600 });
+  try {
+    installHostFile({ source, target, mode });
+  } finally {
+    fs.removeSync(staging);
+  }
   return true;
 };
+
+/** System trees that a recursive host file operation never takes as its target. */
+const PROTECTED_HOST_PATHS = new Set(
+  [
+    '/',
+    '/bin',
+    '/boot',
+    '/dev',
+    '/etc',
+    '/home',
+    '/lib',
+    '/lib64',
+    '/media',
+    '/mnt',
+    '/opt',
+    '/proc',
+    '/root',
+    '/run',
+    '/sbin',
+    '/srv',
+    '/sys',
+    '/tmp',
+    '/usr',
+    '/usr/bin',
+    '/usr/lib',
+    '/usr/lib64',
+    '/usr/local',
+    '/usr/local/bin',
+    '/usr/sbin',
+    '/var',
+    '/var/lib',
+    '/var/log',
+    '/var/tmp',
+  ].flatMap((path) => [path, fs.existsSync(path) ? fs.realpathSync(path) : path]),
+);
+
+/**
+ * Checks the target of a recursive host file operation: an absolute path, no system tree, and inside `within`
+ * when one is given. Its parent directories are resolved; its last component is not, so a link is the link.
+ * @param {string} target
+ * @param {{operation: string, within?: string}} options
+ * @returns {{path: string, root: string, link: boolean}} `path` is the checked path, `root` the resolved
+ *   `within`.
+ * @throws {Error} Before the operation does anything.
+ * @memberof Process
+ */
+const hostTreeTarget = (target, { operation, within = '' }) => {
+  const refuse = (why) => new Error(`${operation} refuses ${target}: ${why}`);
+  if (typeof target !== 'string' || !nodePath.isAbsolute(target)) throw refuse('give an absolute path below /');
+  const real = (path) => {
+    try {
+      return fs.realpathSync(path);
+    } catch {
+      return path;
+    }
+  };
+  const resolved = nodePath.resolve(target);
+  const path = resolved === '/' ? '/' : nodePath.join(real(nodePath.dirname(resolved)), nodePath.basename(resolved));
+  if (PROTECTED_HOST_PATHS.has(path)) throw refuse(`${path} is a system tree`);
+  const root = within ? real(nodePath.resolve(within)) : '';
+  if (within && (!nodePath.isAbsolute(within) || (path !== root && !path.startsWith(root === '/' ? '/' : `${root}/`))))
+    throw refuse(`it is outside ${within}`);
+  let link = false;
+  try {
+    link = fs.lstatSync(path).isSymbolicLink();
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'EACCES') throw error;
+  }
+  return { path, root, link };
+};
+
+/**
+ * Removes a host path the invoking user may not own, as `rm -rf` does: a missing path is no error, and a link
+ * goes, never what it points at. See {@link hostTreeTarget} for the checks.
+ * @param {string} target - Absolute path.
+ * @param {object} options
+ * @param {string} options.reason - Why the removal needs root.
+ * @param {boolean} [options.contents] - Empty the directory, hidden entries included, and keep it.
+ * @param {string} [options.within] - The directory the target lies in; it stays.
+ * @memberof Process
+ */
+const removeHostPath = (target, { reason, contents = false, within = '' }) => {
+  const { path, root, link } = hostTreeTarget(target, { operation: 'removeHostPath', within });
+  if (contents && link) throw new Error(`removeHostPath refuses ${target}: it is a symbolic link`);
+  if (!contents && path === root) throw new Error(`removeHostPath refuses ${target}: ${within} stays`);
+  const quoted = shellArgumentFactory(path);
+  const entries = () => (contents ? (fs.existsSync(path) ? fs.readdirSync(path) : []) : ['']);
+  hostFileOperation(reason, {
+    native: () => entries().forEach((entry) => fs.rmSync(nodePath.join(path, entry), { recursive: true, force: true })),
+    elevated: contents
+      ? `[ ! -d ${quoted} ] || find ${quoted} -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +`
+      : `rm -rf -- ${quoted}`,
+  });
+};
+
+/**
+ * Creates a host directory and its parents when it is missing, with its mode and owner. An existing directory
+ * keeps both: a workload may have set them.
+ * @param {string} target - Absolute path.
+ * @param {object} options
+ * @param {string} options.reason - Why the directory needs root.
+ * @param {string} [options.mode] - Octal mode.
+ * @param {{uid:number, gid:number}} [options.owner] - Root by default.
+ * @memberof Process
+ */
+const makeHostDirectory = (target, { reason, mode = '0755', owner }) => {
+  if (!nodePath.isAbsolute(`${target}`)) throw new Error(`makeHostDirectory refuses ${target}: give an absolute path`);
+  if (fs.existsSync(target)) return;
+  const quoted = shellArgumentFactory(target);
+  hostFileOperation(reason, {
+    native: () => {
+      fs.mkdirSync(target, { recursive: true });
+      fs.chmodSync(target, Number.parseInt(mode, 8));
+      if (owner) fs.chownSync(target, owner.uid, owner.gid);
+    },
+    elevated: `install -d -m ${mode}${owner ? ` -o ${owner.uid} -g ${owner.gid}` : ''} ${quoted}`,
+  });
+};
+
+/**
+ * Gives a host tree to an owner as `chown -R` does, on its own file system only, so a mount below it stays as it
+ * is. `mode` sets the mode of the tree root; `modes` sets the mode of every directory and every file. See
+ * {@link hostTreeTarget} for the checks.
+ * @param {string} target - Absolute path.
+ * @param {object} options
+ * @param {string} options.reason - Why the change needs root.
+ * @param {{uid:number, gid:number}} [options.owner] - The user of this process by default.
+ * @param {string} [options.mode] - Octal mode of the tree root.
+ * @param {{directory: string, file: string}} [options.modes] - Octal modes of the entries, by type.
+ * @param {string} [options.within] - The directory the target lies in.
+ * @memberof Process
+ */
+const chownHostPath = (
+  target,
+  { reason, owner = { uid: process.getuid(), gid: process.getgid() }, mode = '', modes = null, within = '' },
+) => {
+  const { path } = hostTreeTarget(target, { operation: 'chownHostPath', within });
+  const quoted = shellArgumentFactory(path);
+  const find = `find ${quoted} -xdev`;
+  hostFileOperation(reason, {
+    native: () => {
+      if (!fs.existsSync(path)) return;
+      const { dev } = fs.lstatSync(path);
+      const visit = (entry) => {
+        const stat = fs.lstatSync(entry);
+        if (stat.dev !== dev) return;
+        fs.lchownSync(entry, owner.uid, owner.gid);
+        const entryMode = modes
+          ? stat.isDirectory()
+            ? modes.directory
+            : stat.isFile()
+              ? modes.file
+              : ''
+          : entry === path && !stat.isSymbolicLink()
+            ? mode
+            : '';
+        if (entryMode) fs.chmodSync(entry, Number.parseInt(entryMode, 8));
+        if (stat.isDirectory()) for (const name of fs.readdirSync(entry)) visit(nodePath.join(entry, name));
+      };
+      visit(path);
+    },
+    elevated: `[ ! -e ${quoted} ] || { ${[
+      `${find} -exec chown -h ${owner.uid}:${owner.gid} {} +`,
+      ...(modes
+        ? [`${find} -type d -exec chmod ${modes.directory} {} +`, `${find} -type f -exec chmod ${modes.file} {} +`]
+        : mode
+          ? [`chmod ${mode} ${quoted}`]
+          : []),
+    ].join(' && ')}; }`,
+  });
+};
+
+/**
+ * Moves a host path the invoking user may not own, as `mv` does, across file systems too. The target must not
+ * exist. See {@link hostTreeTarget} for the checks.
+ * @param {string} source - Absolute path.
+ * @param {string} target - Absolute path.
+ * @param {{reason: string}} options
+ * @memberof Process
+ */
+const moveHostPath = (source, target, { reason }) => {
+  const from = hostTreeTarget(source, { operation: 'moveHostPath' });
+  const to = hostTreeTarget(target, { operation: 'moveHostPath' });
+  if (fs.existsSync(to.path)) throw new Error(`moveHostPath refuses ${target}: it exists`);
+  hostFileOperation(reason, {
+    native: () => fs.moveSync(from.path, to.path),
+    elevated: `mv -T -- ${shellArgumentFactory(from.path)} ${shellArgumentFactory(to.path)}`,
+  });
+};
+
+/**
+ * Points a host symbolic link at a source, replacing what the link path held.
+ * @param {string} source - What the link points at.
+ * @param {string} link - The link path.
+ * @param {{reason: string}} options
+ * @memberof Process
+ */
+const linkHostPath = (source, link, { reason }) =>
+  hostFileOperation(reason, {
+    native: () => {
+      fs.rmSync(link, { force: true });
+      fs.symlinkSync(source, link);
+    },
+    elevated: `ln -sfn -- ${shellArgumentFactory(source)} ${shellArgumentFactory(link)}`,
+  });
+
 /**
  * Retrieves the process ID (PID) of the most recently created gnome-terminal instance.
  * Note: This function is environment-specific (GNOME/Linux) and uses `pgrep -n`.
@@ -502,12 +1013,23 @@ function pbcopy(data) {
   logger.info(`copied to clipboard`, { characters: `${content}`.length });
 }
 export {
-  installRootFile,
+  chownHostPath,
+  hostAccount,
+  hostOwner,
+  installHostFile,
+  linkHostPath,
+  makeHostDirectory,
+  moveHostPath,
   ProcessController,
+  removeHostPath,
+  writeHostFile,
   ShellExecError,
   getRootDirectory,
   packageBinPath,
   packageManifestFactory,
+  invokingUser,
+  liveClusterOf,
+  runCommand,
   shellArgumentFactory,
   shellExec,
   shellExecAsync,

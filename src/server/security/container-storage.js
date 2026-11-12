@@ -21,6 +21,9 @@
 import SELinuxService, { runSELinuxCommands, shellArgumentFactory } from './selinux.js';
 import { HOST_VOLUME_ROOT } from '../runtime/environment.js';
 
+/** The `privileged` reason of the storage commands, which run as root. */
+const CONTAINER_STORAGE_PRIVILEGE = 'prepares and labels host storage that containers mount';
+
 /**
  * Host storage preparation and SELinux labeling for container-mounted paths.
  * @class ContainerStorageService
@@ -207,29 +210,25 @@ class ContainerStorageService {
    * mode a workload's init container set (MongoDB's `chown 999:999`, MariaDB's data dir), and
    * this runs on every redeploy.
    * @param {string} path - Absolute directory path.
-   * @param {{mode?: string, owner?: string, sudo?: boolean}} [options]
+   * @param {{mode?: string, owner?: string}} [options]
    * @returns {string} Shell command.
    */
-  static storageDirectoryCommandFactory(
-    path,
-    { mode = ContainerStorageService.DEFAULT_MODE, owner = '', sudo = true } = {},
-  ) {
+  static storageDirectoryCommandFactory(path, { mode = ContainerStorageService.DEFAULT_MODE, owner = '' } = {}) {
     if (!path) throw new TypeError('storageDirectoryCommandFactory requires a path');
-    const prefix = sudo ? 'sudo ' : '';
     const quoted = shellArgumentFactory(path);
     const ownerFlag = owner
       ? ` -o ${shellArgumentFactory(`${owner}`.split(':')[0])}${
           `${owner}`.includes(':') ? ` -g ${shellArgumentFactory(`${owner}`.split(':')[1])}` : ''
         }`
       : '';
-    return `[ -d ${quoted} ] || ${prefix}install -d -m ${mode}${ownerFlag} ${quoted}`;
+    return `[ -d ${quoted} ] || install -d -m ${mode}${ownerFlag} ${quoted}`;
   }
 
   /**
    * Builds the full idempotent preparation for one or more container-mounted storage roots:
    * create when missing, register the persistent `container_file_t` mapping, restore the tree.
    * @param {string|string[]} paths - Absolute directories.
-   * @param {{mode?: string, owner?: string, sudo?: boolean}} [options]
+   * @param {{mode?: string, owner?: string}} [options]
    * @returns {string[]} Commands, in execution order.
    */
   static containerStorageCommandsFactory(paths, options = {}) {
@@ -243,9 +242,7 @@ class ContainerStorageService {
     // a second full relabel pass over the same tree on every deploy.
     return [
       ...requested.map((path) => ContainerStorageService.storageDirectoryCommandFactory(path, options)),
-      ...ContainerStorageService.containerStorageSubtreeCommandsFactory(requested, {
-        sudo: options.sudo !== false,
-      }),
+      ...ContainerStorageService.containerStorageSubtreeCommandsFactory(requested),
     ];
   }
 
@@ -272,14 +269,13 @@ class ContainerStorageService {
    * what makes a volume created later — by kubelet's `DirectoryOrCreate`, or by the local-path
    * helper pod — inherit the right label without another pass.
    * @param {string|string[]} paths - Absolute subtrees to restore.
-   * @param {{roots?: string[], mode?: string, owner?: string, sudo?: boolean}} [options]
+   * @param {{roots?: string[]}} [options]
    * @returns {string[]} Commands, in execution order.
    */
-  static containerStorageSubtreeCommandsFactory(paths, { roots, ...options } = {}) {
+  static containerStorageSubtreeCommandsFactory(paths, { roots } = {}) {
     const subtrees = ContainerStorageService.absoluteStoragePaths(Array.isArray(paths) ? paths : [paths]);
     if (subtrees.length === 0)
       throw new TypeError('containerStorageSubtreeCommandsFactory requires at least one absolute path');
-    const sudo = options.sudo !== false;
     ContainerStorageService.assertSafeStoragePaths(subtrees);
     const mapped = ContainerStorageService.normalizeStorageRoots(
       subtrees.map((path) => ContainerStorageService.coveringRootFactory(path, roots)),
@@ -289,37 +285,36 @@ class ContainerStorageService {
     ContainerStorageService.assertSafeStoragePaths(mapped);
     return [
       ...mapped.map((root) =>
-        SELinuxService.selinuxFileContextCommandFactory(root, {
-          type: ContainerStorageService.SHARED_CONTAINER_TYPE,
-          sudo,
-        }),
+        SELinuxService.selinuxFileContextCommandFactory(root, { type: ContainerStorageService.SHARED_CONTAINER_TYPE }),
       ),
-      SELinuxService.selinuxRestoreconCommandFactory(ContainerStorageService.normalizeStorageRoots(subtrees), {
-        sudo,
-      }),
+      SELinuxService.selinuxRestoreconCommandFactory(ContainerStorageService.normalizeStorageRoots(subtrees)),
     ];
   }
 
   /**
-   * Executes {@link containerStorageSubtreeCommandsFactory}.
+   * Runs {@link containerStorageSubtreeCommandsFactory} on this host, as root.
    * @param {string|string[]} paths - Absolute subtrees.
-   * @param {{execute: Function, roots?: string[], sudo?: boolean}} options
+   * @param {{execute: Function, roots?: string[]}} options - The executor, such as `shellExec`.
    * @returns {*[]} Executor results.
    */
   static ensureContainerStorageSubtree(paths, { execute, ...options } = {}) {
     return runSELinuxCommands(ContainerStorageService.containerStorageSubtreeCommandsFactory(paths, options), {
       execute,
+      privileged: CONTAINER_STORAGE_PRIVILEGE,
     });
   }
 
   /**
-   * Executes {@link containerStorageCommandsFactory}.
+   * Runs {@link containerStorageCommandsFactory} on this host, as root.
    * @param {string|string[]} paths - Absolute directories.
-   * @param {{execute: Function, mode?: string, owner?: string, sudo?: boolean}} options
+   * @param {{execute: Function, mode?: string, owner?: string}} options - The executor, such as `shellExec`.
    * @returns {*[]} Executor results.
    */
   static ensureContainerStorage(paths, { execute, ...options } = {}) {
-    return runSELinuxCommands(ContainerStorageService.containerStorageCommandsFactory(paths, options), { execute });
+    return runSELinuxCommands(ContainerStorageService.containerStorageCommandsFactory(paths, options), {
+      execute,
+      privileged: CONTAINER_STORAGE_PRIVILEGE,
+    });
   }
 
   /**

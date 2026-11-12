@@ -1,5 +1,6 @@
 /**
- * SELinux policy, labeling, and enforcement command helpers.
+ * SELinux policy, labeling, and enforcement command helpers. The commands run as root: this host runs them
+ * through the privilege boundary of its executor, and a provisioned host runs them as its root user.
  *
  * @module src/server/security/selinux.js
  * @namespace SELinuxService
@@ -26,49 +27,42 @@ class SELinuxService {
 
   /**
    * Builds the Rocky/RHEL SELinux userspace installation command.
-   * @param {{sudo?: boolean}} [options]
    * @returns {string}
    */
-  static selinuxPackagesCommandFactory({ sudo = true } = {}) {
-    return `${sudo ? 'sudo ' : ''}dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit`;
+  static selinuxPackagesCommandFactory() {
+    return 'dnf install -y policycoreutils policycoreutils-python-utils selinux-policy-targeted audit';
   }
 
   /**
    * Builds commands that make Enforcing mode persistent and active.
-   * @param {{sudo?: boolean, restorePaths?: string[]}} [options]
+   * @param {{restorePaths?: string[]}} [options]
    * @returns {string[]}
    */
-  static selinuxEnforcingCommandsFactory({ sudo = true, restorePaths = [] } = {}) {
-    const prefix = sudo ? 'sudo ' : '';
+  static selinuxEnforcingCommandsFactory({ restorePaths = [] } = {}) {
     return [
-      `if [ -f /etc/selinux/config ]; then ${prefix}sed -i -E 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config; fi`,
+      `if [ -f /etc/selinux/config ]; then sed -i -E 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config; fi`,
       // A host running with SELinux Disabled has an unlabeled filesystem, so the
       // config flip alone would boot it into Enforcing with nothing labeled.
       // `setenforce` cannot activate the mode from Disabled either: the switch
       // completes on the next boot, and only after this relabel pass.
-      `if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Disabled" ]; then ${prefix}touch /.autorelabel; fi`,
-      ...(restorePaths.length > 0
-        ? [SELinuxService.selinuxRestoreconCommandFactory(restorePaths, { sudo })]
-        : []),
-      `if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then ${prefix}setenforce 1; fi`,
+      `if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Disabled" ]; then touch /.autorelabel; fi`,
+      ...(restorePaths.length > 0 ? [SELinuxService.selinuxRestoreconCommandFactory(restorePaths)] : []),
+      `if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then setenforce 1; fi`,
     ];
   }
 
   /**
    * Builds a command that restores policy-defined file contexts.
    * @param {string|string[]} paths - Files or directories to label.
-   * @param {{recursive?: boolean, sudo?: boolean}} [options]
+   * @param {{recursive?: boolean}} [options]
    * @returns {string}
    */
-  static selinuxRestoreconCommandFactory(paths, { recursive = true, sudo = true } = {}) {
+  static selinuxRestoreconCommandFactory(paths, { recursive = true } = {}) {
     const values = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
     if (values.length === 0) throw new TypeError('selinuxRestoreconCommandFactory requires at least one path');
     const operations = values
       .map(SELinuxService.shellArgumentFactory)
-      .map(
-        (path) =>
-          `{ [ ! -e ${path} ] || ${sudo ? 'sudo ' : ''}restorecon ${recursive ? '-RF ' : ''}${path}; }`,
-      )
+      .map((path) => `{ [ ! -e ${path} ] || restorecon ${recursive ? '-RF ' : ''}${path}; }`)
       .join(' && ');
     return `if command -v restorecon >/dev/null 2>&1; then ${operations}; fi`;
   }
@@ -76,15 +70,14 @@ class SELinuxService {
   /**
    * Builds an idempotent persistent file context mapping.
    * @param {string} path - Directory or file prefix to map.
-   * @param {{type: string, sudo?: boolean}} options
+   * @param {{type: string}} options
    * @returns {string}
    */
-  static selinuxFileContextCommandFactory(path, { type, sudo = true } = {}) {
+  static selinuxFileContextCommandFactory(path, { type } = {}) {
     if (!path) throw new TypeError('selinuxFileContextCommandFactory requires a path');
     if (!type) throw new TypeError('selinuxFileContextCommandFactory requires a type');
-    const prefix = sudo ? 'sudo ' : '';
     const expression = SELinuxService.shellArgumentFactory(`${path}(/.*)?`);
-    return `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for persistent file contexts' >&2; exit 1; }; ${prefix}semanage fcontext -a -t ${type} ${expression} 2>/dev/null || ${prefix}semanage fcontext -m -t ${type} ${expression}; fi`;
+    return `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for persistent file contexts' >&2; exit 1; }; semanage fcontext -a -t ${type} ${expression} 2>/dev/null || semanage fcontext -m -t ${type} ${expression}; fi`;
   }
 
   /**
@@ -94,18 +87,17 @@ class SELinuxService {
    * registered before the files exist so entries created later inherit the
    * shared label instead of requiring another relabel pass.
    * @param {string|string[]} paths - Files or directories to share.
-   * @param {{sudo?: boolean}} [options]
    * @returns {string[]}
    */
-  static selinuxContainerSharedContextCommandsFactory(paths, { sudo = true } = {}) {
+  static selinuxContainerSharedContextCommandsFactory(paths) {
     const values = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
     if (values.length === 0)
       throw new TypeError('selinuxContainerSharedContextCommandsFactory requires at least one path');
     return [
       ...values.map((path) =>
-        SELinuxService.selinuxFileContextCommandFactory(path, { type: SELinuxService.SHARED_CONTAINER_TYPE, sudo }),
+        SELinuxService.selinuxFileContextCommandFactory(path, { type: SELinuxService.SHARED_CONTAINER_TYPE }),
       ),
-      SELinuxService.selinuxRestoreconCommandFactory(values, { sudo }),
+      SELinuxService.selinuxRestoreconCommandFactory(values),
     ];
   }
 
@@ -113,48 +105,47 @@ class SELinuxService {
    * Builds persistent labeling commands for an SSH directory.
    * Standard /root and /home locations already have policy mappings; custom
    * home locations receive an explicit ssh_home_t mapping.
-   * @param {{sshDirectory: string, sudo?: boolean}} options
+   * @param {{sshDirectory: string}} options
    * @returns {string[]}
    */
-  static selinuxSshContextCommandsFactory({ sshDirectory, sudo = true } = {}) {
+  static selinuxSshContextCommandsFactory({ sshDirectory } = {}) {
     if (!sshDirectory) throw new TypeError('selinuxSshContextCommandsFactory requires sshDirectory');
-    const prefix = sudo ? 'sudo ' : '';
     const standard = sshDirectory === '/root/.ssh' || /^\/home\/[^/]+\/\.ssh$/.test(sshDirectory);
     const commands = [];
     if (!standard) {
       const expression = SELinuxService.shellArgumentFactory(`${sshDirectory}(/.*)?`);
       commands.push(
-        `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for a custom SSH home' >&2; exit 1; }; ${prefix}semanage fcontext -a -t ssh_home_t ${expression} 2>/dev/null || ${prefix}semanage fcontext -m -t ssh_home_t ${expression}; fi`,
+        `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for a custom SSH home' >&2; exit 1; }; semanage fcontext -a -t ssh_home_t ${expression} 2>/dev/null || semanage fcontext -m -t ssh_home_t ${expression}; fi`,
       );
     }
-    commands.push(SELinuxService.selinuxRestoreconCommandFactory(sshDirectory, { sudo }));
+    commands.push(SELinuxService.selinuxRestoreconCommandFactory(sshDirectory));
     return commands;
   }
 
   /**
    * Builds an idempotent ssh_port_t assignment for a custom SSH port.
-   * @param {{port?: number|string, sudo?: boolean}} [options]
+   * @param {{port?: number|string}} [options]
    * @returns {string[]}
    */
-  static selinuxSshPortCommandsFactory({ port = 22, sudo = true } = {}) {
+  static selinuxSshPortCommandsFactory({ port = 22 } = {}) {
     const value = Number(port);
     if (!Number.isInteger(value) || value < 1 || value > 65535) throw new RangeError('SSH port must be 1-65535');
     if (value === 22) return [];
-    const prefix = sudo ? 'sudo ' : '';
     return [
-      `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for a custom SSH port' >&2; exit 1; }; ${prefix}semanage port -a -t ssh_port_t -p tcp ${value} 2>/dev/null || ${prefix}semanage port -m -t ssh_port_t -p tcp ${value}; fi`,
+      `if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then command -v semanage >/dev/null 2>&1 || { echo 'semanage is required for a custom SSH port' >&2; exit 1; }; semanage port -a -t ssh_port_t -p tcp ${value} 2>/dev/null || semanage port -m -t ssh_port_t -p tcp ${value}; fi`,
     ];
   }
 
   /**
-   * Executes a generated command list.
+   * Runs a generated command list on this host. Each command needs root, so the executor gets the
+   * `privileged` option with its reason.
    * @param {string[]} [commands]
-   * @param {{execute: Function}} options
+   * @param {{execute: Function, privileged?: string}} options - The executor, such as `shellExec`, and the reason.
    * @returns {*[]}
    */
-  static runSELinuxCommands(commands = [], { execute } = {}) {
+  static runSELinuxCommands(commands = [], { execute, privileged = 'applies SELinux policy' } = {}) {
     if (typeof execute !== 'function') throw new TypeError('runSELinuxCommands requires an executor');
-    return commands.map((command) => execute(command));
+    return commands.map((command) => execute(command, { privileged }));
   }
 }
 

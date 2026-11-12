@@ -35,9 +35,8 @@ ENVOY_NAMESPACE=projectcontour                # ingress namespace (instance TLS 
 ENVOY_SERVICE=envoy                           # ingress service (instance TLS exposure)
 HTTPS_PORT=443                                # local https port for instance TLS exposure
 
-USE_CERT=false                                # runtime: pass --cert to the proxy step
 USE_PULL_BUNDLE=false                         # runtime: include --pull-bundle in the start cmd
-USE_TLS=false                                 # generate self-signed certs + expose over HTTPS
+USE_TLS=false                                 # reconcile TLS (node bin tls) + expose over HTTPS
 USE_TEST_REPO=false                           # runtime: publish src to engine-test-<id> + pod clones it (--private-test-repo)
 DO_BUILD_TEMPLATE=true                        # run `node bin/build.template --update-private`
 DO_CLUSTER_MANIFESTS=true                     # run `node bin run build-cluster-deployment-manifests`
@@ -66,8 +65,7 @@ Common (every default is overridable):
   --https-port <port>           local https port for instance TLS exposure
 
 Toggles (use --x / --no-x):
-  --tls | --no-tls              self-signed certs + HTTPS exposure (default: off)
-  --cert | --no-cert            runtime proxy --cert (default: off)
+  --tls | --no-tls              TLS of the environment (node bin tls reconcile) + HTTPS exposure (default: off)
   --pull-bundle | --no-pull-bundle   runtime start --pull-bundle (default: off)
   --test-repo | --no-test-repo  runtime: publish src to engine-test-<id> and have the
                                 pod clone it via --private-test-repo (default: off)
@@ -116,7 +114,6 @@ while [[ $# -gt 0 ]]; do
     --envoy-service) needval "$@"; ENVOY_SERVICE="$2"; shift 2;; --envoy-service=*) ENVOY_SERVICE="${1#*=}"; shift;;
     --https-port) needval "$@"; HTTPS_PORT="$2"; shift 2;; --https-port=*) HTTPS_PORT="${1#*=}"; shift;;
     --tls) USE_TLS=true; shift;;                          --no-tls) USE_TLS=false; shift;;
-    --cert) USE_CERT=true; shift;;                        --no-cert) USE_CERT=false; shift;;
     --pull-bundle) USE_PULL_BUNDLE=true; shift;;          --no-pull-bundle) USE_PULL_BUNDLE=false; shift;;
     --test-repo) USE_TEST_REPO=true; shift;;              --no-test-repo) USE_TEST_REPO=false; shift;;
     --expose) DO_EXPOSE=true; shift;;                     --no-expose) DO_EXPOSE=false; shift;;
@@ -137,37 +134,17 @@ case "$CLUSTER" in
   *) echo "Unknown --cluster: $CLUSTER (expected kind|kubeadm|k3s|none)" >&2; exit 1;;
 esac
 DEV_FLAG=""; [ "$ENV" = development ] && DEV_FLAG="--dev"
+# Every cluster command reaches the current kubeconfig context; a declared environments.<env>.cluster verifies it.
+TARGET_FLAG="--current-context"
 INSTANCES_CONF="./engine-private/conf/${DEPLOY_ID}/conf.instances.json"
-SERVER_CONF="./engine-private/conf/${DEPLOY_ID}/conf.server.json"
 
 echo "[test-monitor] mode=$MODE env=$ENV deploy=$DEPLOY_ID cluster=${CLUSTER:-none} tls=$USE_TLS test-repo=$USE_TEST_REPO expose=$DO_EXPOSE"
 
 # ─────────────────────────── shared helpers ───────────────────────────
 
-# setup_tls_secrets <host> [<host> …] — regenerate self-signed certs and create
-# the per-host k8s TLS secret the HTTPProxy references (name == host).
-setup_tls_secrets() {
-  local ssl_base="${ENGINE_DIR}/engine-private/ssl"
-  for host in "$@"; do
-    local cert_dir="${ssl_base}/${host}"
-    mkdir -p "$cert_dir"
-    bash "${SCRIPT_DIR}/ssl.sh" "$cert_dir" "$host"
-    local name_safe="${host//[^a-zA-Z0-9_.-]/_}"
-    kubectl delete secret "$host" -n "$NAMESPACE" --ignore-not-found
-    kubectl create secret tls "$host" \
-      --cert="${cert_dir}/${name_safe}.pem" \
-      --key="${cert_dir}/${name_safe}-key.pem" \
-      -n "$NAMESPACE"
-  done
-}
-
-# hosts_from <conf.json> — unique hosts declared in a conf.server.json or conf.instances.json.
-hosts_from() {
-  node -e "
-    const c = require('$1');
-    const hosts = Array.isArray(c) ? c.map(i => i.host) : Object.keys(c);
-    console.log([...new Set(hosts)].join(' '));
-  "
+# reconcile_tls [<option> …] — issue or renew the TLS of every host of the deploy, in the mode of its environment.
+reconcile_tls() {
+  node bin tls reconcile --deploy-id "$DEPLOY_ID" --env "$ENV" $TARGET_FLAG --apply "$@"
 }
 
 # ─────────────────────────── pre-steps ───────────────────────────
@@ -177,7 +154,7 @@ hosts_from() {
 # ─────────────────────────── runtime mode ───────────────────────────
 run_runtime_mode() {
   local link_cmd="cd /home/dd,underpost clone ${TEMPLATE_REPO},cd /home/dd/${TEMPLATE_REPO##*/},npm install,npm link --force"
-  local deploy_cmd proxy_flag="" expose_flags="" start_flags=""
+  local deploy_cmd expose_flags="" start_flags=""
 
   # Publish the local engine src to underpostnet/engine-test-<id> so the pod
   # (started with --private-test-repo) clones this work-in-progress source.
@@ -187,23 +164,20 @@ run_runtime_mode() {
   [ "$USE_TEST_REPO" = true ] && start_flags="${start_flags} --private-test-repo"
   deploy_cmd="${link_cmd},underpost start --build --run${start_flags} ${DEPLOY_ID} ${ENV}"
 
-  [ "$USE_CERT" = true ] && proxy_flag="--cert"
-  [ "$USE_TLS" = true ] && proxy_flag="--self-signed"
-
-  node bin deploy "$DEPLOY_ID" "$ENV" $CLUSTER_FLAG --sync --build-manifest \
+  node bin deploy "$DEPLOY_ID" "$ENV" $CLUSTER_FLAG $TARGET_FLAG --sync --build-manifest \
     --image "$IMAGE" --timeout-response "$TIMEOUT_RESPONSE" --versions "$VERSIONS" --replicas "$REPLICAS" --cmd "$deploy_cmd"
-  node bin deploy "$DEPLOY_ID" "$ENV" $CLUSTER_FLAG --disable-update-proxy $proxy_flag
-  node bin monitor "$DEPLOY_ID" "$ENV" --ready-deployment --promote \
+  node bin deploy "$DEPLOY_ID" "$ENV" $CLUSTER_FLAG $TARGET_FLAG --disable-update-proxy
+  node bin monitor "$DEPLOY_ID" "$ENV" $TARGET_FLAG --ready-deployment --promote \
     --timeout-response "$TIMEOUT_RESPONSE" --versions "$VERSIONS" --replicas "$REPLICAS"
 
   node bin run etc-hosts --deploy-id "$DEPLOY_ID"
 
   if [ "$USE_TLS" = true ]; then
-    setup_tls_secrets $(hosts_from "$SERVER_CONF")
+    reconcile_tls
     expose_flags="--tls"
   fi
   [ "$DO_EXPOSE" = true ] && node bin run expose "${DEPLOY_ID}-${ENV}-traffic-service" --namespace "$NAMESPACE" \
-    --local-proxy $DEV_FLAG $CLUSTER_FLAG $expose_flags
+    --local-proxy $DEV_FLAG $CLUSTER_FLAG $TARGET_FLAG $expose_flags
 }
 
 # ─────────────────────────── instance mode ───────────────────────────
@@ -212,7 +186,6 @@ run_instance_mode() {
   if [ -z "$INSTANCE_IDS" ]; then
     INSTANCE_IDS=$(node -e "console.log(require('$INSTANCES_CONF').map(i=>i.id).join(','))")
   fi
-  local tls_flag=""; [ "$USE_TLS" = true ] && tls_flag="--tls --test"
 
   # `run instance` builds/pulls the image, applies the manifest, monitors with the
   # kubernetes gate (TCP readinessProbe) + exec status, then promotes traffic.
@@ -221,10 +194,11 @@ run_instance_mode() {
     [ -n "$id" ] || continue
     echo "[test-monitor] deploying instance ${DEPLOY_ID},${id}"
     node bin run instance --deploy-id "$DEPLOY_ID" --instance-id "$id" --replicas "$REPLICAS" \
-      $DEV_FLAG $CLUSTER_FLAG --namespace "$NAMESPACE" --etc-hosts $tls_flag \
+      $DEV_FLAG $CLUSTER_FLAG $TARGET_FLAG --namespace "$NAMESPACE" --etc-hosts \
       ${IMAGE:+--image-name "$IMAGE"}
   done
 
+  [ "$USE_TLS" = true ] && reconcile_tls --namespace-workloads "$NAMESPACE"
   [ "$DO_EXPOSE" = true ] || return 0
   if [ "$USE_TLS" = true ]; then
     # Instances are routed by the Contour ingress; port-forward Envoy so the
@@ -235,7 +209,7 @@ run_instance_mode() {
     # Plain HTTP: port-forward each instance service port directly.
     for id in "${ids[@]}"; do
       [ -n "$id" ] || continue
-      node bin run expose "${DEPLOY_ID}-${id}-${ENV}-traffic-service" --namespace "$NAMESPACE" $CLUSTER_FLAG || true
+      node bin run expose "${DEPLOY_ID}-${id}-${ENV}-traffic-service" --namespace "$NAMESPACE" $CLUSTER_FLAG $TARGET_FLAG || true
     done
   fi
 }

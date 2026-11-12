@@ -387,12 +387,10 @@ describe.skipIf(!shipsDeployIds)('every deploy script is written to one shape', 
     }
   });
 
-  it('leaves the shared values to lib/config.sh, so no script carries a copy', () => {
-    // The engine root, the ingress node, the fleet's node names, the ssh key and the WordPress
-    // image were each pasted into a dozen scripts before this.
+  it('leaves the shared values to lib/config.sh and the nodes to conf.cluster.json, so no script carries a copy', () => {
     for (const { id, source } of scripts) {
       expect(source, id).to.not.match(/^ENGINE_ROOT=/m);
-      expect(source, id).to.not.match(/^INGRESS_NODE=/m);
+      expect(source, id).to.not.match(/--node(-name)? |--ingress-node/);
       expect(source, id).to.not.include('/home/dd/engine');
       expect(source, id).to.not.include('hp-envy');
       expect(source, id).to.not.include('underpost/wp:');

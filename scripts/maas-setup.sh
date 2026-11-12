@@ -1,11 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+# Installs and initializes the MAAS region and rack controller of this host.
+# SSH_PUBLIC_KEY_FILE names the key MAAS deploys; ~/.ssh/id_rsa.pub by default.
+[ "$(id -u)" -eq 0 ] || { echo "maas-setup.sh runs as root." >&2; exit 1; }
+
 # Install jq for JSON parsing
-sudo snap install jq
+snap install jq
 
 # Install MAAS
-sudo snap install maas
+snap install maas
 
 # Get default interface and IP address
 INTERFACE=$(ip route | grep default | awk '{print $5}')
@@ -79,7 +83,7 @@ maas "$MAAS_ADMIN_USERNAME" maas set-config name=dnssec_validation value=no
 echo "Setting network discovery interval to 10 minutes..."
 maas "$MAAS_ADMIN_USERNAME" maas set-config name=active_discovery_interval value=600
 
-SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
+SSH_KEY=$(cat "${SSH_PUBLIC_KEY_FILE:-$HOME/.ssh/id_rsa.pub}")
 maas $MAAS_ADMIN_USERNAME sshkeys create "key=$SSH_KEY"
 
 echo "MAAS setup script completed with new configurations."
