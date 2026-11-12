@@ -10,6 +10,8 @@
 | --- | --- |
 | `-V, --version` | output the version number |
 | `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
+| `--context <context>` | The kubeconfig context this command and each command it starts reach, instead of environments.<env>.context of conf.cluster.json. No kubeconfig changes. |
+| `--current-context` | Reach the current kubeconfig context when conf.cluster.json names no context for the environment. The first change verifies the cluster against environments.<env>.cluster and prints it. |
 | `-h, --help` | display help for command |
 
 ## Commands
@@ -35,7 +37,7 @@
 | [`state`](#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
 | [`image`](#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
-| [`db`](#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics. |
+| [`db`](#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, statistics, and collection operations. |
 | [`metadata`](#underpost-metadata) | Manages cluster metadata operations, including import and export. |
 | [`cron`](#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
 | [`fs`](#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |
@@ -45,6 +47,10 @@
 | [`wireguard`](#underpost-wireguard) | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it. |
 | [`haproxy`](#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
 | [`vultr`](#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
+| [`sandbox`](#underpost-sandbox) | The Development Sandbox: a local Kind cluster with MongoDB and Valkey, exposed on 127.0.0.1. It never resets a cluster, a database or a volume, and never stops a process it did not start. |
+| [`namespace`](#underpost-namespace) | Kubernetes placement from engine-private/deploy/conf.cluster.json: the context, the DNS domain and the namespace of each resource, the live cluster against it, and its migration. Capture is not a backup. Only migrate moves a resource: it deletes the source installation, installs it again in its destination and restarts its consumers, one unit at a time; until a unit is ready in its destination every command reaches its source. Nothing here deletes a namespace or rewrites an environment file. |
+| [`tls`](#underpost-tls) | TLS lifecycle: the ACME ClusterIssuer, the cert-manager Certificates, the TLS Secrets and self-signed TLS of the hosts the deployments declare. environments.<env>.tls of conf.cluster.json sets the mode. It never deletes a Certificate or a TLS Secret to renew it, and never changes a workload. |
+| [`ingress`](#underpost-ingress) | Routing: which deployment declares each host, the Gateway or HTTPProxy that serves it, and the routing objects a deployment leaves where it no longer runs. It never removes a shared object or one it cannot prove it owns. |
 | [`run`](#underpost-run) | Runs specified scripts using various runners. |
 | [`test`](#underpost-test) | Runs the test projects locally, inside deployment pods, or as a cluster Job with Allure reporting. |
 | [`docker-compose`](#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |
@@ -76,14 +82,15 @@ Initializes a new Underpost project, service, or configuration.
 | --- | --- |
 | `--deploy-id <deploy-id>` | Create deploy ID conf env files |
 | `--sub-conf <sub-conf>` | Create sub conf env files |
-| `--cluster` | Initialize the base cluster deploy folder engine-private/deploy from ./underpost.config.js |
+| `--cluster` | Initialize the base cluster deploy folder engine-private/deploy from ./underpost.cluster.config.js: the users, WireGuard, event and cron conf files and a conf.cluster.json on one of its profiles. Existing files are kept. |
+| `--placement <profile>` | With --cluster: the built-in profile conf.cluster.json selects. recommended (default): one namespace per responsibility for a new cluster; legacy: every resource where it has always run, to adopt an existing cluster. (default: "recommended") |
 | `--build-repos` | Create deploy ID repositories |
 | `--build` | Build the deployment to pwa-microservices-template (requires --deploy-id) |
 | `--clean-template` | Clean the build directory (pwa-microservices-template) |
 | `--sync-conf` | Sync configuration to private repositories (requires --deploy-id) |
 | `--purge` | Remove deploy ID conf and all related repositories (requires --deploy-id) |
 | `--dev` | Sets the development cli context |
-| `--default-conf` | Create default deploy ID conf env files |
+| `--default-conf` | Write the conf manifest of --deploy-id (underpost.config.<deploy-id>.js) or of --conf-workflow-id (underpost.config.js). |
 | `--conf-workflow-id <workflow-id>` | Set custom configuration workflow ID for conf generation |
 | `-h, --help` | display help for command |
 
@@ -346,7 +353,7 @@ Initiates application servers, build pipelines, or other defined services based 
 | Argument | Description |
 | --- | --- |
 | `deploy-id` | The unique identifier for the deployment configuration. |
-| `env` | Optional: The environment to start (e.g., "development", "production"). Defaults to "development". |
+| `env` | Optional: The environment to start (e.g., "development", "production"). (default: "development") |
 
 ### Options
 
@@ -601,6 +608,19 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 | Option | Description |
 | --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
 | `--reset` | Deletes all clusters and prunes all related data and caches. |
 | `--reset-mongodb` | Performs a hard cleanup of only MongoDB-related resources (StatefulSet, PVCs/PVs, Secrets, ConfigMaps, caches) without restarting the whole node. Combined with --mongodb it instead wipes the retained hostPath volumes as part of that deploy, so the replica set starts from empty data. |
 | `--mariadb` | Initializes the cluster with a MariaDB statefulset. |
@@ -618,10 +638,9 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | `--gateway-class <name>` | GatewayClass name to provision (default "eg"). |
 | `--ingress-node <node-name>` | Dedicated node for underpost-ingress when both routing stacks coexist. Workload placement flags do not move it. |
 | `--node-port` | Exposes enabled ready services (e.g. MongoDB 4.4, Valkey) to the host/public network via their NodePort Service manifest. |
-| `--node-name <k8s-node-name>` | Pins the just-deployed workload (MongoDB 4.4 / Valkey StatefulSets, the observability Deployments) to the given Kubernetes node once it is ready, via a kubernetes.io/hostname nodeSelector. |
-| `--cert-manager` | Initializes the cluster with a Let's Encrypt production ClusterIssuer. |
+| `--node-name <k8s-node-name>` | The Kubernetes node of every resource this run installs; overrides the scheduling of conf.cluster.json. |
+| `--cert-manager` | Installs cert-manager and reconciles the Let's Encrypt ClusterIssuer (node bin tls issuer reconcile). |
 | `--dedicated-gpu` | Initializes the cluster with dedicated GPU base resources and environment settings. |
-| `--ns-use <ns-name>` | Switches the current Kubernetes context to the specified namespace (creates if it doesn't exist). |
 | `--kubeadm` | Initializes the cluster using kubeadm for control plane management. |
 | `--pod-network-cidr <cidr>` | Sets custom pod network CIDR for kubeadm cluster initialization (defaults to "192.168.0.0/16"). |
 | `--control-plane-endpoint <endpoint>` | Sets custom control plane endpoint for kubeadm cluster initialization (defaults to "localhost:6443"). |
@@ -630,7 +649,7 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | `--dev` | Initializes a development-specific cluster configuration. |
 | `--list-pods` | Displays detailed information about all pods. |
 | `--pull-image` | Sets an optional associated image to pull during initialization. |
-| `--init-host` | Installs necessary Kubernetes node CLI tools (e.g., kind, kubeadm, docker, podman, helm). |
+| `--init-host` | Installs the host tools of the cluster runtime named by --kubeadm or --k3s, or of every runtime (docker, podman, cri-o, kind, kubeadm, helm). |
 | `--uninstall-host` | Uninstalls all host components installed by init-host. |
 | `--config` | Sets the base Kubernetes node configuration. |
 | `--chown` | Sets the appropriate ownership for Kubernetes kubeconfig files. |
@@ -638,7 +657,7 @@ Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 | `--hosts <hosts>` | A comma-separated list of cluster hostnames or IP addresses. |
 | `--remove-volume-host-paths` | Removes specified volume host paths after execution. |
 | `--reset-mode <mode>` | Reset mode for --reset --k3s: "drain" (stop services, keep K3s installed) or "full" (uninstall + cleanup). Default: "full". |
-| `--namespace <namespace>` | Kubernetes namespace for cluster operations (defaults to "default"). |
+| `--namespace <namespace>` | The namespace of the workloads; without it, engine-private/deploy/conf.cluster.json places them. Each other resource takes its --namespace-<resource> option. |
 | `--replicas <replicas>` | Sets a custom number of replicas for statefulset deployments. |
 | `-h, --help` | display help for command |
 
@@ -655,22 +674,32 @@ Manages application deployments, defaulting to deploying development pods.
 | Argument | Description |
 | --- | --- |
 | `deploy-list` | A comma-separated list of deployment IDs (e.g., "default-a,default-b"). |
-| `env` | Optional: The environment for deployment (e.g., "development", "production"). Defaults to "development". |
+| `env` | Optional: The environment for deployment (e.g., "development", "production"). (default: "development") |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
 | `--remove` | Deletes specified deployments and their associated services. |
 | `--sync` | Synchronizes deployment environment variables, ports, and replica counts. |
 | `--info-router` | Displays the current router structure and configuration. |
-| `--cert` | Resets TLS/SSL certificate secrets for deployments. |
-| `--cert-hosts <hosts>` | Resets TLS/SSL certificate secrets for specified hosts. |
-| `--self-signed` | Use a pre-created self-signed TLS secret (kubernetes.io/tls) instead of cert-manager. The secret must already exist in the namespace with the same name as the host. Enables TLS in the Contour HTTPProxy virtualhost without requiring a production ClusterIssuer. |
 | `--node <node>` | Sets optional node for deployment operations. |
 | `--ingress-node <node-name>` | Explicitly relocates the shared host-network ingress; ordinary --node placement never moves it. |
 | `--ssh-key-path <path>` | Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa. |
-| `--build-manifest` | Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets. |
+| `--build-manifest` | Builds Kubernetes YAML manifests: deployments, services, volumes, Gateways, routes and proxies. |
 | `--sync-static` | Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready. |
 | `--replicas <replicas>` | Sets a custom number of replicas for deployments. |
 | `--image <image>` | Sets a custom image for deployments. |
@@ -685,7 +714,6 @@ Manages application deployments, defaulting to deploying development pods.
 | `--tcp-probes` | Generates legacy TCP socket probes instead of HTTP internal-status probes (migration). |
 | `--disable-update-proxy` | Disables updates to proxies. |
 | `--disable-deployment-proxy` | Disables proxies of deployments. |
-| `--gateway-api` | Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated; this selects which one is applied. |
 | `--gateway-class <name>` | GatewayClass name for generated Gateway manifests (default "eg"). |
 | `--disable-http3` | Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests. |
 | `--quic-port <port>` | UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443). |
@@ -695,7 +723,7 @@ Manages application deployments, defaulting to deploying development pods.
 | `--kind` | Enables the kind context for deployment operations. |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--disable-update-underpost-config` | Disables updates to Underpost configuration during deployment. |
-| `--namespace <namespace>` | Kubernetes namespace for deployment operations (defaults to "default"). |
+| `--namespace <namespace>` | The namespace of the application workloads; without it, engine-private/deploy/conf.cluster.json places them. |
 | `--cmd <cmd>` | Custom initialization command for deployment (comma-separated commands). |
 | `--skip-full-build` | Skip client bundle rebuild; container will pull pre-built bundle via pull-bundle instead. |
 | `--pull-bundle` | Explicitly pull the pre-built client bundle from Cloudinary inside the container. Use together with --skip-full-build. |
@@ -721,10 +749,10 @@ Workload secret store: SOPS/Age encrypted credentials projected as Kubernetes Se
 | Option | Description |
 | --- | --- |
 | `--env <env>` | Target environment: development \| production \| test (default: production). |
-| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
-| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--namespace <namespace>` | The namespace of the workloads; without it, conf.cluster.json places them. |
+| `--args <key=value-list>` | Comma-separated domain parameters; a list separates its entries with `\|`, e.g. `names=mongodb/credentials\|mongodb/keyfile`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
-| `--force` | Confirms the irreversible variant of the action. |
+| `--force` | Confirms the irreversible variant of the action. For app apply: projects an environment whose endpoint its consumers do not reach. |
 | `-h, --help` | display help for command |
 
 ---
@@ -748,10 +776,10 @@ Host configuration: the node-level operational environment shared by the cluster
 | Option | Description |
 | --- | --- |
 | `--env <env>` | Target environment: development \| production \| test (default: production). |
-| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
-| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--namespace <namespace>` | The namespace of the workloads; without it, conf.cluster.json places them. |
+| `--args <key=value-list>` | Comma-separated domain parameters; a list separates its entries with `\|`, e.g. `names=mongodb/credentials\|mongodb/keyfile`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
-| `--force` | Confirms the irreversible variant of the action. |
+| `--force` | Confirms the irreversible variant of the action. For app apply: projects an environment whose endpoint its consumers do not reach. |
 | `--plain` | Prints the value in plain text (get). |
 | `--filter <keyword>` | Filters by matching key or value (list). |
 | `--copy` | Copies the value to the clipboard (get). |
@@ -776,10 +804,10 @@ Application environment: one deployment's runtime configuration.
 | Option | Description |
 | --- | --- |
 | `--env <env>` | Target environment: development \| production \| test (default: production). |
-| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
-| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--namespace <namespace>` | The namespace of the workloads; without it, conf.cluster.json places them. |
+| `--args <key=value-list>` | Comma-separated domain parameters; a list separates its entries with `\|`, e.g. `names=mongodb/credentials\|mongodb/keyfile`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
-| `--force` | Confirms the irreversible variant of the action. |
+| `--force` | Confirms the irreversible variant of the action. For app apply: projects an environment whose endpoint its consumers do not reach. |
 | `-h, --help` | display help for command |
 
 ---
@@ -803,10 +831,10 @@ Runtime state: live container execution state, health and metrics, exported off-
 | Option | Description |
 | --- | --- |
 | `--env <env>` | Target environment: development \| production \| test (default: production). |
-| `--namespace <namespace>` | Kubernetes namespace to act on (default: default). |
-| `--args <key=value-list>` | Comma-separated domain parameters, e.g. `names=postgres-secret`, `recipient=age1...`, `sub-conf=nexodev`. |
+| `--namespace <namespace>` | The namespace of the workloads; without it, conf.cluster.json places them. |
+| `--args <key=value-list>` | Comma-separated domain parameters; a list separates its entries with `\|`, e.g. `names=mongodb/credentials\|mongodb/keyfile`, `recipient=age1...`, `sub-conf=nexodev`. |
 | `--dry-run` | Reports what the action would change without changing anything. |
-| `--force` | Confirms the irreversible variant of the action. |
+| `--force` | Confirms the irreversible variant of the action. For app apply: projects an environment whose endpoint its consumers do not reach. |
 | `--plain` | Prints the value in plain text (get). |
 | `--filter <keyword>` | Filters by matching key or value (list). |
 | `--copy` | Copies the value to the clipboard (get). |
@@ -839,13 +867,14 @@ Manages Docker images, including building, saving, and loading into Kubernetes c
 | `--kubeadm` | Set kubeadm cluster env image context management. |
 | `--k3s` | Set k3s cluster env image context management. |
 | `--docker-compose` | Load the built image tar into the local Docker store for Docker Compose availability. |
-| `--node-name` | Set node name for kubeadm or k3s cluster env image context management. |
+| `--nodes <node-names>` | Comma-separated Kubernetes nodes that --ls, --rm, --pull-dockerhub, --digest, --release and --import-tar act on, reached through their node identity in engine-private/deploy/nodes. Empty acts on this host, or on kind-worker with --kind. |
+| `--ssh-key-path <path>` | Replaces the registered SSH key of each --nodes peer. |
 | `--reset` | Performs a build without using the cache. |
 | `--dev` | Use development mode. |
 | `--pull-dockerhub <dockerhub-image>` | Sets a custom Docker Hub image for base image pulls. |
-| `--release` | Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here. |
+| `--release` | Container release: print the digest of the image for --revision, pulled from CI (latest) or, with --path, built here, on each --nodes runtime. |
 | `--revision <sha>` | With --release: the exact source revision. |
-| `--digest <reference>` | Pulls an image reference on the node runtime and prints it by digest. |
+| `--digest <reference>` | Pulls an image reference on each node runtime and prints the digest they share. |
 | `--import-tar <tar-path>` | Load a pre-built image tar archive (e.g. ./image-v1.0.0.tar) into the enabled target(s) without building. Combine with --kind, --kubeadm, --k3s and/or --docker-compose; the archive is loaded into each enabled one. |
 | `-h, --help` | display help for command |
 
@@ -867,9 +896,9 @@ Quickly imports Underpost npm dependencies by copying them.
 
 ## underpost db
 
-Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics.
+Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, statistics, and collection operations.
 
-**Usage:** `underpost db [options] [deploy-list]`
+**Usage:** `underpost db [options] [command] [deploy-list]`
 
 ### Arguments
 
@@ -881,10 +910,25 @@ Manages MariaDB and MongoDB databases: sealed backups in the object store, resto
 
 | Option | Description |
 | --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
 | `--export` | Backs up every database of each deployment to the object store. |
 | `--import` | Restores a backup of each deployment (default: the newest available one). |
-| `--backup <backup-id>` | Selects the backup that --import or --verify reads. |
-| `--list` | Lists the backups of each deployment. |
+| `--backup <backup-id>` | Selects the backup that --import, --verify or --inspect reads. |
+| `--list` | Lists the backups of each deployment, newest first, with the UTC time each one started. |
+| `--inspect` | Prints one backup from its manifest, without reading its data: when it was taken, its last verification, and each stream with the collections, documents and indexes it holds. Reads --backup, or the newest available backup; --hosts and --paths keep the streams of those databases. |
+| `--rename-database <from:to>` | With --import or --inspect, restores each database whose name is <from>, or starts with <from>-, under <to>: example-cyberia:cyberia restores example-cyberia-content as cyberia-content. A renamed collection gets a new UUID. Comma-separated pairs. |
 | `--verify` | Reads every part of a backup and checks its checksums, seal and archive inventory. |
 | `--restore-test` | With --verify, restores the backup into an isolated mongod and compares it with its manifest. |
 | `--prune` | Removes the backups that the retention policy no longer keeps. |
@@ -901,15 +945,45 @@ Manages MariaDB and MongoDB databases: sealed backups in the object store, resto
 | `--preserveUUID` | Preserves collection UUIDs on restore (requires --drop). |
 | `--hosts <hosts>` | Comma-separated list of database hosts to filter operations. |
 | `--paths <paths>` | Comma-separated list of paths to filter database operations. |
-| `--ns <ns-name>` | Kubernetes namespace context for database operations (defaults to "default"). |
+| `--namespace <namespace>` | The namespace of the workloads; without it, engine-private/deploy/conf.cluster.json places them. Each database takes its --namespace-<resource> option. |
 | `--clean-fs-collection` | Cleans orphaned File documents from collections that are not referenced by any models. |
 | `--clean-fs-dry-run` | Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection). |
 | `--migrate-stable-slugs` | Assigns every Document its public URL slug (stableSlug) and builds the unique index; idempotent, one-shot. |
-| `--dev` | Sets the development cli context |
+| `--dev` | Uses the development sandbox of this host (underpost sandbox up): its cluster, its MongoDB through the sandbox forward, and the development env. Refused when no sandbox runs. |
 | `--kubeadm` | Enables the kubeadm context for database operations. |
 | `--kind` | Enables the kind context for database operations. |
 | `--k3s` | Enables the k3s context for database operations. |
 | `-h, --help` | display help for command |
+
+### Commands
+
+| Command | Description |
+| --- | --- |
+| `collection` | Inspects, clones, moves and renames one application collection with the File documents it references. Each command prints its plan; --apply writes. Credentials never appear in the output. Outside a container the command reaches the MongoDB primary through a port-forward; with --dev, the MongoDB of the development sandbox. |
+
+---
+
+## underpost db collection
+
+Inspects, clones, moves and renames one application collection with the File documents it references. Each command prints its plan; --apply writes. Credentials never appear in the output. Outside a container the command reaches the MongoDB primary through a port-forward; with --dev, the MongoDB of the development sandbox.
+
+**Usage:** `underpost db collection [options] [command]`
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `-h, --help` | display help for command |
+
+### Commands
+
+| Command | Description |
+| --- | --- |
+| `inspect [options] <collection>` | Reports a collection: documents, indexes, File references, missing Files and relationships. With --target-host, also reports the target. Reads only. |
+| `clone [options] <collection>` | Copies a collection to a target with its _id values, indexes and referenced File documents, then verifies the target. The source stays unchanged. An interrupted clone resumes when the same command runs again. |
+| `move [options] <collection>` | Moves a collection: clones and verifies it, then deletes the source only with --confirm-source-delete. |
+| `rename [options] <collection>` | Renames a collection inside its database. Documents, ids and indexes stay; an existing target name is refused. Update the model or its configuration to read the new name. |
+| `help [command]` | display help for command |
 
 ---
 
@@ -937,7 +1011,7 @@ Manages cluster metadata operations, including import and export.
 | `--instances` | Apply to instance data collection |
 | `--generate` | Generate cluster metadata |
 | `--itc` | Apply under container execution context |
-| `--dev` | Sets the development cli context |
+| `--dev` | Uses the development sandbox of this host (underpost sandbox up): its cluster, its MongoDB through the sandbox forward, and the development env. Refused when no sandbox runs. |
 | `-h, --help` | display help for command |
 
 ---
@@ -959,10 +1033,23 @@ Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manif
 
 | Option | Description |
 | --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
 | `--generate-k8s-cronjobs` | Generates Kubernetes CronJob YAML manifests from cron configuration. |
 | `--apply` | Generates and applies K8s CronJob manifests to the cluster via kubectl (never runs jobs). |
 | `--setup-start` | Updates deploy-list package.json start script and generates+applies its K8s CronJob manifests. |
-| `--namespace <namespace>` | Kubernetes namespace for the CronJob resources (default: "default"). |
+| `--namespace <namespace>` | The namespace of the CronJobs; the operations namespace of conf.cluster.json by default. A copy stays suspended while another namespace runs its schedule. |
 | `--image <image>` | Custom container image for the CronJob pods. |
 | `--node-name <node-name>` | Pins the CronJob pods to this node via a kubernetes.io/hostname nodeSelector. With --apply, defaults to this machine when the cluster knows it as a node, because the pods mount its checkout. |
 | `--cmd <cmd>` | Optional pre-script commands to run before cron execution. |
@@ -1020,7 +1107,7 @@ Manages health server monitoring, the cluster observability stack, and host dash
 | Argument | Description |
 | --- | --- |
 | `deploy-id` | The deployment configuration ID to monitor. With the observability flags it selects which deploys are scraped; "dd" covers every deploy in dd.routes. (default: "dd") |
-| `env` | Optional: The environment to monitor (e.g., "development", "production"). Defaults to "development". |
+| `env` | Optional: The environment to monitor (e.g., "development", "production"). (default: "development") |
 
 ### Options
 
@@ -1055,7 +1142,7 @@ Manages health server monitoring, the cluster observability stack, and host dash
 | `--webhook-token` | Prints the shared event webhook token, to persist as UNDERPOST_EVENT_TOKEN in the host configuration. |
 | `--prune-series` | Deletes Prometheus series of targets the current configuration no longer renders (retired domains and probes). Runs after --sync-prom when both are given. |
 | `--dry-run` | With --prune-series, lists the retired series without deleting them. |
-| `--node-name <k8s-node-name>` | Pins every monitoring workload to this node; moving Grafana deletes and recreates its node-local data. |
+| `--node-name <k8s-node-name>` | The node of the monitoring workloads; overrides the scheduling of conf.cluster.json. Moving Grafana deletes and recreates its node-local data. |
 | `--kubeadm` | Treats the cluster as kubeadm when resolving node and host addresses. |
 | `--kind` | Treats the cluster as Kind (Docker nodes) when resolving node and host addresses. |
 | `--k3s` | Treats the cluster as K3s when resolving node and host addresses. |
@@ -1149,15 +1236,16 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--deploy-id <deploy-id>` | Deploy IDs whose conf.server.json/conf.instances.json define the routes. Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.routes, because the edge holds one pair of map files for the whole cluster. |
 | `--interface <name>` | WireGuard interface name (default: "wg0"). |
 | `--wireguard-install` | Installs the wireguard-tools, haproxy and iptables host packages. |
+| `--wireguard-key` | Creates the key pair of this machine once and prints its public key. Needs no node document, so a new machine runs it before it enrolls. The private key stays in /etc/wireguard. |
 | `--wireguard-setup` | Generates keys, builds the interface config, and applies local network rules. |
 | `--node-config` | Writes a node identity under deploy/nodes, named after the machine it describes. |
 | `--node-name <node-name>` | Node record to write; defaults to this hostname, which is what runtime commands resolve their identity by. |
-| `--node-role <role>` | Machine role: control, worker, or hub. |
+| `--node-role <role>` | Machine role: hub, control, worker or workstation. A workstation is a WireGuard peer for human work: not a Kubernetes node, not synced or repaired by the fleet, and limited by the hub to the workstation port of fleet peers. |
 | `--hub-host <ipv4>` | Static public IPv4 key of the hub topology this node belongs to. |
 | `--port <port>` | WireGuard UDP listening port (default: 51820). |
-| `--cidr <cidr>` | Hub interface address on a hub; overlay subnet routed through the hub on control and worker nodes. |
+| `--cidr <cidr>` | Hub interface address on a hub; overlay subnet routed through the hub on every other role. |
 | `--peer-ip <ip>` | Tunnel address used by --peer-add or to update the selected node during setup. |
-| `--peer-id <peer-id>` | Topology peer represented by a control or worker node identity. |
+| `--peer-id <peer-id>` | Topology peer represented by a node identity of any role but hub. |
 | `--public-key <key>` | Public key used by off-host topology authoring or --peer-add. |
 | `--peer-add <peer-id>` | Registers a spoke and applies it to the running hub without a restart. |
 | `--peer-remove <peer-id>` | Removes a peer from the selected topology and running hub. |
@@ -1177,7 +1265,7 @@ Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
 | `--nodes <node-names>` | Comma-separated node documents --sync, --cmd, --node-exporter and --connect-uri act on. Empty covers every hub and every peer of this node hub. |
 | `--connect-uri` | Prints the SSH command that reaches each node named by --nodes, joining the node document under engine-private/deploy/nodes to the management address it is registered under in engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet. |
-| `--copy` | Copies the --connect-uri output to the clipboard instead of printing it. |
+| `--copy` | Copies the --connect-uri or --wireguard-key output to the clipboard instead of printing it. |
 | `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
@@ -1209,15 +1297,16 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--deploy-id <deploy-id>` | Deploy IDs whose conf.server.json/conf.instances.json define the routes. Accepts one id or a comma-separated list; defaults to "dd", every deploy in dd.routes, because the edge holds one pair of map files for the whole cluster. |
 | `--interface <name>` | WireGuard interface name (default: "wg0"). |
 | `--wireguard-install` | Installs the wireguard-tools, haproxy and iptables host packages. |
+| `--wireguard-key` | Creates the key pair of this machine once and prints its public key. Needs no node document, so a new machine runs it before it enrolls. The private key stays in /etc/wireguard. |
 | `--wireguard-setup` | Generates keys, builds the interface config, and applies local network rules. |
 | `--node-config` | Writes a node identity under deploy/nodes, named after the machine it describes. |
 | `--node-name <node-name>` | Node record to write; defaults to this hostname, which is what runtime commands resolve their identity by. |
-| `--node-role <role>` | Machine role: control, worker, or hub. |
+| `--node-role <role>` | Machine role: hub, control, worker or workstation. A workstation is a WireGuard peer for human work: not a Kubernetes node, not synced or repaired by the fleet, and limited by the hub to the workstation port of fleet peers. |
 | `--hub-host <ipv4>` | Static public IPv4 key of the hub topology this node belongs to. |
 | `--port <port>` | WireGuard UDP listening port (default: 51820). |
-| `--cidr <cidr>` | Hub interface address on a hub; overlay subnet routed through the hub on control and worker nodes. |
+| `--cidr <cidr>` | Hub interface address on a hub; overlay subnet routed through the hub on every other role. |
 | `--peer-ip <ip>` | Tunnel address used by --peer-add or to update the selected node during setup. |
-| `--peer-id <peer-id>` | Topology peer represented by a control or worker node identity. |
+| `--peer-id <peer-id>` | Topology peer represented by a node identity of any role but hub. |
 | `--public-key <key>` | Public key used by off-host topology authoring or --peer-add. |
 | `--peer-add <peer-id>` | Registers a spoke and applies it to the running hub without a restart. |
 | `--peer-remove <peer-id>` | Removes a peer from the selected topology and running hub. |
@@ -1237,7 +1326,7 @@ Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as
 | `--sync` | Brings every registered node engine checkout up to date over its SSH identity: clean, pull, fix and install. |
 | `--nodes <node-names>` | Comma-separated node documents --sync, --cmd, --node-exporter and --connect-uri act on. Empty covers every hub and every peer of this node hub. |
 | `--connect-uri` | Prints the SSH command that reaches each node named by --nodes, joining the node document under engine-private/deploy/nodes to the management address it is registered under in engine-private/deploy/conf.users.json. Empty --nodes lists the whole fleet. |
-| `--copy` | Copies the --connect-uri output to the clipboard instead of printing it. |
+| `--copy` | Copies the --connect-uri or --wireguard-key output to the clipboard instead of printing it. |
 | `--cmd <command-list>` | Comma-separated custom commands to run on the selected nodes over their SSH identity. Given with --sync, only these run in place of the sync steps. |
 | `--node-exporter` | Provisions the host metrics collector as a systemd service on the selected hub nodes, bound to their tunnel address, so machines outside the cluster report hardware metrics like every cluster node. |
 | `--repo-engine <repo>` | Engine repository --sync pulls from, as owner/repo or a clone URL. Defaults to the configured account engine. |
@@ -1289,6 +1378,177 @@ Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress bef
 
 ---
 
+## underpost sandbox
+
+The Development Sandbox: a local Kind cluster with MongoDB and Valkey, exposed on 127.0.0.1. It never resets a cluster, a database or a volume, and never stops a process it did not start.
+
+**Usage:** `underpost sandbox [options] <operation> [cluster-name]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operation` | up: create the Kind cluster when it is missing, provision MongoDB and Valkey when they are missing, and hold their loopback forwards until Ctrl+C; status: the identity, session and service checks (JSON); down: stop the session. |
+| `cluster-name` | The Kind cluster of the Development Sandbox. (default: "kind") |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
+| `--namespace <namespace>` | The namespace of the sandbox services; without it, the development section of conf.cluster.json places each one. |
+| `--ipfs` | For up: also provision and expose the IPFS Cluster (API 5001, Cluster API 9094, gateway 8080). |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost namespace
+
+Kubernetes placement from engine-private/deploy/conf.cluster.json: the context, the DNS domain and the namespace of each resource, the live cluster against it, and its migration. Capture is not a backup. Only migrate moves a resource: it deletes the source installation, installs it again in its destination and restarts its consumers, one unit at a time; until a unit is ready in its destination every command reaches its source. Nothing here deletes a namespace or rewrites an environment file.
+
+**Usage:** `underpost namespace [options] <operation> [action] [name]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operation` | target: the cluster target (environment, context, kubeconfig, runtime, profile) against the live cluster, the identity to declare in environments.<env>.cluster and what refuses a change (exit 3 when refused); status: the cluster, the placement, the state of each resource and endpoint, the blockers and the next command; resolve: the namespace, node, context and source of each placed resource; env: shell assignments for deploy scripts; profile list, profile show <profile>: the placement profiles; nodes, nodes audit: the node groups against the node records and the cluster; nodes identify <record>: record the Kubernetes node of a node record; audit: compare the cluster and the deployment endpoints with the placement (exit 3 on an error); capture: save a read-only, sanitized record of the live cluster; adopt: the placement a capture observes, written with --write-config; plan: plan the migration from a capture to --target; migrate: recreate each unit of a plan in its destination, or one --resource; reconcile: create and label the missing namespaces Underpost owns; repair: reconcile, and suspend the duplicate CronJobs outside the operations namespace. Every change is a server dry run unless --apply. |
+| `action` | For resolve: one placed resource; for profile: list or show; for nodes: audit or identify. |
+| `name` | For profile show: a profile; for nodes identify: a node record of engine-private/deploy/nodes. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
+| `--namespace <namespace>` | The legacy namespace override of the workloads. |
+| `--deploy-id <deploy-id>` | For resolve and env: the deployment whose workloads to place, which a migration can move alone. |
+| `--dev` | Reads the development section of engine-private/deploy/conf.cluster.json. |
+| `--env <env>` | Reads the section of this environment: production, development or test. |
+| `--json` | Prints JSON. |
+| `--capture <id>` | For adopt and plan: a capture id, or latest (the default). |
+| `--map <resource=namespace,...>` | For adopt: the namespace of a resource that runs in more than one. |
+| `--write-config` | For adopt: write the section to conf.cluster.json, after a backup of the file. |
+| `--target <target>` | For plan: recommended (the default), legacy, another profile or configured. |
+| `--kubernetes-node <node>` | For nodes identify: the Kubernetes node of the record. |
+| `--plan <id>` | For migrate: a plan id, or latest (the default). |
+| `--resource <unit>` | For migrate: the one unit to run, for example datastores/mongodb, workloads/dd-core or platform. |
+| `--list` | For migrate: the units of the plan in execution order, with their status. |
+| `--status` | For migrate: the plan, what each unit deletes, keeps and installs, and its journal. |
+| `--verify` | For migrate: the status of each unit, or of --resource, and its source cleanup, from the live cluster. |
+| `--resume` | For migrate: run each unit a run left in progress. |
+| `--confirm-destructive` | For migrate: accept that a unit deletes or discards data. Underpost backs up, copies and restores none. |
+| `--dry-run` | Previews each change, the adoption, or the next operation of each unit. The default. |
+| `--apply` | For reconcile, repair and migrate: make the changes, then verify them; for nodes identify: write the record. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost tls
+
+TLS lifecycle: the ACME ClusterIssuer, the cert-manager Certificates, the TLS Secrets and self-signed TLS of the hosts the deployments declare. environments.<env>.tls of conf.cluster.json sets the mode. It never deletes a Certificate or a TLS Secret to renew it, and never changes a workload.
+
+**Usage:** `underpost tls [options] <operation> [action]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operation` | status: the TLS mode, the issuer and the state of each host; audit: the findings (exit 3 on an error); reconcile: the issuer, the TLS Secret and the Certificate of each host; renew: issue the certificate of each --host again; issuer: the ACME ClusterIssuer. |
+| `action` | For issuer: status (the default) or reconcile. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
+| `--env <env>` | The environment: production (the default), development or test. A change needs it. |
+| `--deploy-id <deploy-ids>` | Comma-separated deployments of dd.routes: each host each one declares. |
+| `--host <hosts>` | Comma-separated hosts, each with the one deployment that declares it. |
+| `--all` | For a change: every deployment of dd.routes. |
+| `--dry-run` | Previews each change as a server dry run. The default. |
+| `--apply` | Makes the changes, then reads the cluster again to verify them. |
+| `--json` | Prints JSON. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost ingress
+
+Routing: which deployment declares each host, the Gateway or HTTPProxy that serves it, and the routing objects a deployment leaves where it no longer runs. It never removes a shared object or one it cannot prove it owns.
+
+**Usage:** `underpost ingress [options] <operation>`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `operation` | status: the routing object of each deployment and the listeners and routes of each host; audit: the findings (exit 3 on an error); reconcile: remove the stale routing of the deployments. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
+| `--env <env>` | The environment: production (the default), development or test. A change needs it. |
+| `--deploy-id <deploy-ids>` | Comma-separated deployments of dd.routes: each host each one declares. |
+| `--host <hosts>` | Comma-separated hosts, each with the one deployment that declares it. |
+| `--all` | For a change: every deployment of dd.routes. |
+| `--dry-run` | Previews each change as a server dry run. The default. |
+| `--apply` | Makes the changes, then reads the cluster again to verify them. |
+| `--json` | Prints JSON. |
+| `-h, --help` | display help for command |
+
+---
+
 ## underpost run
 
 Runs specified scripts using various runners.
@@ -1299,13 +1559,26 @@ Runs specified scripts using various runners.
 
 | Argument | Description |
 | --- | --- |
-| `runner-id` | The runner ID to run. Options: status,expose,dev-cluster,metadata,ipfs-expose,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,set-inotify,sync,net-tables,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,playwright,deploy-job,push-bundle,pull-bundle,verify-bundle,prune-bundles,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
+| `runner-id` | The runner ID to run. Options: status,expose,metadata,svc-ls,svc-rm,node-move,cluster-build,template-deploy,template-deploy-local,docker-image,clean,pull,ssh-deploy,ide,crypto-policy,set-inotify,sync,net-tables,stop,tz,get-traffic,restore-mongo,ingress-refresh,instance-promote,instance,deploy-key,instance-build-manifest,ls-deployments,host-update,install-crio,dd-container,ip-info,db-client,git-conf,promote,cluster,gateway-status,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,kill,generate-pass,gpu-env,tf-gpu-test,playwright,deploy-job,push-bundle,pull-bundle,verify-bundle,prune-bundles,kubeadm-wireguard,build-cluster-deployment-manifests,monitor-ui,shared-dir,shared-dir-add-user. |
 | `path` | The input value, identifier, or path for the operation. |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
+| `--namespace-workloads <namespace>` | The namespace of the application workloads; overrides --namespace and conf.cluster.json. |
+| `--namespace-releases <namespace>` | The namespace of the release Jobs; overrides conf.cluster.json. |
+| `--namespace-platform <namespace>` | The namespace of the Underpost gateway and ingress; overrides conf.cluster.json. |
+| `--namespace-operations <namespace>` | The namespace of the operational CronJobs; overrides conf.cluster.json. |
+| `--namespace-observability <namespace>` | The namespace of the monitoring stack; overrides conf.cluster.json. |
+| `--namespace-mongodb <namespace>` | The namespace of MongoDB; overrides conf.cluster.json. |
+| `--namespace-mariadb <namespace>` | The namespace of MariaDB; overrides conf.cluster.json. |
+| `--namespace-mysql <namespace>` | The namespace of MySQL; overrides conf.cluster.json. |
+| `--namespace-postgresql <namespace>` | The namespace of PostgreSQL; overrides conf.cluster.json. |
+| `--namespace-valkey <namespace>` | The namespace of Valkey; overrides conf.cluster.json. |
+| `--namespace-ipfs <namespace>` | The namespace of IPFS Cluster; overrides conf.cluster.json. |
+| `--namespace-envoy-gateway <namespace>` | The namespace of Envoy Gateway; overrides conf.cluster.json. |
+| `--namespace-cert-manager <namespace>` | The namespace of cert-manager; overrides conf.cluster.json. |
 | `--cmd <command-list>` | Comma-separated list of commands to execute. |
 | `--args <args-array>` | Array of arguments to pass to the command. |
 | `--dev` | Sets the development context environment for the script. |
@@ -1314,7 +1587,7 @@ Runs specified scripts using various runners.
 | `--pod-name <pod-name>` | Optional: Specifies the pod name for execution. |
 | `--node-name <node-name>` | Optional: Specifies the node name for execution. |
 | `--ingress-node <node-name>` | Dedicated node for the host-network underpost-ingress listener. Workload --node-name never relocates it. |
-| `--ssh-key-path <path>` | Optional: Private key path for node SSH operations, forwarded to volume shipping over SSH. Defaults to engine-private/deploy/id_rsa. |
+| `--ssh-key-path <path>` | Optional: replaces the registered SSH key of each remote workload node, for volume shipping, image releases and pre-pulls. |
 | `--port <port>` | Optional: Specifies the port for execution. |
 | `--expose-container-ports <ports>` | Comma-separated Service/container ports; multiple matched resources consume values by resource index. |
 | `--expose-host-ports <ports>` | Comma-separated host ports paired with container ports by resource/port index. |
@@ -1353,13 +1626,13 @@ Runs specified scripts using various runners.
 | `--expose` | Enables exposure-only behavior in compatible runners; the expose runner itself does not require this flag. |
 | `--conf-server-path <conf-server-path>` | Sets a custom configuration server path. |
 | `--underpost-root <underpost-root>` | Sets a custom Underpost root path. |
-| `--cmd-cron-jobs <cmd-cron-jobs>` | Pre-script commands to run before cron job execution. |
+| `--cmd-cron-jobs <cmd-cron-jobs>` | For sync: the pre-script commands each CronJob runs before its jobs (passed to cron --setup-start as --cmd). |
 | `--deploy-id-cron-jobs <deploy-id-cron-jobs>` | Cron deploy-id to set up during sync; defaults to dd.cron, "none" skips cron setup entirely. |
 | `--timezone <timezone>` | Sets the timezone for the runner execution. |
 | `--kubeadm` | Sets the kubeadm cluster context for the runner execution. |
 | `--k3s` | Sets the k3s cluster context for the runner execution. |
 | `--kind` | Sets the kind cluster context for the runner execution. |
-| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote` routes to. `stop` accepts a comma list, e.g. blue,green. |
+| `--traffic <traffic>` | Blue/green traffic colour to bake into generated manifests (default: blue); the colour `promote`, `instance` and `instance-promote` route to. `stop` accepts a comma list, e.g. blue,green. |
 | `--git-clean` | Runs git clean on volume mount paths before copying. |
 | `--deploy-id <deploy-id>` | Sets deploy id context for the runner execution. |
 | `--user <user>` | Sets user context for the runner execution. |
@@ -1373,8 +1646,6 @@ Runs specified scripts using various runners.
 | `--timeout-idle <duration>` | Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity"). |
 | `--retry-count <count>` | Sets HTTPProxy per-route retry count (e.g., 3). |
 | `--retry-per-try-timeout <duration>` | Sets HTTPProxy retry per-try timeout (e.g., "150ms"). |
-| `--gateway-api` | Routes through the Gateway API stack (Gateway + HTTPRoute) instead of the Contour HTTPProxy. Both manifest sets are always generated; this selects which one is applied. |
-| `--disable-gateway-api` | Falls back to the Contour HTTPProxy stack in runners where the Gateway API is the default (cluster). |
 | `--gateway-class <name>` | GatewayClass name for generated Gateway manifests (default "eg"). |
 | `--disable-http3` | Omits the QUIC/HTTP3 listener config and the Alt-Svc advertisement from Gateway API manifests. |
 | `--quic-port <port>` | UDP port advertised for QUIC/HTTP3 in generated Gateway API manifests (default 443). |
@@ -1393,7 +1664,7 @@ Runs specified scripts using various runners.
 | `--skip-full-build` | Skip client bundle rebuild; triggers pull-bundle in container startup (supported by: sync, template-deploy). |
 | `--pull-bundle` | Explicitly download the pre-built client bundle from Cloudinary inside the container (supported by: sync, template-deploy). Use together with --skip-full-build. |
 | `--remove` | Remove/teardown resources |
-| `--test` | Enables test/generic-purpose mode for the runner (e.g. use self-signed TLS instead of cert-manager). |
+| `--test` | Enables test/generic-purpose mode for the runner (e.g. resolve no runtime repository of its own). |
 | `--branch <branch>` | Sets the branch for git operations (default: current branch). |
 | `-h, --help` | display help for command |
 
@@ -1730,7 +2001,7 @@ Source channels, the Release Job and the release store.
 | `--scope <scope>` | For job: the configuration scope whose `app apply` Secret the Job reads, e.g. data-release. |
 | `--set-env <list>` | For job: plain environment values, as KEY=value,KEY=value. |
 | `--node-name <node-name>` | For job: pins the Job to the node that holds the release store. |
-| `--namespace <namespace>` | For job: the Kubernetes namespace. (default: "default") |
+| `--namespace <namespace>` | For job: the namespace of the Job; without it, conf.cluster.json places release Jobs. |
 | `--store <path>` | For job and prune: the release store path on the node. |
 | `--timeout <seconds>` | For job: the deadline of the Job, in seconds. (default: "3600") |
 | `--image-pull-policy <policy>` | For job: Always, IfNotPresent or Never. (default: "IfNotPresent") |

@@ -107,6 +107,8 @@ npm run dev
 | --- | --- |
 | `-V, --version` | output the version number |
 | `--profile <profile>` | Execution profile. One of: LIVE_CLUSTER, HERMETIC_BUILD, OFFLINE_DRY_RUN. LIVE_CLUSTER Full access: cluster and host mutation permitted. HERMETIC_BUILD Build outputs only: no cluster, host or network side effects. OFFLINE_DRY_RUN Nothing executes; every command is reported as intent. |
+| `--context <context>` | The kubeconfig context this command and each command it starts reach, instead of environments.<env>.context of conf.cluster.json. No kubeconfig changes. |
+| `--current-context` | Reach the current kubeconfig context when conf.cluster.json names no context for the environment. The first change verifies the cluster against environments.<env>.cluster and prints it. |
 | `-h, --help` | display help for command |
 
 ### Commands
@@ -132,7 +134,7 @@ npm run dev
 | [`state`](CLI-HELP.md#underpost-state) | Runtime state: live container execution state, health and metrics, exported off-cluster. |
 | [`image`](CLI-HELP.md#underpost-image) | Manages Docker images, including building, saving, and loading into Kubernetes clusters. |
 | [`install`](CLI-HELP.md#underpost-install) | Quickly imports Underpost npm dependencies by copying them. |
-| [`db`](CLI-HELP.md#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, and statistics. |
+| [`db`](CLI-HELP.md#underpost-db) | Manages MariaDB and MongoDB databases: sealed backups in the object store, restores, verification and restore drills, retention, statistics, and collection operations. |
 | [`metadata`](CLI-HELP.md#underpost-metadata) | Manages cluster metadata operations, including import and export. |
 | [`cron`](CLI-HELP.md#underpost-cron) | Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests. |
 | [`fs`](CLI-HELP.md#underpost-fs) | Uploads, pulls, or deletes Cloudinary assets and synchronizes the selected storage manifest. |
@@ -142,6 +144,10 @@ npm run dev
 | [`wireguard`](CLI-HELP.md#underpost-wireguard) | Manages the WireGuard L3 hub-and-spoke transport and the HAProxy edge gateway in front of it. |
 | [`haproxy`](CLI-HELP.md#underpost-haproxy) | Manages the HAProxy edge gateway over the WireGuard transport (same subsystem as `underpost wireguard`). |
 | [`vultr`](CLI-HELP.md#underpost-vultr) | Meters the edge VPS bandwidth against its Vultr plan quota and blocks egress before overage accrues. |
+| [`sandbox`](CLI-HELP.md#underpost-sandbox) | The Development Sandbox: a local Kind cluster with MongoDB and Valkey, exposed on 127.0.0.1. It never resets a cluster, a database or a volume, and never stops a process it did not start. |
+| [`namespace`](CLI-HELP.md#underpost-namespace) | Kubernetes placement from engine-private/deploy/conf.cluster.json: the context, the DNS domain and the namespace of each resource, the live cluster against it, and its migration. Capture is not a backup. Only migrate moves a resource: it deletes the source installation, installs it again in its destination and restarts its consumers, one unit at a time; until a unit is ready in its destination every command reaches its source. Nothing here deletes a namespace or rewrites an environment file. |
+| [`tls`](CLI-HELP.md#underpost-tls) | TLS lifecycle: the ACME ClusterIssuer, the cert-manager Certificates, the TLS Secrets and self-signed TLS of the hosts the deployments declare. environments.<env>.tls of conf.cluster.json sets the mode. It never deletes a Certificate or a TLS Secret to renew it, and never changes a workload. |
+| [`ingress`](CLI-HELP.md#underpost-ingress) | Routing: which deployment declares each host, the Gateway or HTTPProxy that serves it, and the routing objects a deployment leaves where it no longer runs. It never removes a shared object or one it cannot prove it owns. |
 | [`run`](CLI-HELP.md#underpost-run) | Runs specified scripts using various runners. |
 | [`test`](CLI-HELP.md#underpost-test) | Runs the test projects locally, inside deployment pods, or as a cluster Job with Allure reporting. |
 | [`docker-compose`](CLI-HELP.md#underpost-docker-compose) | General-purpose Docker Compose development pipeline (mirrors the Kubernetes dev stack). |

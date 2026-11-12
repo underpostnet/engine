@@ -31,6 +31,16 @@ Comments state the live invariant in ≤1 line. The reader needs current behavio
 - No dead code, no legacy code, and no legacy concepts.
 - Keep responsibilities explicit and avoid introducing abstractions without a concrete ownership boundary.
 
+## File naming conventions
+
+- `src/client/**/*.js`: use `PascalCase.js`. Name the file after its main export: `CyberiaActionService.js`, `Page404.js`.
+- Every other `.js` file: use `kebab-case.js`: `mongoose-db.js`, `io-server.js`.
+- A lowercase dot suffix names a role: `Default.index.js`, `user.service.js`, `core.ws.server.js`.
+- `hardhat/` is an isolated Web3 workspace. Do not rename files in it.
+- These rules apply to file names only. Directory names are ids: `src/client/services/<api-id>/` stays kebab-case.
+- `src/server/site/` clones a client by its PascalCase file names. A client file that breaks the rule breaks the clone.
+- `test/underpost/audit/file-naming.test.js` enforces these rules.
+
 ## Host, LXD, and orchestration safety
 
 - Treat every host-level change as idempotent, reversible, and explicit.
@@ -162,6 +172,6 @@ One commit = one logical theme. No bundling unrelated changes.
 
 - Before `git commit`: scan staged diff. ≥2 themes → unstage, commit each theme separately.
 - Each commit stages the minimum file set needed for that theme. No drive-by edits, no "while I'm here" cleanups.
-- Themes that touch a shared file (`src/api.js`, `src/db/mongo/MongooseDB.js`, `src/projects/cyberia/instance-data.js`): land the feature commits first, then one final "wire X through the runtime" glue commit. Don't merge themes just to avoid the glue commit.
+- Themes that touch a shared file (`src/api.js`, `src/db/mongo/mongoose-db.js`, `src/projects/cyberia/instance-data.js`): land the feature commits first, then one final "wire X through the runtime" glue commit. Don't merge themes just to avoid the glue commit.
 - Commit subject names ONE concern. If you need "and" or "+" to describe it, it's two commits.
 
