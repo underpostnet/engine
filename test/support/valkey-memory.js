@@ -1,5 +1,5 @@
 /**
- * An in-memory stand-in for `src/db/valkey/Valkey.js`, for suites whose real boundary is another
+ * An in-memory stand-in for `src/db/valkey/valkey.js`, for suites whose real boundary is another
  * store. It keeps values as JSON with their expiry, and `setDown(true)` makes every call fail as
  * a lost connection does. Mock the module with `memoryValkeyModule()`.
  *

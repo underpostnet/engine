@@ -188,8 +188,8 @@ const collectionOptions = (metadata) => {
  * @param {Object} params
  * @param {import('mongodb').MongoClient} params.client
  * @param {AsyncIterable<Buffer>} params.source - The archive.
- * @param {(db:string) => string|null} [params.target] - The database a source database restores
- *   into, or null to skip it. Default: the same name.
+ * @param {(db:string, collection:string) => string|null} [params.target] - The database a source
+ *   collection restores into, or null to skip it. Default: the same database.
  * @param {boolean} [params.indexes=true] - Create the indexes of the archive.
  * @param {number} [params.batchSize=500]
  * @returns {Promise<{restored:Object<string,number>, skipped:string[]}>} Documents per target namespace.
@@ -199,7 +199,7 @@ export async function restoreMongoArchive({ client, source, target = (db) => db,
   const restored = {};
   const skipped = new Set();
   const destination = (db, collection) => {
-    const name = db ? target(db) : null;
+    const name = db ? target(db, collection) : null;
     return name ? { db: client.db(name), collection: client.db(name).collection(collection) } : null;
   };
   for await (const event of readMongoArchive(source)) {

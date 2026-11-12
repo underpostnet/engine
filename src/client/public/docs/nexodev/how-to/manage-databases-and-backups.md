@@ -1,7 +1,8 @@
 # DB and Backup Management Guide
 
 This guide documents the `db` command of the Underpost CLI: backups of MariaDB and MongoDB
-databases in the object store, restores, verification, restore drills, retention and statistics.
+databases in the object store, restores, verification, restore drills, retention, statistics, and
+the operations on one application collection.
 
 No Git operation takes part in a backup or a restore. A backup goes to the object store, sealed.
 
@@ -11,8 +12,12 @@ No Git operation takes part in a backup or a restore. A backup goes to the objec
 # Back up every database of a deployment, then apply retention
 underpost db <deploy-id> --export --prune
 
-# List the backups of a deployment
+# List the backups of a deployment, newest first
 underpost db <deploy-id> --list
+
+# Print the collections and documents of the newest backup, or of one
+underpost db <deploy-id> --inspect
+underpost db <deploy-id> --inspect --backup 20261029T101500Z-a1b2c3 --hosts services.cyberiaonline.com
 
 # Restore the newest available backup (drop each collection first)
 underpost db <deploy-id> --import --drop --preserveUUID
@@ -28,6 +33,13 @@ underpost db <deploy-id> --prune --keep 7 --dry-run
 
 # View database statistics
 underpost db <deploy-id> --stats
+
+# Report one collection, its File references and the state of a target
+underpost db collection inspect user --deploy-id dd-core --host www.nexodev.org --target-host underpost.net
+
+# Copy a collection with its File documents and the companies it references
+underpost db collection clone user --source-deploy-id dd-core --source-host www.nexodev.org \
+  --target-host underpost.net --aggregate company --apply
 ```
 
 ## Overview
@@ -82,34 +94,34 @@ underpost db <deploy-list> [options]
 `<deploy-list>` is a comma-separated list of deployment IDs. `dd` selects every routed deployment.
 One deployment that fails does not stop the others; the run fails when any did.
 
-| Option                         | Description                                                                      |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| `--export`                     | Back up every database of each deployment to the object store                    |
-| `--import`                     | Restore a backup of each deployment (the newest available one by default)        |
-| `--backup <backup-id>`         | The backup `--import` or `--verify` reads                                        |
-| `--list`                       | List the backups of each deployment                                              |
-| `--verify`                     | Read every part of a backup and check its checksums, seal and archive inventory  |
-| `--restore-test`               | With `--verify`, restore into an isolated `mongod` and compare with the manifest |
-| `--prune`                      | Remove the backups retention no longer keeps                                     |
-| `--keep <n>`                   | With `--prune`, available backups to keep, newest first                          |
-| `--dry-run`                    | With `--prune`, report and remove nothing                                        |
-| `--trees`                      | With `--import`, also restore the site file trees                                |
-| `--collections <collections>`  | Export or restore only these collections of the host databases                   |
-| `--out-path <out-path>`        | Write or read plain archives in this local directory instead of the object store |
-| `--drop`                       | Drop each collection before restoring it                                         |
-| `--preserveUUID`               | Preserve collection UUIDs on restore (requires `--drop`)                         |
-| `--primary-pod`                | Read dumps from the MongoDB primary instead of a secondary                       |
-| `--stats`                      | Display collection/table names with document/row counts                          |
-| `--pod-name <pod-name>`        | Comma-separated pod names or patterns (`mariadb-*`)                              |
-| `--all-pods`                   | With `--stats`, read every matching pod                                          |
-| `--hosts <hosts>`              | Comma-separated database hosts to include                                        |
-| `--paths <paths>`              | Comma-separated paths to include                                                 |
-| `--ns <ns-name>`               | Kubernetes namespace (`default`)                                                 |
-| `--clean-fs-collection`        | Remove File documents no model references                                        |
-| `--clean-fs-dry-run`           | With `--clean-fs-collection`, report only                                        |
-| `--migrate-stable-slugs`       | Give every Document its public `stableSlug`; idempotent                          |
-| `--dev`                        | Development CLI context                                                          |
-| `--kubeadm`, `--kind`, `--k3s` | Cluster context                                                                  |
+| Option                         | Description                                                                                                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--export`                     | Back up every database of each deployment to the object store                                                                                                 |
+| `--import`                     | Restore a backup of each deployment (the newest available one by default)                                                                                     |
+| `--backup <backup-id>`         | The backup `--import` or `--verify` reads                                                                                                                     |
+| `--list`                       | List the backups of each deployment                                                                                                                           |
+| `--verify`                     | Read every part of a backup and check its checksums, seal and archive inventory                                                                               |
+| `--restore-test`               | With `--verify`, restore into an isolated `mongod` and compare with the manifest                                                                              |
+| `--prune`                      | Remove the backups retention no longer keeps                                                                                                                  |
+| `--keep <n>`                   | With `--prune`, available backups to keep, newest first                                                                                                       |
+| `--dry-run`                    | With `--prune`, report and remove nothing                                                                                                                     |
+| `--trees`                      | With `--import`, also restore the site file trees                                                                                                             |
+| `--collections <collections>`  | Export or restore only these collections of the host databases                                                                                                |
+| `--out-path <out-path>`        | Write or read plain archives in this local directory instead of the object store                                                                              |
+| `--drop`                       | Drop each collection before restoring it                                                                                                                      |
+| `--preserveUUID`               | Preserve collection UUIDs on restore (requires `--drop`)                                                                                                      |
+| `--primary-pod`                | Read dumps from the MongoDB primary instead of a secondary                                                                                                    |
+| `--stats`                      | Display collection/table names with document/row counts                                                                                                       |
+| `--pod-name <pod-name>`        | Comma-separated pod names or patterns (`mariadb-*`)                                                                                                           |
+| `--all-pods`                   | With `--stats`, read every matching pod                                                                                                                       |
+| `--hosts <hosts>`              | Comma-separated database hosts to include                                                                                                                     |
+| `--paths <paths>`              | Comma-separated paths to include                                                                                                                              |
+| `--namespace <namespace>`      | Legacy namespace of the databases and workloads; `--namespace-mongodb` and `--namespace-mariadb` override one ([placement](place-resources-in-namespaces.md)) |
+| `--clean-fs-collection`        | Remove File documents no model references                                                                                                                     |
+| `--clean-fs-dry-run`           | With `--clean-fs-collection`, report only                                                                                                                     |
+| `--migrate-stable-slugs`       | Give every Document its public `stableSlug`; idempotent                                                                                                       |
+| `--dev`                        | Development CLI context                                                                                                                                       |
+| `--kubeadm`, `--kind`, `--k3s` | Cluster context                                                                                                                                               |
 
 ---
 
@@ -151,17 +163,38 @@ the store does not list every part with its size. The backup then reads as `fail
 
 ```bash
 underpost db dd-cyberia --import --drop --preserveUUID
-underpost db dd-cyberia --import --backup 20261029T101500Z-a1b2c3 --hosts www.cyberiaonline.com --paths /
+underpost db dd-cyberia --import --backup 20261029T101500Z-a1b2c3 --hosts services.cyberiaonline.com --paths /
 ```
 
 The import restores every database stream of the selected hosts: the host databases and their
 partition databases. It reads each part, checks it against the manifest, opens it, and pipes the
 plaintext into `mongorestore --archive --gzip` in the client pod. Writes go to the primary.
 
+The import chooses a database stream by its database, never by the host that held it when the
+backup was taken: a backup taken before a host was renamed restores into the renamed host.
+
 - `--drop` drops each collection before restoring it. Without it, documents are inserted.
 - `--collections` restores only those collections.
-- `--trees` also extracts the site file trees into the live pods.
+- `--trees` also extracts the site file trees into the live pods. A tree is chosen by its host path.
 - Without a backup in the store, the import warns and leaves the databases as they are.
+
+### Restore under another name
+
+`--rename-database <from>:<to>` restores each database whose name is `<from>`, or starts with
+`<from>-`, under `<to>`. One pair renames a host database, its partitions and their release
+databases:
+
+```bash
+# example2-cyberia, example2-cyberia-content and example2-cyberia-content-<release> restore as
+# cyberia, cyberia-content and cyberia-content-<release>
+underpost db dd-cyberia --import --hosts services.cyberiaonline.com --rename-database example2-cyberia:cyberia --drop
+```
+
+The configuration names the new databases: the import restores the streams whose new name a
+selected host declares. The source databases stay as they are; drop them yourself once the new
+ones serve. A renamed collection gets a new UUID, because its source keeps the old one:
+`--preserveUUID` applies to the streams that keep their name. `--inspect` takes the same pairs and
+prints the name each stream restores under.
 
 ## Verification and restore drills
 
@@ -186,10 +219,36 @@ each stream, and parses each MongoDB archive to compare its inventory with the m
 A drill never restores over production. The report is stored beside the manifest
 (`verifications/<checked-at>.json`); the manifest stays as it was written.
 
-## List and retention
+## Backup contents
 
 ```bash
 underpost db dd-cyberia --list
+underpost db dd-cyberia --inspect --backup 20261111T010009Z-0a2e8d --hosts services.cyberiaonline.com
+```
+
+`--list` prints each backup, newest first: its status, its id (the UTC second it started), its
+stored size, and `verified` when a verification record exists.
+
+`--inspect` reads one manifest, never the data: the newest available backup, or the one `--backup`
+names. It prints when the backup started, how long it took, its size and expiry, its source, its
+last verification, and each stream with the documents and indexes of every collection:
+
+```text
+backup    20261111T010009Z-0a2e8d  started 2026-11-11 01:00:09 UTC  took 22 s  53.9 MiB stored, 210.4 MiB plain  expires 2026-12-11 01:00:09 UTC
+source    production  context kubernetes-admin@kubernetes  replica set rs0 6744f1c2…  engine v3.4.0
+verified  never
+stream    mongodb-cyberia  mongodb  cyberia  services.cyberiaonline.com/  48.2 MiB
+          cyberia.users                                                      412 documents  4 indexes
+```
+
+`--hosts` and `--paths` keep the streams of the databases those hosts declare. When no stream
+matches, the command names the databases the backup holds; add `--rename-database` for a database
+renamed since the backup. Compare two backups to see when a collection changed, then restore the one
+that holds the data. A new replica set id between two backups means a new MongoDB server.
+
+## List and retention
+
+```bash
 underpost db dd-cyberia --prune --keep 7 --dry-run
 ```
 
@@ -225,6 +284,153 @@ namespace, replica set identity and members, client image, engine version), stor
 (`aes-256-gcm`, key id, part size), every stream (kind, database, tool, format, read preference,
 plaintext size and SHA-256, parts, inventory), totals, timestamps, duration, retention expiry and
 the consistency the profile guarantees.
+
+## Restore a production backup into the development sandbox
+
+`--dev` restores into the MongoDB of the development sandbox of this host, and never into another
+cluster. [Replicate production data](run-a-development-sandbox.md#replicate-production-data) holds
+the workflow:
+
+```bash
+underpost db dd-cyberia --import --dev --backup 20261111T010009Z-0a2e8d --hosts services.cyberiaonline.com --drop
+```
+
+## Collection operations
+
+`underpost db collection` inspects, clones, moves and renames one application collection. The
+argument names the collection, or the API whose model owns it (`user` or `users`). Each command prints
+its plan; only `--apply` writes. No output holds a credential.
+
+| Command                           | What it does                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `inspect <collection>`            | Documents, indexes, File references, missing Files, relationships; reads only |
+| `clone <collection>`              | Copies the collection to a target and verifies it; the source stays unchanged |
+| `move <collection>`               | Clones and verifies; deletes the source only with `--confirm-source-delete`   |
+| `rename <collection> --to <name>` | Renames the collection inside its database; refuses a name that exists        |
+
+### Targets
+
+Outside a container the command reaches the MongoDB primary through a port-forward, because the
+member names resolve only inside the cluster. With `--dev` it reaches the MongoDB of the development
+sandbox through its forward.
+
+A target is a deployment, a host it declares, one path of that host and its database:
+`--deploy-id`, `--host`, `--path` and `--database` for `inspect` and `rename`; `--source-*` and
+`--target-*` for `clone` and `move`. The target deployment is the source deployment unless
+`--target-deploy-id` names another. The command reads `conf.server.json` of the deployment with its
+secrets resolved, and refuses an undeclared host or path. When several paths of a host declare a
+database, the command names them and asks for `--path`. `--database` replaces the configured database
+of the side it names. The model of a partition API reads its partition database; the command reads it
+there too.
+
+`inspect` reports the target state when `--target-host` is given.
+
+### File documents
+
+A clone or a move takes with it each File document that the collection references, through the paths
+of `src/api/file/file.ref.json`. A path may cross nested objects, subdocuments and arrays. The
+command copies the referenced Files only, in bounded batches, with their `_id` and their binary data
+byte for byte. A File the target already holds with the same content counts as copied. A File the
+target holds with other content under the same `_id` stops the operation. A File the source lacks
+stops it before any write. The plan names each one with the document that references it:
+`documents 6765… -> File 6945…`.
+
+`--allow-missing-files` copies such a reference as it is, so the target keeps the defect of the
+source. The plan, the result and the operation record count each one. Repair the document in the
+source when you can.
+
+`--disable-file-sync` copies no File. The command still reads each reference, and refuses the
+operation when the target lacks a referenced File.
+
+`underpost:unit` checks the registry against the schemas: each registered path is a File reference
+of its model, and each File reference of a model is registered.
+
+### Aggregates
+
+No other relationship is followed unless `--aggregate` names it. `--aggregate company` reads the
+references of the collection schema to the `Company` model (`associatedCompanies.company` of
+`user`), and copies only the companies the documents reference, with their Files. An aggregate the
+schema does not reference, a dynamic reference (`refPath`), `file` and the collection itself are
+refused. One level is followed: the aggregate documents bring their Files, never their own aggregates.
+
+### Copy, verification and resumption
+
+Documents go through the native driver in `_id` order, in batches of `--batch-size` documents (500)
+and at most 32 MiB. BSON values keep their types: `ObjectId`, `Binary`, `Date`, `Decimal128`,
+`Long`, `Int32` and `Double`. The target collection gets the indexes and the options of the source
+(collation, validator, capped size) before the first document. A target collection with documents, or
+with an index the source defines another way, blocks the operation. A unique index conflict stops it.
+A view, a time series or a clustered collection is refused.
+
+After the copy, the verification compares every source document with its target copy, every File and
+aggregate document byte for byte, the counts, the indexes and the options.
+
+Each clone or move writes a record in the `underpost-data-operations` collection of the target base
+database: its id, both sides, the collection, the aggregates, the File policy, the counts, the stage,
+the last batch and any failure. Run the same command again to resume an interrupted operation: the
+copy starts again from the first batch, and each document the target already holds is compared, not
+written again.
+
+### Move
+
+A move without `--confirm-source-delete` stops after the verification and leaves the source as it
+is. Stop the writes to the source, then run the command again with the flag. The move verifies again,
+drops the source collection, and deletes each source File that no registered collection of the
+source databases still references. A File that another collection references stays.
+
+### Consistency
+
+No operation is a point-in-time snapshot, and none uses a transaction. A document or a File written
+to the source during an operation may not be part of it. Stop the writes to the source, or schedule a
+maintenance window, before a move.
+
+### A backup as the source
+
+`clone --source-backup-id <backup-id>` reads the source from a `dr` backup of the source deployment.
+The backup must be available, every part listed in the store, and its last recorded verification
+passed. The command restores only the needed collections, part by checked part, into staging databases
+(`underpost-staging-*`) on the target server, clones from them, and drops them on success and failure.
+Neither the backup nor the live source changes. A failed drop is reported.
+
+### Give a site its own database
+
+Two hosts can read one database. To give one of them its own, copy the collections it needs into a
+new database, then point its configuration at it. `underpost.net` read the `nexodev` database of
+`www.nexodev.org`; its users and documents move like this:
+
+```bash
+# conf.server.json of dd-cyberia names env:DB_NAME_UNDERPOST for underpost.net; .env.<env> sets it
+underpost db collection inspect user --deploy-id dd-cyberia --host underpost.net
+underpost db collection clone user --source-deploy-id dd-core --source-host www.nexodev.org \
+  --target-deploy-id dd-cyberia --target-host underpost.net --apply
+underpost db collection clone document --source-deploy-id dd-core --source-host www.nexodev.org \
+  --target-deploy-id dd-cyberia --target-host underpost.net --apply
+```
+
+The File documents of both collections come with them. Clone the users first: the panel lists a
+public document only when its user is an `admin` or a `moderator` of the same database. Deploy the
+host with the new configuration after both clones complete. The source database keeps every
+collection, and each site writes only its own database after the clone.
+
+A host that started on the new database already holds its seeded administrator
+(`DEFAULT_ADMIN_PASSWORD`), and the user clone refuses a target with documents. Stop the host, put
+that collection aside, then clone:
+
+```bash
+underpost db collection rename user --deploy-id dd-cyberia --host underpost.net --to users-seed --apply
+```
+
+Rehearse in the development sandbox with a backup as the source:
+
+```bash
+node bin db collection clone user --dev --source-deploy-id dd-core --source-host www.nexodev.org \
+  --source-backup-id <backup-id> --target-deploy-id dd-cyberia --target-host underpost.net --apply
+```
+
+### Rename
+
+A rename keeps the documents, their ids and the indexes. A File stays where it is. Update the model
+or its configuration to read the new name: the command prints that warning.
 
 ## Monitoring
 
@@ -422,11 +628,11 @@ Credentials are resolved in the following priority:
 
 1. **`env:` reference in JSON** — `conf.server.json` or `conf.cron.json` stores `"env:VAR_NAME"`.
 2. **Environment variable** — `resolveConfSecrets()` resolves the pointer to `process.env.VAR_NAME`.
-3. **Safe built-in default** — the `DefaultConf` in `conf.js` uses `process.env.VAR || 'fallback'` for base defaults.
+3. **Default of the reference** — `"env:VAR_NAME:fallback"` (in `underpost.config.js` or a conf file) gives `fallback` when the variable is unset.
 
 ### Generated Manifest Files (`underpost.config.dd-*.js`)
 
-When `updateDefaultConf()` generates a `underpost.config.dd-*.js` manifest from `conf.server.json`:
+When `writeConfManifest()` (`node bin new --default-conf`) generates a `underpost.config.dd-*.js` manifest from `conf.server.json`:
 
 1. `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated JS file.
 2. Non-sensitive values (arrays, booleans, static strings) are serialized normally.

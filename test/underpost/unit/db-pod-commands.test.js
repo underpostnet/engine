@@ -6,12 +6,16 @@ import { shellArgumentFactory } from '../../../src/server/runtime/process.js';
 import { clientPodManifestFactory } from '../../../src/cli/kubectl.js';
 import {
   backupStreamName,
+  backupStreamsOf,
+  databaseEntryOf,
+  databaseRenamesOf,
   drillMongodCommandFactory,
   inventoryDefects,
   mongoDumpCommandFactory,
   mongoReplicaHostsFactory,
   mongoRestoreCommandFactory,
   mongoShellCommandFactory,
+  renamedDatabase,
 } from '../../../src/cli/db.js';
 
 // The pod shell is the boundary: the suite reads the commands kubectl would send, never a pod.
@@ -99,6 +103,72 @@ describe('database client commands', () => {
     expect(mongoShellCommandFactory({ script: 'print(1)' })).toContain(
       'mongodb://127.0.0.1:27018/?directConnection=true',
     );
+  });
+
+  it('restores the databases of an archive under the names a rename gives them', () => {
+    const argv = podArgv(
+      `kubectl exec -i -n default pod -- sh -c ${shellArgumentFactory(
+        mongoRestoreCommandFactory({
+          hosts: HOSTS,
+          principal: null,
+          namespaces: ['example-cyberia.*'],
+          renames: [{ from: 'example-cyberia', to: 'cyberia' }],
+          drop: true,
+          preserveUUID: true,
+        }),
+      )}`,
+    );
+    expect(argv).toEqual(
+      expect.arrayContaining([
+        '--nsInclude=example-cyberia.*',
+        '--nsFrom=example-cyberia.*',
+        '--nsTo=cyberia.*',
+        '--drop',
+      ]),
+    );
+    // The source collection keeps its UUID on the same server: a renamed copy gets a new one.
+    expect(argv).not.toContain('--preserveUUID');
+  });
+
+  it('renames a database and every database named after it, the longest name first', () => {
+    const renames = databaseRenamesOf('example-cyberia:cyberia, example-cyberia-content:content');
+    expect(renames.map(({ from }) => from)).toEqual(['example-cyberia-content', 'example-cyberia']);
+    expect(renamedDatabase(renames, 'example-cyberia')).toBe('cyberia');
+    expect(renamedDatabase(renames, 'example-cyberia-content-v4-0-0-a1')).toBe('content-v4-0-0-a1');
+    expect(renamedDatabase(renames, 'example-cyberiax')).toBe('example-cyberiax');
+    expect(renamedDatabase([], 'nexodev')).toBe('nexodev');
+    for (const pair of ['cyberia', 'a:b:c', 'a.b:c', ':c'])
+      expect(() => databaseRenamesOf(pair)).toThrow(`--rename-database ${pair} is not <from>:<to>`);
+  });
+
+  it('chooses the streams of a backup by the database they restore into, not by the host that held them', () => {
+    const plan = [
+      { provider: 'mongoose', name: 'cyberia', partitions: ['cyberia-content'], host: 'services.test', path: '/' },
+      { provider: 'mariadb', name: 'shop', partitions: [], host: 'shop.test', path: '/' },
+    ];
+    const manifest = {
+      streams: [
+        { name: 'm1', kind: 'mongodb', database: 'example-cyberia', host: 'www.test', path: '/' },
+        { name: 'm2', kind: 'mongodb', database: 'example-cyberia-content-v4', host: 'www.test', path: '/' },
+        { name: 'm3', kind: 'mongodb', database: 'nexodev', host: 'services.test', path: '/' },
+        { name: 'm4', kind: 'mariadb', database: 'shop', host: 'old.test', path: '/' },
+        { name: 't1', kind: 'tree', host: 'services.test', path: '/' },
+        { name: 't2', kind: 'tree', host: 'www.test', path: '/' },
+      ],
+    };
+    const renames = databaseRenamesOf('example-cyberia:cyberia');
+    const chosen = backupStreamsOf(manifest, plan, { renames, trees: true });
+    expect(chosen.map(({ name, target }) => `${name}:${target ?? ''}`)).toEqual([
+      'm1:cyberia',
+      'm2:cyberia-content-v4',
+      'm4:shop',
+      't1:',
+    ]);
+    expect(backupStreamsOf(manifest, plan).map(({ name }) => name)).toEqual(['m4']);
+    expect(databaseEntryOf(plan, 'cyberia-content')?.name).toBe('cyberia');
+    expect(databaseEntryOf(plan, 'cyberia-contentx')).toBeUndefined();
+    expect(databaseEntryOf(plan, 'shop')).toBeUndefined();
+    expect(databaseEntryOf(plan, 'shop', 'mariadb')?.name).toBe('shop');
   });
 
   it('starts the drill mongod with no TTL monitor, so an expired document still counts as restored', () => {
