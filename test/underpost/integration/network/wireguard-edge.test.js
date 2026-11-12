@@ -805,6 +805,16 @@ describe('edge hub routing', () => {
       expect(nodeIdentityFactory({ role: 'control' }).role).to.equal('control');
       expect(nodeIdentityFactory({ role: 'invalid' }).role).to.equal('');
     });
+
+    it('keeps the Kubernetes node of a machine, which may differ from its document name', () => {
+      expect(nodeIdentityFactory({ role: 'worker', kubernetesNodeName: ' worker-b.lan ' }).kubernetesNodeName).to.equal(
+        'worker-b.lan',
+      );
+      expect(nodeIdentityFactory({ role: 'worker' }).kubernetesNodeName).to.equal('');
+      expect(() => nodeIdentityFactory({ role: 'worker', kubernetesNodeName: 'Worker B' })).to.throw(
+        "'Worker B' is not a Kubernetes node name",
+      );
+    });
   });
 });
 
@@ -1447,26 +1457,47 @@ describe('engine sync', () => {
     });
   });
 
+  /** The progress label of each step, or its command. */
+  const labelsOf = (options) => UnderpostWireguard.API.syncCommands(options).map((step) => step.label ?? step.command);
+
   it('binds every repository placeholder to the configured account', () => {
     process.env.GITHUB_USERNAME = 'someone';
-    const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
-    expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
-    expect(commands.some((command) => command.includes('package.sh'))).to.equal(false);
-    expect(commands).to.include('node bin cmt --switch-repo someone/engine --target-branch master');
-    expect(commands).to.include(
-      'node bin cmt ./engine-private --switch-repo someone/engine-private --target-branch main',
-    );
+    const steps = UnderpostWireguard.API.syncCommands();
+    expect(steps.map((step) => `${step.label ?? ''} ${step.command}`).join('\n')).to.not.match(/<[a-z-]+>/);
+    expect(steps.some(({ command }) => command.includes('package.sh'))).to.equal(false);
+    expect(labelsOf()).to.include('switch . to someone/engine master');
+    expect(labelsOf()).to.include('switch ./engine-private to someone/engine-private main');
+  });
+
+  it('switches both checkouts with git alone, before the node runs any command of its own CLI', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    process.env.GITHUB_TOKEN = 'github-token-fixture';
+    const steps = UnderpostWireguard.API.syncCommands();
+    const firstCli = steps.findIndex(({ command }) => command.startsWith('node bin'));
+    const switches = steps.slice(0, 2);
+    expect(switches.map(({ label }) => label)).to.deep.equal([
+      'switch ./engine-private to someone/engine-private main',
+      'switch . to someone/engine master',
+    ]);
+    expect(firstCli).to.be.greaterThan(steps.findIndex(({ command }) => command === 'npm install'));
+    for (const { command, halt } of switches) {
+      expect(halt).to.equal(true);
+      expect(command).to.not.include('node bin');
+      // The credential lives in a subshell, and the token only as the header git reads.
+      expect(command).to.match(/^\( export GIT_TERMINAL_PROMPT='0' /);
+      expect(command).to.include("GIT_CONFIG_KEY_1='http.https://github.com/.extraheader'");
+      expect(command).to.not.include('github-token-fixture');
+      expect(command).to.match(/ clean -f -d && .* fetch --force .* reset --hard FETCH_HEAD && .* checkout -B /);
+    }
   });
 
   it('pulls the named engine while the private repository follows the account', () => {
     process.env.GITHUB_USERNAME = 'someone';
     const commands = UnderpostWireguard.API.syncCommands({
       repoEngine: 'https://github.com/underpostnet/engine.git',
-    }).map((step) => step.command);
-    expect(commands).to.include('node bin cmt --switch-repo underpostnet/engine --target-branch master');
-    expect(commands).to.include(
-      'node bin cmt ./engine-private --switch-repo underpostnet/engine-private --target-branch main',
-    );
+    }).map((step) => step.label ?? step.command);
+    expect(commands).to.include('switch . to underpostnet/engine master');
+    expect(commands).to.include('switch ./engine-private to underpostnet/engine-private main');
   });
 
   it('overrides the private repository with --repo-engine-private', () => {
@@ -1474,11 +1505,9 @@ describe('engine sync', () => {
     const commands = UnderpostWireguard.API.syncCommands({
       repoEngine: 'https://github.com/underpostnet/engine.git',
       repoEnginePrivate: 'https://github.com/underposnet/engine-core-private.git',
-    }).map((step) => step.command);
-    expect(commands).to.include('node bin cmt --switch-repo underpostnet/engine --target-branch master');
-    expect(commands).to.include(
-      'node bin cmt ./engine-private --switch-repo underposnet/engine-core-private --target-branch main',
-    );
+    }).map((step) => step.label ?? step.command);
+    expect(commands).to.include('switch . to underpostnet/engine master');
+    expect(commands).to.include('switch ./engine-private to underposnet/engine-core-private main');
   });
 
   it('runs only --cmd in place of the sync sequence, no placeholders unresolved', () => {
@@ -1486,7 +1515,7 @@ describe('engine sync', () => {
     const commands = UnderpostWireguard.API.syncCommands({ cmd: 'uptime, hostname -I' }).map((step) => step.command);
     expect(commands).to.deep.equal(['uptime', 'hostname -I']);
     expect(commands.join('\n')).to.not.match(/<[a-z-]+>/);
-    expect(commands).to.not.include('node bin cmt --switch-repo');
+    expect(commands.some((command) => command.includes('checkout -B'))).to.equal(false);
   });
 
   it('labels a --cmd fleet run as a command, not a sync', () => {
@@ -1500,21 +1529,20 @@ describe('engine sync', () => {
   it('names the branch the node must fetch instead of letting it guess', () => {
     process.env.GITHUB_USERNAME = 'someone';
     Underpost.repo.getDefaultBranch = () => 'trunk';
-    expect(UnderpostWireguard.API.syncCommands().map((step) => step.command)).to.include(
-      'node bin cmt --switch-repo someone/engine --target-branch trunk',
-    );
+    expect(labelsOf()).to.include('switch . to someone/engine trunk');
+    expect(UnderpostWireguard.API.syncCommands()[1].command).to.include('checkout -B trunk FETCH_HEAD');
   });
 
   it('reaches a node once, chaining every declared step in order', () => {
     process.env.GITHUB_USERNAME = 'someone';
     const script = UnderpostWireguard.API.syncScript();
-    const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
-    expect(script.match(/echo '\[sync\] /g) || []).to.have.lengthOf(commands.length);
+    const steps = UnderpostWireguard.API.syncCommands();
+    expect(script.match(/echo '\[sync\] /g) || []).to.have.lengthOf(steps.length);
     expect(script).to.not.include(';\n');
     let cursor = -1;
-    for (const command of commands) {
-      const at = script.indexOf(`echo '[sync] ${redactSensitiveText(command)}'`);
-      expect(at, command).to.be.greaterThan(cursor);
+    for (const { command, label = command } of steps) {
+      const at = script.indexOf(`echo ${shellArgumentFactory(`[sync] ${redactSensitiveText(label)}`)} && `);
+      expect(at, label).to.be.greaterThan(cursor);
       cursor = at;
     }
   });
@@ -1557,6 +1585,23 @@ describe('engine sync', () => {
     for (const nodeRole of ['control', 'worker', '']) expect(proxy(nodeRole), nodeRole).to.equal(undefined);
   });
 
+  it('reconciles the hub tunnel before the services that bind its address', () => {
+    process.env.GITHUB_USERNAME = 'someone';
+    const commands = UnderpostWireguard.API.syncCommands({ nodeRole: 'hub' });
+    const tunnel = commands.findIndex((step) => step.command === 'node bin wireguard --wireguard-setup');
+
+    expect(tunnel).to.be.greaterThan(
+      commands.findIndex((step) => step.command.startsWith('node bin host set ENGINE_SRC_PRIVATE_REPO')),
+    );
+    expect(tunnel).to.be.lessThan(commands.findIndex((step) => step.command.includes('forward-proxy')));
+    expect(commands[tunnel].halt).to.equal(false);
+    for (const nodeRole of ['control', 'worker', ''])
+      expect(
+        UnderpostWireguard.API.syncCommands({ nodeRole }).some((step) => step.command.includes('--wireguard-setup')),
+        nodeRole,
+      ).to.equal(false);
+  });
+
   it('acts on the unit file rather than on the unit being active', () => {
     process.env.GITHUB_USERNAME = 'someone';
     // Regression: guarding on `is-active` skipped exactly the dispatcher that needs the restart,
@@ -1575,16 +1620,14 @@ describe('engine sync', () => {
     // deploy/lib/host.sh reads these back out of the host configuration store to decide which
     // source a later `prepare_host` pulls from; without them the node's own deploy scripts
     // prepare it from their built-in default and undo the switch.
-    const commands = UnderpostWireguard.API.syncCommands({
-      repoEngine: 'underpostnet/engine-test-cyberia',
-    }).map((step) => step.command);
-    const at = (command) => commands.indexOf(command);
+    const labels = labelsOf({ repoEngine: 'underpostnet/engine-test-cyberia' });
+    const at = (command) => labels.indexOf(command);
 
     expect(at('node bin host set ENGINE_SRC_REPO underpostnet/engine-test-cyberia')).to.be.greaterThan(
-      at('node bin cmt --switch-repo underpostnet/engine-test-cyberia --target-branch master'),
+      labels.indexOf('switch . to underpostnet/engine-test-cyberia master'),
     );
     expect(at('node bin host set ENGINE_SRC_PRIVATE_REPO underpostnet/engine-cyberia-private')).to.be.greaterThan(
-      at('node bin cmt --switch-repo underpostnet/engine-test-cyberia --target-branch master'),
+      labels.indexOf('switch . to underpostnet/engine-test-cyberia master'),
     );
   });
 
@@ -1622,41 +1665,25 @@ describe('engine sync', () => {
     },
   );
 
-  it('installs after the source switch with no CLI step in between', () => {
+  it('installs right after the source switch, before any step of the CLI', () => {
     process.env.GITHUB_USERNAME = 'someone';
-    // Regression: the conf switch sat between the source switch and the install, so it ran the
-    // freshly landed source against the previous `node_modules` and died importing a dependency
-    // that switch had just added. Every step here is the node's own CLI, so none of them may
-    // observe a checkout whose packages predate it.
+    // Every later step is the node's own CLI, so none of them may observe a checkout whose packages
+    // predate it, and the install reads the manifest the conf switch lands.
     for (const repoEngine of ['underpostnet/engine', 'underpostnet/engine-test-cyberia']) {
-      const commands = UnderpostWireguard.API.syncCommands({ repoEngine, nodeRole: 'control' }).map(
-        (step) => step.command,
-      );
-      const switchAt = commands.findIndex(
-        (command) => command.startsWith('node bin cmt --switch-repo') && !command.includes('./engine-private'),
-      );
-      const installAt = commands.findIndex(
-        (command, index) => index > switchAt && (command.startsWith('bash ') || command === 'npm install'),
-      );
-
-      expect(switchAt, repoEngine).to.be.greaterThan(-1);
-      expect(installAt, repoEngine).to.equal(switchAt + 1);
-      // The conf switch has to precede it, since the install reads the manifest that switch lands.
+      const steps = UnderpostWireguard.API.syncCommands({ repoEngine, nodeRole: 'control' });
+      const labels = steps.map((step) => step.label ?? step.command);
+      const switchAt = labels.findIndex((label) => label.startsWith('switch . to'));
       expect(
-        commands.findIndex((command) => command.includes('./engine-private --switch-repo')),
+        labels.findIndex((label) => label.startsWith('switch ./engine-private to')),
         repoEngine,
-      ).to.be.lessThan(switchAt);
+      ).to.equal(0);
+      expect(switchAt, repoEngine).to.equal(1);
+      expect(labels[switchAt + 1], repoEngine).to.match(/^bash |^npm install$/);
+      expect(
+        steps.slice(0, switchAt + 2).some(({ command }) => command.startsWith('node bin')),
+        repoEngine,
+      ).to.equal(false);
     }
-  });
-
-  it('restores the checkout manifest before the bootstrap install', () => {
-    process.env.GITHUB_USERNAME = 'someone';
-    // A previous sync left the deploy manifest copied over ./package.json, so installing without
-    // restoring it reinstalls the previous scope and leaves the CLI unable to load new source.
-    const commands = UnderpostWireguard.API.syncCommands().map((step) => step.command);
-    expect(commands[0]).to.equal('git checkout -- package.json; npm install');
-    // Sequenced, not chained: a tree that is not a repository still has to reach the install.
-    expect(commands[0]).to.not.include('&&');
   });
 
   it('neutralizes advisory steps in place and chains the rest', () => {

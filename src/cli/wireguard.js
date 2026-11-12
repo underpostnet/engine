@@ -24,10 +24,19 @@ import {
   forwardProxyStartProbeCommandFactory,
   forwardProxyUnitFactory,
 } from '../server/network/forward-proxy.js';
-import { assertRoleCapability } from '../server/network/node-capability.js';
+import { NODE_ROLES, assertRoleCapability, roleHasCapability } from '../server/network/node-capability.js';
 import { loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
 import { nodeExporterServiceScriptFactory } from '../server/ops/monitoring.js';
-import { installRootFile, pbcopy, shellExec, sleepSync } from '../server/runtime/process.js';
+import {
+  chownHostPath,
+  makeHostDirectory,
+  pbcopy,
+  removeHostPath,
+  shellArgumentFactory,
+  shellExec,
+  sleepSync,
+  writeHostFile,
+} from '../server/runtime/process.js';
 import {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
@@ -78,6 +87,9 @@ const UNDERPOST_EDGE = {
   // least every 120s while traffic flows, so a longer gap means the link is
   // down rather than merely idle.
   handshakeStaleSeconds: 180,
+  // The one TCP port a peer outside the fleet may open to a fleet peer.
+  workstationPort: 7735,
+  peerChain: 'UNDERPOST_WG_PEERS',
 };
 
 /** The SSH command that reaches a resolved node target; empty when the node is this machine. */
@@ -98,27 +110,25 @@ const EVENT_SERVICE_UNIT_PATH = '/etc/systemd/system/underpost-event.service';
  * @constant ENGINE_SYNC_STEPS
  * @description Sequence of steps to bring a node's checkout up to date.
  *
- * The sync runs the node's own CLI, bracketed by two critical installs:
- *
- * 1. **Bootstrap Install:** Restores the original `package.json` from git and installs it.
- *    This ensures the CLI remains runnable with the current code tree before any changes are applied.
- * 2. **Deploy Install:** Installs the deploy's `package.json` and links the CLI. This happens
- *    after both the configuration and source code switches have landed.
+ * Both checkouts switch with plain git before the node runs its CLI: the CLI of an older checkout can
+ * refuse the configuration of the newer one, so it never runs between the two switches. The deploy install
+ * follows, and every later step runs the new CLI. Each step can run again, so a rerun completes an
+ * interrupted sync.
  *
  * @memberof UnderpostWireguard
  */
 const ENGINE_SYNC_STEPS = [
-  { command: 'git checkout -- package.json; npm install', halt: false },
-  { command: 'node bin host set GITHUB_TOKEN <github-token>' },
-  { command: 'node bin run clean', halt: true },
   {
-    command: 'node bin cmt ./engine-private --switch-repo <engine-private> --target-branch <engine-private-branch>',
+    command: '<engine-private-switch>',
+    label: 'switch ./engine-private to <engine-private> <engine-private-branch>',
     halt: true,
   },
-  { command: 'node bin cmt --switch-repo <engine> --target-branch <engine-branch>', halt: true },
+  { command: '<engine-switch>', label: 'switch . to <engine> <engine-branch>', halt: true },
   { command: '<package-install-command>', halt: true },
+  { command: 'node bin host set GITHUB_TOKEN <github-token>' },
   { command: 'node bin host set ENGINE_SRC_REPO <engine>', halt: true },
   { command: 'node bin host set ENGINE_SRC_PRIVATE_REPO <engine-private>', halt: true },
+  { command: '<tunnel-command>', halt: false },
   { command: '<cron-reconcile-command>', halt: false },
   { command: `test -f ${EVENT_SERVICE_UNIT_PATH} && <event-service-command>`, halt: false },
   { command: `test -f ${FORWARD_PROXY.unitPath} && <forward-proxy-command>`, halt: false },
@@ -131,6 +141,24 @@ const ENGINE_SYNC_STEPS = [
  * @returns {string} Prefixed deploy id.
  * @memberof UnderpostWireguard
  */
+/**
+ * @method checkoutSwitchScript
+ * @description The git script that replaces a node checkout with the tip of a repository: untracked files
+ * go, then {@link UnderpostRepository.switchRemoteCommands} run, with the credential of the operator in a
+ * subshell that no later step inherits.
+ * @param {{url:string, path:string, branch:string}} params
+ * @returns {string} One shell command.
+ * @memberof UnderpostWireguard
+ */
+const checkoutSwitchScript = ({ url, path, branch }) => {
+  const auth = Object.entries(Underpost.repo.gitAuthFactory(url).gitEnv)
+    .map(([key, value]) => `${key}=${shellArgumentFactory(value)}`)
+    .join(' ');
+  return `( export ${auth} && git -C ${shellArgumentFactory(path)} clean -f -d && ${Underpost.repo
+    .switchRemoteCommands({ url, path, branch })
+    .join(' && ')} )`;
+};
+
 const deployIdFactory = (deployId) => {
   const value = `${deployId || ''}`.trim();
   // `dd` is the meta id every runner reads as "all of dd.routes"; prefixing it
@@ -209,7 +237,9 @@ const deployListFactory = (deployId) => {
  */
 const EDGE_TOPOLOGY_PATH = './engine-private/deploy/conf.wireguard.json';
 const EDGE_NODES_PATH = './engine-private/deploy/nodes';
-const EDGE_NODE_ROLES = Object.freeze(['control', 'worker', 'hub']);
+
+/** A Kubernetes node name: a lowercase DNS subdomain. */
+const KUBERNETES_NODE_NAME = /^(?=.{1,253}$)[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$/;
 
 /**
  * @constant NODE_ROLE_STEPS
@@ -236,6 +266,7 @@ const NODE_ROLE_STEPS = Object.freeze({
     '<event-service-command>': 'node bin event --service',
   },
   hub: {
+    '<tunnel-command>': 'node bin wireguard --wireguard-setup',
     '<event-service-command>': 'node bin event --service-stop',
     '<forward-proxy-command>': 'node bin wireguard --forward-proxy-server',
   },
@@ -246,7 +277,7 @@ const NODE_ROLE_STEPS = Object.freeze({
  * @method nodeRoleStepsFactory
  * @description {@link NODE_ROLE_STEPS} for one role, with every step a role does not own resolved
  * to nothing so the sequence drops it rather than running it empty.
- * @param {string} nodeRole - `control`, `worker` or `hub`.
+ * @param {string} nodeRole - One of the node roles.
  * @returns {Object<string, string>} One value per role-scoped step.
  * @memberof UnderpostWireguard
  */
@@ -340,12 +371,16 @@ const topologyFactory = (topology = {}) =>
   );
 
 const nodeIdentityFactory = (identity = {}) => {
-  const role = EDGE_NODE_ROLES.includes(`${identity.role || ''}`.trim()) ? `${identity.role}`.trim() : '';
+  const role = NODE_ROLES.includes(`${identity.role || ''}`.trim()) ? `${identity.role}`.trim() : '';
+  const kubernetesNodeName = `${identity.kubernetesNodeName || ''}`.trim();
+  if (kubernetesNodeName && !KUBERNETES_NODE_NAME.test(kubernetesNodeName))
+    throw new Error(`[wireguard] '${kubernetesNodeName}' is not a Kubernetes node name`);
   return {
     nodeName: nodeNameFactory(identity.nodeName),
     role,
     hubHost: endpointHostFactory(identity.hubHost || identity.hub),
     peerId: role === 'hub' ? '' : `${identity.peerId || ''}`.trim(),
+    kubernetesNodeName,
   };
 };
 
@@ -475,11 +510,14 @@ const writeNodeIdentity = (identity, { dryRun = false } = {}) => {
       role: normalized.role,
       hubHost: normalized.hubHost,
       ...(normalized.role === 'hub' ? {} : { peerId: normalized.peerId }),
+      ...(normalized.kubernetesNodeName ? { kubernetesNodeName: normalized.kubernetesNodeName } : {}),
     },
     null,
     2,
   )}\n`;
-  if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== content) fs.writeFileSync(target, content, 'utf8');
+  if (fs.existsSync(target) && fs.readFileSync(target, 'utf8') === content) return normalized;
+  fs.writeFileSync(`${target}.${process.pid}.tmp`, content, 'utf8');
+  fs.renameSync(`${target}.${process.pid}.tmp`, target);
   return normalized;
 };
 
@@ -489,7 +527,7 @@ const edgeContextFactory = ({ topology = {}, identity = {} } = {}) => {
   if (!node.nodeName || !node.role || !node.hubHost)
     throw new Error(
       `[wireguard] host '${os.hostname()}' has no identity in ${EDGE_NODES_PATH}; ` +
-        'run --node-config --node-role <control|worker|hub> --hub-host <public-ip>',
+        `run --node-config --node-role <${NODE_ROLES.join('|')}> --hub-host <public-ip>`,
     );
   if (!hub) throw new Error(`[wireguard] hub '${node.hubHost}' is not registered in ${EDGE_TOPOLOGY_PATH}`);
   const peer = node.role === 'hub' ? null : hub.peers.find((entry) => entry.id === node.peerId);
@@ -509,6 +547,25 @@ const edgeContextFactory = ({ topology = {}, identity = {} } = {}) => {
 };
 
 const readEdgeContext = () => edgeContextFactory({ topology: readTopology(), identity: readNodeIdentity() });
+
+/**
+ * @method readEdgeHealth
+ * @description One health sample of this host's tunnel: its service state and the handshake of
+ * the peer it expects.
+ * @param {object} state - {@link readEdgeContext} output.
+ * @param {string} [interfaceName] - Interface to probe; the context's by default.
+ * @returns {object} {@link wireguardHealthFactory} report.
+ * @memberof UnderpostWireguard
+ */
+const readEdgeHealth = (state, interfaceName = state.interfaceName) => {
+  const read = (command) =>
+    `${shellExec(command, { stdout: true, silent: true, silentOnError: true, disableLog: true }) || ''}`.trim();
+  return wireguardHealthFactory({
+    context: state,
+    active: read(systemdStatusCommandsFactory(`wg-quick@${interfaceName}`).active),
+    latestHandshakes: read(`sudo -n wg show ${interfaceName} latest-handshakes`),
+  });
+};
 
 const hubHostResolve = ({ topology = readTopology(), identity = readNodeIdentity(), hubHost = '' } = {}) => {
   const selected = endpointHostFactory(hubHost || identity.hubHost);
@@ -943,6 +1000,18 @@ const wireguardClientForwardingDirectivesFactory = (cidr) => {
   ].join('\n');
 };
 
+/** The topology peers that the hub config holds: each with an id, a key and an address. */
+const hubConfPeersFactory = (peers = []) =>
+  peers.map(peerFactory).filter((peer) => peer.id && peer.publicKey && peer.allowedIPs.length > 0);
+
+/** The config lines that `wg-quick` applies only at start: the interface, without the peer filter. */
+const startOnlyConfFactory = (conf = '') =>
+  `${conf}`
+    .split('\n[Peer]')[0]
+    .split('\n')
+    .filter((line) => !line.includes(UNDERPOST_EDGE.peerChain))
+    .join('\n');
+
 /**
  * @method wireguardServerConfFactory
  * @description Renders the hub interface and its spoke table.
@@ -955,6 +1024,7 @@ const wireguardClientForwardingDirectivesFactory = (cidr) => {
  * @param {number} [listenPort] - UDP listen port.
  * @param {string} keyPath - Path of the private key file.
  * @param {Array<object>} [peers] - Registry entries.
+ * @param {Array<object>} [policies] - {@link peerPoliciesFactory} output, applied after the forward rules.
  * @returns {string} `wg-quick` configuration.
  * @memberof UnderpostWireguard
  */
@@ -964,10 +1034,10 @@ const wireguardServerConfFactory = ({
   listenPort = UNDERPOST_EDGE.listenPort,
   keyPath,
   peers = [],
+  policies = [],
 } = {}) => {
-  const peerBlocks = peers
-    .map(peerFactory)
-    .filter((peer) => peer.id && peer.publicKey && peer.allowedIPs.length > 0)
+  const filter = peerPolicyRulesFactory({ interfaceName, policies });
+  const peerBlocks = hubConfPeersFactory(peers)
     .map(
       (peer) => `
 [Peer]
@@ -984,6 +1054,8 @@ ${wireguardPrivateKeyDirective(keyPath)}
 PostUp = sysctl -q -w net.ipv4.ip_forward=1
 PostUp = iptables -I FORWARD -i ${interfaceName} -j ACCEPT
 PostUp = iptables -I FORWARD -o ${interfaceName} -j ACCEPT
+${filter.up.map((rule) => `PostUp = ${rule}`).join('\n')}
+${filter.down.map((rule) => `PostDown = ${rule}`).join('\n')}
 PostDown = iptables -D FORWARD -i ${interfaceName} -j ACCEPT
 PostDown = iptables -D FORWARD -o ${interfaceName} -j ACCEPT
 ${peerBlocks}
@@ -1004,6 +1076,7 @@ ${peerBlocks}
  * @param {string} endpoint - Hub `host:port`.
  * @param {string} [cidr] - Tunnel CIDR reachable through the hub.
  * @param {number} [keepalive] - Keepalive interval in seconds.
+ * @param {boolean} [forwarding] - Route pod traffic into the tunnel; false on a workstation.
  * @returns {string} `wg-quick` configuration.
  * @memberof UnderpostWireguard
  */
@@ -1014,12 +1087,12 @@ const wireguardClientConfFactory = ({
   endpoint,
   cidr = UNDERPOST_EDGE.tunnelCidr,
   keepalive = UNDERPOST_EDGE.keepalive,
+  forwarding = true,
 } = {}) => `# Generated by \`underpost wireguard --wireguard-setup\` on a registered node. Do not edit by hand.
 [Interface]
 Address = ${`${address}`.includes('/') ? address : `${address}/32`}
 ${wireguardPrivateKeyDirective(keyPath)}
-${wireguardClientForwardingDirectivesFactory(cidr)}
-
+${forwarding ? `${wireguardClientForwardingDirectivesFactory(cidr)}\n` : ''}
 [Peer]
 PublicKey = ${publicKey}
 Endpoint = ${endpoint}
@@ -1087,6 +1160,114 @@ const quicForwardCommandsFactory = ({
 };
 
 /**
+ * @method forwardsTrafficFactory
+ * @description Whether a role forwards traffic through its tunnel: the hub between its peers, a
+ * Kubernetes node for its pods. A workstation forwards nothing.
+ * @param {string} role - Node role.
+ * @returns {boolean} True when the role forwards.
+ * @memberof UnderpostWireguard
+ */
+const forwardsTrafficFactory = (role) =>
+  roleHasCapability(role, 'wireguard-hub') || roleHasCapability(role, 'kubernetes-node');
+
+/**
+ * @method peerPoliciesFactory
+ * @description The forwarding policy of each hub peer. `fleet` forwards freely. `restricted` opens
+ * connections only to {@link UNDERPOST_EDGE}.workstationPort of a fleet peer and accepts none. A
+ * peer is `fleet` only when its node document names a role that holds `fleet-member`.
+ * @param {Array<object>} [peers] - Hub peers.
+ * @param {Array<object>} [nodes] - Node documents of the same hub.
+ * @returns {Array<{id: string, address: string, role: string, policy: string}>} One entry per peer.
+ * @memberof UnderpostWireguard
+ */
+const peerPoliciesFactory = ({ peers = [], nodes = [] } = {}) =>
+  peers.map(peerFactory).map((peer) => {
+    const role = nodes.find((node) => node.peerId === peer.id)?.role || '';
+    return {
+      id: peer.id,
+      address: tunnelAddressFactory(peer.address),
+      role,
+      policy: roleHasCapability(role, 'fleet-member') ? 'fleet' : 'restricted',
+    };
+  });
+
+/**
+ * @method peerPolicyRulesFactory
+ * @description The hub packet filter of {@link peerPoliciesFactory}, as plain `iptables` commands.
+ * One chain is refilled on each apply and jumped to first from INPUT and FORWARD of the tunnel.
+ * @param {string} [interfaceName] - Tunnel interface.
+ * @param {Array<object>} [policies] - {@link peerPoliciesFactory} output.
+ * @param {number} [port] - The port a restricted peer may open.
+ * @returns {{up: Array<string>, down: Array<string>}} Commands that install and remove the filter.
+ * @memberof UnderpostWireguard
+ */
+const peerPolicyRulesFactory = ({
+  interfaceName = UNDERPOST_EDGE.interfaceName,
+  policies = [],
+  port = UNDERPOST_EDGE.workstationPort,
+} = {}) => {
+  const chain = UNDERPOST_EDGE.peerChain;
+  const fleet = policies.filter((entry) => entry.policy === 'fleet' && entry.address);
+  const jumps = ['INPUT', 'FORWARD'].map((hook) => `${hook} -i ${interfaceName} -j ${chain}`);
+  return {
+    up: [
+      `iptables -N ${chain} 2>/dev/null || iptables -F ${chain}`,
+      ...policies
+        .filter((entry) => entry.policy === 'restricted' && entry.address)
+        .flatMap(({ address }) => [
+          `iptables -A ${chain} -s ${address} -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN`,
+          ...fleet.map(
+            (target) => `iptables -A ${chain} -s ${address} -d ${target.address} -p tcp --dport ${port} -j RETURN`,
+          ),
+          `iptables -A ${chain} -s ${address} -j DROP`,
+          `iptables -A ${chain} -d ${address} -m conntrack --ctstate NEW -j DROP`,
+        ]),
+      ...jumps.map((jump) => `iptables -D ${jump} 2>/dev/null; iptables -I ${jump}`),
+    ],
+    down: [
+      ...jumps.map((jump) => `iptables -D ${jump} 2>/dev/null || true`),
+      `iptables -F ${chain} 2>/dev/null || true`,
+      `iptables -X ${chain} 2>/dev/null || true`,
+    ],
+  };
+};
+
+/** The peer policies of a hub, joined from its topology peers and the node documents of that hub. */
+const hubPeerPoliciesFactory = (state, peers = state.peers) =>
+  peerPoliciesFactory({ peers, nodes: readNodeConfigs().filter((node) => node.hubHost === state.hubHost) });
+
+/**
+ * @method assertPeerFitsRole
+ * @description Refuses a peer outside the fleet that the edge would route traffic to: the default
+ * peer, a host or instance binding, or an address beyond its own.
+ * @param {object} peer - Normalized topology entry.
+ * @param {string} role - Role of the node document that names the peer.
+ * @throws {Error} When the peer claims more than its own address.
+ * @memberof UnderpostWireguard
+ */
+const assertPeerFitsRole = (peer, role) => {
+  if (!role || roleHasCapability(role, 'fleet-member')) return;
+  const hazards = [
+    peer.default && 'it is the default peer',
+    peer.hosts.length > 0 && 'it routes hosts',
+    peer.instances.length > 0 && 'it routes instances',
+    !isDeepStrictEqual(peer.allowedIPs, [`${peer.address}/32`]) && `it claims ${peer.allowedIPs.join(', ')}`,
+  ].filter(Boolean);
+  if (hazards.length > 0)
+    throw new Error(
+      `[wireguard] a ${role} peer claims only its own address: '${peer.id}' ${hazards.join(', ')}; ` +
+        `register it with --peer-add ${peer.id} --peer-ip <address> --public-key <key> and no bindings`,
+    );
+};
+
+/** The ids of the peers a hub restricts. */
+const restrictedPeerIdsFactory = (policies = []) =>
+  policies.filter((entry) => entry.policy === 'restricted').map((entry) => entry.id);
+
+/** Runs the peer filter of a hub on the live host. */
+const peerPolicyHostCommandsFactory = (rules) => rules.map((rule) => `sudo sh -c '${rule}'`);
+
+/**
  * @method firewallCommandsFactory
  * @description Opens the ports each role needs, when firewalld is running.
  *
@@ -1096,7 +1277,9 @@ const quicForwardCommandsFactory = ({
  * The same list drives the teardown, flipped to `--remove-*`, so a reset cannot
  * leave behind a permanent rule the setup added — the two directions are one
  * declaration rather than two that drift.
- * @param {string} role - `hub`, `control`, or `worker`.
+ * A workstation forwards nothing, so its tunnel stays in the default zone and
+ * accepts no connection from a peer.
+ * @param {string} role - Node role.
  * @param {string} [interfaceName] - Tunnel interface.
  * @param {number} [listenPort] - UDP listen port.
  * @param {string} [tunnelCidr] - Tunnel source admitted to the forward proxy.
@@ -1119,7 +1302,7 @@ const firewallCommandsFactory = ({
     // `reject with icmpx admin-prohibited`, so an unzoned tunnel interface has
     // its forwarded traffic dropped while the hub itself still answers on it —
     // spoke-to-spoke stops working over a tunnel that looks perfectly healthy.
-    `--zone=trusted --${verb}-interface=${interfaceName}`,
+    ...(forwardsTrafficFactory(role) ? [`--zone=trusted --${verb}-interface=${interfaceName}`] : []),
     ...(role === 'hub'
       ? [
           `--${verb}-port=${UNDERPOST_EDGE.httpPort}/tcp`,
@@ -1257,8 +1440,8 @@ const wireguardStatusFactory = ({
 
 /**
  * Resolves the local interface health without reading private key material.
- * A hub must have a fresh handshake with its default routing peer. Control and
- * worker nodes must have a fresh handshake with the configured hub identity.
+ * A hub must have a fresh handshake with its default routing peer. Every other
+ * role must have a fresh handshake with the configured hub identity.
  */
 const wireguardHealthFactory = ({
   context = {},
@@ -1296,20 +1479,38 @@ const assertEdgeIdentity = (edge = {}, { expectedRole = '', expectedId = '' } = 
 };
 
 /**
- * @method writeServerInterfaceConf
- * @description Rewrites the hub interface config from the current peer table.
- *
- * A spoke's config holds no peer table of its own, so this is a no-op there —
- * which is what lets `--peer-add` and `--peer-remove` run unconditionally.
+ * @method assertPeerIsThisMachine
+ * @description Refuses a spoke whose peer is registered at an address of another machine. A
+ * machine that kept a default hostname resolves the document of that name, and its setup would
+ * otherwise write its own key over the key of that peer.
+ * @param {object} edge - {@link edgeContextFactory} output.
+ * @returns {void}
+ * @memberof UnderpostWireguard
+ */
+const assertPeerIsThisMachine = (edge) => {
+  const { managementHost } = edge.peers.find((peer) => peer.id === edge.peerId) || {};
+  if (edge.role === 'hub' || isIP(`${managementHost || ''}`) !== 4 || localPeerFactory(managementHost)) return;
+  throw new Error(
+    `[wireguard] node '${edge.nodeName}' is peer '${edge.peerId}' at ${managementHost}, which is not this machine; ` +
+      'give this machine its own hostname (hostnamectl set-hostname <name>) and its own node document',
+  );
+};
+
+/**
+ * @method reconcileHubInterface
+ * @description Rewrites the hub interface config from the current peer table and applies its peer
+ * filter to the live host. A spoke holds no peer table, so this is a no-op there: `--peer-add` and
+ * `--peer-remove` run it unconditionally.
  * @param {object} state - Registry the interface belongs to.
  * @param {Array<object>} peers - Peer table to render.
  * @param {boolean} [dryRun] - Print instead of writing.
- * @returns {boolean} True when the file changed.
+ * @returns {Array<object>} The {@link peerPoliciesFactory} output; empty on a spoke.
  * @memberof UnderpostWireguard
  */
-const writeServerInterfaceConf = ({ state, peers, dryRun = false }) => {
-  if (state.role !== 'hub') return false;
-  return installRootFile({
+const reconcileHubInterface = ({ state, peers, dryRun = false }) => {
+  if (state.role !== 'hub') return [];
+  const policies = hubPeerPoliciesFactory(state, peers);
+  writeHostFile({
     target: `${UNDERPOST_EDGE.wireguardDir}/${state.interfaceName}.conf`,
     content: wireguardServerConfFactory({
       interfaceName: state.interfaceName,
@@ -1317,10 +1518,16 @@ const writeServerInterfaceConf = ({ state, peers, dryRun = false }) => {
       listenPort: state.listenPort,
       keyPath: `${UNDERPOST_EDGE.wireguardDir}/${state.interfaceName}.key`,
       peers,
+      policies,
     }),
     mode: '0600',
     dryRun,
   });
+  runHostCommands(
+    peerPolicyHostCommandsFactory(peerPolicyRulesFactory({ interfaceName: state.interfaceName, policies }).up),
+    dryRun,
+  );
+  return policies;
 };
 
 /**
@@ -1378,6 +1585,31 @@ const csvFactory = (value) =>
  */
 const liveWireguardCommand = (interfaceName, args) =>
   `sudo sh -c 'wg show ${interfaceName} >/dev/null 2>&1 && wg set ${interfaceName} ${args} || true'`;
+
+/**
+ * @method hubLivePeersFactory
+ * @description The `wg set` commands that give a running hub the peer table of its config file.
+ *
+ * They remove each live key that the topology does not hold, then admit or update each peer.
+ * Other sessions continue.
+ * @param {string} interfaceName - Interface name.
+ * @param {Array<object>} [peers] - Topology peers of the hub.
+ * @param {string} [latestHandshakes] - `wg show <interface> latest-handshakes` output.
+ * @returns {{commands: Array<string>, removed: Array<string>}} The commands, and the keys they remove.
+ * @memberof UnderpostWireguard
+ */
+const hubLivePeersFactory = ({ interfaceName, peers = [], latestHandshakes = '' }) => {
+  const removed = unregisteredPeersFactory({ peers, latestHandshakes }).map((peer) => peer.publicKey);
+  return {
+    removed,
+    commands: [
+      ...removed.map((publicKey) => liveWireguardCommand(interfaceName, `peer ${publicKey} remove`)),
+      ...hubConfPeersFactory(peers).map((peer) =>
+        liveWireguardCommand(interfaceName, `peer ${peer.publicKey} allowed-ips ${peer.allowedIPs.join(',')}`),
+      ),
+    ],
+  };
+};
 
 /**
  * @method warnTopologyHazards
@@ -1530,11 +1762,13 @@ class UnderpostWireguard {
           logger.info(`[dry-run] generate wireguard key pair for ${interfaceName}`);
           return { privateKeyPath, publicKeyPath, publicKey: '', generated: true };
         }
+        const reason = `generates the WireGuard key pair of ${interfaceName}`;
+        makeHostDirectory(UNDERPOST_EDGE.wireguardDir, { mode: '0700', reason });
         shellExec(
-          `sudo sh -c 'umask 077 && mkdir -p ${UNDERPOST_EDGE.wireguardDir} && wg genkey > ${privateKeyPath} && wg pubkey < ${privateKeyPath} > ${publicKeyPath}'`,
-          { silent: true },
+          `umask 077 && wg genkey > ${shellArgumentFactory(privateKeyPath)} && wg pubkey < ${shellArgumentFactory(privateKeyPath)} > ${shellArgumentFactory(publicKeyPath)}`,
+          { silent: true, privileged: reason },
         );
-        shellExec(`sudo chmod 0600 ${privateKeyPath} && sudo chmod 0644 ${publicKeyPath}`, { silent: true });
+        chownHostPath(publicKeyPath, { owner: { uid: 0, gid: 0 }, mode: '0644', reason });
       }
       const publicKey = shellExec(`sudo cat ${publicKeyPath}`, {
         stdout: true,
@@ -1544,6 +1778,37 @@ class UnderpostWireguard {
       return { privateKeyPath, publicKeyPath, publicKey, generated: !exists };
     },
 
+    /**
+     * @method key
+     * @description Creates the key pair of this machine once and prints its public key.
+     *
+     * It reads no node document and no topology, so a new machine runs it before it enrolls.
+     * @param {object} [options] - CLI options (`interface`, `copy`, `dryRun`).
+     * @returns {string} The public key; empty under a dry run that would create the pair.
+     * @memberof UnderpostWireguard
+     */
+    key(options = {}) {
+      const interfaceName = `${options.interface || UNDERPOST_EDGE.interfaceName}`.trim();
+      const { publicKey } = UnderpostWireguard.API.ensureKeyPair(interfaceName, options.dryRun);
+      if (options.dryRun && !publicKey) return publicKey;
+      if (!publicKey) throw new Error(`[wireguard] ${UNDERPOST_EDGE.wireguardDir}/${interfaceName}.pub is empty`);
+      if (options.copy === true) pbcopy(publicKey);
+      else console.log(publicKey);
+      return publicKey;
+    },
+
+    /**
+     * @method nodeConfig
+     * @description Records the node document of one machine: its role and its hub and peer.
+     *
+     * A document keeps its hub and peer: the hostname selects the document, so a second machine with
+     * the same hostname needs its own hostname. A peer outside the fleet routes no hostname and claims
+     * only its own address.
+     * @param {object} [options] - CLI options (`nodeName`, `nodeRole`, `hubHost`, `peerId`, `dryRun`). The
+     *   Kubernetes node of the document stays: `node bin namespace nodes identify` owns it.
+     * @returns {object} The saved identity.
+     * @memberof UnderpostWireguard
+     */
     nodeConfig(options = {}) {
       const nodeName = nodeNameFactory(options.nodeName || os.hostname());
       const current = readNodeConfig(nodeName);
@@ -1552,21 +1817,29 @@ class UnderpostWireguard {
         role: options.nodeRole || current.role,
         hubHost: options.hubHost || current.hubHost,
         peerId: options.peerId || current.peerId,
+        kubernetesNodeName: current.kubernetesNodeName,
       });
-      if (!identity.role) throw new Error(`[wireguard] --node-role must be one of: ${EDGE_NODE_ROLES.join(', ')}`);
+      if (!identity.role) throw new Error(`[wireguard] --node-role must be one of: ${NODE_ROLES.join(', ')}`);
       if (isIP(identity.hubHost) !== 4) throw new Error('[wireguard] --hub-host must be the hub static IPv4 address');
+      if (current.role && (current.hubHost !== identity.hubHost || current.peerId !== identity.peerId))
+        throw new Error(
+          `[wireguard] node '${nodeName}' is ${current.peerId ? `peer '${current.peerId}'` : 'the hub'} on ${current.hubHost}; ` +
+            'give this machine its own hostname (hostnamectl set-hostname <name>), or remove this document first',
+        );
       const topology = readTopology();
       const hub = topology[identity.hubHost];
       if (!hub) throw new Error(`[wireguard] hub '${identity.hubHost}' is not registered in ${EDGE_TOPOLOGY_PATH}`);
       if (identity.role !== 'hub' && !identity.peerId)
-        throw new Error('[wireguard] --peer-id is required for control and worker nodes');
-      if (identity.role !== 'hub' && !hub.peers.some((peer) => peer.id === identity.peerId))
+        throw new Error('[wireguard] --peer-id is required for every role but hub');
+      const peer = hub.peers.find((entry) => entry.id === identity.peerId);
+      if (identity.role !== 'hub' && !peer)
         throw new Error(
           `[wireguard] peer '${identity.peerId}' is not registered on ${identity.hubHost}; add it with --peer-add first`,
         );
-      const duplicate = readNodeConfigs().find(
+      if (peer) assertPeerFitsRole(peer, identity.role);
+      const others = readNodeConfigs().filter((node) => node.nodeName !== identity.nodeName);
+      const duplicate = others.find(
         (node) =>
-          node.nodeName !== identity.nodeName &&
           node.hubHost === identity.hubHost &&
           ((identity.role === 'hub' && node.role === 'hub') ||
             (identity.role !== 'hub' && node.peerId === identity.peerId)),
@@ -1585,6 +1858,9 @@ class UnderpostWireguard {
      * @method setup
      * @description Builds this selected node's interface and updates only its
      * public key in deployment topology.
+     *
+     * On a running hub, it also applies the peer table of the file to the live interface, so a new
+     * or re-keyed peer needs no restart.
      * @param {object} options - CLI options.
      * @returns {object} The derived runtime context.
      * @memberof UnderpostWireguard
@@ -1594,6 +1870,7 @@ class UnderpostWireguard {
       const topology = readTopology();
       const identity = readNodeIdentity();
       const state = assertEdgeIdentity(edgeContextFactory({ topology, identity }), options);
+      if (!buildConf) assertPeerIsThisMachine(state);
       const interfaceName = `${options.interface || state.interfaceName}`.trim();
       if (state.role !== 'hub' && (options.port !== undefined || options.sshForwardPort !== undefined))
         throw new Error('[wireguard] --port and --ssh-forward-port configure the hub only');
@@ -1612,6 +1889,7 @@ class UnderpostWireguard {
 
       let conf;
       let nextTopology;
+      let policies = [];
       if (state.role === 'hub') {
         const address = `${options.cidr || state.address}`.trim();
         if (!address.includes('/')) throw new Error('[wireguard] --cidr must carry a prefix length (e.g. 10.0.0.1/24)');
@@ -1624,12 +1902,14 @@ class UnderpostWireguard {
           sshForwardPort,
         };
         nextTopology = { ...topology, [state.hubHost]: hub };
+        policies = hubPeerPoliciesFactory(state, hub.peers);
         conf = wireguardServerConfFactory({
           interfaceName,
           address,
           listenPort,
           keyPath: privateKeyPath,
           peers: hub.peers,
+          policies,
         });
       } else {
         const address = `${options.peerIp || state.address}`.trim();
@@ -1646,22 +1926,25 @@ class UnderpostWireguard {
           endpoint: `${state.hubHost}:${listenPort}`,
           cidr: `${options.cidr || tunnelNetworkCidrFactory(hub.address)}`.trim(),
           keepalive: UNDERPOST_EDGE.keepalive,
+          forwarding: forwardsTrafficFactory(state.role),
         });
       }
       const next = edgeContextFactory({ topology: nextTopology, identity });
 
-      let confChanged = false;
+      const confPath = `${UNDERPOST_EDGE.wireguardDir}/${interfaceName}.conf`;
+      let restartRequired = false;
+      let removedLivePeers = [];
       if (!buildConf) {
-        confChanged = installRootFile({
-          target: `${UNDERPOST_EDGE.wireguardDir}/${interfaceName}.conf`,
-          content: conf,
-          mode: '0600',
-          dryRun: options.dryRun,
-        });
+        const previousConf = fs.existsSync(confPath) ? fs.readFileSync(confPath, 'utf8') : '';
+        const confChanged = writeHostFile({ target: confPath, content: conf, mode: '0600', dryRun: options.dryRun });
         runHostCommands(
           [
-            `sudo sh -c 'echo net.ipv4.ip_forward=1 > ${UNDERPOST_EDGE.sysctlPath}'`,
-            `sudo sysctl -q --system`,
+            ...(forwardsTrafficFactory(next.role)
+              ? [`sudo sh -c 'echo net.ipv4.ip_forward=1 > ${UNDERPOST_EDGE.sysctlPath}'`, `sudo sysctl -q --system`]
+              : []),
+            ...(next.role === 'hub'
+              ? peerPolicyHostCommandsFactory(peerPolicyRulesFactory({ interfaceName, policies }).up)
+              : []),
             ...firewallCommandsFactory({
               role: next.role,
               interfaceName,
@@ -1672,18 +1955,31 @@ class UnderpostWireguard {
           ],
           options.dryRun,
         );
+        // wg-quick reads the file only at start; a running hub takes its peer table live.
+        const active =
+          shellExec(
+            systemctlCommandFactory({ action: 'is-active --quiet', name: `wg-quick@${interfaceName}`, sudo: false }),
+            { silent: true, silentOnError: true },
+          ).code === 0;
+        if (active && next.role === 'hub') {
+          const live = hubLivePeersFactory({
+            interfaceName,
+            peers: next.peers,
+            latestHandshakes: shellExec(`sudo wg show ${interfaceName} latest-handshakes`, {
+              stdout: true,
+              silent: true,
+              silentOnError: true,
+            }),
+          });
+          runHostCommands(live.commands, options.dryRun);
+          removedLivePeers = live.removed;
+        }
+        restartRequired =
+          active &&
+          !options.dryRun &&
+          (next.role === 'hub' ? startOnlyConfFactory(previousConf) !== startOnlyConfFactory(conf) : confChanged);
       }
       if (!options.dryRun) writeTopology(nextTopology);
-      // Writing the config is idempotent; the *running* interface is not. wg-quick
-      // reads the file only at start, so a changed config under a live unit is a
-      // divergence that stays silent until the next reboot re-reads it.
-      const restartRequired =
-        confChanged &&
-        !options.dryRun &&
-        shellExec(
-          systemctlCommandFactory({ action: 'is-active --quiet', name: `wg-quick@${interfaceName}`, sudo: false }),
-          { silent: true, silentOnError: true },
-        ).code === 0;
       logger.info(buildConf ? 'Topology updated; host untouched' : 'WireGuard interface configured', {
         interfaceName,
         role: next.role,
@@ -1692,8 +1988,11 @@ class UnderpostWireguard {
         address: next.address,
         publicKey: next.publicKey,
         peers: next.peers.length,
+        ...(next.role === 'hub' ? { restrictedPeers: restrictedPeerIdsFactory(policies) } : {}),
         restartRequired,
       });
+      if (removedLivePeers.length > 0)
+        logger.warn('Removed live peers that the topology does not hold', { interfaceName, removedLivePeers });
       if (restartRequired)
         logger.warn('Interface config changed while the tunnel is up; the live interface still runs the old one', {
           apply: `--wireguard-restart --check --interface ${interfaceName}`,
@@ -1747,6 +2046,9 @@ class UnderpostWireguard {
       );
       const current = hub.peers.find((entry) => entry.id === id) || {};
       const peer = peerFactory({ ...current, id, address, publicKey, ...overrides });
+      const nodes = readNodeConfigs().filter((node) => node.hubHost === hubHost);
+      const [policy] = peerPoliciesFactory({ peers: [peer], nodes });
+      assertPeerFitsRole(peer, policy.role);
       const supersededKey = current.publicKey && current.publicKey !== publicKey ? current.publicKey : '';
       const peers = [...hub.peers.filter((entry) => entry.id !== id), peer].sort((a, b) => a.id.localeCompare(b.id));
       const nextHub = { ...hub, peers };
@@ -1758,7 +2060,7 @@ class UnderpostWireguard {
           ],
           options.dryRun,
         );
-        writeServerInterfaceConf({ state, peers, dryRun: options.dryRun });
+        reconcileHubInterface({ state, peers, dryRun: options.dryRun });
       }
       if (!options.dryRun) writeTopology({ ...topology, [hubHost]: nextHub });
       logger.info(options.buildConf === true ? 'Peer recorded; host untouched' : 'Peer registered', {
@@ -1767,8 +2069,14 @@ class UnderpostWireguard {
         address,
         managementHost: peer.managementHost || '(unset)',
         allowedIPs: peer.allowedIPs,
+        policy: policy.policy,
         rekeyed: supersededKey !== '',
       });
+      if (!policy.role)
+        logger.warn('The hub restricts this peer until a node document names its role', {
+          id,
+          next: `--node-config --peer-id ${id} on that machine, then pull engine-private on the hub and run --wireguard-setup`,
+        });
       warnTopologyHazards(peers);
       return nextHub;
     },
@@ -1798,7 +2106,7 @@ class UnderpostWireguard {
       const nextHub = { ...hub, peers };
       if (options.buildConf !== true) {
         runHostCommands([liveWireguardCommand(state.interfaceName, `peer ${peer.publicKey} remove`)], options.dryRun);
-        writeServerInterfaceConf({ state, peers, dryRun: options.dryRun });
+        reconcileHubInterface({ state, peers, dryRun: options.dryRun });
       }
       if (!options.dryRun) writeTopology({ ...topology, [hubHost]: nextHub });
       logger.info(options.buildConf === true ? 'Peer removed from topology; host untouched' : 'Peer removed', {
@@ -1959,7 +2267,12 @@ class UnderpostWireguard {
             }
           : {}),
         ...(state.role === 'hub'
-          ? { peers: probeHost ? livePeers : state.peers.map(peerSummaryFactory) }
+          ? {
+              peers: probeHost ? livePeers : state.peers.map(peerSummaryFactory),
+              peerPolicies: hubPeerPoliciesFactory(state).map(
+                ({ id, role, policy }) => `${id}: ${policy} (${role || 'no node document'})`,
+              ),
+            }
           : { hub: liveHub }),
         topologyPeers: state.peers.map(peerSummaryFactory),
         ...(probeHost
@@ -2047,13 +2360,13 @@ class UnderpostWireguard {
       }));
       const restore = () => {
         for (const entry of previous) {
-          if (entry.content === null) shellExec(`sudo rm -f ${entry.target}`, { silent: true });
-          else installRootFile({ target: entry.target, content: entry.content, mode: '0644' });
+          if (entry.content === null) removeHostPath(entry.target, { reason: 'restores the previous configuration' });
+          else writeHostFile({ target: entry.target, content: entry.content, mode: '0644' });
         }
       };
 
       let changed = false;
-      for (const entry of targets) changed = installRootFile({ ...entry, dryRun: options.dryRun }) || changed;
+      for (const entry of targets) changed = writeHostFile({ ...entry, dryRun: options.dryRun }) || changed;
       if (options.dryRun) {
         logger.info('[dry-run] edge routes', { deployList, routes, unresolved, conflicts });
         return { routes, unresolved, conflicts, changed };
@@ -2252,7 +2565,7 @@ class UnderpostWireguard {
         interfaceName: config.interfaceName,
         command: forwardProxyCommandFactory({ host: config.host, port: config.port, execPath: node.path }),
       });
-      const changed = installRootFile({
+      const changed = writeHostFile({
         target: FORWARD_PROXY.unitPath,
         content: unit,
         mode: '0600',
@@ -2365,20 +2678,7 @@ class UnderpostWireguard {
       const deadline = Date.now() + timeoutSeconds * 1000;
       let health;
       do {
-        const read = (command) =>
-          `${
-            shellExec(command, {
-              stdout: true,
-              silent: true,
-              silentOnError: true,
-              disableLog: true,
-            }) || ''
-          }`.trim();
-        health = wireguardHealthFactory({
-          context: state,
-          active: read(systemdStatusCommandsFactory(`wg-quick@${interfaceName}`).active),
-          latestHandshakes: read(`sudo wg show ${interfaceName} latest-handshakes`),
-        });
+        health = readEdgeHealth(state, interfaceName);
         if (health.ok || Date.now() >= deadline) break;
         sleepSync(1000);
       } while (true);
@@ -2413,6 +2713,9 @@ class UnderpostWireguard {
           }),
           `sudo sh -c 'wg-quick down ${interfaceName} 2>/dev/null || true'`,
           ...quicForwardCommandsFactory({ interfaceName }).remove,
+          ...(state.role === 'hub'
+            ? peerPolicyHostCommandsFactory(peerPolicyRulesFactory({ interfaceName }).down)
+            : []),
         ],
         options.dryRun,
       );
@@ -2619,11 +2922,11 @@ class UnderpostWireguard {
      * @method localRole
      * @description This machine's node role, or `''` when it is not a fleet node.
      *
-     * The empty answer is the meaningful one: a workstation or CI runner has no node document, and
-     * is not a node whose capabilities can be checked. Callers gate on a role when there is one and
+     * The empty answer is the meaningful one: a CI runner or an unenrolled machine has no node
+     * document, and is not a node whose capabilities can be checked. Callers gate on a role when there is one and
      * leave an off-fleet machine alone, so authorization follows where an operation executes rather
      * than which module it lives in.
-     * @returns {string} `hub`, `control`, `worker`, or `''`.
+     * @returns {string} One of the node roles, or `''`.
      * @memberof UnderpostWireguard
      */
     localRole() {
@@ -2658,7 +2961,8 @@ class UnderpostWireguard {
      * exist — after origin has already been repointed.
      * @param {object} [options] - CLI options (`cmd`, `repoEngine`, `repoEnginePrivate`), plus the
      *   `nodeRole` of the node the steps are for.
-     * @returns {Array<{command: string, halt: boolean}>} Steps in execution order.
+     * @returns {Array<{command: string, label?: string, halt: boolean}>} Steps in execution order; `label`
+     *   stands for a command in the progress line.
      * @memberof UnderpostWireguard
      */
     syncCommands(options = {}) {
@@ -2668,24 +2972,34 @@ class UnderpostWireguard {
         engine: options.repoEngine,
         enginePrivate: options.repoEnginePrivate,
       });
+      const branches = {
+        enginePrivate: Underpost.repo.getDefaultBranch(enginePrivate),
+        engine: Underpost.repo.getDefaultBranch(engine),
+      };
       const values = {
-        '<engine-private-branch>': Underpost.repo.getDefaultBranch(enginePrivate),
+        '<engine-private-switch>': checkoutSwitchScript({
+          url: enginePrivate,
+          path: './engine-private',
+          branch: branches.enginePrivate,
+        }),
+        '<engine-switch>': checkoutSwitchScript({ url: engine, path: '.', branch: branches.engine }),
+        '<engine-private-branch>': branches.enginePrivate,
         '<engine-private>': enginePrivate,
-        '<engine-branch>': Underpost.repo.getDefaultBranch(engine),
+        '<engine-branch>': branches.engine,
         '<engine>': engine,
         '<package-install-command>': packageInstallCommandFactory(engine),
         ...nodeRoleStepsFactory(options.nodeRole),
         '<github-token>': process.env.GITHUB_TOKEN || '',
       };
       const entries = Object.entries(values);
+      const bind = (text) =>
+        entries.reduce((bound, [placeholder, value]) => bound.replaceAll(placeholder, value), text);
       return ENGINE_SYNC_STEPS.filter(({ command }) =>
         entries.every(([placeholder, value]) => value || !command.includes(placeholder)),
-      ).map((step) => ({
+      ).map(({ label, ...step }) => ({
         ...step,
-        command: entries.reduce(
-          (command, [placeholder, value]) => command.replaceAll(placeholder, value),
-          step.command,
-        ),
+        command: bind(step.command),
+        ...(label ? { label: bind(label) } : {}),
       }));
     },
 
@@ -2711,8 +3025,8 @@ class UnderpostWireguard {
       const label = parseList(options.cmd).length > 0 ? 'cmd' : 'sync';
       return commands
         .map(
-          ({ command, halt }) =>
-            `echo '[${label}] ${redactSensitiveText(command)}' && ${halt ? command : `{ ${command} || true; }`}`,
+          ({ command, label: step = command, halt }) =>
+            `echo ${shellArgumentFactory(`[${label}] ${redactSensitiveText(step)}`)} && ${halt ? command : `{ ${command} || true; }`}`,
         )
         .join(' && ');
     },
@@ -2856,6 +3170,7 @@ class UnderpostWireguard {
 
       const hostActions = [
         options.wireguardInstall,
+        options.wireguardKey,
         options.wireguardSetup,
         options.peerAdd,
         options.peerRemove,
@@ -2875,6 +3190,7 @@ class UnderpostWireguard {
       if (options.wireguardReinstall === true) return void UnderpostWireguard.API.reinstall(options);
       if (options.wireguardReset === true) return void UnderpostWireguard.API.reset(options);
       if (options.wireguardInstall === true) UnderpostWireguard.API.install(options);
+      if (options.wireguardKey === true) UnderpostWireguard.API.key(options);
       if (options.wireguardSetup === true) UnderpostWireguard.API.setup(options);
       if (options.peerAdd) UnderpostWireguard.API.peerAdd(options);
       if (options.peerRemove) UnderpostWireguard.API.peerRemove(options);
@@ -2894,6 +3210,7 @@ class UnderpostWireguard {
 }
 
 export {
+  EDGE_NODES_PATH,
   EDGE_TOPOLOGY_PATH,
   ENGINE_SYNC_STEPS,
   UNDERPOST_EDGE,
@@ -2910,17 +3227,24 @@ export {
   haproxyMapsFactory,
   hostProxyEntriesFactory,
   hostAddressesFactory,
+  hubLivePeersFactory,
   hubTunnelAddressFactory,
   instanceProxyEntriesFactory,
   localPeerFactory,
   mergeRouteTablesFactory,
   peerFactory,
+  peerPoliciesFactory,
+  peerPolicyRulesFactory,
   quicForwardCommandsFactory,
   readEdgeContext,
+  readEdgeHealth,
+  readNodeConfig,
   readNodeConfigs,
+  readNodeIdentity,
   readTopology,
   redirectHostFactory,
   sshUriFactory,
+  startOnlyConfFactory,
   unregisteredPeersFactory,
   tunnelAddressFactory,
   tunnelNetworkCidrFactory,
@@ -2932,6 +3256,7 @@ export {
   hubFactory,
   nodeIdentityFactory,
   nodeNameCandidatesFactory,
+  writeNodeIdentity,
 };
 
 export default UnderpostWireguard;

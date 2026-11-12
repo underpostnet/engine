@@ -11,6 +11,7 @@ import { createProxyServer } from 'httpxy';
 import { loggerFactory, loggerMiddleware } from '../ops/logger.js';
 import { etcHostFactory, getTlsHosts, isDevProxyContext, isTlsDevProxy } from '../runtime/conf.js';
 import { buildPortProxyRouter, buildProxyRouter } from './router.js';
+import { LOCAL_SSL_ROOT, TLS } from './tls.js';
 import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -154,13 +155,11 @@ class ProxyService {
           // A dev proxy serves this machine's own certificates, never the stored ones of the real domain.
           const tlsHosts = {};
           for (const tlsHost of getTlsHosts(hosts)) {
-            Underpost.tls.ensureLocalCertificate(tlsHost);
+            TLS.ensureLocalCertificate(tlsHost);
             tlsHosts[tlsHost] = {};
           }
-          ({ ServerSSL: server } = await Underpost.tls.createSslServer(app, tlsHosts, {
-            root: Underpost.tls.LOCAL_SSL_ROOT,
-          }));
-        } else ({ ServerSSL: server } = await Underpost.tls.createSslServer(app, hosts));
+          ({ ServerSSL: server } = await TLS.createSslServer(app, tlsHosts, { root: LOCAL_SSL_ROOT }));
+        } else ({ ServerSSL: server } = await TLS.createSslServer(app, hosts));
       }
       await Underpost.start.listenPortController(server, port, runningData);
       logger.info('Proxy running', { port, router: options.router });

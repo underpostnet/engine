@@ -7,9 +7,14 @@ import UnderpostWireguard, {
   EDGE_TOPOLOGY_PATH,
   UNDERPOST_EDGE,
   hostAddressesFactory,
+  hubLivePeersFactory,
+  peerPoliciesFactory,
+  peerPolicyRulesFactory,
   readEdgeContext,
   readNodeConfigs,
   readTopology,
+  startOnlyConfFactory,
+  wireguardServerConfFactory,
 } from '../../../../src/cli/wireguard.js';
 import Underpost from '../../../../src/index.js';
 import UnderpostEvent from '../../../../src/cli/event.js';
@@ -61,7 +66,7 @@ const TOPOLOGY = {
 // and reconciles /etc, iptables and systemd from them. Both are replaced here:
 // an in-memory tree for the documents, and the shell harness for the host, so
 // what is asserted is the command vector and the files the run would install.
-const edgeFixture = ({ files = {}, hostname = 'hub-node' } = {}) => {
+const edgeFixture = ({ files = {}, hostname = 'hub-node', addresses = [] } = {}) => {
   const table = new Map(Object.entries(files));
   const written = new Map();
   const removedDirectories = [];
@@ -74,6 +79,9 @@ const edgeFixture = ({ files = {}, hostname = 'hub-node' } = {}) => {
   };
 
   vi.spyOn(os, 'hostname').mockReturnValue(hostname);
+  vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+    eth0: addresses.map((address) => ({ family: 'IPv4', address, internal: false })),
+  });
   vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => {
     const key = `${filePath}`;
     if (table.has(key) || written.has(key)) return true;
@@ -81,6 +89,10 @@ const edgeFixture = ({ files = {}, hostname = 'hub-node' } = {}) => {
   });
   vi.spyOn(fs, 'readFileSync').mockImplementation(read);
   vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => written.set(`${filePath}`, `${value}`));
+  vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+    written.set(`${to}`, read(from));
+    written.delete(`${from}`);
+  });
   vi.spyOn(fs, 'mkdirpSync').mockImplementation((dir) => removedDirectories.push(`${dir}`));
   vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
   vi.spyOn(fs, 'readdirSync').mockImplementation((dir) =>
@@ -199,6 +211,34 @@ describe('edge topology and node documents', () => {
   });
 });
 
+describe('hub peer table on a running interface', () => {
+  const hubConf = ({ address = '10.0.0.1/24', peers = TOPOLOGY[HUB_HOST].peers, policies = [] } = {}) =>
+    wireguardServerConfFactory({ address, keyPath: '/etc/wireguard/wg0.key', peers, policies });
+
+  it('needs a restart only for the lines that wg-quick applies at start', () => {
+    const restricted = [{ id: 'worker-b', address: '10.0.0.3', role: '', policy: 'restricted' }];
+    const base = startOnlyConfFactory(hubConf());
+    expect(startOnlyConfFactory(hubConf({ peers: TOPOLOGY[HUB_HOST].peers.slice(0, 1) }))).to.equal(base);
+    expect(startOnlyConfFactory(hubConf({ policies: restricted }))).to.equal(base);
+    expect(startOnlyConfFactory(hubConf({ address: '10.0.1.1/24' }))).to.not.equal(base);
+    expect(startOnlyConfFactory('')).to.not.equal(base);
+  });
+
+  it('removes the live keys the topology does not hold before it admits the peers', () => {
+    const { commands, removed } = hubLivePeersFactory({
+      interfaceName: 'wg0',
+      peers: TOPOLOGY[HUB_HOST].peers,
+      latestHandshakes: 'peerAPublicKeyFixture=\t1700000000\nretiredKeyFixture=\t0\n',
+    });
+    expect(removed).to.deep.equal(['retiredKeyFixture=']);
+    expect(commands).to.deep.equal([
+      "sudo sh -c 'wg show wg0 >/dev/null 2>&1 && wg set wg0 peer retiredKeyFixture= remove || true'",
+      "sudo sh -c 'wg show wg0 >/dev/null 2>&1 && wg set wg0 peer peerAPublicKeyFixture= allowed-ips 10.0.0.2/32 || true'",
+      "sudo sh -c 'wg show wg0 >/dev/null 2>&1 && wg set wg0 peer peerBPublicKeyFixture= allowed-ips 10.0.0.3/32 || true'",
+    ]);
+  });
+});
+
 describe('edge host provisioning', () => {
   let harness;
 
@@ -242,8 +282,8 @@ describe('edge host provisioning', () => {
       harness.route({ match: 'sudo cat', code: 0, stdout: 'generatedPublicKey=\n' });
       const result = UnderpostWireguard.API.ensureKeyPair('wg0');
       expect(result).to.include({ publicKey: 'generatedPublicKey=', generated: true });
-      expect(harness.ran('umask 077 && mkdir -p /etc/wireguard && wg genkey')).to.equal(true);
-      expect(harness.ran('chmod 0600 /etc/wireguard/wg0.key')).to.equal(true);
+      expect(harness.ran("umask 077 && wg genkey > '/etc/wireguard/wg0.key'")).to.equal(true);
+      expect(harness.ran("chmod 0644 '/etc/wireguard/wg0.pub'")).to.equal(true);
       expect(harness.ran('cat /etc/wireguard/wg0.key')).to.equal(false);
     });
 
@@ -260,6 +300,31 @@ describe('edge host provisioning', () => {
     it('generates nothing under a dry run', () => {
       harness.route({ match: 'sudo test -s', code: 1 });
       expect(UnderpostWireguard.API.ensureKeyPair('wg0', true)).to.include({ publicKey: '', generated: true });
+      expect(harness.ran('wg genkey')).to.equal(false);
+    });
+
+    it('prints only the public key of a machine that has no node document', () => {
+      edgeFixture({ hostname: 'new-machine' });
+      harness.route({ match: 'sudo test -s', code: 1 });
+      harness.route({ match: 'sudo cat /etc/wireguard/wg0.pub', code: 0, stdout: 'newMachinePublicKey=\n' });
+      const print = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      expect(UnderpostWireguard.API.key()).to.equal('newMachinePublicKey=');
+      expect(print.mock.calls).to.deep.equal([['newMachinePublicKey=']]);
+      expect(harness.ran("wg genkey > '/etc/wireguard/wg0.key'")).to.equal(true);
+      expect(harness.ran('cat /etc/wireguard/wg0.key')).to.equal(false);
+    });
+
+    it('refuses an empty public key', () => {
+      harness.route({ match: 'sudo test -s', code: 0 });
+      harness.route({ match: 'sudo cat', code: 0, stdout: '' });
+      expect(() => UnderpostWireguard.API.key({ interface: 'wg1' })).to.throw('/etc/wireguard/wg1.pub is empty');
+    });
+
+    it('prints nothing under a dry run that would create the pair', () => {
+      harness.route({ match: 'sudo test -s', code: 1 });
+      const print = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      expect(UnderpostWireguard.API.key({ dryRun: true })).to.equal('');
+      expect(print.mock.calls.length).to.equal(0);
       expect(harness.ran('wg genkey')).to.equal(false);
     });
   });
@@ -348,7 +413,7 @@ describe('edge host provisioning', () => {
       harness.route({ match: 'sudo cat', code: 0, stdout: 'hubRotatedKeyFixture=\n' });
       const next = UnderpostWireguard.API.setup({});
       expect(next.role).to.equal('hub');
-      expect(harness.ran('install -m 0600 -o root -g root')).to.equal(true);
+      expect(harness.ran('install -D -m 0600 -o root -g root')).to.equal(true);
       expect(harness.ran('echo net.ipv4.ip_forward=1')).to.equal(true);
       expect(harness.ran('sysctl -q --system')).to.equal(true);
       expect(written.get(EDGE_TOPOLOGY_PATH)).to.include('hubRotatedKeyFixture=');
@@ -356,7 +421,7 @@ describe('edge host provisioning', () => {
 
     it('writes a client config that dials the hub endpoint on a spoke', () => {
       const staged = [];
-      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
+      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node', addresses: ['198.51.100.2'] });
       vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => staged.push(`${value}`));
       harness.route({ match: 'sudo test -s', code: 0 });
       harness.route({ match: 'sudo cat', code: 0, stdout: 'peerAPublicKeyFixture=\n' });
@@ -369,13 +434,17 @@ describe('edge host provisioning', () => {
     });
 
     it('refuses hub-only flags on a spoke', () => {
-      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
+      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node', addresses: ['198.51.100.2'] });
       expect(() => UnderpostWireguard.API.setup({ port: 51821 })).to.throw('configure the hub only');
       expect(() => UnderpostWireguard.API.setup({ sshForwardPort: 2222 })).to.throw('configure the hub only');
     });
 
     it('leaves an equivalent topology file as it is', () => {
-      const { written } = edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node' });
+      const { written } = edgeFixture({
+        files: SPOKE_IDENTITY_FILES,
+        hostname: 'control-node',
+        addresses: ['198.51.100.2'],
+      });
       harness.route({ match: 'sudo test -s', code: 0 });
       harness.route({ match: 'sudo cat', code: 0, stdout: 'peerAPublicKeyFixture=\n' });
       UnderpostWireguard.API.setup({});
@@ -389,6 +458,21 @@ describe('edge host provisioning', () => {
         "expected peer 'worker-b'",
       );
       expect(harness.ran('install -m 0600')).to.equal(false);
+    });
+
+    // A machine that kept a default hostname resolves the document of that name.
+    it('refuses a peer registered at the address of another machine', () => {
+      const { written } = edgeFixture({
+        files: SPOKE_IDENTITY_FILES,
+        hostname: 'control-node',
+        addresses: ['192.0.2.82'],
+      });
+      expect(() => UnderpostWireguard.API.setup({})).to.throw(
+        "node 'control-node' is peer 'control-a' at 198.51.100.2, which is not this machine",
+      );
+      expect(harness.calls.length).to.equal(0);
+      expect(written.has(EDGE_TOPOLOGY_PATH)).to.equal(false);
+      UnderpostWireguard.API.setup({ buildConf: true, publicKey: 'peerAPublicKeyFixture=' });
     });
 
     it('refuses a hub address with no prefix length', () => {
@@ -413,6 +497,42 @@ describe('edge host provisioning', () => {
       harness.route({ match: 'is-active --quiet wg-quick@wg0', code: 0 });
       expect(() => UnderpostWireguard.API.setup({})).not.to.throw();
       expect(harness.ran('is-active --quiet wg-quick@wg0')).to.equal(true);
+    });
+
+    it('gives a running hub the peer table of its file, with no restart', () => {
+      edgeFixture({ files: HUB_IDENTITY_FILES });
+      stubKeyPair();
+      harness.route({ match: 'is-active --quiet wg-quick@wg0', code: 0 });
+      harness.route({
+        match: 'wg show wg0 latest-handshakes',
+        stdout: 'peerAPublicKeyFixture=\t1700000000\nretiredKeyFixture=\t0\n',
+      });
+      UnderpostWireguard.API.setup({});
+      const remove = harness.calls.findIndex((call) => call.includes('wg set wg0 peer retiredKeyFixture= remove'));
+      const admit = harness.calls.findIndex((call) =>
+        call.includes('wg set wg0 peer peerBPublicKeyFixture= allowed-ips 10.0.0.3/32'),
+      );
+      expect(remove).to.be.greaterThan(-1);
+      expect(admit).to.be.greaterThan(remove);
+      expect(harness.ran('wg set wg0 peer peerAPublicKeyFixture= allowed-ips 10.0.0.2/32')).to.equal(true);
+      expect(harness.ran('systemctl restart')).to.equal(false);
+    });
+
+    it('leaves the peers of a stopped hub to the start of the tunnel', () => {
+      edgeFixture({ files: HUB_IDENTITY_FILES });
+      stubKeyPair();
+      harness.route({ match: 'is-active --quiet wg-quick@wg0', code: 3 });
+      UnderpostWireguard.API.setup({});
+      expect(harness.ran('wg set')).to.equal(false);
+    });
+
+    it('changes no live peer on a spoke', () => {
+      edgeFixture({ files: SPOKE_IDENTITY_FILES, hostname: 'control-node', addresses: ['198.51.100.2'] });
+      harness.route({ match: 'sudo test -s', code: 0 });
+      harness.route({ match: 'sudo cat', code: 0, stdout: 'peerAPublicKeyFixture=\n' });
+      harness.route({ match: 'is-active --quiet wg-quick@wg0', code: 0 });
+      UnderpostWireguard.API.setup({});
+      expect(harness.ran('wg set')).to.equal(false);
     });
 
     it('touches no host under --build-conf', () => {
@@ -623,7 +743,7 @@ describe('edge host provisioning', () => {
       });
       harness.route({ match: 'haproxy -c -f', code: 1, stdout: 'parsing error on line 3\n' });
       expect(() => UnderpostWireguard.API.haproxySync({})).to.throw('rejected the generated config');
-      expect(harness.ran('rm -f /etc/haproxy/domain2backend.map')).to.equal(true);
+      expect(harness.ran("rm -rf -- '/etc/haproxy/domain2backend.map'")).to.equal(true);
       expect(harness.ran('reload')).to.equal(false);
     });
 
@@ -894,12 +1014,11 @@ describe('edge host provisioning', () => {
     });
 
     it.skipIf(!shipsCyberiaPackageScript)(
-      'installs the checkout manifest before the CLI is used, and the deploy manifest on what the switch landed',
+      'installs the deploy manifest on what the switches landed, before the CLI is used',
       () => {
-        // Regression: a node whose install no longer matched its manifest could not load its own
-        // CLI, so the first step of the sync died before the step that repairs the tree. The
-        // bootstrap installs the checkout's own manifest because that is the one matching the code
-        // already in the tree; the deploy manifest can only be installed once its switch lands it.
+        // Regression: the node's CLI ran before the switches and refused the configuration the conf
+        // switch landed, so a rerun could never get past it. The switches are git alone, and the
+        // deploy manifest is installed once both have landed.
         const previousUser = process.env.GITHUB_USERNAME;
         const previousToken = process.env.GITHUB_TOKEN;
         process.env.GITHUB_USERNAME = 'fixture-org';
@@ -912,8 +1031,8 @@ describe('edge host provisioning', () => {
           const commands = steps.map(({ command }) => command);
           const packageStep = 'bash ./deploy/dd-cyberia/package.sh';
 
-          expect(commands[0]).to.equal('git checkout -- package.json; npm install');
-          expect(steps[0].halt, 'a tree that cannot be restored must still reach the switch').to.not.equal(true);
+          expect(steps[0].label).to.equal('switch ./engine-private to fixture-org/engine-cyberia-private master');
+          expect(commands.slice(0, 3).some((command) => command.startsWith('node bin'))).to.equal(false);
           expect(commands).to.not.include('npm link --force');
           const last = commands.lastIndexOf(packageStep);
           expect(last).to.equal(commands.indexOf(packageStep));
@@ -1101,20 +1220,151 @@ describe('edge host provisioning', () => {
     });
   });
 
+  describe('workstation', () => {
+    const WORKSTATION_PEER = {
+      id: 'ws-dev',
+      address: '10.0.0.9',
+      publicKey: 'workstationPublicKeyFixture=',
+      allowedIPs: ['10.0.0.9/32'],
+    };
+    const topology = (peer = WORKSTATION_PEER) =>
+      JSON.stringify({ [HUB_HOST]: { ...TOPOLOGY[HUB_HOST], peers: [...TOPOLOGY[HUB_HOST].peers, peer] } });
+    const fleetFiles = (peer) => ({
+      [EDGE_TOPOLOGY_PATH]: topology(peer),
+      [`${NODES_PATH}/hub-node.json`]: nodeDocument({ role: 'hub', hubHost: HUB_HOST }),
+      [`${NODES_PATH}/control-node.json`]: nodeDocument({ role: 'control', hubHost: HUB_HOST, peerId: 'control-a' }),
+      [`${NODES_PATH}/worker-node.json`]: nodeDocument({ role: 'worker', hubHost: HUB_HOST, peerId: 'worker-b' }),
+      [`${NODES_PATH}/dev-laptop.json`]: nodeDocument({ role: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' }),
+    });
+    const stagedFiles = () => {
+      const staged = [];
+      vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, value) => staged.push(`${value}`));
+      harness.route({ match: 'sudo test -s', code: 0 });
+      return staged;
+    };
+
+    it('records a workstation for a peer that claims only its own address', () => {
+      const { written } = edgeFixture({ files: { [EDGE_TOPOLOGY_PATH]: topology() }, hostname: 'dev-laptop' });
+      UnderpostWireguard.API.nodeConfig({ nodeRole: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' });
+      expect(JSON.parse(written.get(`${NODES_PATH}/dev-laptop.json`))).to.deep.equal({
+        role: 'workstation',
+        hubHost: HUB_HOST,
+        peerId: 'ws-dev',
+      });
+      // Run again: the same document, no refusal.
+      UnderpostWireguard.API.nodeConfig({ nodeRole: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' });
+    });
+
+    it('refuses a workstation on a peer the edge routes traffic to', () => {
+      edgeFixture({ files: { [EDGE_TOPOLOGY_PATH]: JSON.stringify(TOPOLOGY) }, hostname: 'dev-laptop' });
+      expect(() =>
+        UnderpostWireguard.API.nodeConfig({ nodeRole: 'workstation', hubHost: HUB_HOST, peerId: 'control-a' }),
+      ).to.throw("'control-a' it is the default peer, it routes hosts");
+      vi.restoreAllMocks();
+      edgeFixture({
+        files: {
+          [EDGE_TOPOLOGY_PATH]: topology({ ...WORKSTATION_PEER, allowedIPs: ['10.0.0.9/32', '192.168.1.0/24'] }),
+        },
+        hostname: 'dev-laptop',
+      });
+      expect(() =>
+        UnderpostWireguard.API.nodeConfig({ nodeRole: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' }),
+      ).to.throw('it claims 10.0.0.9/32, 192.168.1.0/24');
+    });
+
+    // A second machine named like the control node must not take over its document.
+    it('refuses to move a node document to another peer', () => {
+      edgeFixture({ files: fleetFiles(), hostname: 'control-node' });
+      expect(() =>
+        UnderpostWireguard.API.nodeConfig({ nodeRole: 'workstation', hubHost: HUB_HOST, peerId: 'ws-dev' }),
+      ).to.throw("node 'control-node' is peer 'control-a'");
+    });
+
+    it('refuses a binding on a peer that a workstation document names', () => {
+      edgeFixture({ files: fleetFiles(), hostname: 'hub-node' });
+      expect(() =>
+        UnderpostWireguard.API.peerAdd({
+          peerAdd: 'ws-dev',
+          peerIp: '10.0.0.9',
+          publicKey: 'workstationPublicKeyFixture=',
+          hosts: 'app.fixture.test',
+        }),
+      ).to.throw('a workstation peer claims only its own address');
+      expect(harness.ran('wg set')).to.equal(false);
+    });
+
+    it('forwards nothing and trusts no peer on the workstation itself', () => {
+      edgeFixture({ files: fleetFiles(), hostname: 'dev-laptop' });
+      const staged = stagedFiles();
+      harness.route({ match: 'sudo cat', code: 0, stdout: 'workstationPublicKeyFixture=\n' });
+
+      UnderpostWireguard.API.setup({});
+
+      const conf = staged.find((content) => content.includes('[Peer]'));
+      expect(conf).to.include('Address = 10.0.0.9/32');
+      expect(conf).to.not.include('MASQUERADE');
+      expect(conf).to.not.include('ip_forward');
+      expect(harness.ran('net.ipv4.ip_forward=1')).to.equal(false);
+      expect(harness.ran('--zone=trusted')).to.equal(false);
+      expect(harness.ran(UNDERPOST_EDGE.peerChain)).to.equal(false);
+    });
+
+    it('limits a workstation on the hub to the workstation port of fleet peers', () => {
+      edgeFixture({ files: fleetFiles(), hostname: 'hub-node' });
+      const staged = stagedFiles();
+      harness.route({ match: 'sudo cat', code: 0, stdout: 'hubPublicKeyFixture=\n' });
+
+      UnderpostWireguard.API.setup({});
+
+      const conf = staged.find((content) => content.includes('ListenPort'));
+      const port = UNDERPOST_EDGE.workstationPort;
+      const chain = UNDERPOST_EDGE.peerChain;
+      for (const fleet of ['10.0.0.2', '10.0.0.3'])
+        expect(conf).to.include(`-A ${chain} -s 10.0.0.9 -d ${fleet} -p tcp --dport ${port} -j RETURN`);
+      expect(conf).to.include(`-A ${chain} -s 10.0.0.9 -j DROP`);
+      expect(conf).to.include(`-A ${chain} -d 10.0.0.9 -m conntrack --ctstate NEW -j DROP`);
+      expect(conf).to.not.include(`-s 10.0.0.2 -j DROP`);
+      // The jump follows the forward accept rules, so it runs first.
+      expect(conf.indexOf(`-I FORWARD -i wg0 -j ${chain}`)).to.be.above(conf.indexOf('-I FORWARD -o wg0 -j ACCEPT'));
+      expect(harness.ran(`iptables -A ${chain} -s 10.0.0.9 -j DROP`)).to.equal(true);
+    });
+
+    it('restricts a peer that no node document names', () => {
+      const policies = peerPoliciesFactory({
+        peers: [TOPOLOGY[HUB_HOST].peers[0], WORKSTATION_PEER],
+        nodes: [{ role: 'control', hubHost: HUB_HOST, peerId: 'control-a' }],
+      });
+      expect(policies.map(({ id, policy }) => `${id}:${policy}`)).to.deep.equal([
+        'control-a:fleet',
+        'ws-dev:restricted',
+      ]);
+      const { up } = peerPolicyRulesFactory({ policies });
+      expect(up.filter((rule) => rule.includes('-j DROP'))).to.have.length(2);
+      expect(up.some((rule) => rule.includes('-s 10.0.0.2'))).to.equal(false);
+    });
+
+    it('withdraws the peer filter when the hub stops', () => {
+      edgeFixture({ files: HUB_IDENTITY_FILES });
+      UnderpostWireguard.API.stop({});
+      expect(harness.ran(`iptables -X ${UNDERPOST_EDGE.peerChain}`)).to.equal(true);
+    });
+  });
+
   describe('CLI dispatch', () => {
     it('runs the lifecycle flags in the only order that works', async () => {
       edgeFixture({ files: HUB_IDENTITY_FILES });
       const order = [];
-      for (const method of ['install', 'setup', 'start', 'status']) {
+      for (const method of ['install', 'key', 'setup', 'start', 'status']) {
         vi.spyOn(UnderpostWireguard.API, method).mockImplementation(() => order.push(method));
       }
       await UnderpostWireguard.API.callback({
         status: true,
         wireguardStart: true,
         wireguardSetup: true,
+        wireguardKey: true,
         wireguardInstall: true,
       });
-      expect(order).to.deep.equal(['install', 'setup', 'start', 'status']);
+      expect(order).to.deep.equal(['install', 'key', 'setup', 'start', 'status']);
     });
 
     // `--build-conf` is a hard promise: it short-circuits every host action even
@@ -1122,10 +1372,15 @@ describe('edge host provisioning', () => {
     it('touches no host action under --build-conf', async () => {
       edgeFixture({ files: HUB_IDENTITY_FILES });
       const called = [];
-      for (const method of ['install', 'start', 'stop', 'setup', 'buildConf']) {
+      for (const method of ['install', 'key', 'start', 'stop', 'setup', 'buildConf']) {
         vi.spyOn(UnderpostWireguard.API, method).mockImplementation(() => called.push(method));
       }
-      await UnderpostWireguard.API.callback({ buildConf: true, wireguardInstall: true, wireguardStart: true });
+      await UnderpostWireguard.API.callback({
+        buildConf: true,
+        wireguardInstall: true,
+        wireguardKey: true,
+        wireguardStart: true,
+      });
       expect(called).to.deep.equal(['buildConf']);
     });
 

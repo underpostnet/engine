@@ -25,17 +25,28 @@ import { engineMirrorContentsFactory } from '../../../../src/server/ops/cron.js'
 const readSource = (relative) => fs.readFileSync(new URL(`../../../../${relative}`, import.meta.url), 'utf8');
 
 describe('node roles', () => {
-  it('are exactly the three the topology defines', () => {
-    expect(NODE_ROLES).to.deep.equal(['hub', 'control', 'worker']);
-    for (const invented of ['control-plane', 'edge', 'gateway', 'master', 'server'])
+  it('are exactly the four the topology defines', () => {
+    expect(NODE_ROLES).to.deep.equal(['hub', 'control', 'worker', 'workstation']);
+    for (const invented of ['control-plane', 'development', 'developer', 'incubation', 'edge', 'master', 'server'])
       expect(NODE_CAPABILITIES, invented).to.not.have.property(invented);
   });
 
-  it('keeps the role names the edge identity validates against', () => {
-    // The capability table and the topology must agree on the vocabulary, or a node document
-    // could name a role that has capabilities here and none there.
+  it('is the one vocabulary the edge identity validates against', () => {
     const wireguard = readSource('src/cli/wireguard.js');
-    expect(wireguard).to.include("EDGE_NODE_ROLES = Object.freeze(['control', 'worker', 'hub'])");
+    expect(wireguard).to.include('NODE_ROLES.includes(');
+    expect(wireguard).to.not.include('EDGE_NODE_ROLES');
+  });
+
+  it('keeps every fleet member a WireGuard endpoint', () => {
+    for (const role of NODE_ROLES.filter((entry) => roleHasCapability(entry, 'fleet-member')))
+      expect(roleHasCapability(role, 'wireguard-hub') || roleHasCapability(role, 'wireguard-spoke'), role).to.equal(
+        true,
+      );
+    expect(NODE_ROLES.filter((role) => roleHasCapability(role, 'fleet-member'))).to.deep.equal([
+      'hub',
+      'control',
+      'worker',
+    ]);
   });
 });
 
@@ -104,6 +115,55 @@ describe('worker is a Kubernetes node, not a Kubernetes administrator', () => {
   });
 });
 
+describe('workstation is a WireGuard peer, not a Kubernetes node', () => {
+  it('holds only its own host and tunnel', () => {
+    expect(NODE_CAPABILITIES.workstation).to.deep.equal(['host-configuration', 'wireguard-spoke']);
+  });
+
+  it('inherits nothing from the control node or a worker', () => {
+    for (const capability of [
+      ...CLUSTER_ADMIN_CAPABILITIES,
+      'kubernetes-node',
+      'fleet-member',
+      'event-service',
+      'baremetal-provisioning',
+      'wireguard-hub',
+      'haproxy',
+      'forward-proxy',
+      'edge-routing',
+      'node-metrics',
+    ])
+      expect(roleHasCapability('workstation', capability), capability).to.equal(false);
+  });
+
+  it('refuses every operation the platform gates on another role', () => {
+    for (const [capability, operation] of [
+      ['haproxy', 'wireguard --haproxy-sync'],
+      ['forward-proxy', 'wireguard --forward-proxy-server'],
+      ['cron-publication', 'cron --apply'],
+      ['event-service', 'event --service'],
+      ['kubernetes-administration', 'kubectl apply'],
+      ['cluster-secret-administration', 'secret apply'],
+      ['baremetal-provisioning', 'baremetal'],
+    ])
+      expect(() => assertRoleCapability({ role: 'workstation', capability, operation }), capability).to.throw(
+        "which the 'workstation' role does not hold",
+      );
+  });
+});
+
+describe('bare-metal provisioning is a capability of the control node', () => {
+  it('belongs to the control node alone', () => {
+    expect(NODE_ROLES.filter((role) => roleHasCapability(role, 'baremetal-provisioning'))).to.deep.equal(['control']);
+  });
+
+  it('is gated where the command executes, and leaves an unenrolled machine alone', () => {
+    const baremetal = readSource('src/cli/baremetal.js');
+    expect(baremetal).to.include('const role = Underpost.wireguard.localRole();');
+    expect(baremetal).to.include("if (role) assertRoleCapability({ role, capability: 'baremetal-provisioning'");
+  });
+});
+
 describe('capability is not inherited from the host domain', () => {
   it('gives every role host configuration and no role anything more for it', () => {
     // Being managed by `underpost host` is node-level operational configuration, and is not a
@@ -117,7 +177,7 @@ describe('capability is not inherited from the host domain', () => {
   it('fails closed on a role the table does not define', () => {
     expect(roleHasCapability('control-plane', 'kubernetes-administration')).to.equal(false);
     expect(() => assertRoleCapability({ role: '', capability: 'kubernetes-node', operation: 'kubelet join' })).to.throw(
-      'known roles are hub, control, worker',
+      'known roles are hub, control, worker, workstation',
     );
   });
 });
@@ -164,13 +224,13 @@ describe('cron publication is gated where it executes', () => {
     expect(guardIndex).to.be.greaterThan(applyIndex);
   });
 
-  it('leaves a machine with no node role alone, so workstation and CI keep working', () => {
+  it('leaves a machine with no node role alone, so CI keeps working', () => {
     expect(cronSource).to.include('const role = Underpost.wireguard.localRole();');
     expect(cronSource).to.include('if (role) assertRoleCapability(');
   });
 
-  it('refuses publication from the two roles that must never publish', () => {
-    for (const role of ['hub', 'worker'])
+  it('refuses publication from every role but control', () => {
+    for (const role of ['hub', 'worker', 'workstation'])
       expect(
         () => assertRoleCapability({ role, capability: 'cron-publication', operation: 'cron --apply' }),
         role,

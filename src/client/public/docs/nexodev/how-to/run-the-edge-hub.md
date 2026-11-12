@@ -101,7 +101,7 @@ The filename is the node name, so it is not repeated in the document.
 { "role": "worker", "hubHost": "64.176.25.136", "peerId": "homelab-a-hp-envy-iso-ram-rocky9" }
 ```
 
-Roles are exactly `hub`, `control`, and `worker`. A hub has no `peerId`; control and worker nodes must reference one peer in their selected hub.
+Roles are exactly `hub`, `control`, `worker` and `workstation`; `src/server/network/node-capability.js` gives each its capabilities. A hub has no `peerId`; every other role references one peer of its hub. A node document keeps its peer: `--node-config` refuses to move it to another peer or hub. The hostname selects the document, so a second machine with the same hostname needs its own hostname. `--wireguard-setup` refuses a document whose peer is registered at the `managementHost` of another machine.
 
 ### Node records for each machine
 
@@ -197,6 +197,8 @@ node bin wireguard --build-conf --hub-host 64.176.25.136 \
 node bin wireguard --build-conf
 ```
 
+Each machine creates its own key pair. Run `node bin wireguard --wireguard-key` on the machine: it prints the public key, and the private key stays in `/etc/wireguard` on that machine. The topology holds public keys only. Never copy a private key to `engine-private` or to another machine.
+
 `allowedIPs` defaults to the peer tunnel `/32`. Add a LAN subnet only when the hub must route through that peer to additional machines. Never assign overlapping CIDRs to different peers.
 
 ### Configure the hub
@@ -223,6 +225,43 @@ node bin wireguard --wireguard-install --wireguard-setup --wireguard-start --che
 ```
 
 The endpoint, tunnel address and hub public key are derived from the selected node and topology. Setup updates only that peer's public key; it cannot overwrite hub or another node identity.
+
+### Workstation peers
+
+A workstation is a computer that a person operates, such as a laptop that authors Cyberia content. It is a WireGuard peer of the hub. It is not a Kubernetes node: it holds no cluster administration, the fleet never syncs, probes or repairs it, and it routes no pod traffic.
+
+It needs the host system of the other nodes, the RHEL 9 family: the setup uses `dnf`, systemd and firewalld. Enroll it in three steps:
+
+```bash
+# 1. On the workstation: give it a unique hostname, then create its key pair. The last line is the public key.
+sudo hostnamectl set-hostname dev-laptop
+node bin wireguard --wireguard-install --wireguard-key
+
+# 2. On the sync source: record the peer, with its own /32 and no binding, and its node document.
+node bin wireguard --build-conf --hub-host 64.176.25.136 \
+  --peer-add dev-laptop --peer-ip 10.0.0.9 --public-key '<workstation-public-key>'
+node bin wireguard --node-config --node-name dev-laptop --node-role workstation \
+  --hub-host 64.176.25.136 --peer-id dev-laptop
+
+# 3. On the workstation, after the rollout and a pull of engine-private: bring the tunnel up.
+node bin wireguard --wireguard-setup --wireguard-start --check --status
+```
+
+Between steps 2 and 3, roll the change out to the fleet: see [Roll out a network change](roll-out-a-network-change.md). The hub reads the role of the peer from its node document. Until the hub reads a node document that names a fleet role, it restricts the peer.
+
+`--node-config` refuses a workstation peer that is the default peer, routes a host or an instance, or claims more than its own `/32`. `--peer-add` refuses the same bindings for a peer that a workstation document names.
+
+The hub applies one packet filter, the `UNDERPOST_WG_PEERS` chain, to each peer that is not a fleet member:
+
+- It may open TCP `7735`, the workstation port, on the tunnel address of a fleet peer, and nothing else: no Kubernetes API, kubelet, SSH, MongoDB or hub service.
+- No peer may open a connection to it.
+- Replies to its own connections pass.
+
+WireGuard binds the source address of each packet to the key of its peer, so the filter applies to the peer. The hub applies the filter at `--wireguard-setup`, `--peer-add`, `--peer-remove` and each start of the tunnel, and removes it at `--wireguard-stop`. On the workstation, the tunnel stays in the default firewall zone and the setup enables no IP forwarding.
+
+The workstation port carries one service today: the Cyberia lifecycle share, which the control node opens for one workstation peer. See [Run a content lifecycle](../../cyberia/how-to/run-a-content-lifecycle.md#5-connect-the-workstation).
+
+A workstation can host a Development Sandbox, a local Kind cluster for development data. The sandbox is not a peer and not a Kubernetes node of the fleet: its services listen on `127.0.0.1` of the workstation only. See [Run a Development Sandbox](run-a-development-sandbox.md).
 
 ### Reconcile after a pull
 
@@ -291,7 +330,7 @@ Use `--dry-run` on any of them to see the exact files and commands first.
 node bin wireguard --status
 ```
 
-Every report starts with `nodeName`, `role`, `hubHost`, and `peerId`. On the hub, `peers` contains live handshake, endpoint and transfer information. On control and worker nodes, `hub` contains the one live WireGuard peer and `topologyPeers` is the deployment inventory. This separation prevents a spoke from reporting the hub as unregistered or other spokes as locally offline.
+Every report starts with `nodeName`, `role`, `hubHost`, and `peerId`. On the hub, `peers` contains live handshake, endpoint and transfer information, and `peerPolicies` gives the policy of each peer: `fleet`, or `restricted` with its role or `no node document`. On every other role, `hub` contains the one live WireGuard peer and `topologyPeers` is the deployment inventory. This separation prevents a spoke from reporting the hub as unregistered or other spokes as locally offline.
 
 `unregisteredPeers` compares the live interface with the correct expected identities: all peer keys on the hub, and only the hub key elsewhere.
 
@@ -356,13 +395,14 @@ A hostname that resolves to nothing is **reported**, not dropped: a silently mis
 /etc/haproxy/haproxy.cfg                 generated edge gateway
 /etc/haproxy/domain2backend.map          SNI  -> be_tls_<peer>
 /etc/haproxy/domain2backend-http.map     Host -> be_http_<peer>
-/etc/sysctl.d/99-underpost-wireguard.conf  net.ipv4.ip_forward=1  (both roles)
+/etc/sysctl.d/99-underpost-wireguard.conf  net.ipv4.ip_forward=1  (hub and Kubernetes nodes)
 /etc/systemd/system/underpost-forward-proxy.service  forward proxy unit   0600
 engine-private/deploy/conf.wireguard.json  peer registry (public keys only)
 iptables nat chains UNDERPOST_WG_PRE / UNDERPOST_WG_POST   QUIC DNAT
+iptables filter chain UNDERPOST_WG_PEERS                    peer policy (hub)
 firewalld permanent rules             80,443/tcp 443,51820/udp masquerade (hub)
                                       rich rule 1080/tcp from 10.0.0.0/24   (hub)
-                                      zone=trusted interface=<iface>        (spoke)
+                                      zone=trusted interface=<iface>        (hub and Kubernetes nodes)
 ```
 
 All of these are outputs. Editing them by hand is overwritten by the next sync — change `conf.wireguard.json` or the deploy's `conf.server.json` instead.
@@ -464,17 +504,17 @@ node bin wireguard --sync --repo-engine https://github.com/underpostnet/engine.g
 node bin wireguard --sync --dry-run
 ```
 
-The nodes a fault can be repaired on are exactly the nodes the engine runs on, so `--sync` reaches them through the same registries and SSH identities event remediation resolves — hubs through their external endpoint, the selected control node locally, workers over LAN SSH. A second host list would be free to disagree with the one that gets repaired.
+[Roll out a network change](roll-out-a-network-change.md) places the sync in the order of a full rollout.
+
+The nodes a fault can be repaired on are exactly the nodes the engine runs on, so `--sync` reaches them through the same registries and SSH identities event remediation resolves — hubs through their external endpoint, the selected control node locally, workers over LAN SSH. A second host list would be free to disagree with the one that gets repaired. Only roles that hold `fleet-member` are targets: a workstation is never synced, probed or repaired, because its operator owns its checkout.
 
 Per node, in the checkout at `/home/dd/engine`, as **one** SSH session:
 
 ```bash
-bash ./deploy/<deploy-id>/package.sh
+# switch ./engine-private to <repo-engine-private> <default-branch>
+# switch . to <repo-engine> <default-branch>
+bash ./deploy/<deploy-id>/package.sh        # npm install for a source of no deploy
 node bin host set GITHUB_TOKEN <github-token>
-node bin run clean
-node bin cmt --switch-repo <repo-engine> --target-branch <default-branch>
-node bin cmt ./engine-private --switch-repo <repo-engine-private> --target-branch <default-branch>
-bash ./deploy/<deploy-id>/package.sh
 node bin host set ENGINE_SRC_REPO <repo-engine>
 node bin host set ENGINE_SRC_PRIVATE_REPO <repo-engine-private>
 <cron-reconcile-command>
@@ -482,17 +522,23 @@ test -f /etc/systemd/system/underpost-event.service && <event-service-command>
 test -f /etc/systemd/system/underpost-forward-proxy.service && <forward-proxy-command>
 ```
 
-The deploy's package script runs on both sides of the switch, and that is the shape of the whole
-sequence: every step between the two is the node's own CLI, which cannot load from a checkout
-whose installed packages no longer match its manifest. The first run repairs the tree it finds —
-advisory, because a node whose tree predates that script still has to reach the switch that gives
-it one — and the second installs the manifest the switch just landed. Both are dropped for a
-source that belongs to no deploy, or to a deploy that ships no package script of its own.
+Each switch is plain git, with the credential of the controller in a subshell:
+
+```bash
+git -C <path> clean -f -d
+git -C <path> remote set-url origin <repository>   # or remote add
+git -C <path> fetch --force <repository> <default-branch>
+git -C <path> reset --hard FETCH_HEAD
+git -C <path> checkout -B <default-branch> FETCH_HEAD
+```
+
+The node runs no command of its own CLI before both checkouts and their packages have landed. The CLI
+of an older checkout can refuse the configuration of a newer one, so a CLI between the two switches would
+stop the sync where a rerun stops again. Each step can run again, so a rerun completes an interrupted sync
+from whatever state it left.
 
 Every step that needs the CLI enters it as `node bin`, never as the globally linked `underpost`.
-That link is a symlink onto `bin/index.js` inside the checkout these steps restore, so the first
-step to run `git checkout .` rewrites its target's mode and the next step stops on `Permission
-denied`.
+That link is a symlink onto `bin/index.js` inside the checkout, and the package script relinks it.
 
 The switch moves the node between package scopes, and the steps after it are what makes
 everything running off that scope follow. The last two are scoped to the node's role, read from
@@ -513,7 +559,7 @@ The engine's default branch is resolved **on the controller** and named explicit
 
 `--repo-engine` takes `owner/repo` or a clone URL and defaults to the configured account's `engine`; `engine-private` follows `GITHUB_USERNAME`, because the two are one checkout on the node. The engine step switches the remote rather than pulling into whatever it already tracked, so pointing a fleet at a fork is the same command as keeping it on the current one.
 
-The sequence halts at the first failing step the later ones depend on — installing over a checkout whose pull failed would deploy stale sources under a fresh version. The advisory steps are the exceptions, neutralized in place so they cannot stop the sequence: the first package script, and the two reconciles at the end, which belong to subsystems a given node may not run at all. One node failing never stops the others; each is reported with the identity it ran as, and the command exits non-zero if any failed.
+The sequence halts at the first failing step the later ones depend on — installing over a checkout whose pull failed would deploy stale sources under a fresh version. The advisory steps are the exceptions, neutralized in place so they cannot stop the sequence: the token, and the reconciles at the end, which belong to subsystems a given node may not run at all. One node failing never stops the others; each is reported with the identity it ran as, and the command exits non-zero if any failed.
 
 ---
 
@@ -528,22 +574,9 @@ Every node's state comes from four files, and each one has exactly one command t
 | `conf.users.json`              | `node bin ssh --user <u> --host <h> --user-add`            | the control plane |
 | `conf.event.json`              | `node bin monitor --sync-prom`                             | the control plane |
 
-A full fleet reconcile, in dependency order:
+[Roll out a network change](roll-out-a-network-change.md) gives the order for the whole fleet: sync, hub, spokes, then the control plane.
 
-```bash
-# 1. Hub — interface, routing, and the firewall zone its forwarding depends on
-node bin wireguard --wireguard-setup --wireguard-restart --haproxy-sync
-
-# 2. Each spoke — control plane and workers
-node bin wireguard --wireguard-setup --wireguard-restart
-
-# 3. Control plane — probes, rules, routes and notification gates
-node bin monitor --sync-prom
-node bin event --list          # every repair and notify route must resolve
-node bin event wireguard-spoke-down --e2e-test --dry-run=false
-```
-
-`--wireguard-setup` rewrites the interface from topology and reapplies the host rules, including placing the tunnel interface in the `trusted` firewalld zone. **That zone is what makes spoke-to-spoke traffic work at all**: firewalld's forward chain ends in `reject with icmpx admin-prohibited`, so an unzoned `wg0` has its _forwarded_ packets dropped while the hub still answers on its own tunnel address. The symptom is a tunnel that passes every health check while one spoke cannot reach another — and it is what the `wireguard-spoke-down` probe measures.
+`--wireguard-setup` rewrites the interface from topology and reapplies the host rules, including placing the tunnel interface of a fleet node in the `trusted` firewalld zone. **That zone is what makes spoke-to-spoke traffic work at all**: firewalld's forward chain ends in `reject with icmpx admin-prohibited`, so an unzoned `wg0` has its _forwarded_ packets dropped while the hub still answers on its own tunnel address. The symptom is a tunnel that passes every health check while one spoke cannot reach another — and it is what the `wireguard-spoke-down` probe measures.
 
 Verify the property directly, from the control plane:
 
@@ -552,7 +585,7 @@ ping -c1 10.0.0.1    # the hub
 ping -c1 10.0.0.3    # another spoke — this is the one the zone governs
 ```
 
-Step 3 is not optional after a topology change: probe targets are rendered from `conf.wireguard.json` when the monitoring config is generated, so until `--sync-prom` runs, Prometheus is still probing the previous set.
+To check the full path end to end, run `node bin event wireguard-spoke-down --e2e-test --dry-run=false` on the control plane.
 
 ---
 
@@ -638,9 +671,9 @@ TLS is terminated exactly once, at the cluster's own ingress. See [Main cluster 
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `--node-config`                                                  | Write/select the current machine identity                                                                |
 | `--node-name <name>`                                             | Tracked node document name                                                                               |
-| `--node-role <role>`                                             | `control`, `worker`, or `hub`                                                                            |
+| `--node-role <role>`                                             | `hub`, `control`, `worker` or `workstation`                                                              |
 | `--hub-host <ipv4>`                                              | Select a topology by static hub IPv4                                                                     |
-| `--peer-id <id>`                                                 | Associate control/worker node with one topology peer                                                     |
+| `--peer-id <id>`                                                 | Associate a node of any role but hub with one topology peer                                              |
 | `--wireguard-install`                                            | Install host packages                                                                                    |
 | `--wireguard-setup`                                              | Generate keys, update selected topology public key, and write host configuration                         |
 | `--peer-add <id>` / `--peer-remove <id>`                         | Change one selected hub peer                                                                             |

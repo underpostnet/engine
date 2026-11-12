@@ -17,6 +17,7 @@ const ACTIONS = [
   'reinstall',
   'reset',
   'install',
+  'key',
   'haproxySetup',
   'haproxySync',
   'stop',
@@ -81,7 +82,7 @@ describe('wireguard command dispatch', () => {
 
   it('builds the configuration only, whatever host action is also asked for', async () => {
     let ran = actionsFactory();
-    await UnderpostWireguard.API.callback({ buildConf: true, wireguardStart: true, status: true });
+    await UnderpostWireguard.API.callback({ buildConf: true, wireguardKey: true, wireguardStart: true, status: true });
     expect(ran).to.deep.equal(['buildConf', 'status']);
     vi.restoreAllMocks();
     ran = actionsFactory();
@@ -113,6 +114,7 @@ describe('wireguard command dispatch', () => {
     let ran = actionsFactory();
     await UnderpostWireguard.API.callback({
       wireguardInstall: true,
+      wireguardKey: true,
       wireguardSetup: true,
       peerAdd: 'a',
       peerRemove: 'b',
@@ -127,6 +129,7 @@ describe('wireguard command dispatch', () => {
     });
     expect(ran).to.deep.equal([
       'install',
+      'key',
       'setup',
       'peerAdd',
       'peerRemove',

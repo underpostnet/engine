@@ -5,6 +5,7 @@ import express from 'express';
 import Underpost from '../../../../src/index.js';
 import { Config } from '../../../../src/server/runtime/conf.js';
 import { ProxyService } from '../../../../src/server/network/proxy.js';
+import { LOCAL_SSL_ROOT, TLS } from '../../../../src/server/network/tls.js';
 
 // The proxy builds one listener per configured port. Listening and certificates are stubbed, so what
 // is asserted is the port each listener binds, its server, and the certificate root it reads.
@@ -37,12 +38,12 @@ describe('proxy listeners', () => {
     vi.spyOn(Underpost.start, 'listenPortController').mockImplementation(async (server, port) =>
       listens.push({ server, port }),
     );
-    vi.spyOn(Underpost.tls, 'createSslServer').mockImplementation(async (app, hosts, options) => {
+    vi.spyOn(TLS, 'createSslServer').mockImplementation(async (app, hosts, options) => {
       const server = { tls: Object.keys(hosts) };
       ssl.push({ hosts: Object.keys(hosts), root: options?.root, server });
       return { ServerSSL: server };
     });
-    vi.spyOn(Underpost.tls, 'ensureLocalCertificate').mockImplementation((host) => issued.push(host));
+    vi.spyOn(TLS, 'ensureLocalCertificate').mockImplementation((host) => issued.push(host));
   });
 
   afterEach(() => {
@@ -58,7 +59,7 @@ describe('proxy listeners', () => {
     await build({ env: 'test', offset: '200', argv: ['proxy', 'dd-fixture', 'local', 'app.test', '/', 'tls'] });
     expect(issued).to.deep.equal(['app.test']);
     expect(ssl).to.have.length(1);
-    expect(ssl[0]).to.include({ root: Underpost.tls.LOCAL_SSL_ROOT });
+    expect(ssl[0]).to.include({ root: LOCAL_SSL_ROOT });
     expect(ssl[0].hosts).to.deep.equal(['app.test']);
     expect(listens).to.deep.equal([{ server: ssl[0].server, port: 643 }]);
   });

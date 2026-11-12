@@ -114,13 +114,13 @@ describe('development watch runner', () => {
     expect(restarts[0]).to.deep.equal([context.file('components/core/App.js')]);
     expect(context.starts()[1].args).to.deep.equal(ARGS);
 
-    context.write('services/core/core.service.js');
+    context.write('services/core/CoreService.js');
     await vi.waitFor(() => expect(context.starts()).to.have.length(3), WAIT);
-    expect(restarts[1]).to.include(context.file('services/core/core.service.js'));
+    expect(restarts[1]).to.include(context.file('services/core/CoreService.js'));
 
-    fs.removeSync(context.file('services/core/core.service.js'));
+    fs.removeSync(context.file('services/core/CoreService.js'));
     await vi.waitFor(() => expect(context.starts()).to.have.length(4), WAIT);
-    expect(restarts[2]).to.include(context.file('services/core/core.service.js'));
+    expect(restarts[2]).to.include(context.file('services/core/CoreService.js'));
   });
 
   it('follows a directory created after the watcher started', async () => {

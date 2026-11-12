@@ -24,7 +24,7 @@ import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCronDeployEnv, parseList, processDeployEnvResolve } from '../server/ops/cron.js';
 import { timer } from '../client/components/core/CommonJs.js';
-import { installRootFile, shellExec, sleepSync } from '../server/runtime/process.js';
+import { shellExec, sleepSync, writeHostFile } from '../server/runtime/process.js';
 import {
   homeDirectoryPathFactory,
   journalctlCommandFactory,
@@ -38,7 +38,7 @@ import {
 } from '../server/ops/systemd.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { shellArgumentFactory } from '../server/security/selinux.js';
-import { mailerInterceptorFactory } from '../mailer/MailerInterceptor.js';
+import { mailerInterceptorFactory } from '../mailer/mailer-interceptor.js';
 import {
   EVENT_CONF_PATH,
   assertNotificationRoutes,
@@ -62,7 +62,7 @@ import {
   readTopology,
   tunnelAddressFactory,
 } from './wireguard.js';
-import { assertRoleCapability } from '../server/network/node-capability.js';
+import { assertRoleCapability, roleHasCapability } from '../server/network/node-capability.js';
 import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
@@ -551,6 +551,8 @@ class UnderpostEvent {
      * topology and stable management addresses. `local` is settled against this
      * machine's own addresses rather than against the node document that named
      * it, so a repair never runs here for a peer that is somewhere else.
+     * A peer whose role is not a fleet member, such as a workstation, is not a
+     * spoke: the fleet never probes, syncs or repairs it.
      * @returns {Array<object>} Spokes with a resolvable tunnel address.
      * @memberof UnderpostEvent
      */
@@ -570,7 +572,10 @@ class UnderpostEvent {
             local: localPeerFactory(peer.managementHost, addresses),
           };
         })
-        .filter((spoke) => spoke.id && spoke.address);
+        .filter(
+          (spoke) =>
+            spoke.id && spoke.address && (!spoke.nodeRole || roleHasCapability(spoke.nodeRole, 'fleet-member')),
+        );
       warnManagementHostDrift(state, spokes, addresses);
       return spokes;
     },
@@ -579,16 +584,16 @@ class UnderpostEvent {
      * @method clusterNodes
      * @description Registered nodes the cluster schedules on, with their role.
      *
-     * Node discovery knows a machine by the name the kubelet registered, which
-     * is the name its node document is filed under; the role only the document
-     * holds is what the dashboards group by.
-     * @returns {Array<{nodeName: string, role: string}>} Non-hub nodes.
+     * Node discovery knows a machine by the name the kubelet registered: the
+     * `kubernetesNodeName` of its node document, else the name the document is
+     * filed under. The role only the document holds is what the dashboards group by.
+     * @returns {Array<{nodeName: string, role: string}>} Nodes whose role is a Kubernetes node, by Kubernetes node name.
      * @memberof UnderpostEvent
      */
     clusterNodes() {
       return readNodeConfigs()
-        .filter((node) => node.nodeName && node.role && node.role !== 'hub')
-        .map((node) => ({ nodeName: node.nodeName, role: node.role }));
+        .filter((node) => node.nodeName && roleHasCapability(node.role, 'kubernetes-node'))
+        .map((node) => ({ nodeName: node.kubernetesNodeName || node.nodeName, role: node.role }));
     },
 
     /**
@@ -694,6 +699,32 @@ class UnderpostEvent {
         keyPath: connection.keyPath,
         via: `${connection.user}@${connection.host}:${connection.port}`,
       };
+    },
+
+    /**
+     * @method kubernetesNodeTarget
+     * @description How this machine reaches a Kubernetes node: through the peer of the record of
+     * `deploy/nodes` that names it as `kubernetesNodeName` ({@link UnderpostEvent.spokeTarget}), or here
+     * when no record names it and it is this host.
+     * @param {string} node - A Kubernetes node name.
+     * @returns {object} The resolved target; `via` is `local` for this machine.
+     * @throws {Error} When no single record names the node, or its record has no peer.
+     * @memberof UnderpostEvent
+     */
+    kubernetesNodeTarget(node) {
+      const records = readNodeConfigs().filter(({ kubernetesNodeName }) => kubernetesNodeName === node);
+      if (!records.length && node === os.hostname())
+        return { role: 'node', spokeId: '', address: '', user: '', host: '', port: 0, keyPath: '', via: 'local' };
+      if (records.length !== 1)
+        throw new Error(
+          records.length
+            ? `[event] ${records.map(({ nodeName }) => nodeName).join(' and ')} name one Kubernetes node '${node}'`
+            : `[event] no node of deploy/nodes names the Kubernetes node '${node}': ` +
+                `node bin namespace nodes identify <node record> --kubernetes-node ${node}`,
+        );
+      if (!records[0].peerId)
+        throw new Error(`[event] node '${records[0].nodeName}' has no peerId: it is no peer this machine reaches`);
+      return Underpost.event.spokeTarget(records[0].peerId);
     },
 
     /**
@@ -1245,7 +1276,9 @@ class UnderpostEvent {
      * @memberof UnderpostEvent
      */
     deployedEventState(options = {}) {
-      return Underpost.monitor.readDeployedEventState({ namespace: options.namespace || 'default' });
+      return Underpost.monitor.readDeployedEventState({
+        namespace: Underpost.namespace.of('observability', { options }),
+      });
     },
 
     /**
@@ -1261,7 +1294,7 @@ class UnderpostEvent {
      */
     async suspendEvents(stateFile, options = {}) {
       const target = nodePath.resolve(`${stateFile || ''}`);
-      const namespace = options.namespace || 'default';
+      const namespace = Underpost.namespace.of('observability', { options });
       if (!stateFile) throw new Error('[event] --suspend-events requires a state-file path');
       if (fs.existsSync(target))
         throw new Error(`[event] suspension state already exists at ${target}; resume it before suspending again`);
@@ -1753,7 +1786,7 @@ class UnderpostEvent {
         eventId,
         definition,
         options,
-        namespace: options.namespace || 'default',
+        namespace: Underpost.namespace.of('workloads', { options }),
         controlTarget: Underpost.event.controlTarget(),
       };
       const subjects = await scenario.subjects(context);
@@ -2057,7 +2090,7 @@ class UnderpostEvent {
         env,
         tokenFingerprint: crypto.createHash('sha256').update(token).digest('hex').slice(0, 12),
       });
-      const changed = installRootFile({
+      const changed = writeHostFile({
         target: EVENT_SERVICE.unitPath,
         content: unit,
         mode: '0644',

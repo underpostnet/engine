@@ -1,17 +1,14 @@
 /**
  * What each node role is allowed to do, as one table the rest of the platform reads.
  *
- * The roles are the three the topology already defines — `hub`, `control`, `worker` — and this
- * module adds no fourth. What it adds is a single answer to a question that was previously spread
- * across the commands that happened to ask it: `wireguard` knew HAProxy is hub-only, `event` knew
- * the dispatcher is control-only, and the sync steps knew cron publication is control-only, but
- * nothing stated the boundary those three agree on.
+ * A role is an infrastructure function and a trust boundary. It is not an environment and not an
+ * application responsibility: a product derives its own permissions from the role and its
+ * capabilities, and adds none to this table.
  *
- * The distinction the table exists to hold is between a Kubernetes **node** and a Kubernetes
- * **administrator**. A worker runs the kubelet and joins the cluster; that is node runtime, and it
- * is not permission to administer the cluster it belongs to. Being managed by the host domain is
- * not permission either — `underpost host` is node-level operational configuration, and every role
- * has it.
+ * The table separates three memberships that a machine can hold on its own: a WireGuard peer, a
+ * Kubernetes node and a Kubernetes administrator. A worker runs the kubelet; that is not permission
+ * to administer the cluster. A workstation is a WireGuard peer; that is not a Kubernetes node and
+ * not a fleet member that the control node syncs or repairs.
  *
  * @module src/server/network/node-capability.js
  * @namespace NodeCapability
@@ -19,10 +16,16 @@
 
 /**
  * @constant NODE_CAPABILITIES
- * @description Capabilities held by each role, derived from the operations the repository
- * actually gates: HAProxy and the forward proxy refuse to configure themselves off the hub, the
- * dispatcher refuses to install off a control node, and the sync sequence publishes CronJobs from
- * the control node alone.
+ * @description Capabilities held by each role, derived from the operations the repository gates:
+ * - `host-configuration`: `underpost host` on the machine itself.
+ * - `wireguard-hub`, `haproxy`, `forward-proxy`, `edge-routing`: the public edge.
+ * - `wireguard-spoke`: a tunnel to a hub.
+ * - `fleet-member`: the fleet syncs its checkout, probes its tunnel and repairs it over SSH.
+ * - `kubernetes-node`: runs the kubelet and routes pod traffic into the tunnel.
+ * - `kubernetes-administration`, `cluster-secret-administration`, `cron-publication`: cluster authority.
+ * - `event-service`: the event dispatcher.
+ * - `baremetal-provisioning`: the MAAS controller and machine commissioning on the host LAN.
+ * - `node-metrics`: a host metrics collector that Prometheus scrapes.
  * @memberof NodeCapability
  */
 const NODE_CAPABILITIES = Object.freeze({
@@ -32,30 +35,31 @@ const NODE_CAPABILITIES = Object.freeze({
     'haproxy',
     'forward-proxy',
     'edge-routing',
+    'fleet-member',
     'node-metrics',
   ]),
   control: Object.freeze([
     'host-configuration',
     'wireguard-spoke',
+    'fleet-member',
     'kubernetes-node',
     'kubernetes-administration',
     'cluster-secret-administration',
     'cron-publication',
     'event-service',
+    'baremetal-provisioning',
     'node-metrics',
   ]),
-  worker: Object.freeze(['host-configuration', 'wireguard-spoke', 'kubernetes-node', 'node-metrics']),
+  worker: Object.freeze(['host-configuration', 'wireguard-spoke', 'fleet-member', 'kubernetes-node', 'node-metrics']),
+  workstation: Object.freeze(['host-configuration', 'wireguard-spoke']),
 });
 
 /** The roles the topology defines. Ordered hub-first, as every fleet listing is. */
 const NODE_ROLES = Object.freeze(Object.keys(NODE_CAPABILITIES));
 
 /**
- * Capabilities that reach the Kubernetes API with cluster-wide authority.
- *
- * Named apart from the rest because they are the ones a role must never acquire by side effect:
- * possessing `kubectl`, joining the cluster, or carrying the host environment are each a reason
- * someone might assume these follow, and none of them is.
+ * Capabilities that reach the Kubernetes API with cluster-wide authority. No role acquires them by
+ * side effect: holding `kubectl`, joining the cluster or reaching the tunnel grants none of them.
  * @memberof NodeCapability
  */
 const CLUSTER_ADMIN_CAPABILITIES = Object.freeze([
@@ -66,19 +70,15 @@ const CLUSTER_ADMIN_CAPABILITIES = Object.freeze([
 
 /**
  * Whether a role holds a capability.
- * @param {string} role - `hub`, `control` or `worker`.
+ * @param {string} role - One of {@link NODE_ROLES}.
  * @param {string} capability - Capability name.
- * @returns {boolean} True when the role holds it.
+ * @returns {boolean} True when the role holds it; false for an unknown role.
  * @memberof NodeCapability
  */
 const roleHasCapability = (role, capability) => (NODE_CAPABILITIES[role] || []).includes(capability);
 
 /**
- * Refuses an operation the role does not hold the capability for.
- *
- * Fail-closed on an unknown role as well as an unheld capability: a node whose document names a
- * role this table does not define has no capabilities, rather than the union of the ones it might
- * have meant.
+ * Refuses an operation the role does not hold the capability for. An unknown role holds nothing.
  * @param {object} params - Assertion context.
  * @param {string} params.role - Role of the node the operation would run on.
  * @param {string} params.capability - Capability the operation requires.

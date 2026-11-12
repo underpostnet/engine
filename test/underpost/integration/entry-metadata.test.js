@@ -23,9 +23,10 @@ import axios from 'axios';
 import express from 'express';
 import { expect } from 'chai';
 import { Types } from 'mongoose';
-import { DataBaseProviderService } from '../../../src/db/DataBaseProvider.js';
-import { DocumentRouter } from '../../../src/api/document/document.router.js';
-import { FileRouter } from '../../../src/api/file/file.router.js';
+import { DataBaseProviderService } from '../../../src/db/database-provider.js';
+import { ApiModule as DocumentModule } from '../../../src/api/document/document.router.js';
+import { ApiModule as FileModule } from '../../../src/api/file/file.router.js';
+import { testApiContext } from '../../support/api-module.js';
 import { publicRouteFallbackFactory } from '../../../src/server/network/middlewares.js';
 import { TEXT_SOURCE_MAX_BYTES, entryShellRendererFactory } from '../../../src/server/network/entry-metadata.js';
 import { buildManifestFactory, buildManifestHead } from '../../../src/client-builder/build-manifest.js';
@@ -226,7 +227,7 @@ describe('entry metadata over HTTP', () => {
     // The canonical origin is the server's own, so every URL the head names is fetched back here.
     server = await listen(app);
     baseUrl = `http://127.0.0.1:${server.address().port}`;
-    const options = { ...context, authMiddleware: (req, res, next) => next() };
+    const pass = (req, res, next) => next();
     app.use(express.static(shellRoot));
     app.use(
       publicRouteFallbackFactory({
@@ -235,8 +236,11 @@ describe('entry metadata over HTTP', () => {
         renderers: { entry: entryShellRendererFactory({ ...context, metadata: site, origin: baseUrl }) },
       }),
     );
-    app.use('/api/v1/document', DocumentRouter.router(options));
-    app.use('/api/v1/file', FileRouter.router(options));
+    app.use(
+      '/api/v1/document',
+      DocumentModule.createRouter(testApiContext(DocumentModule, { ...context, authenticate: pass })),
+    );
+    app.use('/api/v1/file', FileModule.createRouter(testApiContext(FileModule, { ...context, authenticate: pass })));
     app.use((req, res) => res.sendStatus(404));
   });
 
