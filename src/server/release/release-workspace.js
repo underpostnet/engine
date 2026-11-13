@@ -14,31 +14,36 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import { shellArgumentFactory, shellExec } from '../runtime/process.js';
+import { gitOutput, remoteUrlFactory, runGit } from '../git/git.js';
 import { RELEASE_ID_PATTERN, assertReleaseId, assertSourceRevision } from './source-release.js';
 
 /** The release store of a node: `UNDERPOST_RELEASE_STORE`, else `/home/dd/release-store`. */
 export const RELEASE_STORE_ROOT = process.env.UNDERPOST_RELEASE_STORE || '/home/dd/release-store';
 
 /**
- * Runs git through the execution gate in a repository this module made, whoever owns it; the
- * arguments are quoted, never parsed by a shell.
+ * Runs git in a repository this module made, whoever owns it, through the Git runtime.
+ * @param {string} cwd
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string} The trimmed output.
  */
-export const git = (cwd, args, env = process.env) =>
-  `${shellExec(
-    `git -c safe.directory=${shellArgumentFactory(path.resolve(cwd))} ${args.map(shellArgumentFactory).join(' ')}`,
-    { cwd, env, silent: true, stdout: true, disableLog: true },
-  )}`.trim();
+export const git = (cwd, args, env) => gitOutput(['-c', `safe.directory=${path.resolve(cwd)}`, ...args], { cwd, env });
 
 /**
- * Fetches exactly one revision of a remote into `dir` and checks it out detached.
+ * Fetches exactly one revision of a repository into `dir` and checks it out detached. The credential
+ * reaches the fetch only; no remote is configured.
  * @param {string} dir - An empty directory.
- * @param {{url:string, env?:Object}} remote - Where to fetch from, with the credentials in `env`.
+ * @param {string} repository - `owner/repo`, a clone URL or a path.
  * @param {string} revision - A commit, or `HEAD` for the default branch tip.
  * @memberof ReleaseWorkspace
  */
-export const fetchRevision = (dir, remote, revision) => {
+export const fetchRevision = (dir, repository, revision) => {
+  const url = remoteUrlFactory(repository);
   git(dir, ['init', '-q']);
-  git(dir, ['fetch', '-q', '--depth', '1', remote.url, revision], remote.env ?? process.env);
+  runGit(['-c', `safe.directory=${path.resolve(dir)}`, 'fetch', '-q', '--depth', '1', '--', url, revision], {
+    cwd: dir,
+    remote: url,
+  });
   git(dir, ['checkout', '-q', '--detach', 'FETCH_HEAD']);
 };
 
@@ -110,11 +115,11 @@ export class ReleaseWorkspace {
    * @param {string} [params.root]
    * @param {string} params.releaseId
    * @param {{sourceRepository:string, sourceRevision:string}} params.record - What the release is built from.
-   * @param {{url:string, env?:Object}} params.remote - Where the source repository is fetched from, with the credentials in `env`.
+   * @param {string} params.repository - Where the source repository is fetched from: `owner/repo`, a clone URL or a path.
    * @returns {ReleaseWorkspace}
    * @throws {Error} When the repository does not hold the revision.
    */
-  static materialize({ root = RELEASE_STORE_ROOT, releaseId, record, remote }) {
+  static materialize({ root = RELEASE_STORE_ROOT, releaseId, record, repository }) {
     const workspace = new ReleaseWorkspace({ root, releaseId });
     const revision = assertSourceRevision(record.sourceRevision);
     openStore(workspace.root);
@@ -130,7 +135,7 @@ export class ReleaseWorkspace {
     const source = path.join(partial, 'source');
     fs.mkdirpSync(source);
     try {
-      fetchRevision(source, remote, revision);
+      fetchRevision(source, repository, revision);
     } catch (error) {
       removeTree(partial);
       throw new Error(`${record.sourceRepository} holds no revision ${revision}: ${lastLine(error)}`);

@@ -13,6 +13,16 @@ import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
 import { pbcopy, shellArgumentFactory, shellCd, shellExec } from '../server/runtime/process.js';
+import { cloneRepository, commitChanges, discardChanges, pullRepository, pushRepository } from '../server/git/git.js';
+import { commitMessageFactory } from '../server/release/commit-message.js';
+import {
+  changeMarkdown,
+  changeMessage,
+  changeSummaryFactory,
+  resolveChangeSummary,
+  serializeChangeSummary,
+  writeChangelog,
+} from '../server/release/change-summary.js';
 import { Dns } from '../server/network/dns.js';
 import { loggerFactory } from '../server/ops/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
@@ -343,10 +353,20 @@ const ISOLATED_ENV = 'env -i HOME="$HOME" PATH="$PATH" USER="$USER" LOGNAME="$LO
  *
  * @returns {boolean} true when the template started cleanly, false otherwise.
  */
+/** Discards every change of the engine checkout and of its private configuration. */
+const discardEnginePair = () => {
+  for (const root of ['/home/dd/engine', '/home/dd/engine/engine-private'])
+    discardChanges({ path: root, force: true, root: true });
+};
+
+/** The commit message of the latest engine commit's change summary, or the fallback. */
+const engineChangeMessage = (message, fallback) =>
+  `${message ?? ''}`.trim() || changeMessage(changeSummaryFactory({ path: '/home/dd/engine' })) || fallback;
+
 async function buildAndTestTemplate(opts = {}) {
   killDevServers();
-  Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
-  shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
+  discardEnginePair();
+  pullRepository({ path: '/home/dd/engine' });
   fs.removeSync(TEMPLATE_PATH);
   shellExec(`npm run build:template`);
   shellExec(`node bin run shared-dir ${TEMPLATE_PATH}`);
@@ -385,7 +405,7 @@ async function buildAndTestTemplate(opts = {}) {
   logger.info('Test template runner result');
   killDevServers();
   shellCd(`/home/dd/engine`);
-  Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+  discardEnginePair();
   if (!runnerResult || runnerResult.toLowerCase().match('error')) {
     logger.error('Test template runner result failed');
     return false;
@@ -642,7 +662,7 @@ class UnderpostRelease {
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       fs.removeSync('./engine-private/conf/dd-default');
       shellExec(`node bin cron --kubeadm --setup-start`); // --apply
-      shellExec(`node bin cmt --changelog-build`);
+      writeChangelog();
       shellExec(`npm run security`);
       for (const file of fs.readdirSync('.').filter((name) => /^underpost\.config\.dd.*\.js$/.test(name)))
         fs.removeSync(file);
@@ -679,23 +699,20 @@ class UnderpostRelease {
       const repoName = Underpost.repo.engineRepoFactory(deployId);
       const buildTarget = `dd-${suffix}`;
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
-      shellCd('/home/dd');
-      fs.removeSync('/home/dd/pwa-microservices-template');
-      shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
-      // Use the message passed from the caller (engine repo changelog);
-      // fall back to the engine repo's last commit if not provided.
-      let commitMsg = message;
-      if (!commitMsg) {
-        shellCd('/home/dd/engine');
-        commitMsg = shellExec(`node bin cmt --changelog-msg --changelog-no-hash`, {
-          stdout: true,
-          silent: true,
-        }).trim();
-        shellCd('/home/dd');
-      }
-      commitMsg = (commitMsg || '').trim() || `Update ${repoName} repository`;
+      cloneRepository({
+        repository: `${githubOrg}/pwa-microservices-template`,
+        destination: '/home/dd/pwa-microservices-template',
+        replace: true,
+      });
+      // The message the caller passes (the engine change summary), else the latest engine commit's.
+      const commitMsg = engineChangeMessage(message, `Update ${repoName} repository`);
       logger.info(`CI push commit message: ${commitMsg}`);
-      shellExec(`node engine/bin clone --bare ${shellArgumentFactory(`${githubOrg}/${repoName}`)}`);
+      cloneRepository({
+        repository: `${githubOrg}/${repoName}`,
+        destination: `/home/dd/${repoName}.git`,
+        bare: true,
+        replace: true,
+      });
       shellCd('/home/dd/engine');
       // `--coverage` runs the suites the deploy's `docs.coverage` names so the published
       // source carries the reports; without it the pod serves the unavailable page.
@@ -727,20 +744,13 @@ class UnderpostRelease {
     async pwa(message, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
-      // Use the message passed from the caller (engine repo changelog);
-      // fall back to the engine repo's last commit if not provided.
-      let commitMsg = message;
-      if (!commitMsg) {
-        shellCd('/home/dd/engine');
-        commitMsg = shellExec(`node bin cmt --changelog-msg --changelog-no-hash`, {
-          stdout: true,
-          silent: true,
-        }).trim();
-      }
-      commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
-      shellCd('/home/dd');
-      fs.removeSync('/home/dd/pwa-microservices-template');
-      shellExec(`node engine/bin clone ${shellArgumentFactory(`${githubOrg}/pwa-microservices-template`)}`);
+      // The message the caller passes (the engine change summary), else the latest engine commit's.
+      const commitMsg = engineChangeMessage(message, 'Update pwa-microservices-template repository');
+      cloneRepository({
+        repository: `${githubOrg}/pwa-microservices-template`,
+        destination: '/home/dd/pwa-microservices-template',
+        replace: true,
+      });
       shellCd('/home/dd/engine');
       shellExec(`npm run build:template`);
       shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
@@ -773,14 +783,48 @@ class UnderpostRelease {
       shellExec(`node bin host load`);
       shellExec(`node bin/build dd --conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
-      shellExec(
-        `node bin cmt . ci package-pwa-microservices-template ${shellArgumentFactory(`New release v:${version}`)}`,
-      );
-      shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
-      shellExec(`node bin push . ${shellArgumentFactory(`${process.env.GITHUB_USERNAME}/engine`)}`);
-      shellExec(
-        `cd ./engine-private && node ../bin push . ${shellArgumentFactory(`${process.env.GITHUB_USERNAME}/engine-private`)}`,
-      );
+      const scope = 'package-pwa-microservices-template';
+      // The release commit triggers the package workflow, which reads its change summary from the trailer.
+      commitChanges({
+        path: '.',
+        message: commitMessageFactory({
+          type: 'ci',
+          scope,
+          description: changeMessage(resolveChangeSummary(`New release v:${version}`)),
+        }),
+      });
+      commitChanges({ path: './engine-private', message: commitMessageFactory({ type: 'ci', scope }) });
+      pushRepository({ path: '.' });
+      pushRepository({ path: './engine-private' });
+    },
+
+    /**
+     * Writes CHANGELOG.md of the working directory.
+     * @method changelog
+     * @param {object} [options] - `changelogMinVersion`.
+     * @memberof UnderpostRelease
+     */
+    changelog(options = {}) {
+      logger.info('Changelog written', { file: writeChangelog({ minVersion: options.changelogMinVersion }) });
+    },
+
+    /**
+     * Prints a change summary: the one `CHANGE_SUMMARY` carries, else the one of the latest commits of
+     * the working directory, else the `fallback` message as the only entry. Nothing else reaches stdout,
+     * so a workflow captures it whole; a summary without entries prints an empty line.
+     * @method changeSummary
+     * @param {object} [options] - `fromNCommit`, `fallback`, `format` (`json`, `message` or `markdown`).
+     * @memberof UnderpostRelease
+     */
+    changeSummary(options = {}) {
+      const render = { json: serializeChangeSummary, message: changeMessage, markdown: changeMarkdown }[
+        options.format ?? 'json'
+      ];
+      if (!render) throw new Error(`Unknown change summary format '${options.format}': json, message or markdown`);
+      let summary =
+        resolveChangeSummary(process.env.CHANGE_SUMMARY) ?? changeSummaryFactory({ count: options.fromNCommit });
+      if (!summary.entries.length && options.fallback) summary = resolveChangeSummary(options.fallback);
+      console.log(summary.entries.length ? render(summary) : '');
     },
 
     /**

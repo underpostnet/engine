@@ -53,17 +53,4 @@ const repositoryIdentityFactory = (overrides = {}) => ({
 const githubUrlFactory = ({ identity = repositoryIdentityFactory(), segments = [] } = {}) =>
   `https://github.com/${[identity.owner, ...segments].filter(Boolean).join('/')}/`;
 
-/**
- * @method githubCommitUrlFactory
- * @description Markdown link to one commit, for generated changelogs.
- * @param {object} params
- * @param {string} params.shortHash - Abbreviated hash used as the link text.
- * @param {string} params.hash - Full hash the link resolves to.
- * @param {object} [params.identity] - Identity to compose against.
- * @returns {string} Markdown link.
- * @memberof ServerRepository
- */
-const githubCommitUrlFactory = ({ shortHash, hash, identity = repositoryIdentityFactory() }) =>
-  `[${shortHash}](https://github.com/${identity.owner}/${identity.name}/commit/${hash})`;
-
-export { REPOSITORY_DEFAULTS, githubCommitUrlFactory, githubUrlFactory, repositoryIdentityFactory };
+export { REPOSITORY_DEFAULTS, githubUrlFactory, repositoryIdentityFactory };

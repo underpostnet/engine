@@ -10,8 +10,8 @@ on:
         description: 'Conf id of the canonical engine github package repo (engine-ghpkg-<conf_id>)'
         required: false
         default: 'cyberia'
-      message:
-        description: 'Commit message for the canonical package build'
+      change_summary:
+        description: 'Change summary to commit: its JSON, or a plain message'
         required: false
         default: ''
 permissions:
@@ -62,22 +62,21 @@ jobs:
 
       # Placed after the install because it resolves the payload through the CLI, which needs the
       # dependencies. The push that triggers this job carries the payload the engine propagated.
-      - name: Capture commit message
+      - name: Resolve the change summary
         env:
-          # Never interpolated into the script: the propagated payload is multi-line and a shell
-          # expansion would corrupt entries holding `$` and execute anything in `$(...)`.
-          PROPAGATED_MESSAGE: ${{ github.event.head_commit.message }}
+          # Never interpolated into the script: a change summary is free text, which a shell
+          # expansion would corrupt or execute.
+          CHANGE_SUMMARY: ${{ github.event.head_commit.message }}
         run: |
-          LAST_COMMIT_MESSAGE=$(node ./bin cmt --propagate-msg 2>/dev/null || echo "")
-          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
-            LAST_COMMIT_MESSAGE="update package"
-          fi
+          CHANGE_SUMMARY=$(node ./bin release --change-summary --fallback "update package")
+          CHANGE_MESSAGE=$(CHANGE_SUMMARY="$CHANGE_SUMMARY" node ./bin release --change-summary --format message)
           {
-            echo "LAST_COMMIT_MESSAGE<<PROPAGATION_EOF"
-            echo "$LAST_COMMIT_MESSAGE"
-            echo "PROPAGATION_EOF"
-          } >> $GITHUB_ENV
-          echo "[INFO] Commit message: $LAST_COMMIT_MESSAGE"
+            echo "CHANGE_SUMMARY=$CHANGE_SUMMARY"
+            echo "CHANGE_MESSAGE<<CHANGE_SUMMARY_EOF"
+            echo "$CHANGE_MESSAGE"
+            echo "CHANGE_SUMMARY_EOF"
+          } >> "$GITHUB_ENV"
+          echo "[INFO] Change summary: $CHANGE_SUMMARY"
 
       - name: Set git global credentials
         env:
@@ -107,14 +106,9 @@ jobs:
             exit 1
           fi
           git status
-          git commit -m "$LAST_COMMIT_MESSAGE"
+          git commit -m "$CHANGE_MESSAGE"
           node bin push . underpostnet/pwa-microservices-template-ghpkg
-          MIRROR_PAYLOAD=$(REPO=pwa-microservices-template-ghpkg node -e 'process.stdout.write(JSON.stringify({ ref: "master", inputs: { repos: process.env.REPO } }))')
-          curl -sS -f -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${GITHUB_TOKEN}" \
-            "https://api.github.com/repos/underpostnet/engine/actions/workflows/mirror-to-org.yml/dispatches" \
-            -d "$MIRROR_PAYLOAD"
+          node bin github dispatch underpostnet/engine mirror-to-org.yml --ref master --input repos=pwa-microservices-template-ghpkg
 
   engine-ghpkg:
     if: (github.repository == 'underpostnet/engine' || github.repository == 'underpost/engine') && github.event_name == 'workflow_dispatch'
@@ -157,22 +151,21 @@ jobs:
           echo "PACKAGE_NAME=@underpostnet/$CONF_ID" >> $GITHUB_ENV
           echo "[INFO] Canonical github package repo: underpostnet/engine-ghpkg-$CONF_ID"
 
-      - name: Capture commit message
+      - name: Resolve the change summary
         env:
-          # Never interpolated into the script: the propagated payload is multi-line and a shell
-          # expansion would corrupt entries holding `$` and execute anything in `$(...)`.
-          PROPAGATED_MESSAGE: ${{ github.event.inputs.message }}
+          # Never interpolated into the script: a change summary is free text, which a shell
+          # expansion would corrupt or execute.
+          CHANGE_SUMMARY: ${{ github.event.inputs.change_summary }}
         run: |
-          LAST_COMMIT_MESSAGE=$(node bin cmt --propagate-msg 2>/dev/null || echo "")
-          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
-            LAST_COMMIT_MESSAGE="Update canonical github package repo"
-          fi
+          CHANGE_SUMMARY=$(node bin release --change-summary --fallback "Update canonical github package repo")
+          CHANGE_MESSAGE=$(CHANGE_SUMMARY="$CHANGE_SUMMARY" node bin release --change-summary --format message)
           {
-            echo "LAST_COMMIT_MESSAGE<<PROPAGATION_EOF"
-            echo "$LAST_COMMIT_MESSAGE"
-            echo "PROPAGATION_EOF"
-          } >> $GITHUB_ENV
-          echo "[INFO] Commit message: $LAST_COMMIT_MESSAGE"
+            echo "CHANGE_SUMMARY=$CHANGE_SUMMARY"
+            echo "CHANGE_MESSAGE<<CHANGE_SUMMARY_EOF"
+            echo "$CHANGE_MESSAGE"
+            echo "CHANGE_SUMMARY_EOF"
+          } >> "$GITHUB_ENV"
+          echo "[INFO] Change summary: $CHANGE_SUMMARY"
 
       - name: Set git global credentials
         env:
@@ -201,12 +194,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "[INFO] No changes to publish; skipping commit and push."
           else
-            git commit -m "$LAST_COMMIT_MESSAGE"
+            git commit -m "$CHANGE_MESSAGE"
             node ../engine/bin push . underpostnet/$GHPKG_REPO
-            MIRROR_PAYLOAD=$(REPO="$GHPKG_REPO" node -e 'process.stdout.write(JSON.stringify({ ref: "master", inputs: { repos: process.env.REPO } }))')
-            curl -sS -f -X POST \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${GITHUB_TOKEN}" \
-              "https://api.github.com/repos/underpostnet/engine/actions/workflows/mirror-to-org.yml/dispatches" \
-              -d "$MIRROR_PAYLOAD"
+            node ../engine/bin github dispatch underpostnet/engine mirror-to-org.yml --ref master --input repos="$GHPKG_REPO"
           fi

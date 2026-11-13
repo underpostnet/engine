@@ -819,79 +819,6 @@ const generateRandomPasswordSelection = (length) => {
 // 0b = Binary
 // 0o = Octal
 
-const commitData = {
-  feat: {
-    description: 'New feature or enhancement (frontend, backend, API, or UX)',
-    title: 'Features',
-    emoji: '✨',
-  },
-  fix: {
-    description: 'Fix a bug',
-    title: 'Bug Fixes',
-    emoji: '🐛',
-  },
-  docs: {
-    description: 'Documentation changes',
-    title: 'Documentation',
-    emoji: '📚',
-  },
-  style: {
-    description: 'Formatting, whitespace, semicolons, code style',
-    title: 'Styles',
-    emoji: '💎',
-  },
-  refactor: {
-    description: 'Code refactor.',
-    title: 'Code Refactoring',
-    emoji: '📦',
-  },
-  perf: {
-    description: 'Performance improvements across the stack.',
-    title: 'Performance Improvements',
-    emoji: '⚡️',
-  },
-  ci: {
-    description: 'CI pipeline changes (GitHub Actions, runners, caching)',
-    title: 'Continuous Integration',
-    emoji: '⚙️',
-  },
-  cd: {
-    description: 'CD / deployment changes (Remote ssh deployment scripts)',
-    title: 'Continuous Delivery',
-    emoji: '🚀',
-  },
-  infra: {
-    description: 'Infrastructure changes (MAAS, LXD, cloud infra, networking, provisioning).',
-    title: 'Infrastructure',
-    emoji: '🏗️',
-  },
-  build: {
-    description: 'Build system or dependency changes (tooling, bundler, build scripts).',
-    title: 'Builds',
-    emoji: '🛠',
-  },
-  test: {
-    description: 'Unit or integration tests added/updated, test helpers, flake fixes.',
-    title: 'Tests',
-    emoji: '🚨',
-  },
-  chore: {
-    description: "Other changes that don't modify src or tests (automation, housekeeping).",
-    title: 'Chores',
-    emoji: '♻️',
-  },
-  revert: {
-    description: 'Revert a previous commit or change.',
-    title: 'Reverts',
-    emoji: '🗑',
-  },
-  backup: {
-    description: 'Backups, snapshotting, restore scripts, or backup docs.',
-    title: 'Backups',
-    emoji: '💾',
-  },
-};
-
 const emotionsData = [
   {
     name: 'like',
@@ -1111,7 +1038,6 @@ export {
   isChileanIdentityDocument,
   getCurrentTrace,
   userRoleEnum,
-  commitData,
   emotionsData,
   USERNAME_PATTERN,
   USERNAME_MIN_LENGTH,

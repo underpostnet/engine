@@ -6,8 +6,8 @@ on:
     branches: ['master']
   workflow_dispatch:
     inputs:
-      message:
-        description: 'Changelog message for the build'
+      change_summary:
+        description: 'Change summary to commit and forward: its JSON, or a plain message'
         required: false
         default: ''
       deploy_conf_id:
@@ -60,24 +60,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Placed after the install because it resolves the payload through the CLI, which needs the
-      # dependencies. The dispatch input wins; a push carries its own commit message instead.
-      - name: Capture commit message
+      # Placed after the install because it resolves the summary through the CLI, which needs the
+      # dependencies. The dispatch input wins; a push carries the summary in its commit trailer.
+      - name: Resolve the change summary
         env:
-          # Never interpolated into the script: the propagated payload is multi-line and a shell
-          # expansion would corrupt entries holding `$` and execute anything in `$(...)`.
-          PROPAGATED_MESSAGE: ${{ github.event.inputs.message || github.event.head_commit.message }}
+          # Never interpolated into the script: a change summary is free text, which a shell
+          # expansion would corrupt or execute.
+          CHANGE_SUMMARY: ${{ github.event.inputs.change_summary || github.event.head_commit.message }}
         run: |
-          LAST_COMMIT_MESSAGE=$(node bin cmt --propagate-msg 2>/dev/null || echo "")
-          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
-            LAST_COMMIT_MESSAGE="Update repository"
-          fi
+          CHANGE_SUMMARY=$(node bin release --change-summary --fallback "Update repository")
+          CHANGE_MESSAGE=$(CHANGE_SUMMARY="$CHANGE_SUMMARY" node bin release --change-summary --format message)
           {
-            echo "LAST_COMMIT_MESSAGE<<PROPAGATION_EOF"
-            echo "$LAST_COMMIT_MESSAGE"
-            echo "PROPAGATION_EOF"
-          } >> $GITHUB_ENV
-          echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
+            echo "CHANGE_SUMMARY=$CHANGE_SUMMARY"
+            echo "CHANGE_MESSAGE<<CHANGE_SUMMARY_EOF"
+            echo "$CHANGE_MESSAGE"
+            echo "CHANGE_SUMMARY_EOF"
+          } >> "$GITHUB_ENV"
+          echo "[INFO] Change summary: $CHANGE_SUMMARY"
 
       - name: Set git global credentials
         env:
@@ -103,7 +102,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "[INFO] No template changes to publish; skipping commit and push."
           else
-            node ../engine/bin cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+            node ../engine/bin cmt . ci package-pwa-microservices-template-ghpkg "$CHANGE_MESSAGE"
             node ../engine/bin push . underpostnet/pwa-microservices-template
           fi
 
@@ -112,7 +111,7 @@ jobs:
           # Never interpolated into the script: a dispatch input is free text.
           DEPLOY_CONF_ID: ${{ github.event.inputs.deploy_conf_id }}
           DEPLOY_TYPE: ${{ github.event.inputs.deploy_type }}
-          GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         run: |
           for ENGINE in engine-core engine-prototype engine-cyberia engine-lampp engine-test; do
             SYNC="false"
@@ -122,17 +121,7 @@ jobs:
               DT="$DEPLOY_TYPE"
             fi
             echo "[INFO] Dispatching ${ENGINE}.ci.yml (sync=$SYNC, deploy_type=$DT)"
-            # Build the payload with node so the propagated message (may contain quotes/newlines)
-            # is JSON-escaped safely, and forward it so every engine-* repo shares one message.
-            PAYLOAD=$(SYNC="$SYNC" DT="$DT" MSG="$LAST_COMMIT_MESSAGE" node -e '
-              const i = { sync: process.env.SYNC };
-              if (process.env.DT) i.deploy_type = process.env.DT;
-              if (process.env.MSG) i.message = process.env.MSG;
-              process.stdout.write(JSON.stringify({ ref: "master", inputs: i }));
-            ')
-            curl -sS -f -X POST \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${GIT_AUTH_TOKEN}" \
-              "https://api.github.com/repos/underpostnet/engine/actions/workflows/${ENGINE}.ci.yml/dispatches" \
-              -d "$PAYLOAD"
+            # Every engine-* repo commits the same change summary.
+            node bin github dispatch underpostnet/engine "${ENGINE}.ci.yml" --ref master \
+              --input sync="$SYNC" --input deploy_type="$DT" --input change_summary="$CHANGE_SUMMARY"
           done

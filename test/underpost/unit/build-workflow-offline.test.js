@@ -134,7 +134,7 @@ describe('binary resolution is centralized', () => {
     const source = readSource('src/cli/run.js');
     const runner = source.slice(source.indexOf('    pull: (path'), source.indexOf(`'ssh-deploy':`));
     expect(runner).to.not.match(/shellExec\(`underpost /);
-    expect(runner).to.include('Underpost.repo.clean(');
+    expect(runner).to.include('syncRepository({ path: engineRoot');
     expect(runner).to.include('npm install');
   });
 

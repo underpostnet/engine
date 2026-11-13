@@ -71,6 +71,9 @@ import {
 } from '../client-builder/client-bundle.js';
 import { cronDeployIdResolve, loadCronDeployEnv } from '../server/ops/cron.js';
 import { deployEnvFactory, getNpmRootPath, writeEnv } from '../server/runtime/environment.js';
+import { discardChanges, pushRepository, syncRepository } from '../server/git/git.js';
+import { dispatchWorkflow } from '../server/github/github-client.js';
+import { changeMessage, changeSummaryFactory, serializeChangeSummary } from '../server/release/change-summary.js';
 import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
 import { controlHostService, installHostTool, updateHostPackages } from '../server/ops/host-tooling.js';
 
@@ -826,7 +829,7 @@ class UnderpostRun {
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'template-deploy': (path = '', options = DEFAULT_OPTION) => {
+    'template-deploy': async (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = cli('underpost', { local: true });
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (packageJson.name !== 'underpost-engine') {
@@ -839,27 +842,18 @@ class UnderpostRun {
         logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
         return process.exit(1);
       }
-      Underpost.repo.fastForwardEnginePair(baseCommand);
+      Underpost.repo.fastForwardEnginePair();
       shellExec(`${baseCommand} run shared-dir`);
 
-      // Capture the sanitized message from the last N commits (--from-n-commit, default 1) for
-      // propagation to pwa-microservices-template and every engine-* repo.
-      const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
-      const sanitizedMessage = shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
-        silent: true,
-        stdout: true,
-      }).trim();
+      // The change summary of the last N commits (--from-n-commit, default 1), generated once and
+      // carried unchanged to pwa-microservices-template and every engine-* repo.
+      const summary = changeSummaryFactory({ count: options.fromNCommit });
 
-      shellExec(
-        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${
-          process.env.GITHUB_USERNAME
-        }/engine-private`,
-      );
+      // --force replaces a remote branch only while it holds what this checkout last fetched.
+      pushRepository({ path: './engine-private', forceWithLease: options.force === true });
       shellCd('/home/dd/engine');
-
-      // Push engine repo so workflow YAML changes reach GitHub
-      shellExec(`git reset`);
-      shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
+      // The engine goes too, so workflow YAML changes reach GitHub before the dispatch.
+      pushRepository({ path: '.', forceWithLease: options.force === true });
 
       // Determine deploy conf and type from path (sync-engine-core, init-engine-core, etc.)
       let deployConfId = '';
@@ -886,18 +880,15 @@ class UnderpostRun {
       // with sync=true after template build completes. The engine CI then dispatches
       // the CD workflow after the engine repo build finishes — ensuring correct sequence:
       // npmpkg.ci → engine-<id>.ci → engine-<id>.cd
-      const repo = `${process.env.GITHUB_USERNAME}/engine`;
-      const inputs = {};
-      if (sanitizedMessage) inputs.message = sanitizedMessage;
-      if (deployConfId) inputs.deploy_conf_id = deployConfId;
-      if (deployType) inputs.deploy_type = deployType;
-
-      // Omit `ref` so dispatchWorkflow auto-detects the repo's default branch
-      // (a fork may default to `main` rather than the monorepo's `master`).
-      Underpost.repo.dispatchWorkflow({
-        repo,
-        workflowFile: 'npmpkg.ci.yml',
-        inputs,
+      // No ref: the dispatch runs on the default branch of the repository, which a fork may name `main`.
+      await dispatchWorkflow({
+        repository: `${process.env.GITHUB_USERNAME}/engine`,
+        workflow: 'npmpkg.ci.yml',
+        inputs: {
+          change_summary: summary.entries.length ? serializeChangeSummary(summary) : '',
+          deploy_conf_id: deployConfId,
+          deploy_type: deployType,
+        },
       });
     },
 
@@ -916,19 +907,15 @@ class UnderpostRun {
         logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
         return;
       }
-      Underpost.repo.fastForwardEnginePair(baseCommand);
+      Underpost.repo.fastForwardEnginePair();
       shellExec(`${baseCommand} run shared-dir`);
 
-      // Capture the sanitized message from the last N commits (--from-n-commit, default 1).
-      const fromN = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
-      const sanitizedMessage = shellExec(`node bin cmt --changelog-msg --from-n-commit ${fromN} --changelog-no-hash`, {
-        silent: true,
-        stdout: true,
-      }).trim();
+      // The commit message of the change summary of the last N commits (--from-n-commit, default 1).
+      const message = changeMessage(changeSummaryFactory({ count: options.fromNCommit }));
 
       const { triggerCmd } = path
-        ? await Underpost.release.ci(path, sanitizedMessage, options)
-        : await Underpost.release.pwa(sanitizedMessage, options);
+        ? await Underpost.release.ci(path, message, options)
+        : await Underpost.release.pwa(message, options);
       pbcopy(triggerCmd + ' && cd /home/dd/engine');
     },
     /**
@@ -939,23 +926,23 @@ class UnderpostRun {
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'docker-image': (path, options = DEFAULT_OPTION) => {
-      const repo = Underpost.repo.resolveInstanceRepo(path, !options.test);
-      Underpost.repo.dispatchWorkflow({
-        repo,
-        workflowFile: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
-        inputs: {},
+    'docker-image': async (path, options = DEFAULT_OPTION) => {
+      await dispatchWorkflow({
+        repository: Underpost.repo.resolveInstanceRepo(path, !options.test),
+        workflow: `docker-image${path ? `.${path}` : ''}${options.dev ? '.dev' : ''}.ci.yml`,
       });
     },
     /**
      * @method clean
-     * @description Discards uncommitted changes in the given repositories (defaulting to the engine and its private checkout).
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional directory path).
+     * @description Discards the staged, unstaged and untracked changes of the engine checkout and its private
+     * checkout, or under the comma-separated paths given; `--dry-run` lists them instead. Ignored files stay.
+     * @param {string} path - Comma-separated repository roots or directories inside one; the engine pair by default.
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     clean: (path = '', options = DEFAULT_OPTION) => {
-      Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'] });
+      for (const root of path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'])
+        discardChanges({ path: root, force: options.dryRun !== true, root: !path });
       if (options.dev) shellExec(`node bin run shared-dir ${path ? path : '/home/dd/engine'}`);
     },
     /**
@@ -970,7 +957,7 @@ class UnderpostRun {
      * `--repo-engine-private` overrides that derivation for a conf repository the pairing cannot
      * name, and is the flag `deploy/lib/host.sh` forwards `ENGINE_SRC_PRIVATE_REPO` through.
      *
-     * Both checkouts are replaced rather than merged, by the same `--switch-repo` route the fleet
+     * Both checkouts are replaced rather than merged, by the same `underpost sync` steps the fleet
      * sync takes — so a node moves onto a test source repo and back without being reprovisioned,
      * and one that has drifted onto commits of its own is brought back instead of refused.
      *
@@ -992,13 +979,12 @@ class UnderpostRun {
       logger.info('Pulling engine source', { source, privateRepo });
 
       const engineRoot = `/home/dd/engine`;
-      // Cleaning is the in-process API rather than a shell round trip through the
-      // global `underpost`: that bin is linked at the very checkout being replaced,
-      // so a tree left without its dependencies made the pre-clean — and with it the
-      // whole pull — exit non-zero on exactly the node that needed replacing.
-      if (fs.existsSync(engineRoot)) Underpost.repo.clean({ paths: [engineRoot, `${engineRoot}/engine-private`] });
-      Underpost.repo.syncCheckout({ path: engineRoot, repo: source });
-      Underpost.repo.syncCheckout({ path: `${engineRoot}/engine-private`, repo: privateRepo });
+      // In process rather than through the global `underpost`: that bin is linked at the very
+      // checkout being replaced, so a tree left without its dependencies would fail the pull on
+      // exactly the node that needed replacing. The replacement discards every change; the
+      // private checkout is a repository of its own, which the engine's discard does not reach.
+      syncRepository({ path: engineRoot, repository: source });
+      syncRepository({ path: `${engineRoot}/engine-private`, repository: privateRepo });
       // The checkout that lands here is a different commit than the one this process
       // started from, and its package.json is only a description until it is installed.
       // Everything after this — the linked global bin included — runs from this tree.
@@ -1012,7 +998,7 @@ class UnderpostRun {
      * @param {UnderpostRunDefaultOptions} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ssh-deploy': (path, options = DEFAULT_OPTION) => {
+    'ssh-deploy': async (path, options = DEFAULT_OPTION) => {
       actionInitLog();
 
       let job = 'deploy';
@@ -1024,13 +1010,11 @@ class UnderpostRun {
         job = 'init';
         confId = path.replace(/^init-/, '');
       }
-      const repo = Underpost.repo.resolveInstanceRepo(confId, !options.test);
-      // Omit `ref` so dispatchWorkflow auto-detects the target repo's default
-      // branch (getDefaultBranch): the monorepo is `master` but instance repos
-      // like engine-cyberia default to `main` — hardcoding either 422s.
-      Underpost.repo.dispatchWorkflow({
-        repo,
-        workflowFile: `${confId}.cd.yml`,
+      // No ref: the monorepo defaults to `master` but instance repos like engine-cyberia to `main`,
+      // so the dispatch runs on the default branch the repository reports.
+      await dispatchWorkflow({
+        repository: Underpost.repo.resolveInstanceRepo(confId, !options.test),
+        workflow: `${confId}.cd.yml`,
         inputs: { job },
       });
     },
@@ -4552,7 +4536,7 @@ EOF`;
      * @memberof UnderpostRun
      */
     'shared-dir': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
-      const dir = path || '/home/dd/engine';
+      const dir = nodePath.resolve(path || '/home/dd/engine');
       const user = options.user || 'admin';
       const group = options.group || 'engine-dev';
 
@@ -4582,7 +4566,7 @@ EOF`;
      *
      * @memberof UnderpostRun
      */ 'shared-dir-add-user': (path = '/home/dd/engine', options = DEFAULT_OPTION) => {
-      const dir = path || '/home/dd/engine';
+      const dir = nodePath.resolve(path || '/home/dd/engine');
       const user = options.user || 'admin';
 
       logger.info(`[shared-dir-add-user] dir=${dir} user=${user}`);

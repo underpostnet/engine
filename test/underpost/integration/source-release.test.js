@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import Underpost from '../../../src/index.js';
+import { fetchRepository, pushRepository, setOrigin, unpushedCommits } from '../../../src/server/git/git.js';
 import {
   ReleaseWorkspace,
   pruneReleaseStore,
@@ -22,14 +22,14 @@ describe('the release store and the checkout origin', () => {
   let base;
   let root;
   let work;
-  const remote = (name) => ({ url: `file://${path.join(base, 'remotes', `${name}.git`)}`, env: process.env });
+  const remote = (name) => `file://${path.join(base, 'remotes', `${name}.git`)}`;
 
   /** Commits a file to the work tree, pushes it to the private repository, and returns the commit. */
   const commit = (text) => {
     fs.writeFileSync(path.join(work, 'README.md'), `${text}\n`);
     git(work, 'add', '.');
     git(work, 'commit', '-q', '-m', text);
-    git(work, 'push', '-q', remote('widget-private').url, 'HEAD:refs/heads/main');
+    git(work, 'push', '-q', remote('widget-private'), 'HEAD:refs/heads/main');
     return git(work, 'rev-parse', 'HEAD');
   };
 
@@ -38,7 +38,7 @@ describe('the release store and the checkout origin', () => {
       root,
       releaseId,
       record: { sourceRepository: 'acme/widget-private', sourceRevision, channel: 'private' },
-      remote: remote('widget-private'),
+      repository: remote('widget-private'),
     });
 
   beforeEach(() => {
@@ -166,96 +166,97 @@ describe('the release store and the checkout origin', () => {
 
   describe('the checkout origin', () => {
     const origin = () => git(work, 'remote', 'get-url', 'origin');
-    const setOrigin = (repository) => Underpost.repo.setOrigin({ path: work, repository });
+    const pointOrigin = (repository) => setOrigin({ path: work, repository });
 
     it('follows the repository a checkout is published to, in the transport the origin uses', () => {
-      setOrigin('acme/widget');
+      pointOrigin('acme/widget');
       expect(origin()).toBe('https://github.com/acme/widget.git');
-      setOrigin('acme/widget-private');
+      pointOrigin('acme/widget-private');
       expect(origin()).toBe('https://github.com/acme/widget-private.git');
       git(work, 'remote', 'set-url', 'origin', 'git@github.com:acme/widget-private.git');
-      setOrigin('acme/widget');
+      pointOrigin('acme/widget');
       expect(origin()).toBe('git@github.com:acme/widget.git');
     });
 
     it('replaces an origin that names no GitHub repository', () => {
       git(work, 'remote', 'add', 'origin', `file://${base}/remotes/widget.git`);
-      setOrigin('acme/widget');
+      pointOrigin('acme/widget');
       expect(origin()).toBe('https://github.com/acme/widget.git');
     });
 
     it('leaves an origin that already names the repository as it is', () => {
       git(work, 'remote', 'add', 'origin', 'https://github.com/acme/widget');
-      setOrigin('acme/widget');
+      pointOrigin('acme/widget');
       expect(origin()).toBe('https://github.com/acme/widget');
     });
   });
 
   describe('the commits a checkout has not pushed', () => {
-    const unpushed = () => Underpost.repo.getUnpushedCount(work);
+    const unpushed = () => unpushedCommits({ path: work });
     const commitLocal = (text) => git(work, 'commit', '-q', '--allow-empty', '-m', text);
 
     it('counts the commits ahead of the origin branch', () => {
-      git(work, 'remote', 'add', 'origin', remote('widget-private').url);
+      git(work, 'remote', 'add', 'origin', remote('widget-private'));
       commit('first');
-      expect(unpushed()).toEqual({ count: 1, branch: 'main', hasUnpushed: false });
+      expect(unpushed()).toEqual({ count: 0, branch: 'main' });
       commitLocal('second');
       commitLocal('third');
-      expect(unpushed()).toEqual({ count: 2, branch: 'main', hasUnpushed: true });
+      expect(unpushed()).toEqual({ count: 2, branch: 'main' });
     });
 
     it('counts a branch the origin does not have from where it forks', () => {
-      git(work, 'remote', 'add', 'origin', remote('widget-private').url);
+      git(work, 'remote', 'add', 'origin', remote('widget-private'));
       commit('first');
       git(work, 'checkout', '-q', '-b', 'topic');
       commitLocal('second');
-      expect(unpushed()).toEqual({ count: 1, branch: 'topic', hasUnpushed: true });
+      expect(unpushed()).toEqual({ count: 1, branch: 'topic' });
     });
 
-    it('fetches an SSH GitHub origin over HTTPS', () => {
-      git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'https://github.com/acme/');
+    it('fetches an SSH origin over SSH, never trading it for HTTPS', () => {
+      // The SSH address resolves to the fixture remote, as an agent-authenticated host would answer it.
+      git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'git@github.com:acme/');
       git(work, 'remote', 'add', 'origin', 'git@github.com:acme/widget-private.git');
       commit('first');
       commitLocal('second');
-      expect(unpushed()).toEqual({ count: 1, branch: 'main', hasUnpushed: true });
+      expect(unpushed()).toEqual({ count: 1, branch: 'main' });
     });
 
     it('tells why when the origin cannot be fetched', () => {
       commitLocal('first');
-      expect(unpushed().error).toMatch(/no origin remote/);
-      git(work, 'remote', 'add', 'origin', remote('missing').url);
-      const { hasUnpushed, error } = unpushed();
-      expect(hasUnpushed).toBe(false);
-      expect(error).toMatch(/fetch failed/);
+      expect(unpushed().error).toMatch(/has no remote 'origin'/);
+      git(work, 'remote', 'add', 'origin', remote('missing'));
+      const { count, error } = unpushed();
+      expect(count).toBe(0);
+      expect(error).toMatch(/does not appear to be a git repository/);
     });
   });
 
   describe('the branches of origin', () => {
     const remoteBranches = () => git(work, 'branch', '-r');
-    const pushTopic = () => git(work, 'push', '-q', remote('widget-private').url, 'HEAD:refs/heads/topic');
+    const pushTopic = () => git(work, 'push', '-q', remote('widget-private'), 'HEAD:refs/heads/topic');
 
     beforeEach(() => {
-      git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'https://github.com/acme/');
+      git(work, 'config', `url.file://${base}/remotes/.insteadOf`, 'git@github.com:acme/');
       git(work, 'remote', 'add', 'origin', 'git@github.com:acme/widget-private.git');
       commit('first');
     });
 
     it('fetches every origin branch and prunes the ones origin dropped', () => {
       pushTopic();
-      expect(Underpost.repo.fetchOrigin(work)).toEqual({});
+      fetchRepository({ path: work, prune: true });
       expect(remoteBranches()).toMatch('origin/topic');
-      git(work, 'push', '-q', remote('widget-private').url, '--delete', 'topic');
-      expect(Underpost.repo.fetchOrigin(work)).toEqual({});
+      git(work, 'push', '-q', remote('widget-private'), '--delete', 'topic');
+      fetchRepository({ path: work, prune: true });
       expect(remoteBranches()).not.toMatch('origin/topic');
     });
 
-    it('deletes a branch from an SSH GitHub origin over HTTPS, with its remote-tracking ref', () => {
+    it('deletes a branch from origin, with its remote-tracking ref', () => {
       pushTopic();
-      Underpost.repo.fetchOrigin(work);
-      expect(Underpost.repo.deleteRemoteBranch({ path: work, branch: 'topic' })).toBe(true);
-      expect(git(work, 'ls-remote', '--heads', remote('widget-private').url)).not.toMatch('topic');
+      fetchRepository({ path: work });
+      pushRepository({ path: work, delete: 'topic' });
+      expect(git(work, 'ls-remote', '--heads', remote('widget-private'))).not.toMatch('topic');
       expect(remoteBranches()).not.toMatch('origin/topic');
-      expect(Underpost.repo.deleteRemoteBranch({ path: work, branch: 'topic' })).toBe(false);
+      expect(() => pushRepository({ path: work, delete: 'topic' })).toThrow(/git push/);
     });
   });
 });
