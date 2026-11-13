@@ -39,7 +39,8 @@ const CONFIG_SCOPES = Object.freeze({
   baremetal: 'Machine provisioning: MAAS, its database, and the network a commissioned node boots on.',
   publishing: 'Release identities: the registries and package indexes a publish authenticates to.',
   app: "A deployment's own runtime: its database, its sessions, its integrations.",
-  'data-release': 'A data release Job: the database it writes and the authority it publishes to.',
+  'data-release':
+    'A data release Job: the database it writes, the IPFS node it pins to and the authority it publishes to.',
 });
 
 /**
@@ -64,7 +65,7 @@ const CONFIG_OWNERSHIP = Object.freeze([
   // The Socket audit runs on hosts and in CI, never in a workload.
   { match: /^SOCKET_CLI_/, owner: 'host' },
 
-  { match: /^(DB_|MARIADB_|VALKEY_)/, owner: 'app' },
+  { match: /^(DB_|MARIADB_|VALKEY_|IPFS_)/, owner: 'app' },
   { match: /^(JWT_SECRET|ACCESS_EXPIRE_MINUTES|REFRESH_EXPIRE_MINUTES|PORT|DEPLOY_ID)$/, owner: 'app' },
   { match: /^(DEFAULT_ADMIN_|CLOUDINARY_|WP_)/, owner: 'app' },
   { match: /^(GEMINI_API_KEY|NVIDIA_API_KEY)$/, owner: 'app' },
@@ -123,6 +124,10 @@ const SCOPE_ENTITLEMENTS = Object.freeze({
     'DB_NAME_CYBERIA_CONTENT',
     // The write it makes to the Object Layer authority.
     'DOMAIN_API_SERVICE_KEY',
+    // The IPFS node and cluster that store and pin its files.
+    'IPFS_API_URL',
+    'IPFS_CLUSTER_API_URL',
+    'IPFS_GATEWAY_URL',
   ]),
 });
 

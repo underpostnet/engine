@@ -219,6 +219,14 @@ describe('scope entitlement is explicit, not inferred from naming', () => {
       expect(scopeReceivesKey(key, 'cron'), key).to.equal(false);
   });
 
+  it('carries the IPFS endpoints to the workloads and to a data release Job, and to no other scope', () => {
+    for (const key of ['IPFS_API_URL', 'IPFS_CLUSTER_API_URL', 'IPFS_GATEWAY_URL']) {
+      expect(scopeReceivesKey(key, 'app'), key).to.equal(true);
+      expect(scopeReceivesKey(key, 'data-release'), key).to.equal(true);
+      expect(scopeReceivesKey(key, 'cron'), key).to.equal(false);
+    }
+  });
+
   it('names every entitled key in the table, so the policy reads without inference', () => {
     for (const key of SCOPE_ENTITLEMENTS.cron) expect(configOwnershipFactory(key), key).to.not.equal(null);
     expect(
