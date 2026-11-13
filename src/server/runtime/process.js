@@ -537,26 +537,15 @@ const shellSpawn = (cmd, options = {}) => {
  * @returns {Promise<{code:number, stdout:string, stderr:string, elided?:boolean}>}
  */
 const runCommand = (command, args = [], options = {}) => {
-  const line = [command, ...args].map(shellArgumentFactory).join(' ');
-  const [program, ...argv] =
-    options.privileged && elevationFactory() !== 'root'
-      ? [...sudoArgv(options.env), command, ...args]
-      : [command, ...args];
-  const decision = executionDecisionFactory([command, ...args], { privileged: Boolean(options.privileged) });
-  if (decision.refusal) return Promise.reject(Object.assign(new Error(decision.refusal), { expected: true }));
-  if (!decision.permitted) {
-    logger.info(`[${decision.profile}] elided ${decision.capability}`, redactSensitiveText(line));
-    return Promise.resolve({ code: 0, stdout: '', stderr: '', elided: true });
-  }
+  let launch;
   try {
-    targetGate([command, ...args], decision);
+    launch = commandLaunch(command, args, options);
   } catch (error) {
     return Promise.reject(error);
   }
-  if (!options.disableLog) logger.info('run', redactSensitiveText(line));
-  if (options.privileged) logger.info('privileged', { reason: options.privileged, elevation: elevationFactory() });
+  if (launch.elided) return Promise.resolve({ code: 0, stdout: '', stderr: '', elided: true });
   return new Promise((resolve, reject) => {
-    const child = childProcess.spawn(program, argv, {
+    const child = childProcess.spawn(launch.program, launch.argv, {
       cwd: options.cwd,
       env: options.env ?? process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -568,13 +557,7 @@ const runCommand = (command, args = [], options = {}) => {
     let stderr = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
     child.stderr.on('data', (chunk) => (stderr += chunk));
-    const fail = (code, reason) => {
-      latchRuntimeError();
-      reject(
-        (options.privileged && privilegeError(line, options.privileged, { code, stdout, stderr: reason || stderr })) ||
-          new ShellExecError(line, code, stdout, redactSensitiveText(reason || stderr)),
-      );
-    };
+    const fail = (code, reason) => reject(commandError(launch.line, options, { code, stdout, stderr, reason }));
     child.on('error', (error) => {
       ProcessController.children.delete(child);
       fail(-1, error.name === 'AbortError' ? 'aborted' : error.message);
@@ -582,14 +565,90 @@ const runCommand = (command, args = [], options = {}) => {
     child.on('close', (code, signal) => {
       ProcessController.children.delete(child);
       if (code === 0 || (options.silentOnError && code !== null)) return resolve({ code, stdout, stderr });
-      if (code === null)
-        return fail(-1, `stopped by ${signal}${options.timeoutMs ? ` (timeout ${options.timeoutMs}ms)` : ''}`);
+      if (code === null) return fail(-1, stoppedReason(signal, options));
       fail(code);
     });
     child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
   });
 };
+
+/**
+ * {@link runCommand} for a caller that cannot await: the same gate, arguments and result, while the
+ * child blocks this thread. Without a signal to abort it, `timeoutMs` bounds it.
+ * @memberof Process
+ * @param {string} command - The program, resolved on PATH.
+ * @param {string[]} [args] - Its arguments, passed as they are.
+ * @param {Object} [options] - The options of {@link runCommand} but `signal`.
+ * @returns {{code:number, stdout:string, stderr:string, elided?:boolean}}
+ * @throws {ShellExecError} On a non-zero exit or a timeout, unless `silentOnError` returns the result.
+ */
+const runCommandSync = (command, args = [], options = {}) => {
+  const launch = commandLaunch(command, args, options);
+  if (launch.elided) return { code: 0, stdout: '', stderr: '', elided: true };
+  const result = childProcess.spawnSync(launch.program, launch.argv, {
+    cwd: options.cwd,
+    env: options.env ?? process.env,
+    input: options.input ?? '',
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    timeout: options.timeoutMs,
+  });
+  const { status: code, stdout = '', stderr = '' } = result;
+  if (result.error && code === null)
+    throw commandError(launch.line, options, {
+      code: -1,
+      stdout,
+      stderr,
+      reason: result.error.code === 'ETIMEDOUT' ? stoppedReason('SIGTERM', options) : result.error.message,
+    });
+  if (code === 0 || (options.silentOnError && code !== null)) return { code, stdout, stderr };
+  throw commandError(launch.line, options, {
+    code: code ?? -1,
+    stdout,
+    stderr,
+    reason: code === null ? stoppedReason(result.signal, options) : '',
+  });
+};
+
+/**
+ * What {@link runCommand} and {@link runCommandSync} start, after the execution profile and the cluster
+ * target let the command run: the program and its arguments, through the privilege boundary when the
+ * command is privileged.
+ * @returns {{line: string, program?: string, argv?: string[], elided?: boolean}} `elided` when the
+ *   profile elides the command.
+ * @throws {Error} An expected error when the profile or the target refuses the command.
+ */
+const commandLaunch = (command, args, options) => {
+  const line = [command, ...args].map(shellArgumentFactory).join(' ');
+  const decision = executionDecisionFactory([command, ...args], { privileged: Boolean(options.privileged) });
+  if (decision.refusal) throw Object.assign(new Error(decision.refusal), { expected: true });
+  if (!decision.permitted) {
+    logger.info(`[${decision.profile}] elided ${decision.capability}`, redactSensitiveText(line));
+    return { line, elided: true };
+  }
+  targetGate([command, ...args], decision);
+  if (!options.disableLog) logger.info('run', redactSensitiveText(line));
+  if (options.privileged) logger.info('privileged', { reason: options.privileged, elevation: elevationFactory() });
+  const [program, ...argv] =
+    options.privileged && elevationFactory() !== 'root'
+      ? [...sudoArgv(options.env), command, ...args]
+      : [command, ...args];
+  return { line, program, argv };
+};
+
+/** The error of a command that failed, with what `sudo` refused when it was privileged. */
+const commandError = (line, options, { code, stdout, stderr, reason }) => {
+  latchRuntimeError();
+  return (
+    (options.privileged && privilegeError(line, options.privileged, { code, stdout, stderr: reason || stderr })) ||
+    new ShellExecError(line, code, stdout, redactSensitiveText(reason || stderr))
+  );
+};
+
+const stoppedReason = (signal, options) =>
+  `stopped by ${signal}${options.timeoutMs ? ` (timeout ${options.timeoutMs}ms)` : ''}`;
 
 /** One entry of a host account database, as its fields. */
 const getent = (database, name) =>
@@ -1054,6 +1113,7 @@ export {
   invokingUser,
   liveClusterOf,
   runCommand,
+  runCommandSync,
   shellArgumentFactory,
   shellExec,
   shellExecAsync,

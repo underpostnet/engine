@@ -63,6 +63,8 @@ const SENSITIVE_COMPOUNDS = ['apikey', 'privatekey', 'accesskey', 'sessionid', '
  * word of every sentence would cost more than it protects.
  */
 const CREDENTIAL_SHAPED = /^(?=.{12,}$)(?=.*[0-9A-Z_-])[A-Za-z0-9_-]+$/;
+// A long command-line option names a flag, never a credential.
+const LONG_OPTION = /^--[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const sensitiveField = (key) => {
   const words = `${key || ''}`
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
@@ -95,7 +97,7 @@ const redactAdjacentCredentials = (text) => {
     const [, key, separator, candidate] = match;
     const valueStart = match.index + key.length + separator.length;
     if (valueStart < cursor) continue;
-    if (!sensitiveField(key) || !CREDENTIAL_SHAPED.test(candidate)) continue;
+    if (!sensitiveField(key) || !CREDENTIAL_SHAPED.test(candidate) || LONG_OPTION.test(candidate)) continue;
     out += text.slice(cursor, valueStart) + REDACTED;
     cursor = valueStart + candidate.length;
   }
@@ -352,6 +354,43 @@ const loggerMiddleware = (
   );
 };
 
+/**
+ * Runs one operation and logs one record of it when it ends: an id, the context, what the operation
+ * added to the record, its duration, and its outcome with the `reason` of a failure. The record goes
+ * through the redaction of every log line, so it never holds a credential.
+ * @param {object} logger - A logger of {@link loggerFactory}.
+ * @param {string} operation - The operation name, e.g. `git push`.
+ * @param {object} context - What the operation acts on.
+ * @param {(record: object) => *} run - The operation; it may add fields to `record`. It may return a promise.
+ * @returns {*} What `run` returns.
+ * @memberof Logger
+ */
+const traceOperation = (logger, operation, context, run) => {
+  const record = { operationId: crypto.randomUUID(), ...context };
+  const started = Date.now();
+  const done = (result) => {
+    logger.info(operation, { ...record, status: 'ok', durationMs: Date.now() - started });
+    return result;
+  };
+  const failed = (error) => {
+    logger.error(operation, {
+      ...record,
+      status: 'failed',
+      reason: error.reason || 'error',
+      error: error.message,
+      durationMs: Date.now() - started,
+    });
+    throw error;
+  };
+  let result;
+  try {
+    result = run(record);
+  } catch (error) {
+    return failed(error);
+  }
+  return typeof result?.then === 'function' ? result.then(done, failed) : done(result);
+};
+
 const underpostASCII = () => `
 
 ██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
@@ -379,5 +418,6 @@ export {
   redactSensitiveText,
   serializeLogValue,
   setUpInfo,
+  traceOperation,
   underpostASCII,
 };

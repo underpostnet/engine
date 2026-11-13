@@ -38,8 +38,10 @@ describe('central logger redaction', () => {
       'authorization required for this route',
       'api_secret mismatch',
       'Target pod: dd-cyberia-production-blue-5b7c67bb8f-kwhz7 | Pod status: Running',
+      'or pass --discard-live-changes v4-0-0-5de3069-a561dbeb --discard-reason <why>',
     ])
       expect(redactSensitiveText(kept), kept).to.equal(kept);
+    expect(redactSensitiveText('pass Xk9-mQ2_vL8pZr4')).to.equal('pass [REDACTED]');
   });
 
   it('reaches a credential that a non-sensitive word precedes', () => {
