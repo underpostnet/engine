@@ -120,7 +120,8 @@ repository, the source revision, and the version and digest of the artifact. Not
 it, so a deploy consumes the lock as it is. The lock names no source channel: a deploy fetches the
 pinned revision from the channel it runs on, and the image build from the public repository. The
 image build checks out that revision, packs it, and runs `cyberia release verify` before anything
-reads content.
+reads content. A deploy host builds the same artifact before its client bundle, whose public
+website reads it, with no privileges on the host, then runs `cyberia release verify`.
 
 `src/projects/cyberia/content/content-artifact.js` opens each build once per process. It fails, and
 never falls back, when:

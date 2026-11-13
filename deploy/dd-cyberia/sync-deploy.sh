@@ -137,6 +137,8 @@ stage_configuration() {
     # bundle built before it would ship the previous SSR views. A build, TypeDoc, check or upload
     # that fails stops the deploy here, before any pod starts.
     if [ "$BUNDLE_MODE" = "1" ]; then
+        # The public website lists the worlds of the content artifact the lock pins.
+        deploy_step "Build the locked content artifact" build_locked_content_artifact
         deploy_step "Build and publish $DEPLOY_ID client bundle" \
             sudo -n -- /bin/bash -lc \
             "cd $ENGINE_ROOT && node bin run push-bundle --deploy-id $DEPLOY_ID --split $BUNDLE_SPLIT --release $CONTENT_RELEASE_ID --image '$DEPLOY_IMAGE'"

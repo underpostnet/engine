@@ -28,7 +28,7 @@ Nothing before Stage E changes what players see: a candidate that fails stops th
 | ----- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A     | Source synchronization | Every product repository from one source channel: the deployment at its branch tip, every other at the revision the deployment lock pins                                                                                                                                                                                                                                                                                                                                                                                                            |
 | B     | Immutable artifacts    | Catalog install, release id `v<version>-<commit>-<content revision>`, image `engine-cyberia:v<version>` by registry digest                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| C     | Configuration          | `app load`, `validate-domains`, manifests, [client bundle](#client-bundle), private conf                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| C     | Configuration          | `app load`, `validate-domains`, manifests, locked content artifact, [client bundle](#client-bundle), private conf                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | D     | Data                   | A Release Job makes the indexes of the runtime records the ones their models declare; a record that refuses a unique index stops the deploy and names the key. The host prepares the locked revision; a Release Job builds its artifact once, imports the foundation then each instance as durable steps, makes every definition canonical at the Object Layer authority as durable tasks, and validates it, with the data-release Secret alone. A rerun resumes the release. A third Job stops the deploy when the active release has live changes |
 | E     | Application rollout    | Loads deployment configuration and starts the new pod at the engine commit of the release; the pod restores the client bundle; blue/green traffic switches when it is Ready                                                                                                                                                                                                                                                                                                                                                                         |
 | F     | Readiness              | Engine API, Object Layer authority, the TypeDoc entry of the client bundle                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -53,6 +53,24 @@ backslashes. The ledger records both with the changes.
 
 The host builds the clients of the deploy once, in Stage C. Every pod restores that build. A pod never
 builds the client and never runs TypeDoc.
+
+The public website lists the worlds of the content artifact, and a production build reads only the
+artifact the lock pins. Git does not carry that artifact, so the host builds it first, from the
+pinned `cyberia-content` checkout, in a transient systemd unit:
+
+- a dynamic user that exists only for the build, with no capability;
+- an empty environment, the system read-only, `/home` and `/root` hidden, and a private `/tmp` as the
+  only writable path;
+- no address of the host or its networks but its DNS resolvers, so the package registry answers and
+  no local service does.
+
+The repository's own `npm ci` runs there with no install script, and refuses a Node runtime the
+`engines` of the repository reject; then `cyberia-content.js build`. As in the Release Job, no
+Secret reaches the content code. The unit returns `dist/` as a tar. The host accepts only files and
+directories inside it, up to 512 MiB and 50,000 entries, swaps it in for the `dist/` of the checkout
+and runs `cyberia release verify`. Anything else stops the deploy there. The Release Job of Stage D
+builds the same revision and checks the same lock digest, so both builds are the artifact the lock
+pins.
 
 `node bin run push-bundle` runs the client build as a managed task:
 `client --env production --docs build --build-zip`. The task builds the client assets, the SSR views,
