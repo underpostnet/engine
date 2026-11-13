@@ -152,9 +152,13 @@ const keepRawBody = (req, res, body) => {
   req.rawBody = body;
 };
 
+/** A file name that carries a content digest: the bytes at its URL never change. */
+const CONTENT_DIGEST_NAME = /\.[0-9a-f]{16,}\./;
+
 /**
- * `express.static` header hook: an asset is readable cross-origin. The build manifest is JSON, which
- * its file extension does not say, and its stable URL revalidates on every use.
+ * `express.static` header hook: an asset is readable cross-origin. A file named by its content
+ * digest is cached for a year. The build manifest is JSON, which its file extension does not say,
+ * and its stable URL revalidates on every use.
  * @method staticFileHeaders
  * @param {import('express').Response} res
  * @param {string} filePath - The served file.
@@ -166,6 +170,8 @@ const staticFileHeaders = (res, filePath) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   }
+  if (CONTENT_DIGEST_NAME.test(nodePath.basename(filePath)))
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
   if (nodePath.basename(filePath) === BUILD_MANIFEST_FILE) {
     res.set('Content-Type', 'application/json; charset=utf-8');
     res.set('Cache-Control', 'no-cache');

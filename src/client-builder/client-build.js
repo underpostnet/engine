@@ -12,6 +12,7 @@ import {
   buildManifestFactory,
   buildManifestHead,
   buildManifestPrelude,
+  retiringServiceWorker,
   serviceWorkerManifest,
   writeBuildManifest,
 } from './build-manifest.js';
@@ -33,6 +34,7 @@ import { TYPEDOC_DIRECTORY, TYPEDOC_PREVIEW, docsPlanFactory } from '../server/b
 import { acquireHostLock, hostLockName } from '../server/runtime/host-lock.js';
 import { coverageReportsFactory } from '../server/build/coverage.js';
 import { ssrFactory } from './ssr.js';
+import { apiPathOf } from '../server/domain/api-contract.js';
 import { instanceOriginsFactory, localHostAddress } from '../server/network/router.js';
 
 // Static Site Generation (SSG)
@@ -115,6 +117,25 @@ const staticContextRoutesFactory = ({ views = [], proxyPath = '/' } = {}) => {
       title: view.title,
       client: view.client,
     }));
+};
+
+/**
+ * Writes the files a project's SSR data hook gives a client, such as the images its documents
+ * reference, under the client root.
+ * @function writeSsrFiles
+ * @param {string} rootClientPath - The client root of the build.
+ * @param {Object<string, Buffer|string>} [files] - Relative path → contents.
+ * @returns {void}
+ * @throws {Error} When a path is absolute or leaves the client root.
+ * @memberof clientBuild
+ */
+const writeSsrFiles = (rootClientPath, files = {}) => {
+  for (const [file, contents] of Object.entries(files)) {
+    const relative = dir.posix.normalize(file);
+    if (dir.posix.isAbsolute(relative) || relative.split('/').includes('..'))
+      throw new Error(`SSR data file ${file} leaves the client root`);
+    fs.outputFileSync(dir.join(rootClientPath, relative), contents);
+  }
 };
 
 /**
@@ -733,7 +754,7 @@ const buildClient = async (
     fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`) ? readConfInstances(deployId) : [],
     isDevelopment,
   );
-  // Build-time data the deploy project gives the SSR components of a client.
+  // Build-time data the deploy project gives the SSR components of a client: `{ data, files }`.
   const ssrDataFactory = await loadProjectExport(deployId, 'instance-data.js', 'ssrData');
   const recordTypedoc = (host, path, result) => {
     typedocResults.push({ host, path, ...result });
@@ -790,7 +811,6 @@ const buildClient = async (
         });
         const publicClientId = publicClientIdFactory(client, confClient[client]);
         const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
-        const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
         const minifyBuild = process.env.NODE_ENV === 'production';
         // Services another domain owns, endpoint → host: the client reads them at their owner. A
         // development build reads them on the owner's local port, never at the public origin.
@@ -866,7 +886,6 @@ const buildClient = async (
                 proxyPath: path,
                 basePath: 'components',
                 module,
-                baseHost,
                 minify: minifyBuild,
               });
               fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
@@ -897,7 +916,6 @@ const buildClient = async (
                 proxyPath: path,
                 basePath: 'services',
                 module,
-                baseHost,
                 minify: minifyBuild,
               });
               fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
@@ -933,7 +951,15 @@ const buildClient = async (
               // The reports the docs menu offers, each published at /docs/coverage/<id>.
               coverage: coverageReportsFactory(docs),
             },
-            ...(bundled ? { serviceWorker: serviceWorkerManifest({ basePath: path, views: ssrViews }) } : undefined),
+            ...(bundled
+              ? {
+                  serviceWorker: serviceWorkerManifest({
+                    basePath: path,
+                    views: ssrViews,
+                    origin: isDevelopment ? undefined : `https://${host}`,
+                  }),
+                }
+              : undefined),
           });
           manifestHead = buildManifestHead({ manifest: buildManifest });
           writeBuildManifest(rootClientPath, buildManifest);
@@ -953,7 +979,6 @@ const buildClient = async (
           swTransformedJs = await transformClientJs(swSrcPath, {
             dists,
             proxyPath: path,
-            baseHost,
             minify: minifyBuild,
             externalizeBareImports: false,
           });
@@ -966,9 +991,11 @@ const buildClient = async (
               (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
             )
           )) {
-            const ssrData = ssrDataFactory
+            const ssr = ssrDataFactory
               ? await ssrDataFactory({ deployId, client, host, path, development: isDevelopment })
               : undefined;
+            const ssrData = ssr?.data;
+            writeSsrFiles(rootClientPath, ssr?.files);
             for (const view of views) {
               const buildPath = `${
                 rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -985,7 +1012,6 @@ const buildClient = async (
                   await transformClientJs(`./src/client/${view.client}.index.js`, {
                     dists,
                     proxyPath: path,
-                    baseHost,
                     minify: minifyBuild,
                   }),
                   'utf8',
@@ -1072,6 +1098,7 @@ const buildClient = async (
                           canonicalURL,
                           ...metadata,
                           thumbnail: metadata.thumbnail && new URL(metadata.thumbnail, canonicalURL).href,
+                          noindex: view.noindex === true,
                         });
                       }
                       break;
@@ -1108,13 +1135,11 @@ const buildClient = async (
                 }
               }
 
-              /** @type {import('sitemap').SitemapItem} */
-              const siteMapLink = {
-                url: `${path === '/' ? '' : path}${view.path}`,
-                changefreq: 'daily',
-                priority: 0.8,
-              };
-              siteMapLinks.push(siteMapLink);
+              // The sitemap lists the canonical URL of each indexable view, unless the view opts out.
+              if (view.noindex === true && view.sitemap === true)
+                throw new Error(`View ${host}${path}${view.path} is noindex and cannot be in the sitemap`);
+              if (view.noindex !== true && view.sitemap !== false)
+                siteMapLinks.push({ url: canonicalURL, changefreq: 'daily', priority: 0.8 });
 
               const htmlSrc = Render({
                 title,
@@ -1143,7 +1168,6 @@ const buildClient = async (
         }
         if (!ssrOnly && !enableLiveRebuild && siteMapLinks.length > 0) {
           const hasSitemapTemplate = fs.existsSync(`${rootClientPath}/sitemap`);
-          const sitemapBaseUrl = `https://${host}${path === '/' ? '' : path}`;
           // Create a stream to write to — omit xslUrl so we can inject a relative href below
           /** @type {import('sitemap').SitemapStreamOptions} */
           const sitemapOptions = { hostname: `https://${host}` };
@@ -1169,14 +1193,20 @@ const buildClient = async (
             : defaultSitemapXsl;
           const webUrl = `https://${host}${path === '/' ? '/' : `${path}/`}`;
           fs.writeFileSync(`${rootClientPath}/sitemap.xsl`, xslTemplate.replaceAll('{{web-url}}', webUrl), 'utf8');
-
+        }
+        // Crawlers read the documents and skip the API. A view kept out of search carries its own
+        // noindex, which a crawler only reads when robots.txt lets it fetch the view.
+        if (!ssrOnly && !enableLiveRebuild && views)
           fs.writeFileSync(
             `${rootClientPath}/robots.txt`,
-            `User-agent: *
-Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
+            [
+              'User-agent: *',
+              `Disallow: ${apiPathOf(path)}/`,
+              ...(siteMapLinks.length > 0 ? [`Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`] : []),
+              '',
+            ].join('\n'),
             'utf8',
           );
-        }
 
         if (docs && !ssrOnly && (fullBuildEnabled || docsPlan.typedoc === 'build'))
           recordTypedoc(
@@ -1250,6 +1280,8 @@ self.__WB_DISABLE_DEV_LOGS = true;
 ${swTransformedJs}`,
               'utf8',
             );
+          else if (!bundled && !ssrOnly && !enableLiveRebuild)
+            fs.writeFileSync(swPublicPath, retiringServiceWorker({ basePath: path }), 'utf8');
         }
         if (!ssrOnly && !enableLiveRebuild && options.buildZip) {
           logger.warn('build zip', rootClientPath);
@@ -1352,4 +1384,5 @@ export {
   mergeClientBuildZip,
   staticContextRoutesFactory,
   statusPageRoutesFactory,
+  viewShipsBundle,
 };

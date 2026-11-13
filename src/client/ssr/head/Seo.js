@@ -1,5 +1,16 @@
-SSRComponent = ({ title, author, keywords, description, themeColor, ssrPath, canonicalURL, thumbnail }) => html`
+SSRComponent = ({
+  title,
+  author,
+  keywords,
+  description,
+  themeColor,
+  ssrPath,
+  canonicalURL,
+  thumbnail,
+  noindex,
+}) => html`
   <link rel="canonical" href="${canonicalURL}" />
+  ${noindex ? '<meta name="robots" content="noindex" />' : ''}
 
   <meta name="author" content="${author}" />
   <meta name="keywords" content="${keywords.join(',')}" />

@@ -21,26 +21,60 @@ import {
 } from '../client/components/core/BuildManifest.js';
 
 /**
- * The `serviceWorker` section of an application: its cache prefix and the SSR status views it
- * precaches and serves when the network or the server fails.
+ * The prefix of every cache the worker of an application opens.
+ * @param {string} basePath - The application base path.
+ * @returns {string}
+ * @memberof BuildManifest
+ */
+const cachePrefixOf = (basePath) => `engine-core-${basePath === '/' ? 'root' : basePath.replaceAll('/', '_')}`;
+
+/**
+ * The `serviceWorker` section of an application: its cache prefix, the SSR status views it
+ * precaches and serves when the network or the server fails, and the origin it registers on.
  * @param {Object} params
  * @param {string} params.basePath - The application base path.
  * @param {Array<{path: string, offlineDefault?: boolean, maintenanceDefault?: boolean}>} params.views - The SSR views.
- * @returns {{cachePrefix: string, precache: string[], offline: string, maintenance: string}}
+ * @param {string} [params.origin] - The origin of the host the build serves; a development build has none.
+ * @returns {{cachePrefix: string, precache: string[], offline: string, maintenance: string, origin?: string}}
  * @memberof BuildManifest
  */
-const serviceWorkerManifest = ({ basePath, views }) => {
+const serviceWorkerManifest = ({ basePath, views, origin }) => {
   const prefix = basePath === '/' ? '' : basePath;
   const indexUrl = (routePath) => `${prefix}${routePath === '/' ? '' : routePath}/index.html`;
   const offline = views.filter((view) => view.offlineDefault);
   const maintenance = views.filter((view) => view.maintenanceDefault);
   return {
-    cachePrefix: `engine-core-${basePath === '/' ? 'root' : basePath.replaceAll('/', '_')}`,
+    cachePrefix: cachePrefixOf(basePath),
     precache: uniqueArray([...offline, ...maintenance].map((view) => indexUrl(view.path))),
     offline: indexUrl(offline.at(-1)?.path ?? '/offline'),
     maintenance: indexUrl(maintenance.at(-1)?.path ?? '/maintenance'),
+    ...(origin ? { origin } : undefined),
   };
 };
+
+/**
+ * The worker of a static build. It replaces the worker an earlier build of the same base path
+ * installed: it deletes the caches of that worker, unregisters itself and reloads each page it took
+ * over, so a page the old worker served from its cache loads what the origin serves now, a
+ * document or a redirect.
+ * @param {{basePath: string}} params
+ * @returns {string} The worker script.
+ * @memberof BuildManifest
+ */
+const retiringServiceWorker = ({ basePath }) => `const prefix = ${JSONweb(`${cachePrefixOf(basePath)}-`)};
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) =>
+  event.waitUntil(
+    self.clients
+      .claim()
+      .then(() => caches.keys())
+      .then((names) => Promise.all(names.filter((name) => name.startsWith(prefix)).map((name) => caches.delete(name))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((windows) => Promise.all(windows.map((client) => client.navigate(client.url)))),
+  ),
+);
+`;
 
 /**
  * The manifest of one build. Each field is set here on purpose; no input is copied as a whole.
@@ -104,8 +138,14 @@ const buildManifestFactory = ({
     };
   }
   if (serviceWorker) {
-    const { cachePrefix, precache, offline, maintenance } = serviceWorker;
-    content.serviceWorker = { cachePrefix, precache: [...precache], offline, maintenance };
+    const { cachePrefix, precache, offline, maintenance, origin } = serviceWorker;
+    content.serviceWorker = {
+      cachePrefix,
+      precache: [...precache],
+      offline,
+      maintenance,
+      ...(origin ? { origin } : undefined),
+    };
   }
   // The id digests the content: builds of the same inputs agree on it, on every replica.
   const id = crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex').slice(0, 16);
@@ -158,6 +198,7 @@ export {
   buildManifestHead,
   buildManifestHref,
   buildManifestPrelude,
+  retiringServiceWorker,
   serviceWorkerManifest,
   writeBuildManifest,
 };

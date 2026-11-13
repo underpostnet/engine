@@ -9,6 +9,7 @@ import {
   buildManifestHead,
   buildManifestHref,
   buildManifestPrelude,
+  retiringServiceWorker,
   serviceWorkerManifest,
   writeBuildManifest,
 } from '../../../src/client-builder/build-manifest.js';
@@ -138,6 +139,69 @@ describe('the build manifest producer', () => {
     });
     const serviceWorker = serviceWorkerManifest({ basePath: '/test', views });
     expect(manifestOf({ serviceWorker }).serviceWorker).toEqual(serviceWorker);
+  });
+
+  it('names the origin the worker registers on, for a production build only', () => {
+    const origin = 'https://app.example.test';
+    expect(serviceWorkerManifest({ basePath: '/', views: [], origin }).origin).toBe(origin);
+    expect(serviceWorkerManifest({ basePath: '/', views: [] })).not.toHaveProperty('origin');
+    const serviceWorker = serviceWorkerManifest({ basePath: '/', views: [], origin });
+    expect(manifestOf({ serviceWorker }).serviceWorker.origin).toBe(origin);
+  });
+});
+
+describe('the worker of a static build', () => {
+  const run = async (basePath, cacheNames) => {
+    const listeners = {};
+    const deleted = [];
+    const steps = [];
+    const windows = ['/log-in/', '/'].map((url) => ({ url, navigate: vi.fn(async () => steps.push(`reload ${url}`)) }));
+    const self = {
+      addEventListener: (type, listener) => (listeners[type] = listener),
+      skipWaiting: vi.fn(),
+      registration: { unregister: vi.fn(async () => steps.push('unregister')) },
+      clients: {
+        claim: vi.fn(async () => steps.push('claim')),
+        matchAll: vi.fn(async () => windows),
+      },
+    };
+    const caches = {
+      keys: async () => cacheNames,
+      delete: async (name) => steps.push(`delete ${deleted.push(name) && name}`),
+    };
+    new Function('self', 'caches', retiringServiceWorker({ basePath }))(self, caches);
+    listeners.install();
+    let done;
+    listeners.activate({ waitUntil: (promise) => (done = promise) });
+    await done;
+    return { self, deleted, steps };
+  };
+
+  it('takes over the pages, deletes the caches of the worker it replaces, unregisters, then reloads each page', async () => {
+    const { self, deleted, steps } = await run('/', [
+      'engine-core-root-pages',
+      'engine-core-root-precache-v2',
+      'other',
+    ]);
+    expect(self.skipWaiting).toHaveBeenCalled();
+    expect(deleted).toEqual(['engine-core-root-pages', 'engine-core-root-precache-v2']);
+    expect(self.clients.matchAll).toHaveBeenCalledWith({ type: 'window' });
+    expect(steps).toEqual([
+      'claim',
+      'delete engine-core-root-pages',
+      'delete engine-core-root-precache-v2',
+      'unregister',
+      'reload /log-in/',
+      'reload /',
+    ]);
+  });
+
+  it('keeps the caches of an application under another base path', async () => {
+    const { deleted } = await run('/', ['engine-core-_app-pages']);
+    expect(deleted).toEqual([]);
+    expect((await run('/app', ['engine-core-_app-pages', 'engine-core-root-pages'])).deleted).toEqual([
+      'engine-core-_app-pages',
+    ]);
   });
 });
 

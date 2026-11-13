@@ -55,21 +55,13 @@ const JSONweb = (data) =>
  * @param {string} options.proxyPath - The proxy path for the application.
  * @param {string} [options.basePath=''] - The base path for the module type (e.g., 'components', 'services').
  * @param {string} [options.module=''] - The module/component name for relative import resolution.
- * @param {string} [options.baseHost=''] - The base host URL.
  * @returns {import('esbuild').Plugin}
  * @memberof clientFormatted
  */
-const importRewritePlugin = ({
-  dists = [],
-  proxyPath,
-  basePath = '',
-  module = '',
-  baseHost = '',
-  externalizeBareImports = true,
-}) => ({
+const importRewritePlugin = ({ dists = [], proxyPath, basePath = '', module = '', externalizeBareImports = true }) => ({
   name: 'import-rewrite',
   setup(build) {
-    const prefix = `${baseHost}${proxyPath !== '/' ? `${proxyPath}/` : '/'}`;
+    const prefix = proxyPath !== '/' ? `${proxyPath}/` : '/';
 
     // Rewrite dist library imports (e.g., '@neodrag/vanilla' → '/proxyPath/dist/@neodrag-vanilla/index.js')
     if (dists) {
@@ -77,7 +69,7 @@ const importRewritePlugin = ({
         if (!dist.import_name) continue;
         const filter = new RegExp(`^${escapeRegExp(dist.import_name)}$`);
         build.onResolve({ filter }, () => ({
-          path: `${baseHost}${proxyPath !== '/' ? proxyPath : ''}${dist.import_name_build}`,
+          path: `${proxyPath !== '/' ? proxyPath : ''}${dist.import_name_build}`,
           external: true,
         }));
       }
@@ -127,7 +119,6 @@ const importRewritePlugin = ({
  * @param {string} options.proxyPath - The proxy path for the application.
  * @param {string} [options.basePath=''] - Base path for the module type (e.g., 'components', 'services').
  * @param {string} [options.module=''] - Module name for relative import resolution.
- * @param {string} [options.baseHost=''] - Base host URL.
  * @param {boolean} [options.minify=false] - Whether to minify the output.
  * @returns {Promise<string>} The transformed source code.
  * @memberof clientFormatted
@@ -139,7 +130,6 @@ const transformClientJs = async (
     proxyPath,
     basePath = '',
     module = '',
-    baseHost = '',
     minify: shouldMinify = false,
     externalizeBareImports = true,
   } = {},
@@ -161,7 +151,7 @@ const transformClientJs = async (
     target: 'esnext',
     minify: shouldMinify,
     logLevel: 'warning',
-    plugins: [importRewritePlugin({ dists, proxyPath, basePath, module, baseHost, externalizeBareImports })],
+    plugins: [importRewritePlugin({ dists, proxyPath, basePath, module, externalizeBareImports })],
   });
 
   return result.outputFiles[0].text;

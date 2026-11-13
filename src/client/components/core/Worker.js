@@ -21,7 +21,7 @@ import { Css } from './Css.js';
 import { Responsive } from './Responsive.js';
 import { SocketIo } from './SocketIo.js';
 import { Keyboard } from './Keyboard.js';
-import { developmentBuild, loadBuildManifest } from './BuildManifest.js';
+import { buildManifest, developmentBuild, loadBuildManifest } from './BuildManifest.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -143,6 +143,12 @@ class PwaWorker {
   #registerDeferred() {
     if (!('serviceWorker' in navigator)) {
       logger.warn('Service Worker disabled in browser');
+      return;
+    }
+    // A host that routes this application keeps its own worker scope.
+    const origin = buildManifest().serviceWorker?.origin;
+    if (origin && origin !== location.origin) {
+      logger.warn('Service Worker registers on', origin);
       return;
     }
     const run = async () => {
