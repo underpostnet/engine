@@ -101,16 +101,26 @@ export const apiServicesOf = (definition, identity) => {
  * @param {string[]} [params.origins=[]]
  * @param {import('../../api/types.js').ApiServices} [params.services={}]
  * @param {import('../../api/types.js').ApiExtension} [params.extension]
+ * @param {string[]} [params.publicHosts=[]] - The hosts whose path routes reach the host path.
  * @returns {import('../../api/types.js').ApiRouterContext}
  * @memberof ApiModule
  */
-export const apiContextFactory = ({ host, path, consumes = {}, origins = [], services = {}, extension }) =>
+export const apiContextFactory = ({
+  host,
+  path,
+  consumes = {},
+  origins = [],
+  services = {},
+  extension,
+  publicHosts = [],
+}) =>
   Object.freeze({
     host,
     path,
     apiBasePath: apiPathOf(path),
     consumes: Object.freeze({ ...consumes }),
     origins: Object.freeze([...origins]),
+    publicHosts: Object.freeze([...publicHosts]),
     services: Object.freeze({ ...services }),
     ...(extension ? { extension } : {}),
   });
@@ -148,12 +158,13 @@ export const startApiModule = (definition, context) => {
  * @param {Object<string,string>} params.consumes - The consumed APIs of the host.
  * @param {string[]} params.origins
  * @param {Object<string,string>} [params.apiExtensions] - api → project, from `conf.server.json`.
+ * @param {string[]} [params.publicHosts] - The hosts whose path routes reach the host path.
  * @returns {Promise<{definition: import('../../api/types.js').ApiModuleDefinition,
  *   context: import('../../api/types.js').ApiRouterContext, router: import('express').Router, url: URL}>}
  * @throws {Error} Naming the API, the host and the path.
  * @memberof ApiModule
  */
-export async function buildApiModule({ api, host, path, consumes, origins, apiExtensions }) {
+export async function buildApiModule({ api, host, path, consumes, origins, apiExtensions, publicHosts }) {
   try {
     const url = apiModuleUrl(api);
     const { ApiModule: definition } = await import(url.href);
@@ -166,6 +177,7 @@ export async function buildApiModule({ api, host, path, consumes, origins, apiEx
       origins,
       services: apiServicesOf(definition, { host, path }),
       extension: await loadApiExtension(api, apiExtensions),
+      publicHosts,
     });
     await startApiModule(definition, context);
     const router = definition.createRouter(context);

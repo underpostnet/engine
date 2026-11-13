@@ -32,6 +32,8 @@ import {
 import { publicRouteRenderersFactory } from '../../server/network/public-route-renderers.js';
 import { apiPathOf } from '../../server/domain/api-contract.js';
 import { TLS } from '../../server/network/tls.js';
+import { pathRouteForwarderFactory } from '../../server/network/proxy.js';
+import { pathRouteSummary } from '../../server/network/path-routes.js';
 import {
   apiAnnotationsOf,
   apiDocumentFactory,
@@ -80,6 +82,8 @@ class ExpressService {
    * @param {string} config.redirectTarget - The full target URL for redirection (used if `redirect` is true).
    * @param {string} config.rootHostPath - The root path for public host assets (e.g., `/public/hostname`).
    * @param {object} config.confSSR - The SSR configuration object, used to look up Mailer templates.
+   * @param {Array<object>} [config.pathRoutes] - The route plan of the host path (`pathRoutePlan`), forwarded here.
+   * @param {string[]} [config.publicHosts] - The hosts whose path routes reach the host path.
    * @param {object} [config.metadata] - The client's `metadata` block (site name, description, social image): the site-level values of an entry's rendered head.
    * @param {object} [config.docs] - The client's `docs` block: the host publishes its API document and view.
    * @param {import('prom-client').Counter<string>} config.promRequestCounter - Prometheus request counter instance.
@@ -110,6 +114,8 @@ class ExpressService {
     redirectTarget,
     rootHostPath,
     confSSR,
+    pathRoutes = [],
+    publicHosts = [],
     metadata,
     docs,
     promRequestCounter,
@@ -154,6 +160,15 @@ class ExpressService {
 
     // Logging, Compression, and Body Parsers
     app.use(loggerMiddleware(import.meta));
+    // The path routes of this host path, before any parser reads a request body.
+    const forwarder =
+      pathRoutes.length > 0
+        ? pathRouteForwarderFactory(pathRoutes, { development: process.env.NODE_ENV === 'development' })
+        : null;
+    if (forwarder) {
+      app.use(forwarder.middleware);
+      logger.info('Path routes', `${host}${path}`, pathRouteSummary(pathRoutes));
+    }
     app.use(compression({ filter: (req, res) => !req.headers['x-no-compression'] && compression.filter(req, res) }));
     app.use(express.json({ limit: '100MB', verify: keepRawBody }));
     app.use(express.urlencoded({ extended: true, limit: '20MB' }));
@@ -202,7 +217,7 @@ class ExpressService {
     if (redirect) {
       app.use((req, res, next) => {
         if (process.env.NODE_ENV === 'production' && !req.url.startsWith(`/.well-known/acme-challenge`)) {
-          return res.status(302).redirect(redirectTarget + req.url);
+          return res.redirect(301, redirectTarget + req.url);
         }
         return next();
       });
@@ -271,7 +286,15 @@ class ExpressService {
           );
           let built;
           try {
-            built = await buildApiModule({ api, host, path, consumes: consumed, origins, apiExtensions });
+            built = await buildApiModule({
+              api,
+              host,
+              path,
+              consumes: consumed,
+              origins,
+              apiExtensions,
+              publicHosts,
+            });
           } catch (error) {
             logger.error(error.message, error.cause?.stack);
             latchRuntimeError();
@@ -352,8 +375,12 @@ class ExpressService {
     ) {
       if (!TLS.validateSecureContext()) TLS.issueCertificate();
       const { ServerSSL } = await TLS.createSslServer(app);
+      forwarder?.attach(ServerSSL);
       await Underpost.start.listenPortController(ServerSSL, port, runningData);
-    } else await Underpost.start.listenPortController(server, port, runningData);
+    } else {
+      forwarder?.attach(server);
+      await Underpost.start.listenPortController(server, port, runningData);
+    }
 
     return { portsUsed };
   }

@@ -12,6 +12,13 @@ import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
+ * The path a host path serves its Socket.IO transport under.
+ * @param {string} [path='/'] - Host path.
+ * @returns {string} `/socket.io/`, or `/<path>/socket.io/`.
+ */
+const socketPathOf = (path = '/') => (path !== '/' ? `${path}/socket.io/` : '/socket.io/');
+
+/**
  * @class IoServer
  * @classdesc Factory for creating and configuring Socket.IO server instances
  * with CORS configuration and HTTP server attachment.
@@ -48,7 +55,7 @@ class IoServer {
         ],
         credentials: true,
       },
-      path: options.path !== '/' ? `${options.path}/socket.io/` : '/socket.io/',
+      path: socketPathOf(options.path),
     };
 
     const ioServerInstance = Underpost.start.listenServerFactory(() =>
@@ -65,4 +72,4 @@ class IoServer {
   }
 }
 
-export { IoServer };
+export { IoServer, socketPathOf };

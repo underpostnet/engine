@@ -279,7 +279,7 @@ Listen ${port}
 
     # Exclude the ACME challenge path for certificate renewals
     RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
-    RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
+    RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=301,L]
   `
       : ''
   }

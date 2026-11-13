@@ -11,6 +11,7 @@ import { createProxyServer } from 'httpxy';
 import { loggerFactory, loggerMiddleware } from '../ops/logger.js';
 import { etcHostFactory, getTlsHosts, isDevProxyContext, isTlsDevProxy } from '../runtime/conf.js';
 import { buildPortProxyRouter, buildProxyRouter } from './router.js';
+import { matchPathRoute } from './path-routes.js';
 import { LOCAL_SSL_ROOT, TLS } from './tls.js';
 import Underpost from '../../index.js';
 
@@ -101,6 +102,86 @@ const proxyMiddlewareFactory = ({ target, router = {}, ws = false, xfwd = false,
   };
 };
 
+/** The path of a URL, never its query: a query may carry a code or a token. */
+const pathnameOf = (url = '/') => new URL(url, 'http://route.invalid').pathname;
+
+/**
+ * @method pathRouteForwarderFactory
+ * @description Forwards the requests a route plan matches to the local port of their destination,
+ * with the public host, path, query and body of the request, and answers a redirect match with a
+ * `308` to the same path and query on the public origin of its destination: `https://<host>`, or
+ * `http://localhost:<port>` in development. A request no route matches goes on to the host path
+ * itself. The forwarder routes where no gateway routes the plan first. Each routed request logs
+ * its route, destination, port, status and redirect path.
+ * @param {ReturnType<typeof import('./path-routes.js').pathRoutePlan>} plan - The route plan of one host path.
+ * @param {{development?: boolean}} [options]
+ * @returns {{middleware: import('express').RequestHandler, attach: (server: import('http').Server) => void}}
+ *   The middleware for requests, and the hook that forwards the upgrades of a listening server.
+ * @memberof ProxyService
+ */
+const pathRouteForwarderFactory = (plan, { development = false } = {}) => {
+  const proxy = createProxyServer({ xfwd: true });
+  const entries = new WeakMap();
+  const matched = (req) => {
+    const entry = matchPathRoute(plan, req.url);
+    if (entry) entries.set(req, entry);
+    return entry;
+  };
+  const target = (entry) => `http://127.0.0.1:${entry.destination.port}`;
+  const redirectOrigin = ({ destination }) =>
+    development ? `http://localhost:${destination.port}` : `https://${destination.host}`;
+  const diagnostic = (req) => {
+    const { route, kind, destination } = entries.get(req) ?? {};
+    return {
+      host: req.headers.host,
+      path: pathnameOf(req.url),
+      route,
+      kind,
+      destination: destination && `${destination.host}${destination.path}:${destination.port}`,
+    };
+  };
+
+  proxy.on('error', (error, req, res) => {
+    logger.error('Path route failed', { ...diagnostic(req), code: error.code || error.message });
+    if (typeof res?.writeHead !== 'function') return res?.destroy?.();
+    if (res.headersSent) return res.end();
+    const status = proxyErrorStatusFactory(error.code);
+    if (entries.get(req)?.service)
+      return res
+        .writeHead(status, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify({ status: 'error', message: 'The destination of the path route is unreachable' }));
+    res.writeHead(status, { 'Content-Type': 'text/plain' }).end('The destination of the path route is unreachable');
+  });
+  proxy.on('proxyRes', (proxyRes, req) =>
+    logger.info('Path route', {
+      ...diagnostic(req),
+      status: proxyRes.statusCode,
+      ...(proxyRes.headers.location ? { location: pathnameOf(proxyRes.headers.location) } : undefined),
+    }),
+  );
+
+  return {
+    middleware: (req, res, next) => {
+      const entry = matched(req);
+      if (!entry) return next();
+      if (entry.redirect) {
+        const location = `${redirectOrigin(entry)}${req.url}`;
+        logger.info('Path route', { ...diagnostic(req), status: 308, location: pathnameOf(location) });
+        return res.set('Cache-Control', 'no-cache').redirect(308, location);
+      }
+      proxy.web(req, res, { target: target(entry) }).catch((error) => proxy.emit('error', error, req, res));
+    },
+    attach: (server) =>
+      server.on('upgrade', (req, socket, head) => {
+        const entry = matched(req);
+        if (entry?.protocol === 'websocket')
+          proxy
+            .ws(req, socket, { target: target(entry) }, head)
+            .catch((error) => proxy.emit('error', error, req, socket));
+      }),
+  };
+};
+
 /**
  * Main class for building and running the proxy server.
  * All utility methods are implemented as static to serve as a namespace container.
@@ -180,4 +261,11 @@ class ProxyService {
  */
 const buildProxy = ProxyService.build;
 
-export { ProxyService, buildProxy, proxyErrorStatusFactory, proxyMiddlewareFactory, proxyTargetFactory };
+export {
+  ProxyService,
+  buildProxy,
+  pathRouteForwarderFactory,
+  proxyErrorStatusFactory,
+  proxyMiddlewareFactory,
+  proxyTargetFactory,
+};

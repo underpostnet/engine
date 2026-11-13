@@ -130,11 +130,12 @@
  * What an API module receives for one host path: its runtime identity, its configuration, the
  * services it declares and the host's extension of it. The runtime freezes it. `consumes` maps
  * each API this host serves for another domain to that domain; `origins` are the origins the host
- * allows. Services and the platform address host-scoped state by the identity fields, so they are
- * fields of the context itself.
+ * allows; `publicHosts` are the hosts whose path routes reach the host path. Services and the
+ * platform address host-scoped state by the identity fields, so they are fields of the context itself.
  * @typedef {ApiRuntimeIdentity & {
  *   consumes: Readonly<Record<string, string>>,
  *   origins: ReadonlyArray<string>,
+ *   publicHosts: ReadonlyArray<string>,
  *   services: Readonly<ApiServices>,
  *   extension?: ApiExtension,
  * }} ApiRouterContext

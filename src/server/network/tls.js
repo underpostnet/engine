@@ -290,7 +290,7 @@ class TLS {
         return sslRedirectUrl.match(hostSSL) && TLS.validateSecureContext(hostSSL);
       })
     ) {
-      return res.status(302).redirect(sslRedirectUrl);
+      return res.redirect(301, sslRedirectUrl);
     }
   }
 }

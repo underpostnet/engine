@@ -14,6 +14,8 @@ import { Lampp } from '../../runtime/lampp/lampp.js';
 import { WpService } from '../../runtime/wp/wp.js';
 import { getInstanceContext, readConfJson } from './conf.js';
 import { clearAwaitDeploy } from './runtime-status.js';
+import { hostPortsFactory } from '../network/router.js';
+import { pathRoutePlan, routingHostsOf } from '../network/path-routes.js';
 
 import ExpressService from '../../runtime/express/express.js';
 
@@ -50,6 +52,8 @@ const buildRuntime = async () => {
   const confServer = readConfJson(deployId, 'server', { resolve: true, loadReplicas: true });
   const confSSR = readConfJson(deployId, 'ssr');
   const confClient = readConfJson(deployId, 'client');
+  // The local port of every host path, in the order this loop assigns them.
+  const ports = hostPortsFactory(confServer, initPort);
 
   // Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
@@ -134,6 +138,8 @@ const buildRuntime = async () => {
             redirectTarget,
             rootHostPath,
             confSSR,
+            pathRoutes: pathRoutePlan({ confServer, confClient, confSSR, host, path, ports }),
+            publicHosts: routingHostsOf({ confServer, confClient, confSSR, host, path }),
             metadata: confClient[client]?.metadata,
             docs: confClient[client]?.docs,
             promRequestCounter: requestCounter,
