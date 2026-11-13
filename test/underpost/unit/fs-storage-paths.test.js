@@ -8,6 +8,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import UnderpostFileStorage from '../../../src/cli/fs.js';
 import UnderpostRepository from '../../../src/cli/repository.js';
 import Downloader from '../../../src/server/storage/downloader.js';
+import { runCommandSync } from '../../../src/server/runtime/process.js';
 import { program } from '../../../src/cli/index.js';
 import { clearTerminalStringColor } from '../../../src/client/components/core/CommonJs.js';
 
@@ -19,16 +20,16 @@ vi.mock('cloudinary', () => ({
     utils: { download_archive_url: vi.fn() },
   },
 }));
-vi.mock('node:child_process', async (importOriginal) => {
+vi.mock('../../../src/server/runtime/process.js', async (importOriginal) => {
   const original = await importOriginal();
-  return { ...original, execFileSync: vi.fn(original.execFileSync) };
+  return {
+    ...original,
+    runCommandSync: vi.fn(original.runCommandSync),
+    shellExec: vi.fn(() => {
+      throw new Error('Storage must not run shell commands.');
+    }),
+  };
 });
-vi.mock('../../../src/server/runtime/process.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  shellExec: vi.fn(() => {
-    throw new Error('Storage must not run shell commands.');
-  }),
-}));
 
 const api = UnderpostFileStorage.API;
 const options = { deployId: 'test' };
@@ -69,11 +70,10 @@ beforeEach(() => {
     zip.file('remote-asset', 'remote');
     fs.writeFileSync(target, await zip.generateAsync({ type: 'nodebuffer' }));
   });
-  for (const name of ['getChangedFiles', 'getDeleteFiles', 'initLocalRepo', 'isInsideWorkTree'])
-    vi.spyOn(UnderpostRepository.API, name).mockImplementation(() => {
-      throw new Error(`Unexpected Git call: ${name}`);
-    });
-  execFileSync.mockClear();
+  vi.spyOn(UnderpostRepository.API, 'initLocalRepo').mockImplementation(() => {
+    throw new Error('Unexpected Git call: initLocalRepo');
+  });
+  runCommandSync.mockClear();
 });
 
 afterEach(() => {
@@ -138,7 +138,7 @@ describe('filesystem storage selection', () => {
     await run('./assets/a.png');
     expect(uploadPaths()).toEqual(['assets/a.png']);
     expect(walk).not.toHaveBeenCalled();
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
   });
 
   it('selects all files below a directory without Git or --recursive', async () => {
@@ -151,7 +151,7 @@ describe('filesystem storage selection', () => {
       'assets/untracked.png',
       'assets/z.png',
     ]);
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
     expect(cloudinary.api.delete_resources).not.toHaveBeenCalled();
   });
 
@@ -195,7 +195,7 @@ describe('Git storage selection', () => {
     git('-c', 'user.name=Storage Test', '-c', 'user.email=storage@example.test', 'commit', '-qm', 'fixture');
     fs.writeFileSync('assets/a.png', 'changed');
     fs.removeSync('assets/z.png');
-    execFileSync.mockClear();
+    runCommandSync.mockClear();
   });
 
   it('selects unchanged and changed tracked files, excluding ignored and untracked files', async () => {
@@ -217,9 +217,9 @@ describe('Git storage selection', () => {
     async (operation) => {
       const head = git('rev-parse', 'HEAD');
       const index = fs.readFileSync('.git/index');
-      execFileSync.mockClear();
+      runCommandSync.mockClear();
       await run('assets/a.png', { git: true, ...operation });
-      expect(execFileSync.mock.calls.map(([command, args]) => [command, ...args])).toEqual([
+      expect(runCommandSync.mock.calls.map(([command, args]) => [command, ...args])).toEqual([
         ['git', 'rev-parse', '--show-toplevel'],
         ['git', 'ls-files', '--cached', '--full-name', '-z', '--', '.'],
       ]);
@@ -246,7 +246,7 @@ describe('tracked storage selection and filters', () => {
     const upload = vi.spyOn(api, 'upload').mockResolvedValue({});
     await run(undefined, { tracked: true });
     expect(upload.mock.calls.map(([key]) => key)).toEqual(Object.keys(inventory));
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
   });
 
   it('scopes missing files using only manifest paths', () => {
@@ -464,7 +464,7 @@ describe('storage synchronization', () => {
       type: 'upload',
     });
     expect(readInventory()['assets/gone.png']).toEqual({ type: 'private', bytes: 6 });
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
   });
 
   it('preserves existing local content unless --force is set', async () => {
@@ -530,7 +530,7 @@ describe('storage synchronization', () => {
       [['assets/gone.png'], { type: 'upload', resource_type: 'raw' }],
       [['assets/gone.png'], { type: 'private', resource_type: 'raw' }],
     ]);
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
   });
 
   it('preserves local files during remote deletion, including with --force', async () => {
@@ -609,7 +609,7 @@ describe('storage CLI options', () => {
     expect(readInventory({ storageId: 'bundle' })).toEqual({ [current]: storage[current], [sibling]: {} });
     expect(readInventory()).toEqual(inventory);
     expect(fs.existsSync('build')).toBe(false);
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(runCommandSync).not.toHaveBeenCalled();
   });
 
   it('rejects the removed path override and a missing deploy id', async () => {
