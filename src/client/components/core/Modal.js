@@ -1426,7 +1426,7 @@ class Modal {
       });
     }
 
-    const btnCloseEvent = () => {
+    const btnCloseEvent = ({ replace } = {}) => {
       Object.keys(this.Data[idModal].onCloseListener).map((keyListener) =>
         this.Data[idModal].onCloseListener[keyListener](),
       );
@@ -1440,12 +1440,11 @@ class Modal {
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
-        // Handle modal route change
-        closeModalRouteChangeEvent({ closedId: idModal });
-        // history.back();
+        closeModalRouteChangeEvent({ closedId: idModal, replace });
       }, 300);
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
+    this.Data[idModal].close = btnCloseEvent;
 
     // Minimize button handler
     s(`.btn-minimize-${idModal}`).onclick = () => {
@@ -1724,6 +1723,15 @@ class Modal {
   /** @returns {string|undefined} Id of the first open view-mode modal, or undefined. */
   static viewModalOpen() {
     return Object.keys(this.Data).find((idModal) => s(`.${idModal}`) && this.Data[idModal].options.mode === 'view');
+  }
+
+  /**
+   * Closes an open modal as its close button does.
+   * @param {string} idModal
+   * @param {{replace?: boolean}} [options] - `replace` replaces the history entry of a view instead of adding one.
+   */
+  static close(idModal, options) {
+    this.Data[idModal]?.close?.(options);
   }
 
   /**

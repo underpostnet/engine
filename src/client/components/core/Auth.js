@@ -16,8 +16,13 @@ import { ShellLayout } from './ShellLayout.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 import { GuestService } from '../../services/user/GuestService.js';
+import { Modal } from './Modal.js';
+import { RouteGuards } from './Router.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
+
+/** The views only a visitor without an account session opens. */
+const GUEST_VIEWS = ['log-in', 'sign-up'];
 
 /**
  * Manages user authentication state, tokens, and session lifecycle.
@@ -175,6 +180,11 @@ class Auth {
    * @returns {Promise<{user: object}>} A promise resolving to the current user object.
    */
   async sessionIn(userServicePayload) {
+    RouteGuards['guest-views'] ??= (route) => {
+      if (!GUEST_VIEWS.includes(route) || !this.getToken()) return undefined;
+      NotificationManager.Push({ html: Translate.instance('signed-in-already'), status: 'info' });
+      return '';
+    };
     try {
       let token = userServicePayload?.data?.token || GuestService.getUserToken();
 
@@ -317,9 +327,8 @@ class Auth {
     s(`.main-btn-account`).style.display = null;
     if (s(`.main-btn-public-profile`)) s(`.main-btn-public-profile`).style.display = null;
     setTimeout(() => {
-      // Close any open login/signup modals
-      if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
-      if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
+      // The session consumes the guest views: Back never returns to one.
+      for (const view of GUEST_VIEWS) Modal.close(`modal-${view}`, { replace: true });
       ShellLayout.openSearch();
     });
   }

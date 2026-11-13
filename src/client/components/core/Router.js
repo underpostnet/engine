@@ -59,6 +59,13 @@ const registerRoutes = (routesFn) => {
 const RouterEvents = {};
 
 /**
+ * @type {Object.<string, function(string): (string|undefined)>}
+ * @description Checks a route before it renders: a guard returns the route to render in its place, or nothing.
+ * @memberof PwaRouter
+ */
+const RouteGuards = {};
+
+/**
  * @type {Object.<string, function>}\n
  * @description Holds event listeners for query parameter changes.\n
  * @memberof PwaRouter
@@ -292,6 +299,14 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
     if (pushPath[pushPath.length - 1] !== '/') pushPath = `${pushPath}/`;
 
     if (matchPath === pushPath) {
+      const guarded = Object.values(RouteGuards)
+        .map((guard) => guard(route))
+        .find((other) => other !== undefined && other !== route);
+      if (guarded !== undefined) {
+        logger.info('Route guarded', { route, to: guarded });
+        setPath(`${proxyPath}${guarded}`, { replace: true });
+        return Router(options);
+      }
       const routerEvent = { path: matchPath, pushPath, route, publicRoute };
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
       subMenuHandler(Object.keys(Routes()), route);
@@ -490,11 +505,11 @@ const unlistenQueryParamsChange = (id, event) => {
  * based on the remaining open modals or falls back to a home URL.
  * @param {object} [options={}] - Options for the modal close event.
  * @param {string} options.closedId - The ID of the modal that was just closed.
+ * @param {boolean} [options.replace] - Replace the history entry of the closed view instead of adding one.
  * @memberof PwaRouter
  */
 const closeModalRouteChangeEvent = (options = {}) => {
-  // logger.warn('closeModalRouteChangeEvent', options);
-  const { closedId } = options;
+  const { closedId, replace } = options;
   if (!closedId) return;
   if (coreUI.find((id) => closedId.startsWith(id))) {
     // logger.warn('prevent core ui component close');
@@ -513,7 +528,7 @@ const closeModalRouteChangeEvent = (options = {}) => {
 
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event]();
   if (topModalId) Modal.setTopModalCallback(topModalId);
-  setPath(getViewPath(topModalId ?? 'main-body'));
+  setPath(getViewPath(topModalId ?? 'main-body'), { replace });
   setDocTitle(Modal.Data[topModalId]?.options?.route ?? '');
 };
 
@@ -593,6 +608,7 @@ const setQueryParams = (newParams, options = { replace: true }) => {
 
 export {
   RouterEvents,
+  RouteGuards,
   registerRoutes,
   closeModalRouteChangeEvents,
   coreUI,

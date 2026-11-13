@@ -622,6 +622,10 @@ class TranslateCore {
       en: 'Invalid identity document',
       es: 'Documento de identidad inválido',
     };
+    Translate.Data['signed-in-already'] = {
+      en: 'You are already signed in.',
+      es: 'Ya has iniciado sesión.',
+    };
     Translate.Data['expired-session'] = {
       en: 'Your session has expired. Please log in again.',
       es: 'Su sesión ha expirado. Por favor, inicie sesión de nuevo.',

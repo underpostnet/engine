@@ -120,7 +120,8 @@ const explain = (status) =>
     503: 'This world has no server open now. Try again in a moment, or pick another world.',
   })[status] ?? 'The world cannot open now. Try again in a moment.';
 
-const signIn = (world) => location.assign(`${portalPath()}?play=${encodeURIComponent(world)}`);
+// The log-in view, not the portal root: a host that routes the portal may serve its own root page.
+const signIn = (world) => location.assign(`${portalPath()}log-in?play=${encodeURIComponent(world)}`);
 
 const launchAccount = async (world) => {
   connecting(`Opening ${worldName(world)}…`);

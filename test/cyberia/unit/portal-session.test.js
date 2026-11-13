@@ -13,6 +13,8 @@ const state = vi.hoisted(() => ({
   delete: vi.fn(),
   avatar: vi.fn(),
   reload: vi.fn(),
+  guards: {},
+  close: vi.fn(),
 }));
 
 vi.mock('../../../src/client/services/user/UserService.js', () => ({
@@ -65,9 +67,11 @@ vi.mock('../../../src/client/components/google-auth/GoogleSignIn.js', () => ({
 }));
 vi.mock('../../../src/client/components/core/BuildManifest.js', () => ({ buildManifest: () => ({ runtime: {} }) }));
 vi.mock('../../../src/client/components/core/Router.js', () => ({
+  RouteGuards: state.guards,
   RouterReady: Promise.resolve(),
   getProxyPath: () => '/',
 }));
+vi.mock('../../../src/client/components/core/Modal.js', () => ({ Modal: { close: state.close } }));
 vi.mock('../../../src/client/components/cyberia/StudioCyberia.js', () => ({ StudioCyberia: { reload: state.reload } }));
 vi.mock('../../../src/client/components/cyberia-portal/AppStoreCyberiaPortal.js', () => ({
   AppStoreCyberiaPortal: state.store,
@@ -77,6 +81,7 @@ const { Auth } = await import('../../../src/client/components/core/Auth.js');
 const { LogIn } = await import('../../../src/client/components/core/LogIn.js');
 const { LogInCyberiaPortal } = await import('../../../src/client/components/cyberia-portal/LogInCyberiaPortal.js');
 const { resumeLaunch } = await import('../../../src/client/components/cyberia/GameLaunchCyberia.js');
+const { NotificationManager } = await import('../../../src/client/components/core/NotificationManager.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -183,5 +188,28 @@ describe('portal return from game settings', () => {
     expect(state.session.has('cyberia-pending-play')).toBe(false);
     expect(location.search).toBe('');
     expect(location.assign).not.toHaveBeenCalled();
+  });
+});
+
+describe('guest views of an account session', () => {
+  it('sends a log-in or sign-up route home, with a notice, while an account session exists', async () => {
+    location.search = '';
+    await LogInCyberiaPortal.instance();
+    const guard = state.guards['guest-views'];
+
+    expect(guard('log-in')).toBe('');
+    expect(guard('sign-up')).toBe('');
+    expect(NotificationManager.Push).toHaveBeenCalledWith({ html: 'signed-in-already', status: 'info' });
+    expect(guard('docs')).toBeUndefined();
+    state.userToken = '';
+    expect(guard('log-in')).toBeUndefined();
+  });
+
+  it('closes the open guest views of a new session in place of their history entry', async () => {
+    Auth.renderSessionUI();
+    await vi.runAllTimersAsync();
+
+    expect(state.close).toHaveBeenCalledWith('modal-log-in', { replace: true });
+    expect(state.close).toHaveBeenCalledWith('modal-sign-up', { replace: true });
   });
 });
