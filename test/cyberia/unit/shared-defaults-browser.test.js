@@ -3,9 +3,9 @@ import { transformClientJs } from '../../../src/client-builder/client-formatted.
 
 describe('Cyberia browser defaults', () => {
   it.each([
-    { proxyPath: '/', baseHost: '', minify: false },
-    { proxyPath: '/portal', baseHost: '', minify: false },
-    { proxyPath: '/', baseHost: 'https://www.cyberiaonline.com', minify: true },
+    { proxyPath: '/', minify: false },
+    { proxyPath: '/portal', minify: false },
+    { proxyPath: '/', minify: true },
   ])('loads published defaults without server dependencies: %j', async (options) => {
     const source = await transformClientJs('src/client/components/cyberia/SharedDefaultsCyberia.js', options);
     const defaults = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);

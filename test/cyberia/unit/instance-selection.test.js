@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe('world selection status', () => {
   it('offers only availability filters', () => {
-    expect(STATUS_ORDER).toEqual(['online', 'full', 'maintenance', 'coming-soon', 'offline']);
+    expect(STATUS_ORDER).toEqual(['online', 'full', 'maintenance', 'coming-soon', 'offline', 'unknown']);
   });
 
   it.each([0, 74, 75, 99])('keeps %i percent population online', (players) => {
@@ -151,11 +151,25 @@ describe('world population source', () => {
       vi
         .fn()
         .mockResolvedValueOnce({ ok: true, json: async () => metrics() })
-        .mockRejectedValueOnce(new Error('unreachable')),
+        .mockResolvedValueOnce({ ok: false, status: 404 }),
     );
     const { data } = await defaultInstanceProvider();
     expect(data[0]).toMatchObject({ status: 'maintenance', playable: false });
     expect(data[1]).toMatchObject({ status: 'offline', playable: false, players: null, capacity: null });
+  });
+
+  it('calls a world unknown, not offline, when its server sends no answer', async () => {
+    ui.get.mockResolvedValue({ status: 'success', data: { data: [{ code: 'forest' }, { code: 'violet' }], total: 2 } });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({ ok: true, json: async () => Promise.reject(new SyntaxError('not JSON')) }),
+    );
+    const { data } = await defaultInstanceProvider();
+    expect(data[0]).toMatchObject({ status: 'unknown', playable: true, players: null, capacity: null });
+    expect(data[1]).toMatchObject({ status: 'offline', playable: false });
   });
 
   it('renders the online card and filter under high operational load', async () => {

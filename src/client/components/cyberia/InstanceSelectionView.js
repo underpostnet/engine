@@ -17,6 +17,8 @@ const STATUS_META = {
   maintenance: { label: 'Maintenance', tone: 'info', playable: false, cta: 'Down' },
   'coming-soon': { label: 'Coming Soon', tone: 'accent', playable: false, cta: 'Soon' },
   offline: { label: 'Offline', tone: 'muted', playable: false, cta: 'Offline' },
+  // No answer proves nothing about the world: the launch, not the probe, decides whether it runs.
+  unknown: { label: 'Unknown', tone: 'muted', playable: true },
 };
 const STATUS_ORDER = Object.keys(STATUS_META);
 const statusMeta = (status) => STATUS_META[status] || STATUS_META.offline;
@@ -54,14 +56,19 @@ const statusFromMetrics = (metrics) => {
   return 'online';
 };
 
-const fetchInstanceMetrics = async (url, timeoutMs = 3500) => {
+/**
+ * The status the metrics endpoint of a world proves: its metrics when its server answers, `offline`
+ * when an answer carries none, and `unknown` when no answer arrives (network, origin policy, timeout).
+ */
+const probeWorld = async (url, timeoutMs = 3500) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
-    return res.ok ? await res.json() : null;
-  } catch (_) {
-    return null;
+    const metrics = res.ok ? await res.json().catch(() => null) : null;
+    return { status: statusFromMetrics(metrics), metrics };
+  } catch {
+    return { status: 'unknown', metrics: null };
   } finally {
     clearTimeout(timer);
   }
@@ -70,8 +77,8 @@ const fetchInstanceMetrics = async (url, timeoutMs = 3500) => {
 const enrichWithLiveStatus = async (instances) => {
   await Promise.all(
     instances.map(async (inst) => {
-      const m = await fetchInstanceMetrics(`${gameServerUrl(inst.code)}/api/v1/metrics`);
-      inst.status = inst.status === 'maintenance' ? 'maintenance' : statusFromMetrics(m);
+      const { status, metrics: m } = await probeWorld(`${gameServerUrl(inst.code)}/api/v1/metrics`);
+      inst.status = inst.status === 'maintenance' ? 'maintenance' : status;
       const players = Number(m?.websocket?.active_connections);
       const capacity = Number(m?.websocket?.max_connections);
       inst.players = Number.isFinite(players) && players >= 0 ? players : null;
