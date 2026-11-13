@@ -7,6 +7,7 @@ import {
   GOOGLE_AUTH_STATUS,
   GoogleAuthService,
   googleAuthConfig,
+  googleCallbackUrlFactory,
   returnPath,
 } from './google-auth.service.js';
 
@@ -38,7 +39,9 @@ export const ApiModule = {
     const { auth } = context.services;
     const router = express.Router();
     const passport = new Passport();
-    passport.use(GoogleAuthService.strategy(context, googleAuthConfig(context)));
+    const config = googleAuthConfig(context);
+    const callbackURL = googleCallbackUrlFactory(context, config);
+    passport.use(GoogleAuthService.strategy(context, config));
 
     if (!process.env.DISABLE_API_RATE_LIMIT)
       router.use(
@@ -54,13 +57,17 @@ export const ApiModule = {
         }),
       );
 
-    router.get(
-      '/',
-      passport.authenticate('google', { session: false, scope: GOOGLE_AUTH_SCOPES, prompt: 'select_account' }),
+    router.get('/', (req, res, next) =>
+      passport.authenticate('google', {
+        session: false,
+        scope: GOOGLE_AUTH_SCOPES,
+        prompt: 'select_account',
+        callbackURL: callbackURL(req),
+      })(req, res, next),
     );
 
     router.get('/callback', (req, res, next) =>
-      passport.authenticate('google', { session: false }, (error, identity, info) =>
+      passport.authenticate('google', { session: false, callbackURL: callbackURL(req) }, (error, identity, info) =>
         GoogleAuthController.callback(req, res, context, { error, identity, info }),
       )(req, res, next),
     );

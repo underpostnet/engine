@@ -78,6 +78,21 @@ const googleAuthConfig = (options) => {
   return { clientID, clientSecret, callbackURL: callbackURL.href };
 };
 
+/**
+ * The callback of each flow. A flow that starts on a public host of the API context ends on that
+ * host, so its cookies stay on one host; any other flow ends on the callback of the configuration.
+ * `GOOGLE_CALLBACK_URL` fixes it for every flow. Google must list each callback.
+ * @param {import('../types.js').ApiRouterContext} options - The API context.
+ * @param {{callbackURL: string}} config - {@link googleAuthConfig} of the host.
+ * @returns {(req: import('express').Request) => string}
+ * @memberof GoogleAuthService
+ */
+const googleCallbackUrlFactory = (options, { callbackURL }) => {
+  if (process.env.GOOGLE_CALLBACK_URL) return () => callbackURL;
+  const target = `${options.apiBasePath}/google-auth/callback`;
+  return (req) => (options.publicHosts.includes(req.hostname) ? `https://${req.hostname}${target}` : callbackURL);
+};
+
 const flowOf = (value) => (FLOW_PATTERN.test(`${value ?? ''}`) ? value : '');
 const viewOf = (value) => (GOOGLE_AUTH_VIEWS.includes(value) ? value : GOOGLE_AUTH_VIEWS[0]);
 
@@ -439,6 +454,7 @@ export {
   GOOGLE_AUTH_SCOPES,
   GOOGLE_AUTH_STATUS,
   googleAuthConfig,
+  googleCallbackUrlFactory,
   googleClaims,
   returnPath,
   usernameCandidates,

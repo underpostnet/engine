@@ -3,6 +3,7 @@ import { isValidUsername } from '../../../src/client/components/core/CommonJs.js
 import {
   GOOGLE_AUTH_SCOPES,
   googleAuthConfig,
+  googleCallbackUrlFactory,
   googleClaims,
   returnPath,
   usernameCandidates,
@@ -59,6 +60,25 @@ describe('Google sign-in configuration', () => {
     expect(() => googleAuthConfig(options)).toThrow(/key=GOOGLE_CALLBACK_URL reason=not an https: URL/);
     setEnv(client);
     expect(googleAuthConfig(options).callbackURL).toBe('https://www.cyberiaonline.com/api/v1/google-auth/callback');
+  });
+
+  it('ends a flow on a public host of the context, and on the configured callback otherwise', () => {
+    const own = 'https://services.cyberiaonline.com/api/v1/google-auth/callback';
+    const services = {
+      host: 'services.cyberiaonline.com',
+      path: '/',
+      apiBasePath: '/api/v1',
+      publicHosts: ['www.cyberiaonline.com'],
+    };
+    setEnv({});
+    const callbackURL = googleCallbackUrlFactory(services, { callbackURL: own });
+    expect(callbackURL({ hostname: 'www.cyberiaonline.com' })).toBe(
+      'https://www.cyberiaonline.com/api/v1/google-auth/callback',
+    );
+    expect(callbackURL({ hostname: services.host })).toBe(own);
+    expect(callbackURL({ hostname: 'forged.test' })).toBe(own);
+    setEnv({ GOOGLE_CALLBACK_URL: own });
+    expect(googleCallbackUrlFactory(services, { callbackURL: own })({ hostname: 'www.cyberiaonline.com' })).toBe(own);
   });
 
   it('asks Google for the identity scopes only', () => {

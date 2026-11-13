@@ -44,6 +44,12 @@ redirect URI of the OAuth client, and `https://services.cyberiaonline.com` as an
 JavaScript origin. Production then needs no `GOOGLE_CALLBACK_URL`. Apply the environment and
 restart the deploy.
 
+`www.cyberiaonline.com` routes the portal and its API to the services host. A flow that starts on
+`www` ends on the callback of `www`, so its cookies stay on one host. List
+`https://www.cyberiaonline.com/api/v1/google-auth/callback` as a second redirect URI, and
+`https://www.cyberiaonline.com` as a second JavaScript origin. A set `GOOGLE_CALLBACK_URL` fixes one
+callback for every flow, and a flow on another host then fails its state check.
+
 ## Development
 
 The development engine serves the portal on `http://localhost:4004`.

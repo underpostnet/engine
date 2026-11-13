@@ -143,7 +143,7 @@ at most `CYBERIA_AUTH_TIMEOUT_SEC` (default 10 s). A refused connection gets
 **Direct visits and refusals.** A client without a ticket on an account server shows **Continue as
 guest** and **Sign in**. A refused ticket shows the cause and the same two ways. Each way opens the
 launch bridge of the same world: `as=guest` launches a guest, and `as=account` launches the signed-in
-account or opens the portal sign-in at `/?play=<world>`, which launches once the sign-in completes.
+account or opens the portal sign-in at `/log-in?play=<world>`, which launches once the sign-in completes.
 No page redirects by itself, so a refusal never loops.
 
 The game never receives a password, a Google token, a refresh token or a portal token.
