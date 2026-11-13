@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { Types } from 'mongoose';
 import { load } from 'js-yaml';
+import { findBinary } from '../../support/binary.js';
 
 const models = {};
 vi.mock('../../../src/db/database-provider.js', () => ({
@@ -803,7 +804,7 @@ describe('content partition binding', () => {
       name,
       models: {},
       model(key, schema) {
-        const model = { key, schema, db: conn, on: () => model };
+        const model = { key, schema, db: conn };
         conn.models[key] = model;
         return model;
       },
@@ -1115,7 +1116,7 @@ describe('deploy pipeline', () => {
     const helper = script.slice(script.indexOf('content_release_skipped() {'), script.indexOf('# ── Stage D'));
     const candidate = script.slice(script.indexOf('stage_content_candidate() {'), script.indexOf('# ── Stage E'));
     const promotion = script.slice(script.indexOf('stage_promotion() {'), script.indexOf('# ── Revert'));
-    const run = (discard, live = false, reason = 'the hotfix is in the next release') =>
+    const run = (discard, live = false, reason = 'the hotfix is in the next release', served = 'v1') =>
       spawnSync(
         'bash',
         [
@@ -1129,7 +1130,7 @@ describe('deploy pipeline', () => {
           content_release_job() { echo "job: $*"; ${live ? '[ "$1" != content-release-live-changes ]' : ':'}; }
           sudo() { :; }
           apply_release_secret() { :; }
-          served_content_release() { echo v1; }
+          served_content_release() { echo '${served}'; }
           wait_for_http() { :; }
           wait_for_content_release() { :; }
           ${helper}
@@ -1154,12 +1155,23 @@ describe('deploy pipeline', () => {
     expect(stopped.stdout).not.toContain('content-release-promote');
     expect(stopped.stderr).toContain('content source export-live');
     expect(stopped.stderr).toContain('DISCARD_LIVE_CHANGES');
+    // The live-change job checks the discard before the rollout, with the flags the promotion takes.
+    const flags = '--discard-live-changes v1 --discard-reason "the hotfix is in the next release"';
     const discarded = run('v1');
-    expect(discarded.stdout).not.toContain('content-release-live-changes');
-    expect(discarded.stdout).toContain('DISCARD_LIVE_CHANGES=v1');
-    expect(discarded.stdout).toContain(
-      'job: content-release-promote engine:1 promote v2 --discard-live-changes v1 --discard-reason "the hotfix is in the next release"',
-    );
+    expect(discarded.status).toBe(0);
+    expect(discarded.stdout).toContain(`job: content-release-live-changes engine:1 live-changes ${flags}`);
+    expect(discarded.stdout).toContain(`job: content-release-promote engine:1 promote v2 ${flags}`);
+    const refused = run('v9', true);
+    expect(refused.status).toBe(1);
+    expect(refused.stdout).not.toContain('content-release-promote');
+    // `active` names the release the engine serves, once for the check and the promotion.
+    const active = run('active');
+    expect(active.stdout).toContain(`job: content-release-live-changes engine:1 live-changes ${flags}`);
+    expect(active.stdout).toContain(`job: content-release-promote engine:1 promote v2 ${flags}`);
+    const first = run('active', false, 'the hotfix is in the next release', '');
+    expect(first.status).toBe(0);
+    expect(first.stdout).toContain('job: content-release-live-changes engine:1 live-changes\n');
+    expect(first.stdout).not.toContain('--discard-live-changes');
     // A discard without a reason, or with one a shell could read, stops before any stage.
     for (const reason of ['', 'quote"d'])
       expect(run('v1', false, reason)).toMatchObject({ status: 1, stdout: expect.not.stringContaining('job: ') });
@@ -1238,6 +1250,33 @@ describe('deploy pipeline', () => {
     );
     expect(container.volumeMounts[0].readOnly).toBe(true);
     expect(manifest).not.toMatch(/underpost-config|GITHUB_TOKEN|underpost clone/);
+  });
+
+  // `script` gives the operator script a terminal, where a quiet step hides what it prints.
+  it.skipIf(!findBinary('script'))('prints the answer of a content release on a terminal', () => {
+    const root = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'content-release-operator-'));
+    try {
+      fs.mkdirSync(nodePath.join(root, 'lib'));
+      fs.mkdirSync(nodePath.join(root, 'dd-cyberia'));
+      const deployDir = new URL('../../../deploy/', import.meta.url).pathname;
+      for (const file of ['lib/github-actions-logging.sh', 'dd-cyberia/content-release.sh'])
+        fs.copyFileSync(`${deployDir}${file}`, nodePath.join(root, file));
+      fs.writeFileSync(nodePath.join(root, 'lib/host.sh'), 'ENGINE_ROOT=/engine\n');
+      fs.writeFileSync(
+        nodePath.join(root, 'lib/content-release.sh'),
+        'live_image() { echo engine:1; }\napply_release_secret() { echo secret; }\n' +
+          'content_release_job() { echo "Active release: v1 (db-v1)"; }\n',
+      );
+      const { stdout } = spawnSync(
+        'script',
+        ['-qec', `bash ${nodePath.join(root, 'dd-cyberia/content-release.sh')} status`, '/dev/null'],
+        { encoding: 'utf8', env: { PATH: process.env.PATH, TERM: 'xterm', COLUMNS: '120', LINES: '40' } },
+      );
+      expect(stdout).toContain('Active release: v1 (db-v1)');
+      expect(stdout).not.toContain('secret');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('prints ledger rows that start with the status and the release id', () => {
@@ -1425,6 +1464,24 @@ describe('locked content build on the host', () => {
     expect(run.stdout).not.toContain('cd /');
   });
 
+  it('reads the image of the live colour from a shell that has read no placement', () => {
+    const run = spawnSync(
+      'bash',
+      [
+        '-c',
+        `set -euo pipefail
+        DEPLOY_ID=dd-cyberia DEPLOY_ENV=production
+        source "${new URL('../../../deploy/lib/content-release.sh', import.meta.url).pathname}"
+        cluster_placement() { [ -n "\${UNDERPOST_NAMESPACE_WORKLOADS:-}" ] || UNDERPOST_NAMESPACE_WORKLOADS=underpost-workloads; }
+        cluster_kubectl() { if [ "$2" = service ]; then echo dd-cyberia-production-blue; else echo "$3 in $5"; fi; }
+        echo "image: $(live_image)"`,
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(run.stderr).toBe('');
+    expect(run.stdout).toBe('image: dd-cyberia-production-blue in underpost-workloads\n');
+  });
+
   const lib = new URL('../../../deploy/lib/content-release.sh', import.meta.url).pathname;
   let root;
 
@@ -1498,6 +1555,23 @@ map() { local value="\${1//\\/tmp/$private}"; printf '%s' "\${value//\${bind#*:}
 command=(); for arg in "$@"; do command+=("$(map "$arg")"); done
 variables=(); for pair in "\${env[@]}"; do variables+=("$(map "$pair")"); done
 exec env -i "\${variables[@]}" "\${command[@]}"
+`,
+      0o755,
+    );
+    // Root sees the checkout of a shared workspace as owned by another user. The upload-pack that
+    // serves a clone of it checks that too, and reads no -c of its parent.
+    write(
+      nodePath.join(stubs, 'git'),
+      `#!/bin/bash
+for arg in "$@"; do
+  [ "$arg" != "${checkout}" ] || export GIT_TEST_ASSUME_DIFFERENT_OWNER=1
+  case "$arg" in --upload-pack=*"safe.directory=${checkout}/.git "*) served=1 ;; esac
+done
+if [ -n "\${GIT_TEST_ASSUME_DIFFERENT_OWNER:-}" ] && [[ " $* " == *" clone "* ]] && [ -z "\${served:-}" ]; then
+  echo "fatal: detected dubious ownership in repository at '${checkout}/.git'" >&2
+  exit 128
+fi
+exec "${findBinary('git')}" "$@"
 `,
       0o755,
     );

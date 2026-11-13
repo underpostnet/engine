@@ -45,7 +45,8 @@ CONTENT_RELEASES_KEEP="${CONTENT_RELEASES_KEEP:-2}"
 SKIP_CONTENT_RELEASE="${SKIP_CONTENT_RELEASE:-0}"
 # Live changes of the active release that its build does not hold stop the deploy before the
 # rollout. Export them to cyberia-content first, or name that active release in DISCARD_LIVE_CHANGES
-# and say why in DISCARD_REASON to stop serving them; the release ledger records both.
+# (`active` reads it from the engine) and say why in DISCARD_REASON to stop serving them; the release
+# ledger records both.
 DISCARD_LIVE_CHANGES="${DISCARD_LIVE_CHANGES:-}"
 DISCARD_REASON="${DISCARD_REASON:-}"
 
@@ -174,6 +175,20 @@ require_discard_reason() {
     esac
 }
 
+# The flags that let a promotion stop serving the live changes of the active release DISCARD_LIVE_CHANGES names.
+discard_flags() {
+    [ -z "$DISCARD_LIVE_CHANGES" ] ||
+        printf '%s' "--discard-live-changes $DISCARD_LIVE_CHANGES --discard-reason \"$DISCARD_REASON\""
+}
+
+# Replaces DISCARD_LIVE_CHANGES=active with the id of the release the engine serves, once for the
+# check and the promotion. With no active release there is nothing to discard.
+resolve_discard_release() {
+    [ "$DISCARD_LIVE_CHANGES" = active ] || return 0
+    DISCARD_LIVE_CHANGES="$(served_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH")"
+    echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=active: ${DISCARD_LIVE_CHANGES:-no active release}"
+}
+
 # ── Stage D — Data ───────────────────────────────────────────────────────────────────────
 #
 # The data-release credentials go to their Secret, then two Release Jobs run on the deployed image
@@ -198,15 +213,12 @@ stage_content_candidate() {
     deploy_step "Build content release $CONTENT_RELEASE_ID" \
         content_release_job "$CONTENT_RELEASE_ID" "$DEPLOY_IMAGE" \
         build "$CONTENT_RELEASE_ID" --from source ${CONTENT_INSTANCES:+--instances "$CONTENT_INSTANCES"}
-    if [ -n "$DISCARD_LIVE_CHANGES" ]; then
-        echo "$RUN_QUIET_NODE_TAG DISCARD_LIVE_CHANGES=$DISCARD_LIVE_CHANGES: the promotion stops serving its live changes ($DISCARD_REASON)"
-    else
-        deploy_step "No live change the promotion stops serving" \
-            content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes || {
-            echo "$RUN_QUIET_NODE_TAG Capture a baseline with \`node bin/cyberia content baseline capture\`, export it on a development host with \`node bin/cyberia content source export-live\`, commit it to cyberia-content, then deploy again; or name the active release in DISCARD_LIVE_CHANGES and say why in DISCARD_REASON" >&2
-            exit 1
-        }
-    fi
+    resolve_discard_release
+    deploy_step "No live change the promotion stops serving" \
+        content_release_job "content-release-live-changes" "$DEPLOY_IMAGE" live-changes $(discard_flags) || {
+        echo "$RUN_QUIET_NODE_TAG Capture a baseline with \`node bin/cyberia content baseline capture\`, export it on a development host with \`node bin/cyberia content source export-live\`, commit it to cyberia-content, then deploy again; or set DISCARD_LIVE_CHANGES to the active release id, or to active, and say why in DISCARD_REASON" >&2
+        exit 1
+    }
 }
 
 # ── Stage E — Application rollout ──────────────────────────────────────────────────────
@@ -257,13 +269,10 @@ stage_promotion() {
         RELEASE_STATE=committed
         return 0
     fi
-    local discard=""
-    [ -z "$DISCARD_LIVE_CHANGES" ] ||
-        discard="--discard-live-changes $DISCARD_LIVE_CHANGES --discard-reason \"$DISCARD_REASON\""
     PREVIOUS_RELEASE="$(served_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH")"
     RELEASE_STATE=promoting
     deploy_step "Promote content release $CONTENT_RELEASE_ID" \
-        content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID" $discard
+        content_release_job "content-release-promote" "$DEPLOY_IMAGE" promote "$CONTENT_RELEASE_ID" $(discard_flags)
     deploy_step "Runtime serves $CONTENT_RELEASE_ID" \
         wait_for_content_release "$CYBERIA_API_ORIGIN/$ENGINE_API_PATH" "$CONTENT_RELEASE_ID" "$READINESS_TIMEOUT"
     deploy_step "Cyberia server ready" \

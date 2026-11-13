@@ -29,6 +29,7 @@ live_colour() {
 
 # The live colour while it serves: its Service has a ready endpoint. Nothing when no colour serves.
 serving_colour() {
+    cluster_placement
     local colour
     colour="$(live_colour)"
     [ -n "$colour" ] || return 0
@@ -39,6 +40,7 @@ serving_colour() {
 
 # The image the live colour runs: an operator's release command runs the version that serves.
 live_image() {
+    cluster_placement
     local colour
     colour="$(live_colour)"
     if [ -z "$colour" ]; then
@@ -94,7 +96,9 @@ set -euo pipefail
 checkout="$1"
 max_bytes=$((512 * 1024 * 1024))
 max_entries=50000
-revision="$(git -c safe.directory="$checkout" -C "$checkout" rev-parse HEAD)"
+# Git checks a checkout another user owns at its work tree, and at its .git when a clone reads it.
+trust=(-c "safe.directory=$checkout" -c "safe.directory=$checkout/.git")
+revision="$(git "${trust[@]}" -C "$checkout" rev-parse HEAD)"
 work="$(mktemp -d "${TMPDIR:-/tmp}/cyberia-content-build.XXXXXX")"
 trap 'rm -rf "$work" "$checkout/dist.next" "$checkout/dist.previous"' EXIT
 input="$work/input"
@@ -102,7 +106,9 @@ mkdir -p "$input/runtime/bin" "$input/runtime/lib/node_modules"
 cp "$(readlink -f "$(command -v node)")" "$input/runtime/bin/node"
 cp -r "$(dirname "$(dirname "$(readlink -f "$(command -v npm)")")")" "$input/runtime/lib/node_modules/npm"
 ln -s ../lib/node_modules/npm/bin/npm-cli.js "$input/runtime/bin/npm"
-git -c safe.directory="$checkout" -c advice.defaultBranchName=false clone -q --no-hardlinks --no-checkout "$checkout" "$input/src"
+# The upload-pack that serves the clone reads no -c of its parent, so it takes the trust itself.
+git "${trust[@]}" -c advice.defaultBranchName=false clone -q --no-hardlinks --no-checkout \
+    --upload-pack="git -c safe.directory=$(printf '%q' "$checkout/.git") upload-pack" "$checkout" "$input/src"
 git -C "$input/src" checkout -q --detach "$revision"
 chmod -R a+rX "$input"
 resolvers="$(awk '$1 == "nameserver" { sub(/%.*/, "", $2); print $2 }' /etc/resolv.conf | paste -sd ' ')"

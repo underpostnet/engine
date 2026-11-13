@@ -21,7 +21,8 @@ main() {
     local image
     image="$(live_image)"
     deploy_step "Project data-release credentials" apply_release_secret
-    deploy_step "cyberia content release $*" content_release_job "content-release-$1" "$image" "$@"
+    # The output of the release command is the answer: it streams, never redrawn or folded.
+    RUN_QUIET_DEBUG=1 deploy_step "cyberia content release $*" content_release_job "content-release-$1" "$image" "$@"
 }
 
 main "$@"
