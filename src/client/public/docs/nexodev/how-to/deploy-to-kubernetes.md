@@ -167,6 +167,10 @@ node bin deploy dd-cyberia development --sync-static --kubeadm
 
 Anything found in neither place falls through to the shared default page, which answers 404 and is never cached. `node bin run cluster --dev` runs both passes for you; see [Main cluster lifecycle commands](../reference/cluster-lifecycle.md).
 
+Every traffic switch runs the same pass from the colour it now routes to, once that colour serves: `run sync`, `run promote`, a revert and a monitor failover. The volume holds the build of the serving colour, never the build of the colour it replaced. A document the new colour lacks keeps the copy the volume already holds; a document in neither place fails the switch.
+
+The same pass places the whole build of a static site — a root host path whose client ships no bundle and that serves no API, socket, database or peer — in `<host>/root/site`. The gateway serves it from disk and asks the workload only for a file it lacks. See [Path Routes](../reference/path-routes.md#static-site).
+
 ### TLS
 
 `deploy` creates no certificate. The TLS policy of the environment (`environments.<env>.tls` of

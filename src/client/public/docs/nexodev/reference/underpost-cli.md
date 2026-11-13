@@ -700,7 +700,7 @@ Manages application deployments, defaulting to deploying development pods.
 | `--ingress-node <node-name>` | Explicitly relocates the shared host-network ingress; ordinary --node placement never moves it. |
 | `--ssh-key-path <path>` | Private key path for node SSH operations. Currently used when shipping a hostPath volume to a remote target node over SSH. Defaults to engine-private/deploy/id_rsa. |
 | `--build-manifest` | Builds Kubernetes YAML manifests: deployments, services, volumes, Gateways, routes and proxies. |
-| `--sync-static` | Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready. |
+| `--sync-static` | Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload of the serving colour (or of --versions) and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready. Every traffic switch runs it from the colour it routes to. |
 | `--replicas <replicas>` | Sets a custom number of replicas for deployments. |
 | `--image <image>` | Sets a custom image for deployments. |
 | `--versions <deployment-versions>` | A comma-separated list of custom deployment versions. |

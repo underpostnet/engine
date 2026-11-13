@@ -567,7 +567,7 @@ Underpost.namespace
   )
   .option(
     '--sync-static',
-    'Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready.',
+    'Places the SSR status pages and intercepted contexts in the gateway static utility tree, so the edge serves them instead of the application pods. Prefers the running workload of the serving colour (or of --versions) and falls back to this checkout, so it can seed the tree before the deployment exists and refresh it once the deployment is Ready. Every traffic switch runs it from the colour it routes to.',
   )
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployments.')
   .option('--image <image>', 'Sets a custom image for deployments.')

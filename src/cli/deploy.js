@@ -32,9 +32,14 @@ import { podSchedulingYaml } from '../server/runtime/pod-scheduling.js';
 import { activeExecutionProfile } from '../server/build/execution.js';
 import { ensureContainerStorage, ensureContainerStorageSubtree } from '../server/security/container-storage.js';
 import { INTERNAL_READY_PATH, INTERNAL_HEALTH_PATH } from '../server/runtime/runtime-status.js';
-import { staticContextRoutesFactory, statusPageRoutesFactory } from '../client-builder/client-build.js';
+import {
+  staticContextRoutesFactory,
+  statusPageRoutesFactory,
+  viewShipsBundle,
+} from '../client-builder/client-build.js';
 import {
   UNDERPOST_GATEWAY,
+  assertStaticAssets,
   hostServerConfFactory,
   installGatewayConf,
   underpostGatewayManifestsFactory,
@@ -42,8 +47,10 @@ import {
   statusPageAssetPathFactory,
   statusPageBuildSegment,
   syncStaticAssetFromPod,
+  syncStaticTreeFromPod,
   writeHostServerConf,
   writeStaticAsset,
+  writeStaticTree,
 } from '../server/network/underpost-gateway.js';
 import { getCapVariableName } from '../client/components/core/CommonJs.js';
 import fs from 'fs-extra';
@@ -56,6 +63,7 @@ import { domainContextFactory } from './domains.js';
 import { KUBECTL_SERVER_SIDE_APPLY } from './kubectl.js';
 import { refusal } from './namespace.js';
 import { apiPathOf } from '../server/domain/api-contract.js';
+import { pathRoutePlan } from '../server/network/path-routes.js';
 import Underpost from '../index.js';
 
 /**
@@ -602,6 +610,11 @@ spec:
         );
         const router = await Underpost.deploy.routerFactory(deployId, env);
         const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
+        const assignedPorts = Object.fromEntries(
+          Object.entries(pathPortAssignmentData).flatMap(([host, assignments]) =>
+            assignments.map(({ path, port }) => [`${host}${path}`, port]),
+          ),
+        );
         const { fromPort, toPort } = deployRangePortFactory(router);
         const deploymentVersions = options.versions.split(',');
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
@@ -714,6 +727,9 @@ ${Underpost.deploy
         // a copy of the document (which is what custom instances need).
         const confSSRPath = `./engine-private/conf/${deployId}/conf.ssr.json`;
         const confSSR = fs.existsSync(confSSRPath) ? JSON.parse(fs.readFileSync(confSSRPath, 'utf8')) : {};
+        // Path routes resolve client selectors against the client views.
+        const confClientPath = `./engine-private/conf/${deployId}/conf.client.json`;
+        const confClient = fs.existsSync(confClientPath) ? JSON.parse(fs.readFileSync(confClientPath, 'utf8')) : {};
         // A deployment without hosts renders no route, so it reads no TLS policy.
         const { altSvc, http3, gatewayClassName } = Underpost.ingress.gatewayApiConfigFactory(
           options,
@@ -726,6 +742,8 @@ ${Underpost.deploy
         // Contexts routed to the gateway. Status pages are absent by design: they
         // are reached by interception only, never as a destination.
         const edgeRouteRecords = [];
+        // Paths each host routes to another host path of the deploy.
+        const pathRouteRecords = [];
         // Per-host proxy routes contributed to the shared gateway's own config.
         const gatewayRoutesByHost = {};
         // Every host attaches to one deploy-scoped Gateway. Each hostname gets
@@ -733,6 +751,7 @@ ${Underpost.deploy
         // in the class, and (port, protocol, hostname) must remain unique across
         // that complete set.
         const gatewayName = Underpost.ingress.gatewayNameFactory({ deployId, env });
+        const publicScheme = Underpost.tls.terminates({ environment: env, options }) ? 'https' : 'http';
         const trafficServiceName = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
         const gatewayHosts = [];
 
@@ -810,10 +829,14 @@ ${Underpost.deploy
               }
               // The site path goes through the shared gateway, which proxies it
               // to this workload and swaps in a status document when the
-              // workload errors or is gone. The API path is routed straight to
-              // the workload instead: its errors are its own contract, and a
-              // client parsing JSON must not receive an HTML page.
-              const intercepted = interceptStatuses.length > 0;
+              // workload errors or is gone, and serves a static site from its
+              // volume first. The API path is routed straight to the workload
+              // instead: its errors are its own contract, and a client parsing
+              // JSON must not receive an HTML page.
+              const edgeSite = Underpost.deploy.edgeSiteFactory({ confServer, confClient, host, path });
+              const plan = pathRoutePlan({ confServer, confClient, confSSR, host, path, ports: assignedPorts });
+              // Gateway API redirects with 301 or 302 only: the gateway answers the 308 of a redirect route.
+              const intercepted = interceptStatuses.length > 0 || !!edgeSite || plan.some((entry) => entry.redirect);
               if (intercepted && apiPathFactory({ confServer, host, path }))
                 routeRules += Underpost.ingress.httpRouteRuleFactory({
                   path: apiPathFactory({ confServer, host, path }),
@@ -837,12 +860,52 @@ ${Underpost.deploy
                   ? {
                       path,
                       upstream: `${trafficServiceName}:${port}`,
-                      statuses: interceptStatusesFactory(
-                        Underpost.deploy.edgeRouteEntriesFactory({ confServer, confSSR, host, path }),
-                      ),
+                      statuses: interceptStatusesFactory(edgeRoutes),
+                      ...(edgeSite ? { site: edgeSite.dir } : undefined),
                     }
                   : [],
               );
+              // A service match goes straight to the destination workload. A document match
+              // takes the interception of this host, so the visitor gets the documents of the
+              // host they asked for. A redirect answers at the gateway, before any workload.
+              for (const route of [...new Set(plan.map((entry) => entry.route))]) {
+                const entries = plan.filter((entry) => entry.route === route);
+                const { redirect, destination } = entries[0];
+                const { port } = destination;
+                const location = redirect && `${publicScheme}://${destination.host}`;
+                const direct = entries.filter((entry) => !redirect && (entry.service || !intercepted));
+                const edge = entries.filter((entry) => !direct.includes(entry));
+                if (direct.length)
+                  routeRules += Underpost.ingress.httpRouteRuleFactory({
+                    matches: direct.map((entry) => entry.match),
+                    port,
+                    serviceId: trafficServiceName,
+                    timeoutPolicy: globalTimeoutPolicy,
+                    retryPolicy: globalRetryPolicy,
+                    altSvc: http3 ? altSvc : undefined,
+                  });
+                gatewayRoutesByHost[host] = gatewayRoutesByHost[host].concat(
+                  edge.map((entry) =>
+                    redirect
+                      ? { path: entry.match.path, match: entry.match.type, redirect: location }
+                      : {
+                          path: entry.match.path,
+                          match: entry.match.type,
+                          documents: path,
+                          upstream: `${trafficServiceName}:${port}`,
+                          statuses: interceptStatusesFactory(edgeRoutes),
+                        },
+                  ),
+                );
+                pathRouteRecords.push({
+                  host,
+                  id: route,
+                  destination: `${destination.host}${destination.path}`,
+                  ...(redirect ? { redirect: location } : undefined),
+                  direct: direct.map((entry) => entry.match.path),
+                  edge: edge.map((entry) => entry.match.path),
+                });
+              }
             }
           for (const customService of customServices) {
             const {
@@ -943,6 +1006,7 @@ ${Underpost.deploy
           http3,
           altSvc: http3 ? altSvc : null,
           edgeRoutes: edgeRouteRecords,
+          pathRoutes: pathRouteRecords,
         });
         if (env !== 'production') {
           const deploymentsFiles = [
@@ -1347,6 +1411,8 @@ ${grpcPortsList}
       // gets its edge documents synced too, not just the canonical path.
       const confServer = loadReplicas(deployId, JSON.parse(fs.readFileSync(confServerPath, 'utf8')));
       const confSSR = JSON.parse(fs.readFileSync(confSSRPath, 'utf8'));
+      const confClientPath = `./engine-private/conf/${deployId}/conf.client.json`;
+      const confClient = fs.existsSync(confClientPath) ? JSON.parse(fs.readFileSync(confClientPath, 'utf8')) : {};
       const hostRoot = Underpost.deploy.underpostGatewayRootFactory(options);
       const version = (options.versions && `${options.versions}`.split(',')[0]) || 'blue';
       const podName = Underpost.kubectl
@@ -1381,6 +1447,26 @@ ${grpcPortsList}
               source: fromPod ? 'workload' : fromHost ? 'checkout' : null,
             });
           }
+          const site = Underpost.deploy.edgeSiteFactory({ confServer, confClient, host, path });
+          if (site) {
+            const fromPod =
+              !!podName &&
+              syncStaticTreeFromPod({
+                podName,
+                namespace,
+                sourcePath: site.containerPath,
+                hostRoot,
+                assetPath: site.assetPath,
+              });
+            const fromHost =
+              !fromPod && writeStaticTree({ hostRoot, assetPath: site.assetPath, sourcePath: site.hostPath });
+            synced.push({
+              host,
+              kind: 'site',
+              assetPath: site.assetPath,
+              source: fromPod ? 'workload' : fromHost ? 'checkout' : null,
+            });
+          }
         }
       // Instance status pages are the same kind of document under the same
       // layout, so they are placed by the same pass — but they come from neither
@@ -1412,6 +1498,31 @@ ${grpcPortsList}
         missing: synced.filter((entry) => !entry.source).map((entry) => entry.assetPath),
       });
       return synced;
+    },
+
+    /**
+     * The static site of a root host path: its whole build, which the shared gateway serves from
+     * its volume before it asks the workload. A host path is one when its client ships no bundle
+     * and it serves no API, socket, database or peer: every answer it gives is a file of its build.
+     * @param {object} confServer - Parsed `conf.server.json`.
+     * @param {object} confClient - Parsed `conf.client.json`.
+     * @param {string} host - Hostname.
+     * @param {string} path - Proxy sub-path.
+     * @returns {{dir: string, assetPath: string, containerPath: string, hostPath: string}|null}
+     * @memberof UnderpostDeploy
+     */
+    edgeSiteFactory({ confServer, confClient, host, path }) {
+      const entry = confServer?.[host]?.[path];
+      const views = confClient?.[entry?.client]?.views ?? [];
+      if (path !== '/' || views.length === 0 || views.some(viewShipsBundle)) return null;
+      if (entry.apis?.length || entry.ws || entry.db || entry.peer || entry.redirect) return null;
+      const { dir, assetPath } = staticLocationFactory({ host, path, context: 'site', file: '' });
+      return {
+        dir,
+        assetPath: assetPath.replace(/\/$/, ''),
+        containerPath: `${CONTAINER_ENGINE_ROOT}/public/${host}`,
+        hostPath: `./public/${host}`,
+      };
     },
 
     /**
@@ -1642,7 +1753,11 @@ ${grpcPortsList}
           .split(',')
           .map((id) => id.trim())
           .filter(Boolean))
-          Underpost.deploy.syncStaticAssets(deployId, env, options);
+          // The documents of the colour that serves, unless --versions names another.
+          Underpost.deploy.syncStaticAssets(deployId, env, {
+            ...options,
+            versions: explicitVersions || liveTrafficByDeployId[deployId] || 'blue',
+          });
         return;
       }
       // Before the `--build-manifest` return: a manifest build is when the Secrets it mounts
@@ -1969,6 +2084,19 @@ ${grpcPortsList}
             manifestPath: trafficServicePath,
           });
         throw new Error(`Traffic Service ${trafficService} never became ready on ${targetTraffic}`);
+      }
+
+      // The gateway serves the documents of its node volume before the workload: a static site
+      // (`root/site`), the status pages, the intercepted contexts. They are the build of the colour
+      // that serves, so they follow the traffic here, on every switch: a sync, a promotion, a
+      // revert, a failover. A copy taken before the switch is the previous colour's build.
+      if (options.gatewayApi) {
+        const hostRoot = Underpost.deploy.underpostGatewayRootFactory(options);
+        assertStaticAssets({
+          records: Underpost.deploy.syncStaticAssets(deployId, env, { ...options, namespace, versions: targetTraffic }),
+          hostRoot,
+          label: 'switch',
+        });
       }
 
       const grpcServicePath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;

@@ -2,6 +2,7 @@
 
 import { expect } from 'chai';
 import fs from 'fs-extra';
+import os from 'node:os';
 import {
   UNDERPOST_GATEWAY,
   hostServerConfFactory,
@@ -13,7 +14,9 @@ import {
   staticPathSegmentFactory,
   statusPageAssetPathFactory,
   statusPageBuildSegment,
+  writeStaticTree,
 } from '../../../../src/server/network/underpost-gateway.js';
+import { privilegedCommand, shellHarness } from '../../../support/shell-harness.js';
 import { staticContextRoutesFactory, statusPageRoutesFactory } from '../../../../src/client-builder/client-build.js';
 
 // A `conf.ssr.json` client entry: two intercepted contexts, one status page,
@@ -264,7 +267,63 @@ describe('underpost gateway edge tier', () => {
 
     it('renders nothing for a host that proxies nothing', () => {
       expect(hostServerConfFactory({ host: 'h.test', routes: [] })).to.equal('');
+      const redirect = hostServerConfFactory({
+        host: 'h.test',
+        routes: [{ path: '/log-in', match: 'PathPrefix', redirect: 'https://app.test' }],
+      });
+      expect(redirect).to.include(
+        "  location /log-in/ {\n    add_header Cache-Control 'no-cache' always;\n    return 308 https://app.test$request_uri;\n  }",
+      );
+      expect(redirect).not.to.include('proxy_pass');
       expect(hostServerConfFactory({ host: 'h.test', routes: [{ path: '/' }] })).to.equal('');
+    });
+
+    it('serves a static site from disk, digest-named files for a year, and the rest from its workload', () => {
+      const site = hostServerConfFactory({
+        host: 'www.fixture.test',
+        routes: [
+          {
+            path: '/',
+            upstream: 'site-service:8083',
+            statuses: { 404: 'status-pages/404' },
+            site: '/www.fixture.test/root/site',
+          },
+        ],
+      });
+      expect(site).to.include('location ~ "\\.[0-9a-f]{16,}\\." {');
+      expect(site).to.include("add_header Cache-Control 'public, max-age=31536000, immutable';");
+      expect(site).to.include("add_header Cache-Control 'no-cache';");
+      expect(site).to.include(
+        'try_files /www.fixture.test/root/site$uri/index.html /www.fixture.test/root/site$uri @site_root;',
+      );
+      expect(site).to.match(/location @site_root \{[\s\S]*?error_page 404 @status_root_404;[\s\S]*?proxy_pass/);
+    });
+  });
+
+  describe('static site placement', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('swaps a new build in beside the old one, and places nothing without an index', () => {
+      const source = fs.mkdtempSync(`${os.tmpdir()}/static-site-`);
+      try {
+        const harness = shellHarness();
+        expect(writeStaticTree({ hostRoot: '/var/static', assetPath: 'h/root/site', sourcePath: source })).to.equal(
+          false,
+        );
+        fs.writeFileSync(`${source}/index.html`, '<!doctype html>');
+        expect(writeStaticTree({ hostRoot: '/var/static', assetPath: 'h/root/site', sourcePath: source })).to.equal(
+          true,
+        );
+        const command = privilegedCommand(harness.calls.at(-1));
+        for (const step of [
+          `cp -r '${source}' '/var/static/h/root/site.next'`,
+          "mv '/var/static/h/root/site.next' '/var/static/h/root/site'",
+          "rm -rf '/var/static/h/root/site.previous'",
+        ])
+          expect(command).to.include(step);
+      } finally {
+        fs.removeSync(source);
+      }
     });
   });
 
@@ -488,6 +547,17 @@ describe('underpost gateway edge tier', () => {
       expect(apply).to.be.greaterThan(bootstrap);
       expect(removeOldRoute).to.be.greaterThan(apply);
       expect(targetSelector).to.be.greaterThan(removeOldRoute);
+    });
+
+    it('places the documents of the target colour once the traffic Service serves it', () => {
+      const serving = switchTraffic.indexOf('never became ready on ${targetTraffic}');
+      const sync = switchTraffic.indexOf(
+        'Underpost.deploy.syncStaticAssets(deployId, env, { ...options, namespace, versions: targetTraffic })',
+      );
+      expect(serving).to.be.greaterThan(-1);
+      expect(sync).to.be.greaterThan(serving);
+      expect(switchTraffic.slice(sync - 120, sync)).to.include('assertStaticAssets({');
+      expect(switchTraffic.indexOf('Underpost.host.store.set(')).to.be.greaterThan(sync);
     });
   });
 

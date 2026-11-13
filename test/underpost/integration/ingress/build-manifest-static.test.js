@@ -38,6 +38,7 @@ describe('the served build manifest', () => {
     writeBuildManifest(`${root}/test`, subPathManifest);
     if (fs.existsSync(SPECIFICATION)) fs.copySync(SPECIFICATION, `${root}${RELATION_PATH}`);
     fs.outputFileSync(`${root}/assets/icon.png`, 'png');
+    fs.outputFileSync(`${root}/worlds/violet.0123456789abcdef.384.png`, 'png');
     fs.outputFileSync(`${root}/launch/index.html`, '<!doctype html>');
     fs.outputFileSync(`${root}/offline/index.html`, '<!doctype html>');
     const app = express();
@@ -95,5 +96,11 @@ describe('the served build manifest', () => {
     const response = await fetch(`${origin}/assets/icon.png`);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(response.headers.get('cross-origin-resource-policy')).toBe('cross-origin');
+  });
+
+  it('caches a file named by its content digest for a year, and revalidates every other file', async () => {
+    const hashed = await fetch(`${origin}/worlds/violet.0123456789abcdef.384.png`);
+    expect(hashed.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect((await fetch(`${origin}/assets/icon.png`)).headers.get('cache-control')).toBe('public, max-age=0');
   });
 });

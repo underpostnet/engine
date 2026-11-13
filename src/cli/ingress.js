@@ -1203,8 +1203,9 @@ ${targets
      *
      * The HTTPProxy `timeoutPolicy.idle` has no Gateway API rule-level
      * equivalent (idle timeouts are listener/backend scoped) and is dropped.
-     * @param {string} path - Match value.
+     * @param {string} [path] - Match value.
      * @param {string} [matchType] - `PathPrefix` (default) | `Exact`.
+     * @param {Array<{type: string, path: string}>} [matches] - Several matches of one backend, in place of `path`.
      * @param {number} [port] - Backend service port.
      * @param {string} [deployId] - Deployment id used to derive the service name.
      * @param {string} [env] - Environment used to derive the service name.
@@ -1226,6 +1227,7 @@ ${targets
     httpRouteRuleFactory({
       path,
       matchType = 'PathPrefix',
+      matches = [{ type: matchType, path }],
       port,
       deployId,
       env,
@@ -1242,9 +1244,11 @@ ${targets
     }) {
       const lines = [
         `    - matches:`,
-        `        - path:`,
-        `            type: ${matchType}`,
-        `            value: ${path}`,
+        ...matches.flatMap((match) => [
+          `        - path:`,
+          `            type: ${match.type}`,
+          `            value: ${match.path}`,
+        ]),
       ];
       const filters = [];
       const prefixRewrite =
