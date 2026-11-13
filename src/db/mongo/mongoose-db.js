@@ -214,10 +214,9 @@ class MongooseDBService {
     const { ProviderSchema } = await import(`../../api/${api}/${api}.model.js`);
     const keyModel = getCapVariableName(api);
     const model = conn.models[keyModel] ?? conn.model(keyModel, ProviderSchema);
-    // Mongoose emits 'error' on the model when an autoIndex build fails; with no
-    // listener attached EventEmitter rethrows and takes the whole process down.
-    // A stale or conflicting index must degrade to a log, not kill startup.
-    model.on('error', (error) => logger.error(`${keyModel} index build failed: ${error.message}`));
+    // On an open connection, initialize one model at a time so no burst fills the pool; an index error only logs.
+    if (conn.readyState === mongoose.ConnectionStates.connected)
+      await model.init().catch((error) => logger.error(`${keyModel} initialization failed: ${error.message}`));
     return model;
   }
 
