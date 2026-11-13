@@ -149,6 +149,14 @@ import {
 } from '../src/projects/cyberia/content/content-release.js';
 import { RELEASE_PROFILES, assertReleaseId, assertSourceChannel } from '../src/server/release/source-release.js';
 import { RELEASE_STORE_ROOT, ReleaseWorkspace, fetchRevision } from '../src/server/release/release-workspace.js';
+import {
+  declareSafeDirectory,
+  discardChanges,
+  pushRepository,
+  setOrigin,
+  syncRepository,
+} from '../src/server/git/git.js';
+import { changeMessage, changeSummaryFactory } from '../src/server/release/change-summary.js';
 import { resumeTasks, taskSummary } from '../src/server/release/release-tasks.js';
 import {
   graphPaths,
@@ -4627,22 +4635,27 @@ try {
     `\`cyberia content source export-live\` on a development host and commit the change to cyberia-content`;
 
   /**
-   * Promotes a release. Live changes of the active release block it until they are exported, or
-   * until `--discard-live-changes` names that active release and `--discard-reason` says why.
+   * Why the live changes of the active release block the next promotion: '' when it serves none, or
+   * when `--discard-live-changes` names that active release and `--discard-reason` says why.
    */
+  const liveChangeRefusal = ({ release, notice }, options) => {
+    if (!notice) return '';
+    const discard = `--discard-live-changes ${release.releaseId} --discard-reason <why>`;
+    if (!options.discardLiveChanges)
+      return `${notice}. A promotion stops serving them. ${exportHint(release.releaseId)}, or pass ${discard}`;
+    if (options.discardLiveChanges !== release.releaseId)
+      return `--discard-live-changes names ${options.discardLiveChanges}, but the active release is ${release.releaseId}: pass ${discard}`;
+    if (!String(options.discardReason ?? '').trim()) return `${notice}. Say why they stop serving: ${discard}`;
+    return '';
+  };
+
+  /** Promotes a release once {@link liveChangeRefusal} lets it replace the active one. */
   const promoteRelease = async (context, releaseId, options) => {
-    const { release, known, changed, notice } = await liveChangeNotice(context);
+    const live = await liveChangeNotice(context);
+    const { release, known, changed, notice } = live;
     if (notice && release.releaseId !== releaseId) {
-      const discard = `--discard-live-changes ${release.releaseId} --discard-reason <why>`;
-      if (!options.discardLiveChanges)
-        throw new Error(
-          `${notice}. Promoting ${releaseId} stops serving them. ${exportHint(release.releaseId)}, or pass ${discard}`,
-        );
-      if (options.discardLiveChanges !== release.releaseId)
-        throw new Error(
-          `--discard-live-changes names ${options.discardLiveChanges}, but the active release is ${release.releaseId}: pass ${discard}`,
-        );
-      if (!String(options.discardReason ?? '').trim()) throw new Error(`${notice}. Say why they stop serving: ${discard}`);
+      const refusal = liveChangeRefusal(live, options);
+      if (refusal) throw new Error(refusal);
       logger.warn(`${notice}. They stay in ${release.database} until a prune drops it`);
       const entry = {
         at: new Date(),
@@ -4707,7 +4720,7 @@ try {
           sourceRepository,
           sources: resolvedSources(),
         },
-        remote: Underpost.repo.gitAuthFactory(sourceRepository),
+        repository: sourceRepository,
       });
       logger.info(`Release ${releaseId} prepared at ${workspace.dir}`, { sourceRepository, revision });
       process.exit(0);
@@ -4918,15 +4931,17 @@ try {
   });
 
   releaseEnvOptions(
-    contentRelease
-      .command('live-changes')
-      .description('Name the live changes of the active release its build does not hold; exits 1 when there are any'),
+    discardOption(contentRelease.command('live-changes')).description(
+      'Name the live changes of the active release its build does not hold; exits 1 unless the next promotion may stop serving them',
+    ),
   ).action(async (options = {}) => {
     const context = await openReleases(options);
-    const { release, notice } = await liveChangeNotice(context);
-    if (notice) logger.error(`${notice}. ${exportHint(release.releaseId)} before the next promotion`);
-    else logger.info(release ? `Release ${release.releaseId} serves no live change` : 'No release is active');
-    await endRelease(context, !notice);
+    const live = await liveChangeNotice(context);
+    const refusal = liveChangeRefusal(live, options);
+    if (refusal) logger.error(refusal);
+    else if (live.notice) logger.warn(`${live.notice}. The promotion stops serving them: ${options.discardReason}`);
+    else logger.info(live.release ? `Release ${live.release.releaseId} serves no live change` : 'No release is active');
+    await endRelease(context, !refusal);
   });
 
   /** The files of `to` against `from`, by relative path. */
@@ -6969,7 +6984,7 @@ try {
     fs.removeSync(dir);
     fs.mkdirpSync(dir);
     const repository = Underpost.repo.sourceRepoFactory(releaseRepository(name).repository, channel);
-    fetchRevision(dir, Underpost.repo.gitAuthFactory(`https://github.com/${repository}.git`), revision);
+    fetchRevision(dir, repository, revision);
     return dir;
   };
 
@@ -7368,7 +7383,7 @@ node bin test cyberia --grep 'Cyberia load'`);
   const buildDeploymentCheckout = async () => {
     const deployment = deploymentRoot();
     if (!fs.existsSync(deployment))
-      Underpost.repo.syncCheckout({ path: deployment, repo: releaseRepository(DEPLOYMENT_SOURCE).repository });
+      syncRepository({ path: deployment, repository: releaseRepository(DEPLOYMENT_SOURCE).repository });
     for (const tree of ['conf', 'images', 'manifests']) fs.removeSync(`${deployment}/${tree}`);
     shellExec('node bin run build-cluster-deployment-manifests');
     for (const file of fs.readdirSync('.').filter((name) => /^underpost\.config\.dd.*\.js$/.test(name)))
@@ -7469,11 +7484,7 @@ node bin test cyberia --grep 'Cyberia load'`);
     },
     [DEPLOYMENT_SOURCE]: {
       build: buildDeploymentCheckout,
-      message: (options) =>
-        shellExec(`node bin cmt --changelog-msg --from-n-commit ${options.fromNCommit} --changelog-no-hash`, {
-          stdout: true,
-          silent: true,
-        }).trim() || 'Update deployment',
+      message: (options) => changeMessage(changeSummaryFactory({ count: options.fromNCommit })) || 'Update deployment',
     },
   };
 
@@ -7485,7 +7496,7 @@ node bin test cyberia --grep 'Cyberia load'`);
    */
   const commitCheckout = (dir, message, paths = '.') => {
     const pathspec = [paths].flat().map(shellArgumentFactory).join(' ');
-    Underpost.repo.declareSafeDirectory(dir);
+    declareSafeDirectory(dir);
     if (
       !shellExec(`git -C ${dir} status --porcelain -- ${pathspec}`, { stdout: true, silent: true, disableLog: true }).trim()
     )
@@ -7503,12 +7514,14 @@ node bin test cyberia --grep 'Cyberia load'`);
    * @returns {boolean} False when the push fails; the origin then stays.
    */
   const publishCheckout = ({ dir, target }, force = false) => {
-    Underpost.repo.declareSafeDirectory(dir);
-    if (shellExec(`node bin push ${dir} ${target}${force ? ' -f' : ''}`, { silentOnError: true }).code !== 0) {
-      logger.error(`${dir} not pushed to ${target}: its origin stays`);
+    declareSafeDirectory(dir);
+    try {
+      pushRepository({ path: dir, repository: target, force });
+    } catch (error) {
+      logger.error(`${dir} not pushed to ${target}: its origin stays (${error.reason})`);
       return false;
     }
-    Underpost.repo.setOrigin({ path: dir, repository: target });
+    setOrigin({ path: dir, repository: target });
     return true;
   };
 
@@ -7680,9 +7693,9 @@ node bin test cyberia --grep 'Cyberia load'`);
           if (options.dryRun) {
             for (const { dir, target } of checkouts) {
               logger.info(`${dir} → ${target}${force ? ' (force)' : ''}`);
-              Underpost.repo.declareSafeDirectory(dir);
-              Underpost.repo.setOrigin({ path: dir, repository: target });
-              shellExec(`node bin cmt --log --unpush ${dir}`);
+              declareSafeDirectory(dir);
+              setOrigin({ path: dir, repository: target });
+              Underpost.repo.status(dir, { log: true, unpushed: true });
             }
             return { summary: { channel, dryRun: true, checkouts: checkouts.map(({ name }) => name) } };
           }
@@ -7714,9 +7727,10 @@ node bin test cyberia --grep 'Cyberia load'`);
         logger.error(`A build writes no tracked file of ${unknown.join(', ')}: name ${written.join(', ')}`);
         process.exit(1);
       }
-      const dirs = (names.length ? names : written).map(checkoutDir);
-      for (const dir of dirs) Underpost.repo.declareSafeDirectory(dir);
-      shellExec(`node bin run clean ${dirs.join(',')}`);
+      for (const dir of (names.length ? names : written).map(checkoutDir)) {
+        declareSafeDirectory(dir);
+        discardChanges({ path: dir, force: true, root: true });
+      }
     });
 
   // An import reads the command tree; only the entry point parses a command line.

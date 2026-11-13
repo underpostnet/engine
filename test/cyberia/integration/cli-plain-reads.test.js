@@ -62,13 +62,14 @@ describe('rerouted plain reads stay machine-readable', () => {
   it.skipIf(!fs.existsSync(new URL(CYBERIA_CLI, repoRoot)))(
     'keeps the reroute notice out of a captured command output',
     () => {
-      // Regression: a commit step captured `cmt --changelog-msg` and committed the notice as its message.
-      const { stdout, stderr } = spawnSync(
-        process.execPath,
-        [CYBERIA_CLI, 'cmt', '--changelog-msg', '--from-n-commit', '1', '--changelog-no-hash'],
-        { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-      );
-      expect(stdout).to.not.include('Rerouting to underpost cli');
+      // `release` is a cyberia command; `status` is rerouted.
+      const { stdout, stderr } = spawnSync(process.execPath, [CYBERIA_CLI, 'status', '--message', '1'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const message = execFileSync('git', ['log', '-1', '--format=%B'], { cwd: repoRoot, encoding: 'utf8' });
+      expect(stdout.trim()).to.equal(message.trim());
       expect(stderr).to.include('Rerouting to underpost cli');
     },
     60000,

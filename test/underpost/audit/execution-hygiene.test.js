@@ -38,7 +38,6 @@ const DIRECT_PROCESS_MODULES = Object.freeze({
   'src/server/runtime/linux-resources.js': 'probes and holds the systemd scopes of the resource governor',
   'src/server/runtime/managed-process.js': 'supervises long-running children with their own signals',
   'src/server/runtime/watch-runner.js': 'restarts a detached watcher process group',
-  'src/cli/repository.js': 'reads the file list of the git index',
   'src/projects/cyberia/content/content-artifact.js': 'reads the git revision of the content checkout',
   'src/projects/cyberia/saga/content-cli.js': 'streams the cyberia-content CLI',
   'src/projects/cyberia/stats/stat-contract-generator.js': 'formats and generates the Go stat contract',

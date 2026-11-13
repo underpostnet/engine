@@ -119,10 +119,17 @@ npm run dev
 | [`site`](CLI-HELP.md#underpost-site) | Provisions sites in the configuration of a deployment: clients, host/path routes, and the existing APIs and components they use. Each operation prints its change plan and applies it as one change set. |
 | [`client`](CLI-HELP.md#underpost-client) | Builds client assets, single replicas, and/or syncs environment ports. |
 | [`start`](CLI-HELP.md#underpost-start) | Initiates application servers, build pipelines, or other defined services based on the deployment ID. |
-| [`clone`](CLI-HELP.md#underpost-clone) | Clones a specified GitHub repository into the current directory. |
-| [`pull`](CLI-HELP.md#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
-| [`cmt`](CLI-HELP.md#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
-| [`push`](CLI-HELP.md#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
+| [`clone`](CLI-HELP.md#underpost-clone) | Clones a repository into a directory that does not exist or is empty. |
+| [`fetch`](CLI-HELP.md#underpost-fetch) | Updates the remote-tracking refs of a repository; the working tree and the branches stay. |
+| [`pull`](CLI-HELP.md#underpost-pull) | Fast-forwards the current branch to a remote branch. Never merges, rebases or replaces: a diverged history fails and nothing changes. |
+| [`push`](CLI-HELP.md#underpost-push) | Publishes HEAD to a branch of a remote and logs the published commit. |
+| [`sync`](CLI-HELP.md#underpost-sync) | Replaces a managed checkout with the tip of a repository branch: origin is repointed, local commits of the branch, tracked changes and untracked files are discarded, ignored files stay. For deploy checkouts, never for working repositories. |
+| [`discard`](CLI-HELP.md#underpost-discard) | Lists the staged, unstaged and untracked changes under each path, with its repository root, and with --force discards them. |
+| [`init`](CLI-HELP.md#underpost-init) | Initializes a repository, or keeps the one there, with the commit identity of GITHUB_USERNAME and GITHUB_EMAIL. |
+| [`status`](CLI-HELP.md#underpost-status) | Reads the state of a repository; nothing changes. One query per call; the short status without one. |
+| [`cmt`](CLI-HELP.md#underpost-cmt) | Commits the staged changes with a Conventional Commit message: type(scope): description. |
+| [`merge-dependabot`](CLI-HELP.md#underpost-merge-dependabot) | Fetches origin and merges each origin/dependabot/* branch into the base branch, one at a time, and prints ok or failed for each. Local changes are stashed and come back, with the branch you were on; nothing is pushed. |
+| [`github`](CLI-HELP.md#underpost-github) | GitHub automation: workflows and repository metadata. |
 | [`static`](CLI-HELP.md#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
 | [`root`](CLI-HELP.md#underpost-root) | Displays the root path of the npm installation. |
 | [`ip`](CLI-HELP.md#underpost-ip) | Displays the current public machine IP addresses. |

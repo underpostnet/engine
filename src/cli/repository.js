@@ -1,12 +1,15 @@
 /**
- * Repository module for managing Git operations and configurations.
+ * The repository commands of the CLI and the Underpost repository domain.
+ *
+ * The commands (`clone`, `fetch`, `pull`, `push`, `sync`, `discard`, `init`, `status`, `cmt`)
+ * parse their arguments and delegate to the Git runtime ({@link module:src/server/git/git.js}) and
+ * the commit conventions ({@link module:src/server/release/commit-message.js}); they work on any
+ * repository. The domain names the repositories of a deployment, pairs the engine with its private
+ * configuration, scaffolds projects and provisions repository-backed site roots.
  * @module src/cli/repository.js
  * @namespace UnderpostRepository
  */
 
-import dotenv from 'dotenv';
-import { execFileSync } from 'node:child_process';
-import { commitData } from '../client/components/core/CommonJs.js';
 import {
   chownHostPath,
   hostOwner,
@@ -15,7 +18,7 @@ import {
   shellCd,
   shellExec,
 } from '../server/runtime/process.js';
-import { actionInitLog, loggerFactory, redactSensitiveText } from '../server/ops/logger.js';
+import { actionInitLog, loggerFactory } from '../server/ops/logger.js';
 import path from 'path';
 import fs from 'fs-extra';
 import {
@@ -38,8 +41,30 @@ import {
 } from '../server/site/site-conf.js';
 import { readDeployRoutes, registerDeployRoute } from '../server/network/router.js';
 import { assertSourceChannel } from '../server/release/source-release.js';
-import { environmentValueFactory, getUnderpostRootPath } from '../server/runtime/environment.js';
-import { githubCommitUrlFactory, repositoryIdentityFactory } from '../server/storage/repository.js';
+import { environmentValueFactory, getNpmRootPath } from '../server/runtime/environment.js';
+import { githubCredential, isGithubHttpsUrl } from '../server/github/github-credential.js';
+import { repositoryIdentityFactory } from '../server/storage/repository.js';
+import {
+  cloneRepository,
+  commitChanges,
+  commitHistory,
+  currentBranch,
+  declareSafeDirectory,
+  discardChanges,
+  fetchRepository,
+  gitOutput,
+  isReachable,
+  mergeDependabot,
+  pullRepository,
+  pushRepository,
+  remoteUrl,
+  remoteUrlFactory,
+  runGit,
+  syncRepository,
+  undoCommits,
+  unpushedCommits,
+} from '../server/git/git.js';
+import { COMMIT_TYPES, commitMessageFactory } from '../server/release/commit-message.js';
 import underpostConfig from '../../underpost.config.js';
 import clusterConfig from '../../underpost.cluster.config.js';
 import { readClusterConf } from './namespace.js';
@@ -47,508 +72,235 @@ import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
-const diffCmd = `--no-pager show -U0 -w --word-diff=color --word-diff-regex='[^[:space:]]' --color=always`;
+/** The word diff a developer runs to read a commit, as `status --log` and `status --diff` print it. */
+const WORD_DIFF = `-U0 -w --word-diff=color --word-diff-regex='[^[:space:]]' --color=always`;
 
-const githubRemotePattern = /^(?:git@github\.com:|https:\/\/github\.com\/)/;
+const commaList = (value) =>
+  `${value ?? ''}`
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
-const gitFailureReason = (result) => {
-  const lines = `${result.stdout || ''}`.trim().split('\n');
-  return lines.find((line) => /^(?:error|fatal):/.test(line)) || lines.pop();
-};
+/** Prints an answer, or copies it to the clipboard with `--copy`. */
+const answer = (value, options = {}) => (options.copy ? pbcopy(value) : console.log(value));
 
 /**
  * @class UnderpostRepository
- * @description Manages Git operations and configurations.
- * This class provides a set of static methods to automate various
- * Git operations, including cloning, pulling, and committing changes.
+ * @description The repository commands of the CLI and the Underpost repository domain.
  * @memberof UnderpostRepository
  */
 class UnderpostRepository {
   static API = {
     /**
-     * Clones a Git repository from GitHub.
-     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository (e.g., "username/repository").
-     * @param {object} [options={ bare: false, G8: false }] - Cloning options.
-     * @param {boolean} [options.bare=false] - If true, performs a bare clone.
-     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
+     * `underpost clone`: clones a repository into a directory that does not exist or is empty.
+     * @param {string} repository - `owner/repo`, a clone URL or a path.
+     * @param {string} [destination] - The repository name (`<name>.git` with `--bare`) otherwise.
+     * @param {object} [options] - `bare`, `branch`, `depth`, `sparse` (comma-separated directories), `replace`.
+     * @returns {{path: string, revision: string}}
      * @memberof UnderpostRepository
      */
-    clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
-      const gExtension = options.g8 === true ? '.g8' : '.git';
-      const repoName = gitUri.split('/').pop();
-      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
-      // A bare clone lands in `<repo>.git`: clearing `<repo>` instead would both leave the
-      // real target in place and delete an unrelated work tree that happens to share the name.
-      const clonePath = `./${repoName}${options?.bare === true ? gExtension : ''}`;
-      if (fs.existsSync(clonePath)) fs.removeSync(clonePath);
-      shellExec(`git clone ${options?.bare === true ? ` --bare ` : ''}"${auth.url}"`, {
-        disableLog: true,
-        env: auth.env,
+    clone(repository, destination = '', options = {}) {
+      return cloneRepository({
+        repository,
+        destination,
+        branch: options.branch,
+        bare: options.bare === true,
+        depth: options.depth,
+        sparse: commaList(options.sparse),
+        replace: options.replace === true,
       });
     },
+
     /**
-     * Pulls updates from a GitHub repository.
-     *
-     * `--ff-only` because the reconcile strategy must not come from the host: without it git
-     * refuses a divergent pull outright on a node that configured neither `pull.rebase` nor
-     * `pull.ff`, and silently merges or rebases on one that did — the same command producing a
-     * different history per machine. Advancing to the remote is what every caller wants; a
-     * checkout that has drifted onto commits of its own is replaced through
-     * {@link UnderpostRepository.switchRemote}, not reconciled here.
-     * @param {string} [repoPath='./'] - The local path to the repository.
-     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
-     * @param {object} [options={ g8: false }] - Pulling options.
-     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
+     * `underpost fetch`: updates the remote-tracking refs of a checkout; the working tree stays.
+     * @param {string} [repoPath='.']
+     * @param {object} [options] - `remote`, `branch`, `prune`.
      * @memberof UnderpostRepository
      */
-    pull(
-      repoPath = './',
-      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
-      options = { g8: false },
-    ) {
-      const gExtension = options.g8 === true ? '.g8' : '.git';
-      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
-      shellExec(`cd ${repoPath} && git pull --ff-only "${auth.url}"`, {
-        disableLog: true,
-        env: auth.env,
+    fetch(repoPath = '.', options = {}) {
+      return fetchRepository({ path: repoPath, remote: options.remote, branch: options.branch, prune: options.prune });
+    },
+
+    /**
+     * `underpost pull`: fast-forwards the current branch; a diverged history fails and nothing changes.
+     * @param {string} [repoPath='.']
+     * @param {string} [repository] - The tracked remote otherwise.
+     * @param {object} [options] - `remote`, `branch`.
+     * @memberof UnderpostRepository
+     */
+    pull(repoPath = '.', repository = '', options = {}) {
+      return pullRepository({ path: repoPath, repository, remote: options.remote, branch: options.branch });
+    },
+
+    /**
+     * `underpost push`: publishes HEAD to a remote branch, never forced unless asked.
+     * @param {string} [repoPath='.']
+     * @param {string} [repository] - The tracked remote otherwise.
+     * @param {object} [options] - `remote`, `branch`, `forceWithLease`, `force`, `delete`.
+     * @memberof UnderpostRepository
+     */
+    push(repoPath = '.', repository = '', options = {}) {
+      return pushRepository({
+        path: repoPath,
+        repository,
+        remote: options.remote,
+        branch: options.branch,
+        force: options.force === true,
+        forceWithLease: options.forceWithLease === true,
+        delete: options.delete,
       });
     },
+
     /**
-     * Creates a Git commit with a conventional commit message.
-     * @param {string} [repoPath='./'] - The local path to the repository.
-     * @param {string} [commitType='feat'] - The type of commit (e.g., 'feat', 'fix', 'docs', 'reset').
-     * @param {string} [subModule=''] - The submodule or scope of the commit.
-     * @param {string} [message=''] - The commit message.
-     * @param {object} [options={ copy: false, info: false, empty: false }] - Commit options.
-     * @param {boolean} [options.copy=false] - If true, copies the commit message to the clipboard.
-     * @param {boolean} [options.info=false] - If true, displays information about commit types.
-     * @param {boolean} [options.empty=false] - If true, allows an empty commit.
-     * @param {boolean} [options.diff=false] - If true, shows the diff of the last commit.
-     * @param {boolean} [options.edit=false] - If true, amends the last commit without changing the message.
-     * @param {boolean} [options.cached=false] - If true, commits only staged changes.
-     * @param {number} [options.log=0] - If greater than 0, shows the last N commits with diffs.
-     * @param {boolean} [options.lastMsg=0] - If greater than 0, copies or show the last last single n commit message to clipboard.
-     * @param {boolean} [options.unpush=false] - If true with --log, automatically detects unpushed commits ahead of remote and uses that count.
-     * @param {string} [options.deployId=''] - An optional deploy ID to include in the commit message.
-     * @param {string} [options.hashes=''] - If provided with diff option, shows the diff between two hashes.
-     * @param {string} [options.extension=''] - If provided with diff option, filters the diff by this file extension.
-     * @param {boolean|string} [options.changelog=undefined] - If true, prints the changelog since the last CI integration commit (starting with 'ci(package-pwa-microservices-'). If a number string, prints the changelog of the last N commits split by version sections. Only considers commits starting with '[<tag>]'.
-     * @param {boolean} [options.changelogBuild=false] - If true, scrapes git history and builds a CHANGELOG.md from the five latest versions. Commits containing 'New release v:' are used as version section titles. Only commits starting with '[<tag>]' are included as entries.
-     * @param {string} [options.changelogMinVersion=''] - If set, overrides the default minimum version limit (2.85.0) for --changelog-build.
-     * @param {boolean} [options.changelogNoHash=false] - If true, omits commit hashes from the changelog entries.
-     * @param {boolean} [options.remoteUrl=false] - If true, prints the current git remote URL (origin) in plain text and returns.
-     * @param {string} [options.switchRepo=''] - If set, switches the remote `origin` to this URL and force-pulls the target branch, overwriting the current working tree.
-     * @param {string} [options.targetBranch=''] - Target branch for `switchRepo` (defaults to the remote's default branch).
-     * @param {string} [options.deleteRemoteBranch=''] - If set, deletes this branch from origin.
-     * @param {boolean} [options.mergeDependabot=false] - If true, merges every `origin/dependabot/*` branch into master.
+     * `underpost sync`: brings a managed checkout to the tip of a repository branch, replacing its
+     * working tree. Prints what the replacement discards; `--dry-run` stops there.
+     * @param {string} repoPath
+     * @param {string} repository
+     * @param {object} [options] - `branch`, `dryRun`.
      * @memberof UnderpostRepository
      */
-    commit(
-      repoPath = undefined,
-      commitType = 'feat',
-      subModule = '',
-      message = '',
-      options = {
-        copy: false,
-        info: false,
-        empty: false,
-        diff: false,
-        edit: false,
-        cached: false,
-        lastMsg: 0,
-        log: 0,
-        deployId: '',
-        hashes: '',
-        extension: '',
-        changelog: undefined,
-        changelogBuild: false,
-        changelogMinVersion: '',
-        changelogNoHash: false,
-        unpush: false,
-        b: false,
-        p: undefined,
-        bc: '',
-        isRemoteRepo: '',
-        hasChanges: false,
-        remoteUrl: false,
-        switchRepo: '',
-        targetBranch: '',
-        deleteRemoteBranch: '',
-        mergeDependabot: false,
-      },
-    ) {
-      if (!repoPath) repoPath = '.';
-
-      if (options.mergeDependabot) {
-        if (!Underpost.repo.mergeDependabot({ path: repoPath }).ok) process.exitCode = 1;
-        return;
-      }
-
-      if (options.initRepo) {
-        Underpost.repo.initLocalRepo({
-          path: repoPath,
-          origin: typeof options.initRepo === 'string' ? options.initRepo : undefined,
-        });
-        return;
-      }
-
-      if (options.hasChanges) {
-        const status = shellExec(`cd ${repoPath} && git status --porcelain`, {
-          stdout: true,
-          silent: true,
-          disableLog: true,
-        }).trim();
-        process.stdout.write(status ? '1' : '');
-        return;
-      }
-
-      if (options.isRemoteRepo) {
-        const accessible = Underpost.repo.isRemoteRepo(options.isRemoteRepo);
-        console.log(accessible);
-        return;
-      }
-
-      if (options.remoteUrl) {
-        const url = Underpost.repo.getRemoteUrl({ path: repoPath });
-        if (options.copy) pbcopy(url);
-        else console.log(url);
-        return;
-      }
-
-      if (options.switchRepo) {
-        Underpost.repo.switchRemote({
-          path: repoPath,
-          url: options.switchRepo,
-          branch: options.targetBranch,
-        });
-        return;
-      }
-
-      if (options.deleteRemoteBranch) {
-        if (!Underpost.repo.deleteRemoteBranch({ path: repoPath, branch: options.deleteRemoteBranch }))
-          process.exitCode = 1;
-        return;
-      }
-
-      if (options.bc) {
+    sync(repoPath, repository, options = {}) {
+      const result = syncRepository({ path: repoPath, repository, branch: options.branch, dryRun: options.dryRun });
+      if (result.discarded)
         console.log(
-          shellExec(`cd ${repoPath} && git for-each-ref --contains ${options.bc} --format='%(refname:short)'`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          }).trim(),
+          `${options.dryRun ? 'would discard' : 'discarded'}: ${result.discarded.commits} commits, ` +
+            `${result.discarded.changed} changed files, ${result.discarded.untracked} untracked files`,
         );
-        return;
+      return result;
+    },
+
+    /**
+     * `underpost merge-dependabot`: merges each `origin/dependabot/*` branch into the base branch and
+     * prints ok or failed after each one. Exits non-zero when a merge or a step failed.
+     * @param {string} [repoPath='.'] - The repository, or a directory inside it.
+     * @param {object} [options] - `base`.
+     * @memberof UnderpostRepository
+     */
+    mergeDependabot(repoPath = '.', options = {}) {
+      const result = mergeDependabot({ path: repoPath, base: options.base });
+      const width = Math.max(0, ...result.branches.map(({ branch }) => branch.length));
+      console.log(`${result.root}: origin/dependabot/* into ${result.base}`);
+      for (const { branch, status, reason } of result.branches)
+        console.log(`  ${branch.padEnd(width)}  ${status}${reason ? `  ${reason}` : ''}`);
+      if (!result.branches.length && !result.error) console.log('  no Dependabot branch');
+      if (result.error) console.log(`  stopped: ${result.error}`);
+      if (result.stash) console.log(`  your changes stay in ${result.stash}: git stash pop ${result.stash}`);
+      else if (!result.restored) console.log('  the checkout did not return to the branch you were on');
+      if (!result.ok) process.exitCode = 1;
+      return result;
+    },
+
+    /**
+     * `underpost discard`: lists the changes under each path; with `--force`, discards them.
+     * @param {string[]} paths - Repository roots or directories inside one.
+     * @param {object} [options] - `force`, `ignored`.
+     * @memberof UnderpostRepository
+     */
+    discard(paths = [], options = {}) {
+      for (const target of paths) {
+        const { root, scope, entries, discarded } = discardChanges({
+          path: target,
+          force: options.force === true,
+          ignored: options.ignored === true,
+        });
+        console.log(`${root} (${scope}): ${entries.length} ${discarded ? 'discarded' : 'to discard'}`);
+        for (const entry of entries)
+          console.log(`  ${entry.status} ${entry.from ? `${entry.from} -> ` : ''}${entry.path}`);
       }
+      if (!options.force) console.log('Nothing changed: --force discards.');
+    },
 
-      if (options.p !== undefined) {
-        const branch =
-          options.p === true
-            ? shellExec(`cd ${repoPath} && git branch --show-current`, {
-                stdout: true,
-                silent: true,
-                disableLog: true,
-              }).trim()
-            : options.p;
-        console.log(
-          shellExec(`cd ${repoPath} && git --no-pager reflog show refs/heads/${branch}`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          }).trim(),
-        );
-        return;
+    /**
+     * `underpost init`: initializes a repository with the commit identity and an optional origin.
+     * @param {string} [repoPath='.']
+     * @param {object} [options] - `origin`.
+     * @memberof UnderpostRepository
+     */
+    init(repoPath = '.', options = {}) {
+      Underpost.repo.initLocalRepo({ path: repoPath, origin: options.origin });
+    },
+
+    /**
+     * `underpost status`: reads the state of a repository; nothing changes. One query per call, the
+     * short status without one. `--copy` copies the answer instead of printing it.
+     * @param {string} [repoPath='.']
+     * @param {object} [options] - `branch`, `reflog`, `contains`, `log`, `unpushed`, `diff`, `staged`,
+     *   `range`, `extension`, `message`, `remoteUrl`, `changes`, `reachable`, `copy`.
+     * @memberof UnderpostRepository
+     */
+    status(repoPath = '.', options = {}) {
+      const git = (args) => gitOutput(args, { cwd: repoPath });
+      if (options.reachable) return answer(`${isReachable(options.reachable)}`, options);
+      if (options.changes) return process.stdout.write(git(['status', '--porcelain']) ? '1' : '');
+      if (options.branch) return answer(currentBranch(repoPath), options);
+      if (options.remoteUrl) return answer(remoteUrlFactory(remoteUrl(repoPath)), options);
+      if (options.reflog !== undefined) {
+        const branch = options.reflog === true ? currentBranch(repoPath) : options.reflog;
+        return answer(git(['reflog', 'show', `refs/heads/${branch}`]), options);
       }
-
-      if (options.b) {
-        const currentBranch = shellExec(`cd ${repoPath} && git branch --show-current`, {
-          stdout: true,
-          silent: true,
-          disableLog: true,
-        }).trim();
-        if (options.copy) pbcopy(currentBranch);
-        else console.log(currentBranch);
-        return;
-      }
-
-      if (options.propagateMsg) {
-        // Chain hop: carry the payload the previous workflow sent instead of regenerating it, so
-        // every repository downstream of the dispatch commits the same entries.
-        const propagated = Underpost.repo.resolvePropagationMessage(process.env.PROPAGATED_MESSAGE);
-        if (propagated) {
-          console.log(propagated);
-          return;
-        }
-        // Nothing arrived — fall through to this repository's own changelog for the last N commits.
-        options.changelogMsg = true;
-        options.changelogNoHash = true;
-      }
-
-      if (options.changelog !== undefined || options.changelogBuild || options.changelogMsg !== undefined) {
-        const releaseMatch = 'New release v:';
-        // Helper: parse [<tag>] commits into grouped sections
-        const buildSectionChangelog = (commits) => {
-          const groups = {};
-          const tagOrder = [];
-          for (const commit of commits) {
-            if (!commit.message.startsWith('[')) continue;
-            const match = commit.message.match(/^\[([^\]]+)\]\s*(.*)/);
-            if (match) {
-              const tag = match[1].trim();
-              const context = match[2].trim().replaceAll('"', '');
-              if (!groups[tag]) {
-                groups[tag] = [];
-                tagOrder.push(tag);
-              }
-              groups[tag].push({ ...commit, context });
-            }
-          }
-          let out = '';
-          for (const tag of tagOrder) {
-            out += `### ${tag}\n\n`;
-            for (const entry of groups[tag]) {
-              out += `- ${entry.context}${options.changelogNoHash ? '' : ` (${commitUrl(entry.hash, entry.fullHash)})`}\n`;
-            }
-            out += '\n';
-          }
-          return out;
-        };
-
-        // Helper: fetch git log as structured array
-        const fetchHistory = (limit) => {
-          const limitArg = limit ? ` -n ${limit}` : '';
-          const rawLog = shellExec(`git log --pretty=format:"%h||%H||%s||%ci"${limitArg}`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-            silentOnError: true,
-          }).toString();
-          return rawLog
-            .split('\n')
-            .map((line) => {
-              const parts = line.split('||');
-              return {
-                hash: (parts[0] || '').trim(),
-                fullHash: (parts[1] || '').trim(),
-                message: parts[2] || '',
-                date: parts[3] || '',
-              };
-            })
-            .filter((c) => c.hash);
-        };
-
-        const commitUrl = (shortHash, hash) => githubCommitUrlFactory({ shortHash, hash });
-
-        // Helper: extract version from commit message containing 'New release v:'
-        const extractVersion = (message) => {
-          const idx = message.indexOf(releaseMatch);
-          if (idx === -1) return null;
-          return message.substring(idx + releaseMatch.length).trim();
-        };
-
-        // Helper: split commits array into version sections by 'New release v:' boundary
-        const buildVersionSections = (commits) => {
-          const sections = [];
-          let currentSection = { title: null, date: new Date().toISOString().split('T')[0], commits: [] };
-
-          for (const commit of commits) {
-            const version = extractVersion(commit.message);
-            if (version) {
-              // Push accumulated commits as a section
-              sections.push(currentSection);
-              // Start new version section; commits below this one belong to it
-              const commitDate = commit.date ? commit.date.split(' ')[0] : '';
-              currentSection = { title: `${releaseMatch}${version}`, date: commitDate, hash: commit.hash, commits: [] };
-            } else {
-              currentSection.commits.push(commit);
-            }
-          }
-          // Push the last (oldest) section
-          if (currentSection.commits.length > 0) sections.push(currentSection);
-          return sections;
-        };
-
-        // Helper: render sections array into changelog markdown string
-        const renderSections = (sections) => {
-          let changelog = '';
-          for (const section of sections) {
-            const sectionBody = buildSectionChangelog(section.commits);
-            if (!sectionBody) continue;
-            if (section.title) {
-              changelog += `## ${section.title}${options.changelogNoHash ? '' : ` (${section.date})`}\n\n`;
-            } else {
-              changelog += `## ${section.date}\n\n`;
-            }
-            changelog += sectionBody;
-          }
-          return changelog;
-        };
-
-        const changelogMinVersion = options.changelogMinVersion || '2.97.1';
-
-        if (options.changelogBuild) {
-          // --changelog-build: retain the current changes and the five latest version sections.
-          const allCommits = fetchHistory();
-          const sections = buildVersionSections(allCommits);
-
-          // Stop at either the fifth release section or the configured minimum-version boundary.
-          const limitedSections = [];
-          let versionCount = 0;
-          for (const section of sections) {
-            limitedSections.push(section);
-            if (section.title) {
-              versionCount++;
-              const versionStr = section.title.replace(releaseMatch, '').trim();
-              if (versionCount === 5 || versionStr === changelogMinVersion) break;
-            }
-          }
-
-          let changelog = renderSections(limitedSections);
-
-          if (!changelog) {
-            changelog = `No changelog entries found.\n`;
-          }
-
-          const changelogPath = `${repoPath === '.' ? '.' : repoPath}/CHANGELOG.md`;
-          fs.writeFileSync(changelogPath, `# Changelog\n\n${changelog}`);
-          logger.info('CHANGELOG.md built at', changelogPath);
-        } else {
-          // --changelog / --changelog-msg: message from the last N commits, where N is --from-n-commit
-          // (default 1, last commit only). No auto-detection.
-          const n = parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
-          const sections = buildVersionSections(fetchHistory(n));
-          const changelog = renderSections(sections);
-          if (options.changelogMsg !== undefined) {
-            // Sanitized, commit-ready message; empty string when there are no tagged entries so
-            // callers fall back to their own generic default instead of a placeholder.
-            console.log(Underpost.repo.sanitizeChangelogMessage(changelog));
-          } else {
-            console.log(changelog || `No changelog entries found.\n`);
-          }
-        }
-
-        return;
-      }
-      if (options.diff && options.hashes) {
-        const hashes = options.hashes.split(',');
-        const cmd = `git --no-pager diff ${hashes[0]} ${hashes[1] ? hashes[1] : 'HEAD'}${options.extension ? ` -- '*.${options.extension}'` : ''}`;
-        if (options.copy) {
-          pbcopy(cmd);
-        } else console.log(cmd);
-        return;
-      }
-      if (options.lastMsg) {
-        if (options.copy) {
-          pbcopy(Underpost.repo.getLastCommitMsg(options.lastMsg - 1));
-        } else console.log(Underpost.repo.getLastCommitMsg(options.lastMsg - 1));
-        return;
+      if (options.contains)
+        return answer(git(['for-each-ref', `--contains=${options.contains}`, '--format=%(refname:short)']), options);
+      if (options.message !== undefined) {
+        const skip = Math.max(0, (Number.parseInt(options.message, 10) || 1) - 1);
+        return answer(git(['log', '-1', `--skip=${skip}`, '--format=%B']), options);
       }
       if (options.diff) {
-        const _diffCmd = `git ${diffCmd.replace('show', `diff${options.cached ? ` --cached` : ''}`)}`;
-        if (options.copy) pbcopy(_diffCmd);
-        else console.log('Diff command:', _diffCmd);
-        return;
+        const [from, to] = commaList(options.range);
+        const command = from
+          ? `git --no-pager diff ${from} ${to || 'HEAD'}${options.extension ? ` -- '*.${options.extension}'` : ''}`
+          : `git --no-pager diff${options.staged ? ' --cached' : ''} ${WORD_DIFF}`;
+        return answer(command, options);
       }
-      if (options.log || options.unpush) {
-        if (options.unpush) {
-          const { count, hasUnpushed, error } = Underpost.repo.getUnpushedCount(repoPath);
-          if (!hasUnpushed) {
-            logger.warn(error || 'No unpushed commits found');
-            return;
-          }
-          options.log = count;
+      if (options.log !== undefined || options.unpushed) {
+        let count = Number.parseInt(options.log, 10) || 1;
+        if (options.unpushed) {
+          const unpushed = unpushedCommits({ path: repoPath });
+          if (!unpushed.count) return logger.warn(unpushed.error || 'No unpushed commits found', { path: repoPath });
+          count = unpushed.count;
         }
-        const history = Underpost.repo.getHistory(options.log, repoPath);
-        const chainCmd = history
-          .reverse()
-          .map((commitData, i) => `${i === 0 ? '' : ' && '}git -C ${repoPath} ${diffCmd} ${commitData.hash}`)
-          .join('');
-        if (history[0]) {
-          let index = history.length;
-          for (const commit of history) {
-            console.log(
-              shellExec(`cd ${repoPath} && git show -s --format=%ci ${commit.hash}`, {
-                stdout: true,
-                silent: true,
-                disableLog: true,
-              }).trim().green,
-            );
-            console.log(`${index}`.magenta, commit.hash.yellow, commit.message);
-            index--;
-            console.log(
-              shellExec(`cd ${repoPath} && git show --name-status --pretty="" ${commit.hash}`, {
-                stdout: true,
-                silent: true,
-                disableLog: true,
-              }).trim().red,
-            );
-          }
-          if (options.copy) pbcopy(chainCmd);
-          else console.log('Show all:', chainCmd);
-        } else logger.warn('No commits found');
-        return;
+        const history = commitHistory({ path: repoPath, count });
+        if (!history.length) return logger.warn('No commits found', { path: repoPath });
+        history.forEach((commit, index) => {
+          console.log(commit.date.green);
+          console.log(`${history.length - index}`.magenta, commit.shortRevision.yellow, commit.subject);
+          console.log(git(['show', '--name-status', '--format=', commit.revision]).red);
+        });
+        const show = history
+          .toReversed()
+          .map(
+            ({ shortRevision }) =>
+              `git -C ${shellArgumentFactory(repoPath)} --no-pager show ${WORD_DIFF} ${shortRevision}`,
+          )
+          .join(' && ');
+        return options.copy ? pbcopy(show) : console.log('Show all:', show);
       }
-      if (commitType === 'reset') {
-        if (options.copy) pbcopy(Underpost.repo.getLastCommitMsg());
-        shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
-        return;
-      }
-      if (options.info) return logger.info('', commitData);
-      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${
-        commitData[commitType].emoji
-      } ${message ? message : commitData[commitType].description}`;
-      if (options.copy) return pbcopy(_message);
-      shellExec(
-        `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${
-          // A propagated payload is multi-line and may hold `$`: quoting keeps every entry intact.
-          options.edit ? `--amend  --no-edit ` : `-m ${shellArgumentFactory(_message)}`
-        }`,
-      );
+      console.log(git(['status', '--short', '--branch']));
     },
 
     /**
-     * Retrieves the message of the last Git commit.
-     * @param {number} [skip=0] - Number of commits to skip from HEAD (0 = most recent).
-     * @returns {string} The last commit message.
+     * `underpost cmt`: commits the staged changes with a Conventional Commit message. The index is
+     * never changed.
+     * @param {string} [repoPath='.']
+     * @param {string} [type='feat'] - A type of {@link COMMIT_TYPES}, or a custom one.
+     * @param {string} [scope]
+     * @param {string} [description] - The default description of a known type otherwise.
+     * @param {object} [options] - `empty`, `amend`, `copy`, `types`, `undo`.
      * @memberof UnderpostRepository
      */
-    getLastCommitMsg(skip = 0) {
-      return shellExec(`git --no-pager log -1 --skip=${skip} --pretty=%B`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-      });
-    },
-
-    /**
-     * Pushes commits to a remote GitHub repository.
-     * @param {string} [repoPath='./'] - The local path to the repository.
-     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
-     * @param {object} [options={ f: false, g8: false }] - Push options.
-     * @param {boolean} [options.f=false] - If true, forces the push.
-     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
-     * @memberof UnderpostRepository
-     */
-    push(
-      repoPath = './',
-      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
-      options = { f: false, g8: false },
-    ) {
-      const gExtension = options.g8 === true ? '.g8' : '.git';
-      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${gitUri}${gExtension}`);
-      shellExec(`cd ${repoPath} && git push "${auth.url}"${options?.f === true ? ' --force' : ''}`, {
-        disableLog: true,
-        env: auth.env,
-      });
-      logger.info(
-        'commit url',
-        `http://github.com/${gitUri}${gExtension === '.g8' ? '.g8' : ''}/commit/${shellExec(
-          `cd ${repoPath} && git rev-parse --verify HEAD`,
-          {
-            stdout: true,
-          },
-        ).trim()}`,
-      );
+    commit(repoPath = '.', type = 'feat', scope = '', description = '', options = {}) {
+      if (options.types) {
+        for (const [name, { emoji, description: summary }] of Object.entries(COMMIT_TYPES))
+          console.log(`${name.padEnd(9)} ${emoji}  ${summary}`);
+        return;
+      }
+      if (options.undo !== undefined) {
+        if (options.copy) pbcopy(gitOutput(['log', '-1', '--format=%B'], { cwd: repoPath }));
+        return undoCommits({ path: repoPath, count: options.undo === true ? 1 : options.undo });
+      }
+      if (options.amend) return commitChanges({ path: repoPath, amend: true, empty: options.empty === true });
+      const message = commitMessageFactory({ type, scope, description });
+      if (options.copy) return pbcopy(message);
+      return commitChanges({ path: repoPath, message, empty: options.empty === true });
     },
 
     /**
@@ -691,12 +443,7 @@ class UnderpostRepository {
 
           // Handle cleanTemplate operation
           if (options.cleanTemplate) {
-            logger.info('Cleaning build directory');
-            const basePath = '../pwa-microservices-template';
-            shellExec(`cd ${basePath} && git reset`);
-            shellExec(`cd ${basePath} && git checkout .`);
-            shellExec(`cd ${basePath} && git clean -f -d`);
-            logger.info('Build directory cleaned successfully');
+            discardChanges({ path: '../pwa-microservices-template', force: true, root: true });
             return resolve(true);
           }
 
@@ -892,51 +639,8 @@ class UnderpostRepository {
     },
 
     /**
-     * Gets a list of deleted files from a Git repository.
-     * @param {string} [path='.'] - The path to the repository.
-     * @returns {string[]} An array of deleted file paths.
-     * @memberof UnderpostRepository
-     */
-    getDeleteFiles(path = '.') {
-      const commandUntrack = `cd ${path} && git ls-files --deleted`;
-      const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
-      return diffUntrackOutput.toString().split('\n').filter(Boolean);
-    },
-
-    // Read tracked paths without changing the index or working tree.
-    getTrackedFiles(directory = '.') {
-      const options = { cwd: path.resolve(directory), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
-      const root = execFileSync('git', ['rev-parse', '--show-toplevel'], options).replace(/\r?\n$/, '');
-      return execFileSync('git', ['ls-files', '--cached', '--full-name', '-z', '--', '.'], options)
-        .split('\0')
-        .filter(Boolean)
-        .map((file) => path.resolve(root, file));
-    },
-
-    /**
-     * Gets a list of changed (modified and untracked) files in a Git repository.
-     * @param {string} [path='.'] - The path to the repository.
-     * @param {string} [extension=''] - An optional file extension to filter by.
-     * @param {boolean} [head=false] - If true, diffs against HEAD^.
-     * @returns {string[]} An array of changed file paths.
-     * @memberof UnderpostRepository
-     */
-    getChangedFiles(path = '.', extension = '', head = false) {
-      const extensionFilter = extension ? `-- '***.${extension}'` : '';
-      const command = `cd ${path} && git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
-      const commandUntrack = `cd ${path} && git ls-files --others --exclude-standard`;
-      const diffOutput = shellExec(command, { stdout: true, silent: true });
-      const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
-      const deleteFiles = Underpost.repo.getDeleteFiles(path);
-      return diffOutput
-        .toString()
-        .split('\n')
-        .filter(Boolean)
-        .concat(diffUntrackOutput.toString().split('\n').filter(Boolean))
-        .filter((f) => !deleteFiles.includes(f));
-    },
-    /**
-     * Updates the private configuration repository for a given deployId.
+     * Replaces the private configuration repository of a deploy beside the engine with its remote
+     * tip, and rebuilds its conf when its version matches the engine's.
      * @param {string} deployId - The deployment ID.
      * @returns {{validVersion: boolean, engineVersion: string, deployVersion: string}} An object indicating if the versions are valid.
      * @memberof UnderpostRepository
@@ -944,11 +648,10 @@ class UnderpostRepository {
     privateConfUpdate(deployId) {
       shellCd(`/home/dd/engine`);
       const privateRepoName = Underpost.repo.privateRepoFactory(deployId);
-      const privateRepoPath = `../${privateRepoName}`;
-      if (fs.existsSync(privateRepoPath)) fs.removeSync(privateRepoPath);
-      shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
-      shellExec(`cd ${privateRepoPath} && underpost pull . ${process.env.GITHUB_USERNAME}/${privateRepoName}`, {
-        silent: true,
+      cloneRepository({
+        repository: `${process.env.GITHUB_USERNAME}/${privateRepoName}`,
+        destination: `../${privateRepoName}`,
+        replace: true,
       });
       const packageJsonDeploy = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
       const packageJsonEngine = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
@@ -971,37 +674,6 @@ Prevent build private config repo.`,
       };
     },
 
-    /**
-     * Retrieves the Git commit history.
-     * @param {number} [sinceCommit=1] - The number of recent commits to retrieve.
-     * @param {string} [repoPath='.'] - The path to the repository.
-     * @returns {Array<{hash: string, message: string, files: string}>} An array of commit objects with hash, message, and files.
-     * @memberof UnderpostRepository
-     */
-    getHistory(sinceCommit = 1, repoPath = '.') {
-      return shellExec(`cd ${repoPath} && git log -1 --pretty=format:"%h %s" -n ${sinceCommit}`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-      })
-        .split(`\n`)
-        .map((line) => {
-          const hash = line.split(' ')[0];
-          return {
-            hash,
-            message: line.split(`${hash} `)[1],
-          };
-        })
-        .filter((line) => line.hash)
-        .map((line) => {
-          line.files = shellExec(`cd ${repoPath} && git show --name-status --pretty="" ${line.hash}`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          });
-          return line;
-        });
-    },
     /**
      * Writes a conf manifest: `underpost.config.<deploy-id>.js` from the conf files of a deploy id, or
      * `underpost.config.js` for a conf workflow (`dd-github-pages`, `template`). The text around the `/**\/`
@@ -1062,294 +734,19 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Cleans the specified paths in the repository by resetting, checking out, and cleaning untracked files.
-     * @param {object} [options={ paths: [''] }] - The options for cleaning.
-     * @param {string[]} [options.paths=['']] - The paths to clean.
-     * @memberof UnderpostRepository
-     */
-    clean(options = { paths: [''] }) {
-      for (const path of options.paths) {
-        shellExec(`cd ${path} && git reset`, { silentOnError: true, silent: true, disableLog: true });
-        shellExec(`cd ${path} && git checkout .`, { silentOnError: true, silent: true, disableLog: true });
-        shellExec(`cd ${path} && git clean -f -d`, { silentOnError: true, silent: true, disableLog: true });
-      }
-    },
-
-    /**
-     * Copies files recursively from a Git repository URL directory path.
-     * @param {object} options - Configuration options for copying files.
-     * @param {string} options.gitUrl - The GitHub repository URL (e.g., 'https://github.com/canonical/packer-maas').
-     * @param {string} options.directoryPath - The directory path within the repository to copy (e.g., 'rocky-9').
-     * @param {string} options.targetPath - The local target path where files should be copied.
-     * @param {string} [options.branch='main'] - The git branch to use (default: 'main').
-     * @param {boolean} [options.overwrite=false] - Whether to overwrite existing target directory.
-     * @returns {Promise<object>} A promise that resolves with copied files information.
-     * @memberof UnderpostRepository
-     */
-    async copyGitUrlDirectoryRecursive(options) {
-      const { gitUrl, directoryPath, targetPath, branch = 'main', overwrite = false } = options;
-
-      // Validate inputs
-      if (!gitUrl) {
-        throw new Error('gitUrl is required');
-      }
-      if (!directoryPath) {
-        throw new Error('directoryPath is required');
-      }
-      if (!targetPath) {
-        throw new Error('targetPath is required');
-      }
-
-      // Parse GitHub URL to extract owner and repo
-      const urlMatch = gitUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
-      if (!urlMatch) {
-        throw new Error(`Invalid GitHub URL: ${gitUrl}`);
-      }
-      const [, owner, repo] = urlMatch;
-
-      logger.info(`Copying from ${owner}/${repo}/${directoryPath} to ${targetPath}`);
-
-      // Check if target directory exists
-      if (fs.existsSync(targetPath) && !overwrite) {
-        throw new Error(`Target directory already exists: ${targetPath}. Use overwrite option to replace.`);
-      }
-
-      // Create target directory
-      fs.mkdirSync(targetPath, { recursive: true });
-
-      // GitHub API base URL
-      const githubApiBase = 'https://api.github.com/repos';
-      const apiUrl = `${githubApiBase}/${owner}/${repo}/contents/${directoryPath}`;
-
-      logger.info(`Fetching directory contents from: ${apiUrl}`);
-
-      try {
-        // Fetch directory contents recursively
-        const copiedFiles = await this.fetchAndCopyGitHubDirectory({
-          apiUrl,
-          targetPath,
-          basePath: directoryPath,
-          branch,
-        });
-
-        logger.info(`Successfully copied ${copiedFiles.length} files to ${targetPath}`);
-
-        return {
-          success: true,
-          filesCount: copiedFiles.length,
-          files: copiedFiles,
-          targetPath,
-        };
-      } catch (error) {
-        // Clean up on error
-        if (fs.existsSync(targetPath)) {
-          fs.removeSync(targetPath);
-          logger.warn(`Cleaned up target directory after error: ${targetPath}`);
-        }
-        throw new Error(`Failed to copy directory: ${error.message}`);
-      }
-    },
-
-    /**
-     * Internal method to recursively fetch and copy files from GitHub API.
-     * @method
-     * @param {object} options - Fetch options.
-     * @param {string} options.apiUrl - The GitHub API URL.
-     * @param {string} options.targetPath - The local target path.
-     * @param {string} options.basePath - The base path in the repository.
-     * @param {string} options.branch - The git branch.
-     * @returns {Promise<array>} Array of copied file paths.
-     * @memberof UnderpostRepository
-     */
-    async fetchAndCopyGitHubDirectory(options) {
-      const { apiUrl, targetPath, basePath, branch } = options;
-      const copiedFiles = [];
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'underpost-cli',
-        },
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        logger.error(`GitHub API request failed for: ${apiUrl}`);
-        logger.error(`Status: ${response.status} ${response.statusText}`);
-        logger.error(`Response: ${errorBody}`);
-        throw new Error(`GitHub API request failed: ${response.status} ${response.statusText} - ${errorBody}`);
-      }
-
-      const contents = await response.json();
-
-      if (!Array.isArray(contents)) {
-        logger.error(`Expected directory but got: ${typeof contents}`);
-        logger.error(`API URL: ${apiUrl}`);
-        logger.error(`Response keys: ${Object.keys(contents).join(', ')}`);
-        if (contents.message) {
-          logger.error(`GitHub message: ${contents.message}`);
-        }
-        throw new Error(
-          `Path is not a directory: ${basePath}. Response: ${JSON.stringify(contents).substring(0, 200)}`,
-        );
-      }
-
-      logger.info(`Found ${contents.length} items in directory: ${basePath}`);
-
-      for (const item of contents) {
-        const itemTargetPath = `${targetPath}/${item.name}`;
-
-        if (item.type === 'file') {
-          logger.info(`Downloading file: ${item.path}`);
-
-          const fileResponse = await fetch(item.download_url);
-          if (!fileResponse.ok) {
-            logger.error(`Failed to download: ${item.download_url}`);
-            throw new Error(`Failed to download file: ${item.path} (${fileResponse.status})`);
-          }
-
-          const fileContent = await fileResponse.text();
-          fs.writeFileSync(itemTargetPath, fileContent);
-
-          logger.info(`Saved: ${itemTargetPath}`);
-          copiedFiles.push(itemTargetPath);
-        } else if (item.type === 'dir') {
-          logger.info(`Processing directory: ${item.path}`);
-
-          fs.mkdirSync(itemTargetPath, { recursive: true });
-
-          const subFiles = await this.fetchAndCopyGitHubDirectory({
-            apiUrl: item.url,
-            targetPath: itemTargetPath,
-            basePath: item.path,
-            branch,
-          });
-
-          copiedFiles.push(...subFiles);
-          logger.info(`Completed directory: ${item.path} (${subFiles.length} files)`);
-        } else {
-          logger.warn(`Skipping unknown item type '${item.type}': ${item.path}`);
-        }
-      }
-
-      return copiedFiles;
-    },
-
-    /**
-     * Resolves the default branch for a remote GitHub repository by querying
-     * `git ls-remote --symref` and extracting the HEAD ref target.
-     * @param {string} repo - The GitHub repository (e.g., "owner/repo").
-     * @returns {string} The default branch name (e.g. "main" or "master").
-     * @memberof UnderpostRepository
-     */
-    getDefaultBranch(repo) {
-      if (!repo) throw new Error('[repo] getDefaultBranch requires a repository reference');
-      const auth = Underpost.repo.gitAuthFactory(repo);
-      const raw = shellExec(`git ls-remote --symref "${auth.url}" HEAD 2>&1`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-        env: auth.env,
-      });
-      // --symref emits a line like: ref: refs/heads/main	HEAD
-      const match = typeof raw === 'string' ? raw.match(/^ref:\s*refs\/heads\/(\S+)\tHEAD$/m) : null;
-      // Guessing here is worse than failing: `main` against a `master` remote
-      // fetches a ref that does not exist, and the caller has already pointed
-      // origin at the new URL by the time git says so.
-      if (!match)
-        throw new Error(
-          `[repo] cannot read the default branch of '${repo}'; it may be empty, unreachable, ` +
-            `or need credentials: ${redactSensitiveText(`${raw || ''}`.trim().split('\n').pop() || 'no ref reported')}`,
-        );
-      logger.info('getDefaultBranch', { repo, branch: match[1] });
-      return match[1];
-    },
-
-    /**
-     * Dispatches a GitHub Actions workflow using gh CLI or curl fallback.
-     * @param {object} options - Dispatch options.
-     * @param {string} options.repo - The GitHub repository (e.g., "owner/repo").
-     * @param {string} options.workflowFile - The workflow file name (e.g., "engine-core.cd.yml").
-     * @param {string} [options.ref] - The git ref to dispatch against. Auto-detects the remote's default branch when omitted.
-     * @param {object} [options.inputs={}] - Key-value inputs for the workflow_dispatch event.
-     * @memberof UnderpostRepository
-     */
-    dispatchWorkflow(options = { repo: '', workflowFile: '', ref: '', inputs: {} }) {
-      const { repo, workflowFile, inputs } = options;
-      const ref = options.ref || Underpost.repo.getDefaultBranch(repo);
-      const ghAvailable = shellExec('command -v gh 2>/dev/null', {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-      }).trim();
-
-      if (ghAvailable) {
-        let cmd = `gh workflow run ${workflowFile} --repo ${repo} --ref ${ref}`;
-        for (const [key, value] of Object.entries(inputs)) {
-          if (value !== undefined && value !== '') {
-            const escaped = String(value).replace(/'/g, "'\\''");
-            cmd += ` -f ${key}='${escaped}'`;
-          }
-        }
-        shellExec(cmd);
-      } else {
-        let token = process.env.GITHUB_TOKEN;
-        if (!token) {
-          const envPath = `${getUnderpostRootPath()}/.env`;
-          if (fs.existsSync(envPath) && fs.statSync(envPath).isFile()) {
-            const envVars = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-            token = envVars.GITHUB_TOKEN;
-          }
-        }
-        if (!token) {
-          logger.error('GITHUB_TOKEN is required for workflow dispatch (gh CLI not available)');
-          return;
-        }
-        const payload = { ref };
-        if (Object.keys(inputs).length > 0) payload.inputs = inputs;
-        const payloadJson = JSON.stringify(payload).replace(/'/g, "'\\''");
-        shellExec(
-          `curl -s -f -X POST ` +
-            `-H "Accept: application/vnd.github.v3+json" ` +
-            `-H "Authorization: token ${token}" ` +
-            `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
-            `-d '${payloadJson}'`,
-        );
-      }
-      logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');
-    },
-
-    /**
-     * Normalizes a repository reference to a clone URL, expanding the short
-     * `owner/repo` form against GitHub.
-     * @param {string} url - Repository URL or `owner/repo` short form.
-     * @returns {string} Clone URL, unchanged when one was already given.
-     * @memberof UnderpostRepository
-     */
-    repoUrlFactory(url = '') {
-      const value = `${url || ''}`.trim();
-      if (!value) return value;
-      const remote = value.startsWith('http://') || value.startsWith('https://') || value.startsWith('git@');
-      return remote ? value : `https://github.com/${value}`;
-    },
-
-    /**
-     * Reduces a repository reference to its `owner/repo` slug, the form the
-     * clone and pull commands take.
+     * Reduces a repository reference to its `owner/repo` slug, the form the deploy naming takes.
      * @param {string} url - Repository URL or `owner/repo` short form.
      * @returns {string} Slug.
      * @throws {Error} When no owner and repository can be read from the reference.
      * @memberof UnderpostRepository
      */
     repoSlugFactory(url = '') {
-      const path = Underpost.repo
-        .repoUrlFactory(url)
-        .replace(/^git@[^:]+:/, '')
-        .replace(/^https?:\/\/[^/]+\//, '')
+      const [owner, repo] = remoteUrlFactory(url)
+        .replace(/^[^@/]+@[^:]+:/, '')
+        .replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]+\//i, '')
         .replace(/\.git$/, '')
-        .replace(/\/+$/, '');
-      const [owner, repo] = path.split('/');
+        .replace(/\/+$/, '')
+        .split('/');
       if (!owner || !repo) throw new Error(`[repo] '${url}' is not an owner/repo reference or a clone URL`);
       return `${owner}/${repo}`;
     },
@@ -1512,543 +909,64 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Fast-forwards the engine and engine-private checkouts ahead of a template deploy.
-     *
-     * The deploy runners publish local commits, so they must not take the `run pull` route: that one
-     * is for provisioning a node and force-replaces both trees at the remote tip, discarding the very
-     * commits being published. `underpost pull` is `git pull --ff-only`, so a diverged checkout stops
-     * the deploy instead of losing history.
-     * @param {string} baseCommand - Resolved `underpost` CLI invocation.
-     * @returns {void}
+     * Fast-forwards the engine and engine-private checkouts of the working directory ahead of a
+     * template deploy, each from the remote branch it tracks. The deploy runners publish local
+     * commits, so a diverged checkout stops the deploy instead of losing history: they never take
+     * the replacing route of `run pull`.
+     * @memberof UnderpostRepository
      */
-    fastForwardEnginePair(baseCommand) {
-      shellExec(`${baseCommand} pull . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`${baseCommand} pull ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
+    fastForwardEnginePair() {
+      pullRepository({ path: '.' });
+      pullRepository({ path: './engine-private' });
     },
 
     /**
-     * Keeps GitHub credentials in the child environment instead of command arguments or remotes.
-     * @param {string} url - Repository URL or owner/repo reference.
-     * @returns {{url: string, env: NodeJS.ProcessEnv}} Token-free URL and Git child environment.
+     * @method gitIdentity
+     * @description The commit identity: the repository owner (`GITHUB_USERNAME`) as `user.name` and
+     * `GITHUB_EMAIL` as `user.email`. A value that is not set is left out, so the global git identity applies.
+     * @returns {Array<[string, string]>} Git configuration keys and values.
      * @memberof UnderpostRepository
      */
-    gitAuthFactory(url) {
-      const normalized = Underpost.repo.repoUrlFactory(url).replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/i, '$1');
-      const gitEnv = {
-        GIT_TERMINAL_PROMPT: '0',
-        GIT_CONFIG_COUNT: '1',
-        GIT_CONFIG_KEY_0: 'credential.helper',
-        GIT_CONFIG_VALUE_0: '',
-      };
-      if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
-        gitEnv.GIT_CONFIG_COUNT = '2';
-        gitEnv.GIT_CONFIG_KEY_1 = 'http.https://github.com/.extraheader';
-        gitEnv.GIT_CONFIG_VALUE_1 = `AUTHORIZATION: basic ${Buffer.from(
-          `x-access-token:${process.env.GITHUB_TOKEN}`,
-        ).toString('base64')}`;
-      }
-      return { url: normalized, gitEnv, env: { ...process.env, ...gitEnv } };
-    },
-    /**
-     * Checks whether a remote Git repository URL is reachable.
-     * Uses `silentOnError` so a non-reachable remote returns false instead of throwing.
-     * Passes `GITHUB_TOKEN` to Git through its child environment when available.
-     * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
-     * @returns {boolean} `true` when the remote responded with at least one ref hash.
-     * @memberof UnderpostRepository
-     */
-    isRemoteRepo(url) {
-      if (!url) return false;
-      const auth = Underpost.repo.gitAuthFactory(url);
-      const raw = shellExec(`git ls-remote "${auth.url}" HEAD 2>&1`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-        env: auth.env,
-      });
-      const refLine = typeof raw === 'string' ? (raw.match(/^[0-9a-f]{40}\t.*$/m) || [])[0] : undefined;
-      const accessible = !!refLine;
-      logger.info('isRemoteRepo', { url, accessible, ref: refLine || (raw || '').trim().split('\n').pop() });
-      return accessible;
-    },
-
-    /**
-     * The commit a branch of the remote of a checkout points at, read from the remote itself, so a
-     * push to a URL that left no remote-tracking ref still counts.
-     * @param {object} opts
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} opts.branch - Branch name.
-     * @param {string} [opts.remote='origin'] - Remote name.
-     * @returns {string} The commit id, or '' when the remote is unreachable or has no such branch.
-     * @memberof UnderpostRepository
-     */
-    remoteBranchCommit({ path: repoPath = '.', branch, remote = 'origin' }) {
-      const { env } = Underpost.repo.gitAuthFactory(Underpost.repo.getRemoteUrl({ path: repoPath, remote }));
-      const raw = shellExec(`git -C "${repoPath}" ls-remote ${remote} "refs/heads/${branch}"`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-        env,
-      });
-      return (typeof raw === 'string' && raw.match(/^([0-9a-f]{40})\t/m)?.[1]) || '';
-    },
-
-    /**
-     * Returns the current URL of a git remote in plain text.
-     * @param {object} [opts]
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} [opts.remote='origin'] - Remote name to query.
-     * @returns {string} The remote URL, or '' when the remote is not configured.
-     * @memberof UnderpostRepository
-     */
-    getRemoteUrl({ path: repoPath = '.', remote = 'origin' } = {}) {
-      return shellExec(`cd "${repoPath}" && git remote get-url ${remote}`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      }).trim();
-    },
-
-    /**
-     * Points the `origin` of a checkout at a GitHub repository, over SSH when a GitHub origin uses SSH, else HTTPS.
-     * @param {object} opts
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} opts.repository - Repository `owner/repo` slug or clone URL.
-     * @memberof UnderpostRepository
-     */
-    setOrigin({ path: repoPath = '.', repository }) {
-      const slug = Underpost.repo.repoSlugFactory(repository);
-      const current = Underpost.repo.getRemoteUrl({ path: repoPath });
-      const github = githubRemotePattern.exec(current)?.[0];
-      if (github && Underpost.repo.repoSlugFactory(current) === slug) return;
-      const url = github === 'git@github.com:' ? `git@github.com:${slug}.git` : `https://github.com/${slug}.git`;
-      shellExec(`cd "${repoPath}" && git remote ${current ? 'set-url' : 'add'} origin "${url}"`);
-      logger.info('setOrigin', { path: repoPath, url });
-    },
-
-    /**
-     * Switches a local repository onto a different remote and force-syncs its
-     * working tree to a target branch, discarding local commits and tracked
-     * changes — effectively "switch repo to <url>#<branch>".
-     *
-     * Sequence (idempotent, re-runnable):
-     *   1. Normalize the URL (`owner/repo` → full GitHub HTTPS) and set/add the
-     *      remote, storing the token-free URL so no secret leaks into `.git/config`.
-     *   2. Force-fetch the target branch with credentials isolated in the child environment.
-     *   3. Reset the working tree to the fetched tip and check out the target
-     *      branch, overwriting any current tracked content.
-     *
-     * Untracked files are intentionally left in place (no `git clean`).
-     *
-     * @param {object} opts
-     * @param {string} opts.url - New remote URL (full URL or "owner/repo" short form).
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} [opts.branch] - Target branch to overwrite the current tree with. Defaults to the remote's default branch.
-     * @param {string} [opts.remote='origin'] - Remote name to set and fetch from.
-     * @returns {void}
-     * @memberof UnderpostRepository
-     */
-    switchRemote({ url, path: repoPath = '.', branch = '', remote = 'origin' }) {
-      if (!url) throw new Error('switchRemote requires a target remote url');
-      if (!fs.existsSync(`${repoPath}/.git`)) throw new Error(`switchRemote: not a git repository: ${repoPath}`);
-      const targetBranch = branch || Underpost.repo.getDefaultBranch(url);
-      const auth = Underpost.repo.gitAuthFactory(url);
-      logger.info('switchRemote', { path: repoPath, remote, branch: targetBranch, url: auth.url });
-      for (const command of Underpost.repo.switchRemoteCommands({ url, path: repoPath, branch: targetBranch, remote }))
-        shellExec(command, { env: auth.env });
-    },
-
-    /**
-     * The git commands that point a checkout at a repository and replace its working tree with the tip of a
-     * branch. {@link UnderpostRepository.switchRemote} runs them here, and the fleet sync runs them on a
-     * node, where they depend on no Underpost version. The fetch takes its credential from the environment
-     * of {@link UnderpostRepository.gitAuthFactory}.
-     * @param {object} params
-     * @param {string} params.url - Repository slug or URL.
-     * @param {string} params.path - Checkout path.
-     * @param {string} params.branch - Branch to land on.
-     * @param {string} [params.remote='origin']
-     * @returns {string[]} Commands in order; each one can run again.
-     * @memberof UnderpostRepository
-     */
-    switchRemoteCommands({ url, path: repoPath, branch, remote = 'origin' }) {
-      const target = shellArgumentFactory(Underpost.repo.gitAuthFactory(url).url);
-      const git = `git -C ${shellArgumentFactory(repoPath)}`;
-      return [
-        `{ ${git} remote set-url ${remote} ${target} || ${git} remote add ${remote} ${target}; }`,
-        // reset --hard first clears the worktree so the checkout cannot be blocked by conflicting local
-        // changes; -B points the target branch at the fetched tip.
-        `${git} fetch --force ${target} ${branch}`,
-        `${git} reset --hard FETCH_HEAD`,
-        `${git} checkout -B ${branch} FETCH_HEAD`,
-      ];
-    },
-
-    /**
-     * Brings a local checkout to the requested repository at its tip, whatever state it is in.
-     *
-     * Clones when the path is absent, and otherwise replaces the checkout through
-     * {@link UnderpostRepository.switchRemote} — the same operation `underpost cmt --switch-repo`
-     * runs, so a node reached by `run pull` and a node reached by `edge --sync` end on the same
-     * commit by the same route.
-     *
-     * One operation covers both the retarget and the same-repository case, because they only
-     * look different: an `--ff-only` pull refuses a checkout that has drifted onto commits of
-     * its own, which is exactly the node that most needs bringing back. A deploy checkout is a
-     * projection of its remote, never a place work is authored, so it is replaced rather than
-     * reconciled.
-     *
-     * The clone lands under the repository's own name and is renamed into place, because the
-     * checkout path is fixed by the deployment layout while the repository name is not.
-     *
-     * @param {object} opts
-     * @param {string} opts.path - Absolute checkout path.
-     * @param {string} opts.repo - Repository `owner/repo` slug or clone URL.
-     * @param {string} [opts.branch] - Branch to land on; the remote's default branch otherwise.
-     * @returns {'cloned'|'switched'} What the call had to do.
-     * @memberof UnderpostRepository
-     */
-    syncCheckout({ path: checkoutPath, repo, branch = '' }) {
-      const slug = Underpost.repo.repoSlugFactory(repo);
-      const repoName = slug.split('/')[1];
-      const parent = path.dirname(checkoutPath);
-
-      if (!fs.existsSync(checkoutPath)) {
-        fs.mkdirSync(parent, { recursive: true });
-        shellExec(`underpost clone ${slug}`, { cwd: parent, silent: true });
-        if (`${parent}/${repoName}` !== checkoutPath) fs.moveSync(`${parent}/${repoName}`, checkoutPath);
-        return 'cloned';
-      }
-
-      Underpost.repo.switchRemote({ url: slug, path: checkoutPath, branch });
-      return 'switched';
-    },
-
-    /**
-     * Resolves how git reaches the origin of a checkout.
-     * A GitHub origin is reached over HTTPS with `GITHUB_TOKEN`, as {@link UnderpostRepository.push} does;
-     * another origin is reached as configured.
-     * @param {string} [repoPath='.'] - Path to the git repository.
-     * @returns {{url: string, env: NodeJS.ProcessEnv}|null} Token-free URL and Git child environment,
-     *   or `null` when the checkout has no origin remote.
-     * @memberof UnderpostRepository
-     */
-    originAuthFactory(repoPath = '.') {
-      const origin = Underpost.repo.getRemoteUrl({ path: repoPath });
-      if (!origin) return null;
-      return githubRemotePattern.test(origin)
-        ? Underpost.repo.gitAuthFactory(`https://github.com/${Underpost.repo.repoSlugFactory(origin)}.git`)
-        : { url: 'origin', env: process.env };
-    },
-
-    /**
-     * Fetches every branch of origin into `refs/remotes/origin/` and prunes the branches origin no longer has.
-     * @param {string} [repoPath='.'] - Path to the git repository.
-     * @returns {{ error?: string }} `error` tells why origin could not be fetched.
-     * @memberof UnderpostRepository
-     */
-    fetchOrigin(repoPath = '.') {
-      const auth = Underpost.repo.originAuthFactory(repoPath);
-      if (!auth) return { error: `${repoPath}: no origin remote` };
-      const fetch = shellExec(
-        `cd "${repoPath}" && git fetch --prune "${auth.url}" "+refs/heads/*:refs/remotes/origin/*" 2>&1`,
-        { silent: true, disableLog: true, silentOnError: true, env: auth.env },
-      );
-      return fetch.code === 0 ? {} : { error: `${auth.url}: fetch failed: ${gitFailureReason(fetch)}` };
-    },
-
-    /**
-     * Deletes a branch from origin and drops its remote-tracking ref.
-     * @param {object} opts
-     * @param {string} opts.branch - Branch to delete.
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @returns {boolean} `true` when origin deleted the branch.
-     * @memberof UnderpostRepository
-     */
-    deleteRemoteBranch({ branch, path: repoPath = '.' }) {
-      const auth = Underpost.repo.originAuthFactory(repoPath);
-      if (!auth) {
-        logger.error(`${repoPath}: no origin remote`);
-        return false;
-      }
-      const push = shellExec(`cd "${repoPath}" && git push "${auth.url}" --delete "${branch}" 2>&1`, {
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-        env: auth.env,
-      });
-      if (push.code !== 0) {
-        logger.error(`${auth.url} ${branch}: delete failed: ${gitFailureReason(push)}`);
-        return false;
-      }
-      shellExec(`cd "${repoPath}" && git update-ref -d "refs/remotes/origin/${branch}"`, {
-        silent: true,
-        disableLog: true,
-      });
-      logger.info('deleteRemoteBranch', { path: repoPath, branch, url: auth.url });
-      return true;
-    },
-
-    /**
-     * Merges every `origin/dependabot/*` branch into the base branch, one at a time.
-     *
-     * Local changes are stashed first, untracked files included. A merge that fails is aborted
-     * before the next one starts. Merged local branches are deleted; remote branches never are.
-     * The original branch and the stash are restored on every path, failures included. A stash
-     * that cannot be restored stays in the stash list and the result names it.
-     * @param {object} [opts]
-     * @param {string} [opts.path='.'] - Path to the git repository.
-     * @param {string} [opts.base='master'] - Branch the Dependabot branches merge into.
-     * @returns {{ok: boolean, merged: string[], failed: string[], restored: boolean, error?: string, stash?: string}}
-     *   `ok` is false when a step failed, a branch failed or the workspace was not restored.
-     * @memberof UnderpostRepository
-     */
-    mergeDependabot({ path: repoPath = '.', base = 'master' } = {}) {
-      const git = (args, options = {}) =>
-        shellExec(`git ${args}`, { cwd: repoPath, silent: true, silentOnError: true, ...options });
-      const report = (result) => {
-        logger[result.ok ? 'info' : 'error']('mergeDependabot', { path: repoPath, base, ...result });
-        return result;
-      };
-
-      const { error: fetchError } = Underpost.repo.fetchOrigin(repoPath);
-      if (fetchError) return report({ ok: false, merged: [], failed: [], restored: true, error: fetchError });
-
-      const branches = `${git(`for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin/dependabot/`).stdout}`
-        .split('\n')
-        .map((branch) => branch.trim())
-        .filter(Boolean);
-      if (branches.length === 0) return report({ ok: true, merged: [], failed: [], restored: true });
-      logger.info('Dependabot branches', branches);
-
-      const original = `${git('rev-parse --abbrev-ref HEAD').stdout}`.trim();
-      const label = `underpost-merge-dependabot-${Date.now()}`;
-      git(`stash push --include-untracked -m ${shellArgumentFactory(label)}`);
-      const stash = `${git(`stash list --format='%gd %s'`).stdout}`
-        .split('\n')
-        .find((line) => line.endsWith(label))
-        ?.split(' ')[0];
-
-      const merged = [];
-      const failed = [];
-      let error;
-      try {
-        if (git(`checkout ${shellArgumentFactory(base)}`).code !== 0) throw new Error(`checkout ${base} failed`);
-        if (git(`merge --ff-only ${shellArgumentFactory(`origin/${base}`)}`).code !== 0)
-          throw new Error(`${base} cannot fast-forward to origin/${base}`);
-        for (const branch of branches) {
-          if (git(`merge --no-edit ${shellArgumentFactory(`origin/${branch}`)}`).code === 0) {
-            merged.push(branch);
-            continue;
-          }
-          failed.push(branch);
-          const merging = git('rev-parse -q --verify MERGE_HEAD').code === 0;
-          if (merging && git('merge --abort').code !== 0) throw new Error(`merge --abort failed after ${branch}`);
-        }
-        for (const branch of merged)
-          if (git(`show-ref --verify --quiet ${shellArgumentFactory(`refs/heads/${branch}`)}`).code === 0)
-            git(`branch -D ${shellArgumentFactory(branch)}`);
-      } catch (cause) {
-        error = cause.message;
-      }
-
-      const back = original && original !== 'HEAD' && original !== base;
-      let restored = !back || git(`checkout ${shellArgumentFactory(original)}`).code === 0;
-      if (restored && stash) restored = git(`stash pop ${shellArgumentFactory(stash)}`).code === 0;
-      return report({
-        ok: !error && failed.length === 0 && restored,
-        merged,
-        failed,
-        restored,
-        ...(error ? { error } : {}),
-        ...(stash && !restored ? { stash } : {}),
-      });
-    },
-
-    /**
-     * Returns metadata about unpushed commits in a git repository.
-     * Fetches origin, then counts the commits of HEAD that no origin branch holds,
-     * so a branch that origin does not have yet counts from where it forks.
-     * @param {string} [repoPath='.'] - Path to the git repository.
-     * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
-     * @returns {{ count: number, branch: string, hasUnpushed: boolean, error?: string }} Unpush metadata;
-     *   `error` tells why origin could not be compared.
-     * @memberof UnderpostRepository
-     */
-    getUnpushedCount(repoPath = '.', fallback = 1) {
-      // Every git call is silentOnError: a detached HEAD (CI checkout) or a missing upstream must
-      // degrade to the fallback, never throw — otherwise the thrown error is logged to stdout and
-      // can be captured as a commit message by callers that read this command's output.
-      const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      })
-        .toString()
-        .trim();
-      if (!branch) return { count: fallback, branch: '', hasUnpushed: false };
-      const { error } = Underpost.repo.fetchOrigin(repoPath);
-      if (error) return { count: fallback, branch, hasUnpushed: false, error };
-      const raw = shellExec(`cd ${repoPath} && git rev-list --count HEAD --not --remotes=origin 2>/dev/null`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      })
-        .toString()
-        .trim();
-      const count = parseInt(raw);
-      const hasUnpushed = !isNaN(count) && count > 0;
-      return { count: hasUnpushed ? count : fallback, branch, hasUnpushed };
-    },
-
-    /**
-     * Sanitizes a markdown changelog string into a compact message format.
-     * Strips date headers, converts section tags to `[tag]` prefixes, removes bullet markers and special characters.
-     * @param {string} message - The raw markdown changelog output.
-     * @returns {string} The sanitized single-line or multi-line compact message.
-     * @memberof UnderpostRepository
-     */
-    sanitizeChangelogMessage(message) {
-      if (!message) return '';
-      const sanitized = message
-        .replace(/^##\s+\d{4}-\d{2}-\d{2}\s*/gm, '')
-        .replace(/^###\s+(\S+)\s*/gm, '[$1] ')
-        .replace(/^- /gm, '')
-        .replaceAll('"', '')
-        .replaceAll('`', '')
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean)
-        .join('\n')
-        .trim()
-        .replaceAll('] - ', '] ');
-      // The empty-changelog placeholder must never become a commit message; return empty so
-      // callers fall back to their own generic default.
-      return sanitized === 'No changelog entries found.' ? '' : sanitized;
-    },
-    /**
-     * Resolves the changelog payload a workflow received from the previous link of the
-     * propagation chain.
-     *
-     * Every hop commits the payload with `cmt`, which wraps it as
-     * `type(scope): <emoji> <first entry>` — the newest entry rides on the subject line, so a
-     * downstream hop that drops the whole subject line loses it. This strips only the wrapper
-     * and keeps every entry, on its own line, in order.
-     *
-     * @param {string} rawMessage - The message as received (a commit message or a dispatch input).
-     * @returns {string} The propagated entries, or an empty string when there is nothing to carry.
-     * @memberof UnderpostRepository
-     */
-    resolvePropagationMessage(rawMessage) {
-      if (!rawMessage) return '';
-      const types = Object.keys(commitData).join('|');
-      const emojis = Object.values(commitData)
-        .map(({ emoji }) => emoji)
-        .filter(Boolean);
-      const lines = `${rawMessage}`
-        .replace(new RegExp(`^(${types})(\\([^)]*\\))?:\\s*`), '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (lines[0]) {
-        for (const emoji of emojis)
-          if (lines[0].startsWith(emoji)) {
-            lines[0] = lines[0].slice(emoji.length).trim();
-            break;
-          }
-        if (!lines[0]) lines.shift();
-      }
-      return lines.join('\n');
+    gitIdentity() {
+      return Object.entries({
+        'user.name': repositoryIdentityFactory().owner,
+        'user.email': environmentValueFactory('GITHUB_EMAIL'),
+      }).filter(([, value]) => value);
     },
 
     /**
      * @method gitIdentityCommands
-     * @description The `git config` commands that set the commit identity: the repository owner
-     * (`GITHUB_USERNAME`) as `user.name` and `GITHUB_EMAIL` as `user.email`. A value that is not set
-     * is skipped, so the global git identity applies.
+     * @description The `git config` commands of {@link UnderpostRepository.API.gitIdentity}, for a script.
      * @returns {string[]} Commands with quoted values.
      * @memberof UnderpostRepository
      */
     gitIdentityCommands() {
-      const identity = { name: repositoryIdentityFactory().owner, email: environmentValueFactory('GITHUB_EMAIL') };
-      return Object.entries(identity)
-        .filter(([, value]) => value)
-        .map(([key, value]) => `git config user.${key} ${shellArgumentFactory(value)}`);
+      return Underpost.repo.gitIdentity().map(([key, value]) => `git config ${key} ${shellArgumentFactory(value)}`);
     },
 
     /**
-     * Initializes a git repository at the given path and sets the commit identity of
-     * {@link UnderpostRepository.API.gitIdentityCommands}.
-     * Safe to call on an already-initialized repo — only runs `git init` when
-     * `.git` is absent.
+     * Initializes a git repository at the given path, or keeps the one there, and sets the commit
+     * identity of {@link UnderpostRepository.API.gitIdentityCommands} and `origin`.
      * @param {object} opts
-     * @param {string} opts.path       - Absolute or relative path to the repository.
-     * @param {string} [opts.origin]   - If provided, sets or updates git remote `origin`.
+     * @param {string} opts.path - Absolute or relative path to the repository.
+     * @param {string} [opts.origin] - `owner/repo` or a clone URL `origin` points at.
      * @memberof UnderpostRepository
      */
     initLocalRepo({ path: repoPath, origin }) {
+      const dir = path.resolve(repoPath);
       // Runtime document roots are chowned to the web server user, and git refuses to operate on
       // a tree owned by someone else until it is declared safe.
-      Underpost.repo.declareSafeDirectory(repoPath);
-
-      if (!fs.existsSync(`${repoPath}/.git`)) {
-        fs.mkdirSync(repoPath, { recursive: true });
-        shellExec(`git init ${shellArgumentFactory(repoPath)}`);
+      declareSafeDirectory(dir);
+      if (!fs.existsSync(`${dir}/.git`)) {
+        fs.mkdirpSync(dir);
+        runGit(['init', '--quiet', dir]);
       }
-
-      for (const command of Underpost.repo.gitIdentityCommands()) shellExec(`cd "${repoPath}" && ${command}`);
-      shellExec(`cd "${repoPath}" && git config core.filemode false`);
-      if (origin) {
-        const currentRemote = shellExec(`cd "${repoPath}" && git remote get-url origin`, {
-          stdout: true,
-          silent: true,
-          silentOnError: true,
-        }).trim();
-        if (!currentRemote) {
-          shellExec(`cd "${repoPath}" && git remote add origin "${origin}"`);
-        } else if (currentRemote !== origin) {
-          shellExec(`cd "${repoPath}" && git remote set-url origin "${origin}"`);
-        }
-      }
-    },
-    /**
-     * Reports whether a path already sits inside a git work tree, so callers can skip
-     * initializing a repository that would nest inside an existing one.
-     * @param {string} repoPath - Directory to probe.
-     * @returns {boolean} True when the path is tracked by an enclosing repository.
-     * @memberof UnderpostRepository
-     */
-    isInsideWorkTree(repoPath) {
-      const output = shellExec(`cd "${repoPath}" && git rev-parse --is-inside-work-tree`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      });
-      return `${output ?? ''}`.trim() === 'true';
-    },
-
-    /**
-     * Declares a path safe for git, skipping the write when it is already declared so repeated
-     * provisioning does not append duplicate global config entries.
-     * @param {string} repoPath - Absolute path to declare.
-     * @returns {void}
-     * @memberof UnderpostRepository
-     */
-    declareSafeDirectory(repoPath) {
-      const declared = shellExec(`git config --global --get-all safe.directory`, {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-        silentOnError: true,
-      });
-      if (`${declared ?? ''}`.split('\n').some((entry) => entry.trim() === repoPath)) return;
-      shellExec(`git config --global --add safe.directory "${repoPath}"`, { silent: true });
+      for (const [key, value] of Underpost.repo.gitIdentity()) runGit(['config', key, value], { cwd: dir });
+      runGit(['config', 'core.filemode', 'false'], { cwd: dir });
+      if (!origin) return;
+      const url = remoteUrlFactory(origin);
+      const current = remoteUrl(dir);
+      if (current !== url) runGit(['remote', current ? 'set-url' : 'add', 'origin', url], { cwd: dir });
     },
 
     /**
@@ -2083,10 +1001,10 @@ Prevent build private config repo.`,
         return { accessible: false, cloned: false };
       }
 
-      if (!process.env.GITHUB_TOKEN && Underpost.repo.repoUrlFactory(reference).startsWith('https://github.com/'))
-        logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
+      if (!githubCredential() && isGithubHttpsUrl(remoteUrlFactory(reference)))
+        logger.warn(`${host}: no GitHub credential — git operations will fail for private repositories`);
 
-      if (!Underpost.repo.isRemoteRepo(reference)) {
+      if (!isReachable(reference)) {
         logger.warn(`${host}: remote repository not accessible (${reference})`);
         return { accessible: false, cloned: false };
       }
@@ -2104,9 +1022,7 @@ Prevent build private config repo.`,
       logger.info(`${host}: cloning ${reference} → ${siteRoot}`);
       const tmp = `${siteRoot}.tmp`;
       fs.removeSync(tmp);
-      fs.mkdirSync(path.dirname(siteRoot), { recursive: true });
-      const auth = Underpost.repo.gitAuthFactory(reference);
-      shellExec(`git clone "${auth.url}" "${tmp}"`, { env: auth.env });
+      cloneRepository({ repository: reference, destination: tmp });
       // Copied into a directory that already exists rather than renamed over it: that directory
       // can be image-provided or a mount point, and a rename onto one fails where a copy works.
       if (populateInPlace) {
@@ -2257,11 +1173,11 @@ Prevent build private config repo.`,
      * @memberof UnderpostRepository
      */
     backupPodRepositories({ deployId, namespace = 'default', env = 'production' }) {
-      const githubToken = process.env.GITHUB_TOKEN || '';
+      const githubToken = githubCredential()?.token ?? '';
       const githubUsername = repositoryIdentityFactory().owner;
 
       if (!githubToken) {
-        logger.warn('backupPodRepositories: GITHUB_TOKEN not available — git push will fail');
+        logger.warn('backupPodRepositories: no GitHub credential — git push will fail');
       }
 
       for (const { host, runtime, repository, podName, siteRoot } of Underpost.repo.podSiteRoots({
@@ -2324,11 +1240,7 @@ Prevent build private config repo.`,
 
       const repoName = Underpost.repo.privateRepoFactory(effectiveDeployId);
       logger.info(`engine-private missing — cloning ${username}/${repoName}`);
-      shellExec(`underpost clone ${username}/${repoName}`);
-      if (!fs.existsSync(`./${repoName}`)) {
-        throw new Error(`privateEngineRepoFactory: clone failed for ${username}/${repoName}`);
-      }
-      if (repoName !== 'engine-private') fs.moveSync(`./${repoName}`, './engine-private');
+      cloneRepository({ repository: `${username}/${repoName}`, destination: './engine-private' });
     },
 
     /**
@@ -2391,7 +1303,7 @@ Prevent build private config repo.`,
         }
       }
       if (ownRuntimeRepo) {
-        const runtimeRepo = Underpost.repo.isRemoteRepo(`${process.env.GITHUB_USERNAME}/${runtime}`);
+        const runtimeRepo = isReachable(`${process.env.GITHUB_USERNAME}/${runtime}`);
         if (runtimeRepo) {
           logger.info(`[resolveInstanceRepo] resolved from ${process.env.GITHUB_USERNAME}/${runtime}`, {
             runtime,
@@ -2404,60 +1316,27 @@ Prevent build private config repo.`,
     },
 
     /**
-     * Performs a shallow sparse Git checkout of a single subdirectory from any
-     * GitHub repository into a local target directory.
-     *
-     * Uses `--depth 1 --no-checkout` + `git sparse-checkout` so only the
-     * requested path is fetched — no full clone of the remote repo.
-     * Skips the clone entirely when `<targetDir>/<subPath>` already exists on
-     * disk (idempotent).
-     *
-     * Requires `GITHUB_TOKEN` to be set in the environment for authenticated
-     * access to private repositories.
-     *
-     * @param {string} subPath - The subdirectory path within the remote repo to
-     *   check out (e.g. `'conf/dd-prototype'`, `'src/api/payments'`).
+     * Checks out one directory of a GitHub repository, shallow and sparse, unless it is there.
+     * @param {string} subPath - The directory inside the repository (e.g. `conf/dd-prototype`).
      * @param {object} [options]
-     * @param {string} [options.repoOwner='underpostnet'] - GitHub organisation or
-     *   user that owns the repository.
-     * @param {string} [options.repoName='engine-private'] - Name of the
-     *   repository on GitHub.
-     * @param {string} [options.targetDir='./engine-private'] - Local directory
-     *   where the repo will be cloned.
-     * @returns {boolean} `true` when the checkout was performed, `false` when it
-     *   was skipped because the target path already existed.
+     * @param {string} [options.repoOwner='underpostnet']
+     * @param {string} [options.repoName='engine-private']
+     * @param {string} [options.targetDir='./engine-private'] - The checkout; it must not hold another one.
+     * @returns {boolean} `false` when the directory was already there.
      * @memberof UnderpostRepository
      */
-    sparseCheckoutDirectory(
-      subPath,
-      options = { repoOwner: 'underpostnet', repoName: 'engine-private', targetDir: './engine-private' },
-    ) {
+    sparseCheckoutDirectory(subPath, options = {}) {
       const { repoOwner = 'underpostnet', repoName = 'engine-private', targetDir = './engine-private' } = options;
-      const localPath = `${targetDir}/${subPath}`;
-      if (fs.existsSync(localPath)) {
-        logger.info('[sparseCheckoutDirectory] path already present, skipping', localPath);
-        return false;
-      }
-      const auth = Underpost.repo.gitAuthFactory(`https://github.com/${repoOwner}/${repoName}.git`);
-      shellExec(`git clone --depth 1 --no-checkout "${auth.url}" ${targetDir}`, {
-        disableLog: true,
-        env: auth.env,
-      });
-      shellExec(`cd ${targetDir} && git sparse-checkout set ${subPath} && git checkout`, { disableLog: true });
-      logger.info('[sparseCheckoutDirectory] sparse checkout complete', localPath);
+      if (fs.existsSync(`${targetDir}/${subPath}`)) return false;
+      cloneRepository({ repository: `${repoOwner}/${repoName}`, destination: targetDir, depth: 1, sparse: [subPath] });
       return true;
     },
 
     /**
-     * Ensures a deploy's public source repo (e.g. `engine-prototype`) is present
-     * next to the engine, so catalog `sourceMoves` the engine tree lacks can be
-     * copied in.
-     *
-     * Clones `../<repoName>` when missing; otherwise fast-forwards it. The working
-     * tree is never reset: it is the git view of edits made in the engine tree,
-     * which ignores those paths, so a pending change there is review material, not
-     * something to discard.
-     *
+     * Ensures a deploy's public source repo (e.g. `engine-prototype`) is present next to the engine,
+     * so catalog `sourceMoves` the engine tree lacks can be copied in: cloned when missing, otherwise
+     * fast-forwarded. The working tree is never reset: it is the git view of edits made in the engine
+     * tree, which ignores those paths, so a pending change there is review material.
      * @param {string} repoName - Public source repo name (e.g. `engine-prototype`).
      * @returns {boolean} `true` when the repo is available on disk.
      * @memberof UnderpostRepository
@@ -2465,14 +1344,11 @@ Prevent build private config repo.`,
     pullSourceRepo(repoName) {
       const username = process.env.GITHUB_USERNAME;
       if (!username || !repoName) return false;
-      const repoPath = `../${repoName}`;
-      const gitUri = `${username}/${repoName}`;
-      if (!fs.existsSync(repoPath)) {
-        shellExec(`cd .. && underpost clone ${gitUri}`, { silent: true });
-      } else {
-        const repoAbsPath = path.resolve(repoPath);
-        shellExec(`git config --global --add safe.directory '${repoAbsPath}'`);
-        shellExec(`cd ${repoPath} && underpost pull . ${gitUri}`, { silent: true });
+      const repoPath = path.resolve(`../${repoName}`);
+      if (!fs.existsSync(repoPath)) cloneRepository({ repository: `${username}/${repoName}`, destination: repoPath });
+      else {
+        declareSafeDirectory(repoPath);
+        pullRepository({ path: repoPath });
       }
       return fs.existsSync(repoPath);
     },

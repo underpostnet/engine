@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 import { awaitDeployMonitor, deployBasePortFactory } from './conf.js';
 import { actionInitLog, loggerFactory } from '../ops/logger.js';
 import { shellArgumentFactory, shellCd, shellExec, shellExecAsync } from './process.js';
+import { cloneRepository } from '../git/git.js';
 import {
   RUNTIME_STATUS,
   setRuntimeStatus,
@@ -215,7 +216,11 @@ class UnderpostStartUp {
       // `node bin/build <deployId> --update-private`, instead of the production one.
       const repoName = Underpost.repo.engineRepoFactory(deployId, { test: options?.privateTestRepo === true });
       const clonePath = nodePath.join(buildBasePath, repoName);
-      shellExec(`underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`, { cwd: buildBasePath });
+      cloneRepository({
+        repository: `${process.env.GITHUB_USERNAME}/${repoName}`,
+        destination: clonePath,
+        replace: true,
+      });
       fs.ensureDirSync(ENGINE_PATH);
       fs.copySync(clonePath, ENGINE_PATH, { overwrite: true, preserveTimestamps: true });
       fs.removeSync(clonePath);

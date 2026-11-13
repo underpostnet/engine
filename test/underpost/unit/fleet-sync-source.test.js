@@ -5,6 +5,10 @@ import Underpost from '../../../src/index.js';
 import { hostAddressesFactory } from '../../../src/cli/wireguard.js';
 
 const syncPrivateConfMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../src/server/git/git.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  defaultBranch: () => 'main',
+}));
 vi.mock('../../../src/server/runtime/conf.js', async (importOriginal) => ({
   ...(await importOriginal()),
   syncPrivateConf: syncPrivateConfMock,
@@ -44,12 +48,10 @@ describe('a fleet command cannot fall back to local execution', () => {
 describe('wireguard sync never switches the checkout it runs from', () => {
   const originalTargets = Underpost.wireguard.syncTargets;
   const originalRunCommand = Underpost.event.runCommand;
-  const originalGetDefaultBranch = Underpost.repo.getDefaultBranch;
 
   afterEach(() => {
     Underpost.wireguard.syncTargets = originalTargets;
     Underpost.event.runCommand = originalRunCommand;
-    Underpost.repo.getDefaultBranch = originalGetDefaultBranch;
     syncPrivateConfMock.mockReset();
   });
 
@@ -121,7 +123,6 @@ describe('wireguard sync never switches the checkout it runs from', () => {
 
   it('publishes an associated deploy private repo before updating remote nodes', async () => {
     const order = [];
-    Underpost.repo.getDefaultBranch = () => 'main';
     Underpost.wireguard.syncTargets = () => [remote];
     syncPrivateConfMock.mockImplementation((deployId) => order.push(`publish:${deployId}`));
     Underpost.event.runCommand = async () => {
@@ -136,7 +137,6 @@ describe('wireguard sync never switches the checkout it runs from', () => {
 
   it('does not publish a deploy private repo for the base engine, a custom command, or a dry run', async () => {
     const published = [];
-    Underpost.repo.getDefaultBranch = () => 'main';
     syncPrivateConfMock.mockImplementation((deployId) => published.push(deployId));
     stub([remote]);
 

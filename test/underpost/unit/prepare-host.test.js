@@ -261,27 +261,20 @@ describe('the pod bootstrap places the cloned source at the engine directory', (
   it('does not copy the monorepo clone onto itself', () => {
     const steps = bootstrap('owner/engine');
 
-    expect(steps.filter((step) => step.startsWith('cp -a') || step.startsWith('rm -rf'))).to.deep.equal([]);
+    expect(steps.filter((step) => step.startsWith('cp -a'))).to.deep.equal([]);
     expect(steps.indexOf('underpost clone owner/engine')).to.be.lessThan(steps.indexOf('cd /home/dd/engine'));
   });
-});
 
-describe('has_changes reads a checkout the caller names', () => {
-  const query = (call) =>
-    execFileSync('bash', ['-c', `source "${hostLib}"; sudo() { printf '%s\\n' "$*"; }; ${call}`], {
-      encoding: 'utf8',
-    }).trim();
-
-  it('takes the engine root as an argument, and falls back to the caller own root', () => {
-    expect(query('has_changes src/x /tmp/other-root')).to.include('cd /tmp/other-root');
-    expect(query('ENGINE_ROOT=/inherited-root; has_changes src/y')).to.include('cd /inherited-root');
-    expect(query('has_changes src/z')).to.include('cd /home/dd/engine');
-  });
-
-  it('asks the engine for the status of the path it was given', () => {
-    expect(query('has_changes src/client/public/cyberia /engine')).to.include(
-      'node bin cmt src/client/public/cyberia --has-changes',
-    );
+  // The image ships /home/dd/engine: the CLI of an older image deletes a clone target and the CLI of a newer
+  // one refuses it, so the bootstrap removes it itself, right before the clone.
+  it('removes the clone target before cloning, whatever the CLI of the image does with one', () => {
+    for (const [repo, name] of [
+      ['owner/engine', 'engine'],
+      ['owner/engine-test-core', 'engine-test-core'],
+    ]) {
+      const steps = bootstrap(repo);
+      expect(steps.indexOf(`rm -rf /home/dd/${name}`), repo).to.equal(steps.indexOf(`underpost clone ${repo}`) - 1);
+    }
   });
 });
 

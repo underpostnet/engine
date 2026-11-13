@@ -12,10 +12,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import Underpost from '../../../index.js';
 import { DR_BACKUP_PROFILE } from '../../../cli/db.js';
 import { listBackups, readBackupManifest, readVerifications } from '../../../server/storage/backup.js';
 import { SOURCE_LOCK_FILE, readSourceLockFile } from '../../../server/release/source-lock.js';
+import { remoteHead } from '../../../server/git/git.js';
 import {
   checkoutGit,
   contentCheckoutRevision,
@@ -189,7 +189,7 @@ export const STAGE_VERIFIERS = Object.freeze({
       throw blocked(`${SOURCE_LOCK_FILE} has changes that are not committed: run cyberia release lock --commit`);
     const head = checkoutGit(root, 'rev-parse', 'HEAD');
     const branch = checkoutGit(root, 'rev-parse', '--abbrev-ref', 'HEAD');
-    const published = Underpost.repo.remoteBranchCommit({ path: root, branch });
+    const published = remoteHead({ path: root, branch });
     if (published !== head)
       throw blocked(
         published

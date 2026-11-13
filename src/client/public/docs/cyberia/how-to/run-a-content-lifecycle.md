@@ -32,13 +32,13 @@ the restore of this one.
 ## 1. Prepare the control node
 
 ```bash
-node bin cmt --switch-repo <engine-repository>
+node bin sync . <engine-repository>
 npm install
 node bin pull ./engine-private underpostnet/engine-private
 node bin host load
 ```
 
-`cmt --switch-repo` replaces the checkout with the engine release, for example
+`sync` replaces the checkout with the engine release, for example
 `underpostnet/engine-test-cyberia`. `npm install` installs the packages its manifest declares:
 without them, the CLI does not load (`Cannot find package 'pngjs'`). `host load` loads the
 production host configuration.
@@ -375,7 +375,7 @@ A command that exits `3` was blocked: a precondition refused it before it change
 
 | Message                                                  | Action                                                                                             |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `Cannot find package 'pngjs'`                            | Run `npm install` after `cmt --switch-repo`                                                        |
+| `Cannot find package 'pngjs'`                            | Run `npm install` after `sync`                                                                     |
 | `<deploy-id> (<host>) holds no content lifecycle`        | Name the Cyberia deploy with `--env-path` ([step 1](#1-prepare-the-control-node))                  |
 | `No MongoDB primary answers in namespace <namespace>`    | Run on the control node, or connect this workstation ([step 5](#5-connect-the-workstation))        |
 | `No content lifecycle <cycle-id> in the development …`   | Run `share` and set `CYBERIA_LIFECYCLE_SHARE` ([step 5](#5-connect-the-workstation))               |

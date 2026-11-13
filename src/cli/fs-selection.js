@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'node:path';
-import UnderpostRepository from './repository.js';
+import { trackedFiles } from '../server/git/git.js';
 
 const manifestFilterNames = ['key', 'fromKey', 'toKey', 'keyRegex'];
 
@@ -82,7 +82,7 @@ const resolveFilesystemSelection = (scope) => {
 
 const resolveGitSelection = (files, scope) => {
   const context = fs.statSync(scope).isDirectory() ? scope : path.dirname(scope);
-  const tracked = new Set(UnderpostRepository.API.getTrackedFiles(context));
+  const tracked = new Set(trackedFiles(context));
   return files.filter((file) => tracked.has(path.resolve(file)));
 };
 

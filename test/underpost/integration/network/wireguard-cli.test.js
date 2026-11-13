@@ -18,7 +18,11 @@ import UnderpostWireguard, {
 } from '../../../../src/cli/wireguard.js';
 import Underpost from '../../../../src/index.js';
 import UnderpostEvent from '../../../../src/cli/event.js';
-import UnderpostRepository from '../../../../src/cli/repository.js';
+// A remote reports `master` as its default branch.
+vi.mock('../../../../src/server/git/git.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  defaultBranch: () => 'master',
+}));
 import { FORWARD_PROXY } from '../../../../src/server/network/forward-proxy.js';
 import { shellHarness } from '../../../support/shell-harness.js';
 
@@ -995,10 +999,6 @@ describe('edge host provisioning', () => {
   });
 
   describe('fleet sync', () => {
-    beforeEach(() => {
-      vi.spyOn(UnderpostRepository.API, 'getDefaultBranch').mockReturnValue('master');
-    });
-
     it('composes the sync sequence against the resolved repositories and branch', () => {
       const previous = process.env.GITHUB_USERNAME;
       process.env.GITHUB_USERNAME = 'fixture-org';
@@ -1166,7 +1166,6 @@ describe('edge host provisioning', () => {
 
     it('reports every node it synced, and does not stop at the first failure', async () => {
       edgeFixture({ files: HUB_IDENTITY_FILES });
-      vi.spyOn(UnderpostRepository.API, 'getDefaultBranch').mockReturnValue('master');
       vi.spyOn(UnderpostEvent.API, 'hubs').mockReturnValue([{ nodeName: 'hub-node', hubHost: HUB_HOST }]);
       vi.spyOn(UnderpostEvent.API, 'spokes').mockReturnValue([{ nodeName: 'control-node', id: 'control-a' }]);
       // Both carry the user a real target resolves with: sync dispatches over SSH only, and

@@ -17,6 +17,7 @@ import {
   writeHostFile,
 } from '../server/runtime/process.js';
 import { loggerFactory, loggerMiddleware } from '../server/ops/logger.js';
+import { downloadDirectory } from '../server/github/github-client.js';
 import {
   controlHostService,
   ensureIptablesRule,
@@ -472,16 +473,14 @@ class UnderpostBaremetal {
         logger.info(`Target directory: ${targetDir}`);
 
         try {
-          // Use Underpost.repo to copy files from GitHub
-          const result = await Underpost.repo.copyGitUrlDirectoryRecursive({
-            gitUrl: 'https://github.com/canonical/packer-maas',
-            directoryPath: templatePath,
-            targetPath: targetDir,
-            branch: 'main',
-            overwrite: false,
+          const { files } = await downloadDirectory({
+            repository: 'canonical/packer-maas',
+            directory: templatePath,
+            target: targetDir,
+            ref: 'main',
           });
 
-          logger.info(`\nSuccessfully copied ${result.filesCount} files`);
+          logger.info(`\nSuccessfully copied ${files.length} files`);
 
           // Create empty workflow configuration entry
           const workflowConfig = {

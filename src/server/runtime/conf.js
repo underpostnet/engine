@@ -22,6 +22,19 @@ import { loggerFactory } from '../ops/logger.js';
 import { isOciRuntime, renderEnv, writeEnv } from './environment.js';
 import { configRejectionFactory } from './config-scope.js';
 import { shellArgumentFactory, shellExec } from './process.js';
+import {
+  cloneRepository,
+  commitChanges,
+  declareSafeDirectory,
+  discardChanges,
+  gitOutput,
+  pullRepository,
+  pushRepository,
+  remoteUrl,
+  remoteUrlFactory,
+  runGit,
+} from '../git/git.js';
+import { commitMessageFactory } from '../release/commit-message.js';
 import { statusPageAssetPathFactory } from '../network/underpost-gateway.js';
 import { COVERAGE_BUNDLE_DIRECTORY } from '../build/coverage.js';
 import underpostConfig from '../../../underpost.config.js';
@@ -2742,10 +2755,11 @@ ${renderHosts}`,
  * Syncs a single deploy id's private configuration into its dedicated
  * `engine-<suffix>-private` repository and pushes the result.
  *
- * Idempotent and safe to rerun: the private repo is cloned when missing or reset to a clean
- * checkout when present, then the deploy id's `conf` folder (its `.env.<env>.oci` runtime
- * overlays included), matching `replica` entries, and any caller-supplied `extraPaths` payloads
- * are mirrored. The commit/push step is a no-op when nothing changed (`silentOnError`).
+ * Idempotent and safe to rerun: the private repo is cloned when missing, or has its changes
+ * discarded and is fast-forwarded when present, then the deploy id's `conf` folder (its
+ * `.env.<env>.oci` runtime overlays included), matching `replica` entries, and any caller-supplied
+ * `extraPaths` payloads are mirrored. Nothing is committed when nothing changed; a failed commit or
+ * push fails the sync.
  *
  * @method syncPrivateConf
  * @param {string} deployId - A concrete deploy id (e.g. `dd-cyberia`), not the `dd` meta id.
@@ -2760,13 +2774,11 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
   const privateRepoPath = `../${privateRepoName}`;
   const cronDeployId = cronDeployIdResolve();
 
-  if (!fs.existsSync(privateRepoPath)) {
-    shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
-  } else {
-    shellExec(`git config --global --add safe.directory '${dir.resolve(privateRepoPath)}'`);
-    shellExec(`cd ${privateRepoPath} && git checkout . && git clean -f -d && underpost pull . ${privateGitUri}`, {
-      silent: true,
-    });
+  if (!fs.existsSync(privateRepoPath)) cloneRepository({ repository: privateGitUri, destination: privateRepoPath });
+  else {
+    declareSafeDirectory(dir.resolve(privateRepoPath));
+    discardChanges({ path: privateRepoPath, force: true, root: true });
+    pullRepository({ path: privateRepoPath });
   }
 
   const confDest = `${privateRepoPath}/conf/${deployId}`;
@@ -2790,13 +2802,34 @@ const syncPrivateConf = (deployId, extraPaths = []) => {
     fs.copySync(`./engine-private/${extraPath}`, `${privateRepoPath}/${extraPath}`);
   }
 
-  shellExec(
-    `cd ${privateRepoPath}` +
-      ` && git add .` +
-      ` && underpost cmt . ci engine-core-conf 'Update ${deployId} conf'` +
-      ` && underpost push . ${privateGitUri}`,
-    { silent: true, silentOnError: true },
-  );
+  publishCheckout({
+    path: privateRepoPath,
+    repository: privateGitUri,
+    message: commitMessageFactory({ type: 'ci', scope: 'engine-core-conf', description: `Update ${deployId} conf` }),
+  });
+};
+
+/**
+ * Stages every change of a checkout and, when there is one, commits it and pushes it to a repository.
+ * @method publishCheckout
+ * @param {object} params
+ * @param {string} params.path - The checkout.
+ * @param {string} params.repository - `owner/repo` the commit is pushed to.
+ * @param {string} params.message - The commit message.
+ * @param {string[]} [params.force] - Paths staged even when ignored.
+ * @returns {boolean} Whether there was a change to publish.
+ * @memberof ServerConfBuilder
+ */
+const publishCheckout = ({ path, repository, message, force = [] }) => {
+  runGit(['add', '-A', '.'], { cwd: path });
+  if (force.length) runGit(['add', '-A', '-f', '--', ...force], { cwd: path });
+  if (!gitOutput(['status', '--porcelain'], { cwd: path })) {
+    logger.info('No changes to publish', { repository });
+    return false;
+  }
+  commitChanges({ path, message });
+  pushRepository({ path, repository });
+  return true;
 };
 
 /**
@@ -2874,13 +2907,7 @@ const TEMPLATE_REPOSITORY_NAME = 'pwa-microservices-template';
  */
 const gitOriginRepositoryName = (repoPath) => {
   if (!fs.existsSync(`${repoPath}/.git`)) return null;
-  const url = shellExec(`cd ${repoPath} && git config --get remote.origin.url`, {
-    stdout: true,
-    silent: true,
-    disableLog: true,
-    silentOnError: true,
-  });
-  const name = typeof url === 'string' ? url.trim().split('/').pop() : '';
+  const name = remoteUrl(repoPath).split('/').pop();
   return name ? name.replace(/\.git$/, '') : null;
 };
 
@@ -2906,20 +2933,8 @@ const ensureTemplateCheckout = ({ toPath, githubUsername, noClone = false }) => 
   if (gitOriginRepositoryName(toPath) === TEMPLATE_REPOSITORY_NAME) return false;
   if (noClone) throw new Error(`buildTemplate: ${toPath} is not a ${repository} checkout (--no-clone)`);
   logger.warn('Restoring template checkout', { toPath, repository });
-
-  // Swap in the clone only once it is complete, so a failed one leaves the checkout as is.
-  const templatePath = dir.resolve(toPath);
-  const stagePath = fs.mkdtempSync(`${dir.dirname(templatePath)}/.${TEMPLATE_REPOSITORY_NAME}-`);
-  try {
-    shellExec(`cd ${stagePath} && node ${dir.resolve('./bin')} clone ${repository}`);
-    const clonePath = `${stagePath}/${TEMPLATE_REPOSITORY_NAME}`;
-    if (gitOriginRepositoryName(clonePath) !== TEMPLATE_REPOSITORY_NAME)
-      throw new Error(`buildTemplate: could not clone ${repository}`);
-    fs.removeSync(templatePath);
-    fs.moveSync(clonePath, templatePath);
-  } finally {
-    fs.removeSync(stagePath);
-  }
+  // The clone takes the place of the checkout only once it is complete; a failed one leaves it as it is.
+  cloneRepository({ repository, destination: dir.resolve(toPath), replace: true });
   return true;
 };
 
@@ -3077,25 +3092,18 @@ const updatePrivateTemplateRepo = async () => {
   const parentPath = dir.dirname(templatePath);
   fs.removeSync(templatePath);
   shellExec('npm run build:template', { cwd: '/home/dd/engine' });
-  shellExec('underpost clone --bare underpostnet/pwa-microservices-template-private', { cwd: parentPath });
+  const repository = 'underpostnet/pwa-microservices-template-private';
+  const gitDir = `${parentPath}/pwa-microservices-template-private.git`;
+  cloneRepository({ repository, destination: gitDir, bare: true, replace: true });
   fs.removeSync(`${templatePath}/.git`);
-  fs.moveSync(`${parentPath}/pwa-microservices-template-private.git`, `${templatePath}/.git`);
+  fs.moveSync(gitDir, `${templatePath}/.git`);
   shellExec(
-    ['npm install --omit=dev --ignore-scripts', 'git init', ...Underpost.repo.gitIdentityCommands(), 'git add .'].join(
-      ' && ',
-    ),
-    { cwd: templatePath },
+    ['npm install --omit=dev --ignore-scripts', 'git init', ...Underpost.repo.gitIdentityCommands()].join(' && '),
+    {
+      cwd: templatePath,
+    },
   );
-  const hasChanges = shellExec(`node bin cmt ${templatePath} --has-changes`, {
-    stdout: true,
-    silent: true,
-    disableLog: true,
-  }).trim();
-  if (hasChanges === '1') {
-    shellExec(
-      `cd ${templatePath} && git commit -m 'Update template' && underpost push . underpostnet/pwa-microservices-template-private`,
-    );
-  }
+  publishCheckout({ path: templatePath, repository, message: 'Update template' });
 };
 
 /**
@@ -3127,19 +3135,21 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   const publishPath = `${parentPath}/${repoName}`;
   const gitDir = `${parentPath}/${repoName}.git`;
   fs.removeSync(gitDir);
+  const repository = `${username}/${repoName}`;
   if (fs.existsSync(`${publishPath}/.git`)) {
     logger.info('Fetch the published history', { repoName });
     fs.moveSync(`${publishPath}/.git`, gitDir);
-    const auth = Underpost.repo.gitAuthFactory(`${username}/${repoName}`);
-    shellExec(
-      `git --git-dir=${gitDir} fetch "${auth.url}" HEAD && git --git-dir=${gitDir} update-ref HEAD FETCH_HEAD`,
-      {
-        env: auth.env,
-      },
-    );
+    const url = remoteUrlFactory(repository);
+    runGit([`--git-dir=${gitDir}`, 'fetch', '--quiet', '--', url, 'HEAD'], { remote: url });
+    runGit([`--git-dir=${gitDir}`, 'update-ref', 'HEAD', 'FETCH_HEAD']);
   } else {
     logger.info('Clone the published history', { repoName });
-    shellExec(`underpost clone --bare ${username}/${repoName}`, { cwd: parentPath, silentOnError: true });
+    try {
+      cloneRepository({ repository, destination: gitDir, bare: true });
+    } catch (error) {
+      if (error.reason !== 'not-found') throw error;
+      logger.info('No published history: the first publish starts one', { repoName });
+    }
   }
 
   // Publishing from a work tree of its own leaves the template checkout its own git
@@ -3157,24 +3167,16 @@ const updatePrivateEngineTestRepo = async (deployId) => {
   // `git init` converts the moved bare repo into a normal work-tree repo (bare
   // clones have no work tree, so `git add` would fail), and bootstraps a fresh
   // repo on first publish. Idempotent — mirrors updatePrivateTemplateRepo.
-  shellExec(`cd ${publishPath}
-git init
-${Underpost.repo.gitIdentityCommands().join('\n')}
-git add -A .`);
+  shellExec(['git init', ...Underpost.repo.gitIdentityCommands()].join(' && '), { cwd: publishPath });
 
   // The bundled coverage report is a build output the artifact has to carry: force-added so a
   // tree-level ignore rule can never silently drop it from the published source.
-  if (fs.existsSync(`${publishPath}/${COVERAGE_BUNDLE_DIRECTORY}`))
-    shellExec(`cd ${publishPath} && git add -A -f ${COVERAGE_BUNDLE_DIRECTORY}`);
-
-  const hasChanges = shellExec(`node bin cmt ${publishPath} --has-changes`, {
-    stdout: true,
-    silent: true,
-    disableLog: true,
-  }).trim();
-  if (hasChanges === '1')
-    shellExec(`cd ${publishPath} && git commit -m 'Update ${repoName}' && underpost push . ${username}/${repoName}`);
-  else logger.info('No changes to publish', { repoName });
+  publishCheckout({
+    path: publishPath,
+    repository,
+    message: `Update ${repoName}`,
+    force: fs.existsSync(`${publishPath}/${COVERAGE_BUNDLE_DIRECTORY}`) ? [COVERAGE_BUNDLE_DIRECTORY] : [],
+  });
 };
 
 /**

@@ -28,6 +28,7 @@ import {
 import { loggerFactory } from '../server/ops/logger.js';
 import { HOST_VOLUME_ROOT } from '../server/runtime/environment.js';
 import { shellExec } from '../server/runtime/process.js';
+import { discardChanges } from '../server/git/git.js';
 import { podSchedulingYaml } from '../server/runtime/pod-scheduling.js';
 import { activeExecutionProfile } from '../server/build/execution.js';
 import { ensureContainerStorage, ensureContainerStorageSubtree } from '../server/security/container-storage.js';
@@ -751,7 +752,8 @@ ${Underpost.deploy
         // in the class, and (port, protocol, hostname) must remain unique across
         // that complete set.
         const gatewayName = Underpost.ingress.gatewayNameFactory({ deployId, env });
-        const publicScheme = Underpost.tls.terminates({ environment: env, options }) ? 'https' : 'http';
+        // Only a redirect needs the TLS policy: a deploy with no hosts names none.
+        const publicScheme = () => (Underpost.tls.terminates({ environment: env, options }) ? 'https' : 'http');
         const trafficServiceName = Underpost.deploy.trafficServiceNameFactory({ deployId, env });
         const gatewayHosts = [];
 
@@ -872,7 +874,7 @@ ${Underpost.deploy
                 const entries = plan.filter((entry) => entry.route === route);
                 const { redirect, destination } = entries[0];
                 const { port } = destination;
-                const location = redirect && `${publicScheme}://${destination.host}`;
+                const location = redirect && `${publicScheme()}://${destination.host}`;
                 const direct = entries.filter((entry) => !redirect && (entry.service || !intercepted));
                 const edge = entries.filter((entry) => !direct.includes(entry));
                 if (direct.length)
@@ -2192,7 +2194,7 @@ ${grpcPortsList}
       const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
       const rootVolumeHostPath = `${HOST_VOLUME_ROOT}/${pvId}`;
       if (options.gitClean && volume.volumeMountPath) {
-        Underpost.repo.clean({ paths: [volume.volumeMountPath] });
+        discardChanges({ path: volume.volumeMountPath, force: true });
       }
       // A hostPath volume holds its data on one node, and the PV pins the pods to it: the manifest refuses
       // more than one node before any data ships.

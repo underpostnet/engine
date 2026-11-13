@@ -330,10 +330,10 @@ node bin run template-deploy sync-engine-cyberia --dev
 
 When a `sync-engine-<conf-id>` path is provided, the commit tag becomes `ci package-pwa-microservices-template-sync-engine-<conf-id>`, targeting a specific deployment sync in the CI pipeline.
 
-| Option    | Description      |
-| --------- | ---------------- |
-| `--dev`   | Development mode |
-| `--force` | Force push       |
+| Option    | Description                                                                               |
+| --------- | ----------------------------------------------------------------------------------------- |
+| `--dev`   | Development mode                                                                          |
+| `--force` | Replaces the remote branches only while they hold what the checkouts last fetched (lease) |
 
 ---
 
@@ -359,7 +359,7 @@ Only the source repository is named. The private configuration repository is der
 
 The owner is taken from the reference, which may be an `owner/repo` slug or a full clone URL.
 
-Both checkouts are **replaced**, not merged — the same git commands `underpost cmt --switch-repo` and the fleet sync run, so a node reached by `run pull` and a node reached by `underpost wireguard --sync` land on the same commit by the same operation. A node that moved onto a test source repo comes back without being reprovisioned, and one that drifted onto commits of its own is brought back rather than refused by a fast-forward pull.
+Both checkouts are **replaced**, not merged — the same git steps `underpost sync` and the fleet sync run, so a node reached by `run pull` and a node reached by `underpost wireguard --sync` land on the same commit by the same operation. A node that moved onto a test source repo comes back without being reprovisioned, and one that drifted onto commits of its own is brought back rather than refused by a fast-forward pull.
 
 | Option                         | Description                                                                                                    |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |

@@ -22,6 +22,14 @@ import {
   forwardProxyUnitFactory,
 } from '../../../../src/server/network/forward-proxy.js';
 import { redactSensitiveText } from '../../../../src/server/ops/logger.js';
+import { gitAuth } from '../../../../src/server/git/git.js';
+
+// The default branch of a repository, as the remote would report it.
+const defaultBranchOf = vi.hoisted(() => ({ resolve: (repo) => (repo.endsWith('/engine') ? 'master' : 'main') }));
+vi.mock('../../../../src/server/git/git.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  defaultBranch: (repo) => defaultBranchOf.resolve(repo),
+}));
 import { ShellExecError, shellArgumentFactory } from '../../../../src/server/runtime/process.js';
 import { probeGroupsFactory, prometheusConfFactory } from '../../../../src/server/ops/monitoring.js';
 import fs from 'node:fs';
@@ -1382,14 +1390,11 @@ describe('node document resolution', () => {
 describe('engine sync', () => {
   const account = process.env.GITHUB_USERNAME;
   const token = process.env.GITHUB_TOKEN;
-  let getDefaultBranch;
 
   beforeEach(() => {
-    getDefaultBranch = Underpost.repo.getDefaultBranch;
-    Underpost.repo.getDefaultBranch = (repo) => (repo.endsWith('/engine') ? 'master' : 'main');
+    defaultBranchOf.resolve = (repo) => (repo.endsWith('/engine') ? 'master' : 'main');
   });
   afterEach(() => {
-    Underpost.repo.getDefaultBranch = getDefaultBranch;
     if (account === undefined) delete process.env.GITHUB_USERNAME;
     else process.env.GITHUB_USERNAME = account;
     if (token === undefined) delete process.env.GITHUB_TOKEN;
@@ -1408,13 +1413,11 @@ describe('engine sync', () => {
 
   it('keeps GitHub credentials out of Git URLs and command arguments', () => {
     process.env.GITHUB_TOKEN = 'github-token-fixture';
-    const auth = Underpost.repo.gitAuthFactory('https://x-access-token:stale-token@github.com/underpostnet/engine.git');
+    const { variables } = gitAuth('https://github.com/underpostnet/engine.git', { env: {} });
 
-    expect(auth.url).to.equal('https://github.com/underpostnet/engine.git');
-    expect(auth.url).to.not.match(/token|@github/);
-    expect(auth.env.GIT_TERMINAL_PROMPT).to.equal('0');
-    expect(auth.env.GIT_CONFIG_KEY_1).to.equal('http.https://github.com/.extraheader');
-    expect(Buffer.from(auth.env.GIT_CONFIG_VALUE_1.split(' ').pop(), 'base64').toString()).to.equal(
+    expect(variables.GIT_TERMINAL_PROMPT).to.equal('0');
+    expect(variables.GIT_CONFIG_KEY_2).to.equal('http.https://github.com/.extraheader');
+    expect(Buffer.from(variables.GIT_CONFIG_VALUE_2.split(' ').pop(), 'base64').toString()).to.equal(
       'x-access-token:github-token-fixture',
     );
   });
@@ -1485,9 +1488,9 @@ describe('engine sync', () => {
       expect(command).to.not.include('node bin');
       // The credential lives in a subshell, and the token only as the header git reads.
       expect(command).to.match(/^\( export GIT_TERMINAL_PROMPT='0' /);
-      expect(command).to.include("GIT_CONFIG_KEY_1='http.https://github.com/.extraheader'");
+      expect(command).to.include("GIT_CONFIG_KEY_2='http.https://github.com/.extraheader'");
       expect(command).to.not.include('github-token-fixture');
-      expect(command).to.match(/ clean -f -d && .* fetch --force .* reset --hard FETCH_HEAD && .* checkout -B /);
+      expect(command).to.match(/ 'fetch' .* && .* 'checkout' '--quiet' '--force' '-B' .* && .* 'clean' /);
     }
   });
 
@@ -1528,9 +1531,11 @@ describe('engine sync', () => {
 
   it('names the branch the node must fetch instead of letting it guess', () => {
     process.env.GITHUB_USERNAME = 'someone';
-    Underpost.repo.getDefaultBranch = () => 'trunk';
+    defaultBranchOf.resolve = () => 'trunk';
     expect(labelsOf()).to.include('switch . to someone/engine trunk');
-    expect(UnderpostWireguard.API.syncCommands()[1].command).to.include('checkout -B trunk FETCH_HEAD');
+    expect(UnderpostWireguard.API.syncCommands()[1].command).to.include(
+      "'-B' 'trunk' '--track' 'refs/remotes/origin/trunk'",
+    );
   });
 
   it('reaches a node once, chaining every declared step in order', () => {

@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import { readFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
+import path from 'node:path';
 import shell from 'shelljs';
 import {
   DEFAULT_DEPLOY_ID,
@@ -44,6 +45,34 @@ import {
   waitForPort,
 } from '../../../src/server/runtime/conf.js';
 import UnderpostState from '../../../src/cli/state.js';
+import { cloneRepository } from '../../../src/server/git/git.js';
+
+// The Git runtime records what the conf flows ask of it; no repository is touched.
+const gitState = vi.hoisted(() => ({ calls: [], status: '', origin: '' }));
+vi.mock('../../../src/server/git/git.js', async (importOriginal) => {
+  const record = (operation) =>
+    vi.fn((params) => {
+      gitState.calls.push({ operation, ...params });
+      return {};
+    });
+  return {
+    ...(await importOriginal()),
+    cloneRepository: record('clone'),
+    commitChanges: record('commit'),
+    declareSafeDirectory: vi.fn(),
+    discardChanges: record('discard'),
+    gitOutput: vi.fn((args) => (args[0] === 'status' ? gitState.status : '')),
+    pullRepository: record('pull'),
+    pushRepository: record('push'),
+    remoteUrl: vi.fn(() => gitState.origin),
+    runGit: vi.fn((args) => {
+      gitState.calls.push({ operation: 'git', args });
+      return { code: 0, stdout: '', stderr: '' };
+    }),
+  };
+});
+const gitOperations = (operation) => gitState.calls.filter((call) => call.operation === operation);
+beforeEach(() => Object.assign(gitState, { calls: [], status: '', origin: '' }));
 
 const withArgv = (argv, run) => {
   const previous = process.argv;
@@ -742,19 +771,36 @@ describe('private conf sync', () => {
 
   it('clones the private repository when the checkout is missing', () => {
     checkout({ present: false });
+    gitState.status = ' M conf/dd-core/conf.server.json';
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
-    expect(commands[0]).to.equal('cd .. && underpost clone fixture-org/engine-core-private');
-    expect(commands.some((command) => command.includes('underpost push . fixture-org/engine-core-private'))).to.equal(
-      true,
-    );
+    expect(gitOperations('clone')).to.deep.equal([
+      { operation: 'clone', repository: 'fixture-org/engine-core-private', destination: '../engine-core-private' },
+    ]);
+    expect(gitOperations('commit').map(({ message }) => message)).to.deep.equal([
+      'ci(engine-core-conf): ⚙️ Update dd-core conf',
+    ]);
+    expect(gitOperations('push')).to.deep.equal([
+      { operation: 'push', path: '../engine-core-private', repository: 'fixture-org/engine-core-private' },
+    ]);
   });
 
-  it('resets an existing checkout rather than cloning over it', () => {
+  it('discards the changes of an existing checkout and fast-forwards it rather than cloning over it', () => {
     checkout({ present: true, cronId: 'dd-cron' });
     vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
-    expect(commands.some((command) => command.includes('git checkout . && git clean -f -d'))).to.equal(true);
-    expect(commands.some((command) => command.includes('underpost clone'))).to.equal(false);
+    expect(gitOperations('discard')).to.deep.equal([
+      { operation: 'discard', path: '../engine-core-private', force: true, root: true },
+    ]);
+    expect(gitOperations('pull')).to.deep.equal([{ operation: 'pull', path: '../engine-core-private' }]);
+    expect(gitOperations('clone')).to.deep.equal([]);
+  });
+
+  it('commits and pushes nothing when the mirror changed nothing', () => {
+    checkout({ present: true });
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
+    expect(gitOperations('commit')).to.deep.equal([]);
+    expect(gitOperations('push')).to.deep.equal([]);
   });
 
   it('mirrors only the payload entries belonging to the deploy', () => {
@@ -821,9 +867,6 @@ describe('private conf sync', () => {
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest) => copied.push(`${src} -> ${dest}`));
     withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => syncPrivateConf('dd-core'));
     expect(copied.some((entry) => entry.includes('null'))).to.equal(false);
-    expect(commands.some((command) => command.includes('underpost push . fixture-org/engine-core-private'))).to.equal(
-      true,
-    );
   });
 
   it('reports that a deploy declares no sources', () => {
@@ -872,17 +915,8 @@ describe('private conf sync', () => {
 });
 
 describe('template checkout identity', () => {
-  let commands;
-
   beforeEach(() => {
-    commands = [];
-    vi.spyOn(shell, 'exec').mockImplementation((command) => {
-      commands.push(command);
-      const stdout = command.includes('remote.origin.url')
-        ? 'https://github.com/underpostnet/pwa-microservices-template.git\n'
-        : '';
-      return { code: 0, stdout, stderr: '', toString: () => stdout };
-    });
+    gitState.origin = 'https://github.com/underpostnet/pwa-microservices-template.git';
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -899,14 +933,14 @@ describe('template checkout identity', () => {
 
   it('reports no repository when the checkout declares no origin', () => {
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    vi.spyOn(shell, 'exec').mockReturnValue({ code: 1, stdout: '', stderr: '', toString: () => '' });
+    gitState.origin = '';
     expect(gitOriginRepositoryName('../detached')).to.equal(null);
   });
 
   it('leaves a checkout that already is the template alone', () => {
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     expect(ensureTemplateCheckout({ toPath: '../pwa-microservices-template' })).to.equal(false);
-    expect(commands.some((command) => command.includes('clone'))).to.equal(false);
+    expect(gitOperations('clone')).to.deep.equal([]);
   });
 
   // Publishing steps swap the checkout's `.git` for a product repository's, so
@@ -914,42 +948,32 @@ describe('template checkout identity', () => {
   // back into the base template package.json.
   it('refuses to reuse a foreign checkout under --no-clone', () => {
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    vi.spyOn(shell, 'exec').mockReturnValue({
-      code: 0,
-      stdout: 'git@github.com:o/engine-core.git\n',
-      toString: () => '',
-    });
+    gitState.origin = 'git@github.com:o/engine-core.git';
     expect(() => ensureTemplateCheckout({ toPath: '../x', noClone: true })).to.throw('is not a');
   });
 
-  it('stages a clone and swaps it in only once it is complete', () => {
-    const origins = new Map();
+  it('replaces a foreign checkout with a clone of the template, swapped in once it is complete', () => {
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    vi.spyOn(fs, 'mkdtempSync').mockImplementation((prefix) => `${prefix}stage`);
-    vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
-    const moved = [];
-    vi.spyOn(fs, 'moveSync').mockImplementation((src, dest) => moved.push(`${src} -> ${dest}`));
-    vi.spyOn(shell, 'exec').mockImplementation((command) => {
-      commands.push(command);
-      const stdout = command.includes('remote.origin.url')
-        ? origins.get(command) || (command.includes('stage') ? 'o/pwa-microservices-template.git' : 'o/engine-core.git')
-        : '';
-      return { code: 0, stdout, stderr: '', toString: () => stdout };
-    });
-
+    gitState.origin = 'git@github.com:o/engine-core.git';
     expect(ensureTemplateCheckout({ toPath: '../pwa-microservices-template', githubUsername: 'fixture-org' })).to.equal(
       true,
     );
-    expect(commands.some((command) => command.includes('clone fixture-org/pwa-microservices-template'))).to.equal(true);
-    expect(moved.length).to.equal(1);
+    expect(gitOperations('clone')).to.deep.equal([
+      {
+        operation: 'clone',
+        repository: 'fixture-org/pwa-microservices-template',
+        destination: path.resolve('../pwa-microservices-template'),
+        replace: true,
+      },
+    ]);
   });
 
-  it('fails when the staged clone is not the template either', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    vi.spyOn(fs, 'mkdtempSync').mockImplementation((prefix) => `${prefix}stage`);
-    vi.spyOn(fs, 'removeSync').mockImplementation(() => undefined);
-    vi.spyOn(shell, 'exec').mockReturnValue({ code: 0, stdout: 'o/engine-core.git', toString: () => '' });
-    expect(() => ensureTemplateCheckout({ toPath: '../x' })).to.throw('could not clone');
+  it('fails with the clone, leaving the checkout to the runtime that refused to replace it', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    vi.mocked(cloneRepository).mockImplementationOnce(() => {
+      throw new Error('git clone: Repository not found');
+    });
+    expect(() => ensureTemplateCheckout({ toPath: '../x' })).to.throw('Repository not found');
   });
 
   it('empties the work tree of everything a build reconstructs', () => {
@@ -967,10 +991,10 @@ describe('private template publishing', () => {
   // Shell commands and file operations share one ordered log; no real path is touched.
   const stubShell = (hasChanges) => {
     commands = [];
+    gitState.status = hasChanges ? ' M package.json' : '';
     vi.spyOn(shell, 'exec').mockImplementation((command) => {
       commands.push(command);
-      const stdout = command.includes('--has-changes') ? hasChanges : '';
-      return { code: 0, stdout, stderr: '', toString: () => stdout };
+      return { code: 0, stdout: '', stderr: '', toString: () => '' };
     });
     vi.spyOn(process, 'chdir').mockImplementation(() => {});
     vi.spyOn(fs, 'removeSync').mockImplementation((target) => commands.push(`remove ${target}`));
@@ -980,67 +1004,81 @@ describe('private template publishing', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('commits and pushes the private template only when it changed', async () => {
-    stubShell('1');
+    stubShell(true);
     await updatePrivateTemplateRepo();
-    expect(commands.some((command) => command.includes("git commit -m 'Update template'"))).to.equal(true);
+    expect(gitOperations('clone')).to.deep.equal([
+      {
+        operation: 'clone',
+        repository: 'underpostnet/pwa-microservices-template-private',
+        destination: '/home/dd/pwa-microservices-template-private.git',
+        bare: true,
+        replace: true,
+      },
+    ]);
+    expect(gitOperations('commit').map(({ message }) => message)).to.deep.equal(['Update template']);
+    expect(gitOperations('push').map(({ repository }) => repository)).to.deep.equal([
+      'underpostnet/pwa-microservices-template-private',
+    ]);
   });
 
   it('leaves the private template alone when nothing changed', async () => {
-    stubShell('0');
+    stubShell(false);
     await updatePrivateTemplateRepo();
-    expect(commands.some((command) => command.includes('git commit'))).to.equal(false);
+    expect(gitOperations('commit')).to.deep.equal([]);
+    expect(gitOperations('push')).to.deep.equal([]);
   });
 
   it('refuses to publish a test repo before the template is assembled', async () => {
-    stubShell('1');
+    stubShell(true);
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
     await expect(updatePrivateEngineTestRepo('dd-core')).rejects.toThrow('assemble the template first');
   });
 
   it('publishes the assembled template from a work tree of its own', async () => {
-    stubShell('1');
+    stubShell(true);
     vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => filePath !== '/home/dd/engine-test-core/.git');
     const copied = [];
     vi.spyOn(fs, 'copySync').mockImplementation((src, dest, options) => copied.push({ src, dest, options }));
     await withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => updatePrivateEngineTestRepo('dd-core'));
 
-    expect(
-      commands.some((command) => command.includes('underpost clone --bare fixture-org/engine-test-core')),
-    ).to.equal(true);
+    expect(gitOperations('clone')).to.deep.equal([
+      {
+        operation: 'clone',
+        repository: 'fixture-org/engine-test-core',
+        destination: '/home/dd/engine-test-core.git',
+        bare: true,
+      },
+    ]);
     expect(copied[0].dest).to.equal('/home/dd/engine-test-core');
     // The template's own git history and installed modules belong to the
     // checkout, not to the published source.
     expect(copied[0].options.filter('/home/dd/pwa-microservices-template/.git')).to.equal(false);
     expect(copied[0].options.filter('/home/dd/pwa-microservices-template/node_modules/x')).to.equal(false);
     expect(copied[0].options.filter('/home/dd/pwa-microservices-template/src/index.js')).to.equal(true);
-    expect(commands.some((command) => command.includes("git commit -m 'Update engine-test-core'"))).to.equal(true);
+    expect(gitOperations('commit').map(({ message }) => message)).to.deep.equal(['Update engine-test-core']);
   });
 
   it('fetches only what the test repo gained since the last publish', async () => {
-    stubShell('1');
+    stubShell(true);
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     vi.spyOn(fs, 'copySync').mockImplementation(() => undefined);
     await withEnv({ GITHUB_USERNAME: 'fixture-org' }, () => updatePrivateEngineTestRepo('dd-core'));
 
-    expect(commands.some((command) => command.includes('clone --bare'))).to.equal(false);
-    expect(
-      commands.some(
-        (command) =>
-          command.includes(
-            '/home/dd/engine-test-core.git fetch "https://github.com/fixture-org/engine-test-core" HEAD',
-          ) && command.includes('update-ref HEAD FETCH_HEAD'),
-      ),
-    ).to.equal(true);
+    expect(gitOperations('clone')).to.deep.equal([]);
+    expect(gitOperations('git').map(({ args }) => args.join(' '))).to.include.members([
+      '--git-dir=/home/dd/engine-test-core.git fetch --quiet -- https://github.com/fixture-org/engine-test-core HEAD',
+      '--git-dir=/home/dd/engine-test-core.git update-ref HEAD FETCH_HEAD',
+    ]);
     const kept = commands.indexOf('move /home/dd/engine-test-core/.git /home/dd/engine-test-core.git');
     expect(kept).to.be.greaterThan(-1);
     expect(kept).to.be.lessThan(commands.indexOf('remove /home/dd/engine-test-core'));
   });
 
   it('reports nothing to publish when the test repo is up to date', async () => {
-    stubShell('0');
+    stubShell(false);
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     vi.spyOn(fs, 'copySync').mockImplementation(() => undefined);
     await updatePrivateEngineTestRepo('dd-core');
-    expect(commands.some((command) => command.includes('git commit'))).to.equal(false);
+    expect(gitOperations('commit')).to.deep.equal([]);
   });
 });

@@ -22,10 +22,17 @@
 | [`site`](#underpost-site) | Provisions sites in the configuration of a deployment: clients, host/path routes, and the existing APIs and components they use. Each operation prints its change plan and applies it as one change set. |
 | [`client`](#underpost-client) | Builds client assets, single replicas, and/or syncs environment ports. |
 | [`start`](#underpost-start) | Initiates application servers, build pipelines, or other defined services based on the deployment ID. |
-| [`clone`](#underpost-clone) | Clones a specified GitHub repository into the current directory. |
-| [`pull`](#underpost-pull) | Pulls the latest changes from a specified GitHub repository. |
-| [`cmt`](#underpost-cmt) | Manages commits to a GitHub repository, supporting various commit types and options. |
-| [`push`](#underpost-push) | Pushes committed changes from a local repository to a remote GitHub repository. |
+| [`clone`](#underpost-clone) | Clones a repository into a directory that does not exist or is empty. |
+| [`fetch`](#underpost-fetch) | Updates the remote-tracking refs of a repository; the working tree and the branches stay. |
+| [`pull`](#underpost-pull) | Fast-forwards the current branch to a remote branch. Never merges, rebases or replaces: a diverged history fails and nothing changes. |
+| [`push`](#underpost-push) | Publishes HEAD to a branch of a remote and logs the published commit. |
+| [`sync`](#underpost-sync) | Replaces a managed checkout with the tip of a repository branch: origin is repointed, local commits of the branch, tracked changes and untracked files are discarded, ignored files stay. For deploy checkouts, never for working repositories. |
+| [`discard`](#underpost-discard) | Lists the staged, unstaged and untracked changes under each path, with its repository root, and with --force discards them. |
+| [`init`](#underpost-init) | Initializes a repository, or keeps the one there, with the commit identity of GITHUB_USERNAME and GITHUB_EMAIL. |
+| [`status`](#underpost-status) | Reads the state of a repository; nothing changes. One query per call; the short status without one. |
+| [`cmt`](#underpost-cmt) | Commits the staged changes with a Conventional Commit message: type(scope): description. |
+| [`merge-dependabot`](#underpost-merge-dependabot) | Fetches origin and merges each origin/dependabot/* branch into the base branch, one at a time, and prints ok or failed for each. Local changes are stashed and come back, with the branch you were on; nothing is pushed. |
+| [`github`](#underpost-github) | GitHub automation: workflows and repository metadata. |
 | [`static`](#underpost-static) | Manages static build of page, bundles, and documentation with comprehensive customization options. |
 | [`root`](#underpost-root) | Displays the root path of the npm installation. |
 | [`ip`](#underpost-ip) | Displays the current public machine IP addresses. |
@@ -374,120 +381,312 @@ Initiates application servers, build pipelines, or other defined services based 
 
 ## underpost clone
 
-Clones a specified GitHub repository into the current directory.
+Clones a repository into a directory that does not exist or is empty.
 
-**Usage:** `underpost clone [options] <uri>`
+**Usage:** `underpost clone [options] <repository> [destination]`
 
 ### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
+| `repository` | The repository: "owner/repo" (GitHub over HTTPS), a clone URL or a path. |
+| `destination` | The checkout directory; the repository name (<name>.git with --bare) by default. |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
-| `--bare` | Performs a bare clone, downloading only the .git files. |
-| `--g8` | Uses the g8 repository extension for cloning. |
+| `--branch <branch>` | Checks out this branch instead of the default one. |
+| `--depth <depth>` | Clones a shallow history of this many commits. |
+| `--sparse <directories>` | Checks out only these comma-separated directories. |
+| `--bare` | Clones the git directory only. |
+| `--replace` | Replaces an existing destination: the clone lands beside it and takes its place once it succeeded. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost fetch
+
+Updates the remote-tracking refs of a repository; the working tree and the branches stay.
+
+**Usage:** `underpost fetch [options] [path]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The repository directory. (default: ".") |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--remote <remote>` | The remote to fetch. (default: "origin") |
+| `--branch <branch>` | Fetches only this branch. |
+| `--prune` | Drops the tracking refs of the branches the remote no longer has. |
 | `-h, --help` | display help for command |
 
 ---
 
 ## underpost pull
 
-Pulls the latest changes from a specified GitHub repository.
+Fast-forwards the current branch to a remote branch. Never merges, rebases or replaces: a diverged history fails and nothing changes.
 
-**Usage:** `underpost pull [options] <path> <uri>`
-
-### Arguments
-
-| Argument | Description |
-| --- | --- |
-| `path` | The absolute or relative directory path where the repository is located. |
-| `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
-
-### Options
-
-| Option | Description |
-| --- | --- |
-| `--g8` | Uses the g8 repository extension for pulling. |
-| `-h, --help` | display help for command |
-
----
-
-## underpost cmt
-
-Manages commits to a GitHub repository, supporting various commit types and options.
-
-**Usage:** `underpost cmt [options] [path] [commit-type] [module-tag] [message]`
+**Usage:** `underpost pull [options] [path] [repository]`
 
 ### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `path` | The absolute or relative directory path of the repository. |
-| `commit-type` | The type of commit to perform. Options: feat, fix, docs, style, refactor, perf, ci, cd, infra, build, test, chore, revert, backup. |
-| `module-tag` | Optional: Sets a specific module tag for the commit. |
-| `message` | Optional: Provides an additional custom message for the commit. |
+| `path` | The repository directory. (default: ".") |
+| `repository` | Pulls from this repository ("owner/repo" or a URL) instead of the tracked remote. |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
-| `--log [latest-n]` | Shows commit history from the specified number of latest n path commits. |
-| `--last-msg <latest-n>` | Displays the last n commit message. |
-| `--empty` | Allows committing with empty files. |
-| `--copy` | Copies the generated commit message to the clipboard. |
-| `--info` | Displays information about available commit types. |
-| `--diff` | Shows the current git diff changes. |
-| `--edit` | Edit last commit. |
-| `--deploy-id <deploy-id>` | Sets the deployment configuration ID for the commit context. |
-| `--cached` | Commit staged changes only or context. |
-| `--init-repo [origin]` | Initialize a git repository at the specified path. Optionally set the git remote origin URL. |
-| `--hashes <hashes>` | Comma-separated list of specific file hashes of commits. |
-| `--extension <extension>` | specific file extensions of commits. |
-| `--changelog` | Print the plain changelog of the last N commits (see --from-n-commit, default 1). |
-| `--changelog-build` | Builds a CHANGELOG.md from the latest five versions |
-| `--changelog-min-version <version>` | Sets the minimum version limit for --changelog-build (default: 2.85.0) |
-| `--changelog-no-hash` | Excludes commit hashes from the generated changelog entries (used with --changelog-build). |
-| `--changelog-msg` | Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries. |
-| `--from-n-commit <n>` | Number of latest commits to include in --changelog/--changelog-msg (default: 1). |
-| `--propagate-msg` | Prints the changelog payload carried by the propagation chain, read from the PROPAGATED_MESSAGE environment variable and stripped of the commit subject wrapper. Falls back to --changelog-msg over the last N commits (see --from-n-commit) when nothing was propagated. |
-| `--unpush` | With --log, automatically sets range to unpushed commits ahead of remote. |
-| `-b` | Shows the current Git branch name. |
-| `-p [branch]` | Shows the reflog for the specified branch. |
-| `--bc <commit-hash>` | Shows branches that contain the specified commit. |
-| `--is-remote-repo <url-repo>` | Checks whether a remote Git repository URL is reachable. Prints true or false. |
-| `--has-changes` | Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise. |
-| `--remote-url` | Prints the current git remote URL (origin) in plain text. |
-| `--switch-repo <url>` | Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo". |
-| `--target-branch <branch>` | Target branch for --switch-repo (default: remote default branch). |
-| `--delete-remote-branch <branch>` | Deletes <branch> from origin, reaching a GitHub origin with GITHUB_TOKEN, and drops its remote-tracking ref. |
-| `--merge-dependabot` | Fetches origin and merges every origin/dependabot/* branch into master, one at a time. Stashes local changes first and restores them, with the original branch, at the end. A failed merge is aborted; remote branches are never deleted. |
+| `--remote <remote>` | Pulls from this remote instead of the tracked one. |
+| `--branch <branch>` | The remote branch; the tracked branch, else the current branch name, by default. |
 | `-h, --help` | display help for command |
 
 ---
 
 ## underpost push
 
-Pushes committed changes from a local repository to a remote GitHub repository.
+Publishes HEAD to a branch of a remote and logs the published commit.
 
-**Usage:** `underpost push [options] <path> <uri>`
+**Usage:** `underpost push [options] [path] [repository]`
 
 ### Arguments
 
 | Argument | Description |
 | --- | --- |
-| `path` | The absolute or relative directory path of the repository. |
-| `uri` | The URI of the GitHub repository (e.g., "username/repository"). |
+| `path` | The repository directory. (default: ".") |
+| `repository` | Pushes to this repository ("owner/repo" or a URL) instead of the tracked remote. |
 
 ### Options
 
 | Option | Description |
 | --- | --- |
-| `-f` | Forces the push, overwriting the remote repository history. |
-| `--g8` | Uses the g8 repository extension for pushing. |
+| `--remote <remote>` | Pushes to this remote instead of the tracked one. |
+| `--branch <branch>` | The remote branch; the current branch name by default. |
+| `--force-with-lease` | Replaces the remote branch only while it holds what its remote-tracking ref last saw (a configured remote). |
+| `-f, --force` | Replaces the remote branch whatever it holds, rewriting its history. |
+| `--delete <branch>` | Deletes this branch of the remote, with its remote-tracking ref, instead of pushing. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost sync
+
+Replaces a managed checkout with the tip of a repository branch: origin is repointed, local commits of the branch, tracked changes and untracked files are discarded, ignored files stay. For deploy checkouts, never for working repositories.
+
+**Usage:** `underpost sync [options] <path> <repository>`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The managed checkout; cloned when it holds none. |
+| `repository` | The repository: "owner/repo" or a URL. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--branch <branch>` | The branch to land on; the default branch of the repository by default. |
+| `--dry-run` | Reports what the replacement would discard and changes nothing. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost discard
+
+Lists the staged, unstaged and untracked changes under each path, with its repository root, and with --force discards them.
+
+**Usage:** `underpost discard [options] <paths...>`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `paths` | Repository roots, or directories inside one: only changes under them are discarded. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--force` | Discards the listed changes; without it nothing changes. |
+| `--ignored` | Discards ignored files too. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost init
+
+Initializes a repository, or keeps the one there, with the commit identity of GITHUB_USERNAME and GITHUB_EMAIL.
+
+**Usage:** `underpost init [options] [path]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The repository directory, created when missing. (default: ".") |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--origin <repository>` | Points origin at this repository ("owner/repo" or a URL). |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost status
+
+Reads the state of a repository; nothing changes. One query per call; the short status without one.
+
+**Usage:** `underpost status [options] [path]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The repository directory. (default: ".") |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `-b, --branch` | The current branch. |
+| `--reflog [branch]` | The reflog of a branch, the current one by default. |
+| `--contains <commit>` | The branches that contain a commit. |
+| `--log [count]` | The latest commits with their files, and the command that shows their diffs. |
+| `--unpushed` | With --log: the commits of HEAD no branch of origin holds, after fetching origin. |
+| `--diff` | The word-diff command of the working tree changes. |
+| `--staged` | With --diff: of the staged changes. |
+| `--range <from[,to]>` | With --diff: between two commits, HEAD by default. |
+| `--extension <extension>` | With --diff --range: only files with this extension. |
+| `--message [nth]` | The message of the nth latest commit, the last by default. |
+| `--remote-url` | The URL of origin, without credentials. |
+| `--changes` | Prints "1" when the working tree has staged, unstaged or untracked changes, nothing otherwise. |
+| `--reachable <repository>` | Whether a remote repository answers: true or false. |
+| `--copy` | Copies the answer to the clipboard instead of printing it. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost cmt
+
+Commits the staged changes with a Conventional Commit message: type(scope): description.
+
+**Usage:** `underpost cmt [options] [path] [type] [scope] [message]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The repository directory. (default: ".") |
+| `type` | The commit type: feat, fix, docs, style, refactor, perf, ci, cd, infra, build, test, chore, revert, backup, or a custom one with a message. (default: "feat") |
+| `scope` | The scope of the commit. |
+| `message` | The commit description; the default one of the type otherwise. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--empty` | Commits with nothing staged. |
+| `--amend` | Amends the last commit with the staged changes, keeping its message. |
+| `--copy` | Copies the message to the clipboard instead of committing. |
+| `--types` | Lists the commit types. |
+| `--undo [count]` | Undoes the last commits, 1 by default, keeping their changes staged; --copy copies the last message. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost merge-dependabot
+
+Fetches origin and merges each origin/dependabot/* branch into the base branch, one at a time, and prints ok or failed for each. Local changes are stashed and come back, with the branch you were on; nothing is pushed.
+
+**Usage:** `underpost merge-dependabot [options] [path]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `path` | The repository, or a directory inside it. (default: ".") |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--base <branch>` | The branch to merge into; the default branch of origin by default. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost github
+
+GitHub automation: workflows and repository metadata.
+
+**Usage:** `underpost github [options] [command]`
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `-h, --help` | display help for command |
+
+### Commands
+
+| Command | Description |
+| --- | --- |
+| `dispatch [options] <repository> <workflow>` | Dispatches a workflow_dispatch workflow and prints the run GitHub created. Accepted is not completed: follow the run. |
+| `repo [repository]` | Prints the metadata of a repository: default branch, visibility and the permissions of the credential. |
+| `help [command]` | display help for command |
+
+---
+
+## underpost github dispatch
+
+Dispatches a workflow_dispatch workflow and prints the run GitHub created. Accepted is not completed: follow the run.
+
+**Usage:** `underpost github dispatch [options] <repository> <workflow>`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `repository` | The repository: "owner/repo" or a GitHub URL. |
+| `workflow` | The workflow file name or id. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `--ref <ref>` | The ref the workflow runs on; the default branch by default. |
+| `--input <key=value>` | A workflow input; repeat for each. |
+| `-h, --help` | display help for command |
+
+---
+
+## underpost github repo
+
+Prints the metadata of a repository: default branch, visibility and the permissions of the credential.
+
+**Usage:** `underpost github repo [options] [repository]`
+
+### Arguments
+
+| Argument | Description |
+| --- | --- |
+| `repository` | The repository: "owner/repo" or a GitHub URL; the origin of the working directory by default. |
+
+### Options
+
+| Option | Description |
+| --- | --- |
 | `-h, --help` | display help for command |
 
 ---
@@ -1972,6 +2171,12 @@ Release orchestrator for building new versions and deploying releases of the Und
 | `--valkey-host <host>` | For --build: override VALKEY_HOST in the template .env.example for the smoke test (e.g., "192.168.1.82"). |
 | `--no-graphify` | For --build: builds no code graph (see `underpost graphify`). |
 | `--cli-docs` | Regenerates CLI-HELP.md, the served CLI reference and the README command index from the command definitions. |
+| `--changelog` | Writes CHANGELOG.md from the tagged commits ("[scope] subject"): the changes since the last release, then the five latest releases. |
+| `--changelog-min-version <version>` | For --changelog: the oldest release section (default: 2.97.1). |
+| `--change-summary` | Prints the change summary the CHANGE_SUMMARY environment variable carries (a dispatch input, or a commit message with its Change-Summary trailer), else the one of the latest commits. |
+| `--from-n-commit <n>` | For --change-summary: how many latest commits a new summary covers (default: 1). |
+| `--fallback <message>` | For --change-summary: the only entry of the summary when none is received and the latest commits hold none. |
+| `--format <format>` | For --change-summary: json (to forward), message (to commit: one line per entry, then the trailer) or markdown. (default: "json") |
 | `-h, --help` | display help for command |
 
 ---

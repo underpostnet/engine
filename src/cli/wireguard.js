@@ -48,6 +48,8 @@ import {
 } from '../server/ops/systemd.js';
 import Underpost from '../index.js';
 import { syncDeployPackages } from '../server/build/package.js';
+import { defaultBranch, syncScript } from '../server/git/git.js';
+import { githubCredential } from '../server/github/github-credential.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -141,24 +143,6 @@ const ENGINE_SYNC_STEPS = [
  * @returns {string} Prefixed deploy id.
  * @memberof UnderpostWireguard
  */
-/**
- * @method checkoutSwitchScript
- * @description The git script that replaces a node checkout with the tip of a repository: untracked files
- * go, then {@link UnderpostRepository.switchRemoteCommands} run, with the credential of the operator in a
- * subshell that no later step inherits.
- * @param {{url:string, path:string, branch:string}} params
- * @returns {string} One shell command.
- * @memberof UnderpostWireguard
- */
-const checkoutSwitchScript = ({ url, path, branch }) => {
-  const auth = Object.entries(Underpost.repo.gitAuthFactory(url).gitEnv)
-    .map(([key, value]) => `${key}=${shellArgumentFactory(value)}`)
-    .join(' ');
-  return `( export ${auth} && git -C ${shellArgumentFactory(path)} clean -f -d && ${Underpost.repo
-    .switchRemoteCommands({ url, path, branch })
-    .join(' && ')} )`;
-};
-
 const deployIdFactory = (deployId) => {
   const value = `${deployId || ''}`.trim();
   // `dd` is the meta id every runner reads as "all of dd.routes"; prefixing it
@@ -2973,23 +2957,23 @@ class UnderpostWireguard {
         enginePrivate: options.repoEnginePrivate,
       });
       const branches = {
-        enginePrivate: Underpost.repo.getDefaultBranch(enginePrivate),
-        engine: Underpost.repo.getDefaultBranch(engine),
+        enginePrivate: defaultBranch(enginePrivate),
+        engine: defaultBranch(engine),
       };
       const values = {
-        '<engine-private-switch>': checkoutSwitchScript({
-          url: enginePrivate,
+        '<engine-private-switch>': syncScript({
+          repository: enginePrivate,
           path: './engine-private',
           branch: branches.enginePrivate,
         }),
-        '<engine-switch>': checkoutSwitchScript({ url: engine, path: '.', branch: branches.engine }),
+        '<engine-switch>': syncScript({ repository: engine, path: '.', branch: branches.engine }),
         '<engine-private-branch>': branches.enginePrivate,
         '<engine-private>': enginePrivate,
         '<engine-branch>': branches.engine,
         '<engine>': engine,
         '<package-install-command>': packageInstallCommandFactory(engine),
         ...nodeRoleStepsFactory(options.nodeRole),
-        '<github-token>': process.env.GITHUB_TOKEN || '',
+        '<github-token>': githubCredential()?.token ?? '',
       };
       const entries = Object.entries(values);
       const bind = (text) =>

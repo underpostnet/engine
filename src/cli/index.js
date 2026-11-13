@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 
 import { Command } from 'commander';
 import { deployEnvFactory, getNpmRootPath, isOciRuntime, loadCliEnv } from '../server/runtime/environment.js';
-import { commitData } from '../client/components/core/CommonJs.js';
+import { COMMIT_TYPES } from '../server/release/commit-message.js';
 import { registerDomainCommand } from './domains.js';
 import { TEST_FOOTPRINTS, TEST_PROJECTS, testDomainNames } from '../server/build/testing.js';
 import { EXECUTION_PROFILES, profileFromOptionsFactory, setExecutionProfile } from '../server/build/execution.js';
@@ -267,96 +267,155 @@ program
 
 program
   .command('clone')
-  .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
-  .option('--bare', 'Performs a bare clone, downloading only the .git files.')
-  .option('--g8', 'Uses the g8 repository extension for cloning.')
-  .description('Clones a specified GitHub repository into the current directory.')
+  .argument('<repository>', 'The repository: "owner/repo" (GitHub over HTTPS), a clone URL or a path.')
+  .argument('[destination]', 'The checkout directory; the repository name (<name>.git with --bare) by default.')
+  .option('--branch <branch>', 'Checks out this branch instead of the default one.')
+  .option('--depth <depth>', 'Clones a shallow history of this many commits.')
+  .option('--sparse <directories>', 'Checks out only these comma-separated directories.')
+  .option('--bare', 'Clones the git directory only.')
+  .option(
+    '--replace',
+    'Replaces an existing destination: the clone lands beside it and takes its place once it succeeded.',
+  )
+  .description('Clones a repository into a directory that does not exist or is empty.')
   .action(Underpost.repo.clone);
 
 program
+  .command('fetch')
+  .argument('[path]', 'The repository directory.', '.')
+  .option('--remote <remote>', 'The remote to fetch.', 'origin')
+  .option('--branch <branch>', 'Fetches only this branch.')
+  .option('--prune', 'Drops the tracking refs of the branches the remote no longer has.')
+  .description('Updates the remote-tracking refs of a repository; the working tree and the branches stay.')
+  .action(Underpost.repo.fetch);
+
+program
   .command('pull')
-  .argument('<path>', 'The absolute or relative directory path where the repository is located.')
-  .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
-  .description('Pulls the latest changes from a specified GitHub repository.')
-  .option('--g8', 'Uses the g8 repository extension for pulling.')
+  .argument('[path]', 'The repository directory.', '.')
+  .argument('[repository]', 'Pulls from this repository ("owner/repo" or a URL) instead of the tracked remote.')
+  .option('--remote <remote>', 'Pulls from this remote instead of the tracked one.')
+  .option('--branch <branch>', 'The remote branch; the tracked branch, else the current branch name, by default.')
+  .description(
+    'Fast-forwards the current branch to a remote branch. Never merges, rebases or replaces: a diverged history fails and nothing changes.',
+  )
   .action(Underpost.repo.pull);
 
 program
+  .command('push')
+  .argument('[path]', 'The repository directory.', '.')
+  .argument('[repository]', 'Pushes to this repository ("owner/repo" or a URL) instead of the tracked remote.')
+  .option('--remote <remote>', 'Pushes to this remote instead of the tracked one.')
+  .option('--branch <branch>', 'The remote branch; the current branch name by default.')
+  .option(
+    '--force-with-lease',
+    'Replaces the remote branch only while it holds what its remote-tracking ref last saw (a configured remote).',
+  )
+  .option('-f, --force', 'Replaces the remote branch whatever it holds, rewriting its history.')
+  .option('--delete <branch>', 'Deletes this branch of the remote, with its remote-tracking ref, instead of pushing.')
+  .description('Publishes HEAD to a branch of a remote and logs the published commit.')
+  .action(Underpost.repo.push);
+
+program
+  .command('sync')
+  .argument('<path>', 'The managed checkout; cloned when it holds none.')
+  .argument('<repository>', 'The repository: "owner/repo" or a URL.')
+  .option('--branch <branch>', 'The branch to land on; the default branch of the repository by default.')
+  .option('--dry-run', 'Reports what the replacement would discard and changes nothing.')
+  .description(
+    'Replaces a managed checkout with the tip of a repository branch: origin is repointed, local commits of the branch, tracked changes and untracked files are discarded, ignored files stay. For deploy checkouts, never for working repositories.',
+  )
+  .action(Underpost.repo.sync);
+
+program
+  .command('discard')
+  .argument('<paths...>', 'Repository roots, or directories inside one: only changes under them are discarded.')
+  .option('--force', 'Discards the listed changes; without it nothing changes.')
+  .option('--ignored', 'Discards ignored files too.')
+  .description(
+    'Lists the staged, unstaged and untracked changes under each path, with its repository root, and with --force discards them.',
+  )
+  .action(Underpost.repo.discard);
+
+program
+  .command('init')
+  .argument('[path]', 'The repository directory, created when missing.', '.')
+  .option('--origin <repository>', 'Points origin at this repository ("owner/repo" or a URL).')
+  .description(
+    'Initializes a repository, or keeps the one there, with the commit identity of GITHUB_USERNAME and GITHUB_EMAIL.',
+  )
+  .action(Underpost.repo.init);
+
+program
+  .command('status')
+  .argument('[path]', 'The repository directory.', '.')
+  .option('-b, --branch', 'The current branch.')
+  .option('--reflog [branch]', 'The reflog of a branch, the current one by default.')
+  .option('--contains <commit>', 'The branches that contain a commit.')
+  .option('--log [count]', 'The latest commits with their files, and the command that shows their diffs.')
+  .option('--unpushed', 'With --log: the commits of HEAD no branch of origin holds, after fetching origin.')
+  .option('--diff', 'The word-diff command of the working tree changes.')
+  .option('--staged', 'With --diff: of the staged changes.')
+  .option('--range <from[,to]>', 'With --diff: between two commits, HEAD by default.')
+  .option('--extension <extension>', 'With --diff --range: only files with this extension.')
+  .option('--message [nth]', 'The message of the nth latest commit, the last by default.')
+  .option('--remote-url', 'The URL of origin, without credentials.')
+  .option('--changes', 'Prints "1" when the working tree has staged, unstaged or untracked changes, nothing otherwise.')
+  .option('--reachable <repository>', 'Whether a remote repository answers: true or false.')
+  .option('--copy', 'Copies the answer to the clipboard instead of printing it.')
+  .description('Reads the state of a repository; nothing changes. One query per call; the short status without one.')
+  .action(Underpost.repo.status);
+
+program
   .command('cmt')
-  .argument('[path]', 'The absolute or relative directory path of the repository.')
-  .argument(`[commit-type]`, `The type of commit to perform. Options: ${Object.keys(commitData).join(', ')}.`)
-  .argument(`[module-tag]`, 'Optional: Sets a specific module tag for the commit.')
-  .argument(`[message]`, 'Optional: Provides an additional custom message for the commit.')
-  .option(`--log [latest-n]`, 'Shows commit history from the specified number of latest n path commits.')
-  .option('--last-msg <latest-n>', 'Displays the last n commit message.')
-  .option('--empty', 'Allows committing with empty files.')
-  .option('--copy', 'Copies the generated commit message to the clipboard.')
-  .option('--info', 'Displays information about available commit types.')
-  .option('--diff', 'Shows the current git diff changes.')
-  .option('--edit', 'Edit last commit.')
-  .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the commit context.')
-  .option('--cached', 'Commit staged changes only or context.')
-  .option(
-    '--init-repo [origin]',
-    'Initialize a git repository at the specified path. Optionally set the git remote origin URL.',
+  .argument('[path]', 'The repository directory.', '.')
+  .argument(
+    '[type]',
+    `The commit type: ${Object.keys(COMMIT_TYPES).join(', ')}, or a custom one with a message.`,
+    'feat',
   )
-  .option('--hashes <hashes>', 'Comma-separated list of specific file hashes of commits.')
-  .option('--extension <extension>', 'specific file extensions of commits.')
-  .option('--changelog', 'Print the plain changelog of the last N commits (see --from-n-commit, default 1).')
-  .option('--changelog-build', 'Builds a CHANGELOG.md from the latest five versions')
-  .option('--changelog-min-version <version>', 'Sets the minimum version limit for --changelog-build (default: 2.85.0)')
+  .argument('[scope]', 'The scope of the commit.')
+  .argument('[message]', 'The commit description; the default one of the type otherwise.')
+  .option('--empty', 'Commits with nothing staged.')
+  .option('--amend', 'Amends the last commit with the staged changes, keeping its message.')
+  .option('--copy', 'Copies the message to the clipboard instead of committing.')
+  .option('--types', 'Lists the commit types.')
   .option(
-    '--changelog-no-hash',
-    'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
+    '--undo [count]',
+    'Undoes the last commits, 1 by default, keeping their changes staged; --copy copies the last message.',
   )
-  .option(
-    '--changelog-msg',
-    'Print the sanitized, commit-ready changelog message of the last N commits (see --from-n-commit, default 1). Empty when there are no tagged entries.',
-  )
-  .option('--from-n-commit <n>', 'Number of latest commits to include in --changelog/--changelog-msg (default: 1).')
-  .option(
-    '--propagate-msg',
-    'Prints the changelog payload carried by the propagation chain, read from the PROPAGATED_MESSAGE ' +
-      'environment variable and stripped of the commit subject wrapper. Falls back to --changelog-msg ' +
-      'over the last N commits (see --from-n-commit) when nothing was propagated.',
-  )
-  .option('--unpush', 'With --log, automatically sets range to unpushed commits ahead of remote.')
-  .option('-b', 'Shows the current Git branch name.')
-  .option('-p [branch]', 'Shows the reflog for the specified branch.')
-  .option('--bc <commit-hash>', 'Shows branches that contain the specified commit.')
-  .option(
-    '--is-remote-repo <url-repo>',
-    'Checks whether a remote Git repository URL is reachable. Prints true or false.',
-  )
-  .option(
-    '--has-changes',
-    'Prints "1" if there are staged or unstaged git changes in the repository, empty string otherwise.',
-  )
-  .option('--remote-url', 'Prints the current git remote URL (origin) in plain text.')
-  .option(
-    '--switch-repo <url>',
-    'Switches the git remote (origin) to <url> and force-pulls the target branch, overwriting the current working tree (discards local commits and tracked changes). Accepts a full URL or "owner/repo".',
-  )
-  .option('--target-branch <branch>', 'Target branch for --switch-repo (default: remote default branch).')
-  .option(
-    '--delete-remote-branch <branch>',
-    'Deletes <branch> from origin, reaching a GitHub origin with GITHUB_TOKEN, and drops its remote-tracking ref.',
-  )
-  .option(
-    '--merge-dependabot',
-    'Fetches origin and merges every origin/dependabot/* branch into master, one at a time. Stashes local changes first and restores them, with the original branch, at the end. A failed merge is aborted; remote branches are never deleted.',
-  )
-  .description('Manages commits to a GitHub repository, supporting various commit types and options.')
+  .description('Commits the staged changes with a Conventional Commit message: type(scope): description.')
   .action(Underpost.repo.commit);
 
 program
-  .command('push')
-  .argument('<path>', 'The absolute or relative directory path of the repository.')
-  .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
-  .option('-f', 'Forces the push, overwriting the remote repository history.')
-  .option('--g8', 'Uses the g8 repository extension for pushing.')
-  .description('Pushes committed changes from a local repository to a remote GitHub repository.')
-  .action(Underpost.repo.push);
+  .command('merge-dependabot')
+  .argument('[path]', 'The repository, or a directory inside it.', '.')
+  .option('--base <branch>', 'The branch to merge into; the default branch of origin by default.')
+  .description(
+    'Fetches origin and merges each origin/dependabot/* branch into the base branch, one at a time, and prints ok or failed for each. Local changes are stashed and come back, with the branch you were on; nothing is pushed.',
+  )
+  .action(Underpost.repo.mergeDependabot);
+
+const github = program.command('github').description('GitHub automation: workflows and repository metadata.');
+
+github
+  .command('dispatch')
+  .argument('<repository>', 'The repository: "owner/repo" or a GitHub URL.')
+  .argument('<workflow>', 'The workflow file name or id.')
+  .option('--ref <ref>', 'The ref the workflow runs on; the default branch by default.')
+  .option('--input <key=value>', 'A workflow input; repeat for each.', (entry, inputs = []) => [...inputs, entry])
+  .description(
+    'Dispatches a workflow_dispatch workflow and prints the run GitHub created. Accepted is not completed: follow the run.',
+  )
+  .action(Underpost.github.dispatch);
+
+github
+  .command('repo')
+  .argument(
+    '[repository]',
+    'The repository: "owner/repo" or a GitHub URL; the origin of the working directory by default.',
+  )
+  .description('Prints the metadata of a repository: default branch, visibility and the permissions of the credential.')
+  .action(Underpost.github.repo);
 
 program
   .command('static')
@@ -1987,6 +2046,25 @@ program
     '--cli-docs',
     'Regenerates CLI-HELP.md, the served CLI reference and the README command index from the command definitions.',
   )
+  .option(
+    '--changelog',
+    'Writes CHANGELOG.md from the tagged commits ("[scope] subject"): the changes since the last release, then the five latest releases.',
+  )
+  .option('--changelog-min-version <version>', 'For --changelog: the oldest release section (default: 2.97.1).')
+  .option(
+    '--change-summary',
+    'Prints the change summary the CHANGE_SUMMARY environment variable carries (a dispatch input, or a commit message with its Change-Summary trailer), else the one of the latest commits.',
+  )
+  .option('--from-n-commit <n>', 'For --change-summary: how many latest commits a new summary covers (default: 1).')
+  .option(
+    '--fallback <message>',
+    'For --change-summary: the only entry of the summary when none is received and the latest commits hold none.',
+  )
+  .option(
+    '--format <format>',
+    'For --change-summary: json (to forward), message (to commit: one line per entry, then the trailer) or markdown.',
+    'json',
+  )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);
@@ -1994,7 +2072,11 @@ program
     if (options.ciPush) return Underpost.release.ci(options.ciPush, options.message, options);
     if (options.pwaBuild) return Underpost.release.pwa(options.message, options);
     if (options.cliDocs) return Underpost.release.cliDocs(version);
-    throw new Error('Specify --build, --deploy, --ci-push, --pwa-build or --cli-docs (see underpost release --help)');
+    if (options.changelog) return Underpost.release.changelog(options);
+    if (options.changeSummary) return Underpost.release.changeSummary(options);
+    throw new Error(
+      'Specify --build, --deploy, --ci-push, --pwa-build, --cli-docs, --changelog or --change-summary (see underpost release --help)',
+    );
   });
 
 program
