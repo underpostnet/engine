@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import { resolvePathRoutes } from '../../../src/server/network/path-routes.js';
 import { CYBERIA_PUBLIC_HOST, CYBERIA_SERVICES_HOST } from '../../../src/projects/cyberia/stack/domain-ownership.js';
@@ -14,10 +14,18 @@ const router = fs.readFileSync(
 const routes = [...router.matchAll(/^ {6}'(\/[^']*)': \{/gm)].map(([, path]) => path);
 
 describe.skipIf(!fs.existsSync(new URL('conf.server.json', confDir)))('portal navigation contract', () => {
-  const confServer = read('conf.server.json');
-  const confClient = read('conf.client.json');
-  const confSSR = read('conf.ssr.json');
-  const views = confClient['cyberia-portal'].views;
+  let confServer;
+  let confClient;
+  let confSSR;
+  let views;
+
+  // A skipped suite still runs its body: only a hook reads the configuration.
+  beforeAll(() => {
+    confServer = read('conf.server.json');
+    confClient = read('conf.client.json');
+    confSSR = read('conf.ssr.json');
+    views = confClient['cyberia-portal'].views;
+  });
 
   it('gives every router route a view, and every view a route', () => {
     expect(routes.length).toBeGreaterThan(0);

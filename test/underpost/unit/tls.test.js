@@ -25,6 +25,12 @@ import {
   tlsSecretItem,
 } from '../../support/kube-cluster.js';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+
 const CONF = './engine-private/deploy/conf.cluster.json';
 const GATEWAY_API = { provider: 'gateway-api' };
 const PRODUCTION = {

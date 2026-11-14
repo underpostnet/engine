@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { unslicedTree } from '../../support/tree.js';
 
 const ROOT = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -152,7 +153,10 @@ describe('placement and execution invariants', () => {
       ),
     );
     expect(importers.filter((file) => !DIRECT_PROCESS_MODULES[file])).toEqual([]);
-    expect(offenders(Object.keys(DIRECT_PROCESS_MODULES), /\b(spawn|spawnSync|execFileSync)\(\s*'sudo'/)).toEqual([]);
+    // A sliced tree drops the product modules of the list.
+    const present = Object.keys(DIRECT_PROCESS_MODULES).filter((file) => fs.existsSync(nodePath.join(ROOT, file)));
+    if (unslicedTree) expect(present).toEqual(Object.keys(DIRECT_PROCESS_MODULES));
+    expect(offenders(present, /\b(spawn|spawnSync|execFileSync)\(\s*'sudo'/)).toEqual([]);
   });
 
   it('runs each provisioning script under one privilege: root scripts check for root and embed no sudo', () => {

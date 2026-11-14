@@ -53,7 +53,10 @@ describeProducts('product catalogs and the test projects', () => {
   });
 
   it.skipIf(!unslicedTree)('gives every project a directory that exists in an unsliced tree', () => {
-    for (const { name, directory } of TEST_PROJECTS) expect(fs.existsSync(directory), name).to.equal(true);
+    // A release repository is a nested checkout: the engine clone does not carry it.
+    const checkouts = catalogs.flatMap(({ releaseRepositories }) => releaseRepositories.map(({ name }) => name));
+    for (const { name, directory } of TEST_PROJECTS.filter(({ directory }) => !checkouts.includes(directory)))
+      expect(fs.existsSync(directory), name).to.equal(true);
   });
 
   it('carries the directory of every project a present product owns', () => {

@@ -29,6 +29,12 @@ import {
   volumeItem,
 } from '../../support/kube-cluster.js';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+
 vi.mock('../../../src/server/runtime/host-lock.js', async (original) => ({
   ...(await original()),
   acquireHostLock: vi.fn(async () => ({ release: () => {}, attach: () => {} })),
@@ -117,6 +123,8 @@ beforeEach(() => {
   // The host env seeds no Secret: each cron scope key it carries is blank.
   for (const name of Object.keys(Underpost.secret.seedEnvKeys('underpost-cron-env'))) vi.stubEnv(name, '');
   scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-migration-'));
+  // The harness fakes the uid that names the context pins: they stay in the scratch directory.
+  vi.stubEnv('TMPDIR', scratch);
   process.chdir(scratch);
   fs.outputJsonSync(CONF, ADOPTED);
   for (const [name, record] of Object.entries(RECORDS))

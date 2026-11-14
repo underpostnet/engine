@@ -179,7 +179,8 @@ const COMPONENTS = './src/client/components';
 // A product tree carries its own clients in the default conf, and no `default` client.
 describe('components of each client in the default conf', () => {
   it('lists every component that a listed component imports', () => {
-    for (const [client, { components }] of Object.entries(underpostConfig.client)) {
+    // A static client lists no components.
+    for (const [client, { components = {} }] of Object.entries(underpostConfig.client)) {
       const listed = new Set(
         Object.entries(components).flatMap(([module, names]) => names.map((name) => `${module}/${name}`)),
       );

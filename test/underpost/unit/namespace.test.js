@@ -26,6 +26,12 @@ import {
   serviceItem,
 } from '../../support/kube-cluster.js';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+
 let scratch;
 const write = (conf) => {
   const path = nodePath.join(scratch, `conf.cluster.${Math.random().toString(16).slice(2)}.json`);
@@ -87,9 +93,12 @@ const kubeconfig = process.env.KUBECONFIG;
 
 beforeEach(() => {
   scratch = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'underpost-namespace-'));
+  // The harness fakes the uid that names the context pins: they stay in the scratch directory.
+  vi.stubEnv('TMPDIR', scratch);
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   fs.removeSync(scratch);
   if (kubeconfig === undefined) delete process.env.KUBECONFIG;
   else process.env.KUBECONFIG = kubeconfig;

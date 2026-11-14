@@ -492,7 +492,7 @@ describe('the encrypted store', () => {
     expect(() => sops().encrypt('/dev/shm/absent.yaml', out, { name })).to.throw('Plaintext manifest not found');
     expect(() => sops().encrypt('/dev/shm/sealed.yaml', out, { name })).to.throw('already carries sops metadata');
     expect(() => sops().encrypt('/dev/shm/placed.yaml', out, { name })).to.throw('names the namespace default');
-    vi.restoreAllMocks();
+    // A store without its creation rules; the shell harness still answers.
     secretFixture({ '/dev/shm/app.yaml': 'kind: Secret\n' });
     expect(() => sops().encrypt('/dev/shm/app.yaml', out, { name })).to.throw('Missing creation rules');
   });

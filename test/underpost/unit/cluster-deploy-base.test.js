@@ -15,9 +15,19 @@ import { controllerItem, kubeCluster, namespaceItem } from '../../support/kube-c
 import clusterConfig from '../../../underpost.cluster.config.js';
 import underpostConfig from '../../../underpost.config.js';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+
 let cwd;
 let scratch;
 const deployFile = (name) => `./engine-private/deploy/${name}`;
+/** The workflows of dd-test and dd-core the generator reads and writes. */
+const WORKFLOWS = ['engine-test.cd.yml', 'engine-test.ci.yml', 'engine-core.cd.yml', 'engine-core.ci.yml'];
+/** A sliced tree carries no engine workflows. */
+const itWithWorkflows = it.skipIf(!WORKFLOWS.every((name) => fs.existsSync(`.github/workflows/${name}`)));
 
 beforeEach(() => {
   cwd = process.cwd();
@@ -148,28 +158,31 @@ describe('the base of a cluster deploy folder', () => {
     expect(fs.readdirSync('./engine-private/deploy').sort()).toEqual(['conf.cluster.json', 'id_rsa', 'id_rsa.pub']);
   });
 
-  it('writes the workflows of a deploy id from those of dd-test, and keeps the workflows that exist', () => {
-    for (const name of ['engine-test.cd.yml', 'engine-test.ci.yml', 'engine-core.cd.yml', 'engine-core.ci.yml'])
-      fs.copySync(nodePath.join(cwd, '.github/workflows', name), `./.github/workflows/${name}`);
-    fs.removeSync('./.github/workflows/engine-core.ci.yml');
-    const manifest = vi.spyOn(Underpost.repo, 'writeConfManifest').mockReturnValue();
-    try {
-      const { created, kept } = Underpost.repo.clusterDeployFactory('dd-core');
-      // The committed dd-core workflows came from the same generator.
-      expect(created).toContain('./.github/workflows/engine-core.ci.yml');
-      expect(fs.readFileSync('./.github/workflows/engine-core.ci.yml', 'utf8')).toBe(
-        fs.readFileSync(nodePath.join(cwd, '.github/workflows/engine-core.ci.yml'), 'utf8'),
-      );
-      expect(kept).toContain('./.github/workflows/engine-core.cd.yml');
-      expect(manifest).toHaveBeenCalledWith({ deployId: 'dd-core' });
+  itWithWorkflows(
+    'writes the workflows of a deploy id from those of dd-test, and keeps the workflows that exist',
+    () => {
+      for (const name of WORKFLOWS)
+        fs.copySync(nodePath.join(cwd, '.github/workflows', name), `./.github/workflows/${name}`);
+      fs.removeSync('./.github/workflows/engine-core.ci.yml');
+      const manifest = vi.spyOn(Underpost.repo, 'writeConfManifest').mockReturnValue();
+      try {
+        const { created, kept } = Underpost.repo.clusterDeployFactory('dd-core');
+        // The committed dd-core workflows came from the same generator.
+        expect(created).toContain('./.github/workflows/engine-core.ci.yml');
+        expect(fs.readFileSync('./.github/workflows/engine-core.ci.yml', 'utf8')).toBe(
+          fs.readFileSync(nodePath.join(cwd, '.github/workflows/engine-core.ci.yml'), 'utf8'),
+        );
+        expect(kept).toContain('./.github/workflows/engine-core.cd.yml');
+        expect(manifest).toHaveBeenCalledWith({ deployId: 'dd-core' });
 
-      fs.writeFileSync('./.github/workflows/engine-core.cd.yml', 'name: operator workflow\n');
-      expect(Underpost.repo.clusterDeployFactory('dd-core').created).toEqual([]);
-      expect(fs.readFileSync('./.github/workflows/engine-core.cd.yml', 'utf8')).toBe('name: operator workflow\n');
-    } finally {
-      manifest.mockRestore();
-    }
-  });
+        fs.writeFileSync('./.github/workflows/engine-core.cd.yml', 'name: operator workflow\n');
+        expect(Underpost.repo.clusterDeployFactory('dd-core').created).toEqual([]);
+        expect(fs.readFileSync('./.github/workflows/engine-core.cd.yml', 'utf8')).toBe('name: operator workflow\n');
+      } finally {
+        manifest.mockRestore();
+      }
+    },
+  );
 
   it('refuses a placement of another shape and registers no route', () => {
     const older = { version: 1, environments: { production: {} } };

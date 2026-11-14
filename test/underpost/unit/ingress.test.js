@@ -2,7 +2,7 @@
 // stale routing a deployment leaves where it no longer runs. Every file lives in a scratch checkout, and the shell
 // harness answers each kubectl call: no real cluster is reached.
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import nodePath from 'node:path';
@@ -18,6 +18,12 @@ import {
   routeItem,
 } from '../../support/kube-cluster.js';
 import { shellHarness } from '../../support/shell-harness.js';
+
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
 
 const CONF = './engine-private/deploy/conf.cluster.json';
 const WORKLOADS = 'underpost-workloads';

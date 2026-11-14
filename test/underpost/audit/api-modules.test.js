@@ -6,6 +6,7 @@ import fs from 'fs-extra';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fileRefDefects } from '../../../src/api/file/file.ref.js';
+import { unslicedTree } from '../../support/tree.js';
 
 const ROOT = nodePath.resolve(nodePath.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (file) => fs.readFileSync(nodePath.join(ROOT, file), 'utf8');
@@ -94,6 +95,8 @@ describe('the API modules', () => {
   });
 
   it('registers every File reference of every model schema', async () => {
-    expect(await fileRefDefects()).toEqual([]);
+    // A sliced tree ships some of the registered APIs.
+    const defects = (await fileRefDefects()).filter((defect) => unslicedTree || !defect.includes(': no api model '));
+    expect(defects).toEqual([]);
   });
 });

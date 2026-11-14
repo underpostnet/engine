@@ -19,6 +19,7 @@ import {
   fileRefDefects,
   fileRefFields,
 } from '../../../src/api/file/file.ref.js';
+import { unslicedTree } from '../../support/tree.js';
 
 /** Minimal collection: the helpers only run `find(filter, projection).lean()` and `deleteMany`. */
 const collection = (docs) => ({
@@ -83,7 +84,9 @@ describe('the File reference registry', () => {
   });
 
   it('matches every model schema: each registered path is a File reference, each File reference is registered', async () => {
-    expect(await fileRefDefects()).to.deep.equal([]);
+    // A sliced tree ships some of the registered APIs.
+    const defects = (await fileRefDefects()).filter((defect) => unslicedTree || !defect.includes(': no api model '));
+    expect(defects).to.deep.equal([]);
   });
 });
 

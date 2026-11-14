@@ -47,6 +47,14 @@ import { parseShareHandle } from '../../../src/projects/cyberia/content/content-
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import { installSandbox, mongoSandboxSession } from '../../support/sandbox.js';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+/** A child process reads the container of the host that runs the suite. */
+const { isOciRuntime: insideContainer } = await vi.importActual('../../../src/server/runtime/environment.js');
+
 // A content lifecycle on a real replica set: the journal, its projection, the stage verifiers on the
 // records each domain owns, and the CLI on two nodes. Needs `mongod` (`UNDERPOST_MONGOD_BIN`) and git.
 const host = (nodeName, role, environment, { sources = false, targets = {} } = {}) => ({
@@ -282,10 +290,12 @@ describe.skipIf(!mongodBinary)('a content lifecycle on a real database', () => {
       const verify = (input) => STAGE_VERIFIERS['infrastructure-backup']({ cycle, store, input });
       await expect(verify()).rejects.toThrow(blocked('No backup of dd-test since the cycle started'));
 
+      const placement = { environment: 'production', context: 'underpost-production', namespaces: { mongodb: 'data' } };
       const manifest = await writeBackup({
         store,
         deployId: 'dd-test',
         profile: DR_BACKUP_PROFILE,
+        source: placement,
         streams: [stream('cyberia')],
       });
       await recordVerification({
@@ -310,6 +320,7 @@ describe.skipIf(!mongodBinary)('a content lifecycle on a real database', () => {
           backupId: manifest.backupId,
           createdAt: expect.anything(),
           verifiedAt: '2026-11-05T11:00:00.000Z',
+          placement,
           restoreDrill: { namespaces: 4, restoreMs: 120 },
         },
         references: { backupId: manifest.backupId },
@@ -1171,7 +1182,8 @@ process.exit(0);`,
         child.on('close', () => resolve({ raw: stdout, ...JSON.parse(stdout.slice(stdout.lastIndexOf('\n{') + 1)) }));
       });
 
-    it('serves the shared cycle to the monitor of the workstation engine, and names why a share ends, never with its token', async () => {
+    it('serves the shared cycle to the monitor of the workstation engine, and names why a share ends, never with its token', async (context) => {
+      context.skip(insideContainer(), 'the monitor runs in a child process, which a container holds');
       const started = await run('control', 'content', 'lifecycle', 'start', '--instance', 'test');
       const { cycleId } = json(started);
       forwardTo();
