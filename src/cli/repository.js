@@ -686,7 +686,8 @@ Prevent build private config repo.`,
      */
     writeConfManifest({ deployId = '', confWorkflowId = '' } = {}) {
       const manifest = structuredClone(underpostConfig);
-      const defaultServer = manifest.server['default.net']['/'];
+      // The conf workflows edit the default server of the engine manifest.
+      const defaultServer = () => manifest.server['default.net']['/'];
       switch (confWorkflowId) {
         case '':
           break;
@@ -694,13 +695,13 @@ Prevent build private config repo.`,
           const host = `${process.env.GITHUB_USERNAME ? process.env.GITHUB_USERNAME : 'underpostnet'}.github.io`;
           const path = '/pwa-microservices-template-ghpkg';
           manifest.server = {
-            [host]: { [path]: { ...defaultServer, apiBaseProxyPath: '/', apiBaseHost: 'www.nexodev.org' } },
+            [host]: { [path]: { ...defaultServer(), apiBaseProxyPath: '/', apiBaseHost: 'www.nexodev.org' } },
           };
           break;
         }
         case 'template':
-          defaultServer.valkey = { port: 'env:VALKEY_PORT:int:6379', host: 'env:VALKEY_HOST:127.0.0.1' };
-          Object.assign(defaultServer.db, {
+          defaultServer().valkey = { port: 'env:VALKEY_PORT:int:6379', host: 'env:VALKEY_HOST:127.0.0.1' };
+          Object.assign(defaultServer().db, {
             host: 'env:DB_HOST:mongodb://127.0.0.1:27017',
             replicaSet: 'env:DB_REPLICA_SET:rs0',
             authSource: 'env:DB_AUTH_SOURCE:admin',

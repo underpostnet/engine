@@ -251,7 +251,12 @@ describe('site provisioning', () => {
     });
   });
 
-  it('plans a site from the default template against the real client sources', () => {
+  // A sliced repository carries its own deploy conf as the default template; a LAMPP conf serves no client.
+  const templateClient = Object.values(underpostConfig.server)
+    .flatMap((routes) => Object.values(routes))
+    .find((route) => route.client)?.client;
+
+  it.skipIf(!templateClient)('plans a site from the default template against the real client sources', () => {
     process.chdir(cwd);
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'underpost-site-template-'));
     try {
@@ -259,14 +264,10 @@ describe('site provisioning', () => {
       for (const type of ['server', 'client', 'ssr'])
         fs.outputJsonSync(path.join(scratch, `engine-private/conf/dd-site/conf.${type}.json`), {});
       process.chdir(scratch);
-      // A sliced repository carries its own deploy conf as the default template.
-      const from = Object.values(underpostConfig.server)
-        .flatMap((routes) => Object.values(routes))
-        .find((route) => route.client).client;
       const { applied, plan } = Underpost.site.create('example.com', {
         client: 'example',
         deployId: 'dd-site',
-        from,
+        from: templateClient,
         dryRun: true,
       });
       expect(applied).to.equal(false);

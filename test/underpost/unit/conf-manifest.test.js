@@ -51,7 +51,8 @@ describe('the conf manifest', () => {
     expect(fs.readFileSync('underpost.config.js', 'utf8')).toBe(ENGINE_MANIFEST);
   });
 
-  it('writes the engine manifest of a conf workflow', async () => {
+  // A product manifest carries no engine default server for a conf workflow to edit.
+  it.skipIf(!underpostConfig.server['default.net'])('writes the engine manifest of a conf workflow', async () => {
     const before = structuredClone(underpostConfig);
     Underpost.repo.writeConfManifest({ confWorkflowId: 'template' });
     const { db, valkey } = (await configOf('underpost.config.js')).server['default.net']['/'];
