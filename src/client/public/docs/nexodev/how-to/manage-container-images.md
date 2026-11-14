@@ -271,7 +271,7 @@ node bin image --rm my-app:1.0 --kubeadm --nodes hp-envy-iso-ram-rocky9
 image on the workload nodes, so the image lands where the pods run:
 
 ```bash
-node bin image --digest underpost/engine-cyberia:v4.0.0 --nodes hp-envy-iso-ram-rocky9 --ssh-key-path <key>
+node bin image --digest underpost/engine-cyberia:v4.5.0 --nodes hp-envy-iso-ram-rocky9 --ssh-key-path <key>
 ```
 
 A node that no record names as its `kubernetesNodeName` is refused with the command that links it:

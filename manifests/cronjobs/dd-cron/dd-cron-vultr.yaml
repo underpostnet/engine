@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: dd-cron-vultr
-  namespace: default
+  namespace: underpost-operations
   labels:
     app: dd-cron-vultr
     managed-by: underpost
@@ -25,9 +25,18 @@ spec:
             app: dd-cron-vultr
             managed-by: underpost
         spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - localhost.localdomain
           containers:
             - name: dd-cron-vultr
-              image: underpost/underpost-engine:v4.0.0
+              image: underpost/underpost-engine:v4.5.0
               command:
                 - /bin/sh
                 - -c

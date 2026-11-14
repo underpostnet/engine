@@ -118,7 +118,7 @@ An instance config may declare K8S-native lifecycle hooks and probes. These spli
 {
   "id": "mmo-server",
   "runtime": "cyberia-server",
-  "image": "underpost/cyberia-server:v4.0.0",
+  "image": "underpost/cyberia-server:v4.5.0",
   "fromPort": 8081,
   "toPort": 8081,
   "cmd": {
@@ -194,7 +194,7 @@ The `instance` and `instance-build-manifest` runners recognise a non-standard `i
 ```jsonc
 {
   "id": "mmo-server",
-  "image": "underpost/cyberia-server:v4.0.0",
+  "image": "underpost/cyberia-server:v4.5.0",
   "lifecycle": {
     "development": {
       "imagePullPolicy": "Always",
@@ -222,7 +222,7 @@ This compiles to the following container snippet in the rendered manifest:
 
 ```yaml
 - name: dd-cyberia-mmo-server-production-blue
-  image: underpost/cyberia-server:v4.0.0
+  image: underpost/cyberia-server:v4.5.0
   imagePullPolicy: Always
   …
   lifecycle:
@@ -976,7 +976,7 @@ The Cyberia MMO ships two instances out of the box under deploy id `dd-cyberia`.
 
 Both Dockerfiles install the CLI from the staged `underpost-cli.tgz` at build time, so the lifecycle hooks can call `underpost state set container-status …` without an `npm install -g` on every pod boot. The CI workflows that publish these images stage the archive from their engine checkout; a private-channel deploy stages it from the host engine checkout.
 
-Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v4.0.0`, `v4.0.0`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
+Both instances also set `lifecycle.<env>.imagePullPolicy: "Always"` so kubelet re-pulls the published image on every rollout — the CI tags (`v4.5.0`, `v4.5.0`, …) move forward only through coordinated bumps, but the registry image itself can be republished under the same tag during incident response, and `Always` ensures the cluster picks that up. See [imagePullPolicy — per-instance override](#imagepullpolicy--per-instance-override-extension).
 
 ## Best Practices
 

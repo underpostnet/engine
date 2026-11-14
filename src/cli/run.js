@@ -2997,7 +2997,7 @@ EOF
       // per deploy would drop the previous deploy's entries.
       const hosts = [...new Set(deployList.flatMap((deployId) => deployHostsFactory(deployId)))];
       if (env === 'development') logger.info(etcHostFactory(hosts).renderHosts);
-      const version = 'v4.0.0';
+      const version = 'v4.5.0';
       const instanceOptionsFactory = (deployId, instanceId) => ({
         ...options,
         ...clusterContextFactory(clusterType),
