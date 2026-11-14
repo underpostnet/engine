@@ -222,14 +222,15 @@ class MongooseDBService {
 
   /**
    * The collection a model of an API binds to, without binding it: a read through the driver names
-   * the collection and creates nothing.
+   * the collection and creates nothing. An API this tree does not ship has the default name of its model.
    *
    * @async
    * @param {string} api - API name (folder).
    * @returns {Promise<string>}
    */
   async collectionName(api) {
-    return (await this.schemaOf(api)).get('collection') ?? mongoose.pluralize()(getCapVariableName(api));
+    const schema = this.apis().includes(api) ? await this.schemaOf(api) : null;
+    return schema?.get('collection') ?? mongoose.pluralize()(getCapVariableName(api));
   }
 
   /**

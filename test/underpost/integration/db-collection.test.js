@@ -62,6 +62,9 @@ const archiveOf = async (db, collections) => {
   return Buffer.concat(parts);
 };
 
+/** The aggregate of these cases is the company API, which a product tree may not ship. */
+const itWithCompany = it.skipIf(!fs.existsSync(new URL('../../../src/api/company/company.model.js', import.meta.url)));
+
 describe.skipIf(!mongodBinary)('collection operations', () => {
   let mongod;
   let client;
@@ -156,7 +159,7 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
   });
 
   describe('layout', () => {
-    it('reads the File references and an aggregate from the model schemas', async () => {
+    itWithCompany('reads the File references and an aggregate from the model schemas', async () => {
       const plan = await layout(['company']);
       expect(plan.fileFields).toEqual(['profileImageId']);
       expect(plan.files).toBe('files');
@@ -171,6 +174,9 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
       await expect(layout(['file'])).rejects.toThrow(/always go with their references/);
       await expect(layout(['user'])).rejects.toThrow(/transferred whole/);
       await expect(layout(['document'])).rejects.toThrow(/declares no reference to Document/);
+    });
+
+    itWithCompany('refuses an aggregate of a collection no model owns', async () => {
       await expect(layout(['company'], '', 'loose')).rejects.toThrow(/no model owns loose/);
     });
   });
@@ -203,7 +209,7 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
   });
 
   describe('clone', () => {
-    it('plans without writing', async () => {
+    itWithCompany('plans without writing', async () => {
       const { plan, result } = await Mongo.cloneCollection({
         source: await endpoint('source'),
         target: await endpoint('target'),
@@ -256,7 +262,7 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
       });
     });
 
-    it('takes only the referenced aggregate documents, with their Files', async () => {
+    itWithCompany('takes only the referenced aggregate documents, with their Files', async () => {
       const { result } = await Mongo.cloneCollection({
         source: await endpoint('source'),
         target: await endpoint('target'),
@@ -370,7 +376,7 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
       expect(result).toMatchObject({ status: 'completed', copied: { documents: 4, files: 0 } });
     });
 
-    it('reports a unique index conflict of an aggregate', async () => {
+    itWithCompany('reports a unique index conflict of an aggregate', async () => {
       await db('target').collection('companies').createIndex({ name: 1 }, { unique: true });
       await db('target').collection('companies').insertOne({ _id: id(), name: 'Used' });
       await expect(
@@ -485,6 +491,9 @@ describe.skipIf(!mongodBinary)('collection operations', () => {
       process.env.UNDERPOST_OBJECT_STORE = `file:${storeDir}`;
       process.env.UNDERPOST_BACKUP_KEY = crypto.randomBytes(32).toString('base64');
     });
+
+    // Two backups in one second sort by their random suffix: each case reads only its own.
+    beforeEach(() => fs.emptyDirSync(storeDir));
 
     afterAll(() => {
       for (const [key, value] of Object.entries(env))
