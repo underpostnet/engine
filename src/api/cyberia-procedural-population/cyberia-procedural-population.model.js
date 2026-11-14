@@ -21,7 +21,6 @@
  */
 import { Schema, model } from 'mongoose';
 import { CONTENT_CODE_PATTERN } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
-import { RESOLUTIONS } from '../../projects/cyberia/procedural/population/resolution.js';
 import { CyberiaEntityTypeDefaultSchema } from '../cyberia-entity-type-default/cyberia-entity-type-default.model.js';
 import { CyberiaInstanceConfSchema } from '../cyberia-instance-conf/cyberia-instance-conf.model.js';
 import { CyberiaInstanceSchema } from '../cyberia-instance/cyberia-instance.model.js';
@@ -103,6 +102,13 @@ export const CONF_FIELDS = Object.freeze(['aoiRadius', 'economyCode', 'entityDef
  * @memberof CyberiaProceduralPopulationModel
  */
 export const UNIVERSE_FIELDS = Object.freeze(['name', 'description', 'instances', 'links']);
+
+/**
+ * The resolutions of a target, in the order a client lists them.
+ * @constant {ReadonlyArray<string>}
+ * @memberof CyberiaProceduralPopulationModel
+ */
+export const RESOLUTIONS = Object.freeze(['keep', 'render', 'template', 'author']);
 
 /**
  * The fields of an entity-type default a draft or a variant holds.

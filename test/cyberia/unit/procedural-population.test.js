@@ -8,11 +8,11 @@ import {
   targetState,
 } from '../../../src/projects/cyberia/procedural/population/population.js';
 import {
-  RESOLUTIONS,
   checkResolution,
   recommendedOf,
   resolutionsOf,
 } from '../../../src/projects/cyberia/procedural/population/resolution.js';
+import { RESOLUTIONS } from '../../../src/api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { GENERATORS } from '../../../src/projects/cyberia/procedural/generator-registry.js';
 import { resolveTemplate } from '../../../src/projects/cyberia/procedural/templates.js';
 import {

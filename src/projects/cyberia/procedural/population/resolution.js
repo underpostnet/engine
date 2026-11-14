@@ -9,18 +9,12 @@
  * @module src/projects/cyberia/procedural/population/resolution.js
  * @namespace CyberiaPopulationResolution
  */
+import { RESOLUTIONS } from '../../../../api/cyberia-procedural-population/cyberia-procedural-population.model.js';
 import { requestError } from '../engine.js';
 import { GENERATORS } from '../generator-registry.js';
 import { usableTemplates } from '../spec.js';
 import { genesisTemplates } from '../templates.js';
 import { STAGES } from './stages.js';
-
-/**
- * The resolutions, in the order a client lists them.
- * @constant {ReadonlyArray<string>}
- * @memberof CyberiaPopulationResolution
- */
-export const RESOLUTIONS = Object.freeze(['keep', 'render', 'template', 'author']);
 
 /**
  * The resolutions that generate entries.
