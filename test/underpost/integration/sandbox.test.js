@@ -17,6 +17,12 @@ import { freePort, installSandbox, sandboxDescriptor } from '../../support/sandb
 import { mongodBinary, startMongod } from '../../support/mongod.js';
 import mongoose from 'mongoose';
 
+// The host that runs the suite is never a container: a case stubs KUBERNETES_SERVICE_HOST to run in a pod.
+vi.mock('../../../src/server/runtime/environment.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isOciRuntime: () => !!process.env.KUBERNETES_SERVICE_HOST,
+}));
+
 const ENTRY = fileURLToPath(new URL('../../../src/index.js', import.meta.url));
 const CLI = fileURLToPath(new URL('../../../bin/index.js', import.meta.url));
 const CLUSTER = 'underpost-test';
@@ -423,7 +429,8 @@ process.kill(process.pid, 'SIGKILL');`,
     expect(signal).toBe('SIGKILL');
     const [{ pid, port }] = forwardPids();
     expect(await until(() => !alive(pid))).toBe(true);
-    expect(await answers(port)).toBe(false);
+    // A dead process can hold its sockets while its other threads exit.
+    expect(await until(async () => !(await answers(port)))).toBe(true);
     expect(Underpost.sandbox.sessions({ directory: sandbox.directory, lockDirectory: sandbox.lockDirectory })).toEqual(
       [],
     );
@@ -452,7 +459,7 @@ describe('the sandbox command', () => {
         '--input-type=module',
         '-e',
         `const { default: Underpost } = await import(${JSON.stringify(ENTRY)});
-await Underpost.sandbox.openSession(${JSON.stringify({ descriptor, plan })});
+await Underpost.sandbox.openSession(${JSON.stringify({ descriptor, plan, reconcileMs: 600000 })});
 console.log('ready');`,
       ],
       { stdio: ['ignore', 'pipe', 'inherit'], env: process.env },
@@ -471,9 +478,11 @@ console.log('ready');`,
     // The forward of the session exits, and another process takes its port.
     const [{ pid }] = forwardPids();
     process.kill(pid, 'SIGKILL');
-    await until(() => !alive(pid));
+    await until(async () => !alive(pid) && !(await answers(plan[0].localPort)));
     const foreign = valkeyServer();
-    await new Promise((resolve) => foreign.listen(plan[0].localPort, '127.0.0.1', resolve));
+    await new Promise((resolve, reject) =>
+      foreign.once('error', reject).listen(plan[0].localPort, '127.0.0.1', resolve),
+    );
     servers.push(foreign);
     const taken = await cli('status', CLUSTER);
     expect(json(taken).services).toEqual([expect.objectContaining({ id: 'valkey', owner: 'foreign', ready: false })]);

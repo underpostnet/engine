@@ -577,6 +577,8 @@ class UnderpostSandbox {
           address: spec.address,
           localPort: spec.localPort,
         });
+        // A close during the open stops this forward too.
+        if (closing) return handle.close();
         Object.assign(entry, { handle, state: 'ready', since: new Date().toISOString(), misses: 0, error: '' });
         handle.ended.then(() => {
           if (closing || entry.handle !== handle) return;
