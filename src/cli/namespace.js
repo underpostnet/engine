@@ -942,7 +942,8 @@ const pinFile = (context) => {
   const directory = pinDirectory();
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const stat = fs.lstatSync(directory);
-  if (!stat.isDirectory() || stat.uid !== process.getuid() || (stat.mode & 0o077) !== 0)
+  // The kernel gives a new file the effective user.
+  if (!stat.isDirectory() || stat.uid !== process.geteuid() || (stat.mode & 0o077) !== 0)
     throw refusal(`${directory} is not a private directory of this user: remove it`);
   const file = nodePath.join(
     directory,
