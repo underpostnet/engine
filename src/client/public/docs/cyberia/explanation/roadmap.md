@@ -172,7 +172,7 @@ queue is pending.
 - Binary WebSocket AOI protocol (movement, combat, HP, FCT)
 - Object Layer equip and unequip (`item_activation`) with equipment rules
 - Fountain and Sink coin economy (bot spawn coins, kill transfer, coin collect)
-- Skill system: projectile, doppelganger, coin drop and transaction, zero-waste heal
+- Skill system: manual activation by skill id (projectile, doppelganger), automatic zero-waste heal, coin drop on death
 - Bot AI: hostile and passive behavior, A\* pathfinding, aggro, respawn
 - FrozenInteractionState entry and exit (`freeze_start` / `freeze_end`)
 - Object Layer hot reload over gRPC manifest diff by `cid`

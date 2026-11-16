@@ -249,12 +249,17 @@ only when the entity provides quest codes), **stack** (active item slots), and
 integration buttons (**Chat**, **Integration**) that open the JS overlay. The
 paired `modal_dialogue` (bottom half) carries the talk flow.
 
-Capability tabs lead the strip, and the leading one opens active — Shop for a
-vendor, else Quest. The strip wraps into rows of at most four tabs, and the rows
-share the tabs evenly, so no tab clips its icon or its label. Because the catalog resolves through an async REST fetch
-after the modal is already open, the active tab keeps tracking the leading
-capability until the player picks a tab themselves. Switching tabs plays a
-pop-in transition, during which content taps are ignored.
+Capability tabs lead the strip. One rule, `default_tab`, picks the tab the modal
+opens on: Quest while the NPC holds an actionable quest for the player (the quest
+bit of its interaction flags: a quest to accept, or a step it advances); else the
+first tab of the strip: Shop for a vendor, else the first other action tab, else
+Quest, else Stack. A player opens on the trade that runs with it, else on its
+Profile. The strip wraps into rows of at most four tabs, and the rows share the
+tabs evenly, so no tab clips its icon or its label. Because the catalog resolves
+through an async REST fetch after the modal is already open, the active tab
+follows the rule until the catalog lands or the player picks a tab; after that it
+never moves by itself. Switching tabs plays a pop-in transition, during which
+content taps are ignored.
 
 The client is identical for `talk` and `quest-talk`; the **server** branches after
 `dlg_complete`. The client never declares the action type, quest code, or quest

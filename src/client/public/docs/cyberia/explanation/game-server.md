@@ -76,7 +76,7 @@ Inside one simulation tick, the phases run in a fixed order. Phases are the **on
 
 1. **`PhaseInput`** — drain each player's `InputQueue`; dispatch typed input commands to gameplay handlers.
 2. **`PhaseLifecycle`** — respawn timers, despawn expirations.
-3. **`PhaseSkills`** — skill projectile collisions.
+3. **`PhaseSkills`** — skill projectile collisions, and the automatic skills of held items.
 4. **`PhaseAI`** — bot behaviour decisions.
 5. **`PhaseMovement`** — integrate positions using `tickDuration`.
 6. **`PhaseLoot`** — drop token collection.
@@ -121,7 +121,8 @@ The batch is validated and enqueued whole. An event that fails validation become
 
 | Kind             | Wire type        | Effect                                                                         |
 | ---------------- | ---------------- | ------------------------------------------------------------------------------ |
-| `PlayerAction`   | `player_action`  | TAP — movement intent + skill trigger                                          |
+| `PlayerAction`   | `player_action`  | TAP — movement intent and tap regeneration                                     |
+| `SkillActivate`  | `skill_activate` | One manual skill of an active item; `skill_ack` answers ([skills](#skills))    |
 | `ItemActivation` | `item_active`    | Equip/unequip the stack in a bag slot; validated against equipment rules       |
 | `PlayerStasis`   | `player_stasis`  | Client modal count > 0 freezes the player (FrozenInteractionState), else thaws |
 | `Chat`           | `chat`           | One line to the world, the party or one player ([chat and parties](social.md)) |
@@ -182,7 +183,7 @@ time; every placement that needs the label waits on it. The resolved content joi
 the world lock, with the placement.
 
 A skill document is metadata: its `logicEventId` only selects a handler this binary implements
-(`game/sim/skill_dispatcher.go`). The warm skill of a label wins over a resolved one, so a world
+([skills](#skills)). The warm skill of a label wins over a resolved one, so a world
 keeps the skills it names. The destination keeps its own rules: its equipment rules decide which
 item types a player can activate, and its skill rules tune each handler.
 
@@ -210,6 +211,109 @@ definitions shared with clients and evicted.
 | ------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `full`        | Refreshes the cached labels, and rebuilds the world when its version changed | A promotion, Studio, the `ENGINE_GRPC_RELOAD_INTERVAL_SEC` loop |
 | `incremental` | Refreshes the cached labels only                                             | A catalog bind, a procedural promotion, Studio                  |
+
+---
+
+## Skills
+
+A trigger item carries skills. Each skill has a `skillId`, unique in its document, and a
+`logicEventId`, the handler that runs it. The handler fixes how the world starts the skill and what
+it aims at. `SKILL_LOGIC_IDS` in `SharedDefaultsCyberia.js` declares both, and `cyberia stat-contract`
+writes them into `content.SkillLogics`:
+
+| Activation  | Starts on                                                   | Logic                          | Aims at             |
+| ----------- | ----------------------------------------------------------- | ------------------------------ | ------------------- |
+| `manual`    | One `skill_activate` of a player, or a bot decision         | `projectile`, `doppelganger`   | `direction`, `self` |
+| `automatic` | A condition on the held units of its item, each tick        | `zero-waste-auto-consume-heal` | `self`              |
+| `event`     | A gameplay event of the world: the death drops run the coin | `coin_drop_or_transaction`     | `none`              |
+
+`skillHandlers` in `game/sim/skill_dispatcher.go` holds the handler of each manual and automatic
+logic. A test checks that it covers `content.SkillLogics` exactly. `SupportsSkill` accepts a logic
+that the contract names and that a handler or a gameplay event runs.
+
+### Manual activation
+
+`skill_activate {skillId, aim, x, y, targetId}` names one skill and one aim:
+
+| `aim`         | Flies along                                                                          | Carries                        |
+| ------------- | ------------------------------------------------------------------------------------ | ------------------------------ |
+| `facing`      | The facing of the caster                                                             | Nothing more                   |
+| `auto_target` | Straight at the center of the target the server picks, else the facing of the caster | `targetId`: the target to keep |
+| `direction`   | `x, y`, a direction in cells, at its own angle                                       | `x, y`, finite and never zero  |
+
+The input refuses any other shape: an unknown aim, a direction aim with no direction, a direction or
+a target on an aim that takes none. `ActivateSkill` resolves the skill on the active items of the
+caster. It never trusts a handler, a chance, a target or an item from the client.
+
+1. A ghost, or a player in stasis, is `blocked`.
+2. No active item that carries the skill as a manual skill: `unavailable`. Two active items that
+   define one skill id two ways are `unavailable` too, and the server logs the conflict.
+3. The action cooldown runs (`Mortal.NextSkillAt`): `cooldown`. Nothing rolls.
+4. The attempt reserves the action cooldown (`CalculateActionCooldown`).
+5. A directional skill resolves its aim into a unit vector, at any angle (`resolveAim`). An idle
+   caster turns to the facing nearest it, so its next facing aim flies about the same way.
+6. One roll against `SummonChance(base, stats)`: the skill rules give the base chance, intelligence
+   raises it, and `maxChance` caps it. A failed roll is a `misfire`: the cooldown stays spent.
+7. The handler runs and spawns its entity: the outcome is a cast.
+
+A refused attempt changes nothing. `phaseInput` applies a sequence once, so a resent activation
+never casts twice. The player gets
+`skill_ack {ok, accepted, reason, skillId, seq, targetId, x, y, readyInMs}`, private to the
+caster:
+
+| Field       | Holds                                                                      |
+| ----------- | -------------------------------------------------------------------------- |
+| `ok`        | The skill ran                                                              |
+| `accepted`  | The attempt spent the cooldown: a cast or a misfire                        |
+| `reason`    | `""`, `misfire`, `cooldown`, `unavailable` or `blocked`                    |
+| `seq`       | The sequence of the activation                                             |
+| `targetId`  | The target an auto aim took; 0 for none                                    |
+| `x`, `y`    | The unit vector a directional skill flew along; 0, 0 for a skill with none |
+| `readyInMs` | The action cooldown left; the snapshot keeps it in `self.actionReadyInMs`  |
+
+A bot casts through the same `ActivateSkill`. At its decision points it picks one manual skill of
+its active items at random and aims it straight at its target. A projectile in flight casts nothing.
+
+A projectile flies straight at the velocity of its launch (`Brain.Velocity`): its aim times its
+speed. It spawns one tick back along that line, so its first snapshot shows it at the caster. Its
+facing is the nearest of the eight, for its sprite only; no movement or AI logic turns it.
+
+### Facing
+
+The facing of an entity is one of the eight directions of `DIRECTIONS` in `SharedDefaultsCyberia.js`.
+`cyberia stat-contract` writes their unit vectors into the server (`content.DirectionVectors`) and
+the client (`CYBERIA_DIRECTION_VECTORS`). A vector takes the facing whose unit vector has the
+largest dot product with it, on both sides. A player and a placed bot spawn facing down
+(`world.SpawnFacing`). A step turns the walker; nothing else clears the facing. A walk ends facing its
+last step, and a tap on the cell the player stands on stops the walk where the player stands, with
+no turn. The client prediction (`self_motion`) follows the same rules.
+
+### Auto target
+
+`autoTarget` in `game/sim/auto_target.go` picks the target of an `auto_target` aim. Its range is the
+reach of the skill: the cells a projectile flies with the stats of the caster. A candidate is in
+reach and lives, and it is never the caster, a summon of the caster, a party friend or a player in
+stasis. It is a hostile bot, or a player that hurt the caster (an entry of its damage ledger), so an
+auto aim never starts a fight with a player. The target is, in order:
+
+1. The target the client names in `targetId`, while it stays a candidate: the target of the last
+   auto aim, or the hostile the player tapped. A target that dies or leaves the reach is dropped.
+2. An engaged candidate: a hostile bot that pursues the caster, or an entity in its damage ledger.
+3. A candidate within 67.5° of the facing.
+4. Any other candidate.
+
+The nearest wins inside one rank, then the lowest entity id, so the same world gives the same
+target. No candidate in reach: the skill flies along the facing, and the ack names no target. The
+choice is not a stat, and no entity stores it: the bot aggro range, a threat score and the auto
+target stay separate.
+
+### Taps and automatic skills
+
+A `player_action` only moves the player and rolls the tap regeneration. The regeneration has its
+own timer, `Mortal.NextRegenAt`, with the period of the action cooldown, so a walk never spends the
+cooldown of a skill. Each tick `PhaseSkills` runs the automatic skills of every item a player or a
+loot-collecting bot holds, active or not, once per item; the consume cooldown
+(`Mortal.NextConsumeAt`) times the heal. No activation ever runs an automatic or an event skill.
 
 ---
 
@@ -297,7 +401,7 @@ Paths are relative to `cyberia-server/`. Gameplay logic lives under `game/`, in 
 | `game/content/`           | Rules loaded from the instance config: stats, progression, economy, loot, quests, shop, craft, entity defaults, ESI status IDs; the container capacity and the player containers (`capacity.go`, `storage.go`); the generated stat contract |
 | `game/persist/`           | The durable player state and the commit pipeline: capture, retries, checkpoints, fencing and the final commit                                                                                                                               |
 | `game/social/`            | Chat channels, parties and the friend cache of the players on this server                                                                                                                                                                   |
-| `game/sim/`               | Tick phases (`simulation_phases.go`), typed input dispatch (`phase_input_handlers.go`), movement, AI, tap and held skills, collision and death, world reconstruction (`instance_loader.go`)                                                 |
+| `game/sim/`               | Tick phases (`simulation_phases.go`), typed input dispatch (`phase_input_handlers.go`), movement, AI, skill activation and automatic skills, collision and death, world reconstruction (`instance_loader.go`)                                                 |
 | `game/net/`               | `GameServer`: the tick loop, WebSocket lifecycle and the `events` uplink (`handlers.go`), admission and session end (`sessions.go`), the friend broker (`friends.go`), snapshot build (`snapshot.go`), metrics                              |
 | `engine_client/`          | engine-cyberia transport clients (gRPC, REST fallback, dispatcher), the player service client (`player_client.go`) + world builder                                                                                                          |
 | `api/`                    | chi router; `/api/v1/*` endpoints                                                                                                                                                                                                           |

@@ -94,9 +94,11 @@ The skill of an item is the `CyberiaSkill` document of its label in the served r
 holds one skill document per label (`triggerItemId` is unique) and one binding per label, so the
 label names one definition and one skill there. A stack runs that skill only where it runs its
 definition. The warm content of a world wins: its skill of a label is the one that runs, and a skill
-resolved for a player only adds a label the world does not warm. `logicEventIds` lists exactly the
-distinct handlers of `skills[]`, in order; release validation (`skills`) and the engine refuse a
-document where they disagree, or where a handler is no skill logic.
+resolved for a player only adds a label the world does not warm. Each entry of `skills[]` holds a
+`skillId`, a lowercase slug no other entry of the document holds, and a `logicEventId`; release
+validation (`skills`) and the engine refuse a document whose skill id is missing or repeats, or whose
+handler is no skill logic. An activation names a manual skill by its id, so release validation also
+refuses a manual skill id that two documents define with another handler or another summon.
 
 ## Snapshots
 

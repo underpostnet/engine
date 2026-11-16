@@ -218,7 +218,7 @@ Inside one simulation tick, `cyberia-server` runs the following phases in fixed 
 
 1. `PhaseInput` — drain each player's `InputQueue`; dispatch typed input commands to gameplay handlers.
 2. `PhaseLifecycle` — respawn timers, despawn expirations.
-3. `PhaseSkills` — skill projectile collisions.
+3. `PhaseSkills` — skill projectile collisions, and the automatic skills of held items.
 4. `PhaseAI` — bot behaviour decisions.
 5. `PhaseMovement` — integrate positions using `tickDuration`.
 6. `PhaseLoot` — drop token collection.
@@ -278,9 +278,9 @@ The client sends its new events once per frame as one `events` message. The simu
 
 **Movement re-plans once per player per tick, and nothing else throttles it.** Handlers record the tap's destination; `phaseInput` runs one A\* per player after the queue is drained. Taps that land in the same tick describe the same instant, so only the newest is planned. That coalescing is the only bound on pathfinder cost.
 
-Skills are not coalesced: they fire on every accepted tap, so the uplink carries every tap and the inbound rate limiter is what bounds the stream: 30 messages per second (`DefaultMessageRate`), with a burst of 150 (`DefaultMessageBurst`). The client sends at most one batch per 30 Hz step, and a network stall delivers the batches it queued at once, so the burst absorbs a 5 s stall. Each second of excess (30 dropped messages) costs one strike, and 20 strikes evict: a burst after a stall costs a few, a flood is evicted within a second.
+A tap moves the player and rolls the tap regeneration; it casts no skill. A skill casts only on its own `skill_activate` event ([skills](game-server.md#skills)). Inputs are not coalesced, so the uplink carries every event and the inbound rate limiter is what bounds the stream: 30 messages per second (`DefaultMessageRate`), with a burst of 150 (`DefaultMessageBurst`). The client sends at most one batch per 30 Hz step, and a network stall delivers the batches it queued at once, so the burst absorbs a 5 s stall. Each second of excess (30 dropped messages) costs one strike, and 20 strikes evict: a burst after a stall costs a few, a flood is evicted within a second.
 
-The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the skill-trigger period only; key steering paces its _refresh_ by it, while a change of heading emits at once.
+The client predicts every tap immediately and never waits on a cadence. `self.actionCooldownMs` is the period of the action cooldown that times the skills; key steering paces its _refresh_ by it, while a change of heading emits at once.
 
 ---
 

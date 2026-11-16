@@ -175,10 +175,10 @@ Prediction moves the own player only. Every other entity takes the server state.
 ### Client event pipeline
 
 ```
-mouse / touch / keyboard
+pointer events / keyboard
         │
         ▼
-input/                  raw OS events
+input/                  pointer router, steering, keys
         │
         ▼
 UI hit-test cascade  ──► modal/inventory/HUD consumed?
@@ -196,32 +196,106 @@ The modal counter (`ui/modal`) owns the stasis of the player. Its first open sen
 
 ### Pointer controls
 
-One pointer, a finger or the mouse, moves the player in two ways: tap or click a point, or drag a floating joystick. The joystick works on every platform and at every viewport size. `input/pointer_gesture.c` sorts each press. `ui/hud_joystick.c` draws the joystick.
+The pointers move the player in two ways: tap or click a point, or drag a floating joystick. The joystick works on every platform and at every viewport size. `ui/hud_joystick.c` draws it.
 
-| Gesture                   | Result                                                                                                                                                |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tap or click on the world | The player walks to the point. The tap goes out on release, at the press position.                                                                    |
-| Quick press on the world  | Released within 150 ms, a press is a tap, however far the pointer moved. A fast click on the move never starts the joystick.                          |
-| Held drag on the world    | Held 150 ms and moved past 35 px, a press shows a joystick at the press position. The pointer sets one of eight headings, the same as the arrow keys. |
-| Thumb in the inner 15 %   | No heading. The player stops.                                                                                                                         |
-| Release after a drag      | The joystick hides and the player stops. The drag sends no tap.                                                                                       |
-| Second finger             | Pinch zoom. It cancels a pending tap and stops the joystick.                                                                                          |
-| Finger on the UI          | The UI owns the touch. The tap goes out after a 120 ms pinch window. A drag never starts the joystick.                                                |
-| Click on the UI           | The UI owns the click. The tap goes out on the press. A drag never starts the joystick.                                                               |
+`js/pointer_bridge.c` is the one source of pointer events: the browser Pointer Events of the canvas, for the mouse, touch and pen. Each finger keeps its browser `pointerId` from its press to its release, so no touch array order applies. The canvas has `touch-action: none`, so the browser never takes a finger for a scroll or a zoom; the rest of the page keeps its own gestures. The canvas captures each pointer it presses. The bridge cancels a held pointer on a `pointercancel`, a lost pointer capture, a focus loss (`blur`, a hidden page), or a right click while the left button holds the mouse. It merges the moves of one pointer between two frames and never drops a press, a release or a cancel by itself: past 256 waiting events it cancels every pointer the client holds. On a `blur`, GLFW releases every held key, so key steering stops too.
 
-The joystick adds no wire message. It sends the same synthetic steering taps as the keyboard: the same reach, the same refresh at the action cooldown, the same stop. While it steers, the arrow keys wait. The base stays where the drag started.
+The splash routes its pointers the same way, as a full-screen surface: it starts on the release of its press, so no world tap follows it.
 
-To check a change, use a phone or a browser with touch emulation, and a desktop browser. A pinch needs a real device.
+`input/input.c` routes each pointer. A press gets a handle and one owner when it lands, and keeps both until it lifts or is cancelled. Another pointer never changes them. A new press goes to the first owner that takes it:
+
+| Order | Owner   | Takes the press when                                                 | Result                                                                                                      |
+| ----- | ------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1     | UI      | A full-screen surface blocks the gestures: the expanded Instance Map | The surface reads it, two presses pinch the map.                                                            |
+| 2     | Claimed | `input_claim_fn` takes it: a combat control                          | The combat cluster follows it with `input_pointer_at` until it lifts.                                       |
+| 3     | UI      | The interface covers the press position                              | The first UI press taps on the press frame and is the UI pointer. A UI press while it is held sends no tap. |
+| 4     | World   | No other owner takes it                                              | A tap on release, or the joystick.                                                                          |
+| 5     | Pinch   | Two world presses that are not the joystick                          | The camera zooms. Neither press taps or steers until it lifts.                                              |
+
+`input_pointer_down` and `input_pointer_position` read only the UI pointer, never a joystick, combat or world press. `input/pointer_gesture.c` sorts one world press into a tap or the joystick.
+
+| Gesture                                      | Result                                                                                                                                                                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tap or click on the world                    | The player walks to the point. The tap goes out on release, at the press position.                                                                                                                                                               |
+| Quick press on the world                     | Released within 150 ms, a press is a tap, however far the pointer moved. A fast click on the move never starts the joystick.                                                                                                                     |
+| Held drag on the world                       | Held 150 ms and moved past 35 px, a press shows a joystick at the press position. The pointer sets one of eight headings, the same as the arrow keys.                                                                                            |
+| Thumb in the inner 15 %                      | No heading. The player stops.                                                                                                                                                                                                                    |
+| Release after a drag                         | The joystick hides and the player stops. The drag sends no tap.                                                                                                                                                                                  |
+| Second finger on the world while it steers   | The joystick keeps steering. The finger cannot pinch with it. Its tap selects a target or an interaction and does not walk.                                                                                                                      |
+| Two fingers on the world                     | Pinch zoom. Neither finger taps or steers.                                                                                                                                                                                                       |
+| Finger or click on the UI                    | The UI owns it. The tap goes out on the press. A drag never starts the joystick.                                                                                                                                                                 |
+| Finger on a combat control                   | The combat cluster owns it until it lifts. The other thumb keeps the joystick, in either order.                                                                                                                                                  |
+| Lost finger: cancel, focus loss, right click | A cancelled press acts on nothing: no tap and no cast. A lost joystick sends one stop. A UI surface rolls a lost press back (`input_pointer_cancelled`): a dragged stack goes back to its slot, and no tap, drop, flip or map selection follows. |
+
+The joystick adds no wire message. It sends the same synthetic steering taps as the keyboard: the same reach, the same refresh at the action cooldown, the same stop. While it steers, the arrow keys wait. The base stays where the drag started. A steering tap only moves the player: it casts no skill. A steering tap and a cast are two sequenced events, so one events message can carry both.
+
+To check a change, use a phone and a desktop browser. A browser driver with multi-touch, such as Puppeteer `touchscreen.touchStart`, sends real touch events with their own ids; it does not replace a phone.
 
 1. Tap the ground. The player walks there. No joystick shows.
 2. Hold one finger still for a second, then lift it. The player walks to that point.
 3. Drag from any point of the ground. The joystick shows under the first contact. The player walks in the drag direction, in eight headings.
 4. Move the thumb back to the base. The player stops. Lift the finger. The joystick hides.
-5. Drag, then put a second finger down and pinch. The camera zooms, the player stops, and no tap moves the player.
-6. Drag the Quest Journal list and the thumb of the inventory bar track. They scroll. No joystick shows.
-7. Open the Instance Map. Drag and pinch it. No joystick shows.
-8. On a desktop, click the ground: the player walks there on release. Drag the mouse on the ground: the joystick shows and steers. Release: the player stops.
-9. On a desktop, click toolbar buttons and drag the inventory bar track. They respond on the press, as before. Steer with WASD and zoom with the wheel.
+5. Put two fingers on the ground and spread them. The camera zooms, and no tap moves the player.
+6. Steer with one thumb and tap the ground with the other. The player keeps walking; the tap selects only.
+7. Steer with one thumb and tap a toolbar button with the other. The button responds, and the player keeps walking.
+8. Drag the Quest Journal list and the thumb of the inventory bar track. They scroll. No joystick shows.
+9. Open the Instance Map. Drag and pinch it. No joystick shows.
+10. On a desktop, click the ground: the player walks there on release. Drag the mouse on the ground: the joystick shows and steers. Release: the player stops.
+11. On a desktop, click toolbar buttons and drag the inventory bar track. They respond on the press, as before. Steer with WASD and zoom with the wheel.
+
+### Combat controls
+
+`ui/combat_cluster.c` shows one round control for each manual skill of the active items, in loadout order, up to four. The skill map gives each skill its `skillId`, its `activation`, its `targeting` and its `reach`; an automatic or an event skill never gets a control. A control shows the entity the skill summons, the radial sweep and the seconds of the action cooldown, a ping when the cooldown ends, and a ready glow. Ready means ready to attempt: the server still rolls the chance.
+
+The first control sits in the bottom right corner of the screen the HUD leaves to the world: above the inventory bar, left of an open side column. On a wide screen it stays at most 360 px from the character, toward the right. The others ring it from the left to the top. A control keeps its place while the loadout stays the same. Each control is at least 52 px across, with at least 8 px between two rims. The cluster hides in stasis, while the player waits to respawn, and behind the session card.
+
+Every cast names its aim (`facing`, `auto_target` or `direction`, see [the server skills](game-server.md#skills)). The mouse never aims by itself.
+
+| Input                                  | AUTO TARGET on                                  | AUTO TARGET off       |
+| -------------------------------------- | ----------------------------------------------- | --------------------- |
+| Tap a control, or hold it with no drag | The server aims at the best target, else facing | Along the facing      |
+| Keys 1 to 4                            | The server aims at the best target, else facing | Along the facing      |
+| Drag a control past 14 px, release     | Along the drag                                  | Along the drag        |
+| Shift with a key                       | Toward the mouse                                | Toward the mouse      |
+| Release over the cancel zone           | Nothing                                         | Nothing               |
+| Escape or the right button             | Cancel the press                                | Cancel the press      |
+| Tap a hostile in the world             | It becomes the target an auto aim keeps         | It becomes the target |
+
+A self skill casts on the player whatever the aim. **AUTO TARGET** is on by default; the settings card switches it, and the choice holds for the page. The facing is the facing the player sees: the server keeps it when a walk stops (see [facing](game-server.md#facing)).
+
+`sim/auto_target.c` predicts the server pick from what the client holds: the kept target while it lives in reach, else the hostile bot ahead of the facing, then the nearest, then the lowest id. The server also ranks the enemies engaged with the player first, which the client does not hold, so the reticle can move when the answer arrives. `skill_ack` names the target the server took; the cluster keeps it as the target of the next auto aim until it dies or leaves the reach.
+
+Each cast is one `skill_activate` event. A hold sends nothing until its release. One cast flies at a time. A cast pushed while one waits for its answer, or in the last 250 ms of the cooldown, is queued: three gold segments turn around its control, and it goes once the cooldown ends, with the aim it was given, or is refused when 250 ms pass. Any other cast during the cooldown is refused on the control. The server checks the queued cast again when it arrives. `skill_ack` answers each cast with its sequence: the control flashes green on a cast, violet on a misfire, and amber on a refusal, and a misfire raises `MISFIRE` over the player. The ack sets the action cooldown at once; a later answer to a cast that stopped waiting changes only the cooldown. A new session drops the target and the cast in flight.
+
+`fx/fx_combat_aim.c` draws what the aim does. Each state has its own shape, not only its own colour:
+
+| Mark                      | Shows                                                                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Thin cyan brackets, a dot | AUTO TARGET on: the target a tap takes now                                                                                                                                                                                                 |
+| Bold cyan brackets        | The target the server took, or the hostile the player tapped; it closes in when it takes the target                                                                                                                                        |
+| Guide                     | A held or dragged control: a translucent body with an outline, a pulse that runs out, a chevron at the end. It starts at the character, runs the reach of the skill up to the edge of the screen, and takes the exact angle the cast sends |
+| Gold brackets, a cross    | The end of a manual guide                                                                                                                                                                                                                  |
+| Red guide                 | The release cancels                                                                                                                                                                                                                        |
+| Fading gold guide         | The exact aim the server answered for the last cast                                                                                                                                                                                        |
+
+A mark only shows the aim. The hit shows through the damage numbers and the hit burst of the server.
+
+The own player stands on a ground anchor: a flat cyan ring of art pixels with a notch on each side, under the sprite. Its sprite has a dark outline one art pixel wide (`draw_entity_layers` with an outline colour) and draws 10 % larger than the others. The world keeps its colours; a roof over the player fades as before.
+
+The inventory bar stays an inventory: every stack shows in its slot, and a tap opens its item modal. Over a slot it previews only what an automatic skill of the item consumes. A manual skill shows only in this cluster.
+
+To check a change on a phone and on a desktop:
+
+1. Activate a weapon with a manual skill. One control shows in the bottom right corner. Activate an item with a second manual skill: a second control shows left of the first.
+2. Walk right, stop, and tap the control with AUTO TARGET off. The projectile flies right. Repeat for each of the eight directions.
+3. With AUTO TARGET on and a hostile in reach, thin brackets mark it. Tap the control: the projectile flies at it and the brackets turn bold.
+4. Tap another hostile in the world, then tap the control: the projectile flies at the tapped one.
+5. Hold a control, drag at any angle, and release. The guide follows the drag at that angle, and the projectile flies along it, not along the nearest of the eight facings.
+6. Drag to the cancel zone and release. The guide turns red, and nothing is cast.
+7. Steer with the joystick and tap a control with the other thumb. Then press the control first and steer second. Then drag a control to aim, and drag one to the cancel zone. Each time the player keeps walking, one tap or release casts once, and the cancel zone casts nothing. Lift either thumb first: the other keeps its control.
+8. Tap the control twice in the cooldown. In the last quarter second the second tap shows the turning segments and goes when the cooldown ends; earlier, the control flashes amber.
+9. On a desktop, walk right with D, stop, put the mouse on the left side, and press 1 with AUTO TARGET off: the projectile flies right. Press Shift+1: it flies left, toward the mouse.
+10. On a desktop, steer with a mouse drag and press 1: the skill casts and the player keeps walking. Hold A and click a control: the skill casts. Drag a control with the mouse and right click before the release: nothing is cast.
 
 ---
 
@@ -330,7 +404,7 @@ One integrated widget with two modes, split across two modules:
 
 - **Toolbar** (`ui/toolbar`) — the top HUD strip: the compact map readout left-aligned, and the right-hand toggle row `[chat][social][quest][map][settings]`. The quest button shows/hides the Quest Journal and the map button shows/hides the minimap; both are hidden by default and stay open together. A tap on either closes the chat and the social panel. The coordinate readout opens the expanded Instance Map, which morphs to the full screen with an eased transition and retracts the same way on close.
 - **Side stack** (`ui/hud_side_stack`) — the right-hand column the HUD panels live in, between the toolbar and the inventory bar: the minimap on top and the Quest Journal beneath. The chat or the [social panel](social.md#social-panel) takes the whole column while it shows, over the minimap and the journal, and the social panel covers the chat. The column sizes to the room the bar leaves. When the journal is open the minimap gives way to at most half of the column, and the journal takes only what its content needs; a map slot under 100 px gives way. Each panel keeps its own state across toggles for the session: the journal its scroll, sections and pages, the minimap its zoom and its texture toggle.
-- **Minimap** (`ui/hud_minimap_overlay`) — the current map only: its map preview at 55 % over a see-through backdrop, with its border, fitted to the slot at zoom 1, and following the player at a closer zoom up to the map edges. Over it, in this order: the authored bots and resources as faded marks, the entry spawn when it lies on this map, the live bots and resources in the class of their status, the other players as squares, the quest targets of this map in their gold brackets, each portal as a gate where it stands, and the own player with its facing. Every mark is the one of the Instance Map (`ui/map_marker`) at its smallest size. An exit to another map has an arrow toward that map and a tag with its destination, as the World view names it; a link inside the map has a ring. A tag takes the first side of its gate that is clear of the controls, the markers and the other tags, and the pointer over a gate names its exit in full. The controls stand in the top right corner of the map: the texture toggle above zoom in and zoom out, in a row when the map is short. With the texture off, a grid on a see-through fill marks the map and every marker stays. The world shows through the map in both modes; the header, the controls and the markers stay opaque. No other map is drawn.
+- **Minimap** (`ui/hud_minimap_overlay`) — the current map only: its map preview at 55 % over a see-through backdrop, with its border, fitted to the slot at zoom 1, and following the player at a closer zoom up to the map edges. Over it, in this order: the authored bots and resources as faded marks, the entry spawn when it lies on this map, the live bots and resources in the class of their status, the other players as squares, the quest targets of this map in their gold brackets, each portal as a gate where it stands, and the own player with its facing. Every mark is the one of the Instance Map (`ui/map_marker`) at its smallest size. An exit to another map has an arrow toward that map and a tag with its destination, as the World view names it; a link inside the map has a ring. A tag takes the first side of its gate that is clear of the controls, the markers and the other tags, and the pointer over a gate names its exit in full. The controls stand in the top right corner of the map: open map, the texture toggle, zoom in and zoom out, and the two transparency steps, in a row when the map is short. Open map opens the Instance Map, as the coordinate readout does; the Instance Map hides the minimap and gives it back when it closes. With the texture off, a grid on a see-through fill marks the map and every marker stays. The world shows through the map in both modes; the header, the controls and the markers stay opaque. No other map is drawn.
 - **Container** (`ui/modal_map`) — compact mode is the always-on readout (map code, position, fps) hosted inside the toolbar; expanded mode is the full-screen morph target.
 - **Content** (`ui/modal_instance_map`) — renders the Instance Map inside the container: an opaque full-screen canvas with the modal chrome. A header strip under the toolbar holds the WORLD and UNIVERSE tabs, the name of the view and the close button; the details of a selection show on a modal card. A press on the header or on the card never reaches the map under it.
 
@@ -511,11 +585,11 @@ The cues are visual only. Their sounds arrive as `audio_event` messages the serv
 
 Item slots badge an object layer with the `stack` icon and its signed stat sum, red when negative.
 
-An inventory slot whose item triggers skills shows, above the slot, the entity each skill summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and each `metadata` delta replaces the skills of the definitions it carries, and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity; a slot that summons its own item counts the units of that stack alone. A tap skill shows only over an active slot. A held skill (`held` in the skill map) runs by itself on every held stack, so it shows over an inactive slot too.
+An inventory slot whose item has automatic skills shows, above the slot, the entity each one summons. The init_data skill map names the entity (`summonedEntityItemId`; `$active_skin` is the player's active skin), and each `metadata` delta replaces the skills of the definitions it carries, and the preview draws it as the stack the server spawns, through the same stack icon renderer as the rest of the UI. The slot keeps the trigger item's own icon. Distinct entities share one row, up to three. Each preview carries the quantity badge of the units the player holds of its entity; a slot that summons its own item counts the units of that stack alone. An automatic skill runs by itself on every held stack, so it shows over an inactive slot too. A manual skill shows in the [combat controls](#combat-controls), never over the bar.
 
-One bar under the row shows the cooldown of the row. For a tap skill it is the shared action cooldown from `self.actionReadyInMs`: it fills while the cooldown runs and turns green when the next tap fires skills. A green bar does not promise a summon: the server still rolls each skill's chance. For a held skill it is the consume cooldown from `self.consumeReadyInMs`. The row takes no input and hides while the player is in stasis.
+One bar under the row shows the consume cooldown from `self.consumeReadyInMs`. The row takes no input and hides while the player is in stasis.
 
-A consumable has no Use button. Its held skill, `zero-waste-auto-consume-heal`, consumes one unit by itself once the missing life takes the whole heal. Over a consumable slot the preview shows the item itself with the units left in that stack. The server spends one stack at a time, in slot order, so the counts drop on one stack, then on the next. The inventory modal follows its stack by slot, then by item id, so it closes when the last unit is consumed.
+A consumable has no Use button. Its automatic skill, `zero-waste-auto-consume-heal`, consumes one unit by itself once the missing life takes the whole heal. Over a consumable slot the preview shows the item itself with the units left in that stack. The server spends one stack at a time, in slot order, so the counts drop on one stack, then on the next. The inventory modal follows its stack by slot, then by item id, so it closes when the last unit is consumed.
 
 The server sends six values in canonical order. The client displays these values and uses the supplied movement speed.
 

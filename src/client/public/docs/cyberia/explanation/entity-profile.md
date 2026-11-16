@@ -278,9 +278,9 @@ bot on it. The `loot` entity-type default its item matches decides what collecti
 keeps the item of a consuming token, with the same pickup animation as any granted loot.
 
 A skill document links a consumable to the `zero-waste-auto-consume-heal` logic, the way the coin
-links to `coin_drop_or_transaction`. The skill summons the consumable itself. It is a held skill: the
-server runs it every tick on each stack a player or loot-collecting bot holds, active or not, and a
-tap never fires it.
+links to `coin_drop_or_transaction`. The skill summons the consumable itself. It is an automatic skill:
+the server runs it every tick on each stack a player or loot-collecting bot holds, active or not, and
+no activation ever fires it ([skills](game-server.md#skills)).
 
 ```
 World build (every map, every build)

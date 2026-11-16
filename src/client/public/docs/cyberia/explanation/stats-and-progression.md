@@ -17,7 +17,7 @@ The client displays server state. The CLI validates content and generates shared
 | 4     | `intelligence` | Adds five percentage points of summon chance                                              |               0 |
 | 5     | `utility`      | Removes one percent of base cooldown and adds one percentage point of regeneration chance |               0 |
 
-Chances are fractions of one. A tap regenerates with `lifeRegenChance` (default 0.15) plus utility; a skill summons with its `skillRules` chance (projectile 0.75, doppelganger 0.6) plus intelligence. No chance the stats raise passes `maxChance` (default 0.95), so nothing becomes a certainty. Regeneration heals the entity's own base amount plus a tenth of a point per resistance point, never past its maximum.
+Chances are fractions of one. A tap regenerates with `lifeRegenChance` (default 0.15) plus utility; an accepted skill activation rolls once against its `skillRules` chance (projectile 0.75, doppelganger 0.6) plus intelligence, and a failed roll is a misfire. No chance the stats raise passes `maxChance` (default 0.95), so nothing becomes a certainty. Regeneration heals the entity's own base amount plus a tenth of a point per resistance point, never past its maximum.
 
 Each OL modifier is an integer from `-100` through `+100`. Zero is neutral.
 Missing stat keys resolve to zero. Unknown keys, fractions, numeric strings, null values, and values outside the bounds fail validation.
@@ -126,7 +126,7 @@ This permits a final kill and its quest completion to award XP in the same tick.
 Quest completion still rejects repeats.
 
 Raw taps, idle duration, inventory changes, and currency transfers award no XP.
-Player skills and tap regeneration share the server action cooldown. Movement input remains independent.
+Skill activations and tap regeneration share the period of the action cooldown, each on its own timer: a skill activation spends `NextSkillAt`, a tap regeneration `NextRegenAt`, so a walk never delays a skill. A misfire spends the cooldown too. Movement input remains independent.
 
 ## API and Object Layer specification
 
