@@ -211,6 +211,7 @@ import { migratePopulations } from '../src/projects/cyberia/procedural/populatio
 import { DRAFT_RETENTION_DAYS, pruneClosedDrafts } from '../src/projects/cyberia/procedural/population/retention.js';
 import { paletteCatalog } from '../src/projects/cyberia/procedural/palettes/catalog.js';
 import { migrateJobs } from '../src/projects/cyberia/procedural/jobs/migration.js';
+import { migrateSkills } from '../src/projects/cyberia/content/skill-migration.js';
 import { genesisTemplates } from '../src/projects/cyberia/procedural/templates.js';
 import { ValkeyAPI, closeValkeyConnection, createValkeyConnection } from '../src/db/valkey/valkey.js';
 import { CacheService } from '../src/server/storage/cache.js';
@@ -5453,6 +5454,40 @@ try {
     });
     console.log(JSON.stringify(report, null, 2));
     process.exit(report.failed.length > 0 ? 1 : 0);
+  });
+
+  // ─── Skills ─────────────────────────────────────────────────────────────────
+  const skill = content.command('skill').description('The skill documents of the trigger items');
+
+  releaseEnvOptions(
+    skill
+      .command('migrate')
+      .description(
+        'Give each stored skill without a skill id the id of a free compiled skill of the same trigger item and ' +
+          'handler, else the slug of its trigger item and its name, and remove the logicEventIds list. A skill id ' +
+          'never changes. Prints the report as JSON and exits 1 while one skill id names two definitions; writes ' +
+          'nothing then, and nothing without --apply',
+      )
+      .option('--apply', 'Write the migration'),
+  ).action(async (options = {}) => {
+    const { host, path, db } = resolveDeployDb(options);
+    await DataBaseProviderService.load({ apis: ['cyberia-skill'], host, path, db });
+    try {
+      const artifact = contentArtifact();
+      const compiled = [
+        ...artifact.foundation.skills,
+        ...artifact.manifest.sagas.flatMap((code) => artifact.saga(code).families.skills),
+      ];
+      const report = await migrateSkills({
+        CyberiaSkill: DataBaseProviderService.getModel('CyberiaSkill', { host, path }),
+        compiled,
+        apply: !!options.apply,
+      });
+      console.log(JSON.stringify(report, null, 2));
+      if (report.conflicts.length > 0) process.exitCode = 1;
+    } finally {
+      await DataBaseProviderService.getProvider({ host, path }, 'mongoose').close();
+    }
   });
 
   // ─── Map populations ────────────────────────────────────────────────────────

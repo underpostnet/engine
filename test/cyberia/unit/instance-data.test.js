@@ -230,10 +230,11 @@ describe('instance config', () => {
   });
 
   it('shapes skill and entity-type documents for the wire and drops the ones without a key', () => {
-    expect(skillDocsToConfig([{ triggerItemId: 'gun', skills: [{ logicEventId: 'projectile' }] }, {}, null])).toEqual([
+    const shot = { skillId: 'shot', logicEventId: 'projectile' };
+    expect(skillDocsToConfig([{ triggerItemId: 'gun', skills: [shot] }, {}, null])).toEqual([
       {
         triggerItemId: 'gun',
-        skills: [{ logicEventId: 'projectile', name: '', description: '', summonedEntityItemId: '' }],
+        skills: [{ skillId: 'shot', logicEventId: 'projectile', name: '', description: '', summonedEntityItemId: '' }],
       },
     ]);
     expect(
@@ -299,8 +300,7 @@ describe('transport-agnostic fetchers', () => {
   describe('the content an item brings', () => {
     const shoots = (triggerItemId, summonedEntityItemId) => ({
       triggerItemId,
-      logicEventIds: ['projectile'],
-      skills: [{ logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId }],
+      skills: [{ skillId: 'shot', logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId }],
     });
     const world = (definitions, skills) => ({
       ...catalog(definitions.map((id) => ol(id, 'weapon'))),
@@ -316,7 +316,9 @@ describe('transport-agnostic fetchers', () => {
       expect(content.skills).toEqual([
         {
           triggerItemId: 'gun',
-          skills: [{ logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId: 'bullet' }],
+          skills: [
+            { skillId: 'shot', logicEventId: 'projectile', name: 'Shot', description: '', summonedEntityItemId: 'bullet' },
+          ],
         },
       ]);
       expect(content.unavailable).toEqual([]);
@@ -347,7 +349,7 @@ describe('transport-agnostic fetchers', () => {
       expect((await fetchItemContent(world(['gun'], [shoots('gun', 'bullet')]), 'gun')).unavailable).toEqual([
         { itemId: 'bullet', reason: 'unbound' },
       ]);
-      const defective = { ...shoots('gun', 'bullet'), logicEventIds: [] };
+      const defective = { ...shoots('gun', 'bullet'), skills: [{ logicEventId: 'projectile' }] };
       expect((await fetchItemContent(world(['gun', 'bullet'], [defective]), 'gun')).unavailable).toEqual([
         { itemId: 'gun', reason: 'malformed' },
       ]);

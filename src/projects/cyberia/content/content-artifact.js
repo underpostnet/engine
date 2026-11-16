@@ -36,7 +36,7 @@ import { readEconomy, replaceEconomy } from '../economy/economy-policy.js';
 import { bindingConflicts, releaseInstanceCodes, snapshotBindings } from './release-content.js';
 
 /** The artifact layout and document shapes this engine reads. */
-export const CONTENT_SCHEMA_VERSION = 11;
+export const CONTENT_SCHEMA_VERSION = 12;
 
 /**
  * The document families of the artifact by file name, in import order: a family names only what

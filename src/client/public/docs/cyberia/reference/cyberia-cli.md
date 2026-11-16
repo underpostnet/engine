@@ -40,6 +40,7 @@ checks the tables below against that registry.
 | `content audio`        | Import audio assets and bind them to maps                                 |
 | `content catalog`      | The item catalog: the definition each label runs on                       |
 | `content map-registry` | Compare the map owners with the maps and worlds of a catalog              |
+| `content skill`        | Migrate the stored skill documents to skill ids                           |
 | `content population`   | Migrate and prune the map populations of the Procedural Engine            |
 | `content release`      | Build, validate, promote and roll back the versioned content data         |
 | `content baseline`     | Capture and restore production content baselines                          |
@@ -816,6 +817,22 @@ cyberia player rebind-held <item-id> [--universe <code>] [--apply] --dev
 `rebind-held` reports without `--apply`. See
 [the player service reference](player-service.md#operator-commands) and
 [Enable player accounts](../how-to/enable-player-accounts.md#held-stacks).
+
+## `cyberia content skill` — skill documents
+
+```
+cyberia content skill migrate [--apply] --dev
+```
+
+Gives each stored skill without a `skillId` the id of a free compiled skill of the same trigger item
+and handler, from the foundation and the sagas of the content artifact. A skill no compiled skill
+matches takes the slug of its trigger item and its name (or its handler), so two items never share an
+id by chance. Two skills of one document never share an id, and an id a skill holds never changes.
+The command removes the `logicEventIds` list. One skill id must name one definition (one handler and
+one summoned entity) in the whole collection: the report lists each conflict under `conflicts`, the
+command then writes nothing and exits 1. Prints the report as JSON and writes nothing without
+`--apply`. A second run changes nothing. Run it before the engine serves skills: a skill without an
+id cannot run (see [the skill model](../explanation/game-server.md#skills)).
 
 ## `cyberia content population` — map populations
 

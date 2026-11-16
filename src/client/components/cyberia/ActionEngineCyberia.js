@@ -20,7 +20,13 @@ import { CyberiaSagaService } from '../../services/cyberia-saga/CyberiaSagaServi
 import { CyberiaMarketService } from '../../services/cyberia-market/CyberiaMarketService.js';
 import { getQueryParams, listenQueryParamsChange, setQueryParams } from '../core/Router.js';
 import { contextIconSrc } from '../objectlayer-studio/ContextPanel.js';
-import { QUEST_STEPS_TYPES, SKILL_LOGIC_IDS, skillSummonedItemId } from './SharedDefaultsCyberia.js';
+import {
+  QUEST_STEPS_TYPES,
+  SKILL_ID_PATTERN,
+  SKILL_LOGIC_IDS,
+  skillIdOf,
+  skillSummonedItemId,
+} from './SharedDefaultsCyberia.js';
 import { sagaBadgeList } from './SagaCyberia.js';
 import { SagaSync } from './SagaSyncCyberia.js';
 import { StudioCyberia } from './StudioCyberia.js';
@@ -104,8 +110,7 @@ class ActionEngineCyberia {
   static marketProfile = null;
   // What the economy capabilities of the saved action do in each world of its map.
   static diagnostics = null;
-  // Editable `skills[]` for the loaded CyberiaSkill (logicEventIds are derived
-  // from these on save).
+  // Editable `skills[]` for the loaded CyberiaSkill.
   static skillDefs = [];
 
   static ids = {
@@ -835,7 +840,7 @@ class ActionEngineCyberia {
         !body.triggerItemId
           ? 'Trigger item id is required.'
           : body.skills.length === 0
-            ? 'Add at least one skill (logic event).'
+            ? 'Add at least one skill.'
             : '',
       new: () => ActionEngineCyberia.newSkill(),
       load: (doc, options) => ActionEngineCyberia.loadSkill(doc, options),
@@ -1396,7 +1401,7 @@ class ActionEngineCyberia {
         style="border-bottom:1px solid var(--studio-subtle-border);padding:3px 0;align-items:center;font-size:12px;font-family:monospace;"
       >
         <div class="in fll" style="flex:1;">
-          <span style="color:var(--studio-accent);">${sk.logicEventId}</span>${sk.name
+          <span style="color:var(--studio-accent);">${sk.skillId}</span> · ${sk.logicEventId}${sk.name
             ? ` · ${sk.name}`
             : ''}${summoned ? html`<span style="margin:0 4px;">&rarr;</span>${summoned}` : ''}
         </div>
@@ -1407,7 +1412,7 @@ class ActionEngineCyberia {
         })}
       </div>`;
     }
-    if (!out) out = '<div style="color:#888;font-size:12px;">No skills. Add at least one logic event.</div>';
+    if (!out) out = '<div style="color:#888;font-size:12px;">No skills. Add at least one skill.</div>';
     htmls('.action-engine-skill-def-list', out);
     for (let i = 0; i < ActionEngineCyberia.skillDefs.length; i++) {
       if (s(`.btn-aes-rmskill-${i}`))
@@ -1422,6 +1427,7 @@ class ActionEngineCyberia {
     const logicEventId = ActionEngineCyberia.getSingleDropdownValue('action-engine-skill-logic-event');
     const name = s('.action-engine-skill-name')?.value?.trim() || '';
     const description = s('.action-engine-skill-description')?.value || '';
+    const skillId = s('.action-engine-skill-id')?.value?.trim() || skillIdOf(name, logicEventId);
     const picked = ActionEngineCyberia.getSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker);
     // A logic that summons its trigger item stores no summon: the runtime resolves it.
     const summonedEntityItemId = skillSummonedItemId({ logicEventId, summonedEntityItemId: picked }, '');
@@ -1429,13 +1435,17 @@ class ActionEngineCyberia {
       NotificationManager.Push({ html: 'Select a canonical logic event id first.', status: 'error' });
       return;
     }
-    if (ActionEngineCyberia.skillDefs.some((sk) => sk.logicEventId === logicEventId)) {
-      NotificationManager.Push({ html: `Logic event "${logicEventId}" already added.`, status: 'error' });
+    if (!SKILL_ID_PATTERN.test(skillId)) {
+      NotificationManager.Push({ html: `Skill id "${skillId}" is not a lowercase slug.`, status: 'error' });
       return;
     }
-    ActionEngineCyberia.skillDefs.push({ logicEventId, name, description, summonedEntityItemId });
+    if (ActionEngineCyberia.skillDefs.some((sk) => sk.skillId === skillId)) {
+      NotificationManager.Push({ html: `Skill id "${skillId}" already added.`, status: 'error' });
+      return;
+    }
+    ActionEngineCyberia.skillDefs.push({ skillId, logicEventId, name, description, summonedEntityItemId });
     ActionEngineCyberia.setSingleDropdownValue('action-engine-skill-logic-event', '');
-    for (const cls of ['action-engine-skill-name', 'action-engine-skill-description'])
+    for (const cls of ['action-engine-skill-id', 'action-engine-skill-name', 'action-engine-skill-description'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
     ActionEngineCyberia.showSummonPicker(true);
@@ -1460,8 +1470,9 @@ class ActionEngineCyberia {
         html`<div class="fl" style="align-items:center;">
           <div class="in fll" style="flex:1;">
             <div style="font-weight:bold;font-family:monospace;font-size:12px;">${doc.triggerItemId}</div>
-            <div style="font-size:11px;color:#888;">${(doc.logicEventIds || []).join(', ') || '—'}</div>
-            <div style="font-size:11px;color:#888;">${(doc.skills || []).length} skill(s)</div>
+            <div style="font-size:11px;color:#888;">
+              ${(doc.skills || []).map(({ skillId, logicEventId }) => `${skillId} · ${logicEventId}`).join(', ') || '—'}
+            </div>
             ${sagaBadgeList(ActionEngineCyberia.sagasOf('skill', doc))}
           </div>
           <div class="in fll" style="display:flex;gap:4px;">${loadBtn}${delBtn}</div>
@@ -1481,15 +1492,13 @@ class ActionEngineCyberia {
   static getSkillPayload() {
     const triggerItemId = ActionEngineCyberia.getSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker);
     const skills = ActionEngineCyberia.skillDefs.map((sk) => ({
+      skillId: sk.skillId,
       logicEventId: sk.logicEventId,
       name: sk.name || '',
       description: sk.description || '',
       summonedEntityItemId: sk.summonedEntityItemId || '',
     }));
-    // logicEventIds is the compact discriminator list — derived from the skills
-    // so the two can never drift.
-    const logicEventIds = [...new Set(skills.map((sk) => sk.logicEventId).filter(Boolean))];
-    return { triggerItemId, logicEventIds, skills };
+    return { triggerItemId, skills };
   }
 
   static loadSkill(doc, { quiet = false } = {}) {
@@ -1497,6 +1506,7 @@ class ActionEngineCyberia {
     ActionEngineCyberia.setCurrent('skill', doc);
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillTriggerItemPicker, doc.triggerItemId || '');
     ActionEngineCyberia.skillDefs = (doc.skills || []).map((sk) => ({
+      skillId: sk.skillId,
       logicEventId: sk.logicEventId,
       name: sk.name || '',
       description: sk.description || '',
@@ -1513,7 +1523,7 @@ class ActionEngineCyberia {
     ActionEngineCyberia.setSingleDropdownValue(ActionEngineCyberia.ids.skillSummonedItemPicker, '');
     ActionEngineCyberia.setSingleDropdownValue('action-engine-skill-logic-event', '');
     ActionEngineCyberia.showSummonPicker(true);
-    for (const cls of ['action-engine-skill-name', 'action-engine-skill-description'])
+    for (const cls of ['action-engine-skill-id', 'action-engine-skill-name', 'action-engine-skill-description'])
       if (s(`.${cls}`)) s(`.${cls}`).value = '';
     ActionEngineCyberia.renderSkillDefList();
   }
@@ -2124,7 +2134,7 @@ class ActionEngineCyberia {
               'Skill Definition',
               'fa-solid fa-circle-info',
               html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
-                  Trigger item — the ObjectLayer item whose active layer fires these skills.
+                  Trigger item — the ObjectLayer item that carries these skills.
                 </div>
                 ${await ActionEngineCyberia.buildItemIdDropdown(ids.skillTriggerItemPicker, html`Search trigger itemId`)}`,
             )}
@@ -2132,7 +2142,7 @@ class ActionEngineCyberia {
                   'Logic Skills',
                   'fa-solid fa-bolt',
                   html`<div class="in input-label" style="font-size:12px;margin-bottom:6px;opacity:.8;">
-                      Add logic event
+                      Add skill
                     </div>
                     ${dynamicCol({ containerSelector: cont, id: dc.skillDef, type: 'a-50-b-50' })}
                     <div class="fl">
@@ -2157,6 +2167,14 @@ class ActionEngineCyberia {
                           type: 'text',
                         })}
                       </div>
+                    </div>
+                    <div class="in" style="margin-top:6px;">
+                      ${await Input.instance({
+                        id: 'action-engine-skill-id',
+                        label: html`Skill Id (empty takes the name slug)`,
+                        containerClass: 'inl',
+                        type: 'text',
+                      })}
                     </div>
                     <div class="in" style="margin-top:6px;">
                       ${await Input.instance({

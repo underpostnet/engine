@@ -77,8 +77,15 @@ const byItemId = new Map(ITEMS.map((entry) => [entry.itemId, entry]));
 const SKILLS = [
   {
     triggerItemId: 'pistol',
-    logicEventIds: ['projectile'],
-    skills: [{ logicEventId: 'projectile', name: 'Shot', description: 'A shot.', summonedEntityItemId: 'bullet' }],
+    skills: [
+      {
+        skillId: 'shot',
+        logicEventId: 'projectile',
+        name: 'Shot',
+        description: 'A shot.',
+        summonedEntityItemId: 'bullet',
+      },
+    ],
   },
 ];
 

@@ -872,12 +872,14 @@ async function skillRows({ add }, { models, compiled, documents, plan }) {
   const triggers = (compiled.families.skills ?? []).map(({ triggerItemId }) => triggerItemId);
   const stored = await models.CyberiaSkill.find(
     { triggerItemId: { $in: triggers } },
-    { triggerItemId: 1, logicEventIds: 1 },
+    { triggerItemId: 1, 'skills.logicEventId': 1 },
   ).lean();
   const imported = new Map((documents.skills ?? []).map(({ doc, status }) => [doc.triggerItemId, status]));
   for (const entry of plan.entries.filter(({ kind }) => kind === 'skill')) {
     const skill = stored.find(({ triggerItemId }) => triggerItemId === entry.code);
-    const unknown = (skill?.logicEventIds ?? []).filter((id) => !SKILL_LOGIC_ID_VALUES.includes(id));
+    const unknown = (skill?.skills ?? [])
+      .map(({ logicEventId }) => logicEventId)
+      .filter((id) => !SKILL_LOGIC_ID_VALUES.includes(id));
     add({
       key: `skill:${entry.code}`,
       category: 'skills',

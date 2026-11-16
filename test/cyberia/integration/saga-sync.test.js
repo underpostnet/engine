@@ -136,16 +136,14 @@ describe.skipIf(!mongodBinary)('saga synchronization on a real MongoDB', () => {
     await model('CyberiaSkill').create([
       {
         triggerItemId: 'pistol',
-        logicEventIds: ['projectile'],
         skills: [
-          { logicEventId: 'projectile', summonedEntityItemId: 'bullet' },
-          { logicEventId: 'projectile', summonedEntityItemId: '$active_skin' },
+          { skillId: 'shot', logicEventId: 'projectile', summonedEntityItemId: 'bullet' },
+          { skillId: 'mirror-shot', logicEventId: 'projectile', summonedEntityItemId: '$active_skin' },
         ],
       },
       {
         triggerItemId: 'wand',
-        logicEventIds: ['projectile'],
-        skills: [{ logicEventId: 'projectile', summonedEntityItemId: 'orb' }],
+        skills: [{ skillId: 'orb-shot', logicEventId: 'projectile', summonedEntityItemId: 'orb' }],
       },
     ]);
     for (const itemId of ['pistol', 'bullet', 'wand']) await bindItemOf(itemId);

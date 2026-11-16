@@ -263,34 +263,80 @@ export const dialogueItemId = (code) =>
 export const CASTER_SKIN_PLACEHOLDER = '$active_skin';
 
 /**
+ * What starts a skill. A manual skill runs on an explicit activation of a player or a bot. An
+ * automatic skill runs by itself on the held units of its item when its condition holds. An event
+ * skill belongs to a gameplay event of the world, never to an activation.
+ */
+export const SKILL_ACTIVATIONS = Object.freeze({ manual: 'manual', automatic: 'automatic', event: 'event' });
+
+/** What a skill aims at: a direction from the caster, the caster itself, or nothing. */
+export const SKILL_TARGETS = Object.freeze({ direction: 'direction', self: 'self', none: 'none' });
+
+/**
+ * The eight facings of an entity, in the order of the wire direction enum (8 is no facing). Each
+ * holds its unit vector in world cells; y grows down, so up is -y. A vector takes the facing whose
+ * unit vector has the largest dot product with it. `cyberia stat-contract` writes this table into
+ * the server and the client, so a facing, a projectile and an aim preview agree.
+ */
+export const DIRECTIONS = Object.freeze(
+  [
+    ['up', 0, -1],
+    ['up_right', 1, -1],
+    ['right', 1, 0],
+    ['down_right', 1, 1],
+    ['down', 0, 1],
+    ['down_left', -1, 1],
+    ['left', -1, 0],
+    ['up_left', -1, -1],
+  ].map(([id, x, y]) => Object.freeze({ id, x: x / Math.hypot(x, y), y: y / Math.hypot(x, y) })),
+);
+
+/** The id of one skill of a trigger item: a lowercase slug, unique in its skill document. */
+export const SKILL_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
+
+/** The skill id a skill name gives: its slug, or its handler when the name gives none. */
+export const skillIdOf = (name, logicEventId) =>
+  String(name ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || logicEventId;
+
+/**
  * Canonical skill LogicId registry — the single source of truth for the
- * `logicEventId` handler keys the simulation skill dispatcher knows how to run.
- * MUST stay aligned with the handlers registered in cyberia-server
- * `game/skill_dispatcher.go#InitSkills`. The skill editor (ActionEngineCyberia)
- * offers ONLY these ids, and content abilities draw their `logicEventId` from here.
+ * `logicEventId` handler keys the simulation runs. `cyberia stat-contract` writes the activation
+ * and the target of each one into the server; the server runs a handler for each manual and
+ * automatic logic. The skill editor (ActionEngineCyberia) offers ONLY these ids, and content
+ * abilities draw their `logicEventId` from here.
  *
  * `summons` is the item type of the entity the handler spawns; null spawns the caster's skin.
  * `summonsTrigger` marks a handler whose entity is its trigger item itself.
  *
- * @type {ReadonlyArray<{id:string,name:string,description:string,summons:string|null,summonsTrigger?:boolean}>}
+ * @type {ReadonlyArray<{id:string,name:string,description:string,activation:string,targeting:string,summons:string|null,summonsTrigger?:boolean}>}
  */
 export const SKILL_LOGIC_IDS = Object.freeze([
   Object.freeze({
     id: 'projectile',
     name: 'Projectile',
-    description: 'Fires a projectile toward the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+    description:
+      'Fires a projectile in the aimed direction. Spawn chance and lifetime scale with Intelligence and Range.',
+    activation: SKILL_ACTIVATIONS.manual,
+    targeting: SKILL_TARGETS.direction,
     summons: ITEM_TYPES.skill,
   }),
   Object.freeze({
     id: 'coin_drop_or_transaction',
     name: 'Coin Drop',
     description: 'Drops coins on kill; transfer amount follows the kill-percent economy rules.',
+    activation: SKILL_ACTIVATIONS.event,
+    targeting: SKILL_TARGETS.none,
     summons: ITEM_TYPES.coin,
   }),
   Object.freeze({
     id: 'doppelganger',
     name: 'Doppelganger',
     description: 'Summons a passive clone that wanders nearby. Spawn chance scales with Intelligence.',
+    activation: SKILL_ACTIVATIONS.manual,
+    targeting: SKILL_TARGETS.self,
     summons: null,
   }),
   Object.freeze({
@@ -298,6 +344,8 @@ export const SKILL_LOGIC_IDS = Object.freeze([
     name: 'Zero-Waste Heal',
     description:
       'Consumes one held unit by itself when the missing life takes the whole heal. The item heals its Resistance as life.',
+    activation: SKILL_ACTIVATIONS.automatic,
+    targeting: SKILL_TARGETS.self,
     summons: ITEM_TYPES.consumable,
     summonsTrigger: true,
   }),

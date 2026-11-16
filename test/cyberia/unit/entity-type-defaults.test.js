@@ -316,9 +316,9 @@ describe.skipIf(!contentBuilt)('syncing an instance', () => {
   // What the collection defines: a skill for a trigger the world carries, and one for a trigger
   // nothing in it does.
   const SKILLS = [
-    { triggerItemId: 'atlas_pistol_mk2', logicEventIds: ['projectile'] },
-    { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
-    { triggerItemId: 'hatchet', logicEventIds: ['projectile'] },
+    { triggerItemId: 'atlas_pistol_mk2', skills: [{ skillId: 'pulse-shot', logicEventId: 'projectile' }] },
+    { triggerItemId: 'coin', skills: [{ skillId: 'coin-scatter', logicEventId: 'coin_drop_or_transaction' }] },
+    { triggerItemId: 'hatchet', skills: [{ skillId: 'hatchet-throw', logicEventId: 'projectile' }] },
   ];
   const referenced = () => [...confs.values()].flatMap(({ entityDefaults }) => entityDefaults.map(String));
 

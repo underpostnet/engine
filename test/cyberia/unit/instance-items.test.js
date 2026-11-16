@@ -5,6 +5,7 @@ import {
   collectSummonedItemIds,
   isMaterialItemId,
   selectInstanceSkills,
+  skillConflicts,
   skillDefect,
 } from '../../../src/api/cyberia-instance/cyberia-instance-items.js';
 
@@ -110,23 +111,52 @@ describe('what the economy of a world names', () => {
 });
 
 describe('a skill document that can run', () => {
-  const skill = (logicEventIds, handlers, triggerItemId = 'gun') => ({
+  const skill = (entries, triggerItemId = 'gun') => ({
     triggerItemId,
-    logicEventIds,
-    skills: handlers.map((logicEventId) => ({ logicEventId })),
+    skills: entries.map(([skillId, logicEventId]) => ({ skillId, logicEventId })),
   });
 
-  it('names its trigger, its skills and exactly their distinct handlers, in their order', () => {
-    expect(skillDefect(skill(['projectile', 'doppelganger'], ['projectile', 'doppelganger', 'projectile']))).toBe('');
+  it('names its trigger and its skills, each with a handler and an id of its own', () => {
+    expect(skillDefect(skill([['shot', 'projectile'], ['echo', 'doppelganger'], ['burst', 'projectile']]))).toBe('');
   });
 
   it('says why it cannot run', () => {
-    expect(skillDefect(skill(['projectile'], ['projectile'], '$active_skin'))).toBe('it names no trigger item');
-    expect(skillDefect(skill([], []))).toBe('it holds no skill');
-    expect(skillDefect(skill(['teleport'], ['teleport']))).toBe('"teleport" is no skill handler');
-    expect(skillDefect(skill(['doppelganger', 'projectile'], ['projectile', 'doppelganger']))).toBe(
-      'logicEventIds [doppelganger, projectile] are not the handlers of its skills [projectile, doppelganger]',
-    );
-    expect(skillDefect(skill(['projectile'], ['projectile', 'doppelganger']))).toMatch(/are not the handlers/);
+    expect(skillDefect(skill([['shot', 'projectile']], '$active_skin'))).toBe('it names no trigger item');
+    expect(skillDefect(skill([]))).toBe('it holds no skill');
+    expect(skillDefect(skill([['warp', 'teleport']]))).toBe('"teleport" is no skill handler');
+    expect(skillDefect(skill([[undefined, 'projectile']]))).toBe('"" is no skill id');
+    expect(skillDefect(skill([['Pulse Shot', 'projectile']]))).toBe('"Pulse Shot" is no skill id');
+    expect(skillDefect(skill([['shot', 'projectile'], ['shot', 'doppelganger']]))).toBe('skill id "shot" repeats');
+  });
+});
+
+describe('one skill id names one manual skill', () => {
+  const doc = (triggerItemId, skillId, logicEventId, summonedEntityItemId = '') => ({
+    triggerItemId,
+    skills: [{ skillId, logicEventId, summonedEntityItemId }],
+  });
+
+  it('lets items share a manual skill with one definition, and any automatic or event skill', () => {
+    expect(
+      skillConflicts([
+        doc('gun', 'shot', 'projectile', 'bullet'),
+        doc('rifle', 'shot', 'projectile', 'bullet'),
+        doc('gel', 'dose', 'zero-waste-auto-consume-heal'),
+        doc('ration', 'dose', 'zero-waste-auto-consume-heal', 'ration'),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('names a manual skill id defined with another handler or another summon', () => {
+    expect(
+      skillConflicts([
+        doc('gun', 'shot', 'projectile', 'bullet'),
+        doc('bow', 'shot', 'projectile', 'arrow'),
+        doc('staff', 'shot', 'doppelganger', '$active_skin'),
+      ]),
+    ).toEqual([
+      'skill id "shot" is projectile → bullet on gun and projectile → arrow on bow',
+      'skill id "shot" is projectile → bullet on gun and doppelganger → $active_skin on staff',
+    ]);
   });
 });

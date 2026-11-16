@@ -405,6 +405,7 @@ message DefaultObjectLayerState {
 }
 
 message SkillDetail {
+  string skill_id                = 5;  // id of the skill, unique in its trigger item; a manual activation names it
   string logic_event_id          = 1;  // skill handler key (e.g. "projectile", "doppelganger")
   string description             = 2;  // human-readable skill description shown in the inventory modal
   string summoned_entity_item_id = 3;  // ObjectLayer item ID of the entity summoned by this skill ("$active_skin" = dynamic)

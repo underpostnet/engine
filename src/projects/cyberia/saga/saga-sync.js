@@ -344,7 +344,7 @@ export async function planSync({ models, saga, selections = [] }) {
         kind: 'skill',
         code: skill.triggerItemId,
         outcome: 'kept',
-        detail: `fires ${skill.logicEventIds.join(', ') || 'no logic event'}`,
+        detail: `fires ${skill.skills.map(({ logicEventId }) => logicEventId).join(', ') || 'no logic event'}`,
       });
   }
   return { entries, writes: [...writes.values()], reviewed };

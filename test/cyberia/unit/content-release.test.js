@@ -206,10 +206,9 @@ const content = () => {
       CyberiaSkill: new FakeModel([
         {
           triggerItemId: 'hatchet',
-          logicEventIds: ['projectile', 'doppelganger'],
           skills: [
-            { logicEventId: 'projectile', summonedEntityItemId: 'hatchet' },
-            { logicEventId: 'doppelganger', summonedEntityItemId: '$active_skin' },
+            { skillId: 'hatchet-throw', logicEventId: 'projectile', summonedEntityItemId: 'hatchet' },
+            { skillId: 'echo-double', logicEventId: 'doppelganger', summonedEntityItemId: '$active_skin' },
           ],
         },
       ]),
@@ -326,20 +325,28 @@ describe('candidate validation', () => {
     ]);
   });
 
-  it('fails on a skill document whose handlers disagree or that names a handler no simulation runs', async () => {
+  it('fails on a skill document whose skill ids repeat or that names a handler no simulation runs', async () => {
     const { models, hatchet, sword } = content();
-    models.CyberiaSkill.docs[0].logicEventIds = ['projectile'];
+    models.CyberiaSkill.docs[0].skills[1].skillId = 'hatchet-throw';
     models.CyberiaSkill.docs.push({
       triggerItemId: 'sword',
-      logicEventIds: ['teleport'],
-      skills: [{ logicEventId: 'teleport' }],
+      skills: [{ skillId: 'warp', logicEventId: 'teleport' }],
     });
     const validation = await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) });
     expect(failing(validation)).toEqual({
-      skills: [
-        'skill hatchet: logicEventIds [projectile] are not the handlers of its skills [projectile, doppelganger]',
-        'skill sword: "teleport" is no skill handler',
-      ],
+      skills: ['skill hatchet: skill id "hatchet-throw" repeats', 'skill sword: "teleport" is no skill handler'],
+    });
+  });
+
+  it('fails on a manual skill id that two items define two ways', async () => {
+    const { models, hatchet, sword } = content();
+    models.CyberiaSkill.docs.push({
+      triggerItemId: 'sword',
+      skills: [{ skillId: 'hatchet-throw', logicEventId: 'projectile', summonedEntityItemId: 'sword' }],
+    });
+    const validation = await validateContentRelease(models, { resolveCanonical: canonicalFrom([hatchet, sword]) });
+    expect(failing(validation)).toEqual({
+      skills: ['skill id "hatchet-throw" is projectile → hatchet on hatchet and projectile → sword on sword'],
     });
   });
 

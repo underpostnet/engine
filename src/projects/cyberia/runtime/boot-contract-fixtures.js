@@ -81,7 +81,14 @@ export function buildBootContractArtifacts() {
       skills: skillDocsToConfig([
         {
           triggerItemId: 'sword',
-          skills: [{ logicEventId: 'projectile', name: 'Contract Shot', summonedEntityItemId: 'sword-bullet' }],
+          skills: [
+            {
+              skillId: 'contract-shot',
+              logicEventId: 'projectile',
+              name: 'Contract Shot',
+              summonedEntityItemId: 'sword-bullet',
+            },
+          ],
         },
       ]),
       unavailable: [{ itemId: 'sword-bullet', reason: 'unbound' }],

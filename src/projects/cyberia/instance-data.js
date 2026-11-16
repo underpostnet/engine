@@ -79,7 +79,7 @@ function normalizeEntityDefault(entityDefault = {}, canonical = {}, itemTypes) {
 }
 
 // Map CyberiaSkill documents to the proto skillConfig shape. The collection is the authoritative
-// source and carries the full metadata (summonedEntityItemId, name, description); the wire message
+// source and carries the full metadata (skillId, summonedEntityItemId, name, description); the wire message
 // is built from the subset this instance runs, which nothing persists. A logic that summons its
 // trigger item stores no summon, so the summon is resolved here.
 function skillDocsToConfig(skillDocs = []) {
@@ -88,6 +88,7 @@ function skillDocsToConfig(skillDocs = []) {
     .map((d) => ({
       triggerItemId: d.triggerItemId,
       skills: (d.skills || []).map((sk) => ({
+        skillId: sk.skillId,
         logicEventId: sk.logicEventId || '',
         name: sk.name || '',
         description: sk.description || '',

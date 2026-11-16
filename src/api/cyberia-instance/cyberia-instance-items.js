@@ -8,7 +8,12 @@
  * differently, and a skill would export but not boot, or boot but not export.
  */
 
-import { isCanonicalSkillLogicId } from '../../client/components/cyberia/SharedDefaultsCyberia.js';
+import {
+  SKILL_ACTIVATIONS,
+  SKILL_ID_PATTERN,
+  SKILL_LOGIC_IDS,
+  isCanonicalSkillLogicId,
+} from '../../client/components/cyberia/SharedDefaultsCyberia.js';
 
 /** A '$'-prefixed id is a runtime placeholder the simulation resolves, never a document. */
 const isMaterialItemId = (itemId) => typeof itemId === 'string' && itemId.length > 0 && !itemId.startsWith('$');
@@ -122,23 +127,53 @@ function collectEconomyItemIds(itemPolicies = []) {
 
 /**
  * Why a skill document cannot run, or '' when it can. It names its trigger item and at least one
- * skill, each skill names a handler the simulation knows, and `logicEventIds` lists exactly the
- * distinct handlers of its skills, in their order.
+ * skill, each skill names a handler the simulation knows, and each skill id is a slug no other
+ * skill of the document holds.
  *
- * @param {{triggerItemId?: string, logicEventIds?: string[], skills?: Array<{logicEventId?: string}>}} skill
+ * @param {{triggerItemId?: string, skills?: Array<{skillId?: string, logicEventId?: string}>}} skill
  * @returns {string}
  */
 function skillDefect(skill) {
   if (!isMaterialItemId(skill?.triggerItemId)) return 'it names no trigger item';
-  const handlers = (skill.skills || []).map((entry) => entry?.logicEventId);
-  if (handlers.length === 0) return 'it holds no skill';
-  const unknown = handlers.find((handler) => !isCanonicalSkillLogicId(handler));
-  if (unknown !== undefined) return `"${unknown}" is no skill handler`;
-  const expected = [...new Set(handlers)];
-  const listed = skill.logicEventIds || [];
-  if (listed.length !== expected.length || listed.some((handler, index) => handler !== expected[index]))
-    return `logicEventIds [${listed.join(', ')}] are not the handlers of its skills [${expected.join(', ')}]`;
+  const entries = skill.skills || [];
+  if (entries.length === 0) return 'it holds no skill';
+  const unknown = entries.find((entry) => !isCanonicalSkillLogicId(entry?.logicEventId));
+  if (unknown !== undefined) return `"${unknown?.logicEventId}" is no skill handler`;
+  const ids = entries.map((entry) => entry.skillId ?? '');
+  const malformed = ids.find((id) => !SKILL_ID_PATTERN.test(id));
+  if (malformed !== undefined) return `"${malformed}" is no skill id`;
+  const repeated = ids.find((id, index) => ids.indexOf(id) !== index);
+  if (repeated !== undefined) return `skill id "${repeated}" repeats`;
   return '';
+}
+
+/** True for a handler an activation names by skill id. */
+const isManualLogic = (logicEventId) =>
+  SKILL_LOGIC_IDS.find(({ id }) => id === logicEventId)?.activation === SKILL_ACTIVATIONS.manual;
+
+/**
+ * Every manual skill id that two skill documents define two ways: with another handler, or with
+ * another summoned entity. An activation names a manual skill by its id, so the items that share
+ * the id share its definition. A repeat inside one document is a defect of it (see skillDefect).
+ *
+ * @param {Array<{triggerItemId?: string, skills?: Array<{skillId?: string, logicEventId?: string, summonedEntityItemId?: string}>}>} skills
+ * @returns {string[]} One sentence per conflict, in document order.
+ */
+function skillConflicts(skills) {
+  const seen = new Map();
+  const conflicts = [];
+  for (const doc of skills) {
+    for (const entry of (doc.skills || []).filter(({ logicEventId }) => isManualLogic(logicEventId))) {
+      const definition = `${entry.logicEventId} → ${entry.summonedEntityItemId || 'nothing'}`;
+      const first = seen.get(entry.skillId);
+      if (!first) seen.set(entry.skillId, { doc, triggerItemId: doc.triggerItemId, definition });
+      else if (first.doc !== doc && first.definition !== definition)
+        conflicts.push(
+          `skill id "${entry.skillId}" is ${first.definition} on ${first.triggerItemId} and ${definition} on ${doc.triggerItemId}`,
+        );
+    }
+  }
+  return conflicts;
 }
 
 export {
@@ -147,5 +182,6 @@ export {
   collectSummonedItemIds,
   isMaterialItemId,
   selectInstanceSkills,
+  skillConflicts,
   skillDefect,
 };

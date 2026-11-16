@@ -42,9 +42,7 @@ const ACK_LAG_TOLERANCE = 3;
 const TAP_PERIOD_MS = 1000 / TAP_FREQUENCY;
 
 // Joins are spread over a ramp instead of arriving together. The instance has a
-// single fixed spawn cell, so a fleet that lands together stacks on one cell —
-// and because every tap fires a skill, the stack kills itself. A dead player
-// cannot walk out and respawns on the same cell, so the pile never clears.
+// single fixed spawn cell, so a fleet that lands together stacks on one cell.
 // The gap gives each joiner time to walk clear before the next one lands.
 const SPAWN_DRAIN_MS = 600;
 const RAMP_WINDOW_MS = Math.min(CONNECTIONS * SPAWN_DRAIN_MS, Math.max(DURATION_MS / 2, 500), 120000);

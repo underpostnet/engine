@@ -985,8 +985,7 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
       const active = await model('CyberiaContentRelease').active();
       const shot = (name) => ({
         triggerItemId: 'sword',
-        logicEventIds: ['projectile'],
-        skills: [{ logicEventId: 'projectile', name, summonedEntityItemId: 'hatchet' }],
+        skills: [{ skillId: 'shot', logicEventId: 'projectile', name, summonedEntityItemId: 'hatchet' }],
       });
       const { CyberiaSkill } = await releaseModels(active.database);
       await CyberiaSkill.create(shot('Release shot'));
@@ -998,7 +997,13 @@ describe.skipIf(!mongodBinary)('Cyberia content releases on a MongoDB replica se
         {
           triggerItemId: 'sword',
           skills: [
-            { logicEventId: 'projectile', name: 'Release shot', description: '', summonedEntityItemId: 'hatchet' },
+            {
+              skillId: 'shot',
+              logicEventId: 'projectile',
+              name: 'Release shot',
+              description: '',
+              summonedEntityItemId: 'hatchet',
+            },
           ],
         },
       ]);

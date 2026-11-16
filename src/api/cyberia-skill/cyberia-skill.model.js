@@ -2,12 +2,13 @@ import { Schema, model } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-// Expanded metadata for one logic event a trigger item can fire. Same shape as
-// the `skills[]` entries content abilities project into (the cyberia-content artifact).
+// One skill a trigger item carries. Same shape as the `skills[]` entries content abilities
+// compile into (the cyberia-content artifact).
 const SkillDefinitionSchema = new Schema(
   {
-    // Handler key dispatched by the simulation skill engine (e.g. 'projectile',
-    // 'coin_drop_or_transaction', 'doppelganger').
+    // The id a manual activation names, unique in its document (SKILL_ID_PATTERN).
+    skillId: { type: String, required: true, trim: true },
+    // Handler key the simulation runs (e.g. 'projectile', 'coin_drop_or_transaction', 'doppelganger').
     logicEventId: { type: String, required: true, trim: true },
     name: { type: String, default: '', trim: true },
     description: { type: String, default: '' },
@@ -19,23 +20,20 @@ const SkillDefinitionSchema = new Schema(
 );
 
 /**
- * Authoritative skill definition for a single trigger item. Owns the full skill record — logic
- * event keys plus the expanded metadata, including the summoned-entity item ids the simulation
+ * Authoritative skill definition for a single trigger item. Owns the full skill record: each skill
+ * with its id, its handler and its metadata, including the summoned-entity item ids the simulation
  * needs. The collection is deployment-wide: which of these an instance runs is derived from the
  * content that instance names, never stored on it. See cyberia-instance-items.js.
  */
 const CyberiaSkillSchema = new Schema(
   {
-    // ObjectLayer item id whose active layer fires these skills (e.g. 'coin',
+    // ObjectLayer item id that carries these skills (e.g. 'coin',
     // 'atlas_pistol_mk2'). One skill document per trigger item. The unique
     // index is declared via schema.index() below (not `unique: true` here) to
     // avoid a duplicate-index definition.
     triggerItemId: { type: String, required: true, trim: true },
 
-    // Compact list of handler keys — the discriminator the dispatcher matches.
-    logicEventIds: { type: [String], default: [] },
-
-    // Expanded per-logic-event metadata (name, description, summoned entity).
+    // The skills the trigger item carries, in their order.
     skills: { type: [SkillDefinitionSchema], default: [] },
   },
   { timestamps: true },

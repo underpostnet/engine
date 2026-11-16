@@ -32,6 +32,7 @@ import {
   collectInstanceItemIds,
   collectSummonedItemIds,
   isMaterialItemId,
+  skillConflicts,
   skillDefect,
 } from '../../../api/cyberia-instance/cyberia-instance-items.js';
 import { triggerHotReload } from '../runtime/hot-reload-trigger.js';
@@ -298,6 +299,7 @@ export async function validateContentRelease(models, { options, resolveCanonical
     const defect = skillDefect(skill);
     if (defect) fail(skillsCheck, `skill ${skill.triggerItemId || skill._id}: ${defect}`);
   }
+  for (const conflict of skillConflicts(skills)) fail(skillsCheck, conflict);
   checks.push(skillsCheck);
 
   // The runtime fetches the primary render of the atlas a bound definition points at
